@@ -41,7 +41,7 @@ export class ChatService {
         console.log('🤖 Pedindo ao Gemini para formular a resposta...');
 
         // 🛡️ MUDANÇA AQUI: Usando o modelo universal mais estável do Google
-        const chatModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const chatModel = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
 
         const prompt = `Você é o CogniVault, um assistente corporativo inteligente.
     Responda à pergunta do usuário baseando-se ÚNICA E EXCLUSIVAMENTE nos trechos de documentos abaixo.
