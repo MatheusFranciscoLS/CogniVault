@@ -1,79 +1,162 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import 'dotenv/config';
+import { GoogleGenAI } from '@google/genai';
 import { prisma } from '../config/prisma';
 import crypto from 'crypto';
 import { PDFParse } from 'pdf-parse';
 
 const apiKey = process.env.GEMINI_API_KEY;
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+
+if (!apiKey) {
+    throw new Error(
+        '❌ GEMINI_API_KEY não encontrada nas variáveis de ambiente.'
+    );
+}
+
+const ai = new GoogleGenAI({
+    apiKey,
+});
 
 export class AIService {
-    static async processDocument(documentId: string, tenantId: string) {
-        if (!genAI) throw new Error('GEMINI_API_KEY ausente no sistema.');
+    static async processDocument(
+        documentId: string,
+        tenantId: string
+    ) {
+        console.log(
+            `🧠 Iniciando IA para o documento: ${documentId}`
+        );
 
-        console.log(`🧠 Iniciando IA para o documento: ${documentId}`);
+        const document =
+            await prisma.document.findUnique({
+                where: {
+                    id: documentId,
+                },
+            });
 
-        const document = await prisma.document.findUnique({
-            where: { id: documentId }
-        });
-
-        if (!document || !document.url) {
-            throw new Error('Documento ou URL não encontrados.');
+        if (!document) {
+            throw new Error(
+                'Documento não encontrado.'
+            );
         }
 
-        console.log('📄 Baixando PDF para leitura...');
+        if (!document.url) {
+            throw new Error(
+                'URL do documento não encontrada.'
+            );
+        }
 
-        const response = await fetch(document.url);
+        console.log(
+            '📄 Baixando PDF para leitura...'
+        );
+
+        const response =
+            await fetch(document.url);
 
         if (!response.ok) {
-            throw new Error(`Falha ao baixar PDF: ${response.status} ${response.statusText}`);
+            throw new Error(
+                `Falha ao baixar PDF: ${response.status} ${response.statusText}`
+            );
         }
 
-        const buffer = Buffer.from(await response.arrayBuffer());
+        const buffer = Buffer.from(
+            await response.arrayBuffer()
+        );
 
-        console.log('📝 Extraindo texto e dividindo em blocos...');
+        console.log(
+            '📝 Extraindo texto e dividindo em blocos...'
+        );
 
-        const parser = new PDFParse({ data: buffer });
+        const parser = new PDFParse({
+            data: buffer,
+        });
+
         let text = '';
 
         try {
-            const pdfData = await parser.getText();
+            const pdfData =
+                await parser.getText();
+
             text = pdfData.text;
         } finally {
             await parser.destroy();
         }
 
         if (!text.trim()) {
-            throw new Error('Não foi possível extrair texto do PDF.');
+            throw new Error(
+                'Não foi possível extrair texto do PDF.'
+            );
         }
 
-        console.log(`📖 Texto extraído: ${text.length} caracteres`);
+        console.log(
+            `📖 Texto extraído: ${text.length} caracteres`
+        );
 
-        const chunks = this.splitText(text, 1000);
-        console.log(`✂️ PDF dividido em ${chunks.length} pedaços.`);
+        const chunks =
+            this.splitText(text, 1000);
 
-        const model = genAI.getGenerativeModel({
-            model: 'gemini-embedding-001'
-        });
+        console.log(
+            `✂️ PDF dividido em ${chunks.length} pedaços.`
+        );
 
-        for (const chunk of chunks) {
-            if (chunk.trim().length === 0) continue;
+        for (
+            let i = 0;
+            i < chunks.length;
+            i++
+        ) {
+            const chunk = chunks[i];
 
-            console.log(`🧠 Gerando embedding do bloco...`);
-
-            const result = await model.embedContent(chunk);
-            let embedding = result.embedding.values;
-
-            // 🛡️ O SEGREDO DO MRL (Matryoshka):
-            // Reduzimos o vetor de 3072 para 768 dimensões preservando 100% da inteligência!
-            if (embedding.length > 768) {
-                embedding = embedding.slice(0, 768);
+            if (!chunk.trim()) {
+                continue;
             }
 
-            const embeddingString = `[${embedding.join(',')}]`;
-            const chunkId = crypto.randomUUID();
+            console.log(
+                `🧠 Gerando embedding do bloco ${i + 1}/${chunks.length}...`
+            );
+
+            const result =
+                await ai.models.embedContent({
+                    model:
+                        'gemini-embedding-001',
+
+                    contents: chunk,
+
+                    config: {
+                        outputDimensionality: 768,
+                        taskType:
+                            'RETRIEVAL_DOCUMENT',
+                    },
+                });
+
+            const embedding =
+                result.embeddings?.[0]?.values;
+
+            if (
+                !embedding ||
+                embedding.length !== 768
+            ) {
+                throw new Error(
+                    `Embedding inválido. Dimensões recebidas: ${embedding?.length ?? 0
+                    }`
+                );
+            }
+
+            console.log(
+                `✅ Embedding gerado com ${embedding.length} dimensões.`
+            );
+
+            const embeddingString =
+                `[${embedding.join(',')}]`;
+
+            const chunkId =
+                crypto.randomUUID();
 
             await prisma.$executeRaw`
-                INSERT INTO "DocumentChunk" ("id", "documentId", "content", "embedding")
+                INSERT INTO "DocumentChunk"
+                (
+                    "id",
+                    "documentId",
+                    "content",
+                    "embedding"
+                )
                 VALUES (
                     ${chunkId},
                     ${documentId},
@@ -81,28 +164,56 @@ export class AIService {
                     ${embeddingString}::vector
                 )
             `;
+
+            console.log(
+                `💾 Bloco ${i + 1} salvo no PostgreSQL.`
+            );
         }
 
-        console.log(`🚀 Vetorização concluída! O banco agora tem a "memória" desse PDF.`);
+        console.log(
+            `🚀 Vetorização concluída com sucesso para o documento ${documentId}.`
+        );
     }
 
-    private static splitText(text: string, maxLength: number): string[] {
-        const words = text.split(/\s+/);
+    private static splitText(
+        text: string,
+        maxLength: number
+    ): string[] {
+        const words =
+            text.split(/\s+/);
+
         const chunks: string[] = [];
+
         let currentChunk = '';
 
         for (const word of words) {
-            if (currentChunk.length + word.length > maxLength) {
-                chunks.push(currentChunk.trim());
+            const nextLength =
+                currentChunk.length +
+                word.length +
+                1;
+
+            if (
+                nextLength > maxLength &&
+                currentChunk.trim()
+            ) {
+                chunks.push(
+                    currentChunk.trim()
+                );
+
                 currentChunk = '';
             }
-            currentChunk += word + ' ';
+
+            currentChunk +=
+                `${word} `;
         }
 
-        if (currentChunk.trim().length > 0) {
-            chunks.push(currentChunk.trim());
+        if (currentChunk.trim()) {
+            chunks.push(
+                currentChunk.trim()
+            );
         }
 
         return chunks;
     }
 }
+
