@@ -1,0 +1,27 @@
+# Environment variables (Protege suas chaves secretas e senhas do banco)
+.env
+**/.env
+.env.*
+
+# Dependencies (Pastas de pacotes pesadas que devem ser geradas via npm install)
+node_modules/
+**/node_modules/
+
+# Build outputs (Arquivos gerados quando o Frontend é compilado para produção)
+dist/
+**/dist/
+.vite/
+**/.vite/
+
+# Logs (Arquivos de erros e logs gerados pelo Node.js e gerenciadores de pacotes)
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS and Editor files (Lixo gerado pelo Windows, macOS e editores como VS Code)
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
