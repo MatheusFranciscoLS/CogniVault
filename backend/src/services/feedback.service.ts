@@ -1,14 +1,7 @@
-import { GoogleGenAI } from '@google/genai';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
+import { getGeminiClient } from '../config/gemini';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
-
-const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) {
-    throw new Error('❌ GEMINI_API_KEY não encontrada nas variáveis de ambiente.');
-}
-
-const ai = new GoogleGenAI({ apiKey });
 
 export class FeedbackService {
     static async register(params: {
@@ -39,6 +32,7 @@ export class FeedbackService {
             if (!correctedPart) throw new Error('A peça correta selecionada não pertence a esta empresa.');
         }
 
+        const ai = await getGeminiClient();
         const embeddingResult = await ai.models.embedContent({
             model: 'gemini-embedding-001',
             contents: query,
