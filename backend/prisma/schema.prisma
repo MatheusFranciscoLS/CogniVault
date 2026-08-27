@@ -8,14 +8,16 @@ datasource db {
 }
 
 model Tenant {
-  id         String     @id @default(uuid())
-  name       String
-  users      User[]
-  categories Category[]
-  documents  Document[]
+  id             String           @id @default(uuid())
+  name           String
+  users          User[]
+  categories     Category[]
+  documents      Document[]
   searchFeedback SearchFeedback[]
-  auditLogs  AuditLog[]
-  createdAt  DateTime   @default(now())
+  searchHistory  SearchHistory[]
+  favorites      Favorite[]
+  auditLogs      AuditLog[]
+  createdAt      DateTime         @default(now())
 }
 
 enum Role {
@@ -30,16 +32,18 @@ enum UserStatus {
 }
 
 model User {
-  id        String     @id @default(uuid())
-  email     String     @unique
-  password  String
-  role      Role       @default(MECHANIC)
-  status    UserStatus @default(PENDING)
-  tenantId  String
-  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  id             String           @id @default(uuid())
+  email          String           @unique
+  password       String
+  role           Role             @default(MECHANIC)
+  status         UserStatus       @default(PENDING)
+  tenantId       String
+  tenant         Tenant           @relation(fields: [tenantId], references: [id])
   searchFeedback SearchFeedback[]
-  auditLogs  AuditLog[]
-  createdAt DateTime   @default(now())
+  searchHistory  SearchHistory[]
+  favorites      Favorite[]
+  auditLogs      AuditLog[]
+  createdAt      DateTime         @default(now())
 }
 
 model Category {
@@ -72,6 +76,7 @@ model Document {
 
   chunks       DocumentChunk[]
   parts        Part[]
+  favorites    Favorite[]      @relation("FavoriteDocument")
 
   archivedAt   DateTime?
   archivedById String?
@@ -93,36 +98,38 @@ model DocumentChunk {
 }
 
 model Part {
-  id                 String   @id @default(uuid())
-  documentId         String
-  document           Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  id                     String             @id @default(uuid())
+  documentId             String
+  document               Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
-  manufacturer       String?
+  manufacturer           String?
   normalizedManufacturer String?
 
-  model              String
-  normalizedModel    String
+  model                   String
+  normalizedModel         String
 
-  pnc                String?
-  normalizedPnc      String?
-  universalAcrossPnc Boolean  @default(false)
+  pnc                     String?
+  normalizedPnc           String?
+  universalAcrossPnc      Boolean            @default(false)
 
-  section            String?
-  position           String?
-  name               String
-  normalizedName     String
-  alternativeNames   String[] @default([])
+  section                 String?
+  position                String?
+  name                    String
+  normalizedName          String
+  alternativeNames        String[]           @default([])
 
-  partNumber         String
-  page               Int?
-  notes              String?
-  searchText         String
-  embedding          Unsupported("vector(768)")?
+  partNumber              String
+  page                    Int?
+  notes                   String?
+  searchText              String
+  embedding               Unsupported("vector(768)")?
 
-  feedbackResults    SearchFeedback[] @relation("FeedbackResultPart")
-  feedbackCorrections SearchFeedback[] @relation("FeedbackCorrectedPart")
+  feedbackResults         SearchFeedback[]   @relation("FeedbackResultPart")
+  feedbackCorrections     SearchFeedback[]   @relation("FeedbackCorrectedPart")
+  historyResults          SearchHistory[]    @relation("HistoryResultPart")
+  favorites               Favorite[]         @relation("FavoritePart")
 
-  createdAt          DateTime @default(now())
+  createdAt               DateTime           @default(now())
 
   @@index([documentId])
   @@index([normalizedModel])
@@ -149,6 +156,7 @@ model SearchFeedback {
   resultPart         Part     @relation("FeedbackResultPart", fields: [resultPartId], references: [id], onDelete: Cascade)
 
   correct            Boolean
+  reason             String?
   correctedPartId    String?
   correctedPart      Part?    @relation("FeedbackCorrectedPart", fields: [correctedPartId], references: [id], onDelete: SetNull)
 
@@ -159,6 +167,57 @@ model SearchFeedback {
   @@index([tenantId, normalizedModel, normalizedPnc])
   @@index([resultPartId])
   @@index([correctedPartId])
+}
+
+model SearchHistory {
+  id             String   @id @default(uuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  query          String
+  pnc            String?
+  status         String
+
+  resultPartId   String?
+  resultPart     Part?    @relation("HistoryResultPart", fields: [resultPartId], references: [id], onDelete: SetNull)
+  resultLabel    String?
+  resultCode     String?
+  resultModel    String?
+  resultPnc      String?
+  sourceFilename String?
+
+  createdAt      DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([userId, createdAt])
+  @@index([resultPartId])
+}
+
+model Favorite {
+  id         String    @id @default(uuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind       String
+  label      String
+  reference  String?
+  model      String?
+  pnc        String?
+
+  partId     String?
+  part       Part?     @relation("FavoritePart", fields: [partId], references: [id], onDelete: SetNull)
+  documentId String?
+  document   Document? @relation("FavoriteDocument", fields: [documentId], references: [id], onDelete: SetNull)
+
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, partId])
+  @@unique([userId, documentId])
+  @@index([tenantId, userId, createdAt])
 }
 
 model AuditLog {

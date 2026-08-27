@@ -19,53 +19,34 @@ export class FeedbackService {
         correct: boolean;
         correctedPartId?: string;
         pnc?: string;
+        reason?: string;
     }) {
-        const { tenantId, userId, query, resultPartId, correct, correctedPartId, pnc } = params;
+        const { tenantId, userId, query, resultPartId, correct, correctedPartId, pnc, reason } = params;
 
         const resultPart = await prisma.part.findFirst({
-            where: {
-                id: resultPartId,
-                document: { tenantId, archivedAt: null },
-            },
-            include: {
-                document: { select: { filename: true } },
-            },
+            where: { id: resultPartId, document: { tenantId, archivedAt: null } },
+            include: { document: { select: { filename: true } } },
         });
 
-        if (!resultPart) {
-            throw new Error('A peça avaliada não pertence a esta empresa.');
-        }
+        if (!resultPart) throw new Error('A peça avaliada não pertence a esta empresa.');
 
         let correctedPart = null;
         if (correctedPartId) {
             correctedPart = await prisma.part.findFirst({
-                where: {
-                    id: correctedPartId,
-                    document: { tenantId, archivedAt: null },
-                },
-                include: {
-                    document: { select: { filename: true } },
-                },
+                where: { id: correctedPartId, document: { tenantId, archivedAt: null } },
+                include: { document: { select: { filename: true } } },
             });
-
-            if (!correctedPart) {
-                throw new Error('A peça correta selecionada não pertence a esta empresa.');
-            }
+            if (!correctedPart) throw new Error('A peça correta selecionada não pertence a esta empresa.');
         }
 
         const embeddingResult = await ai.models.embedContent({
             model: 'gemini-embedding-001',
             contents: query,
-            config: {
-                outputDimensionality: 768,
-                taskType: 'RETRIEVAL_QUERY',
-            },
+            config: { outputDimensionality: 768, taskType: 'RETRIEVAL_QUERY' },
         });
 
         const embedding = embeddingResult.embeddings?.[0]?.values;
-        if (!embedding || embedding.length !== 768) {
-            throw new Error('Falha ao gerar embedding do feedback.');
-        }
+        if (!embedding || embedding.length !== 768) throw new Error('Falha ao gerar embedding do feedback.');
 
         const effectiveModel = correctedPart?.model || resultPart.model;
         const effectiveNormalizedModel = correctedPart?.normalizedModel || resultPart.normalizedModel;
@@ -83,6 +64,7 @@ export class FeedbackService {
                 normalizedPnc: normalizeIdentifier(effectivePnc),
                 resultPartId,
                 correct,
+                reason,
                 correctedPartId: correctedPart?.id,
             },
         });
