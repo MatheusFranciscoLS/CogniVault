@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import { api, fmtDate, json } from '../lib';
 import type { AdminUser, AuditLog, Overview, Role } from '../types';
 

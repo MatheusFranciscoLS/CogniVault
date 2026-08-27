@@ -1,4 +1,5 @@
-import { FormEvent, useState } from 'react';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 import { api, json } from '../lib';
 import type { ChatResponse, FeedbackOption } from '../types';
 
