@@ -11,13 +11,15 @@ interface ChatMessage {
   text: string;
 }
 
+const apiUrl = import.meta.env.VITE_API_URL || '';
+
 function App() {
   const tenantId = 'e19cf030-b744-4910-94f0-4e25b38a71a0';
 
   const [document, setDocument] = useState<Document | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState('');
-  const [pdfUrl, setPdfUrl] = useState(''); // Novo estado para guardar o link do PDF
+  const [pdfUrl, setPdfUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isAsking, setIsAsking] = useState(false);
 
@@ -28,7 +30,8 @@ function App() {
 
     setIsUploading(true);
     try {
-      const response = await fetch('/api/upload', {
+      // Correção aplicada aqui: uso de crases (backticks)
+      const response = await fetch(`${apiUrl}/api/upload`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -64,7 +67,8 @@ function App() {
     setIsAsking(true);
 
     try {
-      const response = await fetch('/api/chat', {
+      // Correção aplicada aqui também
+      const response = await fetch(`${apiUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
