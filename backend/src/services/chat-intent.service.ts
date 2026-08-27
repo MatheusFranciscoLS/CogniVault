@@ -1,8 +1,4 @@
-import { GoogleGenAI, Type } from '@google/genai';
-
-const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) throw new Error('GEMINI_API_KEY não definida.');
-const ai = new GoogleGenAI({ apiKey });
+import { getGeminiClient, getGeminiType } from '../config/gemini';
 
 export interface SearchIntent {
   manufacturer: string;
@@ -26,6 +22,7 @@ export interface CandidateForAi {
 
 export class ChatIntentService {
   static async parse(question: string): Promise<SearchIntent> {
+    const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: `Interprete uma consulta de balcão de peças. Extraia somente o que foi informado ou claramente implícito. Não invente modelo, PNC ou código.\n\nConsulta: ${question}`,
@@ -67,6 +64,7 @@ export class ChatIntentService {
   static async choose(question: string, candidates: CandidateForAi[]): Promise<{ id: string | null; confidence: number; ambiguous: boolean }> {
     if (candidates.length === 1) return { id: candidates[0].id, confidence: 0.99, ambiguous: false };
 
+    const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: `Você está escolhendo uma peça entre candidatos JÁ ENCONTRADOS no banco.\nNunca crie IDs. Nunca escolha apenas por modelo parecido. Diferencie peça completa, kit, junta, parafuso, suporte etc.\nSe houver duas opções plausíveis, marque ambiguous=true.\n\nPergunta: ${question}\n\nCandidatos:\n${candidates.map(c => JSON.stringify(c)).join('\n')}`,
