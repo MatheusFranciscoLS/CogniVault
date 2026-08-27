@@ -29,6 +29,8 @@ jobs:
       - run: npx prisma validate
       - run: npx prisma generate
       - run: npm run build
+      - name: Smoke-test compiled Gemini loader
+        run: node -e "require('./dist/config/gemini.js').getGeminiClient().then(() => console.log('Gemini ESM loader OK'))"
 
   frontend:
     runs-on: ubuntu-latest
