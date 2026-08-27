@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import Shell from '../components/Shell';
 import ChatPanel from '../components/ChatPanel';
 import CatalogsPanel from '../components/CatalogsPanel';
-import { AuditPanel, FeedbackPanel, OverviewPanel, UsersPanel } from '../components/AdminPanels';
+import { AuditPanel, OverviewPanel, UsersPanel } from '../components/AdminPanels';
+import AdminFeedbackPanel from '../components/AdminFeedbackPanel';
 import { FavoritesPanel, HistoryPanel, HomePanel, PartsPanel } from '../components/OperationalPanels';
 import { api, clearSession, getToken, json } from '../lib';
 import type { Section, SessionUser } from '../types';
@@ -31,7 +32,7 @@ export default function Dashboard(){
    {section==='history'&&<HistoryPanel onSearch={search}/>} 
    {section==='favorites'&&<FavoritesPanel onSearch={search}/>} 
    {section==='users'&&user.role==='ADMIN'&&<UsersPanel/>}
-   {section==='feedback'&&user.role==='ADMIN'&&<FeedbackPanel/>}
+   {section==='feedback'&&user.role==='ADMIN'&&<AdminFeedbackPanel/>}
    {section==='audit'&&user.role==='ADMIN'&&<AuditPanel/>}
  </Shell>;
 }
