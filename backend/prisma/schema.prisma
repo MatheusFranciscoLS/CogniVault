@@ -56,19 +56,25 @@ model Category {
 
 // 4. O Catálogo Físico
 model Document {
-  id         String          @id @default(uuid())
-  filename   String
-  url        String          // Caminho físico no servidor (uploads/...)
-  status     String          @default("PROCESSING")
-  tenantId   String
-  tenant     Tenant          @relation(fields: [tenantId], references: [id])
-  
-  // Opcional: Quando o PDF sobe, ele não tem categoria. A IA preenche isso depois!
-  categoryId String?         
-  category   Category?       @relation(fields: [categoryId], references: [id])
-  
-  chunks     DocumentChunk[]
-  createdAt  DateTime        @default(now())
+  id           String          @id @default(uuid())
+  filename     String
+  url          String
+  status       String          @default("PROCESSING")
+
+  manufacturer String?
+  model        String?
+
+  tenantId     String
+  tenant       Tenant          @relation(fields: [tenantId], references: [id])
+
+  categoryId   String?
+  category     Category?       @relation(fields: [categoryId], references: [id])
+
+  chunks       DocumentChunk[]
+
+  createdAt    DateTime        @default(now())
+
+  @@index([tenantId, model])
 }
 
 // 5. A Memória Vetorial da IA (pgvector)
