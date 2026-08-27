@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { prisma } from '../config/prisma';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { ChatService } from '../services/chat.service';
 
@@ -22,18 +23,30 @@ export class ChatController {
                 return;
             }
 
-            const result = await ChatService.askQuestion(
-                req.user.tenantId,
-                question.trim(),
-                typeof pnc === 'string' ? pnc.trim() : undefined,
-            );
+            const cleanQuestion = question.trim();
+            const cleanPnc = typeof pnc === 'string' ? pnc.trim() : undefined;
+            const result = await ChatService.askQuestion(req.user.tenantId, cleanQuestion, cleanPnc);
+
+            await prisma.searchHistory.create({
+                data: {
+                    tenantId: req.user.tenantId,
+                    userId: req.user.id,
+                    query: cleanQuestion,
+                    pnc: cleanPnc || undefined,
+                    status: result.status,
+                    resultPartId: result.part?.id,
+                    resultLabel: result.part?.name,
+                    resultCode: result.part?.partNumber,
+                    resultModel: result.part?.model,
+                    resultPnc: result.part?.pnc,
+                    sourceFilename: result.part?.filename,
+                },
+            });
 
             res.status(200).json(result);
         } catch (error) {
             console.error('❌ Erro no Chat:', error);
-            res.status(500).json({
-                error: 'Erro interno ao processar a pergunta.',
-            });
+            res.status(500).json({ error: 'Erro interno ao processar a pergunta.' });
         }
     }
 }
