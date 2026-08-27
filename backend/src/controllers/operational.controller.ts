@@ -37,6 +37,21 @@ export class OperationalController {
         const normalized = normalizeText(q);
         const identifier = normalizeIdentifier(q);
         const tenantId = req.user.tenantId;
+        const compactPattern = identifier && identifier.length >= 4 ? `%${identifier.toLowerCase()}%` : null;
+
+        const compactCodeMatches = compactPattern
+            ? await prisma.$queryRaw<Array<{ id: string }>>`
+                SELECT p."id"
+                FROM "Part" p
+                INNER JOIN "Document" d ON d."id" = p."documentId"
+                WHERE d."tenantId" = ${tenantId}
+                  AND d."archivedAt" IS NULL
+                  AND d."status" = 'COMPLETED'
+                  AND regexp_replace(lower(p."partNumber"), '[^a-z0-9]', '', 'g') LIKE ${compactPattern}
+                LIMIT 40
+            `
+            : [];
+        const compactCodeIds = compactCodeMatches.map((item) => item.id);
 
         const [parts, documents] = await Promise.all([
             prisma.part.findMany({
@@ -46,6 +61,7 @@ export class OperationalController {
                         { partNumber: { contains: q, mode: 'insensitive' } },
                         { normalizedName: { contains: normalized } },
                         ...(identifier ? [{ normalizedModel: { contains: identifier } }, { normalizedPnc: { contains: identifier } }] : []),
+                        ...(compactCodeIds.length ? [{ id: { in: compactCodeIds } }] : []),
                     ],
                 },
                 orderBy: [{ model: 'asc' }, { name: 'asc' }],
