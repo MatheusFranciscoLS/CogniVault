@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { prisma } from '../config/prisma';
 
 const JWT_SECRET: string = process.env.JWT_SECRET || (() => {
     throw new Error('JWT_SECRET não definida no .env');
@@ -9,10 +10,17 @@ export interface AuthenticatedUser {
     id: string;
     role: 'ADMIN' | 'MECHANIC';
     tenantId: string;
+    email?: string;
 }
 
 export interface AuthenticatedRequest extends Request {
     user?: AuthenticatedUser;
+    file?: {
+        originalname: string;
+        path: string;
+        mimetype: string;
+        size?: number;
+    };
 }
 
 interface JwtPayload {
@@ -21,99 +29,90 @@ interface JwtPayload {
     tenantId: string;
 }
 
-export function authMiddleware(
+export async function authMiddleware(
     req: AuthenticatedRequest,
     res: Response,
-    next: NextFunction
-): void {
+    next: NextFunction,
+): Promise<void> {
     try {
-        // =========================================================
-        // 1. PEGA O HEADER
-        // =========================================================
-
         const authHeader = req.headers.authorization;
-
         if (!authHeader) {
-            res.status(401).json({
-                error: 'Token de autenticação não informado.'
-            });
+            res.status(401).json({ error: 'Token de autenticação não informado.' });
             return;
         }
-
-        // =========================================================
-        // 2. SEPARA "Bearer TOKEN"
-        // =========================================================
 
         const parts = authHeader.split(' ');
-
         if (parts.length !== 2 || parts[0] !== 'Bearer') {
-            res.status(401).json({
-                error: 'Formato do token inválido. Use: Bearer TOKEN'
-            });
+            res.status(401).json({ error: 'Formato do token inválido. Use: Bearer TOKEN' });
             return;
         }
 
-        const token = parts[1];
-
-        // =========================================================
-        // 3. VALIDA O TOKEN
-        // =========================================================
-
-        const decoded = jwt.verify(
-            token,
-            JWT_SECRET
-        );
-
-        // =========================================================
-        // 4. GARANTE QUE O PAYLOAD É UM OBJETO
-        // =========================================================
-
+        const decoded = jwt.verify(parts[1], JWT_SECRET);
         if (typeof decoded !== 'object' || decoded === null) {
-            res.status(401).json({
-                error: 'Token inválido.'
-            });
+            res.status(401).json({ error: 'Token inválido.' });
             return;
         }
-
-        // =========================================================
-        // 5. VALIDA OS CAMPOS DO JWT
-        // =========================================================
 
         if (
             typeof decoded.id !== 'string' ||
             typeof decoded.tenantId !== 'string' ||
-            (decoded.role !== 'ADMIN' &&
-                decoded.role !== 'MECHANIC')
+            (decoded.role !== 'ADMIN' && decoded.role !== 'MECHANIC')
         ) {
-            res.status(401).json({
-                error: 'Token possui dados inválidos.'
-            });
+            res.status(401).json({ error: 'Token possui dados inválidos.' });
             return;
         }
 
-        // =========================================================
-        // 6. TRANSFORMA O PAYLOAD NO USUÁRIO AUTENTICADO
-        // =========================================================
+        const payload = decoded as JwtPayload;
 
-        const user: JwtPayload = {
-            id: decoded.id,
-            tenantId: decoded.tenantId,
-            role: decoded.role
+        const currentUser = await prisma.user.findUnique({
+            where: { id: payload.id },
+            select: {
+                id: true,
+                email: true,
+                tenantId: true,
+                role: true,
+                status: true,
+            },
+        });
+
+        if (!currentUser || currentUser.tenantId !== payload.tenantId) {
+            res.status(401).json({ error: 'Usuário não encontrado ou sessão inválida.' });
+            return;
+        }
+
+        if (currentUser.status !== 'APPROVED') {
+            res.status(403).json({ error: 'Sua conta não está ativa.' });
+            return;
+        }
+
+        req.user = {
+            id: currentUser.id,
+            email: currentUser.email,
+            tenantId: currentUser.tenantId,
+            role: currentUser.role,
         };
 
-        req.user = user;
-
-        // =========================================================
-        // 7. CONTINUA PARA O CONTROLLER
-        // =========================================================
-
         next();
-
     } catch (error) {
         console.error('❌ Erro de autenticação:', error);
-
-        res.status(401).json({
-            error: 'Token inválido ou expirado.'
-        });
+        res.status(401).json({ error: 'Token inválido ou expirado.' });
     }
+}
+
+export function adminOnly(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+): void {
+    if (!req.user) {
+        res.status(401).json({ error: 'Usuário não autenticado.' });
+        return;
+    }
+
+    if (req.user.role !== 'ADMIN') {
+        res.status(403).json({ error: 'Esta ação é permitida somente para administradores.' });
+        return;
+    }
+
+    next();
 }

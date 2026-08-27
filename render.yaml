@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: cognivault-api
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: cd backend && npm ci && npx prisma generate && npx prisma migrate deploy && npm run build
+    startCommand: cd backend && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: RABBITMQ_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: STORAGE_BUCKET
+        value: catalogos
+      - key: CORS_ORIGINS
+        value: http://localhost:5173
+      - key: PART_SEARCH_MAX_DISTANCE
+        value: "0.65"
+      - key: PART_SEARCH_MIN_CONFIDENCE
+        value: "0.72"
+      - key: FEEDBACK_MAX_DISTANCE
+        value: "0.28"

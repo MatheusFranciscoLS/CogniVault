@@ -1,0 +1,9 @@
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules/
+backend/dist/
+frontend/dist/
+backend/uploads/
+.vercel/
+.DS_Store

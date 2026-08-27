@@ -4,19 +4,36 @@ import routes from './routes';
 
 const app = express();
 
-// Middlewares essenciais
-app.use(cors());
-app.use(express.json());
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim().replace(/\/$/, ''))
+  .filter(Boolean);
 
-// Engata todas as rotas que criamos (como o /upload) no caminho /api
+app.use(cors({
+  origin(origin, callback) {
+    // Requests sem Origin (health checks, server-to-server) continuam permitidas.
+    if (!origin) return callback(null, true);
+
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    if (allowedOrigins.includes(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('Origem não permitida pelo CORS.'));
+  },
+  methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+app.use(express.json({ limit: '2mb' }));
+
 app.use('/api', routes);
 
-// Rota de saúde para checarmos facilmente pelo navegador se a API está de pé
-app.get('/health', (req, res) => {
-    res.json({
-        status: 'online',
-        message: 'CogniVault API está rodando perfeitamente!'
-    });
+app.get('/health', (_req, res) => {
+  res.json({
+    status: 'online',
+    message: 'CogniVault API está rodando perfeitamente!',
+  });
 });
 
 export default app;

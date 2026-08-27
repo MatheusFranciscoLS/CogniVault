@@ -1,627 +1,394 @@
 import { prisma } from '../config/prisma';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
+import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 
 const apiKey = process.env.GEMINI_API_KEY;
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
+const storageBucket = process.env.STORAGE_BUCKET || 'catalogos';
 
 if (!apiKey || !supabaseUrl || !supabaseKey) {
-    throw new Error(
-        '❌ Chaves de API (Gemini ou Supabase) não encontradas no .env'
-    );
+    throw new Error('❌ Chaves de API (Gemini ou Supabase) não encontradas no .env');
 }
 
-const ai = new GoogleGenAI({
-    apiKey
-});
+const ai = new GoogleGenAI({ apiKey });
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-const supabase = createClient(
-    supabaseUrl,
-    supabaseKey
-);
+interface ExtractedPart {
+    manufacturer: string;
+    model: string;
+    pnc: string;
+    universalAcrossPnc: boolean;
+    section: string;
+    position: string;
+    name: string;
+    alternativeNames: string[];
+    partNumber: string;
+    page: number;
+    notes: string;
+}
+
+interface CatalogExtraction {
+    manufacturer: string;
+    models: string[];
+    pncs: string[];
+    parts: ExtractedPart[];
+}
+
+function cleanString(value: unknown): string {
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+function isUniversalPnc(value: string): boolean {
+    const normalized = normalizeIdentifier(value);
+    return ['ALL', 'ANY', 'TODOS', 'QUALQUER', 'QUALQUERUM', 'UNIVERSAL'].includes(normalized);
+}
 
 export class AIService {
-
-    static async processDocument(
-        documentId: string,
-        tenantId: string
-    ): Promise<void> {
-
+    static async processDocument(documentId: string, tenantId: string): Promise<void> {
         let localFilePath: string | null = null;
         let uploadedFileName: string | null = null;
 
         try {
+            console.log(`\n🧠 Iniciando processamento do documento: ${documentId}`);
 
-            console.log(
-                `\n🧠 Iniciando processamento do documento: ${documentId}`
-            );
-
-            // =========================================================
-            // 1. BUSCAR DOCUMENTO
-            // =========================================================
-
-            const document =
-                await prisma.document.findUnique({
-                    where: {
-                        id: documentId
-                    }
-                });
+            const document = await prisma.document.findUnique({
+                where: { id: documentId },
+            });
 
             if (!document) {
-                throw new Error(
-                    'Documento não encontrado no banco de dados.'
-                );
+                throw new Error('Documento não encontrado no banco de dados.');
             }
-
-            // =========================================================
-            // 2. VALIDAR TENANT
-            // =========================================================
 
             if (document.tenantId !== tenantId) {
-                throw new Error(
-                    'Documento não pertence ao tenant informado.'
-                );
+                throw new Error('Documento não pertence ao tenant informado.');
             }
 
-            console.log(
-                `🔐 Documento pertence ao tenant correto: ${tenantId}`
-            );
-
-            // =========================================================
-            // 3. LOCALIZAR ARQUIVO TEMPORÁRIO
-            // =========================================================
-
-            if (!document.url) {
-                throw new Error(
-                    'Caminho do arquivo temporário não encontrado no documento.'
-                );
+            // No primeiro processamento, document.url aponta para o upload local.
+            // Em um reprocessamento esse arquivo já foi removido; nesse caso
+            // recuperamos o PDF original do bucket privado pelo storagePath.
+            if (document.url && !/^https?:\/\//i.test(document.url)) {
+                const candidate = path.resolve(document.url);
+                if (fs.existsSync(candidate)) {
+                    localFilePath = candidate;
+                }
             }
 
-            localFilePath =
-                path.resolve(document.url);
+            if (!localFilePath && document.storagePath) {
+                const { data, error } = await supabase.storage
+                    .from(storageBucket)
+                    .download(document.storagePath);
 
-            console.log(
-                `📁 Arquivo temporário: ${localFilePath}`
-            );
+                if (error || !data) {
+                    throw new Error(`Não foi possível recuperar o PDF original para reprocessamento: ${error?.message || 'arquivo indisponível'}`);
+                }
 
-            if (!fs.existsSync(localFilePath)) {
-                throw new Error(
-                    `Arquivo não encontrado no servidor: ${localFilePath}`
-                );
+                const reprocessDir = path.resolve('uploads');
+                fs.mkdirSync(reprocessDir, { recursive: true });
+                localFilePath = path.join(reprocessDir, `reprocess-${documentId}.pdf`);
+                const arrayBuffer = await data.arrayBuffer();
+                fs.writeFileSync(localFilePath, Buffer.from(arrayBuffer));
             }
 
-            // =========================================================
-            // 4. SALVAR PDF NO SUPABASE
-            // =========================================================
+            if (!localFilePath || !fs.existsSync(localFilePath)) {
+                throw new Error('PDF original não encontrado no servidor nem no Storage.');
+            }
 
-            console.log(
-                '☁️ Enviando PDF para o Supabase...'
-            );
+            // 1. Mantém o PDF original no Storage para biblioteca/visualização/download.
+            const fileBuffer = fs.readFileSync(localFilePath);
+            const storagePath = `${tenantId}/${documentId}.pdf`;
 
-            const fileBuffer =
-                fs.readFileSync(localFilePath);
-
-            const storagePath =
-                `${tenantId}/${documentId}.pdf`;
-
-            const {
-                error: uploadError
-            } = await supabase.storage
-                .from('catalogs')
-                .upload(
-                    storagePath,
-                    fileBuffer,
-                    {
-                        contentType:
-                            'application/pdf',
-
-                        upsert: true
-                    }
-                );
+            const { error: uploadError } = await supabase.storage
+                .from(storageBucket)
+                .upload(storagePath, fileBuffer, {
+                    contentType: 'application/pdf',
+                    upsert: true,
+                });
 
             if (uploadError) {
-                throw new Error(
-                    `Erro no Supabase: ${uploadError.message}`
-                );
+                throw new Error(`Erro no Supabase: ${uploadError.message}`);
             }
 
-            console.log(
-                '✅ PDF enviado para o Supabase.'
-            );
-
-            // =========================================================
-            // 5. GERAR URL DO PDF
-            // =========================================================
-
-            const {
-                data: publicUrlData
-            } = supabase.storage
-                .from('catalogs')
-                .getPublicUrl(
-                    storagePath
-                );
-
-            if (!publicUrlData?.publicUrl) {
-                throw new Error(
-                    'Não foi possível gerar a URL pública do PDF.'
-                );
-            }
-
+            // O bucket pode permanecer privado. O frontend acessa o PDF
+            // somente por signed URL gerada pelo backend.
             await prisma.document.update({
-                where: {
-                    id: documentId
-                },
+                where: { id: documentId },
                 data: {
-                    url:
-                        publicUrlData.publicUrl
-                }
+                    storagePath,
+                },
             });
 
-            console.log(
-                `🔗 URL do catálogo: ${publicUrlData.publicUrl}`
-            );
+            // 2. O mesmo PDF é enviado temporariamente ao Gemini para leitura multimodal.
+            const uploadedFile = await ai.files.upload({
+                file: localFilePath,
+                config: { mimeType: 'application/pdf' },
+            });
 
-            // =========================================================
-            // 6. ENVIAR PDF PARA GEMINI FILE API
-            // =========================================================
-
-            console.log(
-                '📤 Enviando PDF para Gemini...'
-            );
-
-            const uploadedFile =
-                await ai.files.upload({
-                    file: localFilePath,
-                    config: {
-                        mimeType:
-                            'application/pdf'
-                    }
-                });
-
-            uploadedFileName =
-                uploadedFile.name || null;
+            uploadedFileName = uploadedFile.name || null;
 
             if (!uploadedFile.uri) {
-                throw new Error(
-                    'Gemini não retornou URI do arquivo.'
-                );
+                throw new Error('Gemini não retornou URI do arquivo.');
             }
 
-            console.log(
-                `✅ PDF enviado para Gemini: ${uploadedFile.uri}`
-            );
-
-            console.log(
-                '👁️ Gemini analisando o catálogo...'
-            );
-
-            // =========================================================
-            // 7. PROMPT DE EXTRAÇÃO
-            // =========================================================
+            const metadataHints = [
+                document.manufacturer ? `Fabricante informado no upload: ${document.manufacturer}` : '',
+                document.model ? `Modelo informado no upload: ${document.model}` : '',
+                document.pnc ? `PNC informado no upload: ${document.pnc}` : '',
+            ].filter(Boolean).join('\n');
 
             const prompt = `
-Você é um especialista em interpretação de catálogos
-técnicos de peças mecânicas.
+Você é um especialista em catálogos técnicos de peças e vistas explodidas.
+Extraia os dados do PDF para uma base estruturada usada em uma loja de peças.
 
-Este PDF é um catálogo de peças e pode conter:
+${metadataHints ? `DADOS INFORMADOS PELO USUÁRIO (use como pista, mas não contradiga o PDF):\n${metadataHints}\n` : ''}
+REGRAS CRÍTICAS:
+- Analise as vistas explodidas e as tabelas correspondentes.
+- Relacione corretamente cada posição da vista ao Part Number da tabela.
+- Preserve o Part Number EXATAMENTE como aparece no catálogo. Nunca corrija, traduza ou complete código.
+- Não misture modelos parecidos (ex.: 143R, 143RS, 143RII).
+- Identifique o PNC/Product Number Code quando o catálogo informar essa variação.
+- Se a peça estiver explicitamente indicada como válida para todos os PNCs do modelo, marque universalAcrossPnc=true.
+- Não marque universalAcrossPnc=true apenas porque você acredita que a peça seja compatível. Isso precisa estar explícito no catálogo.
+- Uma peça repetida em posições diferentes deve gerar registros diferentes.
+- Nomes alternativos devem ser apenas nomes/descrições encontrados no próprio catálogo. Não invente traduções.
+- Se um dado não existir, retorne string vazia; para página desconhecida use 0.
+- Extraia todas as peças que conseguir identificar com segurança.
+- Para cada peça, informe o modelo e PNC específicos aplicáveis àquela linha. Se o documento tiver apenas um modelo/PNC, repita-o nas peças.
 
-- vistas explodidas
-- tabelas
-- diagramas
-- códigos de peças
-- diferentes modelos da mesma máquina
-- diferentes idiomas
-- abreviações
-- nomes técnicos diferentes para a mesma peça.
-
-Sua tarefa é transformar o catálogo em uma BASE DE DADOS
-ESTRUTURADA DE PEÇAS.
-
-==================================================
-OBJETIVO
-==================================================
-
-Para cada vista explodida encontrada:
-
-1. Identifique o modelo da máquina.
-2. Identifique a seção/sistema.
-3. Identifique cada posição numerada da vista.
-4. Relacione a posição da vista com a tabela correspondente.
-5. Encontre o nome da peça.
-6. Encontre o Part Number exato.
-7. Preserve exatamente o código encontrado no catálogo.
-8. Registre nomes alternativos encontrados no catálogo.
-9. Não invente nenhuma informação.
-
-==================================================
-IDIOMAS
-==================================================
-
-O PDF pode misturar idiomas.
-
-Uma peça pode aparecer como:
-
-Português:
-- escapamento
-- silenciador
-- parafuso
-
-Inglês:
-- muffler
-- silencer
-- screw
-- bolt
-
-Espanhol:
-- escape
-- silenciador
-- tornillo
-
-Alemão:
-- Schalldämpfer
-- Schraube
-
-Esses termos podem representar componentes relacionados,
-mas NÃO assuma que são sempre a mesma peça.
-
-Use a posição, seção, modelo e tabela para determinar
-a correspondência correta.
-
-==================================================
-IMPORTANTE SOBRE PARAFUSOS
-==================================================
-
-Uma máquina pode possuir dezenas de parafusos.
-
-NÃO agrupe todos os parafusos.
-
-Cada posição deve ser tratada como uma peça independente.
-
-Por exemplo:
-
-Posição 12
-Seção: Carburador
-Nome: Screw
-Part Number: ABC123
-
-Posição 31
-Seção: Escapamento
-Nome: Screw
-Part Number: XYZ789
-
-Essas são duas peças diferentes.
-
-==================================================
-MODELO
-==================================================
-
-O modelo da máquina é MUITO IMPORTANTE.
-
-Se a página pertence ao modelo:
-
-143RS
-
-registre:
-
-Modelo: 143RS
-
-Não misture peças de:
-
-143R
-143RS
-143RII
-
-etc.
-
-a menos que o próprio catálogo indique
-explicitamente que a peça é compartilhada.
-
-==================================================
-FORMATO OBRIGATÓRIO
-==================================================
-
-Retorne SOMENTE os registros das peças.
-
-Use exatamente este formato:
-
-[PECA]
-MODELO: ...
-SECAO: ...
-POSICAO: ...
-NOME: ...
-NOMES_ALTERNATIVOS: ...
-PART_NUMBER: ...
-PAGINA: ...
-
-[PECA]
-MODELO: ...
-SECAO: ...
-POSICAO: ...
-NOME: ...
-NOMES_ALTERNATIVOS: ...
-PART_NUMBER: ...
-PAGINA: ...
-
-==================================================
-REGRAS CRÍTICAS
-==================================================
-
-- Não invente Part Number.
-- Não corrija Part Number.
-- Não traduza Part Number.
-- Não altere letras ou números.
-- Não elimine zeros.
-- Não remova hífens.
-- Não misture peças de modelos diferentes.
-- Não misture seções diferentes.
-- Não agrupe posições diferentes.
-- Se não conseguir identificar uma informação,
-  deixe o campo vazio.
-- Extraia o máximo possível.
-- Analise todas as páginas do PDF.
+O campo manufacturer no nível do catálogo deve ser o fabricante principal.
+models deve listar os modelos encontrados no documento.
+pncs deve listar todos os PNCs explicitamente encontrados no documento.
 `;
 
-            // =========================================================
-            // 8. GEMINI LÊ O PDF
-            // =========================================================
-
-            const visionResponse =
-                await ai.models.generateContent({
-
-                    model:
-                        'gemini-2.5-flash',
-
-                    contents: [
-                        {
-                            role: 'user',
-
-                            parts: [
-                                {
-                                    fileData: {
-                                        fileUri:
-                                            uploadedFile.uri,
-
-                                        mimeType:
-                                            'application/pdf'
-                                    }
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: [
+                    {
+                        role: 'user',
+                        parts: [
+                            {
+                                fileData: {
+                                    fileUri: uploadedFile.uri,
+                                    mimeType: 'application/pdf',
                                 },
-
-                                {
-                                    text:
-                                        prompt
-                                }
-                            ]
-                        }
-                    ]
-                });
-
-            const text =
-                visionResponse.text;
-
-            if (!text?.trim()) {
-                throw new Error(
-                    'Gemini não conseguiu extrair informações do PDF.'
-                );
-            }
-
-            console.log(
-                `📖 Extração concluída: ${text.length} caracteres.`
-            );
-
-            // =========================================================
-            // 9. DIVIDIR POR PEÇA
-            // =========================================================
-
-            const chunks =
-                text
-                    .split('[PECA]')
-                    .map(
-                        chunk =>
-                            chunk.trim()
-                    )
-                    .filter(
-                        chunk =>
-                            chunk.length > 30
-                    );
-
-            if (chunks.length === 0) {
-                throw new Error(
-                    'Gemini não retornou nenhuma peça no formato esperado.'
-                );
-            }
-
-            console.log(
-                `🔪 ${chunks.length} peças encontradas.`
-            );
-
-            // =========================================================
-            // 10. APAGAR CHUNKS ANTIGOS
-            // =========================================================
-
-            await prisma.documentChunk.deleteMany({
-                where: {
-                    documentId
-                }
+                            },
+                            { text: prompt },
+                        ],
+                    },
+                ],
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            manufacturer: { type: Type.STRING },
+                            models: {
+                                type: Type.ARRAY,
+                                items: { type: Type.STRING },
+                            },
+                            pncs: {
+                                type: Type.ARRAY,
+                                items: { type: Type.STRING },
+                          },
+                            parts: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        manufacturer: { type: Type.STRING },
+                                        model: { type: Type.STRING },
+                                        pnc: { type: Type.STRING },
+                                      universalAcrossPnc: { type: Type.BOOLEAN },
+                                        section: { type: Type.STRING },
+                                        position: { type: Type.STRING },
+                                    name: { type: Type.STRING },
+                                        alternativeNames: {
+                                            type: Type.ARRAY,
+                                            items: { type: Type.STRING },
+                                        },
+                                      partNumber: { type: Type.STRING },
+                                        page: { type: Type.INTEGER },
+                                    notes: { type: Type.STRING },
+                                },
+                                    required: [
+                                        'manufacturer',
+                                      'model',
+                                    'pnc',
+                                      'universalAcrossPnc',
+                                      'section',
+                                        'position',
+                                    'name',
+                                        'alternativeNames',
+                                        'partNumber',
+                                        'page',
+                                        'notes',
+                                ],
+                                },
+                            },
+                        },
+                        required: ['manufacturer', 'models', 'pncs', 'parts'],
+                    },
+                },
             });
 
-            console.log(
-                '🧹 Chunks antigos removidos.'
-            );
+            if (!response.text?.trim()) {
+                throw new Error('Gemini não conseguiu extrair informações do PDF.');
+            }
 
-            // =========================================================
-            // 11. GERAR EMBEDDINGS
-            // =========================================================
+            let extraction: CatalogExtraction;
+
+            try {
+                extraction = JSON.parse(response.text) as CatalogExtraction;
+            } catch {
+                throw new Error('Gemini retornou JSON inválido durante a extração do catálogo.');
+            }
+
+            if (!Array.isArray(extraction.parts) || extraction.parts.length === 0) {
+                throw new Error('Nenhuma peça foi encontrada no catálogo.');
+            }
+
+            const extractedManufacturer = cleanString(extraction.manufacturer);
+            const models = Array.isArray(extraction.models)
+                ? extraction.models.map(cleanString).filter(Boolean)
+                : [];
+            const pncs = Array.isArray(extraction.pncs)
+                ? extraction.pncs.map(cleanString).filter(Boolean)
+                : [];
+
+            await prisma.document.update({
+                where: { id: documentId },
+                data: {
+                    manufacturer: document.manufacturer || extractedManufacturer || null,
+                    model: document.model || (models.length === 1 ? models[0] : null),
+                    pnc: document.pnc || (pncs.length === 1 ? pncs[0] : null),
+                },
+            });
+
+            // Reprocessamento é idempotente: substitui as peças antigas deste catálogo.
+            await prisma.part.deleteMany({ where: { documentId } });
+            await prisma.documentChunk.deleteMany({ where: { documentId } });
 
             let processed = 0;
 
-            for (const chunk of chunks) {
-
+            for (const rawPart of extraction.parts) {
                 try {
+                    const name = cleanString(rawPart.name);
+                    const partNumber = cleanString(rawPart.partNumber);
+                    const model = cleanString(rawPart.model) || document.model || (models.length === 1 ? models[0] : '');
 
-                    const embedResult =
-                        await ai.models.embedContent({
-
-                            model:
-                                'gemini-embedding-001',
-
-                            contents:
-                                chunk,
-
-                            config: {
-                                outputDimensionality:
-                                    768,
-
-                                taskType:
-                                    'RETRIEVAL_DOCUMENT'
-                            }
-                        });
-
-                    const embedding =
-                        embedResult
-                            .embeddings?.[0]
-                            ?.values;
-
-                    if (
-                        !embedding ||
-                        embedding.length !== 768
-                    ) {
-
-                        console.error(
-                            '⚠️ Embedding inválido. Pulando peça.'
-                        );
-
+                    // Sem nome, código ou modelo não existe base segura para vender a peça.
+                    if (!name || !partNumber || !model) {
                         continue;
                     }
 
-                    const embeddingString =
-                        `[${embedding.join(',')}]`;
+                    const manufacturer = cleanString(rawPart.manufacturer)
+                        || document.manufacturer
+                        || extractedManufacturer
+                        || '';
 
-                    // =================================================
-                    // 12. SALVAR CHUNK + EMBEDDING
-                    // =================================================
+                    let pnc = cleanString(rawPart.pnc) || document.pnc || '';
+                    const universalAcrossPnc = Boolean(rawPart.universalAcrossPnc) || isUniversalPnc(pnc);
 
+                    if (universalAcrossPnc) {
+                        pnc = '';
+                    }
+
+                    const section = cleanString(rawPart.section);
+                    const position = cleanString(rawPart.position);
+                    const aliases = Array.isArray(rawPart.alternativeNames)
+                        ? [...new Set(rawPart.alternativeNames.map(cleanString).filter(Boolean))]
+                        : [];
+                    const page = Number.isInteger(rawPart.page) && rawPart.page > 0 ? rawPart.page : null;
+                    const notes = cleanString(rawPart.notes);
+
+                    const searchText = [
+                        `Fabricante: ${manufacturer}`,
+                        `Modelo: ${model}`,
+                        pnc ? `PNC: ${pnc}` : '',
+                        section ? `Seção: ${section}` : '',
+                        position ? `Posição: ${position}` : '',
+                        `Peça: ${name}`,
+                        aliases.length ? `Nomes alternativos: ${aliases.join(', ')}` : '',
+                        `Part Number: ${partNumber}`,
+                        notes ? `Observações: ${notes}` : '',
+                    ].filter(Boolean).join('\n');
+
+                    const embedResult = await ai.models.embedContent({
+                        model: 'gemini-embedding-001',
+                        contents: searchText,
+                        config: {
+                            outputDimensionality: 768,
+                            taskType: 'RETRIEVAL_DOCUMENT',
+                            title: `${model} - ${name}`,
+                        },
+                    });
+
+                    const embedding = embedResult.embeddings?.[0]?.values;
+                    if (!embedding || embedding.length !== 768) {
+                        console.warn(`⚠️ Embedding inválido para ${model} / ${name}.`);
+                        continue;
+                    }
+
+                    const created = await prisma.part.create({
+                        data: {
+                            documentId,
+                            manufacturer: manufacturer || null,
+                            normalizedManufacturer: normalizeIdentifier(manufacturer) || null,
+                            model,
+                            normalizedModel: normalizeIdentifier(model),
+                            pnc: pnc || null,
+                            normalizedPnc: normalizeIdentifier(pnc) || null,
+                            universalAcrossPnc,
+                            section: section || null,
+                            position: position || null,
+                            name,
+                            normalizedName: normalizeText(name),
+                            alternativeNames: aliases,
+                            partNumber,
+                            page,
+                            notes: notes || null,
+                            searchText,
+                        },
+                    });
+
+                    const embeddingString = `[${embedding.join(',')}]`;
                     await prisma.$executeRaw`
-
-                        INSERT INTO "DocumentChunk"
-                        (
-                            "id",
-                            "documentId",
-                            "content",
-                            "embedding"
-                        )
-
-                        VALUES
-                        (
-                            gen_random_uuid(),
-                            ${documentId},
-                            ${chunk},
-                            ${embeddingString}::vector
-                        )
-
+                        UPDATE "Part"
+                        SET "embedding" = ${embeddingString}::vector
+                        WHERE "id" = ${created.id}
                     `;
 
                     processed++;
-
-                    console.log(
-                        `🔢 Peça ${processed}/${chunks.length} processada.`
-                    );
-
-                } catch (embeddingError) {
-
-                    console.error(
-                        '⚠️ Erro ao gerar embedding da peça:',
-                        embeddingError
-                    );
+                } catch (partError) {
+                    console.error('⚠️ Erro ao armazenar uma peça extraída:', partError);
                 }
             }
-
-            // =========================================================
-            // 13. GARANTIR QUE ALGUMA PEÇA FOI PROCESSADA
-            // =========================================================
 
             if (processed === 0) {
-                throw new Error(
-                    'Nenhuma peça conseguiu ser transformada em embedding.'
-                );
+                throw new Error('Nenhuma peça válida conseguiu ser armazenada.');
             }
 
-            console.log(
-                `📦 ${processed} peças armazenadas no banco.`
-            );
-
-            // =========================================================
-            // 14. FINALIZA
-            // =========================================================
-
-            console.log(
-                `\n🏆 CATÁLOGO ${documentId} PROCESSADO COM SUCESSO!`
-            );
-
+            console.log(`🏆 Catálogo ${documentId}: ${processed} peças estruturadas com sucesso.`);
         } catch (error) {
-
-            console.error(
-                '❌ Erro fatal no AIService:',
-                error
-            );
-
+            console.error('❌ Erro fatal no AIService:', error);
             throw error;
-
         } finally {
-
-            // =========================================================
-            // 15. APAGAR ARQUIVO TEMPORÁRIO DO SERVIDOR
-            // =========================================================
-
-            if (
-                localFilePath &&
-                fs.existsSync(localFilePath)
-            ) {
-
+            if (localFilePath && fs.existsSync(localFilePath)) {
                 try {
-
-                    fs.unlinkSync(
-                        localFilePath
-                    );
-
-                    console.log(
-                        '🗑️ Arquivo temporário do servidor removido.'
-                    );
-
+                    fs.unlinkSync(localFilePath);
                 } catch (error) {
-
-                    console.error(
-                        '⚠️ Não foi possível remover o arquivo temporário:',
-                        error
-                    );
+                    console.warn('⚠️ Não foi possível remover o arquivo temporário:', error);
                 }
             }
 
-            // =========================================================
-            // 16. APAGAR ARQUIVO TEMPORÁRIO DO GEMINI
-            // =========================================================
-
             if (uploadedFileName) {
-
                 try {
-
-                    await ai.files.delete({
-                        name:
-                            uploadedFileName
-                    });
-
-                    console.log(
-                        '🗑️ Arquivo temporário removido do Gemini.'
-                    );
-
+                    await ai.files.delete({ name: uploadedFileName });
                 } catch (error) {
-
-                    console.warn(
-                        '⚠️ Não foi possível remover arquivo temporário do Gemini:',
-                        error
-                    );
+                    console.warn('⚠️ Não foi possível remover arquivo temporário do Gemini:', error);
                 }
             }
         }
