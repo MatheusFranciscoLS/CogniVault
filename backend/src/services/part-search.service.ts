@@ -1,12 +1,9 @@
-import { GoogleGenAI } from '@google/genai';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
+import { getGeminiClient } from '../config/gemini';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import type { SearchIntent } from './chat-intent.service';
 
-const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) throw new Error('GEMINI_API_KEY não definida.');
-const ai = new GoogleGenAI({ apiKey });
 const MAX_DISTANCE = Number(process.env.PART_SEARCH_MAX_DISTANCE || '0.65');
 const FEEDBACK_DISTANCE = Number(process.env.FEEDBACK_MAX_DISTANCE || '0.28');
 
@@ -66,6 +63,7 @@ export class PartSearchService {
 
   static async semantic(tenantId: string, question: string, intent: SearchIntent): Promise<PartCandidate[]> {
     const queryText = [intent.partDescription || question, intent.section, intent.position].filter(Boolean).join(' | ');
+    const ai = await getGeminiClient();
     const embed = await ai.models.embedContent({
       model: 'gemini-embedding-001', contents: queryText,
       config: { outputDimensionality: 768, taskType: 'RETRIEVAL_QUERY' },

@@ -15,12 +15,6 @@ export interface AuthenticatedUser {
 
 export interface AuthenticatedRequest extends Request {
     user?: AuthenticatedUser;
-    file?: {
-        originalname: string;
-        path: string;
-        mimetype: string;
-        size?: number;
-    };
 }
 
 interface JwtPayload {

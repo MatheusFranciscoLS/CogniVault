@@ -1,20 +1,18 @@
 import { prisma } from '../config/prisma';
-import { GoogleGenAI, Type } from '@google/genai';
+import { getGeminiClient, getGeminiType } from '../config/gemini';
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 
-const apiKey = process.env.GEMINI_API_KEY;
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
 const storageBucket = process.env.STORAGE_BUCKET || 'catalogos';
 
-if (!apiKey || !supabaseUrl || !supabaseKey) {
-    throw new Error('❌ Chaves de API (Gemini ou Supabase) não encontradas no .env');
+if (!supabaseUrl || !supabaseKey) {
+    throw new Error('❌ Chaves do Supabase não encontradas no .env');
 }
 
-const ai = new GoogleGenAI({ apiKey });
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface ExtractedPart {
@@ -79,6 +77,7 @@ function storageCandidates(tenantId: string, documentId: string, storagePath?: s
 
 export class AIService {
     static async processDocument(documentId: string, tenantId: string): Promise<void> {
+        const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
         let localFilePath: string | null = null;
         let uploadedFileName: string | null = null;
 
