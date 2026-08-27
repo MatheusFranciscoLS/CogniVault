@@ -9,13 +9,28 @@ const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173')
   .map((origin) => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
 
+function isAllowedVercelOrigin(origin: string) {
+  try {
+    const url = new URL(origin);
+    return (
+      url.protocol === 'https:' &&
+      /^cognivault(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 app.use(cors({
   origin(origin, callback) {
     // Requests sem Origin (health checks, server-to-server) continuam permitidas.
     if (!origin) return callback(null, true);
 
     const normalizedOrigin = origin.replace(/\/$/, '');
-    if (allowedOrigins.includes(normalizedOrigin)) {
+    if (
+      allowedOrigins.includes(normalizedOrigin) ||
+      isAllowedVercelOrigin(normalizedOrigin)
+    ) {
       return callback(null, true);
     }
 
