@@ -1,6 +1,6 @@
 import { rabbitMQ } from './connection';
 import { prisma } from '../config/prisma';
-import { AIService } from '../services/ai.service';
+import { services } from '../services/ai.service';
 
 export class DocumentWorker {
     static async start(): Promise<void> {

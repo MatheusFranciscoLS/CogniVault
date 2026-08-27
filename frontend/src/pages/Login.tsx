@@ -8,11 +8,14 @@ export default function Login() {
     const navigate = useNavigate();
 
     const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
+        e.preventDefault(); // 👈 Isso IMPEDE a página de recarregar e apagar a senha!
         setError('');
 
+        // Forçamos a porta 3333 para evitar erros de comunicação no ambiente de testes
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3333';
+
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/login`, {
+            const response = await fetch(`${apiUrl}/api/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
@@ -21,11 +24,12 @@ export default function Login() {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Erro ao fazer login');
+                throw new Error(data.error || 'Erro ao fazer login. Verifique seus dados.');
             }
 
-            // Salva o crachá (token) no navegador
+            // 🚀 SUCESSO: Salva o crachá e o ID da empresa no navegador
             localStorage.setItem('cognivault_token', data.token);
+            localStorage.setItem('cognivault_tenant', data.user.tenantId);
 
             // Manda o usuário para a tela do sistema
             navigate('/dashboard');
@@ -35,15 +39,15 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
             <div className="max-w-md w-full bg-white rounded-2xl shadow-lg border border-slate-200 p-8">
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-extrabold text-indigo-600 mb-2">CogniVault</h1>
-                    <p className="text-slate-500">Acesso Restrito - Área do Mecânico</p>
+                    <p className="text-slate-500">Acesso Restrito - Área da Equipe</p>
                 </div>
 
                 {error && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg text-center">
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg text-center font-medium">
                         {error}
                     </div>
                 )}
@@ -80,10 +84,6 @@ export default function Login() {
                         Entrar no Sistema
                     </button>
                 </form>
-
-                <div className="mt-6 text-center text-sm text-slate-500">
-                    Não tem acesso? <a href="/register" className="text-indigo-600 font-semibold hover:underline">Solicite sua conta</a>
-                </div>
             </div>
         </div>
     );

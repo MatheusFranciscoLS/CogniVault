@@ -7,35 +7,38 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'super_chave_secreta_do_cognivault';
 
 export class AuthController {
-    // 1. REGISTRO DE USUÁRIO (Mecânico)
+    // 1. REGISTRO DA EMPRESA E DO ADMINISTRADOR
     async register(req: Request, res: Response): Promise<void> {
         try {
-            const { email, password, tenantId } = req.body;
+            const { email, password, tenantName } = req.body;
 
-            // Verifica se o usuário já existe
+            // Verifica se o e-mail já existe
             const existingUser = await prisma.user.findUnique({ where: { email } });
             if (existingUser) {
                 res.status(400).json({ error: 'E-mail já cadastrado.' });
                 return;
             }
 
-            // Criptografa a senha (ninguém salva senha em texto puro!)
             const hashedPassword = await bcrypt.hash(password, 10);
 
-            // Cria o usuário com status PENDING (travado por padrão)
+            // Cria a Empresa e o Usuário Admin ao mesmo tempo!
+            const tenant = await prisma.tenant.create({
+                data: { name: tenantName }
+            });
+
             const user = await prisma.user.create({
                 data: {
                     email,
                     password: hashedPassword,
-                    tenantId,
-                    role: 'MECHANIC', // Papel padrão
-                    status: 'PENDING' // Nasce bloqueado aguardando ADM
+                    tenantId: tenant.id,
+                    role: 'ADMIN',     // Você é o dono
+                    status: 'APPROVED' // Já nasce aprovado para poder logar
                 }
             });
 
             res.status(201).json({
-                message: 'Cadastro realizado com sucesso! Aguarde a aprovação do Administrador.',
-                user: { id: user.id, email: user.email, status: user.status }
+                message: 'Empresa criada com sucesso! Você já pode fazer login.',
+                user: { id: user.id, email: user.email, role: user.role }
             });
         } catch (error) {
             console.error(error);
@@ -79,10 +82,11 @@ export class AuthController {
                 { expiresIn: '8h' }
             );
 
+            // 🚀 AGORA ELE DEVOLVE O TENANT_ID PARA O FRONT-END USAR
             res.status(200).json({
                 message: 'Login realizado com sucesso!',
                 token,
-                user: { email: user.email, role: user.role }
+                user: { id: user.id, email: user.email, tenantId: user.tenantId }
             });
         } catch (error) {
             console.error(error);
