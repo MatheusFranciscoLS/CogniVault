@@ -2,11 +2,11 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "CogniVault API",
-  "main": "src/server.ts",
+  "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "node -e \"console.log('Build ready: TypeScript executed by tsx runtime')\"",
-    "start": "tsx src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate:deploy": "prisma migrate deploy"
   },
