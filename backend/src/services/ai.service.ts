@@ -38,6 +38,29 @@ interface CatalogExtraction {
     parts: ExtractedPart[];
 }
 
+interface PreparedPart {
+    data: {
+        documentId: string;
+        manufacturer: string | null;
+        normalizedManufacturer: string | null;
+        model: string;
+        normalizedModel: string;
+        pnc: string | null;
+        normalizedPnc: string | null;
+        universalAcrossPnc: boolean;
+        section: string | null;
+        position: string | null;
+        name: string;
+        normalizedName: string;
+        alternativeNames: string[];
+        partNumber: string;
+        page: number | null;
+        notes: string | null;
+        searchText: string;
+    };
+    embeddingString: string;
+}
+
 function cleanString(value: unknown): string {
     return typeof value === 'string' ? value.trim() : '';
 }
@@ -45,6 +68,13 @@ function cleanString(value: unknown): string {
 function isUniversalPnc(value: string): boolean {
     const normalized = normalizeIdentifier(value);
     return ['ALL', 'ANY', 'TODOS', 'QUALQUER', 'QUALQUERUM', 'UNIVERSAL'].includes(normalized);
+}
+
+function storageCandidates(tenantId: string, documentId: string, storagePath?: string | null): string[] {
+    return [...new Set(
+        [storagePath, `${tenantId}/${documentId}.pdf`, `${documentId}.pdf`]
+            .filter((value): value is string => Boolean(value)),
+    )];
 }
 
 export class AIService {
@@ -67,9 +97,6 @@ export class AIService {
                 throw new Error('Documento não pertence ao tenant informado.');
             }
 
-            // No primeiro processamento, document.url aponta para o upload local.
-            // Em um reprocessamento esse arquivo já foi removido; nesse caso
-            // recuperamos o PDF original do bucket privado pelo storagePath.
             if (document.url && !/^https?:\/\//i.test(document.url)) {
                 const candidate = path.resolve(document.url);
                 if (fs.existsSync(candidate)) {
@@ -77,33 +104,37 @@ export class AIService {
                 }
             }
 
-            if (!localFilePath && document.storagePath) {
-                const { data, error } = await supabase.storage
-                    .from(storageBucket)
-                    .download(document.storagePath);
-
-                if (error || !data) {
-                    throw new Error(`Não foi possível recuperar o PDF original para reprocessamento: ${error?.message || 'arquivo indisponível'}`);
-                }
-
+            if (!localFilePath) {
                 const reprocessDir = path.resolve('uploads');
                 fs.mkdirSync(reprocessDir, { recursive: true });
-                localFilePath = path.join(reprocessDir, `reprocess-${documentId}.pdf`);
-                const arrayBuffer = await data.arrayBuffer();
-                fs.writeFileSync(localFilePath, Buffer.from(arrayBuffer));
+
+                for (const candidatePath of storageCandidates(tenantId, documentId, document.storagePath)) {
+                    const { data, error } = await supabase.storage
+                        .from(storageBucket)
+                        .download(candidatePath);
+
+                    if (error || !data) {
+                        continue;
+                    }
+
+                    localFilePath = path.join(reprocessDir, `reprocess-${documentId}.pdf`);
+                    const arrayBuffer = await data.arrayBuffer();
+                    fs.writeFileSync(localFilePath, Buffer.from(arrayBuffer));
+                    console.log(`📦 PDF recuperado do Storage: ${candidatePath}`);
+                    break;
+                }
             }
 
             if (!localFilePath || !fs.existsSync(localFilePath)) {
                 throw new Error('PDF original não encontrado no servidor nem no Storage.');
             }
 
-            // 1. Mantém o PDF original no Storage para biblioteca/visualização/download.
             const fileBuffer = fs.readFileSync(localFilePath);
-            const storagePath = `${tenantId}/${documentId}.pdf`;
+            const canonicalStoragePath = `${tenantId}/${documentId}.pdf`;
 
             const { error: uploadError } = await supabase.storage
                 .from(storageBucket)
-                .upload(storagePath, fileBuffer, {
+                .upload(canonicalStoragePath, fileBuffer, {
                     contentType: 'application/pdf',
                     upsert: true,
                 });
@@ -112,16 +143,11 @@ export class AIService {
                 throw new Error(`Erro no Supabase: ${uploadError.message}`);
             }
 
-            // O bucket pode permanecer privado. O frontend acessa o PDF
-            // somente por signed URL gerada pelo backend.
             await prisma.document.update({
                 where: { id: documentId },
-                data: {
-                    storagePath,
-                },
+                data: { storagePath: canonicalStoragePath },
             });
 
-            // 2. O mesmo PDF é enviado temporariamente ao Gemini para leitura multimodal.
             const uploadedFile = await ai.files.upload({
                 file: localFilePath,
                 config: { mimeType: 'application/pdf' },
@@ -192,7 +218,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                             pncs: {
                                 type: Type.ARRAY,
                                 items: { type: Type.STRING },
-                          },
+                            },
                             parts: {
                                 type: Type.ARRAY,
                                 items: {
@@ -201,31 +227,31 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                                         manufacturer: { type: Type.STRING },
                                         model: { type: Type.STRING },
                                         pnc: { type: Type.STRING },
-                                      universalAcrossPnc: { type: Type.BOOLEAN },
+                                        universalAcrossPnc: { type: Type.BOOLEAN },
                                         section: { type: Type.STRING },
                                         position: { type: Type.STRING },
-                                    name: { type: Type.STRING },
+                                        name: { type: Type.STRING },
                                         alternativeNames: {
                                             type: Type.ARRAY,
                                             items: { type: Type.STRING },
                                         },
-                                      partNumber: { type: Type.STRING },
+                                        partNumber: { type: Type.STRING },
                                         page: { type: Type.INTEGER },
-                                    notes: { type: Type.STRING },
-                                },
+                                        notes: { type: Type.STRING },
+                                    },
                                     required: [
                                         'manufacturer',
-                                      'model',
-                                    'pnc',
-                                      'universalAcrossPnc',
-                                      'section',
+                                        'model',
+                                        'pnc',
+                                        'universalAcrossPnc',
+                                        'section',
                                         'position',
-                                    'name',
+                                        'name',
                                         'alternativeNames',
                                         'partNumber',
                                         'page',
                                         'notes',
-                                ],
+                                    ],
                                 },
                             },
                         },
@@ -258,28 +284,16 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 ? extraction.pncs.map(cleanString).filter(Boolean)
                 : [];
 
-            await prisma.document.update({
-                where: { id: documentId },
-                data: {
-                    manufacturer: document.manufacturer || extractedManufacturer || null,
-                    model: document.model || (models.length === 1 ? models[0] : null),
-                    pnc: document.pnc || (pncs.length === 1 ? pncs[0] : null),
-                },
-            });
-
-            // Reprocessamento é idempotente: substitui as peças antigas deste catálogo.
-            await prisma.part.deleteMany({ where: { documentId } });
-            await prisma.documentChunk.deleteMany({ where: { documentId } });
-
-            let processed = 0;
+            const preparedParts: PreparedPart[] = [];
 
             for (const rawPart of extraction.parts) {
                 try {
                     const name = cleanString(rawPart.name);
                     const partNumber = cleanString(rawPart.partNumber);
-                    const model = cleanString(rawPart.model) || document.model || (models.length === 1 ? models[0] : '');
+                    const model = cleanString(rawPart.model)
+                        || document.model
+                        || (models.length === 1 ? models[0] : '');
 
-                    // Sem nome, código ou modelo não existe base segura para vender a peça.
                     if (!name || !partNumber || !model) {
                         continue;
                     }
@@ -332,7 +346,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                         continue;
                     }
 
-                    const created = await prisma.part.create({
+                    preparedParts.push({
                         data: {
                             documentId,
                             manufacturer: manufacturer || null,
@@ -352,26 +366,51 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                             notes: notes || null,
                             searchText,
                         },
+                        embeddingString: `[${embedding.join(',')}]`,
                     });
-
-                    const embeddingString = `[${embedding.join(',')}]`;
-                    await prisma.$executeRaw`
-                        UPDATE "Part"
-                        SET "embedding" = ${embeddingString}::vector
-                        WHERE "id" = ${created.id}
-                    `;
-
-                    processed++;
                 } catch (partError) {
-                    console.error('⚠️ Erro ao armazenar uma peça extraída:', partError);
+                    console.error('⚠️ Erro ao preparar uma peça extraída:', partError);
                 }
             }
 
-            if (processed === 0) {
-                throw new Error('Nenhuma peça válida conseguiu ser armazenada.');
+            if (preparedParts.length === 0) {
+                throw new Error('Nenhuma peça válida conseguiu ser preparada.');
             }
 
-            console.log(`🏆 Catálogo ${documentId}: ${processed} peças estruturadas com sucesso.`);
+            await prisma.$transaction(
+                async (tx) => {
+                    await tx.part.deleteMany({ where: { documentId } });
+                    await tx.documentChunk.deleteMany({ where: { documentId } });
+
+                    for (const preparedPart of preparedParts) {
+                        const created = await tx.part.create({
+                            data: preparedPart.data,
+                        });
+
+                        await tx.$executeRaw`
+                            UPDATE "Part"
+                            SET "embedding" = ${preparedPart.embeddingString}::vector
+                            WHERE "id" = ${created.id}
+                        `;
+                    }
+
+                    await tx.document.update({
+                        where: { id: documentId },
+                        data: {
+                            manufacturer: document.manufacturer || extractedManufacturer || null,
+                            model: document.model || (models.length === 1 ? models[0] : null),
+                            pnc: document.pnc || (pncs.length === 1 ? pncs[0] : null),
+                            storagePath: canonicalStoragePath,
+                        },
+                    });
+                },
+                {
+                    maxWait: 10_000,
+                    timeout: 120_000,
+                },
+            );
+
+            console.log(`🏆 Catálogo ${documentId}: ${preparedParts.length} peças estruturadas com sucesso.`);
         } catch (error) {
             console.error('❌ Erro fatal no AIService:', error);
             throw error;
