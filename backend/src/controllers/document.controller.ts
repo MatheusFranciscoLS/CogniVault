@@ -65,6 +65,13 @@ export class DocumentController {
                 },
             });
         } catch (error) {
+            if (error instanceof Error && error.message.startsWith('DOCUMENT_DUPLICATE:')) {
+                res.status(409).json({
+                    error: 'Este mesmo PDF já está cadastrado.',
+                    existingDocumentId: error.message.split(':')[1],
+                });
+                return;
+            }
             console.error('❌ Erro no upload do catálogo:', error);
             res.status(500).json({ error: 'Erro interno ao processar upload.' });
         }
@@ -185,8 +192,43 @@ export class DocumentController {
                 res.status(404).json({ error: 'Catálogo não encontrado.' });
                 return;
             }
+            if (error instanceof Error && error.message === 'DOCUMENT_ALREADY_PROCESSING') {
+                res.status(409).json({ error: 'Este catálogo já está na fila ou em processamento.' });
+                return;
+            }
             console.error('❌ Erro ao reprocessar catálogo:', error);
             res.status(500).json({ error: 'Não foi possível reprocessar o catálogo.' });
+        }
+    }
+
+    async remove(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            if (!req.user) return;
+            const document = await documentService.removePdf(
+                req.user.tenantId,
+                String(req.params.id),
+                req.user.id,
+            );
+            await AuditService.record({
+                tenantId: req.user.tenantId,
+                userId: req.user.id,
+                action: 'DOCUMENT_PDF_REMOVED',
+                targetType: 'DOCUMENT',
+                targetId: document.id,
+                metadata: { filename: document.filename },
+            });
+            res.json({ message: 'PDF excluído. O registro de auditoria foi preservado.' });
+        } catch (error) {
+            if (error instanceof Error && error.message === 'DOCUMENT_NOT_FOUND') {
+                res.status(404).json({ error: 'Catálogo não encontrado.' });
+                return;
+            }
+            if (error instanceof Error && error.message === 'DOCUMENT_ALREADY_PROCESSING') {
+                res.status(409).json({ error: 'Aguarde o processamento terminar antes de excluir o PDF.' });
+                return;
+            }
+            console.error('❌ Erro ao excluir PDF do catálogo:', error);
+            res.status(500).json({ error: 'Não foi possível excluir o PDF.' });
         }
     }
 }

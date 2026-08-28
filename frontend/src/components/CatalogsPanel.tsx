@@ -100,6 +100,18 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
     } finally { setBusy(false); }
   };
 
+  const removePdf=async(document:DocumentItem)=>{
+    if(!window.confirm(`Excluir definitivamente o PDF "${document.filename}"? O arquivo não poderá ser restaurado, mas o registro de auditoria será mantido.`))return;
+    setBusy(true);setError('');
+    try {
+      await json(await api(`/api/documents/${document.id}`,{method:'DELETE'}));
+      await load();
+      flash('PDF excluído com segurança.');
+    } catch(removeError) {
+      setError(removeError instanceof Error?removeError.message:'Não foi possível excluir o PDF.');
+    } finally { setBusy(false); }
+  };
+
   const upload=async(event:FormEvent)=>{
     event.preventDefault();
     if(!file)return;
@@ -123,8 +135,18 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
     } finally { setBusy(false); }
   };
 
-  const badge=(status:string)=>status==='COMPLETED'?'bg-emerald-50 text-emerald-700':status==='FAILED'?'bg-rose-50 text-rose-700':'bg-amber-50 text-amber-700';
-  const statusLabel=(status:string)=>status==='COMPLETED'?'Pronto':status==='PROCESSING'?'Processando':status==='PENDING'?'Na fila':'Falhou';
+  const badge=(document:DocumentItem)=>document.processingActive?'bg-amber-50 text-amber-700':document.status==='COMPLETED'?'bg-emerald-50 text-emerald-700':document.status==='FAILED'?'bg-rose-50 text-rose-700':'bg-amber-50 text-amber-700';
+  const statusLabel=(document:DocumentItem)=>{
+    if(document.processingActive){
+      if(document.processingStage==='DOWNLOADING')return 'Preparando PDF';
+      if(document.processingStage==='EXTRACTING')return 'Extraindo peças';
+      if(document.processingStage==='INDEXING')return `Indexando ${document.processingCurrent||0}/${document.processingTotal||0}`;
+      if(document.processingStage==='RETRYING')return 'Aguardando IA';
+      return document.status==='PENDING'?'Na fila':'Processando';
+    }
+    if(document.status==='COMPLETED'&&document.processingStage==='READY_WITHOUT_EMBEDDINGS')return 'Pronto · índice pendente';
+    return document.status==='COMPLETED'?'Pronto':document.status==='PROCESSING'?'Processando':document.status==='PENDING'?'Na fila':'Falhou';
+  };
 
   return <section>
     {notice&&<div role="status" className="fixed right-5 top-20 z-50 rounded-xl bg-slate-950 px-4 py-2.5 text-sm text-white shadow-xl">{notice}</div>}
@@ -151,11 +173,11 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
         {filtered.map(document=><tr key={document.id} className="border-t border-slate-100 transition hover:bg-slate-50/60">
           <td className="p-4"><div className="flex items-start gap-2"><button type="button" title="Favoritar" aria-label={favoritesByDocument.has(document.id)?`Remover ${document.filename} dos favoritos`:`Favoritar ${document.filename}`} disabled={Boolean(document.archivedAt)} onClick={()=>void toggleFavorite(document)} className="text-lg leading-5 text-amber-500 disabled:opacity-30">{favoritesByDocument.has(document.id)?'★':'☆'}</button><div><b className="font-semibold text-slate-800">{document.filename}</b><div className="mt-1 text-xs text-slate-400">{document.manufacturer||'Fabricante não informado'} · {fmtDate(document.createdAt)}</div>{document.archivedAt&&<span className="text-xs text-rose-600">Arquivado</span>}</div></div></td>
           <td className="text-slate-600">{document.model||'—'}<div className="text-xs text-slate-400">PNC {document.pnc||'—'}</div></td>
-          <td><span className={`rounded-full px-2 py-1 text-xs font-semibold ${badge(document.status)}`}>{statusLabel(document.status)}</span></td>
+          <td><span className={`rounded-full px-2 py-1 text-xs font-semibold ${badge(document)}`}>{statusLabel(document)}</span>{document.processingError&&<div title={document.processingError} className="mt-1 max-w-56 truncate text-[10px] text-slate-400">{document.processingError}</div>}</td>
           <td className="text-slate-600">{document.partCount}</td>
           <td className="p-4"><div className="flex flex-wrap gap-2">
             {document.status==='COMPLETED'&&!document.archivedAt&&<><button type="button" onClick={()=>void access(document.id,'view',document.filename)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium">Visualizar</button><button type="button" onClick={()=>void access(document.id,'download',document.filename)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium">Baixar</button></>}
-            {admin&&!document.archivedAt&&<><button type="button" disabled={busy} onClick={()=>void action(document.id,'reprocess')} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium">Reprocessar</button><button type="button" disabled={busy} onClick={()=>void action(document.id,'archive')} className="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-medium text-rose-600">Arquivar</button></>}
+            {admin&&!document.archivedAt&&<><button type="button" disabled={busy||document.processingActive||['PENDING','PROCESSING'].includes(document.status)} onClick={()=>void action(document.id,'reprocess')} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40">Reprocessar</button><button type="button" disabled={busy||document.processingActive} onClick={()=>void action(document.id,'archive')} className="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 disabled:opacity-40">Arquivar</button><button type="button" disabled={busy||document.processingActive} onClick={()=>void removePdf(document)} className="rounded-lg border border-rose-300 px-2.5 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-40">Excluir PDF</button></>}
             {admin&&document.archivedAt&&<button type="button" disabled={busy} onClick={()=>void action(document.id,'restore')} className="rounded-lg border border-emerald-200 px-2.5 py-1.5 text-xs font-medium text-emerald-700">Restaurar</button>}
           </div></td>
         </tr>)}

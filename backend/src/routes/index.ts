@@ -40,6 +40,7 @@ router.post('/upload', authMiddleware, adminOnly, upload.single('file'), (req, r
 router.post('/documents/:id/archive', authMiddleware, adminOnly, (req, res) => documentController.archive(req, res));
 router.post('/documents/:id/restore', authMiddleware, adminOnly, (req, res) => documentController.restore(req, res));
 router.post('/documents/:id/reprocess', authMiddleware, adminOnly, (req, res) => documentController.reprocess(req, res));
+router.delete('/documents/:id', authMiddleware, adminOnly, (req, res) => documentController.remove(req, res));
 
 router.post('/chat', authMiddleware, (req, res) => chatController.ask(req, res));
 router.post('/feedback', authMiddleware, (req, res) => feedbackController.create(req, res));

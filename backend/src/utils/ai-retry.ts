@@ -13,6 +13,9 @@ const TRANSIENT_ERROR_CODES = new Set([
     'EAI_AGAIN',
     'ENETUNREACH',
     'ETIMEDOUT',
+    'UND_ERR_CONNECT_TIMEOUT',
+    'UND_ERR_HEADERS_TIMEOUT',
+    'UND_ERR_SOCKET',
     'RESOURCE_EXHAUSTED',
     'UNAVAILABLE',
 ]);
@@ -26,57 +29,53 @@ function asStatus(value: unknown): number | null {
     return Number.isInteger(status) ? status : null;
 }
 
+function errorRecords(error: unknown): Record<string, unknown>[] {
+    const records: Record<string, unknown>[] = [];
+    const queue: unknown[] = [error];
+    const visited = new Set<unknown>();
+
+    while (queue.length && records.length < 12) {
+        const current = queue.shift();
+        if (!isRecord(current) || visited.has(current)) continue;
+        visited.add(current);
+        records.push(current);
+        queue.push(current.cause, current.error, current.response);
+    }
+
+    return records;
+}
+
 function errorStatus(error: unknown): number | null {
-    if (!isRecord(error)) {
-        return null;
-    }
+    for (const record of errorRecords(error)) {
+        const status = asStatus(record.status ?? record.statusCode);
+        if (status !== null) return status;
 
-    const directStatus = asStatus(error.status ?? error.statusCode);
-    if (directStatus !== null) {
-        return directStatus;
-    }
-
-    if (isRecord(error.response)) {
-        const responseStatus = asStatus(error.response.status);
-        if (responseStatus !== null) {
-            return responseStatus;
-        }
-    }
-
-    if (isRecord(error.error)) {
-        return asStatus(error.error.code);
+        // A API do Gemini usa error.code como status HTTP numérico.
+        const apiCode = asStatus(record.code);
+        if (apiCode !== null && apiCode >= 100) return apiCode;
     }
 
     return null;
 }
 
-function errorCode(error: unknown): string {
-    if (!isRecord(error)) {
-        return '';
+function errorCodes(error: unknown): string[] {
+    const codes: string[] = [];
+    for (const record of errorRecords(error)) {
+        for (const value of [record.code, record.status]) {
+            if (typeof value === 'string') codes.push(value.toUpperCase());
+        }
     }
 
-    const code = error.code;
-    if (typeof code === 'string') {
-        return code.toUpperCase();
-    }
-
-    if (isRecord(error.error) && typeof error.error.status === 'string') {
-        return error.error.status.toUpperCase();
-    }
-
-    return '';
+    return codes;
 }
 
 function errorMessage(error: unknown): string {
-    if (error instanceof Error) {
-        return error.message;
+    const messages: string[] = [];
+    for (const record of errorRecords(error)) {
+        if (typeof record.message === 'string') messages.push(record.message);
     }
 
-    if (isRecord(error) && typeof error.message === 'string') {
-        return error.message;
-    }
-
-    return String(error);
+    return messages.length ? messages.join(' | ') : String(error);
 }
 
 function configuredAttempts(): number {
@@ -94,8 +93,7 @@ export function isTransientAIError(error: unknown): boolean {
         return true;
     }
 
-    const code = errorCode(error);
-    if (TRANSIENT_ERROR_CODES.has(code)) {
+    if (errorCodes(error).some((code) => TRANSIENT_ERROR_CODES.has(code))) {
         return true;
     }
 
@@ -112,24 +110,48 @@ export function isTransientAIError(error: unknown): boolean {
     ].some((fragment) => message.includes(fragment));
 }
 
+export function retryDelayMs(error: unknown): number | null {
+    for (const record of errorRecords(error)) {
+        const details = Array.isArray(record.details) ? record.details : [];
+        for (const detail of details) {
+            if (!isRecord(detail) || typeof detail.retryDelay !== 'string') continue;
+            const seconds = Number.parseFloat(detail.retryDelay.replace(/s$/i, ''));
+            if (Number.isFinite(seconds) && seconds >= 0) return Math.ceil(seconds * 1_000);
+        }
+    }
+
+    const message = errorMessage(error);
+    const match = message.match(/retry(?:\s+in\s+|Delay["']?\s*:\s*["']?)([\d.]+)s/i);
+    if (!match) return null;
+    const seconds = Number.parseFloat(match[1]);
+    return Number.isFinite(seconds) && seconds >= 0 ? Math.ceil(seconds * 1_000) : null;
+}
+
+export function isDailyAIQuotaError(error: unknown): boolean {
+    const message = errorMessage(error).toLowerCase();
+    return message.includes('perday') || message.includes('per day') || message.includes('daily quota');
+}
+
 export async function withTransientAIRetry<T>(
     operation: () => Promise<T>,
     options: RetryOptions,
 ): Promise<T> {
     const maxAttempts = options.maxAttempts ?? configuredAttempts();
     const baseDelayMs = Math.max(0, options.baseDelayMs ?? 2_000);
-    const maxDelayMs = Math.max(baseDelayMs, options.maxDelayMs ?? 15_000);
+    const maxDelayMs = Math.max(baseDelayMs, options.maxDelayMs ?? 65_000);
     const onRetry = options.onRetry ?? ((message: string) => console.warn(message));
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
         try {
             return await operation();
         } catch (error) {
-            if (!isTransientAIError(error) || attempt >= maxAttempts) {
+            if (isDailyAIQuotaError(error) || !isTransientAIError(error) || attempt >= maxAttempts) {
                 throw error;
             }
 
-            const delayMs = Math.min(maxDelayMs, baseDelayMs * (2 ** (attempt - 1)));
+            const requestedDelayMs = retryDelayMs(error) ?? 0;
+            const exponentialDelayMs = baseDelayMs * (2 ** (attempt - 1));
+            const delayMs = Math.min(maxDelayMs, Math.max(requestedDelayMs, exponentialDelayMs));
             onRetry(
                 `⏳ ${options.label}: indisponibilidade temporária da IA; nova tentativa ${attempt + 1}/${maxAttempts} em ${delayMs} ms.`,
             );

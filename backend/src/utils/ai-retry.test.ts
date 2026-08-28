@@ -1,13 +1,28 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isTransientAIError, withTransientAIRetry } from './ai-retry';
+import { isDailyAIQuotaError, isTransientAIError, retryDelayMs, withTransientAIRetry } from './ai-retry';
 
 test('reconhece indisponibilidade temporária sem repetir erros permanentes', () => {
     assert.equal(isTransientAIError({ status: 503 }), true);
     assert.equal(isTransientAIError({ error: { code: 429, status: 'RESOURCE_EXHAUSTED' } }), true);
     assert.equal(isTransientAIError(new Error('This model is currently experiencing high demand.')), true);
+    assert.equal(isTransientAIError({ cause: { code: 'UND_ERR_HEADERS_TIMEOUT' } }), true);
     assert.equal(isTransientAIError({ status: 400 }), false);
     assert.equal(isTransientAIError(new Error('PDF inválido')), false);
+});
+
+test('respeita RetryInfo da API e reconhece limite diário', () => {
+    const quotaError = {
+        error: {
+            code: 429,
+            message: 'Quota exceeded for EmbedContentRequestsPerDayPerProject',
+            details: [{ retryDelay: '48s' }],
+        },
+    };
+
+    assert.equal(retryDelayMs(quotaError), 48_000);
+    assert.equal(isDailyAIQuotaError(quotaError), true);
+    assert.equal(retryDelayMs(new Error('Please retry in 23.520s.')), 23_520);
 });
 
 test('repete operação temporariamente indisponível e preserva o resultado', async () => {

@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { createHash, randomUUID } from 'node:crypto';
+import fs from 'node:fs';
 import { prisma } from '../config/prisma';
 import { DocumentProducer } from '../queues/producer';
 
@@ -27,20 +29,79 @@ function storageCandidates(tenantId: string, documentId: string, storagePath?: s
 
 export class DocumentService {
     async handleNewUpload(tenantId: string, filename: string, filePath: string, metadata: UploadMetadata = {}) {
-        const document = await prisma.document.create({
-            data: {
-                tenantId,
-                filename,
-                url: filePath,
-                status: 'PENDING',
-                manufacturer: metadata.manufacturer?.trim() || null,
-                model: metadata.model?.trim() || null,
-                pnc: metadata.pnc?.trim() || null,
-            },
-        });
+        try {
+            const fileBuffer = fs.readFileSync(filePath);
+            const contentHash = createHash('sha256').update(fileBuffer).digest('hex');
+            const duplicate = await prisma.document.findFirst({
+                where: { tenantId, contentHash, archivedAt: null },
+                select: { id: true },
+            });
 
-        await DocumentProducer.publishToQueue(document.id, tenantId);
-        return document;
+            if (duplicate) throw new Error(`DOCUMENT_DUPLICATE:${duplicate.id}`);
+
+            const documentId = randomUUID();
+            const jobId = randomUUID();
+            const canonicalStoragePath = `${tenantId}/${documentId}.pdf`;
+            const { error: uploadError } = await supabase.storage
+                .from(storageBucket)
+                .upload(canonicalStoragePath, fileBuffer, {
+                    contentType: 'application/pdf',
+                    upsert: false,
+                });
+
+            if (uploadError) throw new Error(`DOCUMENT_STORAGE_UPLOAD_FAILED:${uploadError.message}`);
+
+            let document;
+            try {
+                document = await prisma.document.create({
+                    data: {
+                        id: documentId,
+                        tenantId,
+                        filename,
+                        url: canonicalStoragePath,
+                        storagePath: canonicalStoragePath,
+                        contentHash,
+                        status: 'PENDING',
+                        processingJobId: jobId,
+                        processingStage: 'QUEUED',
+                        processingCurrent: 0,
+                        processingTotal: 0,
+                        processingError: null,
+                        manufacturer: metadata.manufacturer?.trim() || null,
+                        model: metadata.model?.trim() || null,
+                        pnc: metadata.pnc?.trim() || null,
+                    },
+                });
+            } catch (error) {
+                await supabase.storage.from(storageBucket).remove([canonicalStoragePath]);
+                throw error;
+            }
+
+            try {
+                await DocumentProducer.publishToQueue(document.id, tenantId, jobId);
+            } catch (error) {
+                await prisma.document.update({
+                    where: { id: document.id },
+                    data: {
+                        status: 'FAILED',
+                        processingJobId: null,
+                        processingStage: 'FAILED',
+                        processingError: 'A fila de processamento estava indisponível. Tente reprocessar.',
+                    },
+                });
+                throw error;
+            }
+
+            return document;
+        } finally {
+            if (fs.existsSync(filePath)) {
+                try {
+                    fs.unlinkSync(filePath);
+                } catch (error) {
+                    console.warn('⚠️ Não foi possível remover o upload temporário:', error);
+                }
+            }
+        }
     }
 
     async list(tenantId: string) {
@@ -56,6 +117,11 @@ export class DocumentService {
                 pnc: true,
                 createdAt: true,
                 archivedAt: true,
+                processingJobId: true,
+                processingStage: true,
+                processingCurrent: true,
+                processingTotal: true,
+                processingError: true,
                 _count: { select: { parts: { where: { active: true } } } },
             },
         });
@@ -70,6 +136,11 @@ export class DocumentService {
             createdAt: document.createdAt,
             partCount: document._count.parts,
             archivedAt: document.archivedAt,
+            processingActive: Boolean(document.processingJobId),
+            processingStage: document.processingStage,
+            processingCurrent: document.processingCurrent,
+            processingTotal: document.processingTotal,
+            processingError: document.processingError,
         }));
     }
 
@@ -113,7 +184,7 @@ export class DocumentService {
 
     async restore(tenantId: string, documentId: string) {
         const document = await prisma.document.findFirst({
-            where: { id: documentId, tenantId, archivedAt: { not: null } },
+            where: { id: documentId, tenantId, archivedAt: { not: null }, processingStage: { not: 'REMOVED' } },
         });
 
         if (!document) throw new Error('DOCUMENT_NOT_FOUND');
@@ -131,33 +202,99 @@ export class DocumentService {
 
         if (!document) throw new Error('DOCUMENT_NOT_FOUND');
 
-        const hasUsableCatalog = document.status === 'COMPLETED';
-
-        if (!hasUsableCatalog) {
-            await prisma.document.update({
-                where: { id: document.id },
-                data: { status: 'PENDING' },
-            });
+        if (document.processingJobId || ['PENDING', 'PROCESSING'].includes(document.status)) {
+            throw new Error('DOCUMENT_ALREADY_PROCESSING');
         }
 
+        const hasUsableCatalog = document.status === 'COMPLETED';
+        const resumeEmbedding = hasUsableCatalog
+            && document.processingStage === 'READY_WITHOUT_EMBEDDINGS'
+            && document.extractionSnapshot !== null
+            && document.catalogRevision > 0;
+        const jobId = randomUUID();
+        const locked = await prisma.document.updateMany({
+            where: { id: document.id, tenantId, processingJobId: null },
+            data: {
+                status: hasUsableCatalog ? 'COMPLETED' : 'PENDING',
+                processingJobId: jobId,
+                processingStage: resumeEmbedding ? 'INDEXING' : 'QUEUED',
+                processingCurrent: resumeEmbedding ? document.processingCurrent : 0,
+                processingTotal: resumeEmbedding ? document.processingTotal : 0,
+                processingError: null,
+            },
+        });
+        if (locked.count !== 1) throw new Error('DOCUMENT_ALREADY_PROCESSING');
+
         try {
-            await DocumentProducer.publishToQueue(document.id, tenantId);
+            await DocumentProducer.publishToQueue(document.id, tenantId, jobId);
         } catch (error) {
-            if (!hasUsableCatalog) {
-                await prisma.document.update({
-                    where: { id: document.id },
-                    data: { status: document.status },
-                });
-            }
+            await prisma.document.updateMany({
+                where: { id: document.id, processingJobId: jobId },
+                data: {
+                    status: document.status,
+                    processingJobId: null,
+                    processingStage: document.processingStage,
+                    processingCurrent: document.processingCurrent,
+                    processingTotal: document.processingTotal,
+                    processingError: document.processingError,
+                },
+            });
             throw error;
         }
 
-        return { ...document, status: hasUsableCatalog ? 'COMPLETED' : 'PENDING' };
+        return { ...document, status: hasUsableCatalog ? 'COMPLETED' : 'PENDING', processingJobId: jobId };
+    }
+
+    async removePdf(tenantId: string, documentId: string, userId: string) {
+        const document = await prisma.document.findFirst({
+            where: { id: documentId, tenantId, archivedAt: null },
+        });
+
+        if (!document) throw new Error('DOCUMENT_NOT_FOUND');
+        if (document.processingJobId) throw new Error('DOCUMENT_ALREADY_PROCESSING');
+
+        const archivedAt = new Date();
+        await prisma.document.update({
+            where: { id: document.id },
+            data: {
+                archivedAt,
+                archivedById: userId,
+                processingStage: 'REMOVING',
+                processingError: null,
+            },
+        });
+
+        const candidates = storageCandidates(tenantId, document.id, document.storagePath);
+        const { error: removeError } = await supabase.storage.from(storageBucket).remove(candidates);
+        if (removeError) {
+            await prisma.document.update({
+                where: { id: document.id },
+                data: {
+                    archivedAt: null,
+                    archivedById: null,
+                    processingStage: document.processingStage,
+                    processingError: document.processingError,
+                },
+            });
+            throw new Error(`DOCUMENT_STORAGE_DELETE_FAILED:${removeError.message}`);
+        }
+
+        return prisma.document.update({
+            where: { id: document.id },
+            data: {
+                storagePath: null,
+                url: '',
+                processingStage: 'REMOVED',
+                processingCurrent: 0,
+                processingTotal: 0,
+                processingError: null,
+            },
+        });
     }
 
     async listAdmin(tenantId: string) {
         const documents = await prisma.document.findMany({
-            where: { tenantId },
+            where: { tenantId, processingStage: { not: 'REMOVED' } },
             orderBy: { createdAt: 'desc' },
             select: {
                 id: true,
@@ -168,6 +305,11 @@ export class DocumentService {
                 pnc: true,
                 createdAt: true,
                 archivedAt: true,
+                processingJobId: true,
+                processingStage: true,
+                processingCurrent: true,
+                processingTotal: true,
+                processingError: true,
                 _count: { select: { parts: { where: { active: true } } } },
             },
         });
@@ -182,6 +324,11 @@ export class DocumentService {
             createdAt: document.createdAt,
             archivedAt: document.archivedAt,
             partCount: document._count.parts,
+            processingActive: Boolean(document.processingJobId),
+            processingStage: document.processingStage,
+            processingCurrent: document.processingCurrent,
+            processingTotal: document.processingTotal,
+            processingError: document.processingError,
         }));
     }
 }

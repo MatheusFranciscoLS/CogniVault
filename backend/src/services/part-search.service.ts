@@ -114,7 +114,7 @@ export class PartSearchService {
       .map(r => ({ ...r, distance: Number(r.distance), feedbackScore: 0, searchMethod: 'SEMANTIC' as const }))
       .filter(r => r.distance <= MAX_DISTANCE);
 
-    if (!candidates.length) return [];
+    if (!candidates.length) return this.lexical(tenantId, question, intent);
     try {
       await this.applyFeedback(tenantId, question, vectorString, model, pnc, candidates);
     } catch (error) {

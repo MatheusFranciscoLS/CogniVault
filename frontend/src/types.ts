@@ -3,7 +3,7 @@ export type Section = 'home' | 'overview' | 'assistant' | 'parts' | 'catalogs' |
 export type SearchStatus = 'FOUND' | 'PNC_REQUIRED' | 'MODEL_REQUIRED' | 'AMBIGUOUS' | 'NOT_FOUND';
 
 export interface SessionUser { id:string; email:string; role:Role; status:string; tenant:{id:string;name:string}; }
-export interface DocumentItem { id:string; filename:string; status:string; manufacturer:string|null; model:string|null; pnc:string|null; createdAt:string; partCount:number; archivedAt?:string|null; }
+export interface DocumentItem { id:string; filename:string; status:string; manufacturer:string|null; model:string|null; pnc:string|null; createdAt:string; partCount:number; archivedAt?:string|null; processingActive?:boolean; processingStage?:string; processingCurrent?:number; processingTotal?:number; processingError?:string|null; }
 export interface FeedbackOption { id:string; name:string; model:string; pnc:string|null; section:string|null; position:string|null; }
 export interface ChatResponse {
   status:SearchStatus; answer:string; pncOptions?:string[]; modelOptions?:string[]; confidence?:number;

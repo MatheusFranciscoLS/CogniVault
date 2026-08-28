@@ -65,7 +65,17 @@ model Document {
   filename    String
   url         String
   storagePath String?
+  contentHash String?
   status      String  @default("PROCESSING")
+
+  processingJobId    String?
+  processingStage    String    @default("IDLE")
+  processingCurrent  Int       @default(0)
+  processingTotal    Int       @default(0)
+  processingError    String?
+  extractionSnapshot Json?
+  extractionMethod   String?
+  extractedAt        DateTime?
 
   manufacturer String?
   model        String?
@@ -91,6 +101,8 @@ model Document {
   @@index([tenantId, model, pnc])
   @@index([tenantId, status])
   @@index([tenantId, archivedAt])
+  @@index([tenantId, contentHash])
+  @@index([processingJobId])
   @@index([categoryId])
 }
 
@@ -135,6 +147,7 @@ model Part {
   active               Boolean                     @default(true)
   retiredAt            DateTime?
   extractionRevision   Int                         @default(1)
+  embeddingRevision    Int                         @default(0)
 
   feedbackResults     SearchFeedback[] @relation("FeedbackResultPart")
   feedbackCorrections SearchFeedback[] @relation("FeedbackCorrectedPart")
