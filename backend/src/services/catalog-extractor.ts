@@ -73,77 +73,62 @@ function sectionFromLines(lines: string[], lastRowIndex: number, fallback: strin
 }
 
 export function parseHusqvarnaIplText(text: string, hints: CatalogHints = {}): CatalogExtraction | null {
-    const hasPosition = /pos\.?\s*(nr\.|no\.?|nº)/i.test(text);
-    const hasPart = /part\s*(nr\.|no\.?|nº)|peça/i.test(text);
-
-    if (!hasPosition || !hasPart) {
-        return null;
-    }
-
+    // 1. Tenta descobrir o modelo pelo texto ou usa o que o usuário digitou
     const headerModel = text.match(/IPL,\s*([^,\n]+),\s*\d{4}-\d{2}/i)?.[1] || '';
-    const model = clean(hints.model) || compactModel(clean(headerModel));
-    if (!model) return null;
-
+    const model = clean(hints.model) || compactModel(clean(headerModel)) || 'Modelo-Generico';
     const manufacturer = clean(hints.manufacturer) || 'Husqvarna';
     const pnc = clean(hints.pnc);
     const parts: ExtractedPart[] = [];
 
-    for (const page of textPages(text)) {
-        const lines = page.text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-        if (!lines.some((line) => line.startsWith('Pos. Nr.'))) continue;
+    // 2. Transforma o PDF inteiro em linhas (ignorando sebras de página bagunçadas)
+    const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
 
-        const rows: Array<{
-            index: number;
-            position: string;
-            partNumber: string;
-            name: string;
-            sectionCode: string;
-            quantity: string;
-            includedInKit: string;
-        }> = [];
+    // 3. O Regex Força-Bruta: Posição | PartNumber | Descrição | Seção | Qtd
+    // \s+ captura espaços ou TABs. Funciona para qualquer formatação!
+    const ROW_REGEX = /^(\d{1,4})\s+([\d\s-]{10,15})\s+(.+?)\s+([A-Z0-9]{1,4})\s+(\d+)(?:\s+(.+))?$/i;
 
-        lines.forEach((line, index) => {
-            const match = HUSQVARNA_ROW.exec(line);
-            if (!match) return;
-            rows.push({
-                index,
-                position: match[1],
-                partNumber: match[2],
-                name: match[3],
-                sectionCode: match[4],
-                quantity: match[5],
-                includedInKit: clean(match[6]),
-            });
-        });
+    let lastSection = 'A'; // Seção padrão de fallback
 
-        if (!rows.length) continue;
-        const section = sectionFromLines(lines, rows[rows.length - 1].index, rows[0].sectionCode);
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const match = ROW_REGEX.exec(line);
 
-        for (const row of rows) {
-            const notes = [
-                `Quantidade: ${row.quantity}`,
-                row.includedInKit ? `Incluída no kit: ${row.includedInKit}` : '',
-                `Seção do catálogo: ${row.sectionCode}`,
-            ].filter(Boolean).join('. ');
+        if (match) {
+            const position = match[1];
+            const partNumber = match[2].trim();
+            const name = match[3].trim();
+            const sectionCode = match[4].trim();
+            const quantity = match[5];
+            const notes = match[6] ? clean(match[6]) : '';
+
+            lastSection = sectionCode; // Atualiza a seção atual
 
             parts.push({
                 manufacturer,
                 model,
                 pnc,
                 universalAcrossPnc: !pnc,
-                section,
-                position: row.position,
-                name: row.name,
+                section: sectionCode || lastSection,
+                position: position,
+                name: name,
                 alternativeNames: [],
-                partNumber: row.partNumber,
-                page: page.page,
-                notes,
+                partNumber: partNumber,
+                page: 1,
+                notes: [
+                    `Quantidade: ${quantity}`,
+                    notes ? `Info: ${notes}` : ''
+                ].filter(Boolean).join('. ')
             });
         }
     }
 
-    // Evita aceitar por engano um PDF que apenas contenha uma tabela semelhante.
-    if (parts.length < 10) return null;
+    // 4. Se encontrou pelo menos 10 peças válidas, é um catálogo. Aceita e salva!
+    if (parts.length < 10) {
+        console.warn('⚠️ Extrator Rápido não achou peças suficientes. Passando para a IA...');
+        return null;
+    }
+
+    console.log(`✅ Sucesso! Extrator Rápido encontrou ${parts.length} peças localmente!`);
 
     return {
         manufacturer,
