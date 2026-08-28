@@ -17,7 +17,7 @@ export function HomePanel({onSearch,onCatalogs}:{onSearch:(query:string)=>void;o
   },[]);
   const submit=(e:FormEvent)=>{e.preventDefault();if(query.trim())onSearch(query.trim())};
 
-  const examples=['carburador','filtro de ar','correia'];
+  const examples=['carburador 143RII','filtro de ar 143RII','vela 143RII'];
   const formatCount=(value:number|undefined)=>value===undefined?'—':new Intl.NumberFormat('pt-BR').format(value);
 
   return <section>
@@ -28,13 +28,13 @@ export function HomePanel({onSearch,onCatalogs}:{onSearch:(query:string)=>void;o
         <div className="max-w-3xl">
           <p className="text-[10px] font-bold uppercase tracking-[.18em] text-amber-200">Vardão Máquinas · Operação de balcão</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-[-.045em] md:text-[2.65rem]">Qual peça você precisa encontrar?</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Pesquise por código, descrição, modelo ou PNC. O CogniVault cruza a consulta apenas com os catálogos técnicos processados.</p>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Pesquise por código, descrição, modelo ou PNC. O CogniVault entende nomes de peças em português e inglês e cruza a consulta apenas com os catálogos processados.</p>
           <form onSubmit={submit} className="mt-6 flex gap-2 rounded-2xl bg-white p-2 shadow-2xl shadow-black/10">
             <label htmlFor="home-search" className="sr-only">Pesquisar peça, modelo ou PNC</label>
-            <input id="home-search" autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Ex.: carburador 143RS ou 537 04 19-01" className="min-w-0 flex-1 rounded-xl border-0 px-4 py-3 text-sm text-slate-900 outline-none"/>
+            <input id="home-search" autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Ex.: carburador 143RII ou 537 29 58-02" className="min-w-0 flex-1 rounded-xl border-0 px-4 py-3 text-sm text-slate-900 outline-none"/>
             <button className="cv-primary px-5 text-sm font-semibold">Pesquisar</button>
           </form>
-          <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-slate-400"><span className="mr-1">Exemplos:</span>{examples.map(example=><button type="button" key={example} onClick={()=>onSearch(example)} className="rounded-full border border-white/15 bg-white/[.06] px-3 py-1.5 font-medium text-slate-200 transition hover:bg-white/[.12]">{example}</button>)}<span className="ml-auto hidden items-center gap-1.5 text-slate-400 sm:flex"><kbd className="rounded border border-white/15 bg-white/[.06] px-1.5 py-0.5 text-[9px] text-slate-200">Ctrl K</kbd> busca rápida em qualquer tela</span></div>
+          <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-slate-400"><span className="mr-1">Exemplos:</span>{examples.map(example=><button type="button" key={example} onClick={()=>onSearch(example)} className="rounded-full border border-white/15 bg-white/[.06] px-3 py-1.5 font-medium text-slate-200 transition hover:bg-white/[.12]">{example}</button>)}<span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 font-medium text-emerald-100">Português + inglês · tolera pequenos erros</span><span className="ml-auto hidden items-center gap-1.5 text-slate-400 sm:flex"><kbd className="rounded border border-white/15 bg-white/[.06] px-1.5 py-0.5 text-[9px] text-slate-200">Ctrl K</kbd> busca rápida em qualquer tela</span></div>
         </div>
         <div className="hidden rounded-[24px] border border-white/10 bg-white/[.06] p-5 backdrop-blur-sm lg:block">
           <div className="flex items-center gap-3"><img src="/husqvarna-logo.webp" alt="Husqvarna" className="h-11 w-11 rounded-xl object-cover ring-1 ring-white/10"/><div><div className="text-xs font-semibold">Representante Husqvarna</div><div className="mt-1 text-[10px] text-slate-400">Peças e assistência técnica</div></div></div>
@@ -46,7 +46,7 @@ export function HomePanel({onSearch,onCatalogs}:{onSearch:(query:string)=>void;o
     <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <div className="cv-stat"><div className="flex items-center justify-between"><div className="cv-stat-label">Peças indexadas</div><span className="cv-stat-icon" aria-hidden="true">#</span></div><div className="cv-stat-value">{formatCount(data?.counts.parts)}</div><div className="cv-stat-caption">Disponíveis para consulta</div></div>
       <div className="cv-stat"><div className="flex items-center justify-between"><div className="cv-stat-label">Catálogos ativos</div><span className="cv-stat-icon" aria-hidden="true">▤</span></div><div className="cv-stat-value">{formatCount(data?.counts.documents)}</div><div className="cv-stat-caption">Base técnica processada</div></div>
-      <button type="button" onClick={()=>onSearch('carburador')} className="cv-quick-action"><span className="cv-stat-icon" aria-hidden="true">⌕</span><span><strong>Pesquisar por descrição</strong><small>Encontre mesmo sem saber o código</small></span><span aria-hidden="true" className="ml-auto text-lg text-slate-300">→</span></button>
+      <button type="button" onClick={()=>onSearch('carburador 143RII')} className="cv-quick-action"><span className="cv-stat-icon" aria-hidden="true">⌕</span><span><strong>Pesquisar por descrição</strong><small>Encontre mesmo sem saber o código</small></span><span aria-hidden="true" className="ml-auto text-lg text-slate-300">→</span></button>
       <button type="button" onClick={onCatalogs} className="cv-quick-action"><span className="cv-stat-icon" aria-hidden="true">▱</span><span><strong>Abrir catálogos</strong><small>Consulte PDFs e aplicações</small></span><span aria-hidden="true" className="ml-auto text-lg text-slate-300">→</span></button>
     </div>
 
@@ -89,8 +89,8 @@ export function PartsPanel({initialQuery,onQueryChange}:{initialQuery:string;onQ
 
   return <section>
     {notice&&<div className="fixed right-5 top-20 z-[80] rounded-xl bg-slate-950 px-4 py-2.5 text-sm text-white shadow-xl">{notice}</div>}
-    <p className="cv-kicker">Busca global</p><h1 className="cv-page-title">Peças e catálogos</h1><p className="mt-2 text-sm text-slate-500">Use nome, código, modelo ou PNC. Resultados vêm exclusivamente da base técnica da empresa.</p>
-    <form onSubmit={submit} className="cv-surface mt-6 flex gap-2 rounded-[22px] p-2"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar peça, código, modelo ou PNC" className="min-w-0 flex-1 rounded-2xl border-0 px-4 py-3 text-sm outline-none"/><button className="cv-primary px-5 text-sm font-semibold">Buscar</button></form>
+    <p className="cv-kicker">Busca global</p><h1 className="cv-page-title">Peças e catálogos</h1><p className="mt-2 text-sm text-slate-500">Use nome em português ou inglês, código, modelo ou PNC. Pequenos erros de digitação são tolerados e os resultados vêm exclusivamente da base técnica.</p>
+    <form onSubmit={submit} className="cv-surface mt-6 flex gap-2 rounded-[22px] p-2"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Ex.: filtro de ar 143RII, airfilter ou código da peça" className="min-w-0 flex-1 rounded-2xl border-0 px-4 py-3 text-sm outline-none"/><button className="cv-primary px-5 text-sm font-semibold">Buscar</button></form>
     {error&&<div role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
     {loading&&<div className="mt-4 text-sm text-slate-400">Pesquisando na base técnica…</div>}
 

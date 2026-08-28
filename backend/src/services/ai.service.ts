@@ -474,65 +474,43 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 processingTotal: preparedParts.length,
             });
 
-            // =========================================================
-            // MOTOR DE EMBEDDINGS (MANUAL E À PROVA DE CONGELAMENTO)
-            // =========================================================
-            const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+            const batchSize = embeddingBatchSize();
+            for (let offset = 0; offset < pendingIndexes.length; offset += batchSize) {
+                const batch = pendingIndexes.slice(offset, offset + batchSize);
+                const embedResult = await withTransientAIRetry(
+                    () => ai.models.embedContent({
+                        model: 'gemini-embedding-001',
+                        contents: batch.map(({ index }) => preparedParts[index].data.searchText),
+                        config: { outputDimensionality: 768, taskType: 'RETRIEVAL_DOCUMENT' },
+                    }),
+                    { label: `lote de embeddings ${offset + 1}-${offset + batch.length}` },
+                );
+                const embeddings = embedResult.embeddings || [];
+                if (embeddings.length !== batch.length) {
+                    throw new Error(`A IA retornou ${embeddings.length} embeddings para um lote de ${batch.length} peças.`);
+                }
 
-            console.log(`\n⚙️ Iniciando vetorização peça por peça (${pendingIndexes.length} pendentes)...`);
-
-            for (let offset = 0; offset < pendingIndexes.length; offset++) {
-                const item = pendingIndexes[offset];
-                const partData = preparedParts[item.index].data;
-
-                let success = false;
-                let retries = 0;
-
-                while (!success && retries < 3) {
-                    try {
-                        const embedResult = await ai.models.embedContent({
-                            model: 'text-embedding-004',
-                            contents: partData.searchText
-                        });
-
-                        const values = embedResult.embeddings?.[0]?.values;
-
+                await prisma.$transaction(async (tx) => {
+                    for (const [batchIndex, item] of batch.entries()) {
+                        const values = embeddings[batchIndex]?.values;
                         if (!values || values.length !== 768) {
-                            throw new Error(`Embedding inválido para a peça ${partData.partNumber}.`);
+                            throw new Error(`Embedding inválido para a peça ${preparedParts[item.index].data.partNumber}.`);
                         }
-
                         const embeddingString = `[${values.join(',')}]`;
-
-                        await prisma.$executeRaw`
+                        await tx.$executeRaw`
                             UPDATE "Part"
                             SET "embedding" = ${embeddingString}::vector, "embeddingRevision" = ${revision}
-                            WHERE "id" = ${item.id}::uuid
+                            WHERE "id" = ${item.id}
                         `;
-
-                        success = true;
-                        indexedCount++;
-
-                        if (indexedCount % 10 === 0 || indexedCount === pendingIndexes.length) {
-                            await prisma.document.updateMany({
-                                where: { id: documentId, processingJobId: jobId },
-                                data: { processingCurrent: indexedCount, processingTotal: preparedParts.length },
-                            });
-                            console.log(`🔎 Indexação semântica: ${indexedCount}/${preparedParts.length}.`);
-                        }
-
-                        await sleep(500);
-
-                    } catch (error: any) {
-                        if (error?.status === 429 || error?.message?.includes('429')) {
-                            retries++;
-                            console.warn(`⏳ Limite gratuito atingido. Esfriando por 10s... (Tentativa ${retries}/3)`);
-                            await sleep(10000);
-                        } else {
-                            console.error(`❌ ERRO FATAL NO EMBEDDING DA PEÇA ${partData.partNumber}:`, error?.message || error);
-                            throw error;
-                        }
                     }
-                }
+                    indexedCount += batch.length;
+                    const progress = await tx.document.updateMany({
+                        where: { id: documentId, processingJobId: jobId },
+                        data: { processingCurrent: indexedCount, processingTotal: preparedParts.length },
+                    });
+                    if (progress.count !== 1) throw new Error('STALE_DOCUMENT_JOB');
+                }, { maxWait: 10_000, timeout: 60_000 });
+                console.log(`🔎 Indexação semântica: ${indexedCount}/${preparedParts.length}.`);
             }
 
             await updateDocumentForJob(documentId, jobId, {

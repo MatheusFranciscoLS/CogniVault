@@ -1,7 +1,10 @@
 import { Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
+import { buildFallbackIntent } from '../services/chat-reliability';
+import { buildSearchGroups, scorePartText } from '../services/part-vocabulary';
 
 export class OperationalController {
     async home(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -37,27 +40,53 @@ export class OperationalController {
         const normalized = normalizeText(q);
         const identifier = normalizeIdentifier(q);
         const tenantId = req.user.tenantId;
+        const intent = buildFallbackIntent(q);
+        const normalizedModel = normalizeIdentifier(intent.model);
+        const normalizedManufacturer = normalizeIdentifier(intent.manufacturer);
+        const normalizedPnc = normalizeIdentifier(intent.pnc);
+        const groups = intent.partNumber ? [] : buildSearchGroups(q, [intent.manufacturer, intent.model, intent.pnc]);
+
+        const descriptiveFilters: Prisma.PartWhereInput[] = groups.map(group => ({
+            OR: group.variants.flatMap(variant => [
+                { normalizedName: { contains: variant } },
+                { searchText: { contains: variant, mode: 'insensitive' as const } },
+            ]),
+        }));
+        if (normalizedManufacturer) descriptiveFilters.push({ OR: [{ normalizedManufacturer }, { normalizedManufacturer: null }] });
+        if (normalizedPnc) descriptiveFilters.push({ OR: [{ normalizedPnc }, { universalAcrossPnc: true }] });
+
+        const partWhere: Prisma.PartWhereInput = {
+            active: true,
+            document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+            ...(groups.length ? {
+                ...(normalizedModel ? { normalizedModel } : {}),
+                AND: descriptiveFilters,
+            } : {
+                OR: [
+                    { partNumber: { contains: q, mode: 'insensitive' } },
+                    ...(normalized ? [{ normalizedName: { contains: normalized } }] : []),
+                    ...(identifier ? [
+                        { normalizedPartNumber: { contains: identifier } },
+                        { normalizedModel: { contains: identifier } },
+                        { normalizedPnc: { contains: identifier } },
+                    ] : []),
+                    ...(normalizedModel ? [{ normalizedModel: { contains: normalizedModel } }] : []),
+                    ...(normalizedManufacturer ? [{ normalizedManufacturer: { contains: normalizedManufacturer } }] : []),
+                    ...(normalizedPnc ? [{ normalizedPnc: { contains: normalizedPnc } }] : []),
+                ],
+            }),
+        };
 
         const [parts, documents] = await Promise.all([
             prisma.part.findMany({
-                where: {
-                    active: true,
-                    document: { tenantId, archivedAt: null, status: 'COMPLETED' },
-                    OR: [
-                        { partNumber: { contains: q, mode: 'insensitive' } },
-                        ...(normalized ? [{ normalizedName: { contains: normalized } }] : []),
-                        ...(identifier ? [
-                            { normalizedPartNumber: { contains: identifier } },
-                            { normalizedModel: { contains: identifier } },
-                            { normalizedPnc: { contains: identifier } },
-                        ] : []),
-                    ],
-                },
+                where: partWhere,
                 orderBy: [{ model: 'asc' }, { name: 'asc' }],
-                take: 40,
+                take: 80,
                 select: {
                     id: true, name: true, partNumber: true, manufacturer: true, model: true, pnc: true,
                     universalAcrossPnc: true, section: true, position: true, page: true, documentId: true,
+                    normalizedName: true, normalizedPartNumber: true, normalizedModel: true, normalizedPnc: true,
+                    alternativeNames: true,
                     document: { select: { filename: true } },
                 },
             }),
@@ -69,6 +98,9 @@ export class OperationalController {
                         { manufacturer: { contains: q, mode: 'insensitive' } },
                         { model: { contains: q, mode: 'insensitive' } },
                         { pnc: { contains: q, mode: 'insensitive' } },
+                        ...(intent.manufacturer ? [{ manufacturer: { contains: intent.manufacturer, mode: 'insensitive' as const } }] : []),
+                        ...(intent.model ? [{ model: { contains: intent.model, mode: 'insensitive' as const } }] : []),
+                        ...(intent.pnc ? [{ pnc: { contains: intent.pnc, mode: 'insensitive' as const } }] : []),
                     ],
                 },
                 orderBy: { createdAt: 'desc' },
@@ -77,8 +109,24 @@ export class OperationalController {
             }),
         ]);
 
+        const seen = new Set<string>();
+        const rankedParts = parts
+            .map(part => ({ part, score: groups.length ? scorePartText(q, { name: part.name, section: part.section, aliases: part.alternativeNames }) : 0 }))
+            .sort((a, b) => b.score - a.score || a.part.name.localeCompare(b.part.name, 'pt-BR'))
+            .filter(({ part }) => {
+                const identity = `${part.normalizedPartNumber}|${part.normalizedModel}|${part.universalAcrossPnc ? '*' : (part.normalizedPnc || '')}`;
+                if (seen.has(identity)) return false;
+                seen.add(identity);
+                return true;
+            })
+            .slice(0, 40)
+            .map(({ part }) => {
+                const { document, normalizedName: _normalizedName, normalizedPartNumber: _normalizedPartNumber, normalizedModel: _normalizedModel, normalizedPnc: _normalizedPnc, alternativeNames: _alternativeNames, ...publicPart } = part;
+                return { ...publicPart, filename: document.filename, pnc: part.universalAcrossPnc ? 'Qualquer um' : part.pnc };
+            });
+
         res.json({
-            parts: parts.map((part) => ({ ...part, filename: part.document.filename, document: undefined, pnc: part.universalAcrossPnc ? 'Qualquer um' : part.pnc })),
+            parts: rankedParts,
             documents: documents.map((item) => ({ ...item, partCount: item._count.parts, _count: undefined })),
         });
     }

@@ -1,10 +1,6 @@
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import type { CandidateForAi, SearchIntent } from './chat-intent.service';
-
-const STOP_WORDS = new Set([
-  'a', 'ao', 'as', 'com', 'da', 'das', 'de', 'do', 'dos', 'e', 'em', 'equipamento',
-  'maquina', 'modelo', 'o', 'os', 'para', 'peca', 'por', 'preciso', 'qual', 'quero', 'uma',
-]);
+import { lexicalTerms, scorePartText } from './part-vocabulary';
 
 function isPncContext(question: string, index: number) {
   return /pnc\s*$/i.test(question.slice(Math.max(0, index - 8), index));
@@ -28,11 +24,33 @@ export function extractLikelyPartNumber(question: string): string {
   return candidates.sort((a, b) => normalizeIdentifier(b.value).length - normalizeIdentifier(a.value).length)[0]?.value || '';
 }
 
+export function extractLikelyPnc(question: string): string {
+  const match = question.match(/\bpnc\s*[:#-]?\s*((?:[a-z0-9]*\d[a-z0-9]*)(?:[\s./-]+(?:[a-z0-9]*\d[a-z0-9]*)){1,})/i);
+  return match?.[1]?.trim() || '';
+}
+
+export function extractLikelyModel(question: string): string {
+  const partNumber = extractLikelyPartNumber(question);
+  const pnc = extractLikelyPnc(question);
+  const withoutReferences = [partNumber, pnc].filter(Boolean).reduce((value, reference) => value.replace(reference, ' '), question);
+  const spaced = withoutReferences.match(/\b\d{2,4}\s*(?:r\s*)?(?:ii|iii|iv|v|rs|rx|rj|xp|x|[a-z]{1,3})\b/i);
+  if (spaced?.[0]) return spaced[0].replace(/\s+/g, '');
+
+  const compact = withoutReferences.match(/\b(?=[a-z0-9-]{3,14}\b)(?=[a-z0-9-]*[a-z])(?=[a-z0-9-]*\d)[a-z0-9-]+\b/i);
+  return compact?.[0] || '';
+}
+
+function extractLikelyManufacturer(question: string): string {
+  const manufacturers = ['Husqvarna', 'Stihl', 'Honda', 'Kawashima', 'Toyama', 'Briggs & Stratton'];
+  const normalized = normalizeText(question);
+  return manufacturers.find(item => normalized.includes(normalizeText(item))) || '';
+}
+
 export function buildFallbackIntent(question: string): SearchIntent {
   return {
-    manufacturer: '',
-    model: '',
-    pnc: '',
+    manufacturer: extractLikelyManufacturer(question),
+    model: extractLikelyModel(question),
+    pnc: extractLikelyPnc(question),
     partDescription: question.trim(),
     partNumber: extractLikelyPartNumber(question),
     section: '',
@@ -41,11 +59,7 @@ export function buildFallbackIntent(question: string): SearchIntent {
 }
 
 export function lexicalSearchTerms(value: string): string[] {
-  const terms = normalizeText(value)
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .split(/\s+/)
-    .filter(term => term.length >= 3 && !STOP_WORDS.has(term));
-  return [...new Set(terms)].slice(0, 5);
+  return lexicalTerms(value);
 }
 
 export function chooseCandidateLocally(
@@ -54,25 +68,18 @@ export function chooseCandidateLocally(
 ): { id: string | null; confidence: number; ambiguous: boolean } {
   if (candidates.length === 1) return { id: candidates[0].id, confidence: 0.9, ambiguous: false };
 
-  const terms = lexicalSearchTerms(question);
-  if (!terms.length) return { id: null, confidence: 0, ambiguous: true };
-
   const ranked = candidates.map(candidate => {
-    const searchable = normalizeText([
-      candidate.name,
-      candidate.section,
-      candidate.position,
-      ...candidate.aliases,
-    ].filter(Boolean).join(' '));
-    const hits = terms.filter(term => searchable.includes(term)).length;
-    const exactName = normalizeText(candidate.name);
-    const phraseBonus = exactName && normalizeText(question).includes(exactName) ? 0.35 : 0;
-    return { id: candidate.id, score: Math.min(1, hits / terms.length + phraseBonus) };
+    const score = scorePartText(question, {
+      name: candidate.name,
+      section: candidate.section,
+      aliases: candidate.aliases,
+    });
+    return { id: candidate.id, score };
   }).sort((a, b) => b.score - a.score);
 
   const best = ranked[0];
   const second = ranked[1];
-  const safeLead = best && best.score >= 0.6 && (!second || best.score - second.score >= 0.2);
+  const safeLead = best && best.score >= 0.55 && (!second || best.score - second.score >= 0.18);
   return safeLead
     ? { id: best.id, confidence: Math.max(0.72, Math.min(0.9, best.score)), ambiguous: false }
     : { id: null, confidence: best?.score || 0, ambiguous: true };

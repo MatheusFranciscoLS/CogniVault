@@ -1,5 +1,6 @@
 import { GEMINI_GENERATIVE_MODEL, getGeminiClient, getGeminiType } from '../config/gemini';
 import { buildFallbackIntent, chooseCandidateLocally } from './chat-reliability';
+import { hasKnownPartVocabulary } from './part-vocabulary';
 
 export interface SearchIntent {
   manufacturer: string;
@@ -23,6 +24,9 @@ export interface CandidateForAi {
 
 export class ChatIntentService {
   static async parse(question: string): Promise<SearchIntent> {
+    const localIntent = buildFallbackIntent(question);
+    if (hasKnownPartVocabulary(question) || localIntent.model || localIntent.pnc || localIntent.partNumber) return localIntent;
+
     try {
       const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
       const response = await ai.models.generateContent({
@@ -58,12 +62,15 @@ export class ChatIntentService {
       };
     } catch (error) {
       console.warn('⚠️ Interpretação generativa indisponível; usando leitura local segura.', error instanceof Error ? error.message : error);
-      return buildFallbackIntent(question);
+      return localIntent;
     }
   }
 
   static async choose(question: string, candidates: CandidateForAi[]): Promise<{ id: string | null; confidence: number; ambiguous: boolean }> {
     if (candidates.length === 1) return { id: candidates[0].id, confidence: 0.99, ambiguous: false };
+
+    const localSelection = chooseCandidateLocally(question, candidates);
+    if (!localSelection.ambiguous) return localSelection;
 
     try {
       const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
