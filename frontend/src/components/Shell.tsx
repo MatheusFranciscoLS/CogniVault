@@ -83,7 +83,9 @@ export default function Shell({ user, section, onSection, onLogout, onSearch, ch
     const handler = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        document.getElementById('cv-global-search')?.focus();
+        const searchField = document.getElementById('cv-global-search') as HTMLInputElement | null;
+        searchField?.focus();
+        searchField?.select();
       }
       if (event.key === 'Escape') {
         setNotificationsOpen(false);
@@ -100,7 +102,7 @@ export default function Shell({ user, section, onSection, onLogout, onSearch, ch
   };
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!search.trim()) return;
+    if (search.trim().length < 2) return;
     onSearch(search.trim());
     setSearch('');
   };
@@ -158,8 +160,8 @@ export default function Shell({ user, section, onSection, onLogout, onSearch, ch
             <form role="search" onSubmit={submit} className="relative min-w-0 flex-1 xl:max-w-2xl">
               <svg aria-hidden="true" viewBox="0 0 24 24" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
               <label htmlFor="cv-global-search" className="sr-only">Buscar peça, código, modelo ou PNC</label>
-              <input id="cv-global-search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar peça, código, modelo ou PNC…" className="w-full rounded-[14px] border border-slate-200 bg-slate-50/80 py-2.5 pl-10 pr-16 text-sm outline-none transition focus:border-[#1d4f91] focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
-              <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] font-medium text-slate-400 sm:block">Ctrl K</span>
+              <input id="cv-global-search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar peça, código, modelo ou PNC…" minLength={2} required aria-keyshortcuts="Control+K Meta+K" className="w-full rounded-[14px] border border-slate-200 bg-slate-50/80 py-2.5 pl-10 pr-20 text-sm outline-none transition focus:border-[#1d4f91] focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
+              {search ? <button type="button" onClick={()=>setSearch('')} aria-label="Limpar busca" className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">Limpar</button> : <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] font-medium text-slate-400 sm:block">Ctrl K</span>}
             </form>
             <div className="ml-auto flex items-center gap-2">
               <div className="relative">

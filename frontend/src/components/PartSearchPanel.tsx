@@ -1,0 +1,542 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { FormEvent, MouseEvent as ReactMouseEvent } from 'react';
+import { api, apiJson, json } from '../lib';
+import type { PartDetail, SearchPart } from '../types';
+
+type SearchDocument = {
+  id: string;
+  filename: string;
+  manufacturer: string | null;
+  model: string | null;
+  pnc: string | null;
+  partCount: number;
+};
+
+type PdfPreview = {
+  url: string;
+  page: number | null;
+  title: string;
+};
+
+type Props = {
+  initialQuery: string;
+  onQueryChange: (query: string) => void;
+};
+
+function isTextEditingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return target instanceof HTMLInputElement
+    || target instanceof HTMLTextAreaElement
+    || target instanceof HTMLSelectElement
+    || target.isContentEditable;
+}
+
+function useTransientNotice() {
+  const [notice, setNotice] = useState('');
+  const timer = useRef<number | null>(null);
+
+  const showNotice = useCallback((message: string) => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    setNotice(message);
+    timer.current = window.setTimeout(() => setNotice(''), 1800);
+  }, []);
+
+  useEffect(() => () => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+  }, []);
+
+  return { notice, showNotice };
+}
+
+function EmptyState({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="cv-empty">
+      <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-400" aria-hidden="true">⌕</div>
+      <div className="text-sm font-semibold text-slate-700">{title}</div>
+      <div className="mt-1 text-xs leading-5 text-slate-400">{description}</div>
+    </div>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[18px] border border-slate-200 bg-white p-4">
+      <div className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">{label}</div>
+      <div className="mt-1 text-sm font-semibold text-slate-800">{value}</div>
+    </div>
+  );
+}
+
+function SearchSkeleton() {
+  return (
+    <div className="divide-y divide-slate-100" aria-hidden="true">
+      {[0, 1, 2].map(item => (
+        <div key={item} className="animate-pulse p-5">
+          <div className="h-3 w-2/5 rounded-full bg-slate-200" />
+          <div className="mt-3 h-6 w-1/3 rounded-lg bg-blue-100" />
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="h-3 rounded-full bg-slate-100" />
+            <div className="h-3 rounded-full bg-slate-100" />
+            <div className="h-3 rounded-full bg-slate-100" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function PartSearchPanel({ initialQuery, onQueryChange }: Props) {
+  const normalizedInitialQuery = initialQuery.trim();
+  const [query, setQuery] = useState(initialQuery);
+  const [lastQuery, setLastQuery] = useState(normalizedInitialQuery);
+  const [parts, setParts] = useState<SearchPart[]>([]);
+  const [documents, setDocuments] = useState<SearchDocument[]>([]);
+  const [loading, setLoading] = useState(normalizedInitialQuery.length >= 2);
+  const [hasSearched, setHasSearched] = useState(normalizedInitialQuery.length >= 2);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [detail, setDetail] = useState<PartDetail | null>(null);
+  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
+  const [pdf, setPdf] = useState<PdfPreview | null>(null);
+  const [error, setError] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const resultRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const { notice, showNotice } = useTransientNotice();
+
+  const runSearch = useCallback(async (value: string, signal?: AbortSignal) => {
+    setLoading(true);
+    setHasSearched(true);
+    setLastQuery(value);
+    setError('');
+    setParts([]);
+    setDocuments([]);
+    setSelectedIndex(-1);
+
+    try {
+      const data = await apiJson<{ parts: SearchPart[]; documents: SearchDocument[] }>(
+        `/api/search?q=${encodeURIComponent(value)}`,
+        signal ? { signal } : undefined,
+      );
+      if (signal?.aborted) return;
+      setParts(data.parts);
+      setDocuments(data.documents);
+      setSelectedIndex(data.parts.length ? 0 : -1);
+    } catch (searchError) {
+      if (searchError instanceof Error && searchError.name === 'AbortError') return;
+      setError(searchError instanceof Error ? searchError.message : 'Erro ao pesquisar.');
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (normalizedInitialQuery.length < 2) return;
+    const controller = new AbortController();
+    void apiJson<{ parts: SearchPart[]; documents: SearchDocument[] }>(
+      `/api/search?q=${encodeURIComponent(normalizedInitialQuery)}`,
+      { signal: controller.signal },
+    )
+      .then(data => {
+        setParts(data.parts);
+        setDocuments(data.documents);
+        setSelectedIndex(data.parts.length ? 0 : -1);
+      })
+      .catch(searchError => {
+        if (searchError instanceof Error && searchError.name === 'AbortError') return;
+        setError(searchError instanceof Error ? searchError.message : 'Erro ao pesquisar.');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [normalizedInitialQuery]);
+
+  const copyCode = useCallback(async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      showNotice(`Código ${value} copiado.`);
+    } catch {
+      showNotice(`Código: ${value}`);
+    }
+  }, [showNotice]);
+
+  const openPart = useCallback(async (id: string) => {
+    setDetailLoadingId(id);
+    setError('');
+    try {
+      const data = await apiJson<{ part: PartDetail }>(`/api/parts/${id}`);
+      setDetail(data.part);
+    } catch (partError) {
+      setError(partError instanceof Error ? partError.message : 'Não foi possível abrir a peça.');
+    } finally {
+      setDetailLoadingId(null);
+    }
+  }, []);
+
+  const accessPdf = useCallback(async (documentId: string, page: number | null, title: string) => {
+    setError('');
+    try {
+      const data = await apiJson<{ url: string }>(`/api/documents/${documentId}/access?mode=view`);
+      setPdf({ url: data.url, page, title });
+    } catch (pdfError) {
+      setError(pdfError instanceof Error ? pdfError.message : 'Não foi possível abrir o catálogo.');
+    }
+  }, []);
+
+  const toggleFavorite = useCallback(async () => {
+    if (!detail) return;
+    try {
+      if (detail.favoriteId) {
+        await json(await api(`/api/favorites/${detail.favoriteId}`, { method: 'DELETE' }));
+        setDetail(current => current ? { ...current, favoriteId: null } : current);
+        showNotice('Favorito removido.');
+      } else {
+        const data = await apiJson<{ favorite: { id: string } }>('/api/favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ partId: detail.id }),
+        });
+        setDetail(current => current ? { ...current, favoriteId: data.favorite.id } : current);
+        showNotice('Peça adicionada aos favoritos.');
+      }
+    } catch (favoriteError) {
+      setError(favoriteError instanceof Error ? favoriteError.message : 'Não foi possível atualizar o favorito.');
+    }
+  }, [detail, showNotice]);
+
+  useEffect(() => {
+    const handleKeyboard = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (pdf) {
+          event.preventDefault();
+          setPdf(null);
+          return;
+        }
+        if (detail) {
+          event.preventDefault();
+          setDetail(null);
+          return;
+        }
+      }
+
+      const target = event.target;
+      const targetElement = target instanceof HTMLElement ? target : null;
+      const isSearchInput = targetElement === inputRef.current;
+      const isResultButton = targetElement?.dataset.partResult === 'true';
+      const isEditing = isTextEditingTarget(target) && !isSearchInput;
+
+      if (event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey && !isTextEditingTarget(target)) {
+        event.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+        return;
+      }
+
+      if (detail || pdf || isEditing || !parts.length) return;
+
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        if (!isSearchInput && !isResultButton && targetElement !== document.body) return;
+        event.preventDefault();
+        const direction = event.key === 'ArrowDown' ? 1 : -1;
+        setSelectedIndex(current => {
+          const base = current < 0 ? 0 : current;
+          const next = (base + direction + parts.length) % parts.length;
+          window.requestAnimationFrame(() => {
+            resultRefs.current[next]?.focus({ preventScroll: true });
+            resultRefs.current[next]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          });
+          return next;
+        });
+        return;
+      }
+
+      if (event.key.toLowerCase() === 'c' && isResultButton && selectedIndex >= 0) {
+        event.preventDefault();
+        void copyCode(parts[selectedIndex].partNumber);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyboard);
+    return () => window.removeEventListener('keydown', handleKeyboard);
+  }, [copyCode, detail, parts, pdf, selectedIndex]);
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const value = query.trim();
+    if (value.length < 2) {
+      setParts([]);
+      setDocuments([]);
+      setHasSearched(false);
+      setError('Digite ao menos 2 caracteres para pesquisar.');
+      inputRef.current?.focus();
+      return;
+    }
+    if (value !== normalizedInitialQuery) {
+      onQueryChange(value);
+      return;
+    }
+    void runSearch(value);
+  };
+
+  const clearSearch = () => {
+    setQuery('');
+    setParts([]);
+    setDocuments([]);
+    setHasSearched(false);
+    setLastQuery('');
+    setSelectedIndex(-1);
+    setError('');
+    onQueryChange('');
+    window.requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const closeDetailFromBackdrop = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) setDetail(null);
+  };
+
+  const closePdfFromBackdrop = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) setPdf(null);
+  };
+
+  const resultSummary = loading
+    ? 'Pesquisando na base técnica…'
+    : hasSearched
+      ? `${parts.length} ${parts.length === 1 ? 'peça encontrada' : 'peças encontradas'}${lastQuery ? ` para “${lastQuery}”` : ''}`
+      : 'Informe um código, uma descrição, um modelo ou um PNC.';
+
+  return (
+    <section>
+      {notice && (
+        <div role="status" aria-live="polite" className="fixed right-5 top-20 z-[100] rounded-xl bg-slate-950 px-4 py-2.5 text-sm text-white shadow-xl">
+          {notice}
+        </div>
+      )}
+
+      <p className="cv-kicker">Atendimento rápido</p>
+      <h1 className="cv-page-title">Peças e catálogos</h1>
+      <p className="mt-2 text-sm text-slate-500">Encontre, confira e copie o código sem interromper o atendimento ao cliente.</p>
+
+      <form onSubmit={submit} className="cv-surface mt-6 rounded-[22px] p-2">
+        <div className="flex gap-2">
+          <label htmlFor="parts-search" className="sr-only">Buscar peça, código, modelo ou PNC</label>
+          <input
+            ref={inputRef}
+            id="parts-search"
+            value={query}
+            onChange={event => setQuery(event.target.value)}
+            placeholder="Ex.: 537 04 19-01, carburador 143RS ou PNC"
+            autoFocus
+            autoComplete="off"
+            aria-describedby="parts-search-help"
+            className="min-w-0 flex-1 rounded-2xl border-0 px-4 py-3 text-sm outline-none"
+          />
+          {query && (
+            <button type="button" onClick={clearSearch} className="hidden rounded-xl px-3 text-xs font-semibold text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 sm:block">
+              Limpar
+            </button>
+          )}
+          <button type="submit" disabled={loading} className="cv-primary min-w-[92px] px-5 text-sm font-semibold">
+            {loading ? 'Buscando…' : 'Buscar'}
+          </button>
+        </div>
+        <div id="parts-search-help" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 px-3 pb-1 pt-2 text-[10px] text-slate-400">
+          <span><kbd>/</kbd> focar busca</span>
+          <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
+          <span><kbd>Enter</kbd> abrir</span>
+          <span><kbd>C</kbd> copiar código</span>
+          <span><kbd>Esc</kbd> fechar</span>
+        </div>
+      </form>
+
+      {error && (
+        <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+          <span>{error}</span>
+          {lastQuery.length >= 2 && (
+            <button type="button" onClick={() => void runSearch(lastQuery)} className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold">
+              Tentar novamente
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,.55fr)]">
+        <div className="cv-surface overflow-hidden rounded-[22px]" aria-busy={loading}>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+            <div>
+              <div className="font-semibold">Resultado da consulta</div>
+              <div role="status" aria-live="polite" className="mt-0.5 text-xs text-slate-400">{resultSummary}</div>
+            </div>
+            {parts.length > 0 && <span className="cv-soft-badge">Selecione para ver compatibilidade</span>}
+          </div>
+
+          {loading ? <SearchSkeleton /> : (
+            <div className="divide-y divide-slate-100">
+              {parts.map((part, index) => {
+                const selected = selectedIndex === index;
+                const opening = detailLoadingId === part.id;
+                return (
+                  <article key={part.id} className={`grid gap-3 p-3 transition sm:grid-cols-[minmax(0,1fr)_auto] ${selected ? 'bg-blue-50/70 ring-1 ring-inset ring-blue-200' : 'hover:bg-slate-50'}`}>
+                    <button
+                      type="button"
+                      ref={element => { resultRefs.current[index] = element; }}
+                      data-part-result="true"
+                      onFocus={() => setSelectedIndex(index)}
+                      onMouseEnter={() => setSelectedIndex(index)}
+                      onClick={() => void openPart(part.id)}
+                      className="min-w-0 rounded-xl p-2 text-left"
+                      aria-label={`Abrir ${part.name}, código ${part.partNumber}`}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-slate-800">{part.name}</div>
+                          <div className="mt-1 text-xl font-bold tracking-tight text-[#1d4f91]">{part.partNumber}</div>
+                        </div>
+                        {part.position && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-500">Pos. {part.position}</span>}
+                      </div>
+                      <div className="mt-3 grid gap-x-4 gap-y-2 text-xs sm:grid-cols-3">
+                        <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">Modelo</span><strong className="mt-0.5 block text-slate-700">{part.model}</strong></div>
+                        <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">PNC</span><strong className="mt-0.5 block text-slate-700">{part.pnc || '—'}</strong></div>
+                        <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">Fonte</span><strong className="mt-0.5 block truncate text-slate-700">{part.filename}</strong></div>
+                      </div>
+                    </button>
+                    <div className="flex items-center gap-2 self-center px-2 pb-2 sm:flex-col sm:items-stretch sm:pb-0">
+                      <button type="button" onClick={() => void copyCode(part.partNumber)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#1d4f91] transition hover:border-blue-200 hover:bg-blue-50">
+                        Copiar código
+                      </button>
+                      <button type="button" onClick={() => void openPart(part.id)} disabled={opening} className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50">
+                        {opening ? 'Abrindo…' : 'Ver detalhes'}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+
+              {!parts.length && (
+                <div className="p-5">
+                  <EmptyState
+                    title={hasSearched ? 'Nenhuma peça encontrada' : 'Pronto para pesquisar'}
+                    description={hasSearched ? `Não encontramos “${lastQuery}”. Tente o código sem pontuação, o modelo ou o PNC.` : 'Digite ao menos 2 caracteres para consultar a base indexada.'}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <aside className="cv-surface h-fit rounded-[22px] p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="font-semibold">Catálogos relacionados</div>
+              <div className="mt-1 text-xs text-slate-400">Abra a fonte técnica sem sair da tela.</div>
+            </div>
+            {documents.length > 0 && <span className="cv-soft-badge">{documents.length}</span>}
+          </div>
+          <div className="mt-4 grid gap-2">
+            {documents.map(document => (
+              <div key={document.id} className="rounded-xl border border-slate-200 p-3">
+                <div className="truncate text-sm font-semibold" title={document.filename}>{document.filename}</div>
+                <div className="mt-1 text-xs leading-5 text-slate-400">
+                  {document.manufacturer || 'Fabricante não informado'}<br />
+                  {document.model || 'Modelo não informado'} · PNC {document.pnc || '—'} · {document.partCount} peças
+                </div>
+                <button type="button" onClick={() => void accessPdf(document.id, null, document.filename)} className="mt-3 text-xs font-semibold text-[#1d4f91]">
+                  Abrir catálogo →
+                </button>
+              </div>
+            ))}
+            {!documents.length && <div className="rounded-xl bg-slate-50 p-4 text-xs leading-5 text-slate-400">Os catálogos associados à pesquisa aparecerão aqui.</div>}
+          </div>
+        </aside>
+      </div>
+
+      {detail && (
+        <div onMouseDown={closeDetailFromBackdrop} className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/45 p-0 backdrop-blur-sm md:items-center md:p-6">
+          <div role="dialog" aria-modal="true" aria-labelledby="part-detail-title" className="max-h-[92vh] w-full max-w-5xl overflow-auto rounded-t-[28px] bg-white shadow-2xl md:rounded-[28px]">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-[.12em] text-[#1d4f91]">Detalhe da peça</div>
+                <div id="part-detail-title" className="mt-1 text-lg font-semibold">{detail.name}</div>
+              </div>
+              <button type="button" autoFocus onClick={() => setDetail(null)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button>
+            </div>
+
+            <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <div>
+                <div className="rounded-[22px] bg-[#0d2348] p-6 text-white">
+                  <div className="text-xs text-slate-400">Código da peça</div>
+                  <div className="mt-2 break-all text-3xl font-semibold tracking-[-.04em]">{detail.partNumber}</div>
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => void copyCode(detail.partNumber)} className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-[#0d2348]">Copiar código</button>
+                    <button type="button" onClick={() => void toggleFavorite()} className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold">{detail.favoriteId ? '★ Favoritada' : '☆ Favoritar'}</button>
+                    <button type="button" onClick={() => void accessPdf(detail.documentId, detail.page, detail.filename)} className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold">Abrir no catálogo</button>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <Info label="Modelo" value={detail.model} />
+                  <Info label="PNC" value={detail.pnc || '—'} />
+                  <Info label="Seção" value={detail.section || '—'} />
+                  <Info label="Posição / página" value={`${detail.position || '—'} · pág. ${detail.page ?? '—'}`} />
+                </div>
+
+                {detail.notes && <div className="mt-4 rounded-[18px] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">{detail.notes}</div>}
+
+                <div className="mt-5">
+                  <div className="font-semibold">Compatibilidade encontrada</div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {detail.compatibility.map((item, index) => (
+                      <span key={`${item.model}-${item.pnc}-${index}`} className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-800">
+                        {item.model} · PNC {item.pnc || '—'}
+                      </span>
+                    ))}
+                    {!detail.compatibility.length && <span className="text-xs text-slate-400">Nenhuma compatibilidade adicional cadastrada.</span>}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="rounded-[22px] border border-slate-200 p-4">
+                  <div className="text-xs uppercase tracking-[.1em] text-slate-400">Fonte técnica</div>
+                  <div className="mt-2 break-words text-sm font-semibold">{detail.filename}</div>
+                  <div className="mt-1 text-xs text-slate-400">{detail.document.manufacturer || '—'} · {detail.document.model || '—'}</div>
+                </div>
+                <div className="mt-4 rounded-[22px] border border-slate-200 p-4">
+                  <div className="font-semibold">Peças relacionadas</div>
+                  <div className="mt-3 grid gap-2">
+                    {detail.related.map(item => (
+                      <div key={item.id} className="flex items-center gap-2 rounded-xl bg-slate-50 p-2">
+                        <button type="button" onClick={() => void openPart(item.id)} className="min-w-0 flex-1 p-1 text-left">
+                          <div className="text-xs font-semibold">{item.name}</div>
+                          <div className="mt-1 text-xs text-slate-400">{item.partNumber} · posição {item.position || '—'}</div>
+                        </button>
+                        <button type="button" onClick={() => void copyCode(item.partNumber)} aria-label={`Copiar código ${item.partNumber}`} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-[#1d4f91]">Copiar</button>
+                      </div>
+                    ))}
+                    {!detail.related.length && <span className="text-xs text-slate-400">Nenhuma peça relacionada encontrada.</span>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pdf && (
+        <div onMouseDown={closePdfFromBackdrop} className="fixed inset-0 z-[90] bg-slate-950/90 p-3 md:p-6">
+          <div role="dialog" aria-modal="true" aria-labelledby="pdf-preview-title" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+              <div>
+                <div id="pdf-preview-title" className="text-sm font-semibold">{pdf.title}</div>
+                <div className="text-xs text-slate-400">{pdf.page ? `Abrindo na página ${pdf.page}` : 'Visualização do catálogo'}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <a href={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-[#1d4f91]">Nova aba</a>
+                <button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button>
+              </div>
+            </div>
+            <iframe title={pdf.title} src={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} className="h-full w-full border-0" />
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
