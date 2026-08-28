@@ -22,6 +22,7 @@ test('respeita RetryInfo da API e reconhece limite diário', () => {
 
     assert.equal(retryDelayMs(quotaError), 48_000);
     assert.equal(isDailyAIQuotaError(quotaError), true);
+    assert.equal(isDailyAIQuotaError(new Error('GenerateRequestsPerDayPerProjectPerModel-FreeTier')), true);
     assert.equal(retryDelayMs(new Error('Please retry in 23.520s.')), 23_520);
 });
 

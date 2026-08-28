@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import fs from 'node:fs';
 import { DocumentService } from '../services/document.service';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { AuditService } from '../services/audit.service';
@@ -23,7 +24,8 @@ export class DocumentController {
                 return;
             }
 
-            if (file.mimetype !== 'application/pdf') {
+            if (file.mimetype !== 'application/pdf' && !file.originalname.toLowerCase().endsWith('.pdf')) {
+                try { fs.unlinkSync(file.path); } catch { /* arquivo temporário já removido */ }
                 res.status(400).json({ error: 'Somente arquivos PDF são permitidos.' });
                 return;
             }
@@ -70,6 +72,14 @@ export class DocumentController {
                     error: 'Este mesmo PDF já está cadastrado.',
                     existingDocumentId: error.message.split(':')[1],
                 });
+                return;
+            }
+            if (error instanceof Error && error.message === 'DOCUMENT_INVALID_PDF') {
+                res.status(400).json({ error: 'O arquivo enviado não é um PDF válido.' });
+                return;
+            }
+            if (error instanceof Error && error.message.startsWith('DOCUMENT_STORAGE_UPLOAD_FAILED:')) {
+                res.status(502).json({ error: 'Não foi possível salvar o PDF no armazenamento. Tente novamente.' });
                 return;
             }
             console.error('❌ Erro no upload do catálogo:', error);

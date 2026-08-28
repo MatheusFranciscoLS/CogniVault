@@ -6,6 +6,7 @@ const statusLabels: Record<SearchStatus, string> = {
   FOUND: 'Peça encontrada',
   PNC_REQUIRED: 'PNC solicitado',
   MODEL_REQUIRED: 'Modelo solicitado',
+  PART_REQUIRED: 'Peça solicitada',
   AMBIGUOUS: 'Mais de uma opção',
   NOT_FOUND: 'Não encontrada',
 };

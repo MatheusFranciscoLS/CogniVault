@@ -11,7 +11,7 @@ export class ChatController {
                 return;
             }
 
-            const { question, pnc } = req.body;
+            const { question, pnc, selectedPartId } = req.body;
 
             if (typeof question !== 'string' || !question.trim()) {
                 res.status(400).json({ error: 'A pergunta não pode estar vazia.' });
@@ -23,9 +23,15 @@ export class ChatController {
                 return;
             }
 
+            if (selectedPartId !== undefined && (typeof selectedPartId !== 'string' || !selectedPartId.trim() || selectedPartId.length > 100)) {
+                res.status(400).json({ error: 'Seleção de peça inválida.' });
+                return;
+            }
+
             const cleanQuestion = question.trim();
             const cleanPnc = typeof pnc === 'string' ? pnc.trim() : undefined;
-            const result = await ChatService.askQuestion(req.user.tenantId, cleanQuestion, cleanPnc);
+            const cleanSelectedPartId = typeof selectedPartId === 'string' ? selectedPartId.trim() : undefined;
+            const result = await ChatService.askQuestion(req.user.tenantId, cleanQuestion, cleanPnc, cleanSelectedPartId);
 
             await prisma.searchHistory.create({
                 data: {

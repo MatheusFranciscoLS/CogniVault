@@ -33,7 +33,9 @@ export interface DeterministicExtraction {
     method: 'HUSQVARNA_IPL_TEXT';
 }
 
-const HUSQVARNA_ROW = /^(\d+)\s+\t(\d{3}\s+\d{2}\s+\d{2}-\d{2})\s+\t(.+?)\s+\t([A-Z])\s+\t(\d+)(?:\s+\t(.+))?$/;
+const PART_NUMBER_PATTERN = '(\\d{3}[\\s\\u00a0]+\\d{2}[\\s\\u00a0]+\\d{2}-\\d{2})';
+const HUSQVARNA_ROW = new RegExp(`^(\\d{1,3})\\s+${PART_NUMBER_PATTERN}\\s+(.+?)\\s+([A-Z])\\s+(\\d+)(?:\\s+(.+))?$`, 'i');
+const GENERIC_PART_ROW = new RegExp(`^(\\d{1,3})\\s+${PART_NUMBER_PATTERN}\\s+(.+?)\\s+(\\d+)(?:\\s+(.+))?$`, 'i');
 const PAGE_MARKER = /--\s+(\d+)\s+of\s+\d+\s+--/g;
 
 function clean(value: unknown): string {
@@ -42,6 +44,21 @@ function clean(value: unknown): string {
 
 function compactModel(value: string): string {
     return value.replace(/\s+/g, '');
+}
+
+function normalizedLine(value: string): string {
+    return value.replace(/\u00a0/g, ' ').replace(/[ \t]+/g, ' ').trim();
+}
+
+function isPartsHeader(value: string): boolean {
+    const line = normalizedLine(value).toLowerCase();
+    const hasPosition = /\bpos(?:ition)?\.?\b/.test(line);
+    const hasPartNumber = /\bpart\s*(?:nr|no|number)\.?\b/.test(line);
+    return hasPosition && hasPartNumber;
+}
+
+function cleanPartNumber(value: string): string {
+    return normalizedLine(value);
 }
 
 function textPages(text: string): Array<{ page: number; text: string }> {
@@ -64,7 +81,7 @@ function textPages(text: string): Array<{ page: number; text: string }> {
 function sectionFromLines(lines: string[], lastRowIndex: number, fallback: string): string {
     for (let index = lines.length - 1; index > lastRowIndex; index -= 1) {
         const candidate = clean(lines[index]);
-        if (candidate && !candidate.startsWith('Pos. Nr.')) {
+        if (candidate && !isPartsHeader(candidate)) {
             return candidate;
         }
     }
@@ -73,7 +90,7 @@ function sectionFromLines(lines: string[], lastRowIndex: number, fallback: strin
 }
 
 export function parseHusqvarnaIplText(text: string, hints: CatalogHints = {}): CatalogExtraction | null {
-    if (!text.includes('Pos. Nr.') || !text.includes('Part nr.') || !text.includes('Qty (on this page)')) {
+    if (!text.split(/\r?\n/).some(isPartsHeader)) {
         return null;
     }
 
@@ -86,8 +103,8 @@ export function parseHusqvarnaIplText(text: string, hints: CatalogHints = {}): C
     const parts: ExtractedPart[] = [];
 
     for (const page of textPages(text)) {
-        const lines = page.text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-        if (!lines.some((line) => line.startsWith('Pos. Nr.'))) continue;
+        const lines = page.text.split(/\r?\n/).map(normalizedLine).filter(Boolean);
+        if (!lines.some(isPartsHeader)) continue;
 
         const rows: Array<{
             index: number;
@@ -100,27 +117,30 @@ export function parseHusqvarnaIplText(text: string, hints: CatalogHints = {}): C
         }> = [];
 
         lines.forEach((line, index) => {
-            const match = HUSQVARNA_ROW.exec(line);
+            const fullMatch = HUSQVARNA_ROW.exec(line);
+            const genericMatch = fullMatch ? null : GENERIC_PART_ROW.exec(line);
+            const match = fullMatch || genericMatch;
             if (!match) return;
+            const hasSectionCode = Boolean(fullMatch);
             rows.push({
                 index,
                 position: match[1],
-                partNumber: match[2],
+                partNumber: cleanPartNumber(match[2]),
                 name: match[3],
-                sectionCode: match[4],
-                quantity: match[5],
-                includedInKit: clean(match[6]),
+                sectionCode: hasSectionCode ? match[4].toUpperCase() : '',
+                quantity: hasSectionCode ? match[5] : match[4],
+                includedInKit: clean(hasSectionCode ? match[6] : match[5]),
             });
         });
 
         if (!rows.length) continue;
-        const section = sectionFromLines(lines, rows[rows.length - 1].index, rows[0].sectionCode);
+        const section = sectionFromLines(lines, rows[rows.length - 1].index, rows[0].sectionCode || 'Peças');
 
         for (const row of rows) {
             const notes = [
                 `Quantidade: ${row.quantity}`,
                 row.includedInKit ? `Incluída no kit: ${row.includedInKit}` : '',
-                `Seção do catálogo: ${row.sectionCode}`,
+                row.sectionCode ? `Seção do catálogo: ${row.sectionCode}` : '',
             ].filter(Boolean).join('. ');
 
             parts.push({

@@ -27,10 +27,20 @@ function storageCandidates(tenantId: string, documentId: string, storagePath?: s
     )];
 }
 
+function safeFilename(value: string): string {
+    const filename = value.replace(/\\/g, '/').split('/').pop()?.trim() || 'catalogo.pdf';
+    return filename.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 240) || 'catalogo.pdf';
+}
+
+function hasPdfSignature(buffer: Buffer): boolean {
+    return buffer.subarray(0, Math.min(buffer.length, 1024)).includes(Buffer.from('%PDF-'));
+}
+
 export class DocumentService {
     async handleNewUpload(tenantId: string, filename: string, filePath: string, metadata: UploadMetadata = {}) {
         try {
             const fileBuffer = fs.readFileSync(filePath);
+            if (!hasPdfSignature(fileBuffer)) throw new Error('DOCUMENT_INVALID_PDF');
             const contentHash = createHash('sha256').update(fileBuffer).digest('hex');
             const duplicate = await prisma.document.findFirst({
                 where: { tenantId, contentHash, archivedAt: null },
@@ -57,7 +67,7 @@ export class DocumentService {
                     data: {
                         id: documentId,
                         tenantId,
-                        filename,
+                        filename: safeFilename(filename),
                         url: canonicalStoragePath,
                         storagePath: canonicalStoragePath,
                         contentHash,
@@ -207,19 +217,17 @@ export class DocumentService {
         }
 
         const hasUsableCatalog = document.status === 'COMPLETED';
-        const resumeEmbedding = hasUsableCatalog
-            && document.processingStage === 'READY_WITHOUT_EMBEDDINGS'
-            && document.extractionSnapshot !== null
-            && document.catalogRevision > 0;
         const jobId = randomUUID();
         const locked = await prisma.document.updateMany({
             where: { id: document.id, tenantId, processingJobId: null },
             data: {
                 status: hasUsableCatalog ? 'COMPLETED' : 'PENDING',
                 processingJobId: jobId,
-                processingStage: resumeEmbedding ? 'INDEXING' : 'QUEUED',
-                processingCurrent: resumeEmbedding ? document.processingCurrent : 0,
-                processingTotal: resumeEmbedding ? document.processingTotal : 0,
+                // Reprocessar significa extrair o PDF novamente. O comportamento
+                // anterior apenas repetia embeddings usando o snapshot antigo.
+                processingStage: 'QUEUED_REEXTRACT',
+                processingCurrent: 0,
+                processingTotal: document.processingTotal,
                 processingError: null,
             },
         });

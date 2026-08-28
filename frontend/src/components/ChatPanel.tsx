@@ -209,7 +209,7 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
     save(recentKey, next);
   };
 
-  const ask = async (query: string, forcedPnc?: string, store = true) => {
+  const ask = async (query: string, forcedPnc?: string, store = true, selectedPartId?: string) => {
     if (!query.trim() || loading) return;
     const usedPnc = forcedPnc || pnc || '';
     const controller = new AbortController();
@@ -222,7 +222,7 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
       const response = await api('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: query, pnc: usedPnc || undefined }),
+        body: JSON.stringify({ question: query, pnc: usedPnc || undefined, selectedPartId }),
         timeoutMs: 60_000,
         signal: controller.signal,
       });
@@ -358,10 +358,10 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
   };
 
   const chooseAmbiguousOption = (message: Message, option: FeedbackOption) => {
-    const query = [option.name, `modelo ${option.model}`, option.section ? `seção ${option.section}` : '', option.position ? `posição ${option.position}` : ''].filter(Boolean).join(' · ');
+    const query = `${option.name} · código ${option.partNumber} · modelo ${option.model}`;
     setModel(option.model);
     if (option.pnc) setPnc(option.pnc);
-    void ask(query, option.pnc || message.pnc);
+    void ask(query, option.pnc || message.pnc, true, option.id);
   };
 
   const newConversation = () => {
@@ -430,11 +430,11 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
 
                       {message.response?.pncOptions?.length ? <div className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600">Selecione o PNC da etiqueta</div><div className="flex flex-wrap gap-2">{message.response.pncOptions.map(option => <button type="button" key={option} onClick={() => message.query && void ask(message.query, option)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs">PNC {option}</button>)}</div></div> : null}
                       {message.response?.modelOptions?.length ? <div className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600">Confirmar modelo</div><div className="flex flex-wrap gap-2">{message.response.modelOptions.map(option => <button type="button" key={option} onClick={() => chooseModel(message, option)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs">{option}</button>)}</div></div> : null}
-                      {message.response?.status === 'AMBIGUOUS' && message.response.options?.length ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Qual descrição corresponde à peça?</div><div className="mt-2 grid gap-2">{message.response.options.map(option => <button type="button" key={option.id} onClick={() => chooseAmbiguousOption(message, option)} className="rounded-lg border border-slate-200 p-2 text-left text-xs hover:bg-slate-50"><b>{option.name}</b><span className="block text-slate-500">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span></button>)}</div></div> : null}
+                      {message.response?.status === 'AMBIGUOUS' && message.response.options?.length ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Qual item da vista corresponde à peça?</div><div className="mt-2 grid gap-2">{message.response.options.map(option => <button type="button" key={option.id} onClick={() => chooseAmbiguousOption(message, option)} className="rounded-lg border border-slate-200 p-2 text-left text-xs hover:bg-slate-50"><b>{option.name}</b><span className="mt-0.5 block font-semibold text-[#1d4f91]">Código {option.partNumber}</span><span className="block text-slate-500">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span></button>)}</div></div> : null}
 
                       {message.response?.part && !message.feedback ? <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3"><span className="text-xs text-slate-500">Este resultado ajudou?</span><button type="button" onClick={() => void positiveFeedback(index)} className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-700">👍 Sim</button><button type="button" onClick={() => startNegative(index)} className="rounded-lg bg-rose-50 px-2 py-1 text-rose-700">👎 Não</button></div> : null}
                       {message.showReasons ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">O que estava errado?</div><div className="mt-2 flex flex-wrap gap-2">{reasons.map(([reason, label]) => <button type="button" key={reason} onClick={() => chooseReason(index, reason)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50">{label}</button>)}</div></div> : null}
-                      {message.showCorrections ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Selecione a peça correta, se ela aparecer abaixo.</div><div className="mt-2 grid gap-2">{message.response?.feedbackOptions?.filter(option => option.id !== message.response?.part?.id).map(option => <button type="button" key={option.id} onClick={() => void negativeFeedback(index, option)} className="rounded-lg border border-slate-200 p-2 text-left text-xs"><b>{option.name}</b><span className="block text-slate-500">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span></button>)}</div><button type="button" onClick={() => void negativeFeedback(index)} className="mt-2 text-xs font-semibold text-slate-500 underline">Nenhuma dessas / apenas registrar o erro</button></div> : null}
+                      {message.showCorrections ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Selecione a peça correta, se ela aparecer abaixo.</div><div className="mt-2 grid gap-2">{message.response?.feedbackOptions?.filter(option => option.id !== message.response?.part?.id).map(option => <button type="button" key={option.id} onClick={() => void negativeFeedback(index, option)} className="rounded-lg border border-slate-200 p-2 text-left text-xs"><b>{option.name}</b><span className="block font-semibold text-[#1d4f91]">{option.partNumber}</span><span className="block text-slate-500">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span></button>)}</div><button type="button" onClick={() => void negativeFeedback(index)} className="mt-2 text-xs font-semibold text-slate-500 underline">Nenhuma dessas / apenas registrar o erro</button></div> : null}
                       {message.feedback && !message.showReasons && !message.showCorrections ? <div className="mt-2 text-xs text-slate-500">{message.feedback === 'correct' ? '✓ Confirmação salva' : message.feedback === 'corrected' ? '✓ Correção salva' : '✓ Feedback salvo'}</div> : null}
                     </>
                   )}

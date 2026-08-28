@@ -43,3 +43,23 @@ test('não classifica tabelas pequenas ou PDFs sem assinatura IPL como catálogo
       -- 1 of 1 --
     `), null);
 });
+
+test('aceita tabela Husqvarna extraída com espaços no lugar de tabulações', () => {
+    const rows = Array.from({ length: 10 }, (_, index) =>
+        `${index + 1}  505 30 ${String(index + 10).padStart(2, '0')}-01  Peça ${index + 1}  L  1`,
+    ).join('\n');
+    const text = `
+IPL, 143 R II, 2008-06
+-- 1 of 2 --
+Position Part No. Description Page Qty
+${rows}
+Intake
+-- 2 of 2 --
+`;
+
+    const extraction = parseHusqvarnaIplText(text, { manufacturer: 'Husqvarna' });
+    assert.ok(extraction);
+    assert.equal(extraction.parts.length, 10);
+    assert.equal(extraction.parts[0].partNumber, '505 30 10-01');
+    assert.equal(extraction.parts[0].section, 'Intake');
+});

@@ -17,6 +17,10 @@ services:
         sync: false
       - key: GEMINI_GENERATIVE_MODEL
         value: gemini-3.6-flash
+      - key: ENABLE_SEMANTIC_INDEXING
+        value: "false"
+      - key: GEMINI_EMBEDDING_MODEL
+        value: gemini-embedding-001
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SECRET_KEY

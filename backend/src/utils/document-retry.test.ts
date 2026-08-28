@@ -15,3 +15,8 @@ test('agenda novo ciclo apenas para falha temporária e dentro do limite', () =>
     assert.equal(nextDocumentRetry({ status: 400 }, {}), null);
 });
 
+test('não reenfileira cota diária da IA', () => {
+    const dailyQuota = new Error('Quota exceeded: GenerateRequestsPerDayPerProjectPerModel-FreeTier');
+    assert.equal(nextDocumentRetry(dailyQuota, {}), null);
+});
+

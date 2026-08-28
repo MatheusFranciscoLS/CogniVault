@@ -44,6 +44,26 @@ export function deduplicatePartCandidates(candidates: PartCandidate[]): PartCand
 }
 
 export class PartSearchService {
+  static async byId(tenantId: string, partId: string): Promise<PartCandidate | null> {
+    const part = await prisma.part.findFirst({
+      where: {
+        id: partId,
+        active: true,
+        document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+      },
+      include: { document: { select: { filename: true } } },
+    });
+    if (!part) return null;
+    return {
+      id: part.id, documentId: part.documentId, filename: part.document.filename,
+      manufacturer: part.manufacturer, model: part.model, normalizedModel: part.normalizedModel,
+      pnc: part.pnc, normalizedPnc: part.normalizedPnc, universalAcrossPnc: part.universalAcrossPnc,
+      section: part.section, position: part.position, name: part.name, alternativeNames: part.alternativeNames,
+      partNumber: part.partNumber, normalizedPartNumber: part.normalizedPartNumber,
+      page: part.page, distance: 0, feedbackScore: 0, searchMethod: 'LEXICAL',
+    };
+  }
+
   static async directByCode(tenantId: string, partNumber: string): Promise<PartCandidate[]> {
     const needle = normalizeIdentifier(partNumber);
     if (!needle) return [];

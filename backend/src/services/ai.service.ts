@@ -87,6 +87,18 @@ function embeddingBatchSize(): number {
     return Number.isFinite(configured) ? Math.min(100, Math.max(1, Math.trunc(configured))) : 50;
 }
 
+export function semanticIndexingEnabled(): boolean {
+    return ['1', 'true', 'yes', 'on'].includes((process.env.ENABLE_SEMANTIC_INDEXING || 'false').trim().toLowerCase());
+}
+
+function readableIndexingWarning(error: unknown): string {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.toLowerCase().includes('quota') || message.includes('RESOURCE_EXHAUSTED')) {
+        return 'Catálogo pronto para busca textual. O índice semântico opcional ficou pendente porque a cota da IA foi atingida.';
+    }
+    return `Catálogo pronto para busca textual. Índice semântico opcional pendente: ${message.slice(0, 360)}`;
+}
+
 async function updateDocumentForJob(
     documentId: string,
     jobId: string,
@@ -101,8 +113,9 @@ async function updateDocumentForJob(
 
 export class AIService {
     static async processDocument(documentId: string, tenantId: string, jobId: string): Promise<void> {
-        const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
+        let ai: Awaited<ReturnType<typeof getGeminiClient>> | null = null;
         let localFilePath: string | null = null;
+        let downloadedStoragePath: string | null = null;
         let uploadedFileName: string | null = null;
 
         try {
@@ -112,7 +125,8 @@ export class AIService {
             if (document.tenantId !== tenantId) throw new Error('Documento não pertence ao tenant informado.');
             if (document.processingJobId !== jobId) throw new Error('STALE_DOCUMENT_JOB');
 
-            const resumeIndexing = document.processingStage === 'INDEXING'
+            const forceReextraction = document.processingStage === 'QUEUED_REEXTRACT';
+            const resumeIndexing = !forceReextraction && document.processingStage === 'INDEXING'
                 && document.catalogRevision > 0
                 && document.processingTotal > 0;
 
@@ -135,6 +149,7 @@ export class AIService {
                     if (error || !data) continue;
                     localFilePath = path.join(reprocessDir, `reprocess-${documentId}-${jobId}.pdf`);
                     fs.writeFileSync(localFilePath, Buffer.from(await data.arrayBuffer()));
+                    downloadedStoragePath = candidatePath;
                     console.log(`📦 PDF recuperado do Storage: ${candidatePath}`);
                     break;
                 }
@@ -147,10 +162,12 @@ export class AIService {
             const fileBuffer = fs.readFileSync(localFilePath);
             const contentHash = createHash('sha256').update(fileBuffer).digest('hex');
             const canonicalStoragePath = `${tenantId}/${documentId}.pdf`;
-            const { error: uploadError } = await supabase.storage
-                .from(storageBucket)
-                .upload(canonicalStoragePath, fileBuffer, { contentType: 'application/pdf', upsert: true });
-            if (uploadError) throw new Error(`Erro no Supabase: ${uploadError.message}`);
+            if (downloadedStoragePath !== canonicalStoragePath) {
+                const { error: uploadError } = await supabase.storage
+                    .from(storageBucket)
+                    .upload(canonicalStoragePath, fileBuffer, { contentType: 'application/pdf', upsert: true });
+                if (uploadError) throw new Error(`Erro no Supabase: ${uploadError.message}`);
+            }
 
             await updateDocumentForJob(documentId, jobId, {
                 storagePath: canonicalStoragePath,
@@ -158,8 +175,8 @@ export class AIService {
                 contentHash,
             });
 
-            let extraction = catalogSnapshot(document.extractionSnapshot);
-            let extractionMethod = document.extractionMethod || 'SNAPSHOT';
+            let extraction = forceReextraction ? null : catalogSnapshot(document.extractionSnapshot);
+            let extractionMethod = forceReextraction ? 'REEXTRACTION' : (document.extractionMethod || 'SNAPSHOT');
 
             if (extraction) {
                 console.log(`♻️ Extração persistida reutilizada (${extraction.parts.length} peças).`);
@@ -181,8 +198,14 @@ export class AIService {
                 }
 
                 if (!extraction) {
+                    await updateDocumentForJob(documentId, jobId, {
+                        processingStage: 'AI_EXTRACTION',
+                        processingError: 'Tabela textual não reconhecida; iniciando leitura visual assistida.',
+                    });
+                    const [gemini, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
+                    ai = gemini;
                     const uploadedFile = await withTransientAIRetry(
-                        () => ai.files.upload({
+                        () => gemini.files.upload({
                             file: localFilePath as string,
                             config: { mimeType: 'application/pdf' },
                         }),
@@ -221,7 +244,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
 `;
 
                     const response = await withTransientAIRetry(
-                        () => ai.models.generateContent({
+                        () => gemini.models.generateContent({
                             model: GEMINI_GENERATIVE_MODEL,
                             contents: [{
                                 role: 'user',
@@ -457,69 +480,96 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 console.log(`💾 Catálogo já utilizável: ${preparedParts.length} peças salvas na revisão ${revision}.`);
             }
 
-            const revisionRows = await prisma.part.findMany({
-                where: { id: { in: activePartIds } },
-                select: { id: true, embeddingRevision: true },
-            });
-            const embeddingRevisionById = new Map(revisionRows.map((part) => [part.id, part.embeddingRevision]));
-            const pendingIndexes = activePartIds
-                .map((id, index) => ({ id, index }))
-                .filter(({ id }) => embeddingRevisionById.get(id) !== revision);
-            let indexedCount = preparedParts.length - pendingIndexes.length;
-
-            await updateDocumentForJob(documentId, jobId, {
-                status: 'COMPLETED',
-                processingStage: 'INDEXING',
-                processingCurrent: indexedCount,
-                processingTotal: preparedParts.length,
-            });
-
-            const batchSize = embeddingBatchSize();
-            for (let offset = 0; offset < pendingIndexes.length; offset += batchSize) {
-                const batch = pendingIndexes.slice(offset, offset + batchSize);
-                const embedResult = await withTransientAIRetry(
-                    () => ai.models.embedContent({
-                        model: 'gemini-embedding-001',
-                        contents: batch.map(({ index }) => preparedParts[index].data.searchText),
-                        config: { outputDimensionality: 768, taskType: 'RETRIEVAL_DOCUMENT' },
-                    }),
-                    { label: `lote de embeddings ${offset + 1}-${offset + batch.length}` },
-                );
-                const embeddings = embedResult.embeddings || [];
-                if (embeddings.length !== batch.length) {
-                    throw new Error(`A IA retornou ${embeddings.length} embeddings para um lote de ${batch.length} peças.`);
-                }
-
-                await prisma.$transaction(async (tx) => {
-                    for (const [batchIndex, item] of batch.entries()) {
-                        const values = embeddings[batchIndex]?.values;
-                        if (!values || values.length !== 768) {
-                            throw new Error(`Embedding inválido para a peça ${preparedParts[item.index].data.partNumber}.`);
-                        }
-                        const embeddingString = `[${values.join(',')}]`;
-                        await tx.$executeRaw`
-                            UPDATE "Part"
-                            SET "embedding" = ${embeddingString}::vector, "embeddingRevision" = ${revision}
-                            WHERE "id" = ${item.id}
-                        `;
-                    }
-                    indexedCount += batch.length;
-                    const progress = await tx.document.updateMany({
-                        where: { id: documentId, processingJobId: jobId },
-                        data: { processingCurrent: indexedCount, processingTotal: preparedParts.length },
-                    });
-                    if (progress.count !== 1) throw new Error('STALE_DOCUMENT_JOB');
-                }, { maxWait: 10_000, timeout: 60_000 });
-                console.log(`🔎 Indexação semântica: ${indexedCount}/${preparedParts.length}.`);
+            // A busca lexical bilíngue funciona sem vetores. Em produção, a
+            // indisponibilidade/cota da IA nunca deve impedir um PDF já extraído
+            // de ficar pronto para o balcão.
+            if (!semanticIndexingEnabled()) {
+                await updateDocumentForJob(documentId, jobId, {
+                    status: 'COMPLETED',
+                    processingStage: 'READY',
+                    processingCurrent: preparedParts.length,
+                    processingTotal: preparedParts.length,
+                    processingError: null,
+                });
+                console.log(`✅ Catálogo ${documentId} pronto pela indexação textual (${preparedParts.length} peças).`);
+                return;
             }
 
-            await updateDocumentForJob(documentId, jobId, {
-                status: 'COMPLETED',
-                processingStage: 'READY',
-                processingCurrent: preparedParts.length,
-                processingTotal: preparedParts.length,
-                processingError: null,
-            });
+            try {
+                const revisionRows = await prisma.part.findMany({
+                    where: { id: { in: activePartIds } },
+                    select: { id: true, embeddingRevision: true },
+                });
+                const embeddingRevisionById = new Map(revisionRows.map((part) => [part.id, part.embeddingRevision]));
+                const pendingIndexes = activePartIds
+                    .map((id, index) => ({ id, index }))
+                    .filter(({ id }) => embeddingRevisionById.get(id) !== revision);
+                let indexedCount = preparedParts.length - pendingIndexes.length;
+
+                await updateDocumentForJob(documentId, jobId, {
+                    status: 'COMPLETED',
+                    processingStage: 'INDEXING',
+                    processingCurrent: indexedCount,
+                    processingTotal: preparedParts.length,
+                });
+
+                const embeddingAi = ai || await getGeminiClient();
+                ai = embeddingAi;
+                const batchSize = embeddingBatchSize();
+                for (let offset = 0; offset < pendingIndexes.length; offset += batchSize) {
+                    const batch = pendingIndexes.slice(offset, offset + batchSize);
+                    const embedResult = await withTransientAIRetry(
+                        () => embeddingAi.models.embedContent({
+                            model: process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001',
+                            contents: batch.map(({ index }) => preparedParts[index].data.searchText),
+                            config: { outputDimensionality: 768, taskType: 'RETRIEVAL_DOCUMENT' },
+                        }),
+                        { label: `lote de embeddings ${offset + 1}-${offset + batch.length}` },
+                    );
+                    const embeddings = embedResult.embeddings || [];
+                    if (embeddings.length !== batch.length) {
+                        throw new Error(`A IA retornou ${embeddings.length} embeddings para um lote de ${batch.length} peças.`);
+                    }
+
+                    await prisma.$transaction(async (tx) => {
+                        for (const [batchIndex, item] of batch.entries()) {
+                            const values = embeddings[batchIndex]?.values;
+                            if (!values || values.length !== 768) {
+                                throw new Error(`Embedding inválido para a peça ${preparedParts[item.index].data.partNumber}.`);
+                            }
+                            const embeddingString = `[${values.join(',')}]`;
+                            await tx.$executeRaw`
+                                UPDATE "Part"
+                                SET "embedding" = ${embeddingString}::vector, "embeddingRevision" = ${revision}
+                                WHERE "id" = ${item.id}
+                            `;
+                        }
+                        indexedCount += batch.length;
+                        const progress = await tx.document.updateMany({
+                            where: { id: documentId, processingJobId: jobId },
+                            data: { processingCurrent: indexedCount, processingTotal: preparedParts.length },
+                        });
+                        if (progress.count !== 1) throw new Error('STALE_DOCUMENT_JOB');
+                    }, { maxWait: 10_000, timeout: 60_000 });
+                    console.log(`🔎 Indexação semântica: ${indexedCount}/${preparedParts.length}.`);
+                }
+
+                await updateDocumentForJob(documentId, jobId, {
+                    status: 'COMPLETED',
+                    processingStage: 'READY',
+                    processingCurrent: preparedParts.length,
+                    processingTotal: preparedParts.length,
+                    processingError: null,
+                });
+            } catch (indexingError) {
+                await updateDocumentForJob(documentId, jobId, {
+                    status: 'COMPLETED',
+                    processingStage: 'READY_WITHOUT_EMBEDDINGS',
+                    processingError: readableIndexingWarning(indexingError),
+                });
+                console.warn(`⚠️ Catálogo ${documentId} pronto sem índice semântico opcional.`, indexingError);
+                return;
+            }
             console.log(`🏆 Catálogo ${documentId}: revisão ${revision} concluída com ${preparedParts.length} peças ativas.`);
         } catch (error) {
             if (error instanceof Error && error.message === 'STALE_DOCUMENT_JOB') {
@@ -536,7 +586,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     console.warn('⚠️ Não foi possível remover o arquivo temporário:', error);
                 }
             }
-            if (uploadedFileName) {
+            if (uploadedFileName && ai) {
                 try {
                     await ai.files.delete({ name: uploadedFileName });
                 } catch (error) {

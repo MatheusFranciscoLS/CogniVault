@@ -1,5 +1,6 @@
 import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
+import multer from 'multer';
 import routes from './routes';
 import { prisma } from './config/prisma';
 import { rabbitMQ } from './queues/connection';
@@ -102,8 +103,15 @@ app.use((_req, res) => {
 });
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  const status = error instanceof HttpError ? error.status : 500;
-  const message = error instanceof HttpError ? error.message : 'Erro interno do servidor.';
+  const isUploadError = error instanceof multer.MulterError;
+  const status = error instanceof HttpError ? error.status : isUploadError && error.code === 'LIMIT_FILE_SIZE' ? 413 : isUploadError ? 400 : 500;
+  const message = error instanceof HttpError
+    ? error.message
+    : isUploadError && error.code === 'LIMIT_FILE_SIZE'
+      ? 'O PDF excede o limite de 50 MB.'
+      : isUploadError
+        ? 'Não foi possível receber o arquivo enviado.'
+        : 'Erro interno do servidor.';
 
   if (status >= 500) console.error('❌ Erro não tratado na API:', error);
   res.status(status).json({ error: message });

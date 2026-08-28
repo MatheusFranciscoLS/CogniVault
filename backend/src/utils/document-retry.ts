@@ -1,4 +1,4 @@
-import { isTransientAIError } from './ai-retry';
+import { isDailyAIQuotaError, isTransientAIError } from './ai-retry';
 
 const DEFAULT_MAX_DOCUMENT_RETRIES = 3;
 
@@ -20,7 +20,9 @@ export function documentRetryCount(headers: unknown): number {
 }
 
 export function nextDocumentRetry(error: unknown, headers: unknown): number | null {
-    if (!isTransientAIError(error)) {
+    // Uma cota diária não ficará disponível 60 segundos depois. Reenfileirar esse
+    // erro só faz o catálogo alternar entre EXTRAINDO e AGUARDANDO IA por minutos.
+    if (isDailyAIQuotaError(error) || !isTransientAIError(error)) {
         return null;
     }
 

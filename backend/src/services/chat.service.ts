@@ -4,10 +4,11 @@ import { ChatIntentService } from './chat-intent.service';
 import { buildFallbackIntent, calibrateMatchConfidence, extractLikelyPartNumber } from './chat-reliability';
 import { PartSearchService, type PartCandidate } from './part-search.service';
 import type { SearchIntent } from './chat-intent.service';
+import { buildSearchGroups } from './part-vocabulary';
 
 const MIN_CONFIDENCE = Number(process.env.PART_SEARCH_MIN_CONFIDENCE || '0.72');
 
-export type SearchStatus = 'FOUND' | 'PNC_REQUIRED' | 'MODEL_REQUIRED' | 'AMBIGUOUS' | 'NOT_FOUND';
+export type SearchStatus = 'FOUND' | 'PNC_REQUIRED' | 'MODEL_REQUIRED' | 'PART_REQUIRED' | 'AMBIGUOUS' | 'NOT_FOUND';
 
 export interface ChatSearchResult {
   status: SearchStatus;
@@ -44,14 +45,26 @@ export interface ChatSearchResult {
     universalAcrossPnc: boolean;
     applications: Array<{ model: string; pnc: string }>;
   };
-  options?: Array<{ id: string; name: string; model: string; pnc: string | null; section: string | null; position: string | null }>;
-  feedbackOptions?: Array<{ id: string; name: string; model: string; pnc: string | null; section: string | null; position: string | null }>;
+  options?: Array<{ id: string; name: string; partNumber: string; model: string; pnc: string | null; section: string | null; position: string | null }>;
+  feedbackOptions?: Array<{ id: string; name: string; partNumber: string; model: string; pnc: string | null; section: string | null; position: string | null }>;
 }
 
 function unique<T>(items: T[]): T[] { return [...new Set(items)]; }
 
 export class ChatService {
-  static async askQuestion(tenantId: string, question: string, explicitPnc?: string): Promise<ChatSearchResult> {
+  static async askQuestion(tenantId: string, question: string, explicitPnc?: string, selectedPartId?: string): Promise<ChatSearchResult> {
+    if (selectedPartId) {
+      const selected = await PartSearchService.byId(tenantId, selectedPartId);
+      const selectionIntent = buildFallbackIntent(question);
+      if (!selected) {
+        return this.withContext({ status: 'NOT_FOUND', answer: 'A peça selecionada não está mais disponível em um catálogo ativo.' }, selectionIntent);
+      }
+      return this.withContext(
+        this.found(selected, 1, selected.universalAcrossPnc ? 'Qualquer um' : (selected.pnc || explicitPnc || 'Não informado'), [selected]),
+        selectionIntent,
+      );
+    }
+
     const likelyCode = extractLikelyPartNumber(question);
     if (likelyCode) {
       const localIntent = buildFallbackIntent(question);
@@ -71,6 +84,16 @@ export class ChatService {
       const direct = await PartSearchService.directByCode(tenantId, intent.partNumber);
       if (direct.length === 1) return this.withContext(this.found(direct[0], 1, direct[0].universalAcrossPnc ? 'Qualquer um' : (direct[0].pnc || 'Não informado'), direct), intent);
       if (direct.length > 1) return this.withContext(this.found(direct[0], 1, direct[0].universalAcrossPnc ? 'Qualquer um' : (direct[0].pnc || 'Várias aplicações'), direct), intent);
+    }
+
+    const partGroups = buildSearchGroups(intent.partDescription || question, [intent.manufacturer, intent.model, intent.pnc]);
+    if (!partGroups.length) {
+      return this.withContext({
+        status: 'PART_REQUIRED',
+        answer: intent.model
+          ? `Entendi o modelo ${intent.model}, mas falta dizer qual peça você procura. Por exemplo: “carburador”, “filtro de ar” ou “embreagem”.`
+          : 'Diga o nome ou a descrição da peça que você procura. Se souber, informe também o modelo do equipamento.',
+      }, intent);
     }
 
     const normalizedModel = normalizeIdentifier(intent.model);
@@ -215,7 +238,7 @@ export class ChatService {
     return candidates.filter(c => {
       if (seen.has(c.id)) return false;
       seen.add(c.id); return true;
-    }).map(c => ({ id: c.id, name: c.name, model: c.model, pnc: c.pnc, section: c.section, position: c.position }));
+    }).map(c => ({ id: c.id, name: c.name, partNumber: c.partNumber, model: c.model, pnc: c.pnc, section: c.section, position: c.position }));
   }
 
   private static withContext(result: ChatSearchResult, intent: SearchIntent): ChatSearchResult {
@@ -234,6 +257,11 @@ export class ChatService {
         title: 'Falta confirmar o modelo',
         description: 'A descrição aparece em mais de um equipamento.',
         tips: ['Confira a plaqueta da máquina.', 'Escolha o modelo exato entre as opções.'],
+      },
+      PART_REQUIRED: {
+        title: 'Falta informar a peça',
+        description: 'O equipamento foi entendido, mas ainda não há uma peça específica para consultar.',
+        tips: ['Digite um nome curto, como carburador ou filtro de ar.', 'Você também pode informar a posição da vista explodida.'],
       },
       AMBIGUOUS: {
         title: 'Mais de uma peça possível',

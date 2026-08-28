@@ -71,6 +71,10 @@ export class ChatIntentService {
 
     const localSelection = chooseCandidateLocally(question, candidates);
     if (!localSelection.ambiguous) return localSelection;
+    // Para termos técnicos conhecidos, duas opções textualmente equivalentes
+    // representam ambiguidade real de catálogo. A IA não recebe evidência nova
+    // para escolher uma delas e, portanto, não deve inventar um desempate.
+    if (hasKnownPartVocabulary(question)) return localSelection;
 
     try {
       const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);

@@ -1,7 +1,6 @@
 import type { ConsumeMessage } from 'amqplib';
 import { prisma } from '../config/prisma';
 import { AIService } from '../services/ai.service';
-import { isDailyAIQuotaError } from '../utils/ai-retry';
 import { nextDocumentRetry } from '../utils/document-retry';
 import { DOCUMENT_PROCESSING_QUEUE, DOCUMENT_RETRY_QUEUE, rabbitMQ } from './connection';
 
@@ -11,10 +10,12 @@ interface DocumentMessage {
     jobId: string;
 }
 
-function readableProcessingError(error: unknown): string {
+function readableProcessingError(error: unknown, hasUsableCatalog: boolean): string {
     const message = error instanceof Error ? error.message : String(error);
     if (message.toLowerCase().includes('quota') || message.includes('RESOURCE_EXHAUSTED')) {
-        return 'As peças foram preservadas, mas a indexação semântica atingiu o limite temporário da IA.';
+        return hasUsableCatalog
+            ? 'As peças já gravadas foram preservadas. A IA opcional atingiu o limite temporário, sem bloquear o catálogo.'
+            : 'Este PDF não possui uma tabela textual reconhecível e precisa de leitura visual. A cota diária da IA foi atingida; tente novamente após a renovação da cota ou envie o IPL oficial com texto pesquisável.';
     }
     return message.slice(0, 600);
 }
@@ -83,8 +84,6 @@ export class DocumentWorker {
                     data: {
                         status: 'COMPLETED',
                         processingJobId: null,
-                        processingStage: 'READY',
-                        processingError: null,
                     },
                 });
                 channel.ack(msg);
@@ -115,10 +114,7 @@ export class DocumentWorker {
 
                 const hasUsableCatalog = currentDocument.status === 'COMPLETED'
                     && currentDocument._count.parts > 0;
-                const stopAtDailyQuota = hasUsableCatalog && isDailyAIQuotaError(error);
-                const retryNumber = stopAtDailyQuota
-                    ? null
-                    : nextDocumentRetry(error, msg.properties.headers);
+                const retryNumber = nextDocumentRetry(error, msg.properties.headers);
 
                 if (retryNumber !== null) {
                     try {
@@ -128,7 +124,7 @@ export class DocumentWorker {
                                 processingStage: currentDocument.processingStage === 'INDEXING'
                                     ? 'INDEXING'
                                     : 'RETRYING',
-                                processingError: readableProcessingError(error),
+                                processingError: readableProcessingError(error, hasUsableCatalog),
                             },
                         });
                         channel.sendToQueue(DOCUMENT_RETRY_QUEUE, msg.content, {
@@ -155,7 +151,7 @@ export class DocumentWorker {
                                 ? 'READY_WITHOUT_EMBEDDINGS'
                                 : 'READY_WITH_WARNING')
                             : 'FAILED',
-                        processingError: readableProcessingError(error),
+                        processingError: readableProcessingError(error, hasUsableCatalog),
                     },
                 });
                 channel.ack(msg);

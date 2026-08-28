@@ -43,7 +43,7 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
     return()=>{active=false};
   },[admin,archived]);
 
-  const processing=docs.some(document=>['PENDING','PROCESSING'].includes(document.status));
+  const processing=docs.some(document=>document.processingActive||['PENDING','PROCESSING'].includes(document.status));
   useEffect(()=>{
     if(!processing)return;
     let active=true;
@@ -116,6 +116,7 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
     event.preventDefault();
     if(!file)return;
     if(file.size>50*1024*1024){setError('O PDF deve ter no máximo 50 MB.');return;}
+    if(!file.name.toLowerCase().endsWith('.pdf')){setError('Selecione um arquivo com extensão .pdf.');return;}
 
     setBusy(true);setError('');
     const form=new FormData();
@@ -138,10 +139,12 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
   const badge=(document:DocumentItem)=>document.processingActive?'bg-amber-50 text-amber-700':document.status==='COMPLETED'?'bg-emerald-50 text-emerald-700':document.status==='FAILED'?'bg-rose-50 text-rose-700':'bg-amber-50 text-amber-700';
   const statusLabel=(document:DocumentItem)=>{
     if(document.processingActive){
+      if(document.processingStage==='QUEUED_REEXTRACT')return 'Na fila para reextração';
       if(document.processingStage==='DOWNLOADING')return 'Preparando PDF';
       if(document.processingStage==='EXTRACTING')return 'Extraindo peças';
+      if(document.processingStage==='AI_EXTRACTION')return 'Lendo páginas com IA';
       if(document.processingStage==='INDEXING')return `Indexando ${document.processingCurrent||0}/${document.processingTotal||0}`;
-      if(document.processingStage==='RETRYING')return 'Aguardando IA';
+      if(document.processingStage==='RETRYING')return 'Nova tentativa agendada';
       return document.status==='PENDING'?'Na fila':'Processando';
     }
     if(document.status==='COMPLETED'&&document.processingStage==='READY_WITHOUT_EMBEDDINGS')return 'Pronto · índice pendente';
@@ -157,7 +160,7 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
     {error&&<div role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
 
     {admin&&<form onSubmit={upload} className="cv-surface mb-6 rounded-[22px] p-5">
-      <div className="mb-1 font-semibold">Adicionar catálogo</div><p className="mb-4 text-xs text-slate-400">Após o envio, a fila extrai e indexa as peças automaticamente. Limite: 50 MB.</p>
+      <div className="mb-1 font-semibold">Adicionar catálogo</div><p className="mb-4 text-xs text-slate-400">O CogniVault extrai primeiro as peças e libera a busca textual. A IA visual só é usada quando o PDF não possui tabela pesquisável. Limite: 50 MB.</p>
       <div className="grid gap-3 md:grid-cols-4">
         <input ref={fileInputRef} aria-label="Arquivo PDF" type="file" accept="application/pdf,.pdf" onChange={event=>setFile(event.target.files?.[0]||null)} required className="cv-field text-sm"/>
         <input aria-label="Fabricante" value={manufacturer} onChange={event=>setManufacturer(event.target.value)} placeholder="Fabricante" className="cv-field text-sm"/>
@@ -173,11 +176,11 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
         {filtered.map(document=><tr key={document.id} className="border-t border-slate-100 transition hover:bg-slate-50/60">
           <td className="p-4"><div className="flex items-start gap-2"><button type="button" title="Favoritar" aria-label={favoritesByDocument.has(document.id)?`Remover ${document.filename} dos favoritos`:`Favoritar ${document.filename}`} disabled={Boolean(document.archivedAt)} onClick={()=>void toggleFavorite(document)} className="text-lg leading-5 text-amber-500 disabled:opacity-30">{favoritesByDocument.has(document.id)?'★':'☆'}</button><div><b className="font-semibold text-slate-800">{document.filename}</b><div className="mt-1 text-xs text-slate-400">{document.manufacturer||'Fabricante não informado'} · {fmtDate(document.createdAt)}</div>{document.archivedAt&&<span className="text-xs text-rose-600">Arquivado</span>}</div></div></td>
           <td className="text-slate-600">{document.model||'—'}<div className="text-xs text-slate-400">PNC {document.pnc||'—'}</div></td>
-          <td><span className={`rounded-full px-2 py-1 text-xs font-semibold ${badge(document)}`}>{statusLabel(document)}</span>{document.processingError&&<div title={document.processingError} className="mt-1 max-w-56 truncate text-[10px] text-slate-400">{document.processingError}</div>}</td>
+          <td><span className={`rounded-full px-2 py-1 text-xs font-semibold ${badge(document)}`}>{statusLabel(document)}</span>{document.processingError&&<div className="mt-1 max-w-72 text-[10px] leading-4 text-slate-500">{document.processingError}</div>}</td>
           <td className="text-slate-600">{document.partCount}</td>
           <td className="p-4"><div className="flex flex-wrap gap-2">
             {document.status==='COMPLETED'&&!document.archivedAt&&<><button type="button" onClick={()=>void access(document.id,'view',document.filename)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium">Visualizar</button><button type="button" onClick={()=>void access(document.id,'download',document.filename)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium">Baixar</button></>}
-            {admin&&!document.archivedAt&&<><button type="button" disabled={busy||document.processingActive||['PENDING','PROCESSING'].includes(document.status)} onClick={()=>void action(document.id,'reprocess')} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40">Reprocessar</button><button type="button" disabled={busy||document.processingActive} onClick={()=>void action(document.id,'archive')} className="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 disabled:opacity-40">Arquivar</button><button type="button" disabled={busy||document.processingActive} onClick={()=>void removePdf(document)} className="rounded-lg border border-rose-300 px-2.5 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-40">Excluir PDF</button></>}
+            {admin&&!document.archivedAt&&<><button type="button" disabled={busy||document.processingActive||['PENDING','PROCESSING'].includes(document.status)} onClick={()=>void action(document.id,'reprocess')} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40">{document.status==='COMPLETED'?'Reextrair peças':'Tentar novamente'}</button><button type="button" disabled={busy||document.processingActive} onClick={()=>void action(document.id,'archive')} className="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 disabled:opacity-40">Arquivar</button><button type="button" disabled={busy||document.processingActive} onClick={()=>void removePdf(document)} className="rounded-lg border border-rose-300 px-2.5 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-40">Excluir PDF</button></>}
             {admin&&document.archivedAt&&<button type="button" disabled={busy} onClick={()=>void action(document.id,'restore')} className="rounded-lg border border-emerald-200 px-2.5 py-1.5 text-xs font-medium text-emerald-700">Restaurar</button>}
           </div></td>
         </tr>)}
