@@ -6,7 +6,7 @@ import CatalogsPanel from '../components/CatalogsPanel';
 import { AuditPanel, OverviewPanel, UsersPanel } from '../components/AdminPanels';
 import AdminFeedbackPanel from '../components/AdminFeedbackPanel';
 import { FavoritesPanel, HistoryPanel, HomePanel, PartsPanel } from '../components/OperationalPanels';
-import { api, clearSession, getToken, json } from '../lib';
+import { apiJson, clearSession, getToken, SESSION_EXPIRED_EVENT } from '../lib';
 import type { Section, SessionUser } from '../types';
 
 export default function Dashboard(){
@@ -16,18 +16,33 @@ export default function Dashboard(){
  const [globalQuery,setGlobalQuery]=useState('');
  const [error,setError]=useState('');
 
- useEffect(()=>{if(!getToken()){navigate('/login');return;}void (async()=>{try{const d=await json<{user:SessionUser}>(await api('/api/me'));setUser(d.user);setSection('home')}catch(e){setError(e instanceof Error?e.message:'Sessão inválida');clearSession();navigate('/login')}})()},[navigate]);
+ useEffect(()=>{
+   let active=true;
+   if(!getToken()){navigate('/login',{replace:true});return;}
+
+   void apiJson<{user:SessionUser}>('/api/me')
+     .then(data=>{if(active){setUser(data.user);setSection('home')}})
+     .catch(e=>{if(active){setError(e instanceof Error?e.message:'Sessão inválida');clearSession();navigate('/login',{replace:true})}});
+
+   return()=>{active=false};
+ },[navigate]);
+
+ useEffect(()=>{
+   const expired=()=>navigate('/login',{replace:true});
+   window.addEventListener(SESSION_EXPIRED_EVENT,expired);
+   return()=>window.removeEventListener(SESSION_EXPIRED_EVENT,expired);
+ },[navigate]);
  const logout=()=>{clearSession();navigate('/login')};
  const search=(query:string)=>{setGlobalQuery(query);setSection('parts')};
 
- if(error)return <div className="p-8 text-rose-600">{error}</div>;
- if(!user)return <div className="min-h-screen grid place-items-center text-slate-400">Carregando CogniVault…</div>;
+ if(error)return <main className="grid min-h-screen place-items-center bg-[#f4f7fb] p-6"><div role="alert" className="max-w-md rounded-[22px] border border-rose-200 bg-white p-6 text-center shadow-xl shadow-slate-900/5"><div className="text-sm font-semibold text-rose-700">Não foi possível abrir o CogniVault</div><p className="mt-2 text-xs leading-5 text-slate-500">{error}</p></div></main>;
+ if(!user)return <main className="grid min-h-screen place-items-center bg-[#f4f7fb] p-6"><div className="text-center"><img src="/vardao-logo-transparent.png" alt="Vardão Máquinas" className="mx-auto w-40"/><div className="mx-auto mt-6 h-1 w-28 overflow-hidden rounded-full bg-slate-200"><div className="h-full w-1/2 animate-pulse rounded-full bg-[#1d4f91]"/></div><p className="mt-3 text-xs font-medium text-slate-400">Preparando sua área de trabalho…</p></div></main>;
 
  return <Shell user={user} section={section} onSection={setSection} onLogout={logout} onSearch={search}>
-   {section==='home'&&<HomePanel onSearch={search}/>} 
+   {section==='home'&&<HomePanel onSearch={search} onCatalogs={()=>setSection('catalogs')}/>}
    {section==='overview'&&user.role==='ADMIN'&&<OverviewPanel/>}
-   {section==='assistant'&&<ChatPanel/>}
-   {section==='parts'&&<PartsPanel initialQuery={globalQuery} onQueryChange={setGlobalQuery}/>} 
+   {section==='assistant'&&<ChatPanel storageScope={user.id}/>}
+   {section==='parts'&&<PartsPanel key={globalQuery||'empty-search'} initialQuery={globalQuery} onQueryChange={setGlobalQuery}/>}
    {section==='catalogs'&&<CatalogsPanel admin={user.role==='ADMIN'}/>} 
    {section==='history'&&<HistoryPanel onSearch={search}/>} 
    {section==='favorites'&&<FavoritesPanel onSearch={search}/>} 

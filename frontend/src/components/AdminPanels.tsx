@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { api, fmtDate, json } from '../lib';
+import { api, apiJson, fmtDate, json } from '../lib';
 import type { AdminUser, AuditLog, Overview, Role } from '../types';
+
+function fetchUsers() {
+  return apiJson<{users:AdminUser[]}>('/api/admin/users');
+}
 
 export function OverviewPanel(){
   const [data,setData]=useState<Overview|null>(null);
@@ -40,8 +44,12 @@ export function UsersPanel(){
   const [passwordUser,setPasswordUser]=useState<string|null>(null);
   const [passwordDraft,setPasswordDraft]=useState('');
 
-  const load=async()=>setUsers((await json<{users:AdminUser[]}>(await api('/api/admin/users'))).users);
-  useEffect(()=>{void load()},[]);
+  const load=async()=>setUsers((await fetchUsers()).users);
+  useEffect(()=>{
+    let active=true;
+    void fetchUsers().then(data=>{if(active)setUsers(data.users)}).catch(loadError=>{if(active)setError(loadError instanceof Error?loadError.message:'Erro ao carregar usuários.')});
+    return()=>{active=false};
+  },[]);
   const create=async(event:FormEvent)=>{event.preventDefault();setError('');try{await json(await api('/api/admin/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,role})}));setEmail('');setPassword('');setRole('MECHANIC');await load()}catch(err){setError(err instanceof Error?err.message:'Erro ao criar usuário')}};
   const update=async(id:string,patch:object)=>{try{await json(await api(`/api/admin/users/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)}));await load()}catch(err){setError(err instanceof Error?err.message:'Erro ao alterar usuário')}};
   const reset=async(event:FormEvent,id:string)=>{event.preventDefault();if(passwordDraft.length<6){setError('A nova senha precisa ter pelo menos 6 caracteres.');return;}await update(id,{password:passwordDraft});setPasswordDraft('');setPasswordUser(null)};

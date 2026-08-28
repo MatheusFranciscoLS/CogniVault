@@ -1,14 +1,16 @@
-# CogniVault — PNC + Feedback + Admin V3
+# CogniVault V6 — operação de balcão e inteligência de peças
 
 Sistema interno para biblioteca de catálogos técnicos e busca inteligente de peças.
 
 ## Perfis
 
-### Usuário da loja (`MECHANIC`)
+### Balcão (`MECHANIC` no código)
 - Consultar o Assistente IA.
 - Informar PNC quando necessário.
 - Confirmar/corrigir resultados (👍/👎).
-- Visualizar e baixar catálogos processados.
+- Buscar por peça, código, modelo e PNC.
+- Usar histórico, favoritos, detalhes e compatibilidade.
+- Visualizar e baixar catálogos processados no leitor interno.
 - **Não pode** enviar, arquivar, restaurar ou reprocessar PDFs.
 - **Não pode** administrar usuários.
 
@@ -32,28 +34,41 @@ O backend aplica as permissões independentemente do frontend. A conta é revali
 
 Os PDFs são acessados por signed URL do Supabase quando `storagePath` está disponível. O bucket `catalogos` deve permanecer privado.
 
+> A interface apresenta somente os perfis **Administrador** e **Balcão**. `MECHANIC` é apenas o identificador interno legado do perfil Balcão.
+
+## Saúde e produção
+
+- Frontend: Vite + React na Vercel.
+- Backend: TypeScript compilado em JavaScript no Render.
+- Dados: PostgreSQL + Prisma.
+- Catálogos: Supabase Storage privado.
+- Processamento assíncrono: RabbitMQ.
+- `GET /health/live`: processo HTTP ativo.
+- `GET /health`: readiness de PostgreSQL e RabbitMQ; retorna `503` quando uma dependência essencial está indisponível.
+
 ## Banco / migrations
 
-A V3 acrescenta as migrations de peças/PNC, feedback e segurança administrativa.
+A V6 inclui as migrations de peças/PNC, feedback, segurança administrativa e operação diária.
 
 Dentro de `backend`:
 
 ```bash
 npm install
 npx prisma generate
-npx prisma migrate dev
-npm run dev
+npm run build
+npm start
 ```
 
-> Em banco de produção, prefira `npx prisma migrate deploy` após validar a migration em desenvolvimento.
+> Em banco de produção, use apenas migrations revisadas com `npx prisma migrate deploy`.
 >
-> Se o Prisma solicitar reset/drop do banco, **não confirme** antes de revisar o motivo.
+> Nunca use `prisma migrate reset`, `db push --accept-data-loss` ou qualquer fluxo que apague dados.
 
 ## Frontend
 
 ```bash
 cd frontend
 npm install
+npm run lint
 npm run dev
 ```
 

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -36,113 +37,138 @@ export default function Login() {
     }
   };
 
-  const benefits = ['Busca por PNC', 'Catálogos centralizados', 'Código validado pela base'];
+  const benefits = [
+    { title: 'Busca precisa', description: 'Peça, modelo e PNC' },
+    { title: 'Catálogo central', description: 'PDFs e aplicações' },
+    { title: 'Decisão rápida', description: 'IA com base técnica' },
+  ];
 
   return (
-    <main className="h-[100dvh] overflow-hidden bg-[#eef3f8] lg:grid lg:grid-cols-[1.06fr_.94fr]">
-      <section className="relative hidden overflow-hidden bg-[#091a36] text-white lg:flex lg:flex-col lg:justify-between px-12 py-10 xl:px-16 xl:py-12">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(56,116,188,.22),transparent_35%),radial-gradient(circle_at_90%_86%,rgba(212,165,71,.12),transparent_28%)]" />
-        <div className="absolute left-[54%] top-1/2 w-[620px] -translate-y-1/2 opacity-[.035] pointer-events-none">
-          <img src="/husqvarna-logo.webp" alt="" className="w-full grayscale brightness-0 invert" />
-        </div>
+    <main className="min-h-[100dvh] bg-[#f7f9fc] text-slate-950 lg:grid lg:grid-cols-[minmax(0,1.12fr)_minmax(430px,.88fr)]">
+      <section className="relative hidden min-h-[100dvh] overflow-hidden bg-[#081a34] px-12 py-10 text-white lg:flex lg:flex-col lg:justify-between xl:px-16 xl:py-12">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(47,111,187,.28),transparent_34%),radial-gradient(circle_at_88%_92%,rgba(226,174,71,.13),transparent_26%)]" />
+        <div className="pointer-events-none absolute inset-0 opacity-[.05] [background-image:linear-gradient(rgba(255,255,255,.18)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.18)_1px,transparent_1px)] [background-size:64px_64px]" />
         <div className="absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-white/15 to-transparent" />
 
         <div className="relative z-10 flex items-center gap-4">
-          <img src="/favicon.png" alt="CogniVault" className="h-12 w-12 rounded-2xl object-cover ring-1 ring-white/10 shadow-2xl" />
+          <img src="/favicon.png" alt="" className="h-11 w-11 rounded-[15px] object-cover shadow-2xl ring-1 ring-white/10" />
           <div>
             <div className="text-xl font-semibold tracking-tight">CogniVault</div>
-            <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[.22em] text-slate-400">Parts Intelligence</div>
+            <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[.22em] text-slate-400">Inteligência de peças</div>
           </div>
         </div>
 
-        <div className="relative z-10 max-w-[620px] -translate-y-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/[.07] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[.14em] text-amber-200">
-            Revenda Ouro Husqvarna
+        <div className="relative z-10 max-w-[680px] -translate-y-2">
+          <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[.16em] text-amber-200">
+            <span className="h-px w-8 bg-amber-300/70" />
+            Operação de peças
           </div>
-          <h1 className="mt-6 max-w-[590px] text-[clamp(2.55rem,4vw,4.6rem)] font-semibold leading-[.98] tracking-[-.055em]">
+          <h1 className="mt-7 max-w-[640px] text-[clamp(3rem,4.4vw,5.2rem)] font-semibold leading-[.94] tracking-[-.06em]">
             Peça certa. Código certo. Mais rápido.
           </h1>
-          <p className="mt-6 max-w-[530px] text-[15px] leading-7 text-slate-300">
-            Catálogos, PNCs e inteligência de busca para o balcão de peças da Vardão Máquinas.
+          <p className="mt-7 max-w-[560px] text-[15px] leading-7 text-slate-300">
+            Catálogos, PNCs e inteligência de busca reunidos para a rotina do balcão da Vardão Máquinas.
           </p>
-          <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3">
+          <div className="mt-10 grid max-w-[620px] grid-cols-3 gap-5">
             {benefits.map((item) => (
-              <div key={item} className="flex items-center gap-2 text-sm text-slate-200">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
-                {item}
+              <div key={item.title} className="border-t border-white/15 pt-4">
+                <div className="text-sm font-semibold text-white">{item.title}</div>
+                <div className="mt-1 text-xs text-slate-400">{item.description}</div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="relative z-10 flex items-end justify-between gap-6 border-t border-white/10 pt-5">
-          <div>
-            <div className="text-xs font-semibold text-slate-200">Ambiente interno</div>
-            <div className="mt-1 text-[11px] text-slate-500">Acesso exclusivo à equipe autorizada.</div>
+        <div className="relative z-10 flex items-end justify-between gap-8 border-t border-white/10 pt-5">
+          <div className="flex items-center gap-3">
+            <img src="/husqvarna-logo.webp" alt="Husqvarna" className="h-11 w-11 rounded-[13px] object-cover ring-1 ring-white/10" />
+            <div>
+              <div className="text-xs font-semibold text-slate-100">Representante Husqvarna</div>
+              <div className="mt-1 text-[11px] text-slate-500">Tecnologia e suporte para o campo.</div>
+            </div>
           </div>
-          <span className="text-[10px] font-semibold uppercase tracking-[.18em] text-slate-500">Vardão Máquinas</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[.18em] text-slate-500">Ambiente interno</span>
         </div>
       </section>
 
-      <section className="relative flex h-[100dvh] items-center justify-center overflow-hidden px-5 py-5 sm:px-8 lg:px-10">
-        <div className="absolute -right-28 -top-24 h-72 w-72 rounded-full bg-[#1d4f91]/[.05] blur-3xl" />
-        <div className="absolute -bottom-20 left-0 h-64 w-64 rounded-full bg-amber-400/[.06] blur-3xl" />
+      <section className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-6 py-10 sm:px-10 lg:px-12">
+        <div className="pointer-events-none absolute -right-28 -top-24 h-80 w-80 rounded-full bg-[#1d4f91]/[.07] blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-amber-400/[.07] blur-3xl" />
 
-        <div className="relative z-10 w-full max-w-[430px]">
-          <div className="mb-5 flex items-center justify-between gap-4 px-1 sm:mb-6">
-            <img src="/vardao-logo.webp" alt="Vardão Máquinas" className="brand-logo-clean h-11 w-auto max-w-[180px] object-contain" />
-            <span className="rounded-full border border-slate-200/80 bg-white/70 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.13em] text-slate-500 shadow-sm backdrop-blur">Acesso interno</span>
+        <div className="relative z-10 w-full max-w-[440px]">
+          <div className="mb-14 flex items-center justify-between gap-5 sm:mb-16">
+            <img src="/vardao-logo-transparent.png" alt="Vardão Máquinas" className="h-auto w-[190px] object-contain sm:w-[215px]" />
+            <div className="lg:hidden">
+              <img src="/husqvarna-logo.webp" alt="Husqvarna" className="h-10 w-10 rounded-xl object-cover shadow-sm" />
+            </div>
           </div>
 
-          <div className="cv-surface rounded-[30px] p-6 sm:p-8 backdrop-blur-xl">
-            <div className="mb-7">
-              <div className="flex items-center gap-3 lg:hidden mb-6">
-                <img src="/favicon.png" alt="CogniVault" className="h-10 w-10 rounded-xl object-cover" />
+          <div>
+            <div className="mb-9">
+              <div className="mb-8 flex items-center gap-3 lg:hidden">
+                <img src="/favicon.png" alt="" className="h-10 w-10 rounded-xl object-cover" />
                 <div>
                   <div className="font-semibold text-slate-900">CogniVault</div>
-                  <div className="text-[9px] uppercase tracking-[.18em] text-slate-400">Parts Intelligence</div>
+                  <div className="text-[9px] uppercase tracking-[.18em] text-slate-400">Inteligência de peças</div>
                 </div>
               </div>
-              <p className="cv-kicker">Bem-vindo</p>
-              <h2 className="mt-2 text-[2rem] font-semibold tracking-[-.045em] text-slate-950">Entre na sua conta</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">Use as credenciais fornecidas pelo administrador.</p>
+              <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[.15em] text-[#1d4f91]">
+                <span className="h-px w-7 bg-[#1d4f91]/50" />
+                Acesso interno
+              </div>
+              <h2 className="mt-5 text-[2.45rem] font-semibold leading-[1.03] tracking-[-.055em] text-slate-950">Entre no CogniVault</h2>
+              <p className="mt-4 max-w-sm text-sm leading-6 text-slate-500">Consulte peças, aplicações e catálogos com as credenciais da sua equipe.</p>
             </div>
 
-            {error && <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
+            {error && <div role="alert" aria-live="polite" className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
 
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-5" aria-busy={loading}>
               <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-[.08em] text-slate-600">E-mail</label>
+                <label htmlFor="login-email" className="mb-2 block text-xs font-semibold text-slate-700">E-mail</label>
                 <input
+                  id="login-email"
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   autoComplete="email"
+                  autoFocus
                   required
-                  placeholder="nome@empresa.com"
-                  className="cv-field text-sm"
+                  placeholder="seuemail@vardao.com.br"
+                  className="cv-field h-12 text-sm"
                 />
               </div>
               <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-[.08em] text-slate-600">Senha</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                  required
-                  placeholder="••••••••"
-                  className="cv-field text-sm"
-                />
+                <label htmlFor="login-password" className="mb-2 block text-xs font-semibold text-slate-700">Senha</label>
+                <div className="relative">
+                  <input
+                    id="login-password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    required
+                    placeholder="••••••••"
+                    className="cv-field h-12 pr-20 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(value => !value)}
+                    className="absolute inset-y-0 right-0 px-4 text-xs font-semibold text-slate-500 transition hover:text-[#1d4f91]"
+                    aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  >
+                    {showPassword ? 'Ocultar' : 'Mostrar'}
+                  </button>
+                </div>
               </div>
-              <button disabled={loading} className="cv-primary mt-2 w-full py-3.5 text-sm font-semibold">
-                {loading ? 'Entrando...' : 'Entrar no CogniVault'}
+              <button disabled={loading} className="cv-primary mt-3 flex w-full items-center justify-center gap-2 py-3.5 text-sm font-semibold">
+                {loading && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />}
+                {loading ? 'Validando acesso...' : 'Entrar no CogniVault'}
               </button>
             </form>
 
-            <div className="mt-6 flex items-center justify-center gap-2 text-center text-[11px] text-slate-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              Acesso gerenciado pela Vardão Máquinas
+            <div className="mt-8 flex items-center justify-between gap-4 border-t border-slate-200/80 pt-5 text-[11px] text-slate-400">
+              <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Acesso protegido</span>
+              <span>Administrador e Balcão</span>
             </div>
           </div>
         </div>

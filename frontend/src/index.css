@@ -6,6 +6,12 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #0f172a;
   background: #f4f7fb;
+  --cv-navy: #0b1d3a;
+  --cv-blue: #1d4f91;
+  --cv-blue-dark: #163f76;
+  --cv-gold: #e2ae47;
+  --cv-surface: #ffffff;
+  --cv-border: #dbe3ed;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -17,6 +23,11 @@ button, input, select { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 
+:focus-visible {
+  outline: 3px solid rgba(29, 79, 145, .26);
+  outline-offset: 2px;
+}
+
 ::selection { background: #c9daf2; color: #0d2348; }
 
 .brand-logo-clean {
@@ -27,7 +38,7 @@ button:disabled { cursor: not-allowed; }
 .cv-surface {
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(203, 213, 225, 0.74);
-  box-shadow: 0 18px 55px rgba(15, 35, 72, 0.07);
+  box-shadow: 0 18px 55px rgba(15, 35, 72, 0.065);
 }
 
 .cv-field {
@@ -62,6 +73,142 @@ button:disabled { cursor: not-allowed; }
 
 .cv-primary:disabled { opacity: .55; }
 
+.cv-icon-button {
+  display: grid;
+  height: 2.5rem;
+  width: 2.5rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: .85rem;
+  background: #fff;
+  color: #64748b;
+  box-shadow: 0 3px 10px rgba(15, 35, 72, .04);
+  transition: color .18s ease, background .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+.cv-icon-button:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #1d4f91;
+}
+
+.cv-stat {
+  border: 1px solid rgba(203, 213, 225, .74);
+  border-radius: 1.4rem;
+  background: rgba(255, 255, 255, .94);
+  padding: 1.25rem;
+  box-shadow: 0 16px 45px rgba(15, 35, 72, .055);
+}
+
+.cv-stat-label {
+  color: #94a3b8;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.cv-stat-icon {
+  display: grid;
+  height: 2rem;
+  width: 2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: .65rem;
+  background: #edf3fb;
+  color: #1d4f91;
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+.cv-stat-value {
+  margin-top: .45rem;
+  color: #0f172a;
+  font-size: 1.8rem;
+  font-weight: 680;
+  letter-spacing: -.04em;
+}
+
+.cv-stat-caption {
+  margin-top: .25rem;
+  color: #94a3b8;
+  font-size: .7rem;
+}
+
+.cv-quick-action {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  border: 1px solid rgba(203, 213, 225, .74);
+  border-radius: 1.4rem;
+  background: rgba(255, 255, 255, .94);
+  padding: 1.25rem;
+  text-align: left;
+  box-shadow: 0 16px 45px rgba(15, 35, 72, .055);
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.cv-quick-action:hover {
+  transform: translateY(-2px);
+  border-color: #bfdbfe;
+  box-shadow: 0 20px 50px rgba(15, 35, 72, .09);
+}
+
+.cv-quick-action strong,
+.cv-quick-action small {
+  display: block;
+}
+
+.cv-quick-action strong { color: #1e293b; font-size: .8rem; }
+.cv-quick-action small { margin-top: .25rem; color: #94a3b8; font-size: .68rem; }
+
+.cv-list-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: .85rem;
+  padding: .8rem;
+  text-align: left;
+  transition: border-color .18s ease, background .18s ease, transform .18s ease;
+}
+
+.cv-list-row:hover {
+  transform: translateX(2px);
+  border-color: #cbdcf2;
+  background: #f8fbff;
+}
+
+.cv-soft-badge {
+  border-radius: 999px;
+  background: #f1f5f9;
+  padding: .35rem .65rem;
+  color: #64748b;
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.cv-link {
+  color: #1d4f91;
+  font-size: .72rem;
+  font-weight: 700;
+  transition: color .18s ease;
+}
+
+.cv-link:hover { color: #123867; }
+
+.cv-empty {
+  border: 1px dashed #cbd5e1;
+  border-radius: 1.2rem;
+  background: rgba(248, 250, 252, .7);
+  padding: 2rem;
+  text-align: center;
+}
+
 .cv-kicker {
   color: #1d4f91;
   font-size: .72rem;
@@ -85,3 +232,12 @@ button:disabled { cursor: not-allowed; }
 .cv-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
 .cv-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .cv-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

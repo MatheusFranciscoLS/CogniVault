@@ -2,8 +2,7 @@ import { rabbitMQ } from './connection';
 
 export class DocumentProducer {
     static async publishToQueue(documentId: string, tenantId: string) {
-        const channel = rabbitMQ.channel;
-        if (!channel) throw new Error('Canal do RabbitMQ não está pronto.');
+        const channel = rabbitMQ.requireChannel();
 
         // Transforma os dados em texto para trafegar na rede
         const message = JSON.stringify({ documentId, tenantId });
@@ -12,6 +11,7 @@ export class DocumentProducer {
         channel.sendToQueue('document_processing', Buffer.from(message), {
             persistent: true // Garante que a mensagem não suma se o servidor reiniciar
         });
+        await channel.waitForConfirms();
 
         console.log(`📤 Documento ${documentId} colocado na fila com sucesso!`);
     }

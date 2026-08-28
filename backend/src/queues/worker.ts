@@ -1,6 +1,7 @@
 import { rabbitMQ } from './connection';
 import { prisma } from '../config/prisma';
 import { AIService } from '../services/ai.service';
+import type { ConsumeMessage } from 'amqplib';
 
 interface DocumentMessage {
     documentId: string;
@@ -11,13 +12,7 @@ export class DocumentWorker {
 
     static async start(): Promise<void> {
 
-        const channel = rabbitMQ.channel;
-
-        if (!channel) {
-            throw new Error(
-                'Canal do RabbitMQ não iniciado para o Worker.'
-            );
-        }
+        const channel = rabbitMQ.requireChannel();
 
         // =========================================================
         // PROCESSAR APENAS UM DOCUMENTO POR VEZ
@@ -31,7 +26,7 @@ export class DocumentWorker {
 
         await channel.consume(
             'document_processing',
-            async (msg: any) => {
+            async (msg: ConsumeMessage | null) => {
 
                 if (!msg) {
                     return;
