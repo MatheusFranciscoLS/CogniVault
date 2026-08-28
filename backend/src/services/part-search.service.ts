@@ -74,7 +74,8 @@ export class PartSearchService {
     try {
       const ai = await getGeminiClient();
       const embed = await ai.models.embedContent({
-        model: 'gemini-embedding-001', contents: queryText,
+        model: 'text-embedding-004',
+        contents: queryText,
         config: { outputDimensionality: 768, taskType: 'RETRIEVAL_QUERY' },
       });
       vector = embed.embeddings?.[0]?.values;

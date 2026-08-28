@@ -33,7 +33,7 @@ export interface DeterministicExtraction {
     method: 'HUSQVARNA_IPL_TEXT';
 }
 
-const HUSQVARNA_ROW = /^(\d+)\s+\t(\d{3}\s+\d{2}\s+\d{2}-\d{2})\s+\t(.+?)\s+\t([A-Z])\s+\t(\d+)(?:\s+\t(.+))?$/;
+const HUSQVARNA_ROW = /^(\d+)\s+([\d\s-]{10,15})\s+(.+?)\s+([A-Z0-9]{1,3})\s+(\d+)(?:\s+(.+))?$/i;
 const PAGE_MARKER = /--\s+(\d+)\s+of\s+\d+\s+--/g;
 
 function clean(value: unknown): string {
@@ -73,7 +73,10 @@ function sectionFromLines(lines: string[], lastRowIndex: number, fallback: strin
 }
 
 export function parseHusqvarnaIplText(text: string, hints: CatalogHints = {}): CatalogExtraction | null {
-    if (!text.includes('Pos. Nr.') || !text.includes('Part nr.') || !text.includes('Qty (on this page)')) {
+    const hasPosition = /pos\.?\s*(nr\.|no\.?|nº)/i.test(text);
+    const hasPart = /part\s*(nr\.|no\.?|nº)|peça/i.test(text);
+
+    if (!hasPosition || !hasPart) {
         return null;
     }
 
