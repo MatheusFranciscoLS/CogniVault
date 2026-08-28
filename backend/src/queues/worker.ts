@@ -96,6 +96,9 @@ export class DocumentWorker {
                 // 3. PROCESSAMENTO
                 // =====================================================
 
+                let preserveCatalogOnFailure = false;
+                let canUpdateDocumentStatus = false;
+
                 try {
 
                     // =================================================
@@ -134,18 +137,29 @@ export class DocumentWorker {
                     // 3.3 STATUS PROCESSANDO
                     // =================================================
 
-                    await prisma.document.update({
-                        where: {
-                            id: data.documentId
-                        },
-                        data: {
-                            status: 'PROCESSING'
-                        }
-                    });
+                    const hasUsableCatalog = document.status === 'COMPLETED';
+                    preserveCatalogOnFailure = hasUsableCatalog;
 
-                    console.log(
-                        `⚙️ Documento ${data.documentId} marcado como PROCESSING.`
-                    );
+                    if (!hasUsableCatalog) {
+                        await prisma.document.update({
+                            where: {
+                                id: data.documentId
+                            },
+                            data: {
+                                status: 'PROCESSING'
+                            }
+                        });
+
+                        console.log(
+                            `⚙️ Documento ${data.documentId} marcado como PROCESSING.`
+                        );
+                    } else {
+                        console.log(
+                            `♻️ Reprocessando ${data.documentId} sem retirar o catálogo atual de uso.`
+                        );
+                    }
+
+                    canUpdateDocumentStatus = true;
 
                     // =================================================
                     // 3.4 PROCESSAR COM IA
@@ -195,19 +209,22 @@ export class DocumentWorker {
                     // =================================================
 
                     try {
+                        if (canUpdateDocumentStatus) {
+                            await prisma.document.update({
+                                where: {
+                                    id: data.documentId
+                                },
+                                data: {
+                                    status: preserveCatalogOnFailure ? 'COMPLETED' : 'FAILED'
+                                }
+                            });
 
-                        await prisma.document.update({
-                            where: {
-                                id: data.documentId
-                            },
-                            data: {
-                                status: 'FAILED'
-                            }
-                        });
-
-                        console.log(
-                            `⚠️ Documento ${data.documentId} marcado como FAILED.`
-                        );
+                            console.log(
+                                preserveCatalogOnFailure
+                                    ? `⚠️ Reprocessamento de ${data.documentId} falhou; catálogo anterior preservado.`
+                                    : `⚠️ Documento ${data.documentId} marcado como FAILED.`
+                            );
+                        }
 
                     } catch (dbError) {
 

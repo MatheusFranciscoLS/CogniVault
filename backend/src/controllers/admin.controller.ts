@@ -41,7 +41,7 @@ export class AdminController {
             prisma.document.count({ where: { tenantId, archivedAt: null, status: 'COMPLETED' } }),
             prisma.document.count({ where: { tenantId, archivedAt: null, status: { in: ['PENDING', 'PROCESSING'] } } }),
             prisma.document.count({ where: { tenantId, archivedAt: null, status: 'FAILED' } }),
-            prisma.part.count({ where: { document: { tenantId, archivedAt: null, status: 'COMPLETED' } } }),
+            prisma.part.count({ where: { active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } } }),
             prisma.searchFeedback.count({ where: { tenantId } }),
             prisma.searchFeedback.count({ where: { tenantId, correct: true } }),
         ]);

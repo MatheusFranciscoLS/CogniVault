@@ -47,7 +47,7 @@ export class ChatService {
     const normalizedModel = normalizeIdentifier(intent.model);
     if (normalizedModel) {
       const exactCount = await prisma.part.count({
-        where: { normalizedModel, document: { tenantId, archivedAt: null, status: 'COMPLETED' } },
+        where: { normalizedModel, active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } },
       });
       if (!exactCount) {
         const options = await PartSearchService.similarModels(tenantId, normalizedModel);
@@ -119,7 +119,8 @@ export class ChatService {
       const equivalentRows = await prisma.part.findMany({
         where: {
           normalizedModel: chosen.normalizedModel,
-          partNumber: chosen.partNumber,
+          normalizedPartNumber: chosen.normalizedPartNumber,
+          active: true,
           document: { tenantId, archivedAt: null, status: 'COMPLETED' },
         },
         select: { pnc: true, normalizedPnc: true, universalAcrossPnc: true },

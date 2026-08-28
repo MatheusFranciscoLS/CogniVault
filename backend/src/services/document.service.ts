@@ -56,7 +56,7 @@ export class DocumentService {
                 pnc: true,
                 createdAt: true,
                 archivedAt: true,
-                _count: { select: { parts: true } },
+                _count: { select: { parts: { where: { active: true } } } },
             },
         });
 
@@ -131,22 +131,28 @@ export class DocumentService {
 
         if (!document) throw new Error('DOCUMENT_NOT_FOUND');
 
-        await prisma.document.update({
-            where: { id: document.id },
-            data: { status: 'PENDING' },
-        });
+        const hasUsableCatalog = document.status === 'COMPLETED';
+
+        if (!hasUsableCatalog) {
+            await prisma.document.update({
+                where: { id: document.id },
+                data: { status: 'PENDING' },
+            });
+        }
 
         try {
             await DocumentProducer.publishToQueue(document.id, tenantId);
         } catch (error) {
-            await prisma.document.update({
-                where: { id: document.id },
-                data: { status: document.status },
-            });
+            if (!hasUsableCatalog) {
+                await prisma.document.update({
+                    where: { id: document.id },
+                    data: { status: document.status },
+                });
+            }
             throw error;
         }
 
-        return { ...document, status: 'PENDING' };
+        return { ...document, status: hasUsableCatalog ? 'COMPLETED' : 'PENDING' };
     }
 
     async listAdmin(tenantId: string) {
@@ -162,7 +168,7 @@ export class DocumentService {
                 pnc: true,
                 createdAt: true,
                 archivedAt: true,
-                _count: { select: { parts: true } },
+                _count: { select: { parts: { where: { active: true } } } },
             },
         });
 

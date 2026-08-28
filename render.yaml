@@ -33,3 +33,5 @@ services:
         value: "0.72"
       - key: FEEDBACK_MAX_DISTANCE
         value: "0.28"
+      - key: MIN_REPROCESS_PART_RATIO
+        value: "0.5"

@@ -44,6 +44,8 @@ model User {
   favorites      Favorite[]
   auditLogs      AuditLog[]
   createdAt      DateTime         @default(now())
+
+  @@index([tenantId])
 }
 
 model Category {
@@ -55,140 +57,154 @@ model Category {
   createdAt DateTime   @default(now())
 
   @@unique([name, tenantId])
+  @@index([tenantId])
 }
 
 model Document {
-  id           String          @id @default(uuid())
-  filename     String
-  url          String
-  storagePath  String?
-  status       String          @default("PROCESSING")
+  id          String  @id @default(uuid())
+  filename    String
+  url         String
+  storagePath String?
+  status      String  @default("PROCESSING")
 
   manufacturer String?
   model        String?
   pnc          String?
 
-  tenantId     String
-  tenant       Tenant          @relation(fields: [tenantId], references: [id])
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
 
-  categoryId   String?
-  category     Category?       @relation(fields: [categoryId], references: [id])
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
 
-  chunks       DocumentChunk[]
-  parts        Part[]
-  favorites    Favorite[]      @relation("FavoriteDocument")
+  chunks    DocumentChunk[]
+  parts     Part[]
+  favorites Favorite[]      @relation("FavoriteDocument")
 
-  archivedAt   DateTime?
-  archivedById String?
+  archivedAt      DateTime?
+  archivedById    String?
+  catalogRevision Int       @default(0)
 
-  createdAt    DateTime        @default(now())
+  createdAt DateTime @default(now())
 
   @@index([tenantId, model])
   @@index([tenantId, model, pnc])
   @@index([tenantId, status])
   @@index([tenantId, archivedAt])
+  @@index([categoryId])
 }
 
 model DocumentChunk {
-  id         String   @id @default(uuid())
+  id         String                      @id @default(uuid())
   content    String
   embedding  Unsupported("vector(768)")?
   documentId String
-  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document   Document                    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
 }
 
 model Part {
-  id                     String             @id @default(uuid())
-  documentId             String
-  document               Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   manufacturer           String?
   normalizedManufacturer String?
 
-  model                   String
-  normalizedModel         String
+  model           String
+  normalizedModel String
 
-  pnc                     String?
-  normalizedPnc           String?
-  universalAcrossPnc      Boolean            @default(false)
+  pnc                String?
+  normalizedPnc      String?
+  universalAcrossPnc Boolean @default(false)
 
-  section                 String?
-  position                String?
-  name                    String
-  normalizedName          String
-  alternativeNames        String[]           @default([])
+  section          String?
+  position         String?
+  name             String
+  normalizedName   String
+  alternativeNames String[] @default([])
 
-  partNumber              String
-  page                    Int?
-  notes                   String?
-  searchText              String
-  embedding               Unsupported("vector(768)")?
+  partNumber           String
+  normalizedPartNumber String
+  page                 Int?
+  notes                String?
+  searchText           String
+  embedding            Unsupported("vector(768)")?
+  sourceKey            String?
+  active               Boolean                     @default(true)
+  retiredAt            DateTime?
+  extractionRevision   Int                         @default(1)
 
-  feedbackResults         SearchFeedback[]   @relation("FeedbackResultPart")
-  feedbackCorrections     SearchFeedback[]   @relation("FeedbackCorrectedPart")
-  historyResults          SearchHistory[]    @relation("HistoryResultPart")
-  favorites               Favorite[]         @relation("FavoritePart")
+  feedbackResults     SearchFeedback[] @relation("FeedbackResultPart")
+  feedbackCorrections SearchFeedback[] @relation("FeedbackCorrectedPart")
+  historyResults      SearchHistory[]  @relation("HistoryResultPart")
+  favorites           Favorite[]       @relation("FavoritePart")
 
-  createdAt               DateTime           @default(now())
+  createdAt DateTime @default(now())
 
   @@index([documentId])
+  @@index([documentId, active])
+  @@index([documentId, sourceKey])
   @@index([normalizedModel])
   @@index([normalizedModel, normalizedPnc])
   @@index([partNumber])
+  @@index([normalizedPartNumber, active])
 }
 
 model SearchFeedback {
-  id                 String   @id @default(uuid())
-  tenantId           String
-  tenant             Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id       String @id @default(uuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  userId             String?
-  user               User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  query              String
-  normalizedQuery    String
-  model              String?
-  normalizedModel    String?
-  pnc                String?
-  normalizedPnc      String?
+  query           String
+  normalizedQuery String
+  model           String?
+  normalizedModel String?
+  pnc             String?
+  normalizedPnc   String?
 
-  resultPartId       String
-  resultPart         Part     @relation("FeedbackResultPart", fields: [resultPartId], references: [id], onDelete: Cascade)
+  resultPartId String
+  resultPart   Part   @relation("FeedbackResultPart", fields: [resultPartId], references: [id], onDelete: Cascade)
 
-  correct            Boolean
-  reason             String?
-  correctedPartId    String?
-  correctedPart      Part?    @relation("FeedbackCorrectedPart", fields: [correctedPartId], references: [id], onDelete: SetNull)
+  correct         Boolean
+  reason          String?
+  correctedPartId String?
+  correctedPart   Part?   @relation("FeedbackCorrectedPart", fields: [correctedPartId], references: [id], onDelete: SetNull)
 
-  queryEmbedding     Unsupported("vector(768)")?
-  createdAt          DateTime @default(now())
+  queryEmbedding Unsupported("vector(768)")?
+  createdAt      DateTime                    @default(now())
 
   @@index([tenantId, createdAt])
   @@index([tenantId, normalizedModel, normalizedPnc])
   @@index([resultPartId])
   @@index([correctedPartId])
+  @@index([userId])
 }
 
 model SearchHistory {
-  id             String   @id @default(uuid())
-  tenantId       String
-  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id       String @id @default(uuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  query          String
-  pnc            String?
-  status         String
+  query  String
+  pnc    String?
+  status String
 
   resultPartId   String?
-  resultPart     Part?    @relation("HistoryResultPart", fields: [resultPartId], references: [id], onDelete: SetNull)
+  resultPart     Part?   @relation("HistoryResultPart", fields: [resultPartId], references: [id], onDelete: SetNull)
   resultLabel    String?
   resultCode     String?
   resultModel    String?
   resultPnc      String?
   sourceFilename String?
 
-  createdAt      DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([tenantId, createdAt])
   @@index([userId, createdAt])
@@ -196,37 +212,39 @@ model SearchHistory {
 }
 
 model Favorite {
-  id         String    @id @default(uuid())
-  tenantId   String
-  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id       String @id @default(uuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  kind       String
-  label      String
-  reference  String?
-  model      String?
-  pnc        String?
+  kind      String
+  label     String
+  reference String?
+  model     String?
+  pnc       String?
 
   partId     String?
   part       Part?     @relation("FavoritePart", fields: [partId], references: [id], onDelete: SetNull)
   documentId String?
   document   Document? @relation("FavoriteDocument", fields: [documentId], references: [id], onDelete: SetNull)
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([userId, partId])
   @@unique([userId, documentId])
   @@index([tenantId, userId, createdAt])
+  @@index([partId])
+  @@index([documentId])
 }
 
 model AuditLog {
-  id         String   @id @default(uuid())
-  tenantId   String
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id       String @id @default(uuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  userId     String?
-  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   action     String
   targetType String

@@ -22,6 +22,7 @@ export interface PartCandidate {
   name: string;
   alternativeNames: string[];
   partNumber: string;
+  normalizedPartNumber: string;
   page: number | null;
   distance: number;
   feedbackScore: number;
@@ -32,22 +33,26 @@ export class PartSearchService {
     const needle = normalizeIdentifier(partNumber);
     if (!needle) return [];
     const rows = await prisma.part.findMany({
-      where: { document: { tenantId, archivedAt: null, status: 'COMPLETED' } },
+      where: {
+        normalizedPartNumber: needle,
+        active: true,
+        document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+      },
       include: { document: { select: { filename: true } } },
-      take: 100,
     });
-    return rows.filter(p => normalizeIdentifier(p.partNumber) === needle).map(p => ({
+    return rows.map(p => ({
       id: p.id, documentId: p.documentId, filename: p.document.filename,
       manufacturer: p.manufacturer, model: p.model, normalizedModel: p.normalizedModel,
       pnc: p.pnc, normalizedPnc: p.normalizedPnc, universalAcrossPnc: p.universalAcrossPnc,
       section: p.section, position: p.position, name: p.name, alternativeNames: p.alternativeNames,
-      partNumber: p.partNumber, page: p.page, distance: 0, feedbackScore: 0,
+      partNumber: p.partNumber, normalizedPartNumber: p.normalizedPartNumber,
+      page: p.page, distance: 0, feedbackScore: 0,
     }));
   }
 
   static async availablePncs(tenantId: string, normalizedModel: string): Promise<string[]> {
     const rows = await prisma.part.findMany({
-      where: { normalizedModel, document: { tenantId, archivedAt: null, status: 'COMPLETED' }, pnc: { not: null } },
+      where: { normalizedModel, active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' }, pnc: { not: null } },
       select: { pnc: true }, distinct: ['pnc'],
     });
     return [...new Set(rows.map(r => r.pnc).filter((v): v is string => Boolean(v)))];
@@ -55,7 +60,7 @@ export class PartSearchService {
 
   static async similarModels(tenantId: string, requested: string): Promise<string[]> {
     const rows = await prisma.part.findMany({
-      where: { document: { tenantId, archivedAt: null, status: 'COMPLETED' } },
+      where: { active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } },
       select: { model: true, normalizedModel: true }, distinct: ['normalizedModel'], take: 200,
     });
     return rows.filter(r => r.normalizedModel.includes(requested) || requested.includes(r.normalizedModel)).slice(0, 8).map(r => r.model);
@@ -79,6 +84,7 @@ export class PartSearchService {
       Prisma.sql`d."tenantId" = ${tenantId}`,
       Prisma.sql`d."status" = 'COMPLETED'`,
       Prisma.sql`d."archivedAt" IS NULL`,
+      Prisma.sql`p."active" = true`,
       Prisma.sql`p."embedding" IS NOT NULL`,
     ];
     if (model) filters.push(Prisma.sql`p."normalizedModel" = ${model}`);
@@ -89,7 +95,7 @@ export class PartSearchService {
     const rows = await prisma.$queryRaw<Raw[]>(Prisma.sql`
       SELECT p."id", p."documentId", d."filename", p."manufacturer", p."model", p."normalizedModel",
              p."pnc", p."normalizedPnc", p."universalAcrossPnc", p."section", p."position", p."name",
-             p."alternativeNames", p."partNumber", p."page",
+             p."alternativeNames", p."partNumber", p."normalizedPartNumber", p."page",
              (p."embedding" <=> ${vectorString}::vector) AS "distance"
       FROM "Part" p INNER JOIN "Document" d ON d."id" = p."documentId"
       WHERE ${Prisma.join(filters, ' AND ')}

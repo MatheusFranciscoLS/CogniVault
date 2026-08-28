@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
+import { hasSafeExtractionCoverage, matchExistingPartIds } from '../utils/part-identity';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
@@ -52,6 +53,7 @@ interface PreparedPart {
         normalizedName: string;
         alternativeNames: string[];
         partNumber: string;
+        normalizedPartNumber: string;
         page: number | null;
         notes: string | null;
         searchText: string;
@@ -361,6 +363,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                             normalizedName: normalizeText(name),
                             alternativeNames: aliases,
                             partNumber,
+                            normalizedPartNumber: normalizeIdentifier(partNumber),
                             page,
                             notes: notes || null,
                             searchText,
@@ -376,22 +379,75 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 throw new Error('Nenhuma peça válida conseguiu ser preparada.');
             }
 
+            const existingParts = await prisma.part.findMany({
+                where: { documentId },
+                orderBy: [{ active: 'desc' }, { createdAt: 'asc' }],
+                select: {
+                    id: true,
+                    active: true,
+                    model: true,
+                    pnc: true,
+                    universalAcrossPnc: true,
+                    partNumber: true,
+                    section: true,
+                    position: true,
+                },
+            });
+            const identifiedParts = matchExistingPartIds(
+                preparedParts.map((preparedPart) => preparedPart.data),
+                existingParts,
+            );
+            const previousActiveCount = existingParts.filter((part) => part.active).length;
+            const configuredMinimumRatio = Number(process.env.MIN_REPROCESS_PART_RATIO || '0.5');
+
+            if (!hasSafeExtractionCoverage(previousActiveCount, preparedParts.length, configuredMinimumRatio)) {
+                throw new Error(
+                    `Reprocessamento interrompido por segurança: a extração retornou ${preparedParts.length} de ${previousActiveCount} peças anteriormente ativas.`,
+                );
+            }
+
+            const nextRevision = document.catalogRevision + 1;
+
             await prisma.$transaction(
                 async (tx) => {
-                    await tx.part.deleteMany({ where: { documentId } });
-                    await tx.documentChunk.deleteMany({ where: { documentId } });
+                    const activePartIds: string[] = [];
 
-                    for (const preparedPart of preparedParts) {
-                        const created = await tx.part.create({
-                            data: preparedPart.data,
-                        });
+                    for (const [index, identifiedPart] of identifiedParts.entries()) {
+                        const preparedPart = preparedParts[index];
+                        const partData = {
+                            ...identifiedPart.item,
+                            sourceKey: identifiedPart.sourceKey,
+                            active: true,
+                            retiredAt: null,
+                            extractionRevision: nextRevision,
+                        };
+                        const savedPart = identifiedPart.existingId
+                            ? await tx.part.update({
+                                where: { id: identifiedPart.existingId },
+                                data: partData,
+                            })
+                            : await tx.part.create({ data: partData });
+
+                        activePartIds.push(savedPart.id);
 
                         await tx.$executeRaw`
                             UPDATE "Part"
                             SET "embedding" = ${preparedPart.embeddingString}::vector
-                            WHERE "id" = ${created.id}
+                            WHERE "id" = ${savedPart.id}
                         `;
                     }
+
+                    await tx.part.updateMany({
+                        where: {
+                            documentId,
+                            active: true,
+                            id: { notIn: activePartIds },
+                        },
+                        data: {
+                            active: false,
+                            retiredAt: new Date(),
+                        },
+                    });
 
                     await tx.document.update({
                         where: { id: documentId },
@@ -400,6 +456,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                             model: document.model || (models.length === 1 ? models[0] : null),
                             pnc: document.pnc || (pncs.length === 1 ? pncs[0] : null),
                             storagePath: canonicalStoragePath,
+                            catalogRevision: nextRevision,
                         },
                     });
                 },
@@ -409,7 +466,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 },
             );
 
-            console.log(`🏆 Catálogo ${documentId}: ${preparedParts.length} peças estruturadas com sucesso.`);
+            console.log(`🏆 Catálogo ${documentId}: revisão ${nextRevision} concluída com ${preparedParts.length} peças ativas.`);
         } catch (error) {
             console.error('❌ Erro fatal no AIService:', error);
             throw error;

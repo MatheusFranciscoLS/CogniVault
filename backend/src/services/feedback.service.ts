@@ -17,7 +17,7 @@ export class FeedbackService {
         const { tenantId, userId, query, resultPartId, correct, correctedPartId, pnc, reason } = params;
 
         const resultPart = await prisma.part.findFirst({
-            where: { id: resultPartId, document: { tenantId, archivedAt: null } },
+            where: { id: resultPartId, active: true, document: { tenantId, archivedAt: null } },
             include: { document: { select: { filename: true } } },
         });
 
@@ -26,7 +26,7 @@ export class FeedbackService {
         let correctedPart = null;
         if (correctedPartId) {
             correctedPart = await prisma.part.findFirst({
-                where: { id: correctedPartId, document: { tenantId, archivedAt: null } },
+                where: { id: correctedPartId, active: true, document: { tenantId, archivedAt: null } },
                 include: { document: { select: { filename: true } } },
             });
             if (!correctedPart) throw new Error('A peça correta selecionada não pertence a esta empresa.');

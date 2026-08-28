@@ -11,8 +11,8 @@ export class OperationalController {
         const [recentSearches, favorites, recentDocuments, parts, documents] = await Promise.all([
             prisma.searchHistory.findMany({ where: { tenantId, userId }, orderBy: { createdAt: 'desc' }, take: 6 }),
             prisma.favorite.findMany({ where: { tenantId, userId }, orderBy: { createdAt: 'desc' }, take: 6 }),
-            prisma.document.findMany({ where: { tenantId, archivedAt: null, status: 'COMPLETED' }, orderBy: { createdAt: 'desc' }, take: 5, select: { id: true, filename: true, manufacturer: true, model: true, pnc: true, createdAt: true, _count: { select: { parts: true } } } }),
-            prisma.part.count({ where: { document: { tenantId, archivedAt: null, status: 'COMPLETED' } } }),
+            prisma.document.findMany({ where: { tenantId, archivedAt: null, status: 'COMPLETED' }, orderBy: { createdAt: 'desc' }, take: 5, select: { id: true, filename: true, manufacturer: true, model: true, pnc: true, createdAt: true, _count: { select: { parts: { where: { active: true } } } } } }),
+            prisma.part.count({ where: { active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } } }),
             prisma.document.count({ where: { tenantId, archivedAt: null, status: 'COMPLETED' } }),
         ]);
 
@@ -37,31 +37,20 @@ export class OperationalController {
         const normalized = normalizeText(q);
         const identifier = normalizeIdentifier(q);
         const tenantId = req.user.tenantId;
-        const compactPattern = identifier && identifier.length >= 4 ? `%${identifier.toLowerCase()}%` : null;
-
-        const compactCodeMatches = compactPattern
-            ? await prisma.$queryRaw<Array<{ id: string }>>`
-                SELECT p."id"
-                FROM "Part" p
-                INNER JOIN "Document" d ON d."id" = p."documentId"
-                WHERE d."tenantId" = ${tenantId}
-                  AND d."archivedAt" IS NULL
-                  AND d."status" = 'COMPLETED'
-                  AND regexp_replace(lower(p."partNumber"), '[^a-z0-9]', '', 'g') LIKE ${compactPattern}
-                LIMIT 40
-            `
-            : [];
-        const compactCodeIds = compactCodeMatches.map((item) => item.id);
 
         const [parts, documents] = await Promise.all([
             prisma.part.findMany({
                 where: {
+                    active: true,
                     document: { tenantId, archivedAt: null, status: 'COMPLETED' },
                     OR: [
                         { partNumber: { contains: q, mode: 'insensitive' } },
-                        { normalizedName: { contains: normalized } },
-                        ...(identifier ? [{ normalizedModel: { contains: identifier } }, { normalizedPnc: { contains: identifier } }] : []),
-                        ...(compactCodeIds.length ? [{ id: { in: compactCodeIds } }] : []),
+                        ...(normalized ? [{ normalizedName: { contains: normalized } }] : []),
+                        ...(identifier ? [
+                            { normalizedPartNumber: { contains: identifier } },
+                            { normalizedModel: { contains: identifier } },
+                            { normalizedPnc: { contains: identifier } },
+                        ] : []),
                     ],
                 },
                 orderBy: [{ model: 'asc' }, { name: 'asc' }],
@@ -84,7 +73,7 @@ export class OperationalController {
                 },
                 orderBy: { createdAt: 'desc' },
                 take: 12,
-                select: { id: true, filename: true, manufacturer: true, model: true, pnc: true, createdAt: true, _count: { select: { parts: true } } },
+                select: { id: true, filename: true, manufacturer: true, model: true, pnc: true, createdAt: true, _count: { select: { parts: { where: { active: true } } } } },
             }),
         ]);
 
@@ -98,7 +87,7 @@ export class OperationalController {
         if (!req.user) return;
         const id = String(req.params.id);
         const part = await prisma.part.findFirst({
-            where: { id, document: { tenantId: req.user.tenantId, archivedAt: null, status: 'COMPLETED' } },
+            where: { id, active: true, document: { tenantId: req.user.tenantId, archivedAt: null, status: 'COMPLETED' } },
             include: { document: { select: { id: true, filename: true, manufacturer: true, model: true, pnc: true } } },
         });
         if (!part) {
@@ -109,7 +98,7 @@ export class OperationalController {
         const [related, compatibility, favorite] = await Promise.all([
             prisma.part.findMany({
                 where: {
-                    id: { not: part.id }, normalizedModel: part.normalizedModel,
+                    id: { not: part.id }, normalizedModel: part.normalizedModel, active: true,
                     document: { tenantId: req.user.tenantId, archivedAt: null, status: 'COMPLETED' },
                     ...(part.section ? { section: part.section } : {}),
                 },
@@ -118,7 +107,8 @@ export class OperationalController {
             }),
             prisma.part.findMany({
                 where: {
-                    partNumber: part.partNumber,
+                    normalizedPartNumber: part.normalizedPartNumber,
+                    active: true,
                     document: { tenantId: req.user.tenantId, archivedAt: null, status: 'COMPLETED' },
                 },
                 distinct: ['normalizedModel', 'normalizedPnc'],
@@ -169,7 +159,7 @@ export class OperationalController {
 
         if (partId) {
             const part = await prisma.part.findFirst({
-                where: { id: String(partId), document: { tenantId: req.user.tenantId, archivedAt: null } },
+                where: { id: String(partId), active: true, document: { tenantId: req.user.tenantId, archivedAt: null } },
                 include: { document: { select: { filename: true } } },
             });
             if (!part) { res.status(404).json({ error: 'Peça não encontrada.' }); return; }
