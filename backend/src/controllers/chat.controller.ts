@@ -25,6 +25,8 @@ export class ChatController {
 
             const cleanQuestion = question.trim();
             const cleanPnc = typeof pnc === 'string' ? pnc.trim() : undefined;
+
+            // 🚀 A mágica da IA acontece aqui dentro do Service!
             const result = await ChatService.askQuestion(req.user.tenantId, cleanQuestion, cleanPnc);
 
             await prisma.searchHistory.create({

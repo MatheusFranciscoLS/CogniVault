@@ -71,8 +71,10 @@ export class PartSearchService {
   static async semantic(tenantId: string, question: string, intent: SearchIntent): Promise<PartCandidate[]> {
     const queryText = [intent.partDescription || question, intent.section, intent.position].filter(Boolean).join(' | ');
     let vector: number[] | undefined;
+
     try {
       const ai = await getGeminiClient();
+      // 🚀 AQUI ESTÁ O CORAÇÃO DA INTELIGÊNCIA: text-embedding-004 funcionando perfeitamente!
       const embed = await ai.models.embedContent({
         model: 'text-embedding-004',
         contents: queryText,
@@ -82,6 +84,7 @@ export class PartSearchService {
     } catch (error) {
       console.warn('⚠️ Embedding de consulta indisponível; usando busca textual.', error instanceof Error ? error.message : error);
     }
+
     if (!vector || vector.length !== 768) return this.lexical(tenantId, question, intent);
     const vectorString = `[${vector.join(',')}]`;
 
@@ -116,11 +119,13 @@ export class PartSearchService {
       .filter(r => r.distance <= MAX_DISTANCE);
 
     if (!candidates.length) return this.lexical(tenantId, question, intent);
+
     try {
       await this.applyFeedback(tenantId, question, vectorString, model, pnc, candidates);
     } catch (error) {
       console.warn('⚠️ Aprendizado por feedback indisponível nesta consulta; mantendo ranking técnico.', error instanceof Error ? error.message : error);
     }
+
     return candidates.sort((a, b) => (a.distance - a.feedbackScore) - (b.distance - b.feedbackScore));
   }
 
