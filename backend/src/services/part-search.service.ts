@@ -3,6 +3,7 @@ import { prisma } from '../config/prisma';
 import { getGeminiClient } from '../config/gemini';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import type { SearchIntent } from './chat-intent.service';
+import { lexicalSearchTerms } from './chat-reliability';
 
 const MAX_DISTANCE = Number(process.env.PART_SEARCH_MAX_DISTANCE || '0.65');
 const FEEDBACK_DISTANCE = Number(process.env.FEEDBACK_MAX_DISTANCE || '0.28');
@@ -26,6 +27,7 @@ export interface PartCandidate {
   page: number | null;
   distance: number;
   feedbackScore: number;
+  searchMethod: 'DIRECT_CODE' | 'SEMANTIC' | 'LEXICAL';
 }
 
 export class PartSearchService {
@@ -46,7 +48,7 @@ export class PartSearchService {
       pnc: p.pnc, normalizedPnc: p.normalizedPnc, universalAcrossPnc: p.universalAcrossPnc,
       section: p.section, position: p.position, name: p.name, alternativeNames: p.alternativeNames,
       partNumber: p.partNumber, normalizedPartNumber: p.normalizedPartNumber,
-      page: p.page, distance: 0, feedbackScore: 0,
+      page: p.page, distance: 0, feedbackScore: 0, searchMethod: 'DIRECT_CODE',
     }));
   }
 
@@ -68,13 +70,18 @@ export class PartSearchService {
 
   static async semantic(tenantId: string, question: string, intent: SearchIntent): Promise<PartCandidate[]> {
     const queryText = [intent.partDescription || question, intent.section, intent.position].filter(Boolean).join(' | ');
-    const ai = await getGeminiClient();
-    const embed = await ai.models.embedContent({
-      model: 'gemini-embedding-001', contents: queryText,
-      config: { outputDimensionality: 768, taskType: 'RETRIEVAL_QUERY' },
-    });
-    const vector = embed.embeddings?.[0]?.values;
-    if (!vector || vector.length !== 768) throw new Error('Falha ao gerar embedding da consulta.');
+    let vector: number[] | undefined;
+    try {
+      const ai = await getGeminiClient();
+      const embed = await ai.models.embedContent({
+        model: 'gemini-embedding-001', contents: queryText,
+        config: { outputDimensionality: 768, taskType: 'RETRIEVAL_QUERY' },
+      });
+      vector = embed.embeddings?.[0]?.values;
+    } catch (error) {
+      console.warn('⚠️ Embedding de consulta indisponível; usando busca textual.', error instanceof Error ? error.message : error);
+    }
+    if (!vector || vector.length !== 768) return this.lexical(tenantId, question, intent);
     const vectorString = `[${vector.join(',')}]`;
 
     const model = normalizeIdentifier(intent.model);
@@ -91,7 +98,7 @@ export class PartSearchService {
     if (manufacturer) filters.push(Prisma.sql`(p."normalizedManufacturer" = ${manufacturer} OR p."normalizedManufacturer" IS NULL)`);
     if (pnc) filters.push(Prisma.sql`(p."normalizedPnc" = ${pnc} OR p."universalAcrossPnc" = true)`);
 
-    type Raw = Omit<PartCandidate, 'feedbackScore'>;
+    type Raw = Omit<PartCandidate, 'feedbackScore' | 'searchMethod'>;
     const rows = await prisma.$queryRaw<Raw[]>(Prisma.sql`
       SELECT p."id", p."documentId", d."filename", p."manufacturer", p."model", p."normalizedModel",
              p."pnc", p."normalizedPnc", p."universalAcrossPnc", p."section", p."position", p."name",
@@ -104,12 +111,67 @@ export class PartSearchService {
     `);
 
     const candidates: PartCandidate[] = rows
-      .map(r => ({ ...r, distance: Number(r.distance), feedbackScore: 0 }))
+      .map(r => ({ ...r, distance: Number(r.distance), feedbackScore: 0, searchMethod: 'SEMANTIC' as const }))
       .filter(r => r.distance <= MAX_DISTANCE);
 
     if (!candidates.length) return [];
-    await this.applyFeedback(tenantId, question, vectorString, model, pnc, candidates);
+    try {
+      await this.applyFeedback(tenantId, question, vectorString, model, pnc, candidates);
+    } catch (error) {
+      console.warn('⚠️ Aprendizado por feedback indisponível nesta consulta; mantendo ranking técnico.', error instanceof Error ? error.message : error);
+    }
     return candidates.sort((a, b) => (a.distance - a.feedbackScore) - (b.distance - b.feedbackScore));
+  }
+
+  private static async lexical(tenantId: string, question: string, intent: SearchIntent): Promise<PartCandidate[]> {
+    const terms = lexicalSearchTerms(intent.partDescription || question);
+    if (!terms.length) return [];
+
+    const normalizedModel = normalizeIdentifier(intent.model);
+    const normalizedPnc = normalizeIdentifier(intent.pnc);
+    const rows = await prisma.part.findMany({
+      where: {
+        active: true,
+        document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+        ...(normalizedModel ? { normalizedModel } : {}),
+        ...(normalizedPnc ? { OR: [{ normalizedPnc }, { universalAcrossPnc: true }] } : {}),
+        AND: terms.map(term => ({
+          OR: [
+            { normalizedName: { contains: term } },
+            { searchText: { contains: term, mode: 'insensitive' as const } },
+          ],
+        })),
+      },
+      include: { document: { select: { filename: true } } },
+      take: 40,
+    });
+
+    return rows.map(part => {
+      const searchable = normalizeText([part.name, part.section, ...part.alternativeNames].filter(Boolean).join(' '));
+      const matches = terms.filter(term => searchable.includes(term)).length;
+      const distance = Math.max(0.2, 0.65 - (matches / terms.length) * 0.3);
+      return {
+        id: part.id,
+        documentId: part.documentId,
+        filename: part.document.filename,
+        manufacturer: part.manufacturer,
+        model: part.model,
+        normalizedModel: part.normalizedModel,
+        pnc: part.pnc,
+        normalizedPnc: part.normalizedPnc,
+        universalAcrossPnc: part.universalAcrossPnc,
+        section: part.section,
+        position: part.position,
+        name: part.name,
+        alternativeNames: part.alternativeNames,
+        partNumber: part.partNumber,
+        normalizedPartNumber: part.normalizedPartNumber,
+        page: part.page,
+        distance,
+        feedbackScore: 0,
+        searchMethod: 'LEXICAL' as const,
+      };
+    }).sort((a, b) => a.distance - b.distance);
   }
 
   private static async applyFeedback(tenantId: string, question: string, vectorString: string, model: string, pnc: string, candidates: PartCandidate[]): Promise<void> {

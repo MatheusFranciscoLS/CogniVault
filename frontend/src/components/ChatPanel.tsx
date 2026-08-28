@@ -1,157 +1,485 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, json } from '../lib';
 import type { ChatResponse, FeedbackOption } from '../types';
 
-type FeedbackReason='WRONG_CODE'|'WRONG_PNC'|'WRONG_MODEL'|'WRONG_PART'|'OTHER';
-type Message = { id:string; role:'user'|'ai'; text:string; response?:ChatResponse; query?:string; pnc?:string; feedback?:'correct'|'wrong'|'corrected'; showReasons?:boolean; showCorrections?:boolean; reason?:FeedbackReason };
-type Equipment = { id:string; manufacturer:string; model:string; pnc:string; label:string };
-type Recent = { id:string; query:string; pnc:string };
+type FeedbackReason = 'WRONG_CODE' | 'WRONG_PNC' | 'WRONG_MODEL' | 'WRONG_PART' | 'OTHER';
+type Message = {
+  id: string;
+  role: 'user' | 'ai';
+  text: string;
+  response?: ChatResponse;
+  query?: string;
+  pnc?: string;
+  feedback?: 'correct' | 'wrong' | 'corrected';
+  showReasons?: boolean;
+  showCorrections?: boolean;
+  reason?: FeedbackReason;
+};
+type Equipment = { id: string; manufacturer: string; model: string; pnc: string; label: string };
+type Recent = { id: string; query: string; pnc: string };
 
-const EQUIPMENT_KEY='cognivault_saved_equipment';
-const RECENT_KEY='cognivault_recent_searches';
-const read=<T,>(key:string,fallback:T):T=>{try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw) as T:fallback}catch{return fallback}};
-const save=<T,>(key:string,value:T)=>{try{localStorage.setItem(key,JSON.stringify(value))}catch{/* Preferências locais não devem bloquear a consulta. */}};
-const id=()=>`${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
-const reasons:Array<[FeedbackReason,string]>=[['WRONG_CODE','Código incorreto'],['WRONG_PNC','PNC incorreto'],['WRONG_MODEL','Modelo incorreto'],['WRONG_PART','Peça incorreta'],['OTHER','Outro motivo']];
+const EQUIPMENT_KEY = 'cognivault_saved_equipment';
+const RECENT_KEY = 'cognivault_recent_searches';
+const quickPrompts = ['Filtro de ar', 'Carburador', 'Correia', 'Vela de ignição'];
+const reasons: Array<[FeedbackReason, string]> = [
+  ['WRONG_CODE', 'Código incorreto'],
+  ['WRONG_PNC', 'PNC incorreto'],
+  ['WRONG_MODEL', 'Modelo incorreto'],
+  ['WRONG_PART', 'Peça incorreta'],
+  ['OTHER', 'Outro motivo'],
+];
 
-export default function ChatPanel({storageScope}:{storageScope:string}){
-  const equipmentKey=`${EQUIPMENT_KEY}:${storageScope}`;
-  const recentKey=`${RECENT_KEY}:${storageScope}`;
-  const [messages,setMessages]=useState<Message[]>([]);
-  const [question,setQuestion]=useState('');
-  const [manufacturer,setManufacturer]=useState('');
-  const [model,setModel]=useState('');
-  const [pnc,setPnc]=useState('');
-  const [loading,setLoading]=useState(false);
-  const [equipment,setEquipment]=useState<Equipment[]>(()=>read<Equipment[]>(equipmentKey,[]));
-  const [recent,setRecent]=useState<Recent[]>(()=>read<Recent[]>(recentKey,[]));
-  const [notice,setNotice]=useState('');
-  const [pdf,setPdf]=useState<{url:string;page:number|null;title:string}|null>(null);
-  const messagesEndRef=useRef<HTMLDivElement|null>(null);
+const read = <T,>(key: string, fallback: T): T => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) as T : fallback;
+  } catch {
+    return fallback;
+  }
+};
 
-  useEffect(()=>{messagesEndRef.current?.scrollIntoView({behavior:'smooth',block:'end'})},[messages.length,loading]);
-  const composed=useMemo(()=>{const base=question.trim();if(!base)return '';const machine=[manufacturer.trim(),model.trim()].filter(Boolean).join(' ');return machine?`${base} do equipamento ${machine}`:base;},[question,manufacturer,model]);
-  const notify=(text:string)=>{setNotice(text);window.setTimeout(()=>setNotice(''),1800)};
+const save = <T,>(key: string, value: T) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Preferências locais não devem bloquear uma consulta técnica.
+  }
+};
 
-  const remember=(query:string,usedPnc:string)=>{
-    const next=[{id:id(),query,pnc:usedPnc},...recent.filter(x=>x.query!==query||x.pnc!==usedPnc)].slice(0,6);
-    setRecent(next);save(recentKey,next);
-  };
+const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-  const ask=async(query:string,forcedPnc?:string,store=true)=>{
-    if(!query.trim()||loading)return;
-    const usedPnc=forcedPnc||pnc||'';
-    setLoading(true);setMessages(m=>[...m,{id:id(),role:'user',text:query}]);
-    try{
-      const response=await api('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:query,pnc:usedPnc||undefined}),timeoutMs:60_000});
-      const data=await json<ChatResponse>(response);
-      setMessages(m=>[...m,{id:id(),role:'ai',text:data.answer,response:data,query,pnc:usedPnc}]);
-      if(store)remember(query,usedPnc);
-    }catch(error){setMessages(m=>[...m,{id:id(),role:'ai',text:error instanceof Error?error.message:'Erro na consulta.'}]);}
-    finally{setLoading(false)}
-  };
+function confidencePresentation(response: ChatResponse) {
+  if (!response.match) return null;
+  const presentations = {
+    EXACT: { label: 'Correspondência exata', style: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
+    HIGH: { label: 'Confiança alta', style: 'bg-blue-50 text-blue-700 ring-blue-200' },
+    REVIEW: { label: 'Requer conferência', style: 'bg-amber-50 text-amber-800 ring-amber-200' },
+  } as const;
+  return presentations[response.match.level];
+}
 
-  const submit=(event:FormEvent)=>{event.preventDefault();const query=composed;if(!query)return;setQuestion('');void ask(query)};
+function Guidance({ response }: { response: ChatResponse }) {
+  if (!response.guidance) return null;
+  const palette = response.status === 'FOUND'
+    ? 'border-emerald-200 bg-emerald-50/70 text-emerald-950'
+    : response.status === 'NOT_FOUND'
+      ? 'border-rose-200 bg-rose-50/70 text-rose-950'
+      : 'border-amber-200 bg-amber-50/70 text-amber-950';
 
-  const positiveFeedback=async(index:number)=>{
-    const message=messages[index];const part=message.response?.part;if(!message.query||!part)return;
-    try{
-      await json(await api('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:message.query,partId:part.id,correct:true,pnc:message.pnc})}));
-      setMessages(m=>m.map((x,i)=>i===index?{...x,feedback:'correct',showReasons:false,showCorrections:false}:x));
-      notify('Confirmação registrada.');
-    }catch{notify('Não foi possível salvar o feedback.');}
-  };
+  return (
+    <div className={`rounded-2xl border p-3.5 ${palette}`}>
+      <div className="text-xs font-bold">{response.guidance.title}</div>
+      <div className="mt-1 text-xs leading-5 opacity-75">{response.guidance.description}</div>
+      {response.guidance.tips.length ? (
+        <ul className="mt-2 space-y-1 text-[11px] opacity-75">
+          {response.guidance.tips.map(tip => <li key={tip}>• {tip}</li>)}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
 
-  const startNegative=(index:number)=>setMessages(m=>m.map((x,i)=>i===index?{...x,feedback:'wrong',showReasons:true,showCorrections:false}:x));
-  const chooseReason=(index:number,reason:FeedbackReason)=>setMessages(m=>m.map((x,i)=>i===index?{...x,reason,showReasons:false,showCorrections:true}:x));
+function Interpretation({ response }: { response: ChatResponse }) {
+  if (!response.interpreted) return null;
+  const entries = [
+    response.interpreted.partDescription ? ['Peça', response.interpreted.partDescription] : null,
+    response.interpreted.manufacturer ? ['Fabricante', response.interpreted.manufacturer] : null,
+    response.interpreted.model ? ['Modelo', response.interpreted.model] : null,
+    response.interpreted.pnc ? ['PNC', response.interpreted.pnc] : null,
+    response.interpreted.partNumber ? ['Código', response.interpreted.partNumber] : null,
+  ].filter((entry): entry is string[] => Boolean(entry));
 
-  const negativeFeedback=async(index:number,corrected?:FeedbackOption)=>{
-    const message=messages[index];const part=message.response?.part;if(!message.query||!part||!message.reason)return;
-    try{
-      await json(await api('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:message.query,partId:part.id,correct:false,correctedPartId:corrected?.id,pnc:message.pnc,reason:message.reason})}));
-      setMessages(m=>m.map((x,i)=>i===index?{...x,feedback:corrected?'corrected':'wrong',showReasons:false,showCorrections:false}:x));
-      notify(corrected?'Correção registrada.':'Feedback registrado.');
-    }catch{notify('Não foi possível salvar o feedback.');}
-  };
+  if (!entries.length) return null;
+  return (
+    <details className="mt-3 rounded-xl border border-slate-200 bg-white/80 p-3 text-xs text-slate-600">
+      <summary className="cursor-pointer font-semibold text-slate-700">O que o assistente entendeu</summary>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {entries.map(([label, value]) => <span key={`${label}-${value}`} className="rounded-full bg-slate-100 px-2.5 py-1"><b>{label}:</b> {value}</span>)}
+      </div>
+    </details>
+  );
+}
 
-  const access=async(documentId:string,mode:'view'|'download',page:number|null=null,title='Catálogo')=>{
-    try{const data=await json<{url:string}>(await api(`/api/documents/${documentId}/access?mode=${mode}`));if(mode==='view')setPdf({url:data.url,page,title});else window.open(data.url,'_blank','noopener,noreferrer');}
-    catch{notify('Não foi possível abrir o catálogo.');}
-  };
+function ResultCard({
+  response,
+  onCopyCode,
+  onCopySummary,
+  onAccess,
+}: {
+  response: ChatResponse;
+  onCopyCode: () => void;
+  onCopySummary: () => void;
+  onAccess: (mode: 'view' | 'download') => void;
+}) {
+  if (!response.part) return null;
+  const part = response.part;
+  const confidence = confidencePresentation(response);
 
-  const copy=async(value:string)=>{try{await navigator.clipboard.writeText(value);notify('Código copiado.')}catch{notify(`Código: ${value}`)}};
-
-  const saveEquipment=()=>{
-    if(!manufacturer.trim()&&!model.trim()&&!pnc.trim()){notify('Preencha fabricante, modelo ou PNC.');return;}
-    const item:Equipment={id:id(),manufacturer:manufacturer.trim(),model:model.trim(),pnc:pnc.trim(),label:[manufacturer.trim(),model.trim(),pnc.trim()?`PNC ${pnc.trim()}`:''].filter(Boolean).join(' · ')};
-    const next=[item,...equipment.filter(x=>x.label!==item.label)].slice(0,6);setEquipment(next);save(equipmentKey,next);notify('Equipamento salvo.');
-  };
-
-  const removeEquipment=(equipmentId:string)=>{
-    const next=equipment.filter(item=>item.id!==equipmentId);
-    setEquipment(next);save(equipmentKey,next);notify('Equipamento removido.');
-  };
-
-  const chooseModel=(message:Message,nextModel:string)=>{
-    if(!message.query)return;
-    setModel(nextModel);
-    void ask(`${message.query} do equipamento ${nextModel}`,message.pnc);
-  };
-
-  const chooseAmbiguousOption=(message:Message,option:FeedbackOption)=>{
-    const query=[option.name,`modelo ${option.model}`,option.section?`seção ${option.section}`:'',option.position?`posição ${option.position}`:''].filter(Boolean).join(' · ');
-    setModel(option.model);
-    if(option.pnc)setPnc(option.pnc);
-    void ask(query,option.pnc||message.pnc);
-  };
-
-  return <section>
-    {notice&&<div className="fixed right-5 top-20 z-50 rounded-xl bg-slate-900 px-4 py-2.5 text-sm text-white shadow-lg">{notice}</div>}
-    <div className="mb-6"><p className="cv-kicker">Assistente técnico</p><h1 className="cv-page-title">Encontre o código certo mais rápido</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Informe a peça, o modelo e o PNC quando disponível. O código final sempre vem da base técnica indexada, não da memória da IA.</p></div>
-
-    <div className="grid gap-6 xl:grid-cols-[1fr_330px]">
-      <div className="cv-surface overflow-hidden rounded-[24px]">
-        <div className="grid gap-3 border-b border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-3">
-          <input value={manufacturer} onChange={e=>setManufacturer(e.target.value)} placeholder="Fabricante" className="cv-field text-sm"/>
-          <input value={model} onChange={e=>setModel(e.target.value)} placeholder="Modelo" className="cv-field text-sm"/>
-          <input value={pnc} onChange={e=>setPnc(e.target.value)} placeholder="PNC" className="cv-field text-sm"/>
-          <button type="button" onClick={saveEquipment} className="justify-self-start rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold sm:col-span-3">☆ Salvar equipamento</button>
+  return (
+    <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4 text-slate-800 shadow-sm">
+      <div className="flex flex-wrap justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[10px] font-bold uppercase tracking-[.15em] text-[#1d4f91]">Resultado técnico</div>
+          <div className="mt-1 font-semibold">{part.name}</div>
+          <div className="mt-2 break-all text-2xl font-bold text-[#1d4f91]">{part.partNumber}</div>
         </div>
-
-        <div className="cv-scrollbar min-h-[480px] max-h-[62vh] space-y-4 overflow-auto p-5">
-          {!messages.length&&<div className="grid h-[420px] place-items-center text-center"><div><div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-2xl text-[#1d4f91]">✦</div><h2 className="mt-4 font-semibold">O que você procura?</h2><p className="mt-1 text-sm text-slate-400">Ex.: carburador · Husqvarna · 143RS</p></div></div>}
-
-          {messages.map((message,index)=><div key={message.id} className={message.role==='user'?'flex justify-end':'flex justify-start'}><div className={`max-w-[92%] whitespace-pre-line rounded-2xl px-4 py-3 text-sm ${message.role==='user'?'bg-[#1d4f91] text-white':'bg-slate-100 text-slate-800'}`}>
-            <div>{message.text}</div>
-            {message.role==='ai'&&message.response?.part&&<div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-slate-800 shadow-sm">
-              <div className="flex flex-wrap justify-between gap-3"><div><div className="text-[10px] font-bold uppercase tracking-[.15em] text-[#1d4f91]">Resultado técnico</div><div className="mt-1 font-semibold">{message.response.part.name}</div><div className="mt-2 text-2xl font-bold text-[#1d4f91]">{message.response.part.partNumber}</div></div>{typeof message.response.confidence==='number'&&<span className="h-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{Math.round(message.response.confidence*100)}% confiança</span>}</div>
-              <div className="mt-4 grid gap-2 text-xs sm:grid-cols-2"><div className="rounded-xl bg-slate-50 p-3">Modelo<b className="mt-1 block">{message.response.part.model}</b></div><div className="rounded-xl bg-slate-50 p-3">PNC<b className="mt-1 block">{message.response.part.pnc||'Não informado'}</b></div><div className="rounded-xl bg-slate-50 p-3">Seção<b className="mt-1 block">{message.response.part.section||'—'}</b></div><div className="rounded-xl bg-slate-50 p-3">Posição / página<b className="mt-1 block">{message.response.part.position||'—'} · pág. {message.response.part.page??'—'}</b></div></div>
-              <div className="mt-3 rounded-xl border border-slate-200 p-3 text-xs">Catálogo<b className="mt-1 block">{message.response.part.filename}</b></div>
-              <div className="mt-4 flex flex-wrap gap-2"><button onClick={()=>void copy(message.response?.part?.partNumber||'')} className="rounded-xl bg-[#1d4f91] px-3 py-2 text-xs font-semibold text-white">Copiar código</button><button onClick={()=>void access(message.response?.part?.documentId||'','view',message.response?.part?.page??null,message.response?.part?.filename||'Catálogo')} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold">Abrir na página</button><button onClick={()=>void access(message.response?.part?.documentId||'','download')} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold">Baixar PDF</button></div>
-            </div>}
-            {message.role==='ai'&&message.response?.pncOptions?.length?<div className="mt-3 flex flex-wrap gap-2">{message.response.pncOptions.map(x=><button key={x} onClick={()=>message.query&&void ask(message.query,x)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs">PNC {x}</button>)}</div>:null}
-            {message.role==='ai'&&message.response?.modelOptions?.length?<div className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600">Confirmar modelo</div><div className="flex flex-wrap gap-2">{message.response.modelOptions.map(x=><button key={x} onClick={()=>chooseModel(message,x)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs">{x}</button>)}</div></div>:null}
-            {message.role==='ai'&&message.response?.status==='AMBIGUOUS'&&message.response.options?.length?<div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Qual descrição corresponde à peça?</div><div className="mt-2 grid gap-2">{message.response.options.map(option=><button key={option.id} onClick={()=>chooseAmbiguousOption(message,option)} className="rounded-lg border border-slate-200 p-2 text-left text-xs hover:bg-slate-50"><b>{option.name}</b><span className="block text-slate-500">{option.model} · PNC {option.pnc||'não informado'} · posição {option.position||'—'}</span></button>)}</div></div>:null}
-            {message.role==='ai'&&message.response?.part&&!message.feedback?<div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3"><span className="text-xs text-slate-500">Resultado correto?</span><button onClick={()=>void positiveFeedback(index)} className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-700">👍 Sim</button><button onClick={()=>startNegative(index)} className="rounded-lg bg-rose-50 px-2 py-1 text-rose-700">👎 Não</button></div>:null}
-            {message.showReasons&&<div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">O que estava errado?</div><div className="mt-2 flex flex-wrap gap-2">{reasons.map(([reason,label])=><button key={reason} onClick={()=>chooseReason(index,reason)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50">{label}</button>)}</div></div>}
-            {message.showCorrections&&<div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Selecione a peça correta, se ela aparecer abaixo.</div><div className="mt-2 grid gap-2">{message.response?.feedbackOptions?.filter(x=>x.id!==message.response?.part?.id).map(x=><button key={x.id} onClick={()=>void negativeFeedback(index,x)} className="rounded-lg border border-slate-200 p-2 text-left text-xs"><b>{x.name}</b><span className="block text-slate-500">{x.model} · PNC {x.pnc||'não informado'} · posição {x.position||'—'}</span></button>)}</div><button onClick={()=>void negativeFeedback(index)} className="mt-2 text-xs font-semibold text-slate-500 underline">Nenhuma dessas / apenas registrar o erro</button></div>}
-            {message.feedback&&!message.showReasons&&!message.showCorrections?<div className="mt-2 text-xs text-slate-500">{message.feedback==='correct'?'✓ Confirmação salva':message.feedback==='corrected'?'✓ Correção salva':'✓ Feedback salvo'}</div>:null}
-          </div></div>)}
-          {loading&&<div className="text-sm text-slate-400">Analisando catálogos…</div>}
-          <div ref={messagesEndRef}/>
-        </div>
-
-        <form onSubmit={submit} className="flex gap-3 border-t border-slate-200 p-4"><input value={question} onChange={e=>setQuestion(e.target.value)} placeholder="Digite a peça ou descrição…" className="cv-field flex-1 text-sm"/><button disabled={loading} className="cv-primary px-5 font-semibold disabled:opacity-50">Pesquisar</button></form>
+        {confidence ? <span className={`h-fit rounded-full px-3 py-1 text-xs font-semibold ring-1 ${confidence.style}`}>{confidence.label}</span> : null}
       </div>
 
-      <aside className="space-y-4">
-        <div className="cv-surface rounded-[22px] p-5"><div className="text-sm font-semibold">Equipamentos salvos</div><p className="mt-1 text-xs text-slate-400">Reaplique modelo e PNC usados com frequência.</p><div className="mt-4 grid gap-2">{!equipment.length&&<div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-400">Nenhum equipamento salvo.</div>}{equipment.map(item=><div key={item.id} className="flex items-center gap-2 rounded-xl border border-slate-200 p-2"><button onClick={()=>{setManufacturer(item.manufacturer);setModel(item.model);setPnc(item.pnc);notify('Equipamento aplicado.')}} className="min-w-0 flex-1 p-1 text-left text-xs hover:bg-slate-50"><b className="block truncate text-slate-700">{item.label}</b><span className="mt-1 block text-slate-400">Usar nesta busca</span></button><button onClick={()=>removeEquipment(item.id)} aria-label={`Remover ${item.label}`} title="Remover equipamento" className="rounded-lg px-2 py-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600">×</button></div>)}</div></div>
-        <div className="cv-surface rounded-[22px] p-5"><div className="text-sm font-semibold">Buscas rápidas</div><p className="mt-1 text-xs text-slate-400">Atalhos locais desta estação; o histórico completo fica salvo no sistema.</p><div className="mt-4 grid gap-2">{!recent.length&&<div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-400">As novas buscas aparecerão aqui.</div>}{recent.map(item=><button key={item.id} onClick={()=>void ask(item.query,item.pnc,false)} className="rounded-xl border border-slate-200 p-3 text-left text-xs hover:bg-slate-50"><b className="block text-slate-700">{item.query}</b><span className="mt-1 block text-slate-400">{item.pnc?`PNC ${item.pnc}`:'Sem PNC informado'}</span></button>)}</div></div>
-        <div className="rounded-[22px] bg-[#0d2348] p-5 text-white"><div className="text-xs font-bold text-amber-200">REGRA DE SEGURANÇA</div><p className="mt-2 text-sm leading-6 text-slate-300">“Qualquer PNC” só aparece quando o sistema comprova compatibilidade. Quando houver dúvida, o assistente pede o PNC.</p></div>
-      </aside>
-    </div>
+      {response.match ? <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-500">{response.match.explanation}</div> : null}
 
-    {pdf&&<div className="fixed inset-0 z-[90] bg-slate-950/90 p-3 md:p-6"><div className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white"><div className="flex items-center justify-between border-b border-slate-200 px-4 py-3"><div><div className="text-sm font-semibold">{pdf.title}</div><div className="text-xs text-slate-400">{pdf.page?`Página ${pdf.page}`:'Visualização do catálogo'}</div></div><button onClick={()=>setPdf(null)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">Fechar</button></div><iframe title={pdf.title} src={`${pdf.url}${pdf.page?`#page=${pdf.page}`:''}`} className="h-full w-full border-0"/></div></div>}
-  </section>;
+      <div className="mt-4 grid gap-2 text-xs sm:grid-cols-2">
+        <div className="rounded-xl bg-slate-50 p-3">Modelo<b className="mt-1 block">{part.model}</b></div>
+        <div className="rounded-xl bg-slate-50 p-3">PNC<b className="mt-1 block">{part.pnc || 'Não informado'}</b></div>
+        <div className="rounded-xl bg-slate-50 p-3">Seção<b className="mt-1 block">{part.section || '—'}</b></div>
+        <div className="rounded-xl bg-slate-50 p-3">Posição / página<b className="mt-1 block">{part.position || '—'} · pág. {part.page ?? '—'}</b></div>
+      </div>
+      <div className="mt-3 rounded-xl border border-slate-200 p-3 text-xs">Catálogo<b className="mt-1 block break-words">{part.filename}</b></div>
+
+      {(part.applications?.length || 0) > 1 ? (
+        <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+          <div className="text-[10px] font-bold uppercase tracking-[.1em] text-blue-700">Aplicações confirmadas deste código</div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {part.applications?.map(application => <span key={`${application.model}-${application.pnc}`} className="rounded-full bg-white px-2.5 py-1 text-[10px] font-medium text-blue-800 ring-1 ring-blue-100">{application.model} · PNC {application.pnc}</span>)}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button type="button" onClick={onCopyCode} className="rounded-xl bg-[#1d4f91] px-3 py-2 text-xs font-semibold text-white">Copiar código</button>
+        <button type="button" onClick={onCopySummary} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold">Copiar ficha</button>
+        <button type="button" onClick={() => onAccess('view')} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold">Abrir na página</button>
+        <button type="button" onClick={() => onAccess('download')} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold">Baixar PDF</button>
+      </div>
+    </div>
+  );
+}
+
+export default function ChatPanel({ storageScope }: { storageScope: string }) {
+  const equipmentKey = `${EQUIPMENT_KEY}:${storageScope}`;
+  const recentKey = `${RECENT_KEY}:${storageScope}`;
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [question, setQuestion] = useState('');
+  const [manufacturer, setManufacturer] = useState('');
+  const [model, setModel] = useState('');
+  const [pnc, setPnc] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [equipment, setEquipment] = useState<Equipment[]>(() => read<Equipment[]>(equipmentKey, []));
+  const [recent, setRecent] = useState<Recent[]>(() => read<Recent[]>(recentKey, []));
+  const [notice, setNotice] = useState('');
+  const [pdf, setPdf] = useState<{ url: string; page: number | null; title: string } | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const questionRef = useRef<HTMLInputElement | null>(null);
+  const requestRef = useRef<AbortController | null>(null);
+  const noticeTimerRef = useRef<number | null>(null);
+  const conversationVersionRef = useRef(0);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages.length, loading]);
+
+  useEffect(() => {
+    if (!pdf) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPdf(null);
+    };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [pdf]);
+
+  useEffect(() => () => {
+    requestRef.current?.abort();
+    if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
+  }, []);
+
+  const baseQuestion = question.trim();
+  const machine = [manufacturer.trim(), model.trim()].filter(Boolean).join(' ');
+  const composed = baseQuestion ? (machine ? `${baseQuestion} do equipamento ${machine}` : baseQuestion) : '';
+
+  const notify = (text: string) => {
+    if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
+    setNotice(text);
+    noticeTimerRef.current = window.setTimeout(() => setNotice(''), 1800);
+  };
+
+  const remember = (query: string, usedPnc: string) => {
+    const next = [{ id: createId(), query, pnc: usedPnc }, ...recent.filter(item => item.query !== query || item.pnc !== usedPnc)].slice(0, 6);
+    setRecent(next);
+    save(recentKey, next);
+  };
+
+  const ask = async (query: string, forcedPnc?: string, store = true) => {
+    if (!query.trim() || loading) return;
+    const usedPnc = forcedPnc || pnc || '';
+    const controller = new AbortController();
+    const conversationVersion = conversationVersionRef.current;
+    requestRef.current = controller;
+    setLoading(true);
+    setMessages(current => [...current, { id: createId(), role: 'user', text: query }]);
+
+    try {
+      const response = await api('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: query, pnc: usedPnc || undefined }),
+        timeoutMs: 60_000,
+        signal: controller.signal,
+      });
+      const data = await json<ChatResponse>(response);
+      if (conversationVersion !== conversationVersionRef.current) return;
+      setMessages(current => [...current, { id: createId(), role: 'ai', text: data.answer, response: data, query, pnc: usedPnc }]);
+      if (store) remember(query, usedPnc);
+    } catch (error) {
+      if (conversationVersion !== conversationVersionRef.current) return;
+      if (controller.signal.aborted) {
+        setMessages(current => [...current, { id: createId(), role: 'ai', text: 'Consulta cancelada. Você pode ajustar os dados e tentar novamente.' }]);
+      } else {
+        setMessages(current => [...current, { id: createId(), role: 'ai', text: error instanceof Error ? error.message : 'Erro na consulta.' }]);
+      }
+    } finally {
+      if (requestRef.current === controller) requestRef.current = null;
+      setLoading(false);
+    }
+  };
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!composed) return;
+    const query = composed;
+    setQuestion('');
+    void ask(query);
+  };
+
+  const cancel = () => requestRef.current?.abort();
+
+  const positiveFeedback = async (index: number) => {
+    const message = messages[index];
+    const part = message.response?.part;
+    if (!message.query || !part) return;
+    try {
+      await json(await api('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: message.query, partId: part.id, correct: true, pnc: message.pnc }),
+      }));
+      setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, feedback: 'correct', showReasons: false, showCorrections: false } : item));
+      notify('Confirmação registrada.');
+    } catch {
+      notify('Não foi possível salvar o feedback.');
+    }
+  };
+
+  const startNegative = (index: number) => setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, feedback: 'wrong', showReasons: true, showCorrections: false } : item));
+  const chooseReason = (index: number, reason: FeedbackReason) => setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, reason, showReasons: false, showCorrections: true } : item));
+
+  const negativeFeedback = async (index: number, corrected?: FeedbackOption) => {
+    const message = messages[index];
+    const part = message.response?.part;
+    if (!message.query || !part || !message.reason) return;
+    try {
+      await json(await api('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: message.query, partId: part.id, correct: false, correctedPartId: corrected?.id, pnc: message.pnc, reason: message.reason }),
+      }));
+      setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, feedback: corrected ? 'corrected' : 'wrong', showReasons: false, showCorrections: false } : item));
+      notify(corrected ? 'Correção registrada.' : 'Feedback registrado.');
+    } catch {
+      notify('Não foi possível salvar o feedback.');
+    }
+  };
+
+  const access = async (documentId: string, mode: 'view' | 'download', page: number | null = null, title = 'Catálogo') => {
+    try {
+      const data = await json<{ url: string }>(await api(`/api/documents/${documentId}/access?mode=${mode}`));
+      if (mode === 'view') setPdf({ url: data.url, page, title });
+      else window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch {
+      notify('Não foi possível abrir o catálogo.');
+    }
+  };
+
+  const copy = async (value: string, success = 'Código copiado.') => {
+    try {
+      await navigator.clipboard.writeText(value);
+      notify(success);
+    } catch {
+      notify(value);
+    }
+  };
+
+  const copySummary = (response: ChatResponse) => {
+    if (!response.part) return;
+    const part = response.part;
+    const summary = [
+      `Peça: ${part.name}`,
+      `Código: ${part.partNumber}`,
+      `Modelo: ${part.model}`,
+      `PNC: ${part.pnc || 'não informado'}`,
+      part.section ? `Seção: ${part.section}` : '',
+      part.position ? `Posição: ${part.position}` : '',
+      part.page ? `Página: ${part.page}` : '',
+      `Catálogo: ${part.filename}`,
+    ].filter(Boolean).join('\n');
+    void copy(summary, 'Ficha técnica copiada.');
+  };
+
+  const saveEquipment = () => {
+    if (!manufacturer.trim() && !model.trim() && !pnc.trim()) {
+      notify('Preencha fabricante, modelo ou PNC.');
+      return;
+    }
+    const item: Equipment = {
+      id: createId(),
+      manufacturer: manufacturer.trim(),
+      model: model.trim(),
+      pnc: pnc.trim(),
+      label: [manufacturer.trim(), model.trim(), pnc.trim() ? `PNC ${pnc.trim()}` : ''].filter(Boolean).join(' · '),
+    };
+    const next = [item, ...equipment.filter(saved => saved.label !== item.label)].slice(0, 6);
+    setEquipment(next);
+    save(equipmentKey, next);
+    notify('Equipamento salvo.');
+  };
+
+  const removeEquipment = (equipmentId: string) => {
+    const next = equipment.filter(item => item.id !== equipmentId);
+    setEquipment(next);
+    save(equipmentKey, next);
+    notify('Equipamento removido.');
+  };
+
+  const chooseModel = (message: Message, nextModel: string) => {
+    if (!message.query) return;
+    const description = message.response?.interpreted?.partDescription || message.query;
+    setModel(nextModel);
+    void ask(`${description} do equipamento ${nextModel}`, message.pnc);
+  };
+
+  const chooseAmbiguousOption = (message: Message, option: FeedbackOption) => {
+    const query = [option.name, `modelo ${option.model}`, option.section ? `seção ${option.section}` : '', option.position ? `posição ${option.position}` : ''].filter(Boolean).join(' · ');
+    setModel(option.model);
+    if (option.pnc) setPnc(option.pnc);
+    void ask(query, option.pnc || message.pnc);
+  };
+
+  const newConversation = () => {
+    conversationVersionRef.current += 1;
+    requestRef.current?.abort();
+    setMessages([]);
+    setQuestion('');
+    window.requestAnimationFrame(() => questionRef.current?.focus());
+  };
+
+  return (
+    <section>
+      {notice ? <div role="status" aria-live="polite" className="fixed right-5 top-20 z-[100] rounded-xl bg-slate-900 px-4 py-2.5 text-sm text-white shadow-lg">{notice}</div> : null}
+
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="cv-kicker">Assistente técnico</p>
+          <h1 className="cv-page-title">Encontre o código certo com segurança</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">O assistente interpreta a solicitação, mas somente retorna códigos existentes nos catálogos técnicos da empresa.</p>
+        </div>
+        {messages.length ? <button type="button" onClick={newConversation} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-500 transition hover:border-blue-200 hover:text-[#1d4f91]">Nova conversa</button> : null}
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_330px]">
+        <div className="cv-surface overflow-hidden rounded-[24px]">
+          <div className="grid gap-3 border-b border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-3">
+            <label className="grid gap-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">Fabricante<input value={manufacturer} onChange={event => setManufacturer(event.target.value)} placeholder="Ex.: Husqvarna" className="cv-field text-sm font-normal normal-case tracking-normal" /></label>
+            <label className="grid gap-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">Modelo<input value={model} onChange={event => setModel(event.target.value)} placeholder="Ex.: 143RS" className="cv-field text-sm font-normal normal-case tracking-normal" /></label>
+            <label className="grid gap-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">PNC<input value={pnc} onChange={event => setPnc(event.target.value)} placeholder="Ex.: 967 33 26-01" className="cv-field text-sm font-normal normal-case tracking-normal" /></label>
+            <div className="flex flex-wrap items-center gap-2 sm:col-span-3">
+              <button type="button" onClick={saveEquipment} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold">☆ Salvar equipamento</button>
+              {(manufacturer || model || pnc) ? <button type="button" onClick={() => { setManufacturer(''); setModel(''); setPnc(''); }} className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-400 hover:bg-white hover:text-slate-700">Limpar equipamento</button> : null}
+            </div>
+          </div>
+
+          <div className="cv-scrollbar min-h-[480px] max-h-[62vh] space-y-4 overflow-auto p-5" aria-busy={loading}>
+            {!messages.length ? (
+              <div className="grid h-[420px] place-items-center text-center">
+                <div className="max-w-lg">
+                  <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-2xl text-[#1d4f91]">✦</div>
+                  <h2 className="mt-4 font-semibold">O que você procura?</h2>
+                  <p className="mt-1 text-sm text-slate-400">Informe uma descrição ou um código. Modelo e PNC aumentam a precisão.</p>
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    {quickPrompts.map(prompt => <button type="button" key={prompt} onClick={() => { setQuestion(prompt); questionRef.current?.focus(); }} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-[#1d4f91]">{prompt}</button>)}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {messages.map((message, index) => (
+              <div key={message.id} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+                <div className={`max-w-[94%] rounded-2xl px-4 py-3 text-sm ${message.role === 'user' ? 'bg-[#1d4f91] text-white' : 'bg-slate-100 text-slate-800'}`}>
+                  {message.role === 'user' ? <div>{message.text}</div> : (
+                    <>
+                      {message.response ? <Guidance response={message.response} /> : null}
+                      {!message.response?.part ? <div className={message.response ? 'mt-3 whitespace-pre-line text-sm leading-6' : 'whitespace-pre-line text-sm leading-6'}>{message.text}</div> : null}
+                      {message.response ? <Interpretation response={message.response} /> : null}
+                      {message.response?.part ? (
+                        <ResultCard
+                          response={message.response}
+                          onCopyCode={() => void copy(message.response?.part?.partNumber || '')}
+                          onCopySummary={() => copySummary(message.response!)}
+                          onAccess={mode => void access(message.response?.part?.documentId || '', mode, message.response?.part?.page ?? null, message.response?.part?.filename || 'Catálogo')}
+                        />
+                      ) : null}
+
+                      {message.response?.pncOptions?.length ? <div className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600">Selecione o PNC da etiqueta</div><div className="flex flex-wrap gap-2">{message.response.pncOptions.map(option => <button type="button" key={option} onClick={() => message.query && void ask(message.query, option)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs">PNC {option}</button>)}</div></div> : null}
+                      {message.response?.modelOptions?.length ? <div className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600">Confirmar modelo</div><div className="flex flex-wrap gap-2">{message.response.modelOptions.map(option => <button type="button" key={option} onClick={() => chooseModel(message, option)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs">{option}</button>)}</div></div> : null}
+                      {message.response?.status === 'AMBIGUOUS' && message.response.options?.length ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Qual descrição corresponde à peça?</div><div className="mt-2 grid gap-2">{message.response.options.map(option => <button type="button" key={option.id} onClick={() => chooseAmbiguousOption(message, option)} className="rounded-lg border border-slate-200 p-2 text-left text-xs hover:bg-slate-50"><b>{option.name}</b><span className="block text-slate-500">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span></button>)}</div></div> : null}
+
+                      {message.response?.part && !message.feedback ? <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3"><span className="text-xs text-slate-500">Este resultado ajudou?</span><button type="button" onClick={() => void positiveFeedback(index)} className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-700">👍 Sim</button><button type="button" onClick={() => startNegative(index)} className="rounded-lg bg-rose-50 px-2 py-1 text-rose-700">👎 Não</button></div> : null}
+                      {message.showReasons ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">O que estava errado?</div><div className="mt-2 flex flex-wrap gap-2">{reasons.map(([reason, label]) => <button type="button" key={reason} onClick={() => chooseReason(index, reason)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50">{label}</button>)}</div></div> : null}
+                      {message.showCorrections ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Selecione a peça correta, se ela aparecer abaixo.</div><div className="mt-2 grid gap-2">{message.response?.feedbackOptions?.filter(option => option.id !== message.response?.part?.id).map(option => <button type="button" key={option.id} onClick={() => void negativeFeedback(index, option)} className="rounded-lg border border-slate-200 p-2 text-left text-xs"><b>{option.name}</b><span className="block text-slate-500">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span></button>)}</div><button type="button" onClick={() => void negativeFeedback(index)} className="mt-2 text-xs font-semibold text-slate-500 underline">Nenhuma dessas / apenas registrar o erro</button></div> : null}
+                      {message.feedback && !message.showReasons && !message.showCorrections ? <div className="mt-2 text-xs text-slate-500">{message.feedback === 'correct' ? '✓ Confirmação salva' : message.feedback === 'corrected' ? '✓ Correção salva' : '✓ Feedback salvo'}</div> : null}
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {loading ? <div role="status" className="flex items-center gap-3 text-sm text-slate-400"><span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-[#1d4f91]" />Interpretando e cruzando com os catálogos… <button type="button" onClick={cancel} className="text-xs font-semibold text-slate-500 underline">Cancelar</button></div> : null}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <form onSubmit={submit} className="flex gap-3 border-t border-slate-200 p-4">
+            <label htmlFor="assistant-question" className="sr-only">Digite a peça, descrição ou código</label>
+            <input ref={questionRef} id="assistant-question" value={question} onChange={event => setQuestion(event.target.value)} placeholder="Digite a peça, descrição ou código…" minLength={2} required className="cv-field min-w-0 flex-1 text-sm" />
+            <button type="submit" disabled={loading} className="cv-primary px-5 font-semibold disabled:opacity-50">Pesquisar</button>
+          </form>
+        </div>
+
+        <aside className="space-y-4">
+          <div className="cv-surface rounded-[22px] p-5">
+            <div className="text-sm font-semibold">Equipamentos salvos</div>
+            <p className="mt-1 text-xs text-slate-400">Reaplique modelo e PNC usados com frequência.</p>
+            <div className="mt-4 grid gap-2">
+              {!equipment.length ? <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-400">Nenhum equipamento salvo.</div> : null}
+              {equipment.map(item => <div key={item.id} className="flex items-center gap-2 rounded-xl border border-slate-200 p-2"><button type="button" onClick={() => { setManufacturer(item.manufacturer); setModel(item.model); setPnc(item.pnc); notify('Equipamento aplicado.'); }} className="min-w-0 flex-1 rounded-lg p-1 text-left text-xs hover:bg-slate-50"><b className="block truncate text-slate-700">{item.label}</b><span className="mt-1 block text-slate-400">Usar nesta busca</span></button><button type="button" onClick={() => removeEquipment(item.id)} aria-label={`Remover ${item.label}`} title="Remover equipamento" className="rounded-lg px-2 py-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600">×</button></div>)}
+            </div>
+          </div>
+
+          <div className="cv-surface rounded-[22px] p-5">
+            <div className="text-sm font-semibold">Buscas rápidas</div>
+            <p className="mt-1 text-xs text-slate-400">Atalhos locais desta estação; o histórico completo fica salvo no sistema.</p>
+            <div className="mt-4 grid gap-2">
+              {!recent.length ? <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-400">As novas buscas aparecerão aqui.</div> : null}
+              {recent.map(item => <button type="button" key={item.id} onClick={() => void ask(item.query, item.pnc, false)} className="rounded-xl border border-slate-200 p-3 text-left text-xs hover:bg-slate-50"><b className="block text-slate-700">{item.query}</b><span className="mt-1 block text-slate-400">{item.pnc ? `PNC ${item.pnc}` : 'Sem PNC informado'}</span></button>)}
+            </div>
+          </div>
+
+          <div className="rounded-[22px] bg-[#0d2348] p-5 text-white">
+            <div className="text-xs font-bold text-amber-200">REGRA DE SEGURANÇA</div>
+            <p className="mt-2 text-sm leading-6 text-slate-300">O assistente nunca cria códigos. Quando a IA externa estiver indisponível, o CogniVault tenta uma busca textual segura e avisa que o resultado exige conferência.</p>
+          </div>
+        </aside>
+      </div>
+
+      {pdf ? <div className="fixed inset-0 z-[90] bg-slate-950/90 p-3 md:p-6"><div role="dialog" aria-modal="true" aria-labelledby="assistant-pdf-title" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3"><div><div id="assistant-pdf-title" className="text-sm font-semibold">{pdf.title}</div><div className="text-xs text-slate-400">{pdf.page ? `Página ${pdf.page}` : 'Visualização do catálogo'}</div></div><div className="flex gap-2"><a href={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-[#1d4f91]">Nova aba</a><button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button></div></div><iframe title={pdf.title} src={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} className="h-full w-full border-0" /></div></div> : null}
+    </section>
+  );
 }

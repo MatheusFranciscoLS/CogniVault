@@ -7,7 +7,10 @@ export interface DocumentItem { id:string; filename:string; status:string; manuf
 export interface FeedbackOption { id:string; name:string; model:string; pnc:string|null; section:string|null; position:string|null; }
 export interface ChatResponse {
   status:SearchStatus; answer:string; pncOptions?:string[]; modelOptions?:string[]; confidence?:number;
-  part?:{ id:string; documentId:string; partNumber:string; name:string; model:string; pnc:string; section:string|null; position:string|null; page:number|null; filename:string };
+  interpreted?:{partDescription:string;manufacturer:string|null;model:string|null;pnc:string|null;partNumber:string|null};
+  match?:{method:'DIRECT_CODE'|'SEMANTIC'|'LEXICAL';level:'EXACT'|'HIGH'|'REVIEW';explanation:string};
+  guidance?:{title:string;description:string;tips:string[]};
+  part?:{ id:string; documentId:string; partNumber:string; name:string; model:string; pnc:string; section:string|null; position:string|null; page:number|null; filename:string; universalAcrossPnc?:boolean; applications?:Array<{model:string;pnc:string}> };
   feedbackOptions?:FeedbackOption[]; options?:FeedbackOption[];
 }
 export interface Overview { tenantName:string; users:number; activeDocuments:number; processingDocuments:number; failedDocuments:number; parts:number; feedbackTotal:number; feedbackAccuracy:number|null; }

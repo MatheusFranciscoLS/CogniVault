@@ -1,4 +1,5 @@
 import { GEMINI_GENERATIVE_MODEL, getGeminiClient, getGeminiType } from '../config/gemini';
+import { buildFallbackIntent, chooseCandidateLocally } from './chat-reliability';
 
 export interface SearchIntent {
   manufacturer: string;
@@ -22,29 +23,28 @@ export interface CandidateForAi {
 
 export class ChatIntentService {
   static async parse(question: string): Promise<SearchIntent> {
-    const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
-    const response = await ai.models.generateContent({
-      model: GEMINI_GENERATIVE_MODEL,
-      contents: `Interprete uma consulta de balcão de peças. Extraia somente o que foi informado ou claramente implícito. Não invente modelo, PNC ou código.\n\nConsulta: ${question}`,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            manufacturer: { type: Type.STRING },
-            model: { type: Type.STRING },
-            pnc: { type: Type.STRING },
-            partDescription: { type: Type.STRING },
-            partNumber: { type: Type.STRING },
-            section: { type: Type.STRING },
-            position: { type: Type.STRING },
-          },
-          required: ['manufacturer', 'model', 'pnc', 'partDescription', 'partNumber', 'section', 'position'],
-        },
-      },
-    });
-
     try {
+      const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
+      const response = await ai.models.generateContent({
+        model: GEMINI_GENERATIVE_MODEL,
+        contents: `Interprete uma consulta de balcão de peças. Extraia somente o que foi informado ou claramente implícito. Não invente modelo, PNC ou código.\n\nConsulta: ${question}`,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              manufacturer: { type: Type.STRING },
+              model: { type: Type.STRING },
+              pnc: { type: Type.STRING },
+              partDescription: { type: Type.STRING },
+              partNumber: { type: Type.STRING },
+              section: { type: Type.STRING },
+              position: { type: Type.STRING },
+            },
+            required: ['manufacturer', 'model', 'pnc', 'partDescription', 'partNumber', 'section', 'position'],
+          },
+        },
+      });
       const parsed = JSON.parse(response.text || '{}') as Partial<SearchIntent>;
       const clean = (v: unknown) => typeof v === 'string' ? v.trim() : '';
       return {
@@ -56,39 +56,40 @@ export class ChatIntentService {
         section: clean(parsed.section),
         position: clean(parsed.position),
       };
-    } catch {
-      return { manufacturer: '', model: '', pnc: '', partDescription: question.trim(), partNumber: '', section: '', position: '' };
+    } catch (error) {
+      console.warn('⚠️ Interpretação generativa indisponível; usando leitura local segura.', error instanceof Error ? error.message : error);
+      return buildFallbackIntent(question);
     }
   }
 
   static async choose(question: string, candidates: CandidateForAi[]): Promise<{ id: string | null; confidence: number; ambiguous: boolean }> {
     if (candidates.length === 1) return { id: candidates[0].id, confidence: 0.99, ambiguous: false };
 
-    const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
-    const response = await ai.models.generateContent({
-      model: GEMINI_GENERATIVE_MODEL,
-      contents: `Você está escolhendo uma peça entre candidatos JÁ ENCONTRADOS no banco.\nNunca crie IDs. Nunca escolha apenas por modelo parecido. Diferencie peça completa, kit, junta, parafuso, suporte etc.\nSe houver duas opções plausíveis, marque ambiguous=true.\n\nPergunta: ${question}\n\nCandidatos:\n${candidates.map(c => JSON.stringify(c)).join('\n')}`,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            id: { type: Type.STRING },
-            confidence: { type: Type.NUMBER },
-            ambiguous: { type: Type.BOOLEAN },
-          },
-          required: ['id', 'confidence', 'ambiguous'],
-        },
-      },
-    });
-
     try {
+      const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
+      const response = await ai.models.generateContent({
+        model: GEMINI_GENERATIVE_MODEL,
+        contents: `Você está escolhendo uma peça entre candidatos JÁ ENCONTRADOS no banco.\nNunca crie IDs. Nunca escolha apenas por modelo parecido. Diferencie peça completa, kit, junta, parafuso, suporte etc.\nSe houver duas opções plausíveis, marque ambiguous=true.\n\nPergunta: ${question}\n\nCandidatos:\n${candidates.map(c => JSON.stringify(c)).join('\n')}`,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              id: { type: Type.STRING },
+              confidence: { type: Type.NUMBER },
+              ambiguous: { type: Type.BOOLEAN },
+            },
+            required: ['id', 'confidence', 'ambiguous'],
+          },
+        },
+      });
       const parsed = JSON.parse(response.text || '{}') as { id?: unknown; confidence?: unknown; ambiguous?: unknown };
       const id = typeof parsed.id === 'string' && candidates.some(c => c.id === parsed.id) ? parsed.id : null;
       const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0));
       return { id, confidence, ambiguous: Boolean(parsed.ambiguous) || !id };
-    } catch {
-      return { id: null, confidence: 0, ambiguous: true };
+    } catch (error) {
+      console.warn('⚠️ Ranking generativo indisponível; usando comparação textual segura.', error instanceof Error ? error.message : error);
+      return chooseCandidateLocally(question, candidates);
     }
   }
 }
