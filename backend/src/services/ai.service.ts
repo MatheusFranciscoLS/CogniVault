@@ -475,7 +475,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
             });
 
             // =========================================================
-            // MOTOR DE EMBEDDINGS (VETORIZAÇÃO INDIVIDUAL SEGURA)
+            // MOTOR DE EMBEDDINGS (MANUAL E À PROVA DE CONGELAMENTO)
             // =========================================================
             const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -485,43 +485,54 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 const item = pendingIndexes[offset];
                 const partData = preparedParts[item.index].data;
 
-                // 1. Envia UMA string por vez, com o modelo oficial e SEM o bloco config
-                const embedResult = await withTransientAIRetry(
-                    () => ai.models.embedContent({
-                        model: 'text-embedding-004',
-                        contents: partData.searchText
-                    }),
-                    { label: `embedding da peça ${offset + 1} de ${pendingIndexes.length}` }
-                );
+                let success = false;
+                let retries = 0;
 
-                const values = embedResult.embeddings?.[0]?.values;
+                while (!success && retries < 3) {
+                    try {
+                        const embedResult = await ai.models.embedContent({
+                            model: 'text-embedding-004',
+                            contents: partData.searchText
+                        });
 
-                if (!values || values.length !== 768) {
-                    throw new Error(`Embedding inválido para a peça ${partData.partNumber}.`);
+                        const values = embedResult.embeddings?.[0]?.values;
+
+                        if (!values || values.length !== 768) {
+                            throw new Error(`Embedding inválido para a peça ${partData.partNumber}.`);
+                        }
+
+                        const embeddingString = `[${values.join(',')}]`;
+
+                        await prisma.$executeRaw`
+                            UPDATE "Part"
+                            SET "embedding" = ${embeddingString}::vector, "embeddingRevision" = ${revision}
+                            WHERE "id" = ${item.id}::uuid
+                        `;
+
+                        success = true;
+                        indexedCount++;
+
+                        if (indexedCount % 10 === 0 || indexedCount === pendingIndexes.length) {
+                            await prisma.document.updateMany({
+                                where: { id: documentId, processingJobId: jobId },
+                                data: { processingCurrent: indexedCount, processingTotal: preparedParts.length },
+                            });
+                            console.log(`🔎 Indexação semântica: ${indexedCount}/${preparedParts.length}.`);
+                        }
+
+                        await sleep(500);
+
+                    } catch (error: any) {
+                        if (error?.status === 429 || error?.message?.includes('429')) {
+                            retries++;
+                            console.warn(`⏳ Limite gratuito atingido. Esfriando por 10s... (Tentativa ${retries}/3)`);
+                            await sleep(10000);
+                        } else {
+                            console.error(`❌ ERRO FATAL NO EMBEDDING DA PEÇA ${partData.partNumber}:`, error?.message || error);
+                            throw error;
+                        }
+                    }
                 }
-
-                const embeddingString = `[${values.join(',')}]`;
-
-                // 2. Salva o vetor da peça diretamente no banco
-                await prisma.$executeRaw`
-                    UPDATE "Part"
-                    SET "embedding" = ${embeddingString}::vector, "embeddingRevision" = ${revision}
-                    WHERE "id" = ${item.id}::uuid
-                `;
-
-                indexedCount++;
-
-                // 3. Atualiza o progresso no banco a cada 10 peças
-                if (indexedCount % 10 === 0 || indexedCount === pendingIndexes.length) {
-                    await prisma.document.updateMany({
-                        where: { id: documentId, processingJobId: jobId },
-                        data: { processingCurrent: indexedCount, processingTotal: preparedParts.length },
-                    });
-                    console.log(`🔎 Indexação semântica: ${indexedCount}/${preparedParts.length}.`);
-                }
-
-                // 4. Micro-pausa (meio segundo) para não engasgar o servidor e a rede
-                await sleep(500);
             }
 
             await updateDocumentForJob(documentId, jobId, {
