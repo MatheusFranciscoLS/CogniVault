@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { hasSafeExtractionCoverage, matchExistingPartIds } from '../utils/part-identity';
+import { withTransientAIRetry } from '../utils/ai-retry';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
@@ -149,10 +150,13 @@ export class AIService {
                 data: { storagePath: canonicalStoragePath },
             });
 
-            const uploadedFile = await ai.files.upload({
-                file: localFilePath,
-                config: { mimeType: 'application/pdf' },
-            });
+            const uploadedFile = await withTransientAIRetry(
+                () => ai.files.upload({
+                    file: localFilePath as string,
+                    config: { mimeType: 'application/pdf' },
+                }),
+                { label: `upload do catálogo ${documentId} para a IA` },
+            );
 
             uploadedFileName = uploadedFile.name || null;
 
@@ -190,76 +194,79 @@ models deve listar os modelos encontrados no documento.
 pncs deve listar todos os PNCs explicitamente encontrados no documento.
 `;
 
-            const response = await ai.models.generateContent({
-                model: GEMINI_GENERATIVE_MODEL,
-                contents: [
-                    {
-                        role: 'user',
-                        parts: [
-                            {
-                                fileData: {
-                                    fileUri: uploadedFile.uri,
-                                    mimeType: 'application/pdf',
-                                },
-                            },
-                            { text: prompt },
-                        ],
-                    },
-                ],
-                config: {
-                    responseMimeType: 'application/json',
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            manufacturer: { type: Type.STRING },
-                            models: {
-                                type: Type.ARRAY,
-                                items: { type: Type.STRING },
-                            },
-                            pncs: {
-                                type: Type.ARRAY,
-                                items: { type: Type.STRING },
-                            },
-                            parts: {
-                                type: Type.ARRAY,
-                                items: {
-                                    type: Type.OBJECT,
-                                    properties: {
-                                        manufacturer: { type: Type.STRING },
-                                        model: { type: Type.STRING },
-                                        pnc: { type: Type.STRING },
-                                        universalAcrossPnc: { type: Type.BOOLEAN },
-                                        section: { type: Type.STRING },
-                                        position: { type: Type.STRING },
-                                        name: { type: Type.STRING },
-                                        alternativeNames: {
-                                            type: Type.ARRAY,
-                                            items: { type: Type.STRING },
-                                        },
-                                        partNumber: { type: Type.STRING },
-                                        page: { type: Type.INTEGER },
-                                        notes: { type: Type.STRING },
+            const response = await withTransientAIRetry(
+                () => ai.models.generateContent({
+                    model: GEMINI_GENERATIVE_MODEL,
+                    contents: [
+                        {
+                            role: 'user',
+                            parts: [
+                                {
+                                    fileData: {
+                                        fileUri: uploadedFile.uri,
+                                        mimeType: 'application/pdf',
                                     },
-                                    required: [
-                                        'manufacturer',
-                                        'model',
-                                        'pnc',
-                                        'universalAcrossPnc',
-                                        'section',
-                                        'position',
-                                        'name',
-                                        'alternativeNames',
-                                        'partNumber',
-                                        'page',
-                                        'notes',
-                                    ],
+                                },
+                                { text: prompt },
+                            ],
+                        },
+                    ],
+                    config: {
+                        responseMimeType: 'application/json',
+                        responseSchema: {
+                            type: Type.OBJECT,
+                            properties: {
+                                manufacturer: { type: Type.STRING },
+                                models: {
+                                    type: Type.ARRAY,
+                                    items: { type: Type.STRING },
+                                },
+                                pncs: {
+                                    type: Type.ARRAY,
+                                    items: { type: Type.STRING },
+                                },
+                                parts: {
+                                    type: Type.ARRAY,
+                                    items: {
+                                        type: Type.OBJECT,
+                                        properties: {
+                                            manufacturer: { type: Type.STRING },
+                                            model: { type: Type.STRING },
+                                            pnc: { type: Type.STRING },
+                                            universalAcrossPnc: { type: Type.BOOLEAN },
+                                            section: { type: Type.STRING },
+                                            position: { type: Type.STRING },
+                                            name: { type: Type.STRING },
+                                            alternativeNames: {
+                                                type: Type.ARRAY,
+                                                items: { type: Type.STRING },
+                                            },
+                                            partNumber: { type: Type.STRING },
+                                            page: { type: Type.INTEGER },
+                                            notes: { type: Type.STRING },
+                                        },
+                                        required: [
+                                            'manufacturer',
+                                            'model',
+                                            'pnc',
+                                            'universalAcrossPnc',
+                                            'section',
+                                            'position',
+                                            'name',
+                                            'alternativeNames',
+                                            'partNumber',
+                                            'page',
+                                            'notes',
+                                        ],
+                                    },
                                 },
                             },
+                            required: ['manufacturer', 'models', 'pncs', 'parts'],
                         },
-                        required: ['manufacturer', 'models', 'pncs', 'parts'],
                     },
-                },
-            });
+                }),
+                { label: `extração do catálogo ${documentId}` },
+            );
 
             if (!response.text?.trim()) {
                 throw new Error('Gemini não conseguiu extrair informações do PDF.');
@@ -331,15 +338,18 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                         notes ? `Observações: ${notes}` : '',
                     ].filter(Boolean).join('\n');
 
-                    const embedResult = await ai.models.embedContent({
-                        model: 'gemini-embedding-001',
-                        contents: searchText,
-                        config: {
-                            outputDimensionality: 768,
-                            taskType: 'RETRIEVAL_DOCUMENT',
-                            title: `${model} - ${name}`,
-                        },
-                    });
+                    const embedResult = await withTransientAIRetry(
+                        () => ai.models.embedContent({
+                            model: 'gemini-embedding-001',
+                            contents: searchText,
+                            config: {
+                                outputDimensionality: 768,
+                                taskType: 'RETRIEVAL_DOCUMENT',
+                                title: `${model} - ${name}`,
+                            },
+                        }),
+                        { label: `embedding de ${model} / ${name}` },
+                    );
 
                     const embedding = embedResult.embeddings?.[0]?.values;
                     if (!embedding || embedding.length !== 768) {
@@ -489,3 +499,4 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
         }
     }
 }
+
