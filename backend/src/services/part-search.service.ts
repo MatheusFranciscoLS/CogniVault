@@ -75,10 +75,10 @@ export class PartSearchService {
     try {
       const ai = await getGeminiClient();
       // 🚀 AQUI ESTÁ O CORAÇÃO DA INTELIGÊNCIA: text-embedding-004 funcionando perfeitamente!
+      // 🚀 Busca semântica limpa e direta
       const embed = await ai.models.embedContent({
-        model: 'embedding-001', // 🚀 Nome oficial e universal
-        contents: queryText,
-        config: { taskType: 'RETRIEVAL_QUERY' }, // 🚀 SEM outputDimensionality!
+        model: 'text-embedding-004',
+        contents: queryText
       });
       vector = embed.embeddings?.[0]?.values;
     } catch (error) {
