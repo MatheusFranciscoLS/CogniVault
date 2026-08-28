@@ -475,56 +475,54 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
             });
 
             // =========================================================
-            // MOTOR DE EMBEDDINGS (COM ANTI-BLOQUEIO FREE TIER)
+            // MOTOR DE EMBEDDINGS (VETORIZAÇÃO INDIVIDUAL SEGURA)
             // =========================================================
             const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-            const batchSize = 10; // 🚀 Reduzido para 10 para não estourar o limite de Tokens do Free Tier
 
-            for (let offset = 0; offset < pendingIndexes.length; offset += batchSize) {
-                const batch = pendingIndexes.slice(offset, offset + batchSize);
+            console.log(`\n⚙️ Iniciando vetorização peça por peça (${pendingIndexes.length} pendentes)...`);
 
+            for (let offset = 0; offset < pendingIndexes.length; offset++) {
+                const item = pendingIndexes[offset];
+                const partData = preparedParts[item.index].data;
+
+                // 1. Envia UMA string por vez, evitando o bug de array do SDK
                 const embedResult = await withTransientAIRetry(
                     () => ai.models.embedContent({
-                        model: 'text-embedding-004', // 🚀 CORREÇÃO VITAL DO MODELO AQUI!
-                        contents: batch.map(({ index }) => preparedParts[index].data.searchText),
+                        model: 'text-embedding-004',
+                        contents: partData.searchText,
                         config: { outputDimensionality: 768, taskType: 'RETRIEVAL_DOCUMENT' },
                     }),
-                    { label: `lote de embeddings ${offset + 1}-${offset + batch.length}` },
+                    { label: `embedding da peça ${offset + 1} de ${pendingIndexes.length}` }
                 );
 
-                const embeddings = embedResult.embeddings || [];
-                if (embeddings.length !== batch.length) {
-                    throw new Error(`A IA retornou ${embeddings.length} embeddings para um lote de ${batch.length} peças.`);
+                const values = embedResult.embeddings?.[0]?.values;
+
+                if (!values || values.length !== 768) {
+                    throw new Error(`Embedding inválido para a peça ${partData.partNumber}.`);
                 }
 
-                await prisma.$transaction(async (tx) => {
-                    for (const [batchIndex, item] of batch.entries()) {
-                        const values = embeddings[batchIndex]?.values;
-                        if (!values || values.length !== 768) {
-                            throw new Error(`Embedding inválido para a peça ${preparedParts[item.index].data.partNumber}.`);
-                        }
-                        const embeddingString = `[${values.join(',')}]`;
-                        await tx.$executeRaw`
-                            UPDATE "Part"
-                            SET "embedding" = ${embeddingString}::vector, "embeddingRevision" = ${revision}
-                            WHERE "id" = ${item.id}
-                        `;
-                    }
-                    indexedCount += batch.length;
-                    const progress = await tx.document.updateMany({
+                const embeddingString = `[${values.join(',')}]`;
+
+                // 2. Salva o vetor da peça diretamente no banco
+                await prisma.$executeRaw`
+                    UPDATE "Part"
+                    SET "embedding" = ${embeddingString}::vector, "embeddingRevision" = ${revision}
+                    WHERE "id" = ${item.id}::uuid
+                `;
+
+                indexedCount++;
+
+                // 3. Atualiza o progresso no banco a cada 10 peças
+                if (indexedCount % 10 === 0 || indexedCount === pendingIndexes.length) {
+                    await prisma.document.updateMany({
                         where: { id: documentId, processingJobId: jobId },
                         data: { processingCurrent: indexedCount, processingTotal: preparedParts.length },
                     });
-                    if (progress.count !== 1) throw new Error('STALE_DOCUMENT_JOB');
-                }, { maxWait: 10_000, timeout: 60_000 });
-
-                console.log(`🔎 Indexação semântica: ${indexedCount}/${preparedParts.length}.`);
-
-                // 🚀 O SEGREDO: Pausa para esfriar a API entre os lotes
-                if (offset + batchSize < pendingIndexes.length) {
-                    console.log(`⏳ Respirando por 3 segundos para evitar bloqueio do Google...`);
-                    await sleep(3000);
+                    console.log(`🔎 Indexação semântica: ${indexedCount}/${preparedParts.length}.`);
                 }
+
+                // 4. Micro-pausa (meio segundo) para não engasgar o servidor e a rede
+                await sleep(500);
             }
 
             await updateDocumentForJob(documentId, jobId, {
