@@ -474,17 +474,24 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 processingTotal: preparedParts.length,
             });
 
-            const batchSize = embeddingBatchSize();
+            // =========================================================
+            // MOTOR DE EMBEDDINGS (COM ANTI-BLOQUEIO FREE TIER)
+            // =========================================================
+            const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+            const batchSize = 10; // 🚀 Reduzido para 10 para não estourar o limite de Tokens do Free Tier
+
             for (let offset = 0; offset < pendingIndexes.length; offset += batchSize) {
                 const batch = pendingIndexes.slice(offset, offset + batchSize);
+
                 const embedResult = await withTransientAIRetry(
                     () => ai.models.embedContent({
-                        model: 'gemini-embedding-001',
+                        model: 'text-embedding-004', // 🚀 CORREÇÃO VITAL DO MODELO AQUI!
                         contents: batch.map(({ index }) => preparedParts[index].data.searchText),
                         config: { outputDimensionality: 768, taskType: 'RETRIEVAL_DOCUMENT' },
                     }),
                     { label: `lote de embeddings ${offset + 1}-${offset + batch.length}` },
                 );
+
                 const embeddings = embedResult.embeddings || [];
                 if (embeddings.length !== batch.length) {
                     throw new Error(`A IA retornou ${embeddings.length} embeddings para um lote de ${batch.length} peças.`);
@@ -510,7 +517,14 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     });
                     if (progress.count !== 1) throw new Error('STALE_DOCUMENT_JOB');
                 }, { maxWait: 10_000, timeout: 60_000 });
+
                 console.log(`🔎 Indexação semântica: ${indexedCount}/${preparedParts.length}.`);
+
+                // 🚀 O SEGREDO: Pausa para esfriar a API entre os lotes
+                if (offset + batchSize < pendingIndexes.length) {
+                    console.log(`⏳ Respirando por 3 segundos para evitar bloqueio do Google...`);
+                    await sleep(3000);
+                }
             }
 
             await updateDocumentForJob(documentId, jobId, {
