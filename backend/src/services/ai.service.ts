@@ -1,5 +1,5 @@
 import { prisma } from '../config/prisma';
-import { getGeminiClient, getGeminiType } from '../config/gemini';
+import { GEMINI_GENERATIVE_MODEL, getGeminiClient, getGeminiType } from '../config/gemini';
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
@@ -189,7 +189,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
 `;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: GEMINI_GENERATIVE_MODEL,
                 contents: [
                     {
                         role: 'user',

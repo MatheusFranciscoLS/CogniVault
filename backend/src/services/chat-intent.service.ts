@@ -1,4 +1,4 @@
-import { getGeminiClient, getGeminiType } from '../config/gemini';
+import { GEMINI_GENERATIVE_MODEL, getGeminiClient, getGeminiType } from '../config/gemini';
 
 export interface SearchIntent {
   manufacturer: string;
@@ -24,7 +24,7 @@ export class ChatIntentService {
   static async parse(question: string): Promise<SearchIntent> {
     const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: GEMINI_GENERATIVE_MODEL,
       contents: `Interprete uma consulta de balcão de peças. Extraia somente o que foi informado ou claramente implícito. Não invente modelo, PNC ou código.\n\nConsulta: ${question}`,
       config: {
         responseMimeType: 'application/json',
@@ -66,7 +66,7 @@ export class ChatIntentService {
 
     const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: GEMINI_GENERATIVE_MODEL,
       contents: `Você está escolhendo uma peça entre candidatos JÁ ENCONTRADOS no banco.\nNunca crie IDs. Nunca escolha apenas por modelo parecido. Diferencie peça completa, kit, junta, parafuso, suporte etc.\nSe houver duas opções plausíveis, marque ambiguous=true.\n\nPergunta: ${question}\n\nCandidatos:\n${candidates.map(c => JSON.stringify(c)).join('\n')}`,
       config: {
         responseMimeType: 'application/json',
