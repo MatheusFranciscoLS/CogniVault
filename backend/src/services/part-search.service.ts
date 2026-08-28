@@ -76,9 +76,9 @@ export class PartSearchService {
       const ai = await getGeminiClient();
       // 🚀 AQUI ESTÁ O CORAÇÃO DA INTELIGÊNCIA: text-embedding-004 funcionando perfeitamente!
       const embed = await ai.models.embedContent({
-        model: 'text-embedding-004',
+        model: 'embedding-001', // 🚀 Nome oficial e universal
         contents: queryText,
-        config: { outputDimensionality: 768, taskType: 'RETRIEVAL_QUERY' },
+        config: { taskType: 'RETRIEVAL_QUERY' }, // 🚀 SEM outputDimensionality!
       });
       vector = embed.embeddings?.[0]?.values;
     } catch (error) {

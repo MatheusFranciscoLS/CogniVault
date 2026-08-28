@@ -485,12 +485,12 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 const item = pendingIndexes[offset];
                 const partData = preparedParts[item.index].data;
 
-                // 1. Envia UMA string por vez, evitando o bug de array do SDK
+                // 1. Envia UMA string por vez, usando o modelo universal!
                 const embedResult = await withTransientAIRetry(
                     () => ai.models.embedContent({
-                        model: 'text-embedding-004',
+                        model: 'embedding-001', // 🚀 Nome oficial e universal
                         contents: partData.searchText,
-                        config: { outputDimensionality: 768, taskType: 'RETRIEVAL_DOCUMENT' },
+                        config: { taskType: 'RETRIEVAL_DOCUMENT' }, // 🚀 SEM outputDimensionality!
                     }),
                     { label: `embedding da peça ${offset + 1} de ${pendingIndexes.length}` }
                 );
