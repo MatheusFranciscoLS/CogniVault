@@ -1,5 +1,8 @@
 import amqp, { ConfirmChannel, ChannelModel } from 'amqplib';
 
+export const DOCUMENT_PROCESSING_QUEUE = 'document_processing';
+export const DOCUMENT_RETRY_QUEUE = 'document_processing_retry_60s';
+
 class RabbitMQConnection {
     private connection: ChannelModel | null = null;
     private channel: ConfirmChannel | null = null;
@@ -15,7 +18,15 @@ class RabbitMQConnection {
         const connection = await amqp.connect(url);
         const channel = await connection.createConfirmChannel();
 
-        await channel.assertQueue('document_processing', { durable: true });
+        await channel.assertQueue(DOCUMENT_PROCESSING_QUEUE, { durable: true });
+        await channel.assertQueue(DOCUMENT_RETRY_QUEUE, {
+            durable: true,
+            arguments: {
+                'x-message-ttl': 60_000,
+                'x-dead-letter-exchange': '',
+                'x-dead-letter-routing-key': DOCUMENT_PROCESSING_QUEUE,
+            },
+        });
 
         this.connection = connection;
         this.channel = channel;
@@ -80,3 +91,4 @@ class RabbitMQConnection {
 }
 
 export const rabbitMQ = new RabbitMQConnection();
+

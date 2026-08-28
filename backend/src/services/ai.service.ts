@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { hasSafeExtractionCoverage, matchExistingPartIds } from '../utils/part-identity';
-import { withTransientAIRetry } from '../utils/ai-retry';
+import { isTransientAIError, withTransientAIRetry } from '../utils/ai-retry';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
@@ -381,6 +381,9 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                         embeddingString: `[${embedding.join(',')}]`,
                     });
                 } catch (partError) {
+                    if (isTransientAIError(partError)) {
+                        throw partError;
+                    }
                     console.error('⚠️ Erro ao preparar uma peça extraída:', partError);
                 }
             }

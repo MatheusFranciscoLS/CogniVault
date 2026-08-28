@@ -1,4 +1,4 @@
-import { rabbitMQ } from './connection';
+import { DOCUMENT_PROCESSING_QUEUE, rabbitMQ } from './connection';
 
 export class DocumentProducer {
     static async publishToQueue(documentId: string, tenantId: string) {
@@ -8,7 +8,7 @@ export class DocumentProducer {
         const message = JSON.stringify({ documentId, tenantId });
 
         // Envia a mensagem para a fila 'document_processing'
-        channel.sendToQueue('document_processing', Buffer.from(message), {
+        channel.sendToQueue(DOCUMENT_PROCESSING_QUEUE, Buffer.from(message), {
             persistent: true // Garante que a mensagem não suma se o servidor reiniciar
         });
         await channel.waitForConfirms();
@@ -16,3 +16,4 @@ export class DocumentProducer {
         console.log(`📤 Documento ${documentId} colocado na fila com sucesso!`);
     }
 }
+

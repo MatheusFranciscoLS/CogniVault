@@ -1,7 +1,8 @@
-import { rabbitMQ } from './connection';
+import { DOCUMENT_PROCESSING_QUEUE, DOCUMENT_RETRY_QUEUE, rabbitMQ } from './connection';
 import { prisma } from '../config/prisma';
 import { AIService } from '../services/ai.service';
 import type { ConsumeMessage } from 'amqplib';
+import { nextDocumentRetry } from '../utils/document-retry';
 
 interface DocumentMessage {
     documentId: string;
@@ -25,7 +26,7 @@ export class DocumentWorker {
         );
 
         await channel.consume(
-            'document_processing',
+            DOCUMENT_PROCESSING_QUEUE,
             async (msg: ConsumeMessage | null) => {
 
                 if (!msg) {
@@ -205,7 +206,49 @@ export class DocumentWorker {
                     );
 
                     // =================================================
-                    // 4. MARCAR COMO FAILED
+                    // 4. REAGENDAR INDISPONIBILIDADE TEMPORÁRIA
+                    //
+                    // A fila auxiliar retém a mensagem por 60 segundos
+                    // e depois a devolve à fila principal. O contador
+                    // limita os ciclos para impedir repetição infinita.
+                    // =================================================
+
+                    const retryNumber = nextDocumentRetry(
+                        error,
+                        msg.properties.headers
+                    );
+
+                    if (retryNumber !== null) {
+                        try {
+                            channel.sendToQueue(
+                                DOCUMENT_RETRY_QUEUE,
+                                msg.content,
+                                {
+                                    persistent: true,
+                                    contentType: msg.properties.contentType || 'application/json',
+                                    headers: {
+                                        ...msg.properties.headers,
+                                        'x-retry-count': retryNumber,
+                                    },
+                                }
+                            );
+                            await channel.waitForConfirms();
+                            channel.ack(msg);
+
+                            console.warn(
+                                `🕒 Documento ${data.documentId} reagendado para nova tentativa em 60 segundos (ciclo ${retryNumber}).`
+                            );
+                            return;
+                        } catch (retryQueueError) {
+                            console.error(
+                                `❌ Não foi possível reagendar o documento ${data.documentId}:`,
+                                retryQueueError
+                            );
+                        }
+                    }
+
+                    // =================================================
+                    // 5. MARCAR COMO FAILED
                     // =================================================
 
                     try {
@@ -235,7 +278,7 @@ export class DocumentWorker {
                     }
 
                     // =================================================
-                    // 5. DESCARTAR MENSAGEM
+                    // 6. DESCARTAR MENSAGEM
                     //
                     // false = não requeue
                     // =================================================
@@ -254,3 +297,4 @@ export class DocumentWorker {
         );
     }
 }
+
