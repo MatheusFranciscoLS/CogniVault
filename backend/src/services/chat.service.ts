@@ -6,6 +6,7 @@ import { PartSearchService, type PartCandidate } from './part-search.service';
 import type { SearchIntent } from './chat-intent.service';
 import { buildSearchGroups, focusCandidatesByDescription } from './part-vocabulary';
 import { filterCandidatesByMarket } from './catalog-market';
+import { getVerifiedSupersession, preferCurrentPartNumbers } from './part-supersession';
 
 const MIN_CONFIDENCE = Number(process.env.PART_SEARCH_MIN_CONFIDENCE || '0.72');
 
@@ -74,9 +75,9 @@ export class ChatService {
       if (explicitPnc?.trim()) localIntent.pnc = explicitPnc.trim();
       const direct = await PartSearchService.directByCode(tenantId, likelyCode);
       if (direct.length === 1) {
-        return this.withContext(this.found(direct[0], 1, direct[0].universalAcrossPnc ? 'Qualquer um' : (direct[0].pnc || 'Não informado'), direct), localIntent);
+        return this.withContext(this.withSupersessionNotice(this.found(direct[0], 1, direct[0].universalAcrossPnc ? 'Qualquer um' : (direct[0].pnc || 'Não informado'), direct), likelyCode), localIntent);
       }
-      if (direct.length > 1) return this.withContext(this.found(direct[0], 1, direct[0].universalAcrossPnc ? 'Qualquer um' : (direct[0].pnc || 'Várias aplicações'), direct), localIntent);
+      if (direct.length > 1) return this.withContext(this.withSupersessionNotice(this.found(direct[0], 1, direct[0].universalAcrossPnc ? 'Qualquer um' : (direct[0].pnc || 'Várias aplicações'), direct), likelyCode), localIntent);
     }
 
     const intent = await ChatIntentService.parse(question);
@@ -84,8 +85,8 @@ export class ChatService {
 
     if (intent.partNumber) {
       const direct = await PartSearchService.directByCode(tenantId, intent.partNumber);
-      if (direct.length === 1) return this.withContext(this.found(direct[0], 1, direct[0].universalAcrossPnc ? 'Qualquer um' : (direct[0].pnc || 'Não informado'), direct), intent);
-      if (direct.length > 1) return this.withContext(this.found(direct[0], 1, direct[0].universalAcrossPnc ? 'Qualquer um' : (direct[0].pnc || 'Várias aplicações'), direct), intent);
+      if (direct.length === 1) return this.withContext(this.withSupersessionNotice(this.found(direct[0], 1, direct[0].universalAcrossPnc ? 'Qualquer um' : (direct[0].pnc || 'Não informado'), direct), intent.partNumber), intent);
+      if (direct.length > 1) return this.withContext(this.withSupersessionNotice(this.found(direct[0], 1, direct[0].universalAcrossPnc ? 'Qualquer um' : (direct[0].pnc || 'Várias aplicações'), direct), intent.partNumber), intent);
     }
 
     const partGroups = buildSearchGroups(intent.partDescription || question, [intent.manufacturer, intent.model, intent.pnc]);
@@ -165,6 +166,7 @@ export class ChatService {
 
     eligible = filterCandidatesByMarket(eligible);
     eligible = focusCandidatesByDescription(partDescription, eligible);
+    eligible = preferCurrentPartNumbers(eligible);
 
     const selection = await ChatIntentService.choose(question, eligible.slice(0, 20).map(c => ({
       id: c.id, name: c.name, model: c.model, pnc: c.pnc, section: c.section, position: c.position, aliases: c.alternativeNames,
@@ -253,6 +255,19 @@ export class ChatService {
       if (seen.has(c.id)) return false;
       seen.add(c.id); return true;
     }).map(c => ({ id: c.id, name: c.name, partNumber: c.partNumber, model: c.model, pnc: c.pnc, section: c.section, position: c.position, notes: c.notes }));
+  }
+
+  private static withSupersessionNotice(result: ChatSearchResult, requestedPartNumber: string): ChatSearchResult {
+    const replacement = getVerifiedSupersession(requestedPartNumber);
+    if (!replacement) return result;
+    return {
+      ...result,
+      answer: `O código consultado ${replacement.previousPartNumber} foi substituído pelo código atual ${replacement.currentPartNumber}, conforme o portal oficial Husqvarna.\n${result.answer}`,
+      match: result.match ? {
+        ...result.match,
+        explanation: `${result.match.explanation} A cadeia de substituição foi revisada no portal oficial Husqvarna Brasil.`,
+      } : result.match,
+    };
   }
 
   private static withContext(result: ChatSearchResult, intent: SearchIntent): ChatSearchResult {

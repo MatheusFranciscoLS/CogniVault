@@ -5,6 +5,7 @@ import { normalizeIdentifier } from '../utils/normalize';
 import type { SearchIntent } from './chat-intent.service';
 import { buildSearchGroups, hasKnownPartVocabulary, scorePartText } from './part-vocabulary';
 import { applyFeedbackLearning } from './feedback-learning';
+import { preferCurrentPartNumbers, resolveCurrentPartNumber } from './part-supersession';
 
 const MAX_DISTANCE = Number(process.env.PART_SEARCH_MAX_DISTANCE || '0.65');
 
@@ -71,7 +72,7 @@ export class PartSearchService {
   }
 
   static async directByCode(tenantId: string, partNumber: string): Promise<PartCandidate[]> {
-    const needle = normalizeIdentifier(partNumber);
+    const needle = normalizeIdentifier(resolveCurrentPartNumber(partNumber));
     if (!needle) return [];
     const rows = await prisma.part.findMany({
       where: {
@@ -81,7 +82,7 @@ export class PartSearchService {
       },
       include: { document: { select: { filename: true, pnc: true } } },
     });
-    return deduplicatePartCandidates(rows.map(p => ({
+    return preferCurrentPartNumbers(deduplicatePartCandidates(rows.map(p => ({
       id: p.id, documentId: p.documentId, filename: p.document.filename,
       manufacturer: p.manufacturer, model: p.model, normalizedModel: p.normalizedModel,
       pnc: p.pnc || p.document.pnc,
@@ -90,7 +91,7 @@ export class PartSearchService {
       section: p.section, position: p.position, name: p.name, alternativeNames: p.alternativeNames,
       partNumber: p.partNumber, normalizedPartNumber: p.normalizedPartNumber,
       page: p.page, notes: p.notes, distance: 0, feedbackScore: 0, searchMethod: 'DIRECT_CODE',
-    })));
+    }))));
   }
 
   static async availablePncs(tenantId: string, normalizedModel: string): Promise<string[]> {
@@ -192,7 +193,7 @@ export class PartSearchService {
     } catch (error) {
       console.warn('⚠️ Aprendizado por feedback indisponível nesta consulta; mantendo ranking técnico.', error instanceof Error ? error.message : error);
     }
-    return deduplicatePartCandidates(candidates.sort((a, b) => (a.distance - a.feedbackScore) - (b.distance - b.feedbackScore)));
+    return preferCurrentPartNumbers(deduplicatePartCandidates(candidates.sort((a, b) => (a.distance - a.feedbackScore) - (b.distance - b.feedbackScore))));
   }
 
   private static async lexical(tenantId: string, question: string, intent: SearchIntent): Promise<PartCandidate[]> {
@@ -254,7 +255,7 @@ export class PartSearchService {
     } catch (error) {
       console.warn('⚠️ Aprendizado por feedback indisponível nesta consulta textual; mantendo ranking técnico.', error instanceof Error ? error.message : error);
     }
-    return deduplicatePartCandidates(candidates.sort((a, b) => (a.distance - a.feedbackScore) - (b.distance - b.feedbackScore))).slice(0, 40);
+    return preferCurrentPartNumbers(deduplicatePartCandidates(candidates.sort((a, b) => (a.distance - a.feedbackScore) - (b.distance - b.feedbackScore)))).slice(0, 40);
   }
 
   private static async applyFeedback(tenantId: string, question: string, model: string, pnc: string, candidates: PartCandidate[]): Promise<void> {
