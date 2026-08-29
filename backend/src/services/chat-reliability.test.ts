@@ -1,7 +1,22 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildFallbackIntent, calibrateMatchConfidence, chooseCandidateLocally, extractLikelyModel, extractLikelyPartNumber, extractLikelyPnc, lexicalSearchTerms } from './chat-reliability';
-import { buildSearchGroups, focusCandidatesByDescription, scorePartText, semanticQueryText } from './part-vocabulary';
+import {
+  buildFallbackIntent,
+  calibrateMatchConfidence,
+  chooseCandidateLocally,
+  extractLikelyModel,
+  extractLikelyPartNumber,
+  extractLikelyPnc,
+  extractLikelyPosition,
+  lexicalSearchTerms,
+} from './chat-reliability';
+import {
+  buildSearchGroups,
+  focusCandidatesByDescription,
+  inferPartQueryRelation,
+  scorePartText,
+  semanticQueryText,
+} from './part-vocabulary';
 
 test('identifica código formatado sem confundir modelo curto', () => {
   assert.equal(extractLikelyPartNumber('Preciso da peça 537 04 19-01 da roçadeira'), '537 04 19-01');
@@ -17,12 +32,14 @@ test('cria intenção segura quando o serviço generativo está indisponível', 
   assert.equal(intent.partNumber, '');
 });
 
-test('extrai modelo, fabricante e PNC localmente sem depender da IA', () => {
-  const intent = buildFallbackIntent('Qual o código do carburado de Husqvarna 143 R II?');
+test('extrai modelo, fabricante, PNC e posição localmente sem depender da IA', () => {
+  const intent = buildFallbackIntent('Qual o código do parafuso posição 16 da embreagem de Husqvarna 143 R II?');
   assert.equal(intent.manufacturer, 'Husqvarna');
   assert.equal(intent.model, '143RII');
+  assert.equal(intent.position, '16');
   assert.equal(extractLikelyModel('carburador da 143rii'), '143rii');
   assert.equal(extractLikelyPnc('consultar PNC 967 33 26-01'), '967 33 26-01');
+  assert.equal(extractLikelyPosition('parafuso pos. 13 da embreagem'), '13');
 });
 
 test('remove palavras de apoio da busca textual de contingência', () => {
@@ -93,18 +110,62 @@ test('seleciona EMBRAIAGEM e elimina parafuso/anilha da mesma vista CLUTCH', () 
 
 test('entende peça composta dividida entre nome e seção do catálogo', () => {
   const groups = buildSearchGroups('tambor da embreagem da 143RII', ['143RII']);
+  assert.ok(groups.some(group => group.key === 'clutch-drum'));
   assert.ok(groups.some(group => group.key === 'clutch'));
-  assert.ok(groups.some(group => group.key === 'literal:tambor'));
 
   const drumScore = scorePartText('tambor da embreagem', { name: 'TAMBOR', section: '143RII CLUTCH' });
   const screwScore = scorePartText('tambor da embreagem', { name: 'PARAFUSO', section: '143RII CLUTCH' });
   assert.ok(drumScore > screwScore + 0.3);
 });
 
-test('reconhece termos portugueses de Portugal comuns no catálogo', () => {
+test('entende peça dentro de conjunto: parafuso da embreagem não vira a embreagem', () => {
+  const relation = inferPartQueryRelation('Qual o código do parafuso da embreagem da 143RII?');
+  assert.equal(relation?.primary.key, 'screw');
+  assert.equal(relation?.context.key, 'clutch');
+
+  const screwInClutch = scorePartText('parafuso da embreagem da 143RII', { name: 'SCREW', section: '143RII CLUTCH' });
+  const clutchAssembly = scorePartText('parafuso da embreagem da 143RII', { name: 'EMBRAIAGEM', section: '143RII CLUTCH' });
+  const screwInCarb = scorePartText('parafuso da embreagem da 143RII', { name: 'SCREW', section: '143RII CARBURETTOR' });
+  assert.ok(screwInClutch > clutchAssembly + 0.35);
+  assert.ok(screwInClutch > screwInCarb + 0.25);
+});
+
+test('mantém ambiguidade quando existem vários parafusos na vista CLUTCH', () => {
+  const candidates = [
+    { id: 'screw8', name: 'PARAFUSO', model: '143RII', pnc: '967332904', section: '143RII CLUTCH', position: '8', aliases: [] },
+    { id: 'screw13', name: 'PARAFUSO', model: '143RII', pnc: '967332904', section: '143RII CLUTCH', position: '13', aliases: [] },
+    { id: 'screw16', name: 'SCREW', model: '143RII', pnc: '967332904', section: '143RII CLUTCH', position: '16', aliases: [] },
+    { id: 'assembly', name: 'EMBRAIAGEM', model: '143RII', pnc: '967332904', section: '143RII CLUTCH', position: '14', aliases: [] },
+  ];
+
+  const focused = focusCandidatesByDescription('parafuso da embreagem da 143RII', candidates.map(candidate => ({
+    ...candidate,
+    alternativeNames: candidate.aliases,
+  })));
+  assert.deepEqual(focused.map(item => item.id), ['screw8', 'screw13', 'screw16']);
+  assert.equal(chooseCandidateLocally('parafuso da embreagem da 143RII', candidates).ambiguous, true);
+});
+
+test('posição explícita desempata parafusos iguais do mesmo conjunto', () => {
+  const candidates = [
+    { id: 'screw8', name: 'PARAFUSO', model: '143RII', pnc: '967332904', section: '143RII CLUTCH', position: '8', aliases: [] },
+    { id: 'screw13', name: 'PARAFUSO', model: '143RII', pnc: '967332904', section: '143RII CLUTCH', position: '13', aliases: [] },
+    { id: 'screw16', name: 'SCREW', model: '143RII', pnc: '967332904', section: '143RII CLUTCH', position: '16', aliases: [] },
+  ];
+
+  assert.equal(chooseCandidateLocally('parafuso posição 16 da embreagem da 143RII', candidates).id, 'screw16');
+});
+
+test('reconhece termos portugueses de Portugal e nomes usuais de revenda', () => {
   assert.ok(buildSearchGroups('anilha da 143RII', ['143RII']).some(group => group.key === 'washer'));
   assert.ok(buildSearchGroups('cambota da máquina', []).some(group => group.key === 'crankshaft'));
   assert.ok(buildSearchGroups('depósito de combustível', []).some(group => group.key === 'fuel-tank'));
+  assert.ok(buildSearchGroups('ponteira da roçadeira', []).some(group => group.key === 'gearbox'));
+  assert.ok(buildSearchGroups('caixa de engrenagem', []).some(group => group.key === 'gearbox'));
+  assert.ok(buildSearchGroups('carretel de nylon', []).some(group => group.key === 'trimmer-head'));
+  assert.ok(buildSearchGroups('campana da embreagem', []).some(group => group.key === 'clutch-drum'));
+  assert.ok(buildSearchGroups('sabre da motosserra', []).some(group => group.key === 'guide-bar'));
+  assert.ok(buildSearchGroups('mufla da motosserra', []).some(group => group.key === 'muffler'));
 });
 
 test('prioriza o nome da peça e não oferece componentes vizinhos da mesma vista', () => {
