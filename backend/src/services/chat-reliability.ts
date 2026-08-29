@@ -1,6 +1,7 @@
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import type { CandidateForAi, SearchIntent } from './chat-intent.service';
 import { relationSpecificityBonus } from './candidate-specificity';
+import { extractKnownHusqvarnaModel } from './husqvarna-domain-knowledge';
 import { lexicalTerms, scorePartText } from './part-vocabulary';
 
 function isPncContext(question: string, index: number) {
@@ -47,11 +48,17 @@ export function extractLikelyModel(question: string): string {
   // ("posição 16", "pos. 13", etc.) antes da heurística de modelo.
   withoutReferences = withoutReferences.replace(/\b(?:posição|posicao|pos|item|ref|referência|referencia)\s*[:#.-]?\s*\d{1,3}\b/gi, ' ');
 
+  // Alguns modelos reais não cabem na heurística genérica (353 é só numérico;
+  // 135 Mark II contém palavras separadas). A lista é somente dos modelos cuja
+  // família foi comprovada pelos IPLs estudados, não um palpite por similaridade.
+  const knownModel = extractKnownHusqvarnaModel(withoutReferences);
+  if (knownModel && (/^\d+$/.test(knownModel) || knownModel.includes('MARK'))) return knownModel;
+
   const spaced = withoutReferences.match(/\b\d{2,4}\s*(?:r\s*)?(?:ii|iii|iv|v|rs|rx|rj|xp|x|[a-z]{1,3})\b/i);
   if (spaced?.[0]) return spaced[0].replace(/\s+/g, '');
 
   const compact = withoutReferences.match(/\b(?=[a-z0-9-]{3,14}\b)(?=[a-z0-9-]*[a-z])(?=[a-z0-9-]*\d)[a-z0-9-]+\b/i);
-  return compact?.[0] || '';
+  return compact?.[0] || knownModel || '';
 }
 
 function extractLikelyManufacturer(question: string): string {
@@ -88,6 +95,7 @@ export function chooseCandidateLocally(
       name: candidate.name,
       section: candidate.section,
       aliases: candidate.aliases,
+      notes: candidate.notes,
     });
     let score = technicalScore
       + relationSpecificityBonus(question, candidate)

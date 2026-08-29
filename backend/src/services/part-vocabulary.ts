@@ -1,4 +1,10 @@
 import { normalizeText } from '../utils/normalize';
+import {
+  applyDomainSearchKnowledge,
+  domainCandidateBonus,
+  domainIndexAliases,
+  domainSemanticHint,
+} from './husqvarna-domain-knowledge';
 
 type VocabularyEntry = {
   key: string;
@@ -282,7 +288,7 @@ export function buildSearchGroups(value: string, ignoredValues: string[] = []): 
   const literals = lexicalTerms(value, ignoredValues)
     .filter(term => ![...coveredWords].some(covered => fuzzyEqual(term, covered)))
     .map(term => ({ key: `literal:${term}`, variants: [term] }));
-  return [...concepts, ...literals].slice(0, 8);
+  return applyDomainSearchKnowledge([...concepts, ...literals], value, ignoredValues.join(' ')) as SearchGroup[];
 }
 
 function conceptOccurrences(value: string): Array<{ group: SearchGroup; index: number; end: number; length: number }> {
@@ -339,8 +345,14 @@ export function semanticQueryText(value: string, ignoredValues: string[] = []): 
   const relationHint = relation
     ? `Peça procurada: ${relation.primary.variants.slice(0, 8).join(', ')}. Conjunto ou contexto: ${relation.context.variants.slice(0, 8).join(', ')}.`
     : '';
-  if (!variants.length) return value.trim();
-  return [value.trim(), `Equivalentes técnicos: ${variants.join(', ')}`, relationHint].filter(Boolean).join('\n');
+  const domainHint = domainSemanticHint(value, ignoredValues.join(' '));
+  if (!variants.length && !domainHint) return value.trim();
+  return [
+    value.trim(),
+    variants.length ? `Equivalentes técnicos: ${variants.join(', ')}` : '',
+    relationHint,
+    domainHint,
+  ].filter(Boolean).join('\n');
 }
 
 function compactRelationAliases(primary: SearchGroup, context: SearchGroup): string[] {
@@ -361,7 +373,7 @@ function compactRelationAliases(primary: SearchGroup, context: SearchGroup): str
  * Eles não viram nomes oficiais no banco. Isso ensina relações como SCREW em CLUTCH
  * -> "parafuso embreagem" sem inventar código ou aplicação.
  */
-export function inferredSearchAliases(name: string, section = '', aliases: string[] = []): string[] {
+export function inferredSearchAliases(name: string, section = '', aliases: string[] = [], model = ''): string[] {
   const nameConcepts = findPartConcepts([name, ...aliases].filter(Boolean).join(' '));
   const sectionConcepts = findPartConcepts(section);
   const values = new Set<string>();
@@ -370,6 +382,8 @@ export function inferredSearchAliases(name: string, section = '', aliases: strin
     for (const variant of group.variants) values.add(variant);
   }
 
+  for (const alias of domainIndexAliases(name, section, model, aliases)) values.add(alias);
+
   const primaryConcepts = nameConcepts.filter(group => RELATIONAL_PRIMARY_KEYS.has(group.key));
   for (const primary of primaryConcepts.slice(0, 2)) {
     for (const context of sectionConcepts.filter(group => group.key !== primary.key).slice(0, 3)) {
@@ -377,7 +391,7 @@ export function inferredSearchAliases(name: string, section = '', aliases: strin
     }
   }
 
-  return [...values].filter(Boolean).slice(0, 80);
+  return [...values].filter(Boolean).slice(0, 100);
 }
 
 function containsVariant(value: string, variant: string): boolean {
@@ -440,14 +454,15 @@ function conceptStrength(
 
 export function scorePartText(
   query: string,
-  candidate: { name: string; section?: string | null; aliases?: string[] },
+  candidate: { name: string; section?: string | null; aliases?: string[]; notes?: string | null },
 ): number {
   const groups = buildSearchGroups(query);
   if (!groups.length) return 0;
 
   let total = 0;
   for (const group of groups) total += conceptStrength(group, candidate);
-  const regularScore = Math.max(0, Math.min(1, total / groups.length));
+  const domainBonus = domainCandidateBonus(query, candidate);
+  const regularScore = Math.max(0, Math.min(1, total / groups.length + domainBonus));
 
   const relation = inferPartQueryRelation(query);
   if (!relation) return regularScore;
@@ -456,12 +471,12 @@ export function scorePartText(
   const context = contextStrength(relation.context, candidate);
   if (primary < 0.6 || context < 0.2) return regularScore;
 
-  const relationScore = primary * 0.72 + context * 0.28;
-  return Math.max(regularScore, Math.min(1, relationScore));
+  const relationScore = primary * 0.72 + context * 0.28 + domainBonus;
+  return Math.max(regularScore, Math.max(0, Math.min(1, relationScore)));
 }
 
 export function focusCandidatesByDescription<
-  T extends { name: string; section?: string | null; alternativeNames?: string[] },
+  T extends { name: string; section?: string | null; alternativeNames?: string[]; notes?: string | null },
 >(query: string, candidates: T[]): T[] {
   const scored = candidates.map(candidate => ({
     candidate,
@@ -469,6 +484,7 @@ export function focusCandidatesByDescription<
       name: candidate.name,
       section: candidate.section,
       aliases: candidate.alternativeNames,
+      notes: candidate.notes,
     }),
   }));
   const directMatches = scored.filter(item => item.score >= 0.85);

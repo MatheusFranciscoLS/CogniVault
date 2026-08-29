@@ -6,6 +6,7 @@ import { PartSearchService, type PartCandidate } from './part-search.service';
 import type { SearchIntent } from './chat-intent.service';
 import { buildSearchGroups, focusCandidatesByDescription } from './part-vocabulary';
 import { filterCandidatesByMarket } from './catalog-market';
+import { resolveEngineCatalogRoute } from './husqvarna-domain-knowledge';
 import { getVerifiedSupersession, preferCurrentPartNumbers } from './part-supersession';
 
 const MIN_CONFIDENCE = Number(process.env.PART_SEARCH_MIN_CONFIDENCE || '0.72');
@@ -53,6 +54,10 @@ export interface ChatSearchResult {
 }
 
 function unique<T>(items: T[]): T[] { return [...new Set(items)]; }
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 export class ChatService {
   static async askQuestion(tenantId: string, question: string, explicitPnc?: string, selectedPartId?: string): Promise<ChatSearchResult> {
@@ -118,6 +123,8 @@ export class ChatService {
 
     const candidates = await PartSearchService.semantic(tenantId, question, intent);
     if (!candidates.length) {
+      const engineFallback = await this.tryEngineCatalogFallback(tenantId, question, intent);
+      if (engineFallback) return this.withContext(engineFallback, intent);
       return this.withContext({ status: 'NOT_FOUND', answer: 'Não encontrei uma peça com similaridade suficiente. Prefiro não sugerir um código sem segurança.' }, intent);
     }
 
@@ -136,6 +143,87 @@ export class ChatService {
       candidates,
       undefined,
     ), intent);
+  }
+
+  /**
+   * Alguns IPLs de máquinas apontam explicitamente para um catálogo separado do
+   * motor. Só usamos essa ponte quando a relação foi comprovada no catálogo e a
+   * busca na própria máquina não encontrou a peça. Nunca inferimos motor por nome.
+   */
+  private static async tryEngineCatalogFallback(
+    tenantId: string,
+    question: string,
+    intent: SearchIntent,
+  ): Promise<ChatSearchResult | null> {
+    const route = resolveEngineCatalogRoute(intent.model, intent.pnc, question);
+    if (!route) return null;
+
+    if (route.status === 'PNC_REQUIRED') {
+      const availablePncs = await PartSearchService.availablePncs(tenantId, normalizeIdentifier(route.machineModel));
+      return {
+        status: 'PNC_REQUIRED',
+        requiresPnc: true,
+        pncOptions: availablePncs.length ? availablePncs : route.knownPncs,
+        answer: `O catálogo do ${route.machineModel} indica motores diferentes conforme a versão/PNC. Informe o PNC antes de eu entrar no IPL do motor e escolher uma peça interna.`,
+      };
+    }
+
+    const engineCount = await prisma.part.count({
+      where: {
+        normalizedModel: normalizeIdentifier(route.engineModel),
+        active: true,
+        document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+      },
+    });
+    if (!engineCount) {
+      return {
+        status: 'NOT_FOUND',
+        answer: `O catálogo do ${route.machineModel} referencia o motor ${route.engineModel}, mas o IPL desse motor ainda não está processado neste tenant. Não vou inventar a peça interna sem esse catálogo.`,
+      };
+    }
+
+    const withoutMachineModel = intent.model
+      ? (intent.partDescription || question).replace(new RegExp(escapeRegExp(intent.model), 'ig'), ' ')
+      : (intent.partDescription || question);
+    // O article/engine-id entra como evidência lexical direta porque muitos IPLs de
+    // motor usam “FOR ENGINE: 598632101” nas observações das variantes internas.
+    const bridgeDescription = [withoutMachineModel.trim(), route.engineArticle || ''].filter(Boolean).join(' ');
+    const engineIntent: SearchIntent = {
+      ...intent,
+      model: route.engineModel,
+      pnc: '',
+      partNumber: '',
+      partDescription: bridgeDescription,
+    };
+    const engineQuestion = `${bridgeDescription} ${route.engineModel}`.trim();
+    const engineCandidates = await PartSearchService.semantic(tenantId, engineQuestion, engineIntent);
+    if (!engineCandidates.length) {
+      return {
+        status: 'NOT_FOUND',
+        answer: `O ${route.machineModel} referencia o motor ${route.engineModel}, mas não encontrei essa peça interna com evidência suficiente no IPL do motor.`,
+      };
+    }
+
+    const resolved = await this.resolvePncOrAmbiguity(
+      tenantId,
+      engineQuestion,
+      bridgeDescription,
+      '',
+      engineCandidates,
+      undefined,
+    );
+    const application = route.engineArticle
+      ? `O catálogo do ${route.machineModel} referencia o motor ${route.engineModel} (${route.engineArticle}); consultei o IPL separado desse motor.`
+      : `O catálogo do ${route.machineModel} referencia o motor ${route.engineModel}; consultei o IPL separado desse motor.`;
+
+    return {
+      ...resolved,
+      answer: `${application}\n${resolved.answer}`,
+      match: resolved.match ? {
+        ...resolved.match,
+        explanation: `${resolved.match.explanation} A busca atravessou uma relação máquina → motor explicitamente indicada no catálogo técnico.`,
+      } : resolved.match,
+    };
   }
 
   private static async resolvePncOrAmbiguity(

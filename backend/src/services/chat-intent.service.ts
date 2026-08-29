@@ -1,5 +1,6 @@
 import { GEMINI_GENERATIVE_MODEL, getGeminiClient, getGeminiType } from '../config/gemini';
 import { buildFallbackIntent, chooseCandidateLocally } from './chat-reliability';
+import { hasDomainKnowledge } from './husqvarna-domain-knowledge';
 import { hasKnownPartVocabulary, lexicalTerms } from './part-vocabulary';
 
 export interface SearchIntent {
@@ -28,6 +29,7 @@ export class ChatIntentService {
   static async parse(question: string): Promise<SearchIntent> {
     const localIntent = buildFallbackIntent(question);
     const knownVocabulary = hasKnownPartVocabulary(question);
+    const knownDomain = hasDomainKnowledge(question, localIntent.model);
     const unknownDescriptionTerms = lexicalTerms(question, [
       localIntent.manufacturer,
       localIntent.model,
@@ -36,10 +38,10 @@ export class ChatIntentService {
     ]);
 
     // Código é evidência determinística. Para conceitos já conhecidos pela
-    // ontologia, a interpretação local também é mais previsível e barata.
-    // Já um modelo conhecido NÃO deve bloquear a IA quando o nome da peça é
-    // desconhecido: isso era uma causa de falhas para traduções fora do dicionário.
-    if (localIntent.partNumber || knownVocabulary || !unknownDescriptionTerms.length) return localIntent;
+    // ontologia e pela camada de conhecimento mecânico estudada nos IPLs, a
+    // interpretação local também é mais previsível e barata. Já um modelo
+    // conhecido NÃO deve bloquear a IA quando o nome da peça é desconhecido.
+    if (localIntent.partNumber || knownVocabulary || knownDomain || !unknownDescriptionTerms.length) return localIntent;
 
     try {
       const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
@@ -96,7 +98,7 @@ export class ChatIntentService {
     // Para termos técnicos conhecidos, duas opções textualmente equivalentes
     // representam ambiguidade real de catálogo. A IA não recebe evidência nova
     // para escolher uma delas e, portanto, não deve inventar um desempate.
-    if (hasKnownPartVocabulary(question)) return localSelection;
+    if (hasKnownPartVocabulary(question) || hasDomainKnowledge(question)) return localSelection;
 
     try {
       const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
