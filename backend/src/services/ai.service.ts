@@ -336,8 +336,17 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     || document.manufacturer
                     || extractedManufacturer
                     || '';
-                let pnc = cleanString(rawPart.pnc) || document.pnc || '';
-                const universalAcrossPnc = Boolean(rawPart.universalAcrossPnc) || isUniversalPnc(pnc);
+                const documentPnc = cleanString(document.pnc);
+                let pnc = cleanString(rawPart.pnc) || documentPnc || '';
+                let universalAcrossPnc = Boolean(rawPart.universalAcrossPnc) || isUniversalPnc(pnc);
+                // Um catálogo enviado para um PNC específico não comprova que a
+                // peça serve em todos os PNCs. O escopo informado no upload tem
+                // precedência sobre uma inferência visual genérica da IA.
+                if (documentPnc) {
+                    pnc = cleanString(rawPart.pnc);
+                    if (!pnc || isUniversalPnc(pnc)) pnc = documentPnc;
+                    universalAcrossPnc = false;
+                }
                 if (universalAcrossPnc) pnc = '';
 
                 const section = cleanString(rawPart.section);

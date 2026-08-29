@@ -4,13 +4,13 @@ export type SearchStatus = 'FOUND' | 'PNC_REQUIRED' | 'MODEL_REQUIRED' | 'PART_R
 
 export interface SessionUser { id:string; email:string; role:Role; status:string; tenant:{id:string;name:string}; }
 export interface DocumentItem { id:string; filename:string; status:string; manufacturer:string|null; model:string|null; pnc:string|null; createdAt:string; partCount:number; archivedAt?:string|null; processingActive?:boolean; processingStage?:string; processingCurrent?:number; processingTotal?:number; processingError?:string|null; }
-export interface FeedbackOption { id:string; name:string; partNumber:string; model:string; pnc:string|null; section:string|null; position:string|null; }
+export interface FeedbackOption { id:string; name:string; partNumber:string; model:string; pnc:string|null; section:string|null; position:string|null; notes?:string|null; }
 export interface ChatResponse {
   status:SearchStatus; answer:string; pncOptions?:string[]; modelOptions?:string[]; confidence?:number;
   interpreted?:{partDescription:string;manufacturer:string|null;model:string|null;pnc:string|null;partNumber:string|null};
   match?:{method:'DIRECT_CODE'|'SEMANTIC'|'LEXICAL';level:'EXACT'|'HIGH'|'REVIEW';explanation:string};
   guidance?:{title:string;description:string;tips:string[]};
-  part?:{ id:string; documentId:string; partNumber:string; name:string; model:string; pnc:string; section:string|null; position:string|null; page:number|null; filename:string; universalAcrossPnc?:boolean; applications?:Array<{model:string;pnc:string}> };
+  part?:{ id:string; documentId:string; partNumber:string; name:string; model:string; pnc:string; section:string|null; position:string|null; page:number|null; notes?:string|null; filename:string; universalAcrossPnc?:boolean; applications?:Array<{model:string;pnc:string}> };
   feedbackOptions?:FeedbackOption[]; options?:FeedbackOption[];
 }
 export interface Overview { tenantName:string; users:number; activeDocuments:number; processingDocuments:number; failedDocuments:number; parts:number; feedbackTotal:number; feedbackAccuracy:number|null; }

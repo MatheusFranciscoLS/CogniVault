@@ -19,6 +19,8 @@ services:
         value: gemini-3.6-flash
       - key: ENABLE_SEMANTIC_INDEXING
         value: "false"
+      - key: PARTS_MARKET
+        value: LATIN_AMERICA
       - key: GEMINI_EMBEDDING_MODEL
         value: gemini-embedding-001
       - key: SUPABASE_URL
@@ -35,7 +37,5 @@ services:
         value: "0.65"
       - key: PART_SEARCH_MIN_CONFIDENCE
         value: "0.72"
-      - key: FEEDBACK_MAX_DISTANCE
-        value: "0.28"
       - key: MIN_REPROCESS_PART_RATIO
         value: "0.5"

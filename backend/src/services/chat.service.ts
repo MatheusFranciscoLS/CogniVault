@@ -5,6 +5,7 @@ import { buildFallbackIntent, calibrateMatchConfidence, extractLikelyPartNumber 
 import { PartSearchService, type PartCandidate } from './part-search.service';
 import type { SearchIntent } from './chat-intent.service';
 import { buildSearchGroups } from './part-vocabulary';
+import { filterCandidatesByMarket } from './catalog-market';
 
 const MIN_CONFIDENCE = Number(process.env.PART_SEARCH_MIN_CONFIDENCE || '0.72');
 
@@ -40,13 +41,14 @@ export interface ChatSearchResult {
     section: string | null;
     position: string | null;
     page: number | null;
+    notes: string | null;
     documentId: string;
     filename: string;
     universalAcrossPnc: boolean;
     applications: Array<{ model: string; pnc: string }>;
   };
-  options?: Array<{ id: string; name: string; partNumber: string; model: string; pnc: string | null; section: string | null; position: string | null }>;
-  feedbackOptions?: Array<{ id: string; name: string; partNumber: string; model: string; pnc: string | null; section: string | null; position: string | null }>;
+  options?: Array<{ id: string; name: string; partNumber: string; model: string; pnc: string | null; section: string | null; position: string | null; notes: string | null }>;
+  feedbackOptions?: Array<{ id: string; name: string; partNumber: string; model: string; pnc: string | null; section: string | null; position: string | null; notes: string | null }>;
 }
 
 function unique<T>(items: T[]): T[] { return [...new Set(items)]; }
@@ -153,9 +155,11 @@ export class ChatService {
       }
     }
 
+    eligible = filterCandidatesByMarket(eligible);
+
     const selection = await ChatIntentService.choose(question, eligible.slice(0, 20).map(c => ({
       id: c.id, name: c.name, model: c.model, pnc: c.pnc, section: c.section, position: c.position, aliases: c.alternativeNames,
-      feedbackScore: c.feedbackScore,
+      feedbackScore: c.feedbackScore, notes: c.notes,
     })));
 
     const chosen = eligible.find(c => c.id === selection.id);
@@ -165,7 +169,7 @@ export class ChatService {
     if (!chosen || selection.ambiguous || (!directConfidence && (selection.confidence < MIN_CONFIDENCE || calibratedConfidence < 0.58))) {
       return {
         status: 'AMBIGUOUS', confidence: calibratedConfidence,
-        answer: 'Encontrei mais de uma peça plausível. Selecione a descrição correta para evitar retornar um código errado.',
+        answer: 'Encontrei mais de uma vista ou versão plausível. Confira a aplicação, a seção e a observação do catálogo antes de escolher o código.',
         options: this.options(eligible.slice(0, 5)),
         feedbackOptions: this.options(eligible.slice(0, 5)),
       };
@@ -222,7 +226,7 @@ export class ChatService {
       part: {
         id: candidate.id, name: candidate.name, partNumber: candidate.partNumber,
         manufacturer: candidate.manufacturer, model: candidate.model, pnc: pncLabel,
-        section: candidate.section, position: candidate.position, page: candidate.page,
+        section: candidate.section, position: candidate.position, page: candidate.page, notes: candidate.notes,
         documentId: candidate.documentId, filename: candidate.filename,
         universalAcrossPnc: candidate.universalAcrossPnc,
         applications: [...new Map(candidates.map(item => {
@@ -239,7 +243,7 @@ export class ChatService {
     return candidates.filter(c => {
       if (seen.has(c.id)) return false;
       seen.add(c.id); return true;
-    }).map(c => ({ id: c.id, name: c.name, partNumber: c.partNumber, model: c.model, pnc: c.pnc, section: c.section, position: c.position }));
+    }).map(c => ({ id: c.id, name: c.name, partNumber: c.partNumber, model: c.model, pnc: c.pnc, section: c.section, position: c.position, notes: c.notes }));
   }
 
   private static withContext(result: ChatSearchResult, intent: SearchIntent): ChatSearchResult {

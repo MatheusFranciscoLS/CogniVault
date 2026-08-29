@@ -21,6 +21,7 @@ export interface CandidateForAi {
   position: string | null;
   aliases: string[];
   feedbackScore?: number;
+  notes?: string | null;
 }
 
 export class ChatIntentService {

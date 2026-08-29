@@ -25,6 +25,7 @@ export interface PartCandidate {
   partNumber: string;
   normalizedPartNumber: string;
   page: number | null;
+  notes: string | null;
   distance: number;
   feedbackScore: number;
   searchMethod: 'DIRECT_CODE' | 'SEMANTIC' | 'LEXICAL';
@@ -36,7 +37,10 @@ export function deduplicatePartCandidates(candidates: PartCandidate[]): PartCand
     const pnc = candidate.universalAcrossPnc ? '*' : (candidate.normalizedPnc || '');
     const key = `${candidate.normalizedPartNumber}|${candidate.normalizedModel}|${pnc}`;
     const current = byTechnicalIdentity.get(key);
-    if (!current || (candidate.distance - candidate.feedbackScore) < (current.distance - current.feedbackScore)) {
+    const candidateRank = candidate.distance - candidate.feedbackScore;
+    const currentRank = current ? current.distance - current.feedbackScore : Number.POSITIVE_INFINITY;
+    const candidateHasMoreContext = Boolean(candidate.notes && !current?.notes);
+    if (!current || candidateRank < currentRank || (candidateRank === currentRank && candidateHasMoreContext)) {
       byTechnicalIdentity.set(key, candidate);
     }
   }
@@ -51,16 +55,18 @@ export class PartSearchService {
         active: true,
         document: { tenantId, archivedAt: null, status: 'COMPLETED' },
       },
-      include: { document: { select: { filename: true } } },
+      include: { document: { select: { filename: true, pnc: true } } },
     });
     if (!part) return null;
     return {
       id: part.id, documentId: part.documentId, filename: part.document.filename,
       manufacturer: part.manufacturer, model: part.model, normalizedModel: part.normalizedModel,
-      pnc: part.pnc, normalizedPnc: part.normalizedPnc, universalAcrossPnc: part.universalAcrossPnc,
+      pnc: part.pnc || part.document.pnc,
+      normalizedPnc: part.normalizedPnc || normalizeIdentifier(part.document.pnc) || null,
+      universalAcrossPnc: part.document.pnc ? false : part.universalAcrossPnc,
       section: part.section, position: part.position, name: part.name, alternativeNames: part.alternativeNames,
       partNumber: part.partNumber, normalizedPartNumber: part.normalizedPartNumber,
-      page: part.page, distance: 0, feedbackScore: 0, searchMethod: 'LEXICAL',
+      page: part.page, notes: part.notes, distance: 0, feedbackScore: 0, searchMethod: 'LEXICAL',
     };
   }
 
@@ -73,24 +79,26 @@ export class PartSearchService {
         active: true,
         document: { tenantId, archivedAt: null, status: 'COMPLETED' },
       },
-      include: { document: { select: { filename: true } } },
+      include: { document: { select: { filename: true, pnc: true } } },
     });
     return deduplicatePartCandidates(rows.map(p => ({
       id: p.id, documentId: p.documentId, filename: p.document.filename,
       manufacturer: p.manufacturer, model: p.model, normalizedModel: p.normalizedModel,
-      pnc: p.pnc, normalizedPnc: p.normalizedPnc, universalAcrossPnc: p.universalAcrossPnc,
+      pnc: p.pnc || p.document.pnc,
+      normalizedPnc: p.normalizedPnc || normalizeIdentifier(p.document.pnc) || null,
+      universalAcrossPnc: p.document.pnc ? false : p.universalAcrossPnc,
       section: p.section, position: p.position, name: p.name, alternativeNames: p.alternativeNames,
       partNumber: p.partNumber, normalizedPartNumber: p.normalizedPartNumber,
-      page: p.page, distance: 0, feedbackScore: 0, searchMethod: 'DIRECT_CODE',
+      page: p.page, notes: p.notes, distance: 0, feedbackScore: 0, searchMethod: 'DIRECT_CODE',
     })));
   }
 
   static async availablePncs(tenantId: string, normalizedModel: string): Promise<string[]> {
     const rows = await prisma.part.findMany({
-      where: { normalizedModel, active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' }, pnc: { not: null } },
-      select: { pnc: true }, distinct: ['pnc'],
+      where: { normalizedModel, active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } },
+      select: { pnc: true, document: { select: { pnc: true } } },
     });
-    return [...new Set(rows.map(r => r.pnc).filter((v): v is string => Boolean(v)))];
+    return [...new Set(rows.map(r => r.pnc || r.document.pnc).filter((v): v is string => Boolean(v)))];
   }
 
   static async similarModels(tenantId: string, requested: string): Promise<string[]> {
@@ -152,11 +160,12 @@ export class PartSearchService {
     if (manufacturer) filters.push(Prisma.sql`(p."normalizedManufacturer" = ${manufacturer} OR p."normalizedManufacturer" IS NULL)`);
     if (pnc) filters.push(Prisma.sql`(p."normalizedPnc" = ${pnc} OR p."universalAcrossPnc" = true)`);
 
-    type Raw = Omit<PartCandidate, 'feedbackScore' | 'searchMethod'>;
+    type Raw = Omit<PartCandidate, 'feedbackScore' | 'searchMethod'> & { documentPnc: string | null };
     const rows = await prisma.$queryRaw<Raw[]>(Prisma.sql`
       SELECT p."id", p."documentId", d."filename", p."manufacturer", p."model", p."normalizedModel",
              p."pnc", p."normalizedPnc", p."universalAcrossPnc", p."section", p."position", p."name",
-             p."alternativeNames", p."partNumber", p."normalizedPartNumber", p."page",
+             p."alternativeNames", p."partNumber", p."normalizedPartNumber", p."page", p."notes",
+             d."pnc" AS "documentPnc",
              (p."embedding" <=> ${vectorString}::vector) AS "distance"
       FROM "Part" p INNER JOIN "Document" d ON d."id" = p."documentId"
       WHERE ${Prisma.join(filters, ' AND ')}
@@ -165,7 +174,16 @@ export class PartSearchService {
     `);
 
     const candidates: PartCandidate[] = rows
-      .map(r => ({ ...r, distance: Number(r.distance), feedbackScore: 0, searchMethod: 'SEMANTIC' as const }))
+      .map(row => {
+        const { documentPnc, ...r } = row;
+        return {
+          ...r,
+          pnc: r.pnc || documentPnc,
+          normalizedPnc: r.normalizedPnc || normalizeIdentifier(documentPnc) || null,
+          universalAcrossPnc: documentPnc ? false : r.universalAcrossPnc,
+          distance: Number(r.distance), feedbackScore: 0, searchMethod: 'SEMANTIC' as const,
+        };
+      })
       .filter(r => r.distance <= MAX_DISTANCE);
 
     if (!candidates.length) return this.lexical(tenantId, question, intent);
@@ -201,7 +219,7 @@ export class PartSearchService {
         ...(normalizedModel ? { normalizedModel } : {}),
         AND: filters,
       },
-      include: { document: { select: { filename: true } } },
+      include: { document: { select: { filename: true, pnc: true } } },
       take: 80,
     });
 
@@ -215,9 +233,9 @@ export class PartSearchService {
         manufacturer: part.manufacturer,
         model: part.model,
         normalizedModel: part.normalizedModel,
-        pnc: part.pnc,
-        normalizedPnc: part.normalizedPnc,
-        universalAcrossPnc: part.universalAcrossPnc,
+        pnc: part.pnc || part.document.pnc,
+        normalizedPnc: part.normalizedPnc || normalizeIdentifier(part.document.pnc) || null,
+        universalAcrossPnc: part.document.pnc ? false : part.universalAcrossPnc,
         section: part.section,
         position: part.position,
         name: part.name,
@@ -225,6 +243,7 @@ export class PartSearchService {
         partNumber: part.partNumber,
         normalizedPartNumber: part.normalizedPartNumber,
         page: part.page,
+        notes: part.notes,
         distance,
         feedbackScore: 0,
         searchMethod: 'LEXICAL' as const,
