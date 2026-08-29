@@ -5,11 +5,13 @@ type CandidateText = {
   section?: string | null;
   aliases?: string[];
   notes?: string | null;
+  pnc?: string | null;
 };
 
 type Direction = 'LEFT' | 'RIGHT';
 type AxlePosition = 'FRONT' | 'REAR';
 type SprocketType = 'RIM' | 'SPUR';
+export type SerialApplicability = 'MATCH' | 'CONFLICT' | 'UNKNOWN';
 
 type TechnicalQualifiers = {
   direction: Direction | null;
@@ -88,6 +90,95 @@ function extractInchSize(text: string): number | null {
   return null;
 }
 
+/**
+ * Número de série só é aceito quando o usuário o identifica explicitamente.
+ * Isso impede que um PNC, Part Number ou outra sequência longa seja confundida
+ * com serial durante o ranking local.
+ */
+export function extractExplicitSerialNumber(value: string): string {
+  const text = technicalText(value);
+  const patterns = [
+    /\bS\s*\/\s*N\s*[:#.-]?\s*(\d{6,16})\b/,
+    /\bSN\s*[:#.-]?\s*(\d{6,16})\b/,
+    /\bSERIAL(?:\s+NUMBER)?\s*[:#.-]?\s*(\d{6,16})\b/,
+    /\bNUMERO\s+(?:DE\s+)?SERIE\s*[:#.-]?\s*(\d{6,16})\b/,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+  return '';
+}
+
+function serialBigInt(value: string): bigint | null {
+  if (!/^\d{6,16}$/.test(value)) return null;
+  try {
+    return BigInt(value);
+  } catch {
+    return null;
+  }
+}
+
+function normalizedPnc(value: string | null | undefined): string {
+  return (value || '').replace(/\D/g, '');
+}
+
+/**
+ * Interpreta limites de série literalmente registrados em notes, incluindo os
+ * formatos observados nos IPLs Husqvarna: "For PNC ... Up to S/N ..." e
+ * "For PNC ... From S/N ...". A regra nunca cria uma aplicação: sem serial
+ * explícito na pergunta ou sem limite escrito no candidato, o resultado é UNKNOWN.
+ */
+export function serialApplicability(query: string, candidate: CandidateText): SerialApplicability {
+  const requestedSerialText = extractExplicitSerialNumber(query);
+  const requestedSerial = serialBigInt(requestedSerialText);
+  const notes = technicalText(candidate.notes || '').replace(/\s+/g, ' ').trim();
+  if (requestedSerial === null || !notes) return 'UNKNOWN';
+
+  const candidatePnc = normalizedPnc(candidate.pnc);
+  const constraints: Array<{ pnc: string; direction: 'UP_TO' | 'FROM'; serial: bigint }> = [];
+  const pattern = /(?:FOR\s+PNC\s+(\d{9,11})[\s,:;-]*)?(UP\s+TO|ATE|FROM|A\s+PARTIR\s+DE)\s+(?:S\s*\/\s*N|SN|SERIAL(?:\s+NUMBER)?)\s*[:#.-]?\s*(\d{6,16})\b/g;
+
+  for (const match of notes.matchAll(pattern)) {
+    const pnc = match[1] || '';
+    if (pnc && candidatePnc && pnc !== candidatePnc) continue;
+    // Quando o registro não possui PNC e a observação contém regras para PNCs
+    // distintos, não é seguro escolher qual cláusula se aplica.
+    if (pnc && !candidatePnc) continue;
+    const serial = serialBigInt(match[3]);
+    if (serial === null) continue;
+    const direction = /^(?:UP\s+TO|ATE)$/.test(match[2]) ? 'UP_TO' : 'FROM';
+    constraints.push({ pnc, direction, serial });
+  }
+
+  // Alguns catálogos usam "S/N 123 AND UP" / "AND BELOW".
+  for (const match of notes.matchAll(/(?:FOR\s+PNC\s+(\d{9,11})[\s,:;-]*)?(?:S\s*\/\s*N|SN|SERIAL(?:\s+NUMBER)?)\s*[:#.-]?\s*(\d{6,16})\s+(?:AND\s+)?(UP|ABOVE|BELOW|DOWN)\b/g)) {
+    const pnc = match[1] || '';
+    if (pnc && candidatePnc && pnc !== candidatePnc) continue;
+    if (pnc && !candidatePnc) continue;
+    const serial = serialBigInt(match[2]);
+    if (serial === null) continue;
+    const direction = /^(?:UP|ABOVE)$/.test(match[3]) ? 'FROM' : 'UP_TO';
+    constraints.push({ pnc, direction, serial });
+  }
+
+  if (!constraints.length) return 'UNKNOWN';
+
+  let lower: bigint | null = null;
+  let upper: bigint | null = null;
+  for (const constraint of constraints) {
+    if (constraint.direction === 'FROM') {
+      if (lower === null || constraint.serial > lower) lower = constraint.serial;
+    } else if (upper === null || constraint.serial < upper) {
+      upper = constraint.serial;
+    }
+  }
+
+  if (lower !== null && requestedSerial < lower) return 'CONFLICT';
+  if (upper !== null && requestedSerial > upper) return 'CONFLICT';
+  return 'MATCH';
+}
+
 export function extractTechnicalQualifiers(value: string): TechnicalQualifiers {
   const text = technicalText(value);
   return {
@@ -113,8 +204,9 @@ function categoricalEvidence<T>(requested: T | null, candidate: T | null, match:
  * candidatos JÁ compatíveis com tenant/modelo/PNC. Não cria aplicação.
  *
  * Exemplos: LH/RH, dianteira/traseira, Rim/Spur, 7T/8T, 3/8 vs .325,
- * M5x20, Ø22/Ø25 mm, 12 V e 12". Igualdade soma evidência; contradição reduz
- * o score; ausência de uma informação no candidato não é tratada como erro.
+ * M5x20, Ø22/Ø25 mm, 12 V, 12" e faixas de número de série.
+ * Igualdade soma evidência; contradição reduz o score; ausência de uma informação
+ * no candidato não é tratada como erro.
  */
 export function technicalConstraintBonus(query: string, candidate: CandidateText): number {
   const requested = extractTechnicalQualifiers(query);
@@ -134,6 +226,10 @@ export function technicalConstraintBonus(query: string, candidate: CandidateText
   score += categoricalEvidence(requested.voltageV, present.voltageV, 0.16, 0.28);
   score += categoricalEvidence(requested.inchSize, present.inchSize, 0.16, 0.26);
 
+  const serial = serialApplicability(query, candidate);
+  if (serial === 'MATCH') score += 0.32;
+  if (serial === 'CONFLICT') score -= 0.55;
+
   return Math.max(-0.9, Math.min(0.9, score));
 }
 
@@ -143,8 +239,8 @@ export function technicalConstraintBonus(query: string, candidate: CandidateText
  * Ex.: em "parafuso da embreagem", "Screw Clutch shoe" é evidência mais forte
  * do que um "SCREW" genérico que apenas aparece na vista CLUTCH. A mesma regra
  * vale para "mola do defletor", além de detalhes como lado, eixo, passo, dentes,
- * rosca, medida e tensão explicitamente pedidos. Nenhuma dessas regras cria código
- * ou compatibilidade; elas apenas ordenam candidatos já recuperados da base.
+ * rosca, medida, tensão e série explicitamente pedidos. Nenhuma dessas regras cria
+ * código ou compatibilidade; elas apenas ordenam candidatos já recuperados da base.
  */
 export function relationSpecificityBonus(query: string, candidate: CandidateText): number {
   const relation = inferPartQueryRelation(query);
