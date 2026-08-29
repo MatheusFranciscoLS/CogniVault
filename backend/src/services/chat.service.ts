@@ -8,7 +8,7 @@ import { buildSearchGroups, focusCandidatesByDescription } from './part-vocabula
 import { filterCandidatesByMarket } from './catalog-market';
 import { resolveEngineCatalogRoute } from './husqvarna-domain-knowledge';
 import { getVerifiedSupersession, preferCurrentPartNumbers } from './part-supersession';
-import { evaluateAnswerConfidence, type ConfidenceDecision } from './confidence-gate';
+import { evaluateAnswerConfidence, type CatalogConfidenceContext, type ConfidenceDecision } from './confidence-gate';
 import { retrieveTechnicalContext } from './document-memory';
 
 export type SearchStatus = 'FOUND' | 'PNC_REQUIRED' | 'MODEL_REQUIRED' | 'PART_REQUIRED' | 'AMBIGUOUS' | 'NOT_FOUND';
@@ -194,6 +194,24 @@ export class ChatService {
     };
   }
 
+  private static async catalogConfidenceContext(tenantId: string, documentId: string): Promise<CatalogConfidenceContext | undefined> {
+    try {
+      const document = await prisma.document.findFirst({
+        where: { id: documentId, tenantId, archivedAt: null, status: 'COMPLETED' },
+        select: { healthScore: true, reviewStatus: true, reviewReasons: true },
+      });
+      if (!document) return undefined;
+      return {
+        healthScore: document.healthScore,
+        reviewStatus: document.reviewStatus,
+        reviewReasons: document.reviewReasons,
+      };
+    } catch (error) {
+      console.warn('⚠️ Saúde do catálogo indisponível durante o gate; usando as demais evidências.', error instanceof Error ? error.message : error);
+      return undefined;
+    }
+  }
+
   private static async resolvePncOrAmbiguity(
     tenantId: string,
     question: string,
@@ -261,12 +279,14 @@ export class ChatService {
     }
 
     const runnerUp = eligible.find(candidate => candidate.id !== chosen.id);
+    const catalog = await this.catalogConfidenceContext(tenantId, chosen.documentId);
     const decision = evaluateAnswerConfidence({
       question,
       chosen,
       runnerUp,
       selectionConfidence: directConfidence === 1 ? 1 : selection.confidence,
       exactCode: directConfidence === 1,
+      catalog,
     });
     if (!decision.safe) {
       return {
