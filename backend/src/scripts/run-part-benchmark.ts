@@ -14,6 +14,10 @@ function enabled(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes((value || '').trim().toLowerCase());
 }
 
+function normalized(value: string): string {
+  return value.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+}
+
 async function main() {
   const tenantId = argValue('tenant') || process.env.BENCHMARK_TENANT_ID || '';
   if (!tenantId) {
@@ -28,7 +32,7 @@ async function main() {
   const observations = [];
 
   console.log(`\n🧪 CogniVault benchmark: ${cases.length} casos reais de balcão`);
-  console.log('   Métricas: Top-1, Recall@5, MRR e NDCG@5\n');
+  console.log('   Métricas: Top-1, Recall@5, MRR, NDCG@5 e hard negatives\n');
 
   for (const [index, benchmarkCase] of cases.entries()) {
     const fallback = buildFallbackIntent(benchmarkCase.query);
@@ -41,31 +45,57 @@ async function main() {
     const returnedPartNumbers = candidates.slice(0, 10).map(candidate => candidate.partNumber);
     observations.push({ caseId: benchmarkCase.id, returnedPartNumbers });
 
-    const expected = new Set(benchmarkCase.expectedPartNumbers.map(code => code.replace(/\D/g, '')));
-    const top = returnedPartNumbers[0]?.replace(/\D/g, '') || '';
-    const hitAt5 = returnedPartNumbers.slice(0, 5).some(code => expected.has(code.replace(/\D/g, '')));
-    const status = expected.has(top) ? '✅ Top-1' : hitAt5 ? '🟡 Top-5' : '❌ Falhou';
+    const expected = new Set(benchmarkCase.expectedPartNumbers.map(normalized));
+    const hardNegatives = new Set((benchmarkCase.hardNegativePartNumbers || []).map(normalized));
+    const normalizedReturned = returnedPartNumbers.map(normalized);
+    const top = normalizedReturned[0] || '';
+    const correctRank = normalizedReturned.findIndex(code => expected.has(code));
+    const hardRank = normalizedReturned.findIndex(code => hardNegatives.has(code));
+    const hitAt5 = correctRank >= 0 && correctRank < 5;
+    const hardNegativeWon = hardRank >= 0 && (correctRank < 0 || hardRank < correctRank);
+    const status = hardNegativeWon
+      ? '🛑 Hard negative venceu'
+      : expected.has(top)
+        ? '✅ Top-1'
+        : hitAt5
+          ? '🟡 Top-5'
+          : '❌ Falhou';
+
     console.log(`${String(index + 1).padStart(2, '0')}. ${status} · ${benchmarkCase.id}`);
     console.log(`    ${benchmarkCase.query}`);
     console.log(`    esperado: ${benchmarkCase.expectedPartNumbers.join(' / ')} · retornado: ${returnedPartNumbers.slice(0, 5).join(', ') || 'nenhum'}`);
+    if (benchmarkCase.hardNegativePartNumbers?.length) {
+      console.log(`    hard negatives: ${benchmarkCase.hardNegativePartNumbers.join(' / ')}`);
+    }
   }
 
   const metrics = evaluatePartBenchmark(cases, observations);
   console.log('\n📊 Resultado');
-  console.log(`   Top-1:     ${formatBenchmarkPercent(metrics.top1Accuracy)}`);
-  console.log(`   Recall@5:  ${formatBenchmarkPercent(metrics.recallAt5)}`);
-  console.log(`   MRR:       ${metrics.mrr.toFixed(3)}`);
-  console.log(`   NDCG@5:    ${metrics.ndcgAt5.toFixed(3)}`);
-  console.log(`   Miss rate: ${formatBenchmarkPercent(metrics.missRate)}\n`);
+  console.log(`   Top-1:                 ${formatBenchmarkPercent(metrics.top1Accuracy)}`);
+  console.log(`   Recall@5:              ${formatBenchmarkPercent(metrics.recallAt5)}`);
+  console.log(`   MRR:                   ${metrics.mrr.toFixed(3)}`);
+  console.log(`   NDCG@5:                ${metrics.ndcgAt5.toFixed(3)}`);
+  console.log(`   Miss rate:             ${formatBenchmarkPercent(metrics.missRate)}`);
+  console.log(`   Hard negative Top-1:   ${formatBenchmarkPercent(metrics.hardNegativeTop1Rate)} (${metrics.hardNegativeCases} casos)`);
+  console.log(`   Hard negative venceu:  ${formatBenchmarkPercent(metrics.hardNegativeWinRate)}\n`);
 
   const strict = process.argv.includes('--strict') || enabled(process.env.BENCHMARK_STRICT);
   if (strict) {
     const minTop1 = Number(process.env.BENCHMARK_MIN_TOP1 || '0.75');
     const minRecall5 = Number(process.env.BENCHMARK_MIN_RECALL5 || '0.90');
     const minMrr = Number(process.env.BENCHMARK_MIN_MRR || '0.80');
-    if (metrics.top1Accuracy < minTop1 || metrics.recallAt5 < minRecall5 || metrics.mrr < minMrr) {
+    const maxHardNegativeWinRate = Number(process.env.BENCHMARK_MAX_HARD_NEGATIVE_WIN_RATE || '0.10');
+    if (
+      metrics.top1Accuracy < minTop1
+      || metrics.recallAt5 < minRecall5
+      || metrics.mrr < minMrr
+      || metrics.hardNegativeWinRate > maxHardNegativeWinRate
+    ) {
       process.exitCode = 2;
-      console.error(`Regression gate falhou. Mínimos: Top-1 ${minTop1}, Recall@5 ${minRecall5}, MRR ${minMrr}.`);
+      console.error(
+        `Regression gate falhou. Mínimos: Top-1 ${minTop1}, Recall@5 ${minRecall5}, MRR ${minMrr}; `
+        + `máximo hard-negative-win ${maxHardNegativeWinRate}.`,
+      );
     }
   }
 }
