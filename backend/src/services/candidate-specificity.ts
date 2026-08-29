@@ -110,6 +110,17 @@ export function extractExplicitSerialNumber(value: string): string {
   return '';
 }
 
+/**
+ * Remove apenas o trecho identificador de série da linguagem de recuperação.
+ * A pergunta original continua sendo usada no ranking/gate para validar a faixa.
+ */
+export function stripExplicitSerialContext(value: string): string {
+  return value
+    .replace(/\b(?:S\s*\/\s*N|SN|SERIAL(?:\s+NUMBER)?|N[ÚU]MERO\s+(?:DE\s+)?S[ÉE]RIE)\s*[:#.-]?\s*\d{6,16}\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function serialBigInt(value: string): bigint | null {
   if (!/^\d{6,16}$/.test(value)) return null;
   try {
