@@ -5,6 +5,7 @@ import { AiQualityService } from '../services/ai-quality.service';
 import { AuditService } from '../services/audit.service';
 import { DocumentService } from '../services/document.service';
 import { refreshCatalogHealth } from '../services/catalog-health';
+import { rebuildTenantTechnicalKnowledge } from '../services/knowledge-maintenance.service';
 
 const documentService = new DocumentService();
 
@@ -44,6 +45,32 @@ export class QualityController {
     } catch (error) {
       console.error('❌ Erro no benchmark de produção:', error);
       res.status(500).json({ error: 'Não foi possível executar o benchmark agora.' });
+    }
+  }
+
+  async rebuildKnowledge(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) return;
+      const requested = Number(req.body?.limit ?? 250);
+      const limit = Number.isFinite(requested) ? Math.max(1, Math.min(500, Math.trunc(requested))) : 250;
+      const result = await rebuildTenantTechnicalKnowledge(req.user.tenantId, limit);
+      await AuditService.record({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: 'AI_TECHNICAL_KNOWLEDGE_REBUILT',
+        targetType: 'TENANT',
+        targetId: req.user.tenantId,
+        metadata: result,
+      });
+      res.json({
+        message: result.failed
+          ? `Memória técnica atualizada em ${result.processed} catálogo(s), com ${result.failed} falha(s) isolada(s).`
+          : `Memória técnica atualizada em ${result.processed} catálogo(s).`,
+        result,
+      });
+    } catch (error) {
+      console.error('❌ Erro ao atualizar memória técnica existente:', error);
+      res.status(500).json({ error: 'Não foi possível atualizar a memória técnica agora.' });
     }
   }
 
