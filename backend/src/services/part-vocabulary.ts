@@ -17,60 +17,78 @@ const STOP_WORDS = new Set([
   'pnc', 'roçadeira', 'rocadeira', 'uma', 'um', 'husqvarna', 'stihl', 'honda', 'kawashima', 'toyama',
 ]);
 
-// O catálogo Husqvarna usa principalmente inglês. Este vocabulário mantém a busca
-// determinística no balcão, inclusive quando a API generativa estiver indisponível.
+// Modificadores de linguagem natural que refinam a intenção, mas não devem virar
+// um AND textual obrigatório. Quando o conceito já é conhecido (ex.: embreagem),
+// estes termos são incorporados pelos próprios sinônimos do conceito.
+const QUERY_MODIFIERS = new Set([
+  'completa', 'completo', 'conjunto', 'conjunto completo', 'assy', 'assembly',
+  'peca completa', 'peça completa', 'inteira', 'inteiro',
+]);
+
+// Ontologia compacta de balcão: PT-BR, PT-PT e nomenclatura técnica inglesa dos
+// catálogos Husqvarna. Ela não inventa aplicação/código; apenas aproxima nomes da
+// mesma peça para recuperar candidatos já existentes no banco técnico.
 const VOCABULARY: VocabularyEntry[] = [
-  { key: 'air-filter', terms: ['filtro de ar', 'filtro ar', 'air filter', 'airfilter', 'elemento filtrante'] },
-  { key: 'fuel-filter', terms: ['filtro de combustivel', 'filtro combustivel', 'fuel filter'] },
-  { key: 'carburettor', terms: ['carburador', 'carburettor', 'carburetor'] },
+  { key: 'air-filter', terms: ['filtro de ar', 'filtro ar', 'air filter', 'airfilter', 'elemento filtrante', 'elemento do filtro de ar'] },
+  { key: 'fuel-filter', terms: ['filtro de combustivel', 'filtro combustivel', 'fuel filter', 'filtro de gasolina'] },
+  { key: 'carburettor', terms: ['carburador', 'carburador completo', 'carburettor', 'carburetor', 'carburettor assy', 'carburetor assy', 'carburettor assembly', 'carburetor assembly'] },
   { key: 'spark-plug', terms: ['vela de ignicao', 'vela ignicao', 'vela', 'spark plug', 'sparkplug'] },
-  { key: 'ignition', terms: ['bobina de ignicao', 'bobina ignicao', 'modulo de ignicao', 'ignicao', 'ignition module', 'ignition'] },
-  { key: 'clutch-drum', terms: ['tambor de embreagem', 'tambor embreagem', 'clutch drum'] },
-  { key: 'clutch', terms: ['embreagem', 'clutch'] },
-  { key: 'starter', terms: ['partida retratil', 'arranque', 'retratil', 'starter', 'starter housing'] },
-  { key: 'starter-rope', terms: ['corda de partida', 'corda partida', 'starter rope', 'rope'] },
-  { key: 'fuel-tank', terms: ['tanque de combustivel', 'tanque combustivel', 'fuel tank'] },
-  { key: 'fuel-hose', terms: ['mangueira de combustivel', 'mangueira combustivel', 'fuel hose', 'fuel pipe'] },
-  { key: 'fuel-cap', terms: ['tampa do tanque', 'tampa tanque', 'tampa de combustivel', 'fuel cap', 'tank cap'] },
-  { key: 'muffler', terms: ['escapamento', 'silencioso', 'muffler', 'silencer'] },
+  { key: 'ignition', terms: ['bobina de ignicao', 'bobina ignicao', 'modulo de ignicao', 'ignicao', 'ignition module', 'ignition', 'bobine de ignicao'] },
+  { key: 'clutch-drum', terms: ['tambor de embreagem', 'tambor embreagem', 'tambor de embraiagem', 'tambor embraiagem', 'clutch drum', 'drum clutch'] },
+  {
+    key: 'clutch',
+    terms: [
+      'embreagem', 'embraiagem', 'clutch',
+      'embreagem completa', 'embraiagem completa', 'conjunto de embreagem', 'conjunto da embreagem',
+      'conjunto de embraiagem', 'conjunto da embraiagem', 'clutch assy', 'clutch assembly', 'complete clutch',
+    ],
+  },
+  { key: 'starter', terms: ['partida retratil', 'arranque', 'retratil', 'starter', 'starter housing', 'recoil starter', 'arranque completo'] },
+  { key: 'starter-rope', terms: ['corda de partida', 'corda partida', 'corda de arranque', 'starter rope', 'recoil rope', 'rope'] },
+  { key: 'fuel-tank', terms: ['tanque de combustivel', 'tanque combustivel', 'deposito de combustivel', 'deposito combustivel', 'fuel tank'] },
+  { key: 'fuel-hose', terms: ['mangueira de combustivel', 'mangueira combustivel', 'tubo de combustivel', 'tubo combustivel', 'fuel hose', 'fuel pipe', 'fuel line'] },
+  { key: 'fuel-cap', terms: ['tampa do tanque', 'tampa tanque', 'tampa de combustivel', 'tampa do deposito', 'fuel cap', 'tank cap'] },
+  { key: 'muffler', terms: ['escapamento', 'silencioso', 'silenciador', 'muffler', 'silencer'] },
   { key: 'cylinder', terms: ['cilindro', 'cylinder'] },
-  { key: 'piston-ring', terms: ['anel do pistao', 'anel pistao', 'piston ring'] },
+  { key: 'piston-ring', terms: ['anel do pistao', 'anel pistao', 'segmento do pistao', 'piston ring'] },
   { key: 'piston', terms: ['pistao', 'piston'] },
-  { key: 'crankshaft', terms: ['virabrequim', 'crankshaft'] },
-  { key: 'crankcase', terms: ['carcaca do motor', 'carter', 'crankcase'] },
+  { key: 'crankshaft', terms: ['virabrequim', 'cambota', 'crankshaft'] },
+  { key: 'crankcase', terms: ['carcaca do motor', 'carter', 'cárter', 'crankcase'] },
   { key: 'air-purge', terms: ['bulbo primer', 'bulbo de combustivel', 'primer', 'air purge', 'purge bulb'] },
-  { key: 'diaphragm', terms: ['diafragma', 'diaphragm'] },
+  { key: 'diaphragm', terms: ['diafragma', 'membrana', 'diaphragm'] },
   { key: 'choke', terms: ['afogador', 'choke'] },
-  { key: 'throttle-cable', terms: ['cabo do acelerador', 'cabo acelerador', 'throttle cable'] },
-  { key: 'throttle', terms: ['acelerador', 'throttle', 'trigger'] },
-  { key: 'handle', terms: ['guidão', 'guidao', 'alça', 'alca', 'handle', 'handlebar'] },
+  { key: 'throttle-cable', terms: ['cabo do acelerador', 'cabo acelerador', 'cabo de acelerador', 'throttle cable'] },
+  { key: 'throttle', terms: ['acelerador', 'gatilho do acelerador', 'throttle', 'trigger'] },
+  { key: 'handle', terms: ['guidão', 'guidao', 'alça', 'alca', 'punho', 'pega', 'handle', 'handlebar', 'grip'] },
   { key: 'spark-plug-cap', terms: ['cachimbo da vela', 'cachimbo vela', 'terminal da vela', 'spark plug cap', 'plug cap'] },
-  { key: 'trimmer-head', terms: ['cabecote de nylon', 'cabeçote de nylon', 'cabecote de corte', 'carretel', 'trimmer head'] },
-  { key: 'gear', terms: ['engrenagem', 'gear'] },
-  { key: 'shaft', terms: ['eixo', 'shaft'] },
+  { key: 'trimmer-head', terms: ['cabecote de nylon', 'cabeçote de nylon', 'cabecote de corte', 'carretel', 'cabeça de corte', 'trimmer head'] },
+  { key: 'gear', terms: ['engrenagem', 'carreto', 'gear'] },
+  { key: 'shaft', terms: ['eixo', 'veio', 'shaft'] },
   { key: 'tube', terms: ['tubo', 'tube'] },
   { key: 'blade', terms: ['lamina', 'lâmina', 'faca', 'blade', 'knife'] },
-  { key: 'guard', terms: ['protecao', 'protetor', 'guarda', 'guard', 'protection'] },
-  { key: 'bearing', terms: ['rolamento', 'bearing'] },
-  { key: 'bushing', terms: ['bucha', 'bushing'] },
-  { key: 'spacer', terms: ['espacador', 'espaçador', 'spacer'] },
-  { key: 'pin', terms: ['pino', 'pin'] },
+  { key: 'guard', terms: ['protecao', 'protetor', 'guarda', 'protection', 'guard'] },
+  { key: 'bearing', terms: ['rolamento', 'rolamento de esferas', 'bearing'] },
+  { key: 'bushing', terms: ['bucha', 'casquilho', 'bushing', 'bush'] },
+  { key: 'spacer', terms: ['espacador', 'espaçador', 'distanciador', 'spacer'] },
+  { key: 'pin', terms: ['pino', 'cavilha', 'pin'] },
   { key: 'lever', terms: ['alavanca', 'lever'] },
-  { key: 'latch', terms: ['trava', 'trinco', 'latch'] },
+  { key: 'latch', terms: ['trava', 'trinco', 'fecho', 'latch'] },
   { key: 'cover', terms: ['tampa', 'cobertura', 'cover', 'cap'] },
   { key: 'housing', terms: ['carcaca', 'carcaça', 'alojamento', 'housing', 'crankcase'] },
-  { key: 'seal', terms: ['retentor', 'vedacao', 'vedação', 'seal', 'sealing'] },
-  { key: 'gasket', terms: ['junta', 'gasket'] },
-  { key: 'o-ring', terms: ['anel o', 'o-ring', 'oring', 'o ring'] },
-  { key: 'screw', terms: ['parafuso', 'screw'] },
+  { key: 'seal', terms: ['retentor', 'vedacao', 'vedação', 'vedante', 'seal', 'sealing'] },
+  { key: 'gasket', terms: ['junta', 'junta de vedacao', 'gasket'] },
+  { key: 'o-ring', terms: ['anel o', 'o-ring', 'oring', 'o ring', 'anel de vedacao'] },
+  { key: 'screw', terms: ['parafuso', 'screw', 'bolt'] },
   { key: 'nut', terms: ['porca', 'nut'] },
-  { key: 'washer', terms: ['arruela', 'washer'] },
+  { key: 'washer', terms: ['arruela', 'anilha', 'washer'] },
   { key: 'spring', terms: ['mola', 'spring'] },
   { key: 'bracket', terms: ['suporte', 'bracket', 'support'] },
-  { key: 'clamp', terms: ['abracadeira', 'abraçadeira', 'clamp'] },
+  { key: 'clamp', terms: ['abracadeira', 'abraçadeira', 'grampo', 'clamp'] },
   { key: 'switch', terms: ['interruptor', 'chave', 'switch'] },
   { key: 'filter', terms: ['filtro', 'filter', 'airfilter'] },
 ];
+
+const ENTRY_BY_KEY = new Map(VOCABULARY.map(entry => [entry.key, entry]));
 
 function searchable(value: string): string {
   return normalizeText(value).replace(/[^a-z0-9]+/g, ' ').trim();
@@ -140,9 +158,14 @@ export function hasKnownPartVocabulary(value: string): boolean {
 
 export function lexicalTerms(value: string, ignoredValues: string[] = []): string[] {
   const ignored = new Set(ignoredValues.flatMap(words));
+  const modifiers = new Set([...QUERY_MODIFIERS].flatMap(words));
   return [...new Set(words(value).filter(term => {
     const looksLikeModel = /[a-z]/.test(term) && /\d/.test(term);
-    return term.length >= 3 && !looksLikeModel && !STOP_WORDS.has(term) && !ignored.has(term);
+    return term.length >= 3
+      && !looksLikeModel
+      && !STOP_WORDS.has(term)
+      && !modifiers.has(term)
+      && !ignored.has(term);
   }))].slice(0, 6);
 }
 
@@ -155,10 +178,82 @@ export function buildSearchGroups(value: string, ignoredValues: string[] = []): 
   return [...concepts, ...literals].slice(0, 6);
 }
 
+/**
+ * Expande a consulta para embeddings sem trocar a pergunta original. Isso faz
+ * "embreagem" ficar semanticamente próxima de "EMBRAIAGEM", "CLUTCH" e
+ * "CLUTCH ASSY" mesmo quando o catálogo foi indexado em outro idioma.
+ */
+export function semanticQueryText(value: string, ignoredValues: string[] = []): string {
+  const groups = buildSearchGroups(value, ignoredValues);
+  const variants = [...new Set(groups.flatMap(group => group.variants))].slice(0, 28);
+  if (!variants.length) return value.trim();
+  return [value.trim(), `Equivalentes técnicos: ${variants.join(', ')}`].filter(Boolean).join('\n');
+}
+
+/**
+ * Equivalentes gerados deterministicamente para enriquecer o texto de embedding
+ * do documento. Não são gravados como nomes oficiais/alternativeNames.
+ */
+export function inferredSearchAliases(name: string, section = '', aliases: string[] = []): string[] {
+  const concepts = findPartConcepts([name, section, ...aliases].filter(Boolean).join(' '));
+  return [...new Set(concepts.flatMap(group => group.variants))].slice(0, 32);
+}
+
+function containsVariant(value: string, variant: string): boolean {
+  const haystack = searchable(value);
+  const needle = searchable(variant);
+  if (!haystack || !needle) return false;
+  if (haystack === needle || haystack.includes(needle)) return true;
+
+  const haystackWords = haystack.split(' ');
+  const needleWords = needle.split(' ');
+  return needleWords.length === 1 && haystackWords.some(word => fuzzyEqual(word, needle));
+}
+
 function matchStrength(value: string, variants: string[], exactScore: number, partialScore: number): number {
   const haystack = searchable(value);
+  if (!haystack) return 0;
   if (variants.some(variant => haystack === searchable(variant))) return exactScore;
-  return variants.some(variant => haystack.includes(searchable(variant))) ? partialScore : 0;
+  if (variants.some(variant => containsVariant(haystack, variant))) return partialScore;
+  return 0;
+}
+
+function conceptStrength(
+  group: SearchGroup,
+  candidate: { name: string; section?: string | null; aliases?: string[] },
+): number {
+  const name = candidate.name || '';
+  const aliases = (candidate.aliases || []).join(' ');
+  const section = candidate.section || '';
+
+  let strength = Math.max(
+    matchStrength(name, group.variants, 1, 0.92),
+    matchStrength(aliases, group.variants, 0.94, 0.82),
+    matchStrength(section, group.variants, 0.28, 0.22),
+  );
+
+  // Para conceitos compostos, permita que o nome da peça e a seção completem
+  // a expressão. Ex.: nome "TAMBOR" + seção "CLUTCH" deve corresponder a
+  // "tambor da embreagem", mas um PARAFUSO na seção CLUTCH não recebe o bônus.
+  if (group.key === 'clutch-drum') {
+    const nameHasDrum = ['tambor', 'drum'].some(term => containsVariant(name, term));
+    const contextHasClutch = ['embreagem', 'embraiagem', 'clutch'].some(term => containsVariant(`${section} ${aliases}`, term));
+    if (nameHasDrum && contextHasClutch) strength = Math.max(strength, 0.96);
+  }
+
+  if (group.key === 'starter-rope') {
+    const nameHasRope = ['corda', 'rope'].some(term => containsVariant(name, term));
+    const contextHasStarter = ['partida', 'arranque', 'starter', 'recoil'].some(term => containsVariant(`${section} ${aliases}`, term));
+    if (nameHasRope && contextHasStarter) strength = Math.max(strength, 0.94);
+  }
+
+  if (group.key === 'fuel-hose') {
+    const nameHasHose = ['mangueira', 'tubo', 'hose', 'pipe', 'line'].some(term => containsVariant(name, term));
+    const contextHasFuel = ['combustivel', 'fuel', 'gasolina'].some(term => containsVariant(`${section} ${aliases}`, term));
+    if (nameHasHose && contextHasFuel) strength = Math.max(strength, 0.94);
+  }
+
+  return strength;
 }
 
 export function scorePartText(
@@ -168,16 +263,8 @@ export function scorePartText(
   const groups = buildSearchGroups(query);
   if (!groups.length) return 0;
 
-  const name = candidate.name || '';
-  const aliases = (candidate.aliases || []).join(' ');
-  const section = candidate.section || '';
   let total = 0;
-  for (const group of groups) {
-    const nameStrength = matchStrength(name, group.variants, 1, 0.72);
-    const aliasStrength = matchStrength(aliases, group.variants, 0.85, 0.65);
-    const sectionStrength = matchStrength(section, group.variants, 0.25, 0.25);
-    total += Math.max(nameStrength, aliasStrength, sectionStrength);
-  }
+  for (const group of groups) total += conceptStrength(group, candidate);
   return Math.max(0, Math.min(1, total / groups.length));
 }
 
@@ -198,4 +285,9 @@ export function focusCandidatesByDescription<
   }));
   const directMatches = scored.filter(item => item.score >= 0.85);
   return directMatches.length ? directMatches.map(item => item.candidate) : candidates;
+}
+
+export function vocabularyEntry(key: string): SearchGroup | null {
+  const entry = ENTRY_BY_KEY.get(key);
+  return entry ? { key: entry.key, variants: normalizedVariants(entry) } : null;
 }
