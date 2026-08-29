@@ -5,6 +5,7 @@ import ChatPanel from '../components/ChatPanel';
 import CatalogsPanel from '../components/CatalogsPanel';
 import { AuditPanel, OverviewPanel, UsersPanel } from '../components/AdminPanels';
 import AdminFeedbackPanel from '../components/AdminFeedbackPanel';
+import QualityPanel from '../components/QualityPanel';
 import { HomePanel } from '../components/OperationalPanels';
 import PartSearchPanel from '../components/PartSearchPanel';
 import { FavoritesPanel, HistoryPanel } from '../components/SavedItemsPanels';
@@ -22,11 +23,9 @@ export default function Dashboard(){
  useEffect(()=>{
    let active=true;
    if(!getToken()){navigate('/login',{replace:true});return;}
-
    void apiJson<{user:SessionUser}>('/api/me')
      .then(data=>{if(active){setUser(data.user);setSection('home')}})
      .catch(e=>{if(active){setError(e instanceof Error?e.message:'Sessão inválida');clearSession();navigate('/login',{replace:true})}});
-
    return()=>{active=false};
  },[navigate]);
 
@@ -55,6 +54,7 @@ export default function Dashboard(){
    {section==='favorites'&&<FavoritesPanel onSearch={search}/>} 
    {section==='users'&&user.role==='ADMIN'&&<UsersPanel/>}
    {section==='feedback'&&user.role==='ADMIN'&&<AdminFeedbackPanel/>}
+   {section==='quality'&&user.role==='ADMIN'&&<QualityPanel/>}
    {section==='audit'&&user.role==='ADMIN'&&<AuditPanel/>}
  </Shell>;
 }

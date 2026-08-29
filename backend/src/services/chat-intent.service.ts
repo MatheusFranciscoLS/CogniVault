@@ -23,6 +23,9 @@ export interface CandidateForAi {
   aliases: string[];
   feedbackScore?: number;
   notes?: string | null;
+  retrievalScore?: number;
+  retrievalAgreement?: number;
+  retrievalSources?: string[];
 }
 
 export class ChatIntentService {
@@ -37,10 +40,6 @@ export class ChatIntentService {
       localIntent.partNumber,
     ]);
 
-    // Código é evidência determinística. Para conceitos já conhecidos pela
-    // ontologia e pela camada de conhecimento mecânico estudada nos IPLs, a
-    // interpretação local também é mais previsível e barata. Já um modelo
-    // conhecido NÃO deve bloquear a IA quando o nome da peça é desconhecido.
     if (localIntent.partNumber || knownVocabulary || knownDomain || !unknownDescriptionTerms.length) return localIntent;
 
     try {
@@ -72,10 +71,8 @@ export class ChatIntentService {
         },
       });
       const parsed = JSON.parse(response.text || '{}') as Partial<SearchIntent>;
-      const clean = (v: unknown) => typeof v === 'string' ? v.trim() : '';
+      const clean = (value: unknown) => typeof value === 'string' ? value.trim() : '';
       return {
-        // Pistas extraídas por regex têm prioridade para impedir que a IA altere
-        // 143RII para 143R/143RS ou confunda um PNC já informado.
         manufacturer: localIntent.manufacturer || clean(parsed.manufacturer),
         model: localIntent.model || clean(parsed.model),
         pnc: localIntent.pnc || clean(parsed.pnc),
@@ -95,16 +92,13 @@ export class ChatIntentService {
 
     const localSelection = chooseCandidateLocally(question, candidates);
     if (!localSelection.ambiguous) return localSelection;
-    // Para termos técnicos conhecidos, duas opções textualmente equivalentes
-    // representam ambiguidade real de catálogo. A IA não recebe evidência nova
-    // para escolher uma delas e, portanto, não deve inventar um desempate.
     if (hasKnownPartVocabulary(question) || hasDomainKnowledge(question)) return localSelection;
 
     try {
       const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
       const response = await ai.models.generateContent({
         model: GEMINI_GENERATIVE_MODEL,
-        contents: `Você está escolhendo uma peça entre candidatos JÁ ENCONTRADOS no banco.\nNunca crie IDs. Nunca escolha apenas por modelo parecido. Diferencie peça completa, kit, junta, parafuso, suporte etc.\nSe houver duas opções plausíveis, marque ambiguous=true.\n\nPergunta: ${question}\n\nCandidatos:\n${candidates.map(c => JSON.stringify(c)).join('\n')}`,
+        contents: `Você está escolhendo uma peça entre candidatos JÁ ENCONTRADOS no banco.\nNunca crie IDs. Nunca escolha apenas por modelo parecido. Diferencie peça completa, kit, junta, parafuso, suporte etc.\nOs campos retrievalScore/retrievalAgreement apenas informam concordância dos recuperadores; eles não substituem compatibilidade mecânica.\nSe houver duas opções plausíveis, marque ambiguous=true.\n\nPergunta: ${question}\n\nCandidatos:\n${candidates.map(candidate => JSON.stringify(candidate)).join('\n')}`,
         config: {
           responseMimeType: 'application/json',
           responseSchema: {
@@ -119,7 +113,7 @@ export class ChatIntentService {
         },
       });
       const parsed = JSON.parse(response.text || '{}') as { id?: unknown; confidence?: unknown; ambiguous?: unknown };
-      const id = typeof parsed.id === 'string' && candidates.some(c => c.id === parsed.id) ? parsed.id : null;
+      const id = typeof parsed.id === 'string' && candidates.some(candidate => candidate.id === parsed.id) ? parsed.id : null;
       const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0));
       return { id, confidence, ambiguous: Boolean(parsed.ambiguous) || !id };
     } catch (error) {

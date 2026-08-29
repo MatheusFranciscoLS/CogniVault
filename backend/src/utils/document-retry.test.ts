@@ -15,8 +15,21 @@ test('agenda novo ciclo apenas para falha temporária e dentro do limite', () =>
     assert.equal(nextDocumentRetry({ status: 400 }, {}), null);
 });
 
-test('não reenfileira cota diária da IA', () => {
-    const dailyQuota = new Error('Quota exceeded: GenerateRequestsPerDayPerProjectPerModel-FreeTier');
+test('não reenfileira cota diária da IA mesmo quando PerDay vem aninhado nos detalhes', () => {
+    const dailyQuota = {
+        error: {
+            code: 429,
+            status: 'RESOURCE_EXHAUSTED',
+            message: 'You exceeded your current quota, please check your plan and billing details.',
+            details: [{
+                '@type': 'type.googleapis.com/google.rpc.QuotaFailure',
+                violations: [{
+                    quotaMetric: 'generativelanguage.googleapis.com/generate_content_free_tier_requests',
+                    quotaId: 'GenerateRequestsPerDayPerProjectPerModel-FreeTier',
+                    quotaValue: '20',
+                }],
+            }],
+        },
+    };
     assert.equal(nextDocumentRetry(dailyQuota, {}), null);
 });
-

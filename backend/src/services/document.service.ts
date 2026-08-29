@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import { prisma } from '../config/prisma';
 import { DocumentProducer } from '../queues/producer';
+import { repairMultipartText } from '../utils/text-encoding';
 import { CATALOG_CATEGORY_NAMES, inferCatalogCategory, isCatalogCategoryName } from './catalog-category';
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -29,7 +30,8 @@ function storageCandidates(tenantId: string, documentId: string, storagePath?: s
 }
 
 function safeFilename(value: string): string {
-    const filename = value.replace(/\\/g, '/').split('/').pop()?.trim() || 'catalogo.pdf';
+    const repaired = repairMultipartText(value);
+    const filename = repaired.replace(/\\/g, '/').split('/').pop()?.trim() || 'catalogo.pdf';
     return filename.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 240) || 'catalogo.pdf';
 }
 
@@ -142,23 +144,26 @@ export class DocumentService {
             },
         });
 
-        return documents.map((document) => ({
-            id: document.id,
-            filename: document.filename,
-            status: document.status,
-            manufacturer: document.manufacturer,
-            model: document.model,
-            pnc: document.pnc,
-            category: document.category?.name || inferCatalogCategory({ filename: document.filename, model: document.model }),
-            createdAt: document.createdAt,
-            partCount: document._count.parts,
-            archivedAt: document.archivedAt,
-            processingActive: Boolean(document.processingJobId),
-            processingStage: document.processingStage,
-            processingCurrent: document.processingCurrent,
-            processingTotal: document.processingTotal,
-            processingError: document.processingError,
-        }));
+        return documents.map((document) => {
+            const filename = safeFilename(document.filename);
+            return {
+                id: document.id,
+                filename,
+                status: document.status,
+                manufacturer: document.manufacturer,
+                model: document.model,
+                pnc: document.pnc,
+                category: document.category?.name || inferCatalogCategory({ filename, model: document.model }),
+                createdAt: document.createdAt,
+                partCount: document._count.parts,
+                archivedAt: document.archivedAt,
+                processingActive: Boolean(document.processingJobId),
+                processingStage: document.processingStage,
+                processingCurrent: document.processingCurrent,
+                processingTotal: document.processingTotal,
+                processingError: document.processingError,
+            };
+        });
     }
 
     async setCategory(tenantId: string, documentId: string, categoryName: unknown) {
@@ -181,7 +186,7 @@ export class DocumentService {
             data: { categoryId: category.id },
         });
 
-        return { id: document.id, filename: document.filename, category: category.name };
+        return { id: document.id, filename: safeFilename(document.filename), category: category.name };
     }
 
     async createAccessUrl(tenantId: string, documentId: string, download = false): Promise<string> {
@@ -195,7 +200,7 @@ export class DocumentService {
         for (const candidate of storageCandidates(tenantId, document.id, document.storagePath)) {
             const { data, error } = await supabase.storage
                 .from(storageBucket)
-                .createSignedUrl(candidate, 60 * 10, download ? { download: document.filename } : undefined);
+                .createSignedUrl(candidate, 60 * 10, download ? { download: safeFilename(document.filename) } : undefined);
 
             if (!error && data?.signedUrl) {
                 return data.signedUrl;
@@ -353,22 +358,25 @@ export class DocumentService {
             },
         });
 
-        return documents.map((document) => ({
-            id: document.id,
-            filename: document.filename,
-            status: document.status,
-            manufacturer: document.manufacturer,
-            model: document.model,
-            pnc: document.pnc,
-            category: document.category?.name || inferCatalogCategory({ filename: document.filename, model: document.model }),
-            createdAt: document.createdAt,
-            archivedAt: document.archivedAt,
-            partCount: document._count.parts,
-            processingActive: Boolean(document.processingJobId),
-            processingStage: document.processingStage,
-            processingCurrent: document.processingCurrent,
-            processingTotal: document.processingTotal,
-            processingError: document.processingError,
-        }));
+        return documents.map((document) => {
+            const filename = safeFilename(document.filename);
+            return {
+                id: document.id,
+                filename,
+                status: document.status,
+                manufacturer: document.manufacturer,
+                model: document.model,
+                pnc: document.pnc,
+                category: document.category?.name || inferCatalogCategory({ filename, model: document.model }),
+                createdAt: document.createdAt,
+                archivedAt: document.archivedAt,
+                partCount: document._count.parts,
+                processingActive: Boolean(document.processingJobId),
+                processingStage: document.processingStage,
+                processingCurrent: document.processingCurrent,
+                processingTotal: document.processingTotal,
+                processingError: document.processingError,
+            };
+        });
     }
 }

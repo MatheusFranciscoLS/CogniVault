@@ -15,8 +15,23 @@ test('respeita RetryInfo da API e reconhece limite diário', () => {
     const quotaError = {
         error: {
             code: 429,
-            message: 'Quota exceeded for EmbedContentRequestsPerDayPerProject',
-            details: [{ retryDelay: '48s' }],
+            message: 'You exceeded your current quota, please check your plan and billing details.',
+            status: 'RESOURCE_EXHAUSTED',
+            details: [
+                {
+                    '@type': 'type.googleapis.com/google.rpc.QuotaFailure',
+                    violations: [{
+                        quotaMetric: 'generativelanguage.googleapis.com/generate_content_free_tier_requests',
+                        quotaId: 'GenerateRequestsPerDayPerProjectPerModel-FreeTier',
+                        quotaDimensions: { model: 'gemini-3.6-flash', location: 'global' },
+                        quotaValue: '20',
+                    }],
+                },
+                {
+                    '@type': 'type.googleapis.com/google.rpc.RetryInfo',
+                    retryDelay: '48s',
+                },
+            ],
         },
     };
 
@@ -24,6 +39,21 @@ test('respeita RetryInfo da API e reconhece limite diário', () => {
     assert.equal(isDailyAIQuotaError(quotaError), true);
     assert.equal(isDailyAIQuotaError(new Error('GenerateRequestsPerDayPerProjectPerModel-FreeTier')), true);
     assert.equal(retryDelayMs(new Error('Please retry in 23.520s.')), 23_520);
+});
+
+test('429 temporário sem quota diária continua elegível para retry', () => {
+    const minuteLimit = {
+        error: {
+            code: 429,
+            status: 'RESOURCE_EXHAUSTED',
+            message: 'Rate limit exceeded. Please retry later.',
+            details: [{
+                violations: [{ quotaId: 'GenerateRequestsPerMinutePerProjectPerModel' }],
+            }],
+        },
+    };
+    assert.equal(isTransientAIError(minuteLimit), true);
+    assert.equal(isDailyAIQuotaError(minuteLimit), false);
 });
 
 test('repete operação temporariamente indisponível e preserva o resultado', async () => {
@@ -72,3 +102,28 @@ test('não repete erro permanente', async () => {
     assert.equal(calls, 1);
 });
 
+test('não repete internamente uma cota diária real do Gemini', async () => {
+    let calls = 0;
+    const dailyQuota = {
+        error: {
+            code: 429,
+            status: 'RESOURCE_EXHAUSTED',
+            message: 'You exceeded your current quota.',
+            details: [{
+                violations: [{ quotaId: 'GenerateRequestsPerDayPerProjectPerModel-FreeTier' }],
+            }],
+        },
+    };
+
+    await assert.rejects(
+        withTransientAIRetry(
+            async () => {
+                calls += 1;
+                throw dailyQuota;
+            },
+            { label: 'quota diária', maxAttempts: 4, baseDelayMs: 0, onRetry: () => undefined },
+        ),
+    );
+
+    assert.equal(calls, 1);
+});
