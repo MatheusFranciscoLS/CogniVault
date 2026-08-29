@@ -5,7 +5,7 @@ import { extractKnownHusqvarnaModel } from './husqvarna-domain-knowledge';
 import { lexicalTerms, scorePartText } from './part-vocabulary';
 
 function isPncContext(question: string, index: number) {
-  return /pnc\s*$/i.test(question.slice(Math.max(0, index - 8), index));
+  return /pnc\s*[:#-]?\s*$/i.test(question.slice(Math.max(0, index - 14), index));
 }
 
 export function extractLikelyPartNumber(question: string): string {
@@ -27,7 +27,7 @@ export function extractLikelyPartNumber(question: string): string {
 }
 
 export function extractLikelyPnc(question: string): string {
-  const match = question.match(/\bpnc\s*[:#-]?\s*((?:[a-z0-9]*\d[a-z0-9]*)(?:[\s./-]+(?:[a-z0-9]*\d[a-z0-9]*)){1,})/i);
+  const match = question.match(/\bpnc\s*[:#-]?\s*((?:\d{8,12})|(?:[a-z0-9]*\d[a-z0-9]*)(?:[\s./-]+(?:[a-z0-9]*\d[a-z0-9]*)){1,})/i);
   return match?.[1]?.trim() || '';
 }
 
