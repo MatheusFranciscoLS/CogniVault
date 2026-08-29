@@ -1,24 +1,10 @@
-import { normalizeText } from '../utils/normalize';
-import { inferPartQueryRelation, type SearchGroup } from './part-vocabulary';
+import { findPartConcepts, inferPartQueryRelation } from './part-vocabulary';
 
 type CandidateText = {
   name: string;
   section?: string | null;
   aliases?: string[];
 };
-
-function searchable(value: string): string {
-  return normalizeText(value).replace(/[^a-z0-9]+/g, ' ').trim();
-}
-
-function matchesGroup(value: string, group: SearchGroup): boolean {
-  const haystack = ` ${searchable(value)} `;
-  if (!haystack.trim()) return false;
-  return group.variants.some(variant => {
-    const needle = searchable(variant);
-    return Boolean(needle) && haystack.includes(` ${needle} `);
-  });
-}
 
 /**
  * Evidência de nomenclatura específica do próprio item.
@@ -33,9 +19,8 @@ export function relationSpecificityBonus(query: string, candidate: CandidateText
   if (!relation) return 0;
 
   const directText = [candidate.name, ...(candidate.aliases || [])].filter(Boolean).join(' ');
-  const primaryInName = matchesGroup(directText, relation.primary);
-  const contextInName = matchesGroup(directText, relation.context);
-  if (!primaryInName || !contextInName) return 0;
+  const directConcepts = new Set(findPartConcepts(directText).map(group => group.key));
+  if (!directConcepts.has(relation.primary.key) || !directConcepts.has(relation.context.key)) return 0;
 
   // O contexto no próprio nome/alias é mais específico que apenas pertencer à seção.
   // O bônus foi dimensionado para superar candidatos genéricos da mesma vista,
