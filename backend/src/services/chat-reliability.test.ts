@@ -14,6 +14,7 @@ import {
   buildSearchGroups,
   focusCandidatesByDescription,
   inferPartQueryRelation,
+  inferredSearchAliases,
   scorePartText,
   semanticQueryText,
 } from './part-vocabulary';
@@ -160,6 +161,40 @@ test('posição explícita desempata parafusos iguais do mesmo conjunto', () => 
   assert.equal(chooseCandidateLocally('parafuso posição 16 da embreagem da 143RII', candidates).id, 'screw16');
 });
 
+test('saia lateral do TS114 converge para defletor/calha de descarga sem confundir saia traseira', () => {
+  const side = buildSearchGroups('qual o código da saia lateral do cortador TS114', ['TS114']);
+  assert.ok(side.some(group => group.key === 'discharge-deflector'));
+  assert.ok(!side.some(group => group.key === 'rear-skirt'));
+
+  const rear = buildSearchGroups('saia traseira do TS114', ['TS114']);
+  assert.ok(rear.some(group => group.key === 'rear-skirt'));
+  assert.ok(!rear.some(group => group.key === 'discharge-deflector'));
+
+  const deflectorScore = scorePartText('saia lateral do TS114', { name: 'DEFLETOR', section: 'PLATAFORMA DE CORTE' });
+  const bracketScore = scorePartText('saia lateral do TS114', { name: 'SUPORTE', section: 'PLATAFORMA DE CORTE' });
+  assert.ok(deflectorScore > bracketScore + 0.5);
+});
+
+test('entende componentes do defletor lateral sem transformar a mola no defletor completo', () => {
+  const relation = inferPartQueryRelation('mola da saia lateral do TS114');
+  assert.equal(relation?.primary.key, 'spring');
+  assert.equal(relation?.context.key, 'discharge-deflector');
+
+  const springInDischarge = scorePartText('mola da saia lateral do TS114', { name: 'SPRING', section: 'SIDE DISCHARGE' });
+  const deflector = scorePartText('mola da saia lateral do TS114', { name: 'DEFLECTOR', section: 'SIDE DISCHARGE' });
+  const unrelatedSpring = scorePartText('mola da saia lateral do TS114', { name: 'SPRING', section: 'SEAT' });
+  assert.ok(springInDischarge > deflector + 0.3);
+  assert.ok(springInDischarge > unrelatedSpring + 0.2);
+});
+
+test('gera linguagem de balcão para indexar componente dentro da vista real', () => {
+  const clutchScrewAliases = inferredSearchAliases('SCREW', '143RII CLUTCH');
+  assert.ok(clutchScrewAliases.some(alias => alias.includes('parafuso') && alias.includes('embreagem')));
+
+  const dischargeSpringAliases = inferredSearchAliases('SPRING', 'SIDE DISCHARGE DEFLECTOR');
+  assert.ok(dischargeSpringAliases.some(alias => alias.includes('mola') && (alias.includes('defletor') || alias.includes('calha'))));
+});
+
 test('reconhece termos portugueses de Portugal e nomes usuais de revenda', () => {
   assert.ok(buildSearchGroups('anilha da 143RII', ['143RII']).some(group => group.key === 'washer'));
   assert.ok(buildSearchGroups('cambota da máquina', []).some(group => group.key === 'crankshaft'));
@@ -170,6 +205,8 @@ test('reconhece termos portugueses de Portugal e nomes usuais de revenda', () =>
   assert.ok(buildSearchGroups('campana da embreagem', []).some(group => group.key === 'drum'));
   assert.ok(buildSearchGroups('sabre da motosserra', []).some(group => group.key === 'guide-bar'));
   assert.ok(buildSearchGroups('mufla da motosserra', []).some(group => group.key === 'muffler'));
+  assert.ok(buildSearchGroups('polia tensora do deck', []).some(group => group.key === 'idler-pulley'));
+  assert.ok(buildSearchGroups('saia lateral do trator', []).some(group => group.key === 'discharge-deflector'));
 });
 
 test('prioriza o nome da peça e não oferece componentes vizinhos da mesma vista', () => {
