@@ -20,7 +20,9 @@ export default function QualityPanel() {
   const [data,setData]=useState<AiQualityData|null>(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
+  const [notice,setNotice]=useState('');
   const [benchmarking,setBenchmarking]=useState(false);
+  const [rebuilding,setRebuilding]=useState(false);
   const [busyId,setBusyId]=useState<string|null>(null);
   const [editing,setEditing]=useState<string|null>(null);
   const [draft,setDraft]=useState({manufacturer:'',model:'',pnc:''});
@@ -33,20 +35,27 @@ export default function QualityPanel() {
   },[]);
 
   const runBenchmark=async()=>{
-    setBenchmarking(true);setError('');
-    try{await apiJson('/api/admin/quality/benchmark',{method:'POST'});await load()}catch(runError){setError(runError instanceof Error?runError.message:'Não foi possível executar o benchmark.')}finally{setBenchmarking(false)}
+    setBenchmarking(true);setError('');setNotice('');
+    try{await apiJson('/api/admin/quality/benchmark',{method:'POST'});await load();setNotice('Benchmark concluído e salvo para comparação futura.')}catch(runError){setError(runError instanceof Error?runError.message:'Não foi possível executar o benchmark.')}finally{setBenchmarking(false)}
+  };
+  const rebuildKnowledge=async()=>{
+    setRebuilding(true);setError('');setNotice('');
+    try{
+      const response=await apiJson<{message:string}>('/api/admin/quality/rebuild-knowledge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({limit:500})});
+      await load();setNotice(response.message);
+    }catch(rebuildError){setError(rebuildError instanceof Error?rebuildError.message:'Não foi possível atualizar a memória técnica.')}finally{setRebuilding(false)}
   };
   const openEdit=(catalog:QualityCatalog)=>{setEditing(catalog.id);setDraft({manufacturer:catalog.manufacturer||'',model:catalog.model||'',pnc:catalog.pnc||''})};
   const saveMetadata=async(catalog:QualityCatalog)=>{
-    setBusyId(catalog.id);setError('');
+    setBusyId(catalog.id);setError('');setNotice('');
     try{
       await apiJson(`/api/admin/quality/catalogs/${catalog.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(draft)});
-      setEditing(null);await load();
+      setEditing(null);await load();setNotice('Metadados salvos e catálogo enviado para reprocessamento seguro.');
     }catch(saveError){setError(saveError instanceof Error?saveError.message:'Não foi possível salvar os metadados.')}finally{setBusyId(null)}
   };
   const confirmReview=async(catalog:QualityCatalog)=>{
-    setBusyId(catalog.id);setError('');
-    try{await apiJson(`/api/admin/quality/catalogs/${catalog.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:true})});await load()}catch(reviewError){setError(reviewError instanceof Error?reviewError.message:'Não foi possível confirmar a revisão.')}finally{setBusyId(null)}
+    setBusyId(catalog.id);setError('');setNotice('');
+    try{await apiJson(`/api/admin/quality/catalogs/${catalog.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:true})});await load();setNotice('Revisão administrativa registrada.')}catch(reviewError){setError(reviewError instanceof Error?reviewError.message:'Não foi possível confirmar a revisão.')}finally{setBusyId(null)}
   };
 
   const benchmark=latestBenchmark(data);
@@ -61,8 +70,12 @@ export default function QualityPanel() {
   return <section>
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div><p className="cv-kicker">Confiabilidade</p><h1 className="cv-page-title">Qualidade IA</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Monitore a qualidade dos catálogos, revise metadados e meça a busca com casos reais antes de confiar em uma alteração de IA.</p></div>
-      <button type="button" disabled={benchmarking||loading} onClick={()=>void runBenchmark()} className="cv-primary px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50">{benchmarking?'Executando benchmark…':'Executar benchmark real'}</button>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" disabled={rebuilding||benchmarking||loading} onClick={()=>void rebuildKnowledge()} className="rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#1d4f91] disabled:cursor-not-allowed disabled:opacity-50">{rebuilding?'Atualizando memória…':'Atualizar memória técnica'}</button>
+        <button type="button" disabled={benchmarking||rebuilding||loading} onClick={()=>void runBenchmark()} className="cv-primary px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50">{benchmarking?'Executando benchmark…':'Executar benchmark real'}</button>
+      </div>
     </div>
+    {notice&&<div role="status" className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{notice}</div>}
     {error&&<div role="alert" className="mb-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
     {loading&&<div className="cv-surface rounded-[22px] p-8 text-sm text-slate-400">Calculando qualidade da base…</div>}
 
@@ -78,7 +91,7 @@ export default function QualityPanel() {
           </>:<div className="mt-6 rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">Nenhum benchmark foi executado neste tenant ainda.</div>}
         </div>
 
-        <div className="cv-surface rounded-[22px] p-5"><div className="text-sm font-semibold text-slate-900">Integridade da indexação</div><div className="mt-4 grid gap-3"><InfoRow label="Sem embedding" value={data.summary.partsWithoutEmbedding}/><InfoRow label="Sem página" value={data.summary.partsWithoutPage}/><InfoRow label="Sem seção" value={data.summary.partsWithoutSection}/><InfoRow label="Arquivados" value={data.hygiene.archivedRecords}/><InfoRow label="Histórico removido" value={data.hygiene.removedHistoricalRecords}/></div><p className="mt-4 text-[11px] leading-5 text-slate-400">{data.hygiene.note}</p></div>
+        <div className="cv-surface rounded-[22px] p-5"><div className="text-sm font-semibold text-slate-900">Integridade da indexação</div><div className="mt-4 grid gap-3"><InfoRow label="Sem embedding" value={data.summary.partsWithoutEmbedding}/><InfoRow label="Sem página" value={data.summary.partsWithoutPage}/><InfoRow label="Sem seção" value={data.summary.partsWithoutSection}/><InfoRow label="Arquivados" value={data.hygiene.archivedRecords}/><InfoRow label="Histórico removido" value={data.hygiene.removedHistoricalRecords}/></div><p className="mt-4 text-[11px] leading-5 text-slate-400">{data.hygiene.note}</p><div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3 text-[11px] leading-5 text-blue-800">“Atualizar memória técnica” reaproveita somente peças já extraídas. Não reabre o PDF, não altera códigos e não consome embeddings externos.</div></div>
       </div>
 
       <div className="cv-surface mt-5 overflow-hidden rounded-[22px]">
