@@ -137,8 +137,8 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
   useEffect(() => {
     if (normalizedInitialQuery.length < 2) return;
     const controller = new AbortController();
-    void runSearch(normalizedInitialQuery, controller.signal);
-    return () => controller.abort();
+    const timer = window.setTimeout(() => { void runSearch(normalizedInitialQuery, controller.signal); }, 0);
+    return () => { window.clearTimeout(timer); controller.abort(); };
   }, [normalizedInitialQuery, runSearch]);
 
   useEffect(() => {
