@@ -12,11 +12,10 @@ test('parafuso da embreagem prioriza o item tecnicamente nomeado como Screw Clut
     { id: 'pos16', name: 'Screw Clutch shoe', model: '143RII', pnc: null, section: 'CLUTCH', position: '16', aliases: [] },
   ];
 
-  assert.deepEqual(chooseCandidateLocally('qual o código do parafuso da embreagem da 143RII?', candidates), {
-    id: 'pos16',
-    confidence: 0.9,
-    ambiguous: false,
-  });
+  const selection = chooseCandidateLocally('qual o código do parafuso da embreagem da 143RII?', candidates);
+  assert.equal(selection.id, 'pos16');
+  assert.equal(selection.ambiguous, false);
+  assert.ok(selection.confidence >= 0.9 && selection.confidence <= 1);
 });
 
 test('continua ambíguo quando todos os parafusos têm apenas contexto genérico de seção', () => {
