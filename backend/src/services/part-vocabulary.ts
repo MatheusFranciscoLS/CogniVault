@@ -30,45 +30,48 @@ const QUERY_MODIFIERS = new Set([
 ]);
 
 // Componentes que podem ser pedidos dentro de um conjunto: "parafuso da embreagem",
-// "mola do carburador", "tambor da embreagem". O componente é o alvo principal;
-// o segundo conceito é contexto técnico e pode estar na seção da vista.
+// "mola do defletor", "porca do sabre". O componente é o alvo principal e o
+// segundo conceito vira contexto da vista/conjunto.
 const RELATIONAL_PRIMARY_KEYS = new Set([
   'screw', 'nut', 'washer', 'spring', 'bearing', 'needle-bearing', 'bushing', 'spacer', 'pin',
   'bracket', 'clamp', 'seal', 'gasket', 'o-ring', 'cover', 'housing', 'lever', 'latch', 'drum',
+  'pulley', 'idler-pulley', 'wheel', 'tire', 'connector', 'switch', 'sensor', 'gear',
 ]);
 
-// Ontologia de balcão pesquisada em nomenclatura Husqvarna BR/PT, catálogos
-// ilustrados e termos usuais de revenda. Ela aproxima nomes; nunca cria código,
-// compatibilidade, modelo ou PNC que não existam na base técnica.
+// Ontologia de balcão: une nomenclatura Husqvarna BR/PT, inglês técnico de IPLs e
+// termos funcionais usados em assistência/revenda. Ela só aproxima linguagem;
+// código, modelo, PNC, posição e aplicação continuam vindo da evidência técnica.
 const VOCABULARY: VocabularyEntry[] = [
   // Admissão, combustível e motor
   { key: 'air-filter', terms: ['filtro de ar', 'filtro ar', 'air filter', 'airfilter', 'elemento filtrante', 'elemento do filtro de ar'] },
-  { key: 'fuel-filter', terms: ['filtro de combustivel', 'filtro combustivel', 'filtro de gasolina', 'pescador de combustivel', 'pescador do tanque', 'fuel filter', 'fuel pickup'] },
-  { key: 'oil-filter', terms: ['filtro de oleo', 'filtro oleo', 'oil filter'] },
+  { key: 'fuel-filter', terms: ['filtro de combustivel', 'filtro combustível', 'filtro combustivel', 'filtro de gasolina', 'pescador de combustivel', 'pescador de combustível', 'pescador do tanque', 'fuel filter', 'fuel pickup'] },
+  { key: 'oil-filter', terms: ['filtro de oleo', 'filtro de óleo', 'filtro oleo', 'oil filter'] },
   { key: 'carburettor', terms: ['carburador', 'carburador completo', 'carburettor', 'carburetor', 'carburettor assy', 'carburetor assy', 'carburettor assembly', 'carburetor assembly'] },
-  { key: 'fuel-pump', terms: ['bomba de combustivel', 'bomba combustivel', 'bomba de gasolina', 'fuel pump'] },
-  { key: 'fuel-tank', terms: ['tanque de combustivel', 'tanque combustivel', 'tanque de gasolina', 'deposito de combustivel', 'deposito combustivel', 'fuel tank'] },
-  { key: 'fuel-hose', terms: ['mangueira de combustivel', 'mangueira combustivel', 'mangueira de gasolina', 'tubo de combustivel', 'tubo combustivel', 'fuel hose', 'fuel pipe', 'fuel line'] },
-  { key: 'fuel-cap', terms: ['tampa do tanque', 'tampa tanque', 'tampa de combustivel', 'tampa do deposito', 'fuel cap', 'tank cap'] },
-  { key: 'air-purge', terms: ['bulbo primer', 'bulbo de combustivel', 'bombinha primer', 'primer', 'air purge', 'purge bulb'] },
+  { key: 'fuel-pump', terms: ['bomba de combustivel', 'bomba de combustível', 'bomba combustivel', 'bomba de gasolina', 'fuel pump'] },
+  { key: 'fuel-tank', terms: ['tanque de combustivel', 'tanque de combustível', 'tanque combustivel', 'tanque de gasolina', 'deposito de combustivel', 'depósito de combustível', 'fuel tank'] },
+  { key: 'fuel-hose', terms: ['mangueira de combustivel', 'mangueira de combustível', 'mangueira combustivel', 'mangueira de gasolina', 'tubo de combustivel', 'tubo de combustível', 'fuel hose', 'fuel pipe', 'fuel line'] },
+  { key: 'fuel-cap', terms: ['tampa do tanque', 'tampa tanque', 'tampa de combustivel', 'tampa de combustível', 'tampa do deposito', 'tampa do depósito', 'fuel cap', 'tank cap'] },
+  { key: 'air-purge', terms: ['bulbo primer', 'bulbo de combustivel', 'bulbo de combustível', 'bombinha primer', 'primer', 'air purge', 'purge bulb'] },
   { key: 'diaphragm', terms: ['diafragma', 'membrana', 'diaphragm'] },
   { key: 'choke', terms: ['afogador', 'choke'] },
   { key: 'throttle-cable', terms: ['cabo do acelerador', 'cabo acelerador', 'cabo de acelerador', 'throttle cable'] },
   { key: 'throttle', terms: ['acelerador', 'gatilho do acelerador', 'gatilho', 'throttle', 'trigger'] },
   { key: 'cylinder', terms: ['cilindro', 'cylinder'] },
-  { key: 'piston-ring', terms: ['anel do pistao', 'anel pistao', 'segmento do pistao', 'piston ring'] },
-  { key: 'piston', terms: ['pistao', 'piston', 'piston assy', 'conjunto do pistao', 'conj do pistao'] },
+  { key: 'piston-ring', terms: ['anel do pistao', 'anel do pistão', 'anel pistao', 'segmento do pistao', 'segmento do pistão', 'piston ring'] },
+  { key: 'piston', terms: ['pistao', 'pistão', 'piston', 'piston assy', 'conjunto do pistao', 'conjunto do pistão', 'conj do pistao'] },
   { key: 'crankshaft', terms: ['virabrequim', 'cambota', 'crankshaft'] },
-  { key: 'crankcase', terms: ['carcaca do motor', 'bloco do motor', 'carter', 'cárter', 'crankcase', 'engine housing'] },
+  { key: 'crankcase', terms: ['carcaca do motor', 'carcaça do motor', 'bloco do motor', 'carter', 'cárter', 'crankcase', 'engine housing'] },
   { key: 'muffler', terms: ['escapamento', 'silencioso', 'silenciador', 'mufla', 'muffler', 'silencer', 'exhaust'] },
 
   // Ignição e partida
-  { key: 'spark-plug', terms: ['vela de ignicao', 'vela ignicao', 'vela', 'spark plug', 'sparkplug'] },
+  { key: 'spark-plug', terms: ['vela de ignicao', 'vela de ignição', 'vela ignicao', 'vela', 'spark plug', 'sparkplug'] },
   { key: 'spark-plug-cap', terms: ['cachimbo da vela', 'cachimbo vela', 'terminal da vela', 'capuz da vela', 'spark plug cap', 'plug cap'] },
-  { key: 'ignition', terms: ['bobina de ignicao', 'bobina ignicao', 'bobine de ignicao', 'modulo de ignicao', 'magneto de ignicao', 'ignition coil', 'ignition module', 'ignition'] },
+  { key: 'ignition', terms: ['bobina de ignicao', 'bobina de ignição', 'bobina ignicao', 'bobine de ignicao', 'bobine de ignição', 'modulo de ignicao', 'módulo de ignição', 'magneto de ignicao', 'ignition coil', 'ignition module', 'ignition'] },
   { key: 'flywheel', terms: ['volante magnetico', 'volante magnético', 'volante do motor', 'magneto', 'flywheel'] },
   { key: 'starter', terms: ['partida retratil', 'partida retrátil', 'arranque', 'retratil', 'retrátil', 'recoil starter', 'starter housing', 'starter', 'arranque completo'] },
   { key: 'starter-rope', terms: ['corda de partida', 'corda partida', 'cordao de partida', 'cordão de partida', 'corda de arranque', 'starter rope', 'recoil rope', 'rope'] },
+  { key: 'starter-pulley', terms: ['polia de partida', 'polia do arranque', 'carretel de partida', 'carretel do arranque', 'starter pulley', 'recoil pulley'] },
+  { key: 'recoil-spring', terms: ['mola de partida', 'mola do arranque', 'mola de recuo', 'mola retratil', 'mola retrátil', 'recoil spring', 'starter spring'] },
   { key: 'starter-motor', terms: ['motor de partida', 'motor de arranque', 'motor partida', 'starter motor', 'electric starter'] },
 
   // Embreagem e transmissão
@@ -81,12 +84,16 @@ const VOCABULARY: VocabularyEntry[] = [
       'conjunto de embraiagem', 'conjunto da embraiagem', 'clutch assy', 'clutch assembly', 'complete clutch',
     ],
   },
+  { key: 'electric-clutch', terms: ['embreagem eletrica', 'embreagem elétrica', 'embreagem do pto', 'embreagem da tomada de forca', 'embreagem da tomada de força', 'pto clutch', 'electric clutch', 'blade clutch'] },
   { key: 'gearbox', terms: ['caixa de transmissao', 'caixa de transmissão', 'caixa de engrenagem', 'caixa de engrenagens', 'ponteira', 'ponteira da rocadeira', 'ponteira da roçadeira', 'engrenagem conica', 'engrenagem cônica', 'bevel gear', 'angle gear', 'gearbox', 'gear box'] },
+  { key: 'transaxle', terms: ['transaxle', 'transmissao hidrostatica', 'transmissão hidrostática', 'cambio hidrostatico', 'câmbio hidrostático', 'caixa hidrostatica', 'caixa hidrostática', 'hydrostatic transmission', 'hydro gear'] },
   { key: 'gear', terms: ['engrenagem', 'carreto', 'gear'] },
+  { key: 'worm-gear', terms: ['engrenagem sem fim', 'engrenagem sem-fim', 'rosca sem fim', 'rosca sem-fim', 'worm gear'] },
   { key: 'shaft', terms: ['eixo', 'veio', 'shaft', 'drive shaft', 'eixo de transmissao', 'eixo de transmissão'] },
   { key: 'tube', terms: ['tubo', 'haste', 'tube', 'shaft tube'] },
   { key: 'drive-belt', terms: ['correia', 'correia de transmissao', 'correia de transmissão', 'correia do deck', 'correia da plataforma', 'drive belt', 'deck belt', 'belt'] },
   { key: 'pulley', terms: ['polia', 'roldana', 'pulley'] },
+  { key: 'idler-pulley', terms: ['polia tensora', 'polia tensionadora', 'polia guia', 'polia de retorno', 'esticador da correia', 'tensor da correia', 'idler pulley', 'tension pulley', 'belt idler'] },
   { key: 'spindle', terms: ['mandril da lamina', 'mandril da lâmina', 'eixo da lamina', 'eixo da lâmina', 'mancal da lamina', 'mancal da lâmina', 'spindle', 'blade spindle'] },
   { key: 'axle', terms: ['eixo da roda', 'eixo traseiro', 'eixo dianteiro', 'axle'] },
 
@@ -96,21 +103,40 @@ const VOCABULARY: VocabularyEntry[] = [
   { key: 'blade', terms: ['lamina', 'lâmina', 'faca', 'navalha', 'blade', 'knife'] },
   { key: 'blade-set', terms: ['jogo de laminas', 'jogo de lâminas', 'kit de laminas', 'kit de lâminas', 'blade set', 'blade kit'] },
   { key: 'blade-adapter', terms: ['adaptador da lamina', 'adaptador da lâmina', 'suporte da lamina', 'suporte da lâmina', 'blade adapter'] },
-  { key: 'cutting-deck', terms: ['deck', 'plataforma de corte', 'carcaca do deck', 'carcaça do deck', 'cutter deck', 'cutting deck', 'mower deck'] },
+  { key: 'blade-flange', terms: ['flange da lamina', 'flange da lâmina', 'arruela de apoio da lamina', 'arruela de apoio da lâmina', 'acionador da lamina', 'acionador da lâmina', 'drive disc', 'support flange', 'blade flange'] },
+  { key: 'blade-cup', terms: ['copo da lamina', 'copo da lâmina', 'copinho da lamina', 'copinho da lâmina', 'prato da lamina', 'prato da lâmina', 'support cup', 'blade cup'] },
+  { key: 'cutting-deck', terms: ['deck', 'plataforma de corte', 'unidade de corte', 'carcaca do deck', 'carcaça do deck', 'cutter deck', 'cutting deck', 'mower deck'] },
   { key: 'cutting-disc', terms: ['disco cortador', 'disco de corte', 'disco de laminas', 'disco de lâminas', 'cutting disc', 'blade disc'] },
   { key: 'skid-plate', terms: ['placa de deslize', 'placa deslizante', 'placa derrapante', 'skid plate', 'sliding plate'] },
-  { key: 'guard', terms: ['protecao', 'proteção', 'protetor', 'guarda', 'defletor', 'protection', 'guard', 'shield'] },
+  {
+    key: 'discharge-deflector',
+    terms: [
+      'saia lateral', 'saia lateral do deck', 'defletor', 'defletor lateral', 'defletor de descarga',
+      'defletor de descarga lateral', 'calha lateral', 'calha de descarga', 'calha de descarga lateral',
+      'bica lateral', 'bica de descarga', 'saida lateral', 'saída lateral', 'chute lateral',
+      'side discharge chute', 'discharge chute', 'discharge deflector', 'grass deflector',
+    ],
+  },
+  { key: 'rear-skirt', terms: ['saia traseira', 'saia de tras', 'saia de trás', 'aba traseira', 'rear skirt', 'rear flap'] },
+  { key: 'grass-collector', terms: ['coletor de grama', 'coletor de relva', 'cesto coletor', 'saco coletor', 'recolhedor de grama', 'grass collector', 'grass catcher', 'bagger', 'grass bag'] },
+  { key: 'mulch-plug', terms: ['tampa mulch', 'tampao mulch', 'tampão mulch', 'bujão mulch', 'plug mulch', 'kit mulch', 'mulch plug', 'mulching plug', 'bio clip plug', 'bioclip plug'] },
+  { key: 'deck-wheel', terms: ['roda do deck', 'roda da plataforma', 'rodinha do deck', 'roda antiescalpelamento', 'roda anti escalpelamento', 'anti scalp wheel', 'anti-scalp wheel', 'deck wheel'] },
+  { key: 'deck-lift', terms: ['elevador do deck', 'levantamento do deck', 'alavanca de altura de corte', 'alavanca de elevacao', 'alavanca de elevação', 'deck lift', 'cutting height lever'] },
+  { key: 'pto-switch', terms: ['botao pto', 'botão pto', 'interruptor pto', 'chave pto', 'botao da tomada de forca', 'botão da tomada de força', 'interruptor da tomada de forca', 'pto switch', 'blade engagement switch'] },
+  { key: 'guard', terms: ['protecao', 'proteção', 'protetor', 'guarda', 'protection', 'guard', 'shield'] },
   { key: 'harness', terms: ['cinturao', 'cinturão', 'arnes', 'suspensorio', 'suspensório', 'harness'] },
 
   // Motosserras
   { key: 'chain', terms: ['corrente', 'corrente de corte', 'saw chain', 'chain'] },
-  { key: 'guide-bar', terms: ['sabre', 'barra guia', 'barra-guia', 'guia da corrente', 'guide bar', 'bar'] },
+  { key: 'guide-bar', terms: ['sabre', 'barra guia', 'barra-guia', 'barra da motosserra', 'guia da corrente', 'guide bar', 'bar'] },
+  { key: 'bar-nut', terms: ['porca do sabre', 'porca da barra', 'porca da tampa da embreagem', 'bar nut', 'guide bar nut'] },
   { key: 'sprocket', terms: ['pinhao', 'pinhão', 'pinhao da corrente', 'pinhão da corrente', 'coroa', 'sprocket', 'rim sprocket', 'drive sprocket'] },
   { key: 'oil-pump', terms: ['bomba de oleo', 'bomba de óleo', 'bomba lubrificacao', 'bomba de lubrificação', 'oil pump'] },
   { key: 'chain-brake', terms: ['freio da corrente', 'travao da corrente', 'travão da corrente', 'chain brake'] },
   { key: 'chain-catcher', terms: ['pega corrente', 'captor de corrente', 'pino pega corrente', 'chain catcher'] },
-  { key: 'chain-tensioner', terms: ['tensor da corrente', 'esticador da corrente', 'tensionador da corrente', 'chain tensioner'] },
-  { key: 'chain-cover', terms: ['tampa da corrente', 'tampa lateral', 'tampa do pinhao', 'tampa do pinhão', 'clutch cover', 'chain cover', 'sprocket cover'] },
+  { key: 'chain-tensioner', terms: ['tensor da corrente', 'esticador da corrente', 'tensionador da corrente', 'parafuso esticador da corrente', 'chain tensioner', 'chain adjuster'] },
+  { key: 'chain-cover', terms: ['tampa da corrente', 'tampa lateral', 'tampa do pinhao', 'tampa do pinhão', 'cobertura da embreagem', 'clutch cover', 'chain cover', 'sprocket cover'] },
+  { key: 'spike-bumper', terms: ['garra', 'garra de apoio', 'garra de abate', 'batente de garra', 'spike bumper', 'bucking spike', 'felling spike'] },
 
   // Sopradores e ventilação
   { key: 'fan', terms: ['ventoinha', 'ventilador', 'turbina', 'rotor do soprador', 'impeller', 'fan'] },
@@ -120,6 +146,7 @@ const VOCABULARY: VocabularyEntry[] = [
   // Elétrico, bateria e Automower
   { key: 'battery', terms: ['bateria', 'acumulador', 'battery'] },
   { key: 'charger', terms: ['carregador', 'carregador de bateria', 'charger', 'battery charger'] },
+  { key: 'charging-contact', terms: ['contato de carga', 'contacto de carga', 'terminal de carga', 'placa de carga', 'charging contact', 'charging strip', 'charging plate'] },
   { key: 'electric-motor', terms: ['motor eletrico', 'motor elétrico', 'electric motor', 'motor assy'] },
   { key: 'blade-motor', terms: ['motor da lamina', 'motor da lâmina', 'motor de corte', 'cutter motor', 'cutter motor assy', 'blade motor'] },
   { key: 'wheel-motor', terms: ['motor da roda', 'motor de tracao', 'motor de tração', 'wheel motor', 'drive motor'] },
@@ -131,13 +158,20 @@ const VOCABULARY: VocabularyEntry[] = [
   { key: 'keypad', terms: ['teclado', 'painel de teclas', 'keypad'] },
   { key: 'display', terms: ['display', 'visor', 'tela', 'ecra', 'ecrã'] },
 
-  // Rodagem, comando e estrutura
+  // Rodagem, comando, chassi e tratores
   { key: 'wheel', terms: ['roda', 'rodinha', 'wheel'] },
   { key: 'tire', terms: ['pneu', 'tire', 'tyre'] },
   { key: 'handle', terms: ['guidao', 'guidão', 'alca', 'alça', 'punho', 'pega', 'manete', 'handle', 'handlebar', 'grip'] },
   { key: 'brake', terms: ['freio', 'travao', 'travão', 'brake'] },
   { key: 'seat', terms: ['banco', 'assento', 'seat'] },
   { key: 'steering-wheel', terms: ['volante de direcao', 'volante de direção', 'volante do trator', 'steering wheel'] },
+  { key: 'steering-link', terms: ['barra de direcao', 'barra de direção', 'tirante de direcao', 'tirante de direção', 'barra axial', 'tie rod', 'steering link', 'drag link'] },
+  { key: 'hood', terms: ['capo', 'capô', 'capot', 'tampa do motor', 'hood', 'bonnet'] },
+  { key: 'fender', terms: ['paralama', 'para-lama', 'paralamas', 'para-lamas', 'fender', 'mudguard'] },
+  { key: 'chassis', terms: ['chassi', 'chassis', 'quadro principal', 'main frame', 'frame'] },
+
+  // Aparadores de cerca viva
+  { key: 'cutter-bar', terms: ['barra de corte', 'barra de laminas', 'barra de lâminas', 'conjunto de laminas', 'conjunto de lâminas', 'cutter bar', 'cutter blade assy', 'blade assembly'] },
 
   // Elementos mecânicos genéricos
   { key: 'bearing', terms: ['rolamento', 'rolamento de esferas', 'mancal', 'bearing', 'ball bearing'] },
@@ -301,13 +335,49 @@ export function inferPartQueryRelation(value: string): PartQueryRelation | null 
 export function semanticQueryText(value: string, ignoredValues: string[] = []): string {
   const groups = buildSearchGroups(value, ignoredValues);
   const variants = [...new Set(groups.flatMap(group => group.variants))].slice(0, 48);
+  const relation = inferPartQueryRelation(value);
+  const relationHint = relation
+    ? `Peça procurada: ${relation.primary.variants.slice(0, 8).join(', ')}. Conjunto ou contexto: ${relation.context.variants.slice(0, 8).join(', ')}.`
+    : '';
   if (!variants.length) return value.trim();
-  return [value.trim(), `Equivalentes técnicos: ${variants.join(', ')}`].filter(Boolean).join('\n');
+  return [value.trim(), `Equivalentes técnicos: ${variants.join(', ')}`, relationHint].filter(Boolean).join('\n');
 }
 
+function compactRelationAliases(primary: SearchGroup, context: SearchGroup): string[] {
+  const primaryTerms = primary.variants.filter(term => words(term).length <= 3).slice(0, 5);
+  const contextTerms = context.variants.filter(term => words(term).length <= 4).slice(0, 6);
+  const aliases: string[] = [];
+  for (const primaryTerm of primaryTerms) {
+    for (const contextTerm of contextTerms) {
+      aliases.push(`${primaryTerm} ${contextTerm}`);
+      aliases.push(`${primaryTerm} de ${contextTerm}`);
+    }
+  }
+  return aliases;
+}
+
+/**
+ * Cria termos SOMENTE para recuperação/embedding a partir da peça e da vista reais.
+ * Eles não viram nomes oficiais no banco. Isso ensina relações como SCREW em CLUTCH
+ * -> "parafuso embreagem" sem inventar código ou aplicação.
+ */
 export function inferredSearchAliases(name: string, section = '', aliases: string[] = []): string[] {
-  const concepts = findPartConcepts([name, section, ...aliases].filter(Boolean).join(' '));
-  return [...new Set(concepts.flatMap(group => group.variants))].slice(0, 48);
+  const nameConcepts = findPartConcepts([name, ...aliases].filter(Boolean).join(' '));
+  const sectionConcepts = findPartConcepts(section);
+  const values = new Set<string>();
+
+  for (const group of [...nameConcepts, ...sectionConcepts]) {
+    for (const variant of group.variants) values.add(variant);
+  }
+
+  const primaryConcepts = nameConcepts.filter(group => RELATIONAL_PRIMARY_KEYS.has(group.key));
+  for (const primary of primaryConcepts.slice(0, 2)) {
+    for (const context of sectionConcepts.filter(group => group.key !== primary.key).slice(0, 3)) {
+      for (const alias of compactRelationAliases(primary, context)) values.add(alias);
+    }
+  }
+
+  return [...values].filter(Boolean).slice(0, 80);
 }
 
 function containsVariant(value: string, variant: string): boolean {
