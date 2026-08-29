@@ -20,7 +20,7 @@ type Message = {
   feedbackPending?: boolean;
   feedbackError?: string;
 };
-type Equipment = { id: string; manufacturer: string; model: string; pnc: string; label: string };
+type Equipment = { id: string; manufacturer: string; model: string; pnc: string; serial?: string; label: string };
 type Recent = { id: string; query: string; pnc: string };
 
 const EQUIPMENT_KEY = 'cognivault_saved_equipment';
@@ -254,6 +254,7 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
   const [manufacturer, setManufacturer] = useState('');
   const [model, setModel] = useState('');
   const [pnc, setPnc] = useState('');
+  const [serial, setSerial] = useState('');
   const [loading, setLoading] = useState(false);
   const [equipment, setEquipment] = useState<Equipment[]>(() => read<Equipment[]>(equipmentKey, []));
   const [recent, setRecent] = useState<Recent[]>(() => read<Recent[]>(recentKey, []));
@@ -285,7 +286,9 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
 
   const baseQuestion = question.trim();
   const machine = [manufacturer.trim(), model.trim()].filter(Boolean).join(' ');
-  const composed = baseQuestion ? (machine ? `${baseQuestion} do equipamento ${machine}` : baseQuestion) : '';
+  const serialContext = serial.trim() ? `S/N ${serial.trim()}` : '';
+  const equipmentContext = [machine, serialContext].filter(Boolean).join(' · ');
+  const composed = baseQuestion ? (equipmentContext ? `${baseQuestion} do equipamento ${equipmentContext}` : baseQuestion) : '';
 
   const notify = (text: string) => {
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
@@ -473,8 +476,8 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
   };
 
   const saveEquipment = () => {
-    if (!manufacturer.trim() && !model.trim() && !pnc.trim()) {
-      notify('Preencha fabricante, modelo ou PNC.');
+    if (!manufacturer.trim() && !model.trim() && !pnc.trim() && !serial.trim()) {
+      notify('Preencha fabricante, modelo, PNC ou S/N.');
       return;
     }
     const item: Equipment = {
@@ -482,7 +485,8 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
       manufacturer: manufacturer.trim(),
       model: model.trim(),
       pnc: pnc.trim(),
-      label: [manufacturer.trim(), model.trim(), pnc.trim() ? `PNC ${pnc.trim()}` : ''].filter(Boolean).join(' · '),
+      serial: serial.trim(),
+      label: [manufacturer.trim(), model.trim(), pnc.trim() ? `PNC ${pnc.trim()}` : '', serial.trim() ? `S/N ${serial.trim()}` : ''].filter(Boolean).join(' · '),
     };
     const next = [item, ...equipment.filter(saved => saved.label !== item.label)].slice(0, 6);
     setEquipment(next);
@@ -510,9 +514,10 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
     void ask(`${description} do equipamento ${nextModel}`, message.pnc);
   };
 
-  const continueWithSerial = (message: Message, serial: string) => {
+  const continueWithSerial = (message: Message, nextSerial: string) => {
     if (!message.query) return;
-    void ask(`${message.query} · S/N ${serial}`, message.pnc);
+    setSerial(nextSerial);
+    void ask(`${message.query} · S/N ${nextSerial}`, message.pnc);
   };
 
   const chooseAmbiguousOption = (message: Message, option: FeedbackOption) => {
@@ -545,13 +550,14 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_330px]">
         <div className="cv-surface overflow-hidden rounded-[24px]">
-          <div className="grid gap-3 border-b border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-3">
+          <div className="grid gap-3 border-b border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-2 lg:grid-cols-4">
             <label className="grid gap-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">Fabricante<input value={manufacturer} onChange={event => setManufacturer(event.target.value)} placeholder="Ex.: Husqvarna" className="cv-field text-sm font-normal normal-case tracking-normal" /></label>
             <label className="grid gap-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">Modelo<input value={model} onChange={event => setModel(event.target.value)} placeholder="Ex.: 143RS" className="cv-field text-sm font-normal normal-case tracking-normal" /></label>
             <label className="grid gap-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">PNC<input value={pnc} onChange={event => setPnc(event.target.value)} placeholder="Ex.: 967 33 26-01" className="cv-field text-sm font-normal normal-case tracking-normal" /></label>
-            <div className="flex flex-wrap items-center gap-2 sm:col-span-3">
+            <label className="grid gap-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">S/N <span className="font-normal normal-case tracking-normal text-slate-300">opcional</span><input inputMode="numeric" autoComplete="off" value={serial} onChange={event => setSerial(event.target.value.replace(/\D/g, '').slice(0, 16))} placeholder="Ex.: 20240200001" className="cv-field text-sm font-normal normal-case tracking-normal" /></label>
+            <div className="flex flex-wrap items-center gap-2 sm:col-span-2 lg:col-span-4">
               <button type="button" onClick={saveEquipment} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold">☆ Salvar equipamento</button>
-              {(manufacturer || model || pnc) ? <button type="button" onClick={() => { setManufacturer(''); setModel(''); setPnc(''); }} className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-400 hover:bg-white hover:text-slate-700">Limpar equipamento</button> : null}
+              {(manufacturer || model || pnc || serial) ? <button type="button" onClick={() => { setManufacturer(''); setModel(''); setPnc(''); setSerial(''); }} className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-400 hover:bg-white hover:text-slate-700">Limpar equipamento</button> : null}
             </div>
           </div>
 
@@ -589,7 +595,7 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
 
                       {message.response?.pncOptions?.length ? <div className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600">Selecione o PNC da etiqueta</div><div className="flex flex-wrap gap-2">{message.response.pncOptions.map(option => <button type="button" key={option} onClick={() => choosePnc(message, option)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs">PNC {option}</button>)}</div></div> : null}
                       {message.response?.modelOptions?.length ? <div className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600">Confirmar modelo</div><div className="flex flex-wrap gap-2">{message.response.modelOptions.map(option => <button type="button" key={option} onClick={() => chooseModel(message, option)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs">{option}</button>)}</div></div> : null}
-                      {message.response?.serialRequired ? <SerialFollowUp disabled={loading} onSubmit={serial => continueWithSerial(message, serial)} /> : null}
+                      {message.response?.serialRequired ? <SerialFollowUp disabled={loading} onSubmit={nextSerial => continueWithSerial(message, nextSerial)} /> : null}
                       {message.response?.status === 'AMBIGUOUS' && message.response.options?.length ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Qual item da vista corresponde à peça?</div><div className="mt-2 grid gap-2">{message.response.options.map(option => <button type="button" key={option.id} onClick={() => chooseAmbiguousOption(message, option)} className="rounded-lg border border-slate-200 p-2 text-left text-xs hover:bg-slate-50"><b>{option.name}</b><span className="mt-0.5 block font-semibold text-[#1d4f91]">Código {option.partNumber}</span><span className="block text-slate-500">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span>{option.section ? <span className="mt-1 block text-slate-500">Vista: {option.section}</span> : null}{option.notes ? <span className="mt-1 block font-semibold text-amber-700">Aplicação: {option.notes}</span> : null}</button>)}</div></div> : null}
 
                       {message.response?.part && !message.feedback ? <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3"><span className="text-xs text-slate-500">Este resultado ajudou?</span><button type="button" disabled={message.feedbackPending} onClick={() => void positiveFeedback(index)} className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-700 disabled:opacity-50">👍 Sim</button><button type="button" disabled={message.feedbackPending} onClick={() => void startNegative(index)} className="rounded-lg bg-rose-50 px-2 py-1 text-rose-700 disabled:opacity-50">👎 Não</button>{message.feedbackPending ? <span className="text-xs text-slate-400">Salvando…</span> : null}</div> : null}
@@ -617,10 +623,10 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
         <aside className="space-y-4">
           <div className="cv-surface rounded-[22px] p-5">
             <div className="text-sm font-semibold">Equipamentos salvos</div>
-            <p className="mt-1 text-xs text-slate-400">Reaplique modelo e PNC usados com frequência.</p>
+            <p className="mt-1 text-xs text-slate-400">Reaplique modelo, PNC e S/N usados com frequência nesta estação.</p>
             <div className="mt-4 grid gap-2">
               {!equipment.length ? <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-400">Nenhum equipamento salvo.</div> : null}
-              {equipment.map(item => <div key={item.id} className="flex items-center gap-2 rounded-xl border border-slate-200 p-2"><button type="button" onClick={() => { setManufacturer(item.manufacturer); setModel(item.model); setPnc(item.pnc); notify('Equipamento aplicado.'); }} className="min-w-0 flex-1 rounded-lg p-1 text-left text-xs hover:bg-slate-50"><b className="block truncate text-slate-700">{item.label}</b><span className="mt-1 block text-slate-400">Usar nesta busca</span></button><button type="button" onClick={() => removeEquipment(item.id)} aria-label={`Remover ${item.label}`} title="Remover equipamento" className="rounded-lg px-2 py-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600">×</button></div>)}
+              {equipment.map(item => <div key={item.id} className="flex items-center gap-2 rounded-xl border border-slate-200 p-2"><button type="button" onClick={() => { setManufacturer(item.manufacturer); setModel(item.model); setPnc(item.pnc); setSerial(item.serial || ''); notify('Equipamento aplicado.'); }} className="min-w-0 flex-1 rounded-lg p-1 text-left text-xs hover:bg-slate-50"><b className="block truncate text-slate-700">{item.label}</b><span className="mt-1 block text-slate-400">Usar nesta busca</span></button><button type="button" onClick={() => removeEquipment(item.id)} aria-label={`Remover ${item.label}`} title="Remover equipamento" className="rounded-lg px-2 py-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600">×</button></div>)}
             </div>
           </div>
 
