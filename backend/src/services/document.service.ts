@@ -39,6 +39,70 @@ function hasPdfSignature(buffer: Buffer): boolean {
     return buffer.subarray(0, Math.min(buffer.length, 1024)).includes(Buffer.from('%PDF-'));
 }
 
+/**
+ * Registros antigos de desenvolvimento podem ter sido marcados COMPLETED sem
+ * qualquer extração, peça ou metadado. Eles são preservados para auditoria, mas
+ * não representam um catálogo técnico utilizável e não devem poluir a biblioteca.
+ */
+const legacyEmptyFilter = {
+    status: 'COMPLETED',
+    processingStage: 'IDLE',
+    extractionMethod: null,
+    manufacturer: null,
+    model: null,
+    pnc: null,
+    parts: { none: { active: true } },
+} as const;
+
+const documentListSelect = {
+    id: true,
+    filename: true,
+    status: true,
+    manufacturer: true,
+    model: true,
+    pnc: true,
+    createdAt: true,
+    archivedAt: true,
+    processingJobId: true,
+    processingStage: true,
+    processingCurrent: true,
+    processingTotal: true,
+    processingError: true,
+    extractionMethod: true,
+    healthScore: true,
+    reviewStatus: true,
+    reviewReasons: true,
+    qualityCheckedAt: true,
+    category: { select: { name: true } },
+    _count: { select: { parts: { where: { active: true } } } },
+} as const;
+
+function toDocumentListItem(document: any) {
+    const filename = safeFilename(document.filename);
+    return {
+        id: document.id,
+        filename,
+        status: document.status,
+        manufacturer: document.manufacturer,
+        model: document.model,
+        pnc: document.pnc,
+        category: document.category?.name || inferCatalogCategory({ filename, model: document.model }),
+        createdAt: document.createdAt,
+        partCount: document._count.parts,
+        archivedAt: document.archivedAt,
+        processingActive: Boolean(document.processingJobId),
+        processingStage: document.processingStage,
+        processingCurrent: document.processingCurrent,
+        processingTotal: document.processingTotal,
+        processingError: document.processingError,
+        extractionMethod: document.extractionMethod,
+        healthScore: document.healthScore,
+        reviewStatus: document.reviewStatus,
+        reviewReasons: document.reviewReasons,
+        qualityCheckedAt: document.qualityCheckedAt,
+    };
+}
+
 export class DocumentService {
     categories(): readonly string[] {
         return CATALOG_CATEGORY_NAMES;
@@ -123,47 +187,17 @@ export class DocumentService {
 
     async list(tenantId: string) {
         const documents = await prisma.document.findMany({
-            where: { tenantId, archivedAt: null },
-            orderBy: { createdAt: 'desc' },
-            select: {
-                id: true,
-                filename: true,
-                status: true,
-                manufacturer: true,
-                model: true,
-                pnc: true,
-                createdAt: true,
-                archivedAt: true,
-                processingJobId: true,
-                processingStage: true,
-                processingCurrent: true,
-                processingTotal: true,
-                processingError: true,
-                category: { select: { name: true } },
-                _count: { select: { parts: { where: { active: true } } } },
+            where: {
+                tenantId,
+                archivedAt: null,
+                processingStage: { not: 'REMOVED' },
+                NOT: legacyEmptyFilter,
             },
+            orderBy: { createdAt: 'desc' },
+            select: documentListSelect,
         });
 
-        return documents.map((document) => {
-            const filename = safeFilename(document.filename);
-            return {
-                id: document.id,
-                filename,
-                status: document.status,
-                manufacturer: document.manufacturer,
-                model: document.model,
-                pnc: document.pnc,
-                category: document.category?.name || inferCatalogCategory({ filename, model: document.model }),
-                createdAt: document.createdAt,
-                partCount: document._count.parts,
-                archivedAt: document.archivedAt,
-                processingActive: Boolean(document.processingJobId),
-                processingStage: document.processingStage,
-                processingCurrent: document.processingCurrent,
-                processingTotal: document.processingTotal,
-                processingError: document.processingError,
-            };
-        });
+        return documents.map(toDocumentListItem);
     }
 
     async setCategory(tenantId: string, documentId: string, categoryName: unknown) {
@@ -339,44 +373,9 @@ export class DocumentService {
         const documents = await prisma.document.findMany({
             where: { tenantId, processingStage: { not: 'REMOVED' } },
             orderBy: { createdAt: 'desc' },
-            select: {
-                id: true,
-                filename: true,
-                status: true,
-                manufacturer: true,
-                model: true,
-                pnc: true,
-                createdAt: true,
-                archivedAt: true,
-                processingJobId: true,
-                processingStage: true,
-                processingCurrent: true,
-                processingTotal: true,
-                processingError: true,
-                category: { select: { name: true } },
-                _count: { select: { parts: { where: { active: true } } } },
-            },
+            select: documentListSelect,
         });
 
-        return documents.map((document) => {
-            const filename = safeFilename(document.filename);
-            return {
-                id: document.id,
-                filename,
-                status: document.status,
-                manufacturer: document.manufacturer,
-                model: document.model,
-                pnc: document.pnc,
-                category: document.category?.name || inferCatalogCategory({ filename, model: document.model }),
-                createdAt: document.createdAt,
-                archivedAt: document.archivedAt,
-                partCount: document._count.parts,
-                processingActive: Boolean(document.processingJobId),
-                processingStage: document.processingStage,
-                processingCurrent: document.processingCurrent,
-                processingTotal: document.processingTotal,
-                processingError: document.processingError,
-            };
-        });
+        return documents.map(toDocumentListItem);
     }
 }

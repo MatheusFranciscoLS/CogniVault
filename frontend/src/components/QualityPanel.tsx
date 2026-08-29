@@ -43,7 +43,7 @@ export default function QualityPanel() {
     try{
       const response=await apiJson<{message:string}>('/api/admin/quality/rebuild-knowledge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({limit:500})});
       await load();setNotice(response.message);
-    }catch(rebuildError){setError(rebuildError instanceof Error?rebuildError.message:'Não foi possível atualizar a memória técnica.')}finally{setRebuilding(false)}
+    }catch(rebuildError){setError(rebuildError instanceof Error?rebuildError.message:'Não foi possível analisar os catálogos existentes.')}finally{setRebuilding(false)}
   };
   const openEdit=(catalog:QualityCatalog)=>{setEditing(catalog.id);setDraft({manufacturer:catalog.manufacturer||'',model:catalog.model||'',pnc:catalog.pnc||''})};
   const saveMetadata=async(catalog:QualityCatalog)=>{
@@ -71,7 +71,7 @@ export default function QualityPanel() {
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div><p className="cv-kicker">Confiabilidade</p><h1 className="cv-page-title">Qualidade IA</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Monitore a qualidade dos catálogos, revise metadados e meça a busca com casos reais antes de confiar em uma alteração de IA.</p></div>
       <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={rebuilding||benchmarking||loading} onClick={()=>void rebuildKnowledge()} className="rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#1d4f91] disabled:cursor-not-allowed disabled:opacity-50">{rebuilding?'Atualizando memória…':'Atualizar memória técnica'}</button>
+        <button type="button" disabled={rebuilding||benchmarking||loading} onClick={()=>void rebuildKnowledge()} className="rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#1d4f91] disabled:cursor-not-allowed disabled:opacity-50">{rebuilding?'Analisando catálogos…':'Analisar catálogos existentes · sem IA'}</button>
         <button type="button" disabled={benchmarking||rebuilding||loading} onClick={()=>void runBenchmark()} className="cv-primary px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50">{benchmarking?'Executando benchmark…':'Executar benchmark real'}</button>
       </div>
     </div>
@@ -91,7 +91,7 @@ export default function QualityPanel() {
           </>:<div className="mt-6 rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">Nenhum benchmark foi executado neste tenant ainda.</div>}
         </div>
 
-        <div className="cv-surface rounded-[22px] p-5"><div className="text-sm font-semibold text-slate-900">Integridade da indexação</div><div className="mt-4 grid gap-3"><InfoRow label="Sem embedding" value={data.summary.partsWithoutEmbedding}/><InfoRow label="Sem página" value={data.summary.partsWithoutPage}/><InfoRow label="Sem seção" value={data.summary.partsWithoutSection}/><InfoRow label="Arquivados" value={data.hygiene.archivedRecords}/><InfoRow label="Histórico removido" value={data.hygiene.removedHistoricalRecords}/></div><p className="mt-4 text-[11px] leading-5 text-slate-400">{data.hygiene.note}</p><div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3 text-[11px] leading-5 text-blue-800">“Atualizar memória técnica” reaproveita somente peças já extraídas. Não reabre o PDF, não altera códigos e não consome embeddings externos.</div></div>
+        <div className="cv-surface rounded-[22px] p-5"><div className="text-sm font-semibold text-slate-900">Integridade da indexação</div><div className="mt-4 grid gap-3"><InfoRow label="Sem embedding" value={data.summary.partsWithoutEmbedding}/><InfoRow label="Sem página" value={data.summary.partsWithoutPage}/><InfoRow label="Sem seção" value={data.summary.partsWithoutSection}/><InfoRow label="Registros legados vazios" value={data.hygiene.legacyEmptyRecords}/><InfoRow label="Arquivados" value={data.hygiene.archivedRecords}/><InfoRow label="Histórico removido" value={data.hygiene.removedHistoricalRecords}/></div><p className="mt-4 text-[11px] leading-5 text-slate-400">{data.hygiene.note}</p><div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3 text-[11px] leading-5 text-blue-800">“Analisar catálogos existentes” reaproveita somente peças já extraídas. Não reabre o PDF, não altera códigos, não cria embeddings e não consome Gemini.</div></div>
       </div>
 
       <div className="cv-surface mt-5 overflow-hidden rounded-[22px]">

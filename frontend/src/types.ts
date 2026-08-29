@@ -72,5 +72,5 @@ export interface BenchmarkRun { id:string; caseCount:number; metrics:BenchmarkMe
 export interface AiQualityData {
   summary:{catalogs:number;readyCatalogs:number;needsReview:number;averageHealth:number;parts:number;technicalMemoryChunks:number;partsWithoutEmbedding:number;partsWithoutPage:number;partsWithoutSection:number};
   reviewQueue:QualityCatalog[]; catalogs:QualityCatalog[];
-  hygiene:{archivedRecords:number;removedHistoricalRecords:number;note:string}; benchmarkRuns:BenchmarkRun[];
+  hygiene:{archivedRecords:number;removedHistoricalRecords:number;legacyEmptyRecords:number;note:string}; benchmarkRuns:BenchmarkRun[];
 }

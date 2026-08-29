@@ -11,6 +11,19 @@ function code(value: string): string { return normalizeIdentifier(value); }
 
 function percent(value: number): number { return Math.round(value * 10_000) / 100; }
 
+// Registros históricos de desenvolvimento sem PDF processado, metadado ou peça.
+// Eles permanecem no banco/auditoria, porém não podem reduzir artificialmente a
+// saúde da biblioteca nem aparecer como catálogos que exigem revisão técnica.
+const LEGACY_EMPTY_DOCUMENT = {
+  status: 'COMPLETED',
+  processingStage: 'IDLE',
+  extractionMethod: null,
+  manufacturer: null,
+  model: null,
+  pnc: null,
+  parts: { none: { active: true } },
+} as const;
+
 export class AiQualityService {
   static async overview(tenantId: string) {
     const unchecked = await prisma.document.findMany({
@@ -20,6 +33,7 @@ export class AiQualityService {
         processingStage: { not: 'REMOVED' },
         status: 'COMPLETED',
         qualityCheckedAt: null,
+        NOT: LEGACY_EMPTY_DOCUMENT,
       },
       take: 40,
       select: { id: true },
@@ -29,9 +43,14 @@ export class AiQualityService {
       catch (error) { console.warn('⚠️ Diagnóstico de catálogo pendente:', error instanceof Error ? error.message : error); }
     }
 
-    const [documents, partCount, chunks, noEmbedding, noPage, noSection, archived, removed, latestRuns] = await Promise.all([
+    const [documents, partCount, chunks, noEmbedding, noPage, noSection, archived, removed, legacyEmpty, latestRuns] = await Promise.all([
       prisma.document.findMany({
-        where: { tenantId, archivedAt: null, processingStage: { not: 'REMOVED' } },
+        where: {
+          tenantId,
+          archivedAt: null,
+          processingStage: { not: 'REMOVED' },
+          NOT: LEGACY_EMPTY_DOCUMENT,
+        },
         orderBy: [{ reviewStatus: 'asc' }, { healthScore: 'asc' }, { createdAt: 'desc' }],
         select: {
           id: true, filename: true, manufacturer: true, model: true, pnc: true, status: true,
@@ -48,6 +67,7 @@ export class AiQualityService {
       prisma.part.count({ where: { active: true, section: null, document: { tenantId, archivedAt: null, status: 'COMPLETED', processingStage: { not: 'REMOVED' } } } }),
       prisma.document.count({ where: { tenantId, archivedAt: { not: null }, processingStage: { not: 'REMOVED' } } }),
       prisma.document.count({ where: { tenantId, processingStage: 'REMOVED' } }),
+      prisma.document.count({ where: { tenantId, archivedAt: null, ...LEGACY_EMPTY_DOCUMENT } }),
       prisma.aiBenchmarkRun.findMany({
         where: { tenantId }, orderBy: { createdAt: 'desc' }, take: 10,
         select: { id: true, caseCount: true, metrics: true, details: true, createdAt: true },
@@ -77,7 +97,8 @@ export class AiQualityService {
       hygiene: {
         archivedRecords: archived,
         removedHistoricalRecords: removed,
-        note: 'Diagnóstico limitado ao tenant atual. Nenhuma limpeza destrutiva é executada automaticamente.',
+        legacyEmptyRecords: legacyEmpty,
+        note: 'Registros legados vazios ficam preservados para auditoria, mas são ocultados da biblioteca e das métricas técnicas. Nenhuma limpeza destrutiva é executada automaticamente.',
       },
       benchmarkRuns: latestRuns,
     };
