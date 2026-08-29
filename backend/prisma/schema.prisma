@@ -8,16 +8,17 @@ datasource db {
 }
 
 model Tenant {
-  id             String           @id @default(uuid())
-  name           String
-  users          User[]
-  categories     Category[]
-  documents      Document[]
-  searchFeedback SearchFeedback[]
-  searchHistory  SearchHistory[]
-  favorites      Favorite[]
-  auditLogs      AuditLog[]
-  createdAt      DateTime         @default(now())
+  id                    String                     @id @default(uuid())
+  name                  String
+  users                 User[]
+  categories            Category[]
+  documents             Document[]
+  searchFeedback        SearchFeedback[]
+  searchHistory         SearchHistory[]
+  favorites             Favorite[]
+  auditLogs             AuditLog[]
+  officialVerifications OfficialPartVerification[]
+  createdAt             DateTime                   @default(now())
 }
 
 enum Role {
@@ -31,19 +32,26 @@ enum UserStatus {
   REJECTED
 }
 
+enum OfficialVerificationStatus {
+  VERIFIED
+  SUPERSEDED
+  REVIEW
+}
+
 model User {
-  id             String           @id @default(uuid())
-  email          String           @unique
-  password       String
-  role           Role             @default(MECHANIC)
-  status         UserStatus       @default(PENDING)
-  tenantId       String
-  tenant         Tenant           @relation(fields: [tenantId], references: [id])
-  searchFeedback SearchFeedback[]
-  searchHistory  SearchHistory[]
-  favorites      Favorite[]
-  auditLogs      AuditLog[]
-  createdAt      DateTime         @default(now())
+  id                    String                     @id @default(uuid())
+  email                 String                     @unique
+  password              String
+  role                   Role                       @default(MECHANIC)
+  status                 UserStatus                 @default(PENDING)
+  tenantId               String
+  tenant                 Tenant                     @relation(fields: [tenantId], references: [id])
+  searchFeedback         SearchFeedback[]
+  searchHistory          SearchHistory[]
+  favorites              Favorite[]
+  auditLogs              AuditLog[]
+  officialVerifications  OfficialPartVerification[]
+  createdAt              DateTime                   @default(now())
 
   @@index([tenantId])
 }
@@ -265,6 +273,29 @@ model AuditLog {
   metadata   Json?
   createdAt  DateTime @default(now())
 
+  @@index([tenantId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model OfficialPartVerification {
+  id                       String                     @id @default(uuid())
+  tenantId                 String
+  tenant                   Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId                   String
+  user                     User                       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status                   OfficialVerificationStatus
+  queriedPartNumber        String
+  normalizedQueriedNumber  String
+  currentPartNumber        String
+  normalizedCurrentNumber  String
+  description              String?
+  officialUrl              String
+  note                     String?
+  verifiedAt               DateTime
+  createdAt                DateTime                   @default(now())
+
+  @@index([tenantId, normalizedQueriedNumber, createdAt])
+  @@index([tenantId, normalizedCurrentNumber, createdAt])
   @@index([tenantId, createdAt])
   @@index([userId, createdAt])
 }
