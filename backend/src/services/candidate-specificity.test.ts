@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { chooseCandidateLocally } from './chat-reliability';
+import { extractTechnicalQualifiers, technicalConstraintBonus } from './candidate-specificity';
 
 test('parafuso da embreagem prioriza o item tecnicamente nomeado como Screw Clutch shoe', () => {
   const candidates = [
@@ -34,4 +35,43 @@ test('a mesma regra funciona para outra família de máquina', () => {
   ];
 
   assert.equal(chooseCandidateLocally('mola do defletor lateral do TS114', candidates).id, 'specific');
+});
+
+test('transmissão esquerda do Z460 ganha evidência e RH é penalizada', () => {
+  const query = 'qual a transmissão esquerda do giro zero Z460?';
+  const left = technicalConstraintBonus(query, { name: 'TRANSMISSÃO HTE 10CC PUMP 230CC MOTOR LH' });
+  const right = technicalConstraintBonus(query, { name: 'TRANSMISSÃO HTE 10CC PUMP 230CC MOTOR RH' });
+  assert.ok(left > 0);
+  assert.ok(right < 0);
+  assert.ok(left - right > 0.5);
+});
+
+test('LC353AWD diferencia transmissão dianteira e traseira', () => {
+  const query = 'qual a transmissão dianteira da LC353AWD?';
+  const front = technicalConstraintBonus(query, { name: 'TRANSMISSÃO AWD Front 21 EFF' });
+  const rear = technicalConstraintBonus(query, { name: 'TRANSMISSÃO REAR, AWD 21IN' });
+  assert.ok(front > rear + 0.5);
+});
+
+test('Rim/Spur, passo e dentes são restrições independentes', () => {
+  const query = 'pinhão Rim 3/8 7 dentes da 365 Special';
+  const exact = technicalConstraintBonus(query, { name: 'CONJ DE EMBRAIAGEM Rim 3/8 7T' });
+  const wrongTeeth = technicalConstraintBonus(query, { name: 'CONJ DE EMBRAIAGEM Rim 3/8 8T' });
+  const spur = technicalConstraintBonus(query, { name: 'CONJ DE EMBRAIAGEM Spur 3/8 7T' });
+  assert.ok(exact > wrongTeeth);
+  assert.ok(exact > spur);
+});
+
+test('dimensão métrica contraditória reduz score do parafuso', () => {
+  const query = 'parafuso M5x20 da embreagem';
+  const exact = technicalConstraintBonus(query, { name: 'SCREW Internal Torx Socket Head Cap M 5 X 20' });
+  const other = technicalConstraintBonus(query, { name: 'SCREW Internal Torx Socket Head Cap M 5 X 16' });
+  assert.ok(exact > 0);
+  assert.ok(other < 0);
+});
+
+test('medida em polegadas não confunde 12 polegadas com o 3/8 do passo', () => {
+  const qualifiers = extractTechnicalQualifiers('lâmina 12" 3/8 mini');
+  assert.equal(qualifiers.inchSize, 12);
+  assert.equal(qualifiers.chainPitch, '3/8');
 });
