@@ -15,6 +15,9 @@ type Message = {
   showReasons?: boolean;
   showCorrections?: boolean;
   reason?: FeedbackReason;
+  feedbackId?: string;
+  feedbackPending?: boolean;
+  feedbackError?: string;
 };
 type Equipment = { id: string; manufacturer: string; model: string; pnc: string; label: string };
 type Recent = { id: string; query: string; pnc: string };
@@ -177,7 +180,7 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages.length, loading]);
+  }, [messages, loading]);
 
   useEffect(() => {
     if (!pdf) return;
@@ -257,36 +260,78 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
     const message = messages[index];
     const part = message.response?.part;
     if (!message.query || !part) return;
+    setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, feedbackPending: true, feedbackError: undefined } : item));
     try {
-      await json(await api('/api/feedback', {
+      const result = await json<{ feedbackId: string }>(await api('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: message.query, partId: part.id, correct: true, pnc: message.pnc }),
       }));
-      setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, feedback: 'correct', showReasons: false, showCorrections: false } : item));
+      setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, feedback: 'correct', feedbackId: result.feedbackId, feedbackPending: false, showReasons: false, showCorrections: false } : item));
       notify('Confirmação registrada.');
-    } catch {
-      notify('Não foi possível salvar o feedback.');
+    } catch (error) {
+      const feedbackError = error instanceof Error ? error.message : 'Não foi possível salvar o feedback.';
+      setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, feedbackPending: false, feedbackError } : item));
+      notify(feedbackError);
     }
   };
 
-  const startNegative = (index: number) => setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, feedback: 'wrong', showReasons: true, showCorrections: false } : item));
-  const chooseReason = (index: number, reason: FeedbackReason) => setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, reason, showReasons: false, showCorrections: true } : item));
+  const startNegative = async (index: number) => {
+    const message = messages[index];
+    const part = message.response?.part;
+    if (!message.query || !part) return;
+    setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, feedbackPending: true, feedbackError: undefined } : item));
+    try {
+      const result = await json<{ feedbackId: string }>(await api('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: message.query, partId: part.id, correct: false, pnc: message.pnc, reason: 'OTHER' }),
+      }));
+      setMessages(current => current.map((item, itemIndex) => itemIndex === index ? {
+        ...item, feedback: 'wrong', feedbackId: result.feedbackId, feedbackPending: false,
+        reason: 'OTHER', showReasons: true, showCorrections: false,
+      } : item));
+      notify('Feedback negativo salvo. Você pode detalhar o motivo.');
+    } catch (error) {
+      const feedbackError = error instanceof Error ? error.message : 'Não foi possível salvar o feedback.';
+      setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, feedbackPending: false, feedbackError } : item));
+      notify(feedbackError);
+    }
+  };
+
+  const chooseReason = async (index: number, reason: FeedbackReason) => {
+    const message = messages[index];
+    if (!message.feedbackId) return;
+    setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, feedbackPending: true, feedbackError: undefined } : item));
+    try {
+      await json(await api(`/api/feedback/${message.feedbackId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }),
+      }));
+      setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, reason, feedbackPending: false, showReasons: false, showCorrections: true } : item));
+    } catch (error) {
+      const feedbackError = error instanceof Error ? error.message : 'Não foi possível detalhar o feedback.';
+      setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, feedbackPending: false, feedbackError } : item));
+      notify(feedbackError);
+    }
+  };
 
   const negativeFeedback = async (index: number, corrected?: FeedbackOption) => {
     const message = messages[index];
     const part = message.response?.part;
-    if (!message.query || !part || !message.reason) return;
+    if (!message.query || !part || !message.reason || !message.feedbackId) return;
+    setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, feedbackPending: true, feedbackError: undefined } : item));
     try {
-      await json(await api('/api/feedback', {
-        method: 'POST',
+      await json(await api(`/api/feedback/${message.feedbackId}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: message.query, partId: part.id, correct: false, correctedPartId: corrected?.id, pnc: message.pnc, reason: message.reason }),
+        body: JSON.stringify({ correctedPartId: corrected?.id, reason: message.reason }),
       }));
-      setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, feedback: corrected ? 'corrected' : 'wrong', showReasons: false, showCorrections: false } : item));
+      setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, feedback: corrected ? 'corrected' : 'wrong', feedbackPending: false, showReasons: false, showCorrections: false } : item));
       notify(corrected ? 'Correção registrada.' : 'Feedback registrado.');
-    } catch {
-      notify('Não foi possível salvar o feedback.');
+    } catch (error) {
+      const feedbackError = error instanceof Error ? error.message : 'Não foi possível salvar o feedback.';
+      setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, feedbackPending: false, feedbackError } : item));
+      notify(feedbackError);
     }
   };
 
@@ -432,10 +477,11 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
                       {message.response?.modelOptions?.length ? <div className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600">Confirmar modelo</div><div className="flex flex-wrap gap-2">{message.response.modelOptions.map(option => <button type="button" key={option} onClick={() => chooseModel(message, option)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs">{option}</button>)}</div></div> : null}
                       {message.response?.status === 'AMBIGUOUS' && message.response.options?.length ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Qual item da vista corresponde à peça?</div><div className="mt-2 grid gap-2">{message.response.options.map(option => <button type="button" key={option.id} onClick={() => chooseAmbiguousOption(message, option)} className="rounded-lg border border-slate-200 p-2 text-left text-xs hover:bg-slate-50"><b>{option.name}</b><span className="mt-0.5 block font-semibold text-[#1d4f91]">Código {option.partNumber}</span><span className="block text-slate-500">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span></button>)}</div></div> : null}
 
-                      {message.response?.part && !message.feedback ? <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3"><span className="text-xs text-slate-500">Este resultado ajudou?</span><button type="button" onClick={() => void positiveFeedback(index)} className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-700">👍 Sim</button><button type="button" onClick={() => startNegative(index)} className="rounded-lg bg-rose-50 px-2 py-1 text-rose-700">👎 Não</button></div> : null}
-                      {message.showReasons ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">O que estava errado?</div><div className="mt-2 flex flex-wrap gap-2">{reasons.map(([reason, label]) => <button type="button" key={reason} onClick={() => chooseReason(index, reason)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50">{label}</button>)}</div></div> : null}
+                      {message.response?.part && !message.feedback ? <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3"><span className="text-xs text-slate-500">Este resultado ajudou?</span><button type="button" disabled={message.feedbackPending} onClick={() => void positiveFeedback(index)} className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-700 disabled:opacity-50">👍 Sim</button><button type="button" disabled={message.feedbackPending} onClick={() => void startNegative(index)} className="rounded-lg bg-rose-50 px-2 py-1 text-rose-700 disabled:opacity-50">👎 Não</button>{message.feedbackPending ? <span className="text-xs text-slate-400">Salvando…</span> : null}</div> : null}
+                      {message.showReasons ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Feedback negativo salvo. O que estava errado?</div><div className="mt-1 text-[11px] text-slate-400">Detalhar é opcional e ajuda o ranking das próximas buscas.</div><div className="mt-2 flex flex-wrap gap-2">{reasons.map(([reason, label]) => <button type="button" disabled={message.feedbackPending} key={reason} onClick={() => void chooseReason(index, reason)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50">{label}</button>)}</div><button type="button" onClick={() => setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, showReasons: false } : item))} className="mt-2 text-xs font-semibold text-slate-400 underline">Concluir sem detalhar</button></div> : null}
                       {message.showCorrections ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Selecione a peça correta, se ela aparecer abaixo.</div><div className="mt-2 grid gap-2">{message.response?.feedbackOptions?.filter(option => option.id !== message.response?.part?.id).map(option => <button type="button" key={option.id} onClick={() => void negativeFeedback(index, option)} className="rounded-lg border border-slate-200 p-2 text-left text-xs"><b>{option.name}</b><span className="block font-semibold text-[#1d4f91]">{option.partNumber}</span><span className="block text-slate-500">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span></button>)}</div><button type="button" onClick={() => void negativeFeedback(index)} className="mt-2 text-xs font-semibold text-slate-500 underline">Nenhuma dessas / apenas registrar o erro</button></div> : null}
-                      {message.feedback && !message.showReasons && !message.showCorrections ? <div className="mt-2 text-xs text-slate-500">{message.feedback === 'correct' ? '✓ Confirmação salva' : message.feedback === 'corrected' ? '✓ Correção salva' : '✓ Feedback salvo'}</div> : null}
+                      {message.feedback && !message.showReasons && !message.showCorrections ? <div className="mt-2 text-xs text-slate-500">{message.feedback === 'correct' ? '✓ Confirmação salva e considerada no ranking' : message.feedback === 'corrected' ? '✓ Correção salva e considerada no ranking' : '✓ Feedback salvo e considerado no ranking'}</div> : null}
+                      {message.feedbackError ? <div role="alert" className="mt-2 text-xs font-medium text-rose-600">{message.feedbackError}</div> : null}
                     </>
                   )}
                 </div>

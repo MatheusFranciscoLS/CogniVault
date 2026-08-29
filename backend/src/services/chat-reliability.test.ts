@@ -39,6 +39,16 @@ test('seleciona localmente apenas quando existe vantagem textual clara', () => {
   assert.equal(chooseCandidateLocally('filtro', candidates).ambiguous, true);
 });
 
+test('usa correções acumuladas do balcão para desempatar descrições técnicas equivalentes', () => {
+  const candidates = [
+    { id: 'wrong', name: 'Carburettor', model: '143RII', pnc: null, section: 'Body', position: '1', aliases: [], feedbackScore: -0.08 },
+    { id: 'right', name: 'Carburettor', model: '143RII', pnc: null, section: 'Intake', position: '15', aliases: [], feedbackScore: 0.11 },
+  ];
+  assert.deepEqual(chooseCandidateLocally('carburador da 143RII', candidates), {
+    id: 'right', confidence: 0.9, ambiguous: false,
+  });
+});
+
 test('traduz vocabulário de balcão e tolera erro de digitação', () => {
   const carburettor = buildSearchGroups('Qual o carburado da Husqvarna 143RII?', ['Husqvarna', '143RII']);
   assert.ok(carburettor.some(group => group.variants.includes('carburettor')));

@@ -20,6 +20,7 @@ export interface CandidateForAi {
   section: string | null;
   position: string | null;
   aliases: string[];
+  feedbackScore?: number;
 }
 
 export class ChatIntentService {

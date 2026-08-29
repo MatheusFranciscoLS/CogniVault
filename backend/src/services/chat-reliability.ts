@@ -74,7 +74,10 @@ export function chooseCandidateLocally(
       section: candidate.section,
       aliases: candidate.aliases,
     });
-    return { id: candidate.id, score };
+    // O score técnico pode chegar a 1. Mantemos o pequeno bônus de feedback
+    // fora desse teto para que confirmações/correções consigam desempatar duas
+    // descrições tecnicamente idênticas; a confiança exibida continua limitada.
+    return { id: candidate.id, score: score + (candidate.feedbackScore || 0) };
   }).sort((a, b) => b.score - a.score);
 
   const best = ranked[0];

@@ -55,4 +55,40 @@ export class FeedbackController {
             res.status(500).json({ error: error instanceof Error ? error.message : 'Erro ao salvar feedback.' });
         }
     }
+
+    async update(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            if (!req.user) {
+                res.status(401).json({ error: 'Usuário não autenticado.' });
+                return;
+            }
+
+            const feedbackId = req.params.id;
+            const { correctedPartId, reason } = req.body;
+            if (typeof feedbackId !== 'string' || !feedbackId.trim()) {
+                res.status(400).json({ error: 'Feedback inválido.' });
+                return;
+            }
+            if (correctedPartId !== undefined && typeof correctedPartId !== 'string') {
+                res.status(400).json({ error: 'Peça corrigida inválida.' });
+                return;
+            }
+            if (reason !== undefined && (typeof reason !== 'string' || !ALLOWED_REASONS.includes(reason))) {
+                res.status(400).json({ error: 'Motivo do feedback inválido.' });
+                return;
+            }
+
+            const result = await FeedbackService.update({
+                tenantId: req.user.tenantId,
+                userId: req.user.id,
+                feedbackId: feedbackId.trim(),
+                correctedPartId: typeof correctedPartId === 'string' && correctedPartId.trim() ? correctedPartId.trim() : undefined,
+                reason: typeof reason === 'string' ? reason : undefined,
+            });
+            res.json({ message: result.correctedPart ? 'Correção salva.' : 'Detalhes do feedback salvos.', ...result });
+        } catch (error) {
+            console.error('❌ Erro ao atualizar feedback:', error);
+            res.status(500).json({ error: error instanceof Error ? error.message : 'Erro ao atualizar feedback.' });
+        }
+    }
 }

@@ -155,11 +155,12 @@ export class ChatService {
 
     const selection = await ChatIntentService.choose(question, eligible.slice(0, 20).map(c => ({
       id: c.id, name: c.name, model: c.model, pnc: c.pnc, section: c.section, position: c.position, aliases: c.alternativeNames,
+      feedbackScore: c.feedbackScore,
     })));
 
     const chosen = eligible.find(c => c.id === selection.id);
     const calibratedConfidence = chosen
-      ? calibrateMatchConfidence(selection.confidence, chosen.distance, directConfidence === 1)
+      ? calibrateMatchConfidence(selection.confidence, Math.max(0, chosen.distance - chosen.feedbackScore), directConfidence === 1)
       : 0;
     if (!chosen || selection.ambiguous || (!directConfidence && (selection.confidence < MIN_CONFIDENCE || calibratedConfidence < 0.58))) {
       return {
@@ -203,7 +204,7 @@ export class ChatService {
     const explanation = candidate.searchMethod === 'DIRECT_CODE'
       ? 'Código localizado diretamente na base técnica, sem depender de interpretação semântica.'
       : candidate.searchMethod === 'LEXICAL'
-        ? 'Resultado encontrado pela busca textual de contingência. Confirme modelo, PNC e catálogo antes de concluir.'
+        ? `Resultado encontrado pela busca textual segura. Confirme modelo, PNC e catálogo antes de concluir.${candidate.feedbackScore > 0.02 ? ' Confirmações do balcão também elevaram a prioridade deste resultado.' : ''}`
         : 'Descrição comparada com o conteúdo técnico indexado e validada entre os candidatos do catálogo.';
     return {
       status: 'FOUND', confidence,

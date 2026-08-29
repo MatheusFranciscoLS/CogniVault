@@ -44,6 +44,7 @@ router.delete('/documents/:id', authMiddleware, adminOnly, (req, res) => documen
 
 router.post('/chat', authMiddleware, (req, res) => chatController.ask(req, res));
 router.post('/feedback', authMiddleware, (req, res) => feedbackController.create(req, res));
+router.patch('/feedback/:id', authMiddleware, (req, res) => feedbackController.update(req, res));
 
 router.get('/admin/overview', authMiddleware, adminOnly, (req, res) => adminController.overview(req, res));
 router.get('/admin/users', authMiddleware, adminOnly, (req, res) => adminController.users(req, res));

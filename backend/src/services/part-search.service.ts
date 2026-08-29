@@ -1,12 +1,12 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { getGeminiClient } from '../config/gemini';
-import { normalizeIdentifier, normalizeText } from '../utils/normalize';
+import { normalizeIdentifier } from '../utils/normalize';
 import type { SearchIntent } from './chat-intent.service';
 import { buildSearchGroups, hasKnownPartVocabulary, scorePartText } from './part-vocabulary';
+import { applyFeedbackLearning } from './feedback-learning';
 
 const MAX_DISTANCE = Number(process.env.PART_SEARCH_MAX_DISTANCE || '0.65');
-const FEEDBACK_DISTANCE = Number(process.env.FEEDBACK_MAX_DISTANCE || '0.28');
 
 export interface PartCandidate {
   id: string;
@@ -170,7 +170,7 @@ export class PartSearchService {
 
     if (!candidates.length) return this.lexical(tenantId, question, intent);
     try {
-      await this.applyFeedback(tenantId, question, vectorString, model, pnc, candidates);
+      await this.applyFeedback(tenantId, question, model, pnc, candidates);
     } catch (error) {
       console.warn('⚠️ Aprendizado por feedback indisponível nesta consulta; mantendo ranking técnico.', error instanceof Error ? error.message : error);
     }
@@ -205,7 +205,7 @@ export class PartSearchService {
       take: 80,
     });
 
-    const candidates = rows.map(part => {
+    const candidates: PartCandidate[] = rows.map(part => {
       const score = scorePartText(query, { name: part.name, section: part.section, aliases: part.alternativeNames });
       const distance = Math.max(0.2, 0.62 - score * 0.42);
       return {
@@ -229,37 +229,28 @@ export class PartSearchService {
         feedbackScore: 0,
         searchMethod: 'LEXICAL' as const,
       };
-    }).sort((a, b) => a.distance - b.distance);
-    return deduplicatePartCandidates(candidates).slice(0, 40);
+    });
+    try {
+      await this.applyFeedback(tenantId, question, normalizedModel, normalizedPnc, candidates);
+    } catch (error) {
+      console.warn('⚠️ Aprendizado por feedback indisponível nesta consulta textual; mantendo ranking técnico.', error instanceof Error ? error.message : error);
+    }
+    return deduplicatePartCandidates(candidates.sort((a, b) => (a.distance - a.feedbackScore) - (b.distance - b.feedbackScore))).slice(0, 40);
   }
 
-  private static async applyFeedback(tenantId: string, question: string, vectorString: string, model: string, pnc: string, candidates: PartCandidate[]): Promise<void> {
-    type Row = { resultPartId: string; correctedPartId: string | null; correct: boolean; normalizedQuery: string; distance: number };
-    const filters: Prisma.Sql[] = [
-      Prisma.sql`sf."tenantId" = ${tenantId}`,
-      Prisma.sql`sf."queryEmbedding" IS NOT NULL`,
-      Prisma.sql`(sf."queryEmbedding" <=> ${vectorString}::vector) <= ${FEEDBACK_DISTANCE}`,
-    ];
-    if (model) filters.push(Prisma.sql`(sf."normalizedModel" = ${model} OR sf."normalizedModel" IS NULL)`);
-    if (pnc) filters.push(Prisma.sql`(sf."normalizedPnc" = ${pnc} OR sf."normalizedPnc" IS NULL)`);
-
-    const rows = await prisma.$queryRaw<Row[]>(Prisma.sql`
-      SELECT sf."resultPartId", sf."correctedPartId", sf."correct", sf."normalizedQuery",
-             (sf."queryEmbedding" <=> ${vectorString}::vector) AS "distance"
-      FROM "SearchFeedback" sf WHERE ${Prisma.join(filters, ' AND ')}
-      ORDER BY sf."queryEmbedding" <=> ${vectorString}::vector LIMIT 100
-    `);
-    const exact = normalizeText(question);
-    const byId = new Map(candidates.map(c => [c.id, c]));
-    for (const row of rows) {
-      const similarity = Math.max(0, 1 - Number(row.distance));
-      const mult = row.normalizedQuery === exact ? 1.5 : 1;
-      const result = byId.get(row.resultPartId);
-      if (result) result.feedbackScore += (row.correct ? 0.18 : -0.20) * similarity * mult;
-      if (!row.correct && row.correctedPartId) {
-        const corrected = byId.get(row.correctedPartId);
-        if (corrected) corrected.feedbackScore += 0.26 * similarity * mult;
-      }
-    }
+  private static async applyFeedback(tenantId: string, question: string, model: string, pnc: string, candidates: PartCandidate[]): Promise<void> {
+    const contextFilters: Prisma.SearchFeedbackWhereInput[] = [];
+    if (model) contextFilters.push({ OR: [{ normalizedModel: model }, { normalizedModel: null }] });
+    if (pnc) contextFilters.push({ OR: [{ normalizedPnc: pnc }, { normalizedPnc: null }] });
+    const rows = await prisma.searchFeedback.findMany({
+      where: { tenantId, ...(contextFilters.length ? { AND: contextFilters } : {}) },
+      select: {
+        resultPartId: true, correctedPartId: true, correct: true,
+        normalizedQuery: true, normalizedModel: true, normalizedPnc: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 300,
+    });
+    applyFeedbackLearning(question, candidates, rows);
   }
 }
