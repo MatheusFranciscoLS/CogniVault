@@ -38,7 +38,14 @@ export function extractLikelyPosition(question: string): string {
 export function extractLikelyModel(question: string): string {
   const partNumber = extractLikelyPartNumber(question);
   const pnc = extractLikelyPnc(question);
-  const withoutReferences = [partNumber, pnc].filter(Boolean).reduce((value, reference) => value.replace(reference, ' '), question);
+  let withoutReferences = [partNumber, pnc]
+    .filter(Boolean)
+    .reduce((value, reference) => value.replace(reference, ' '), question);
+
+  // Números de posição da vista não são modelos. Removemos o trecho completo
+  // ("posição 16", "pos. 13", etc.) antes da heurística de modelo.
+  withoutReferences = withoutReferences.replace(/\b(?:posição|posicao|pos|item|ref|referência|referencia)\s*[:#.-]?\s*\d{1,3}\b/gi, ' ');
+
   const spaced = withoutReferences.match(/\b\d{2,4}\s*(?:r\s*)?(?:ii|iii|iv|v|rs|rx|rj|xp|x|[a-z]{1,3})\b/i);
   if (spaced?.[0]) return spaced[0].replace(/\s+/g, '');
 
@@ -98,7 +105,7 @@ export function chooseCandidateLocally(
   const second = ranked[1];
   const safeLead = best && best.score >= 0.55 && (!second || best.score - second.score >= 0.18);
   return safeLead
-    ? { id: best.id, confidence: Math.max(0.72, Math.min(0.95, best.score)), ambiguous: false }
+    ? { id: best.id, confidence: Math.max(0.72, Math.min(0.9, best.score)), ambiguous: false }
     : { id: null, confidence: Math.max(0, Math.min(1, best?.score || 0)), ambiguous: true };
 }
 
