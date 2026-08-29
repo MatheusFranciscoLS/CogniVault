@@ -128,6 +128,7 @@ export function rankingEvidence(question: string, candidate: PartCandidate): num
       section: candidate.section,
       aliases: candidate.alternativeNames,
       notes: candidate.notes,
+      pnc: candidate.pnc,
     }) * 0.55;
 }
 
