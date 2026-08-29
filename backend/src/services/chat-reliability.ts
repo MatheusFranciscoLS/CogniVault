@@ -1,6 +1,10 @@
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import type { CandidateForAi, SearchIntent } from './chat-intent.service';
-import { extractExplicitSerialNumber, relationSpecificityBonus } from './candidate-specificity';
+import {
+  extractExplicitSerialNumber,
+  relationSpecificityBonus,
+  stripExplicitSerialContext,
+} from './candidate-specificity';
 import { extractKnownHusqvarnaModel } from './husqvarna-domain-knowledge';
 import { lexicalTerms, scorePartText } from './part-vocabulary';
 
@@ -60,11 +64,12 @@ function extractLikelyManufacturer(question: string): string {
 }
 
 export function buildFallbackIntent(question: string): SearchIntent {
+  const retrievalDescription = stripExplicitSerialContext(question) || question.trim();
   return {
     manufacturer: extractLikelyManufacturer(question),
     model: extractLikelyModel(question),
     pnc: extractLikelyPnc(question),
-    partDescription: question.trim(),
+    partDescription: retrievalDescription,
     partNumber: extractLikelyPartNumber(question),
     section: '',
     position: extractLikelyPosition(question),
