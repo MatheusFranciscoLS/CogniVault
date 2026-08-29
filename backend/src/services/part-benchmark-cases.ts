@@ -4,6 +4,9 @@ import type { PartBenchmarkCase } from './part-benchmark';
  * Golden set inicial construída apenas com respostas comprovadas nos IPLs que
  * foram analisados durante o desenvolvimento. Novos casos devem apontar para a
  * fonte que comprova o Part Number esperado.
+ *
+ * hardNegativePartNumbers contém apenas códigos reais que são candidatos
+ * especialmente perigosos para aquela pergunta e que NÃO podem superar o correto.
  */
 export const HUSQVARNA_GOLDEN_BENCHMARK: PartBenchmarkCase[] = [
   {
@@ -11,6 +14,7 @@ export const HUSQVARNA_GOLDEN_BENCHMARK: PartBenchmarkCase[] = [
     query: 'qual o código do pistão da bomba do pulverizador 321S25?',
     model: '321S25',
     expectedPartNumbers: ['589832901'],
+    hardNegativePartNumbers: ['590210901'],
     source: 'Pulverizador Husqvarna 321S25.pdf · p.19 · PISTÃO DA BOMBA / Pump piston',
   },
   {
@@ -18,6 +22,7 @@ export const HUSQVARNA_GOLDEN_BENCHMARK: PartBenchmarkCase[] = [
     query: 'qual o pistão do motor do 321S25?',
     model: '321S25',
     expectedPartNumbers: ['590210901'],
+    hardNegativePartNumbers: ['589832901'],
     source: 'Pulverizador Husqvarna 321S25.pdf · p.10 · CONJ. DO PISTÃO kit 321S sprayer',
   },
   {
@@ -53,6 +58,7 @@ export const HUSQVARNA_GOLDEN_BENCHMARK: PartBenchmarkCase[] = [
     query: 'qual a transmissão esquerda do giro zero Z460?',
     model: 'Z460',
     expectedPartNumbers: ['594090301'],
+    hardNegativePartNumbers: ['594090302'],
     source: 'Cortador Giro Zero Husqvarna Z460.pdf · p.51/83 · TRANSMISSÃO HTE LH',
   },
   {
@@ -60,6 +66,7 @@ export const HUSQVARNA_GOLDEN_BENCHMARK: PartBenchmarkCase[] = [
     query: 'qual a transmissão direita do giro zero Z460?',
     model: 'Z460',
     expectedPartNumbers: ['594090302'],
+    hardNegativePartNumbers: ['594090301'],
     source: 'Cortador Giro Zero Husqvarna Z460.pdf · p.51/83 · TRANSMISSÃO HTE RH',
   },
   {
@@ -67,6 +74,7 @@ export const HUSQVARNA_GOLDEN_BENCHMARK: PartBenchmarkCase[] = [
     query: 'qual a transmissão dianteira da LC353AWD?',
     model: 'LC353AWD',
     expectedPartNumbers: ['589486201'],
+    hardNegativePartNumbers: ['586137601'],
     source: 'Cortador de grama Husqvarna LC353AWD.pdf · p.5 · TRANSMISSÃO AWD Front',
   },
   {
@@ -74,6 +82,7 @@ export const HUSQVARNA_GOLDEN_BENCHMARK: PartBenchmarkCase[] = [
     query: 'qual a transmissão traseira da LC353AWD?',
     model: 'LC353AWD',
     expectedPartNumbers: ['586137601'],
+    hardNegativePartNumbers: ['589486201'],
     source: 'Cortador de grama Husqvarna LC353AWD.pdf · p.5 · TRANSMISSÃO REAR AWD',
   },
   {
