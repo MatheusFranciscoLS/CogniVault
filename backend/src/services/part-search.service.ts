@@ -3,7 +3,13 @@ import { prisma } from '../config/prisma';
 import { getGeminiClient } from '../config/gemini';
 import { normalizeIdentifier } from '../utils/normalize';
 import type { SearchIntent } from './chat-intent.service';
-import { buildSearchGroups, hasKnownPartVocabulary, scorePartText } from './part-vocabulary';
+import {
+  buildSearchGroups,
+  focusCandidatesByDescription,
+  hasKnownPartVocabulary,
+  scorePartText,
+  semanticQueryText,
+} from './part-vocabulary';
 import { applyFeedbackLearning } from './feedback-learning';
 import { preferCurrentPartNumbers, resolveCurrentPartNumber } from './part-supersession';
 
@@ -111,9 +117,23 @@ export class PartSearchService {
   }
 
   static async semantic(tenantId: string, question: string, intent: SearchIntent): Promise<PartCandidate[]> {
+    const lexicalQuery = intent.partDescription || question;
+    let localCandidates: PartCandidate[] = [];
+
     if (hasKnownPartVocabulary(question)) {
-      const localCandidates = await this.lexical(tenantId, question, intent);
-      if (localCandidates.length) return localCandidates;
+      localCandidates = await this.lexical(tenantId, question, intent);
+      if (localCandidates.length) {
+        const focused = focusCandidatesByDescription(lexicalQuery, localCandidates);
+        const hasStrongDirectMatch = focused.some(candidate => scorePartText(lexicalQuery, {
+          name: candidate.name,
+          section: candidate.section,
+          aliases: candidate.alternativeNames,
+        }) >= 0.85);
+        // Nome/alias exato é evidência melhor e mais barata que um embedding.
+        // Se só encontramos itens pela seção (ex.: todos da vista CLUTCH),
+        // continuamos para a busca semântica em vez de encerrar cedo.
+        if (hasStrongDirectMatch) return focused;
+      }
     }
 
     const model = normalizeIdentifier(intent.model);
@@ -133,21 +153,26 @@ export class PartSearchService {
       },
       select: { id: true },
     });
-    if (!hasSemanticIndex) return this.lexical(tenantId, question, intent);
+    if (!hasSemanticIndex) return localCandidates.length ? localCandidates : this.lexical(tenantId, question, intent);
 
-    const queryText = [intent.partDescription || question, intent.section, intent.position].filter(Boolean).join(' | ');
+    const expandedDescription = semanticQueryText(
+      intent.partDescription || question,
+      [intent.manufacturer, intent.model, intent.pnc],
+    );
+    const queryText = [expandedDescription, intent.section, intent.position].filter(Boolean).join(' | ');
     let vector: number[] | undefined;
     try {
       const ai = await getGeminiClient();
       const embed = await ai.models.embedContent({
-        model: 'gemini-embedding-001', contents: queryText,
+        model: process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001',
+        contents: queryText,
         config: { outputDimensionality: 768, taskType: 'RETRIEVAL_QUERY' },
       });
       vector = embed.embeddings?.[0]?.values;
     } catch (error) {
       console.warn('⚠️ Embedding de consulta indisponível; usando busca textual.', error instanceof Error ? error.message : error);
     }
-    if (!vector || vector.length !== 768) return this.lexical(tenantId, question, intent);
+    if (!vector || vector.length !== 768) return localCandidates.length ? localCandidates : this.lexical(tenantId, question, intent);
     const vectorString = `[${vector.join(',')}]`;
 
     const filters: Prisma.Sql[] = [
@@ -174,7 +199,7 @@ export class PartSearchService {
       LIMIT 40
     `);
 
-    const candidates: PartCandidate[] = rows
+    const semanticCandidates: PartCandidate[] = rows
       .map(row => {
         const { documentPnc, ...r } = row;
         return {
@@ -187,13 +212,16 @@ export class PartSearchService {
       })
       .filter(r => r.distance <= MAX_DISTANCE);
 
-    if (!candidates.length) return this.lexical(tenantId, question, intent);
+    if (!semanticCandidates.length) return localCandidates.length ? localCandidates : this.lexical(tenantId, question, intent);
     try {
-      await this.applyFeedback(tenantId, question, model, pnc, candidates);
+      await this.applyFeedback(tenantId, question, model, pnc, semanticCandidates);
     } catch (error) {
       console.warn('⚠️ Aprendizado por feedback indisponível nesta consulta; mantendo ranking técnico.', error instanceof Error ? error.message : error);
     }
-    return preferCurrentPartNumbers(deduplicatePartCandidates(candidates.sort((a, b) => (a.distance - a.feedbackScore) - (b.distance - b.feedbackScore))));
+
+    const combined = [...semanticCandidates, ...localCandidates]
+      .sort((a, b) => (a.distance - a.feedbackScore) - (b.distance - b.feedbackScore));
+    return preferCurrentPartNumbers(deduplicatePartCandidates(combined));
   }
 
   private static async lexical(tenantId: string, question: string, intent: SearchIntent): Promise<PartCandidate[]> {
@@ -204,25 +232,47 @@ export class PartSearchService {
     const groups = buildSearchGroups(query, [intent.manufacturer, intent.model, intent.pnc]);
     if (!groups.length) return [];
 
-    const filters: Prisma.PartWhereInput[] = groups.map(group => ({
+    const groupFilters: Prisma.PartWhereInput[] = groups.map(group => ({
       OR: group.variants.flatMap(variant => [
         { normalizedName: { contains: variant } },
         { searchText: { contains: variant, mode: 'insensitive' as const } },
       ]),
     }));
-    if (normalizedManufacturer) filters.push({ OR: [{ normalizedManufacturer }, { normalizedManufacturer: null }] });
-    if (normalizedPnc) filters.push({ OR: [{ normalizedPnc }, { universalAcrossPnc: true }] });
+    const contextFilters: Prisma.PartWhereInput[] = [];
+    if (normalizedManufacturer) contextFilters.push({ OR: [{ normalizedManufacturer }, { normalizedManufacturer: null }] });
+    if (normalizedPnc) contextFilters.push({ OR: [{ normalizedPnc }, { universalAcrossPnc: true }] });
 
-    const rows = await prisma.part.findMany({
-      where: {
-        active: true,
-        document: { tenantId, archivedAt: null, status: 'COMPLETED' },
-        ...(normalizedModel ? { normalizedModel } : {}),
-        AND: filters,
-      },
+    const baseWhere: Prisma.PartWhereInput = {
+      active: true,
+      document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+      ...(normalizedModel ? { normalizedModel } : {}),
+    };
+
+    let rows = await prisma.part.findMany({
+      where: { ...baseWhere, AND: [...groupFilters, ...contextFilters] },
       include: { document: { select: { filename: true, pnc: true } } },
-      take: 80,
+      take: 100,
     });
+
+    // Consultas compostas podem estar divididas entre nome e seção no catálogo:
+    // "tambor da embreagem" => nome TAMBOR + seção CLUTCH. Se o AND por frase
+    // não acha nada, ampliamos dentro do MESMO modelo/PNC e deixamos o ranking
+    // técnico decidir; nunca ampliamos para outro tenant/modelo.
+    if (!rows.length && groups.length > 1) {
+      const broadVariants = [...new Set(groups.flatMap(group => group.variants))];
+      rows = await prisma.part.findMany({
+        where: {
+          ...baseWhere,
+          ...(contextFilters.length ? { AND: contextFilters } : {}),
+          OR: broadVariants.flatMap(variant => [
+            { normalizedName: { contains: variant } },
+            { searchText: { contains: variant, mode: 'insensitive' as const } },
+          ]),
+        },
+        include: { document: { select: { filename: true, pnc: true } } },
+        take: 120,
+      });
+    }
 
     const candidates: PartCandidate[] = rows.map(part => {
       const score = scorePartText(query, { name: part.name, section: part.section, aliases: part.alternativeNames });
