@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, apiJson, fmtDate, json } from '../lib';
 import type { DocumentItem, FavoriteItem } from '../types';
+import BatchCatalogUploader from './BatchCatalogUploader';
 
 type CatalogData = { documents: DocumentItem[]; favorites: FavoriteItem[] };
 
@@ -159,8 +160,10 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
     </div>
     {error&&<div role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
 
+    {admin&&<BatchCatalogUploader onComplete={load} onNotice={flash} onError={setError}/>} 
+
     {admin&&<form onSubmit={upload} className="cv-surface mb-6 rounded-[22px] p-5">
-      <div className="mb-1 font-semibold">Adicionar catálogo</div><p className="mb-4 text-xs text-slate-400">O CogniVault extrai primeiro as peças e libera a busca textual. A IA visual só é usada quando o PDF não possui tabela pesquisável. Limite: 50 MB.</p>
+      <div className="mb-1 font-semibold">Adicionar catálogo individual</div><p className="mb-4 text-xs text-slate-400">Use este modo quando quiser informar manualmente fabricante, modelo ou PNC. No lote acima, cada PDF é identificado individualmente pelo conteúdo. Limite: 50 MB.</p>
       <div className="grid gap-3 md:grid-cols-4">
         <input ref={fileInputRef} aria-label="Arquivo PDF" type="file" accept="application/pdf,.pdf" onChange={event=>setFile(event.target.files?.[0]||null)} required className="cv-field text-sm"/>
         <input aria-label="Fabricante" value={manufacturer} onChange={event=>setManufacturer(event.target.value)} placeholder="Fabricante" className="cv-field text-sm"/>
