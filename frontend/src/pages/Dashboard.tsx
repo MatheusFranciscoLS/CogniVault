@@ -49,7 +49,7 @@ export default function Dashboard(){
    {section==='home'&&<HomePanel onSearch={search} onCatalogs={()=>setSection('catalogs')}/>}
    {section==='overview'&&user.role==='ADMIN'&&<OverviewPanel/>}
    {section==='assistant'&&<ChatPanel storageScope={user.id}/>}
-   {section==='parts'&&<PartSearchPanel key={`${searchVersion}:${globalQuery||'empty-search'}`} initialQuery={globalQuery} onQueryChange={setGlobalQuery}/>}
+   {section==='parts'&&<PartSearchPanel key={`${searchVersion}:${globalQuery||'empty-search'}`} initialQuery={globalQuery} onQueryChange={setGlobalQuery} admin={user.role==='ADMIN'}/>}
    {section==='catalogs'&&<CatalogsPanel admin={user.role==='ADMIN'}/>} 
    {section==='history'&&<HistoryPanel onSearch={search}/>} 
    {section==='favorites'&&<FavoritesPanel onSearch={search}/>} 
