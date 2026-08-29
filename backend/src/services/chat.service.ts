@@ -265,7 +265,7 @@ export class ChatService {
       answer: `O código consultado ${replacement.previousPartNumber} foi substituído pelo código atual ${replacement.currentPartNumber}, conforme o portal oficial Husqvarna.\n${result.answer}`,
       match: result.match ? {
         ...result.match,
-        explanation: `${result.match.explanation} A cadeia de substituição foi revisada no portal oficial Husqvarna Brasil.`,
+        explanation: `${result.match.explanation} O código ${replacement.previousPartNumber} foi substituído pelo código atual ${replacement.currentPartNumber}, conforme revisão no portal oficial Husqvarna Brasil.`,
       } : result.match,
     };
   }
