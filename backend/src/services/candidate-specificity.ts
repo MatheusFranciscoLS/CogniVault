@@ -23,7 +23,7 @@ export function relationSpecificityBonus(query: string, candidate: CandidateText
   if (!directConcepts.has(relation.primary.key) || !directConcepts.has(relation.context.key)) return 0;
 
   // O contexto no próprio nome/alias é mais específico que apenas pertencer à seção.
-  // O bônus foi dimensionado para superar candidatos genéricos da mesma vista,
-  // mantendo empate quando dois itens distintos têm nomenclatura igualmente específica.
-  return 0.22;
+  // A margem mantém a seleção conservadora: só supera o SCREW genérico quando o
+  // próprio nome da peça comprova a relação componente + conjunto.
+  return 0.25;
 }
