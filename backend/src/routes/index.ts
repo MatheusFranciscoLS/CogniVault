@@ -8,6 +8,7 @@ import { FeedbackController } from '../controllers/feedback.controller';
 import { AdminController } from '../controllers/admin.controller';
 import { AdminFeedbackController } from '../controllers/admin-feedback.controller';
 import { OperationalController } from '../controllers/operational.controller';
+import { OfficialPartVerificationController } from '../controllers/official-part-verification.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -19,6 +20,7 @@ const feedbackController = new FeedbackController();
 const adminController = new AdminController();
 const adminFeedbackController = new AdminFeedbackController();
 const operationalController = new OperationalController();
+const officialPartVerificationController = new OfficialPartVerificationController();
 
 const upload = multer({ dest: 'uploads/', limits: { fileSize: 50 * 1024 * 1024 } });
 
@@ -33,6 +35,10 @@ router.get('/favorites', authMiddleware, (req, res) => operationalController.fav
 router.post('/favorites', authMiddleware, (req, res) => operationalController.addFavorite(req, res));
 router.delete('/favorites/:id', authMiddleware, (req, res) => operationalController.removeFavorite(req, res));
 router.get('/notifications', authMiddleware, (req, res) => operationalController.notifications(req, res));
+
+router.get('/part-verifications', authMiddleware, (req, res) => officialPartVerificationController.list(req, res));
+router.get('/part-verifications/:code/history', authMiddleware, (req, res) => officialPartVerificationController.history(req, res));
+router.post('/part-verifications', authMiddleware, adminOnly, (req, res) => officialPartVerificationController.create(req, res));
 
 router.get('/documents', authMiddleware, (req, res) => documentController.list(req, res));
 router.get('/documents/:id/access', authMiddleware, (req, res) => documentController.access(req, res));
