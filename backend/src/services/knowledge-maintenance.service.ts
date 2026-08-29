@@ -18,6 +18,10 @@ export type KnowledgeBackfillResult = {
  * rows já ativos para gerar memória técnica textual, classificar a família e
  * recalcular a saúde estrutural.
  *
+ * Registros históricos sem nenhuma peça ativa são ignorados de propósito: eles
+ * continuam preservados no banco/auditoria, mas não representam um catálogo
+ * técnico utilizável e não devem entrar em classificação, memória ou saúde.
+ *
  * Embeddings ficam desligados aqui de propósito: a operação administrativa deve
  * ser previsível, rápida e não consumir cota externa. Novos processamentos seguem
  * a configuração normal de indexação semântica do worker.
@@ -33,6 +37,7 @@ export async function rebuildTenantTechnicalKnowledge(
       archivedAt: null,
       status: 'COMPLETED',
       processingStage: { not: 'REMOVED' },
+      parts: { some: { active: true } },
     },
     orderBy: { createdAt: 'asc' },
     take,
@@ -75,18 +80,14 @@ export async function rebuildTenantTechnicalKnowledge(
     }
 
     try {
-      if (document.parts.length) {
-        const memory = await rebuildDocumentMemory(
-          document.id,
-          tenantId,
-          Math.max(1, document.catalogRevision),
-          document.parts,
-          { embeddings: false },
-        );
-        result.chunksCreated += memory.chunks;
-      } else {
-        await prisma.documentChunk.deleteMany({ where: { documentId: document.id } });
-      }
+      const memory = await rebuildDocumentMemory(
+        document.id,
+        tenantId,
+        Math.max(1, document.catalogRevision),
+        document.parts,
+        { embeddings: false },
+      );
+      result.chunksCreated += memory.chunks;
 
       await ensureCatalogCategory(document.id, tenantId);
       await refreshCatalogHealth(document.id, tenantId);
