@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { chooseCandidateLocally } from './chat-reliability';
-import { extractTechnicalQualifiers, technicalConstraintBonus } from './candidate-specificity';
+import {
+  extractExplicitSerialNumber,
+  extractTechnicalQualifiers,
+  serialApplicability,
+  technicalConstraintBonus,
+} from './candidate-specificity';
 
 test('parafuso da embreagem prioriza o item tecnicamente nomeado como Screw Clutch shoe', () => {
   const candidates = [
@@ -96,4 +101,30 @@ test('medida em polegadas não confunde 12 polegadas com o 3/8 do passo', () => 
   const qualifiers = extractTechnicalQualifiers('lâmina 12" 3/8 mini');
   assert.equal(qualifiers.inchSize, 12);
   assert.equal(qualifiers.chainPitch, '3/8');
+});
+
+test('número de série só é extraído quando há marcador explícito', () => {
+  assert.equal(extractExplicitSerialNumber('LB256SP S/N 20240200001'), '20240200001');
+  assert.equal(extractExplicitSerialNumber('serial 20241400001 do cortador'), '20241400001');
+  assert.equal(extractExplicitSerialNumber('PNC 970488501 código 529595002'), '');
+});
+
+test('faixa de série por PNC favorece a variante correta do adaptador da lâmina', () => {
+  const beforeNotes = 'For PNC 970488501 Up to S/N:20240200000, For PNC 970488502 Up to S/N:20241400000';
+  const afterNotes = 'For PNC 970488501 From S/N: 20240200001, For PNC 970488502 From S/N: 20241400001';
+  const query = 'adaptador da lâmina LB256SP PNC 970488501 S/N 20240200001';
+
+  assert.equal(serialApplicability(query, { name: 'BLADE ADAPTER Ø22 mm', pnc: '970488501', notes: beforeNotes }), 'CONFLICT');
+  assert.equal(serialApplicability(query, { name: 'BLADE ADAPTER Ø25 mm', pnc: '970488501', notes: afterNotes }), 'MATCH');
+
+  const oldVariant = technicalConstraintBonus(query, { name: 'BLADE ADAPTER Ø22 mm', pnc: '970488501', notes: beforeNotes });
+  const newVariant = technicalConstraintBonus(query, { name: 'BLADE ADAPTER Ø25 mm', pnc: '970488501', notes: afterNotes });
+  assert.ok(newVariant > oldVariant + 0.7);
+});
+
+test('faixa de série usa apenas a cláusula do PNC do candidato', () => {
+  const notes = 'For PNC 970488501 Up to S/N:20240200000, For PNC 970488502 Up to S/N:20241400000';
+  const query = 'PNC 970488502 S/N 20241000000';
+  assert.equal(serialApplicability(query, { name: 'BLADE ADAPTER', pnc: '970488502', notes }), 'MATCH');
+  assert.equal(serialApplicability(query, { name: 'BLADE ADAPTER', pnc: '970488501', notes }), 'CONFLICT');
 });
