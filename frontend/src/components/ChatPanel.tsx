@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, json } from '../lib';
+import { pdfPageUrl } from '../pdf';
 import type { ChatResponse, FeedbackOption } from '../types';
 
 type FeedbackReason = 'WRONG_CODE' | 'WRONG_PNC' | 'WRONG_MODEL' | 'WRONG_PART' | 'OTHER';
@@ -337,11 +338,26 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
   };
 
   const access = async (documentId: string, mode: 'view' | 'download', page: number | null = null, title = 'Catálogo') => {
+    const hasExactPage = mode === 'view' && Number.isInteger(Number(page)) && Number(page) > 0;
+    const preparedWindow = hasExactPage ? window.open('', '_blank') : null;
+    if (preparedWindow) preparedWindow.opener = null;
+
     try {
       const data = await json<{ url: string }>(await api(`/api/documents/${documentId}/access?mode=${mode}`));
-      if (mode === 'view') setPdf({ url: data.url, page, title });
-      else window.open(data.url, '_blank', 'noopener,noreferrer');
+      if (mode === 'view') {
+        const targetUrl = pdfPageUrl(data.url, page);
+        // Uma aba criada no clique é mais confiável que iframe para respeitar #page=N
+        // em PDFs servidos por URL assinada. Se o navegador bloquear, mantemos o modal.
+        if (hasExactPage && preparedWindow) {
+          preparedWindow.location.replace(targetUrl);
+          return;
+        }
+        setPdf({ url: data.url, page, title });
+      } else {
+        window.open(data.url, '_blank', 'noopener,noreferrer');
+      }
     } catch {
+      if (preparedWindow && !preparedWindow.closed) preparedWindow.close();
       notify('Não foi possível abrir o catálogo.');
     }
   };
@@ -526,7 +542,7 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
         </aside>
       </div>
 
-      {pdf ? <div className="fixed inset-0 z-[90] bg-slate-950/90 p-3 md:p-6"><div role="dialog" aria-modal="true" aria-labelledby="assistant-pdf-title" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3"><div><div id="assistant-pdf-title" className="text-sm font-semibold">{pdf.title}</div><div className="text-xs text-slate-400">{pdf.page ? `Página ${pdf.page}` : 'Visualização do catálogo'}</div></div><div className="flex gap-2"><a href={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-[#1d4f91]">Nova aba</a><button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button></div></div><iframe title={pdf.title} src={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} className="h-full w-full border-0" /></div></div> : null}
+      {pdf ? <div className="fixed inset-0 z-[90] bg-slate-950/90 p-3 md:p-6"><div role="dialog" aria-modal="true" aria-labelledby="assistant-pdf-title" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3"><div><div id="assistant-pdf-title" className="text-sm font-semibold">{pdf.title}</div><div className="text-xs text-slate-400">{pdf.page ? `Página ${pdf.page}` : 'Visualização do catálogo'}</div></div><div className="flex gap-2"><a href={pdfPageUrl(pdf.url, pdf.page)} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-[#1d4f91]">Nova aba</a><button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button></div></div><iframe title={pdf.title} src={pdfPageUrl(pdf.url, pdf.page)} className="h-full w-full border-0" /></div></div> : null}
     </section>
   );
 }
