@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildFallbackIntent, calibrateMatchConfidence, chooseCandidateLocally, extractLikelyModel, extractLikelyPartNumber, extractLikelyPnc, lexicalSearchTerms } from './chat-reliability';
-import { buildSearchGroups, focusCandidatesByDescription, scorePartText } from './part-vocabulary';
+import { buildSearchGroups, focusCandidatesByDescription, scorePartText, semanticQueryText } from './part-vocabulary';
 
 test('identifica código formatado sem confundir modelo curto', () => {
   assert.equal(extractLikelyPartNumber('Preciso da peça 537 04 19-01 da roçadeira'), '537 04 19-01');
@@ -57,6 +57,53 @@ test('traduz vocabulário de balcão e tolera erro de digitação', () => {
   assert.ok(airFilter.some(group => group.variants.includes('airfilter')));
 
   assert.ok(scorePartText('carburador', { name: 'Carburettor', section: 'Intake' }) > scorePartText('carburador', { name: 'Screw', section: 'Carburettor' }));
+});
+
+test('entende PT-BR, PT-PT e inglês para embreagem completa', () => {
+  const groups = buildSearchGroups('Qual o código da embreagem completa da 143RII?', ['143RII']);
+  const clutch = groups.find(group => group.key === 'clutch');
+
+  assert.ok(clutch);
+  assert.ok(clutch?.variants.includes('embreagem'));
+  assert.ok(clutch?.variants.includes('embraiagem'));
+  assert.ok(clutch?.variants.includes('clutch assy'));
+  assert.ok(!groups.some(group => group.key === 'literal:completa'));
+
+  const expanded = semanticQueryText('embreagem completa da 143RII', ['143RII']);
+  assert.match(expanded, /embraiagem/);
+  assert.match(expanded, /clutch assy/);
+});
+
+test('seleciona EMBRAIAGEM e elimina parafuso/anilha da mesma vista CLUTCH', () => {
+  const candidates = [
+    { id: 'assembly', name: 'EMBRAIAGEM', model: '143RII', pnc: '967332904', section: '143RII CLUTCH', position: '14', aliases: [] },
+    { id: 'screw', name: 'PARAFUSO', model: '143RII', pnc: '967332904', section: '143RII CLUTCH', position: '8', aliases: [] },
+    { id: 'washer', name: 'ANILHA', model: '143RII', pnc: '967332904', section: '143RII CLUTCH', position: '17', aliases: [] },
+  ];
+
+  const focused = focusCandidatesByDescription('embreagem completa da 143RII', candidates.map(candidate => ({
+    ...candidate,
+    alternativeNames: candidate.aliases,
+  })));
+  assert.deepEqual(focused.map(item => item.id), ['assembly']);
+  assert.deepEqual(chooseCandidateLocally('embreagem completa da 143RII', candidates), {
+    id: 'assembly', confidence: 0.9, ambiguous: false,
+  });
+});
+
+test('entende peça composta dividida entre nome e seção do catálogo', () => {
+  const groups = buildSearchGroups('tambor da embreagem da 143RII', ['143RII']);
+  assert.ok(groups.some(group => group.key === 'clutch-drum'));
+
+  const drumScore = scorePartText('tambor da embreagem', { name: 'TAMBOR', section: '143RII CLUTCH' });
+  const screwScore = scorePartText('tambor da embreagem', { name: 'PARAFUSO', section: '143RII CLUTCH' });
+  assert.ok(drumScore > screwScore + 0.3);
+});
+
+test('reconhece termos portugueses de Portugal comuns no catálogo', () => {
+  assert.ok(buildSearchGroups('anilha da 143RII', ['143RII']).some(group => group.key === 'washer'));
+  assert.ok(buildSearchGroups('cambota da máquina', []).some(group => group.key === 'crankshaft'));
+  assert.ok(buildSearchGroups('depósito de combustível', []).some(group => group.key === 'fuel-tank'));
 });
 
 test('prioriza o nome da peça e não oferece componentes vizinhos da mesma vista', () => {
