@@ -5,6 +5,10 @@ import {
   relationSpecificityBonus,
   stripExplicitSerialContext,
 } from './candidate-specificity';
+import {
+  extractExplicitOccurrencePosition,
+  extractExplicitOccurrenceSection,
+} from './explicit-occurrence-constraints';
 import { extractKnownHusqvarnaModel } from './husqvarna-domain-knowledge';
 import { lexicalTerms, scorePartText } from './part-vocabulary';
 
@@ -36,9 +40,7 @@ export function extractLikelyPnc(question: string): string {
 }
 
 export function extractLikelyPosition(question: string): string {
-  const normalized = normalizeText(question);
-  const match = normalized.match(/\b(?:posicao|pos|item|ref|referencia)\s*[:#.-]?\s*(\d{1,3})\b/i);
-  return match?.[1] || '';
+  return extractExplicitOccurrencePosition(question);
 }
 
 export function extractLikelyModel(question: string): string {
@@ -71,7 +73,7 @@ export function buildFallbackIntent(question: string): SearchIntent {
     pnc: extractLikelyPnc(question),
     partDescription: retrievalDescription,
     partNumber: extractLikelyPartNumber(question),
-    section: '',
+    section: extractExplicitOccurrenceSection(question),
     position: extractLikelyPosition(question),
   };
 }

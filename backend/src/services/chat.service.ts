@@ -10,6 +10,7 @@ import { resolveEngineCatalogRoute } from './husqvarna-domain-knowledge';
 import { getVerifiedSupersession, preferCurrentPartNumbers } from './part-supersession';
 import { evaluateAnswerConfidence, type CatalogConfidenceContext, type ConfidenceDecision } from './confidence-gate';
 import { retrieveTechnicalContext } from './document-memory';
+import { applyExplicitOccurrenceConstraints } from './explicit-occurrence-constraints';
 
 export type SearchStatus = 'FOUND' | 'PNC_REQUIRED' | 'MODEL_REQUIRED' | 'PART_REQUIRED' | 'AMBIGUOUS' | 'NOT_FOUND';
 
@@ -238,6 +239,7 @@ export class ChatService {
     }
 
     eligible = preferCurrentPartNumbers(focusCandidatesByDescription(partDescription, filterCandidatesByMarket(eligible)));
+    eligible = applyExplicitOccurrenceConstraints(question, eligible);
     const selection = await ChatIntentService.choose(question, eligible.slice(0, 20).map(candidate => ({
       id: candidate.id, name: candidate.name, model: candidate.model, pnc: candidate.pnc,
       section: candidate.section, position: candidate.position, aliases: candidate.alternativeNames,
