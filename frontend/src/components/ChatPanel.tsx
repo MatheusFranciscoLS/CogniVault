@@ -92,6 +92,38 @@ function Guidance({ response }: { response: ChatResponse }) {
   );
 }
 
+function SerialFollowUp({ disabled, onSubmit }: { disabled: boolean; onSubmit: (serial: string) => void }) {
+  const [serial, setSerial] = useState('');
+  const submitSerial = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const clean = serial.replace(/\D/g, '');
+    if (clean.length < 6 || clean.length > 16) return;
+    onSubmit(clean);
+  };
+
+  return (
+    <form onSubmit={submitSerial} className="mt-3 rounded-xl border border-amber-200 bg-white p-3">
+      <label className="block text-xs font-semibold text-slate-700" htmlFor="guided-serial-number">Digite o número de série da etiqueta</label>
+      <p className="mt-1 text-[11px] leading-4 text-slate-400">Não é preciso repetir peça, modelo ou PNC. O CogniVault continuará a consulta anterior com este S/N.</p>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <input
+          id="guided-serial-number"
+          inputMode="numeric"
+          autoComplete="off"
+          value={serial}
+          onChange={event => setSerial(event.target.value.replace(/\D/g, '').slice(0, 16))}
+          placeholder="Ex.: 20240200001"
+          minLength={6}
+          maxLength={16}
+          required
+          className="cv-field min-w-0 flex-1 text-sm"
+        />
+        <button type="submit" disabled={disabled || serial.length < 6} className="cv-primary px-4 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50">Continuar com S/N</button>
+      </div>
+    </form>
+  );
+}
+
 function Interpretation({ response }: { response: ChatResponse }) {
   if (!response.interpreted) return null;
   const entries = [
@@ -465,11 +497,22 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
     notify('Equipamento removido.');
   };
 
+  const choosePnc = (message: Message, nextPnc: string) => {
+    if (!message.query) return;
+    setPnc(nextPnc);
+    void ask(message.query, nextPnc);
+  };
+
   const chooseModel = (message: Message, nextModel: string) => {
     if (!message.query) return;
     const description = message.response?.interpreted?.partDescription || message.query;
     setModel(nextModel);
     void ask(`${description} do equipamento ${nextModel}`, message.pnc);
+  };
+
+  const continueWithSerial = (message: Message, serial: string) => {
+    if (!message.query) return;
+    void ask(`${message.query} · S/N ${serial}`, message.pnc);
   };
 
   const chooseAmbiguousOption = (message: Message, option: FeedbackOption) => {
@@ -544,8 +587,9 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
                         />
                       ) : null}
 
-                      {message.response?.pncOptions?.length ? <div className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600">Selecione o PNC da etiqueta</div><div className="flex flex-wrap gap-2">{message.response.pncOptions.map(option => <button type="button" key={option} onClick={() => message.query && void ask(message.query, option)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs">PNC {option}</button>)}</div></div> : null}
+                      {message.response?.pncOptions?.length ? <div className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600">Selecione o PNC da etiqueta</div><div className="flex flex-wrap gap-2">{message.response.pncOptions.map(option => <button type="button" key={option} onClick={() => choosePnc(message, option)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs">PNC {option}</button>)}</div></div> : null}
                       {message.response?.modelOptions?.length ? <div className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600">Confirmar modelo</div><div className="flex flex-wrap gap-2">{message.response.modelOptions.map(option => <button type="button" key={option} onClick={() => chooseModel(message, option)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs">{option}</button>)}</div></div> : null}
+                      {message.response?.serialRequired ? <SerialFollowUp disabled={loading} onSubmit={serial => continueWithSerial(message, serial)} /> : null}
                       {message.response?.status === 'AMBIGUOUS' && message.response.options?.length ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Qual item da vista corresponde à peça?</div><div className="mt-2 grid gap-2">{message.response.options.map(option => <button type="button" key={option.id} onClick={() => chooseAmbiguousOption(message, option)} className="rounded-lg border border-slate-200 p-2 text-left text-xs hover:bg-slate-50"><b>{option.name}</b><span className="mt-0.5 block font-semibold text-[#1d4f91]">Código {option.partNumber}</span><span className="block text-slate-500">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span>{option.section ? <span className="mt-1 block text-slate-500">Vista: {option.section}</span> : null}{option.notes ? <span className="mt-1 block font-semibold text-amber-700">Aplicação: {option.notes}</span> : null}</button>)}</div></div> : null}
 
                       {message.response?.part && !message.feedback ? <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3"><span className="text-xs text-slate-500">Este resultado ajudou?</span><button type="button" disabled={message.feedbackPending} onClick={() => void positiveFeedback(index)} className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-700 disabled:opacity-50">👍 Sim</button><button type="button" disabled={message.feedbackPending} onClick={() => void startNegative(index)} className="rounded-lg bg-rose-50 px-2 py-1 text-rose-700 disabled:opacity-50">👎 Não</button>{message.feedbackPending ? <span className="text-xs text-slate-400">Salvando…</span> : null}</div> : null}
