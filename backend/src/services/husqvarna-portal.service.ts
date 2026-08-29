@@ -3,7 +3,10 @@ import { buildHusqvarnaPortalUrl } from './official-part-verification.service';
 
 const PORTAL_HOST = 'portal.husqvarnagroup.com';
 const CACHE_TTL_MS = 15 * 60 * 1000;
-const REQUEST_TIMEOUT_MS = Math.max(1_500, Math.min(12_000, Number(process.env.HUSQVARNA_PORTAL_TIMEOUT_MS || '6000')));
+const configuredTimeout = Number(process.env.HUSQVARNA_PORTAL_TIMEOUT_MS || '6000');
+const REQUEST_TIMEOUT_MS = Number.isFinite(configuredTimeout)
+  ? Math.max(1_500, Math.min(12_000, configuredTimeout))
+  : 6_000;
 
 type PortalStatus = 'VERIFIED' | 'SUPERSEDED' | 'REVIEW';
 
@@ -97,8 +100,6 @@ function replacementHistory(text: string, currentPartNumber: string): string[] {
   if (!heading) return [];
 
   const normalizedIndex = normalized.indexOf(heading);
-  // normalizeText altera apenas acentos/espaços; usamos uma janela ampla no texto
-  // original e depois filtramos números de artigo plausíveis.
   const originalWindowStart = Math.max(0, Math.floor((normalizedIndex / Math.max(1, normalized.length)) * text.length) - 100);
   const window = text.slice(originalWindowStart, originalWindowStart + 2_400);
   const numbers = extractPartNumbers(window);
@@ -127,8 +128,11 @@ export function parseHusqvarnaPortalHtml(html: string, requestedPartNumber: stri
   const previousPartNumbers = replacementHistory(text, current)
     .filter(number => number !== requested || current === requested);
 
-  const pageLooksUseful = Boolean(description || labeledCurrent || explicitReplacement || previousPartNumbers.length);
-  const status: PortalStatus = !pageLooksUseful
+  // Descrição isolada não é evidência suficiente: páginas de erro também podem
+  // ter um H1. Só marcamos VERIFICADO/SUBSTITUÍDO quando existe número de artigo,
+  // substituição explícita ou uma cadeia de substituição identificável.
+  const hasTechnicalEvidence = Boolean(labeledCurrent || explicitReplacement || previousPartNumbers.length);
+  const status: PortalStatus = !hasTechnicalEvidence
     ? 'REVIEW'
     : current !== requested
       ? 'SUPERSEDED'
