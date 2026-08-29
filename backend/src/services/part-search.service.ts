@@ -5,11 +5,13 @@ import { normalizeIdentifier } from '../utils/normalize';
 import type { SearchIntent } from './chat-intent.service';
 import {
   buildSearchGroups,
+  findPartConcepts,
   focusCandidatesByDescription,
   hasKnownPartVocabulary,
   scorePartText,
   semanticQueryText,
 } from './part-vocabulary';
+import { relationSpecificityBonus } from './candidate-specificity';
 import { applyFeedbackLearning } from './feedback-learning';
 import { preferCurrentPartNumbers, resolveCurrentPartNumber } from './part-supersession';
 
@@ -38,20 +40,104 @@ export interface PartCandidate {
   searchMethod: 'DIRECT_CODE' | 'SEMANTIC' | 'LEXICAL';
 }
 
-export function deduplicatePartCandidates(candidates: PartCandidate[]): PartCandidate[] {
-  const byTechnicalIdentity = new Map<string, PartCandidate>();
-  for (const candidate of candidates) {
-    const pnc = candidate.universalAcrossPnc ? '*' : (candidate.normalizedPnc || '');
-    const key = `${candidate.normalizedPartNumber}|${candidate.normalizedModel}|${pnc}`;
-    const current = byTechnicalIdentity.get(key);
-    const candidateRank = candidate.distance - candidate.feedbackScore;
-    const currentRank = current ? current.distance - current.feedbackScore : Number.POSITIVE_INFINITY;
-    const candidateHasMoreContext = Boolean(candidate.notes && !current?.notes);
-    if (!current || candidateRank < currentRank || (candidateRank === currentRank && candidateHasMoreContext)) {
-      byTechnicalIdentity.set(key, candidate);
-    }
+function technicalSectionIdentity(candidate: PartCandidate): string {
+  const concepts = findPartConcepts(candidate.section || '').map(group => group.key).sort();
+  if (concepts.length) return concepts.join('+');
+
+  let section = normalizeIdentifier(candidate.section);
+  const model = normalizeIdentifier(candidate.normalizedModel || candidate.model);
+  if (model && section.startsWith(model)) section = section.slice(model.length);
+  return section || '?';
+}
+
+function technicalOccurrenceKey(candidate: PartCandidate): string {
+  const pnc = candidate.universalAcrossPnc ? '*' : (candidate.normalizedPnc || '');
+  const position = normalizeIdentifier(candidate.position) || '?';
+  return [
+    candidate.normalizedPartNumber,
+    candidate.normalizedModel,
+    pnc,
+    technicalSectionIdentity(candidate),
+    position,
+  ].join('|');
+}
+
+function mergedAliases(preferredName: string, ...values: string[][]): string[] {
+  const seen = new Set<string>();
+  const preferred = normalizeIdentifier(preferredName);
+  const result: string[] = [];
+
+  for (const value of values.flat()) {
+    const normalized = normalizeIdentifier(value);
+    if (!normalized || normalized === preferred || seen.has(normalized)) continue;
+    seen.add(normalized);
+    result.push(value);
   }
-  return [...byTechnicalIdentity.values()];
+  return result;
+}
+
+/**
+ * Deduplica apenas a MESMA ocorrência técnica da peça.
+ *
+ * O mesmo código pode aparecer em várias vistas/posições do mesmo equipamento
+ * (por exemplo, um parafuso usado no CRANKCASE e no CLUTCH). Essas ocorrências
+ * precisam continuar separadas para a IA não perder contexto nem página.
+ *
+ * Quando dois catálogos descrevem a mesma ocorrência de forma diferente,
+ * preservamos as descrições alternativas como aliases. Assim um catálogo que diz
+ * apenas "SCREW" pode aproveitar a evidência de outro que diz "Screw Clutch shoe"
+ * sem inventar código, aplicação ou posição.
+ */
+export function deduplicatePartCandidates(candidates: PartCandidate[]): PartCandidate[] {
+  const byTechnicalOccurrence = new Map<string, PartCandidate>();
+
+  for (const candidate of candidates) {
+    const key = technicalOccurrenceKey(candidate);
+    const current = byTechnicalOccurrence.get(key);
+    if (!current) {
+      byTechnicalOccurrence.set(key, { ...candidate, alternativeNames: [...candidate.alternativeNames] });
+      continue;
+    }
+
+    const candidateRank = candidate.distance - candidate.feedbackScore;
+    const currentRank = current.distance - current.feedbackScore;
+    const candidateHasMoreContext = Boolean(candidate.notes && !current.notes);
+    const preferCandidate = candidateRank < currentRank || (candidateRank === currentRank && candidateHasMoreContext);
+    const preferred = preferCandidate ? candidate : current;
+    const other = preferCandidate ? current : candidate;
+
+    byTechnicalOccurrence.set(key, {
+      ...preferred,
+      alternativeNames: mergedAliases(
+        preferred.name,
+        preferred.alternativeNames,
+        other.alternativeNames,
+        preferred.name !== other.name ? [other.name] : [],
+      ),
+    });
+  }
+
+  return [...byTechnicalOccurrence.values()];
+}
+
+function rankCandidatesForQuestion(question: string, candidates: PartCandidate[]): PartCandidate[] {
+  return [...candidates].sort((a, b) => {
+    const aRank = a.distance
+      - a.feedbackScore
+      - relationSpecificityBonus(question, {
+        name: a.name,
+        section: a.section,
+        aliases: a.alternativeNames,
+      }) * 0.5;
+    const bRank = b.distance
+      - b.feedbackScore
+      - relationSpecificityBonus(question, {
+        name: b.name,
+        section: b.section,
+        aliases: b.alternativeNames,
+      }) * 0.5;
+    return aRank - bRank;
+  });
 }
 
 export class PartSearchService {
@@ -221,7 +307,8 @@ export class PartSearchService {
 
     const combined = [...semanticCandidates, ...localCandidates]
       .sort((a, b) => (a.distance - a.feedbackScore) - (b.distance - b.feedbackScore));
-    return preferCurrentPartNumbers(deduplicatePartCandidates(combined));
+    const deduplicated = deduplicatePartCandidates(combined);
+    return preferCurrentPartNumbers(rankCandidatesForQuestion(question, deduplicated));
   }
 
   private static async lexical(tenantId: string, question: string, intent: SearchIntent): Promise<PartCandidate[]> {
@@ -305,7 +392,9 @@ export class PartSearchService {
     } catch (error) {
       console.warn('⚠️ Aprendizado por feedback indisponível nesta consulta textual; mantendo ranking técnico.', error instanceof Error ? error.message : error);
     }
-    return preferCurrentPartNumbers(deduplicatePartCandidates(candidates.sort((a, b) => (a.distance - a.feedbackScore) - (b.distance - b.feedbackScore)))).slice(0, 40);
+    const sorted = candidates.sort((a, b) => (a.distance - a.feedbackScore) - (b.distance - b.feedbackScore));
+    const deduplicated = deduplicatePartCandidates(sorted);
+    return preferCurrentPartNumbers(rankCandidatesForQuestion(question, deduplicated)).slice(0, 40);
   }
 
   private static async applyFeedback(tenantId: string, question: string, model: string, pnc: string, candidates: PartCandidate[]): Promise<void> {
