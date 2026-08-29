@@ -1,8 +1,30 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assessCatalogHealth, isInformativeCatalogSection } from './catalog-health';
+import {
+  assessCatalogHealth,
+  diagnoseCatalogStructure,
+  isInformativeCatalogSection,
+  type CatalogHealthPart,
+} from './catalog-health';
 
-test('keeps a well structured catalog ready with high health score', () => {
+function healthPart(overrides: Partial<CatalogHealthPart> = {}): CatalogHealthPart {
+  return {
+    model: '143RII',
+    normalizedModel: '143RII',
+    pnc: null,
+    normalizedPnc: null,
+    universalAcrossPnc: true,
+    page: 1,
+    section: 'CLUTCH',
+    position: '1',
+    name: 'PEÇA',
+    notes: null,
+    normalizedPartNumber: '500000001',
+    ...overrides,
+  };
+}
+
+test('keeps a well structured catalog at 100 structural health', () => {
   const result = assessCatalogHealth({
     manufacturer: 'Husqvarna',
     model: '372 XP',
@@ -21,29 +43,32 @@ test('keeps a well structured catalog ready with high health score', () => {
     category: 'Motosserras',
   });
   assert.equal(result.reviewStatus, 'READY');
-  assert.ok(result.score >= 95);
+  assert.equal(result.score, 100);
   assert.equal(result.reasons.length, 0);
 });
 
-test('requires review for ambiguous PNC instead of pretending universal compatibility', () => {
+test('multiple PNCs are valid catalog coverage and do not reduce health', () => {
   const result = assessCatalogHealth({
     manufacturer: 'Husqvarna',
     model: 'TS114',
     pnc: null,
     extractedModels: ['TS114'],
-    extractedPncs: ['970622401', '970622402'],
+    extractedPncs: ['970622401', '970622402', '970622403'],
+    snapshotPartCount: 250,
     partCount: 250,
-    partsWithPage: 240,
+    partsWithPage: 250,
     partsWithSection: 250,
+    partsWithInformativeSection: 250,
     partsWithPosition: 250,
     chunkCount: 20,
     embeddedPartCount: 250,
   });
-  assert.equal(result.reviewStatus, 'NEEDS_REVIEW');
-  assert.ok(result.reasons.some(reason => reason.includes('mais de um PNC')));
+  assert.equal(result.reviewStatus, 'READY');
+  assert.equal(result.score, 100);
+  assert.ok(!result.reasons.some(reason => reason.includes('mais de um PNC')));
 });
 
-test('missing embeddings do not invalidate an otherwise usable catalog', () => {
+test('operational warnings do not reduce structural health', () => {
   const result = assessCatalogHealth({
     manufacturer: 'Husqvarna',
     model: '143RII',
@@ -53,16 +78,18 @@ test('missing embeddings do not invalidate an otherwise usable catalog', () => {
     partCount: 258,
     partsWithPage: 258,
     partsWithSection: 258,
+    partsWithInformativeSection: 258,
     partsWithPosition: 258,
     chunkCount: 18,
     embeddedPartCount: 0,
-    extractionMethod: 'GEMINI:gemini-3.6-flash',
+    extractionMethod: 'GEMINI:gemini-3.7-flash',
     processingStage: 'READY_WITHOUT_EMBEDDINGS',
     category: 'Roçadeiras',
   });
   assert.equal(result.reviewStatus, 'READY');
-  assert.ok(result.score >= 90);
+  assert.equal(result.score, 100);
   assert.ok(result.warnings.some(warning => warning.includes('vetorial')));
+  assert.ok(result.warnings.some(warning => warning.includes('IA')));
 });
 
 test('very incomplete extraction is stopped for human review', () => {
@@ -80,7 +107,7 @@ test('very incomplete extraction is stopped for human review', () => {
   assert.ok(result.score < 40);
 });
 
-test('conflicting codes in the same exploded-view position require review', () => {
+test('unresolved different codes in a proven exploded-view occurrence require review', () => {
   const result = assessCatalogHealth({
     manufacturer: 'Husqvarna',
     model: 'LC 151S',
@@ -93,7 +120,119 @@ test('conflicting codes in the same exploded-view position require review', () =
     conflictingOccurrenceCount: 2,
   });
   assert.equal(result.reviewStatus, 'NEEDS_REVIEW');
-  assert.ok(result.reasons.some(reason => reason.includes('associadas a mais de um código')));
+  assert.ok(result.score < 100);
+  assert.ok(result.reasons.some(reason => reason.includes('sem regra de PNC, série ou mercado')));
+});
+
+test('serial-range variants in the same position are coverage, not a structural conflict', () => {
+  const diagnostics = diagnoseCatalogStructure([
+    healthPart({
+      page: 22,
+      section: '143RII STARTER',
+      position: '10',
+      name: 'POLIA',
+      notes: 's/n up to 20161404745',
+      normalizedPartNumber: '504114401',
+    }),
+    healthPart({
+      page: 22,
+      section: '143RII STARTER',
+      position: '10',
+      name: 'POLIA',
+      notes: 's/n from 20162204746',
+      normalizedPartNumber: '528755401',
+    }),
+  ]);
+  assert.equal(diagnostics.conflictingOccurrenceCount, 0);
+  assert.equal(diagnostics.variantOccurrenceCount, 1);
+});
+
+test('compact serial ranges from old IPLs are recognized as mutually exclusive variants', () => {
+  const diagnostics = diagnoseCatalogStructure([
+    healthPart({
+      page: 3,
+      section: '143RII GEAR',
+      position: '14',
+      name: 'ENGRENAGEM',
+      notes: '20090100001-20113100000',
+      normalizedPartNumber: '528826201',
+    }),
+    healthPart({
+      page: 3,
+      section: '143RII GEAR',
+      position: '14',
+      name: 'ENGRENAGEM',
+      notes: '20113100001-Current',
+      normalizedPartNumber: '579076701',
+    }),
+  ]);
+  assert.equal(diagnostics.conflictingOccurrenceCount, 0);
+  assert.equal(diagnostics.variantOccurrenceCount, 1);
+});
+
+test('market variants in the same catalog position are coverage, not corruption', () => {
+  const diagnostics = diagnoseCatalogStructure([
+    healthPart({
+      page: 29,
+      section: '143RII CARBURETTOR & AIR FILTER',
+      position: '15',
+      name: 'CARBURADOR',
+      notes: 'ASIA, Latin America',
+      normalizedPartNumber: '587106701',
+    }),
+    healthPart({
+      page: 29,
+      section: '143RII CARBURETTOR & AIR FILTER',
+      position: '15',
+      name: 'CARBURADOR',
+      notes: 'EU',
+      normalizedPartNumber: '587822501',
+    }),
+  ]);
+  assert.equal(diagnostics.conflictingOccurrenceCount, 0);
+  assert.equal(diagnostics.variantOccurrenceCount, 1);
+});
+
+test('generic section does not pretend two equal positions belong to the same exploded view', () => {
+  const diagnostics = diagnoseCatalogStructure([
+    healthPart({ page: 5, section: 'Peças', position: '46', normalizedPartNumber: '581473301' }),
+    healthPart({ page: 5, section: 'Peças', position: '46', normalizedPartNumber: '591344801' }),
+  ]);
+  assert.equal(diagnostics.conflictingOccurrenceCount, 0);
+  assert.equal(diagnostics.uncertainOccurrenceCount, 1);
+});
+
+test('a persisted PNC that contradicts its own For rule is a real application error', () => {
+  const diagnostics = diagnoseCatalogStructure([
+    healthPart({
+      model: 'LB 155S',
+      normalizedModel: 'LB155S',
+      pnc: '96121003700',
+      normalizedPnc: '96121003700',
+      universalAcrossPnc: false,
+      page: 4,
+      section: 'Peças',
+      position: '28',
+      name: 'PARAFUSO BOLT CARRIAGE 5/16-18 1 For 96121002700',
+      normalizedPartNumber: '586212501',
+    }),
+  ]);
+  assert.equal(diagnostics.applicationMismatchCount, 1);
+
+  const result = assessCatalogHealth({
+    manufacturer: 'Husqvarna',
+    model: 'LB 155S',
+    extractedPncs: ['96121002700', '96121003700'],
+    partCount: 50,
+    partsWithPage: 50,
+    partsWithSection: 50,
+    partsWithPosition: 50,
+    chunkCount: 5,
+    embeddedPartCount: 50,
+    applicationMismatchCount: diagnostics.applicationMismatchCount,
+  });
+  assert.equal(result.reviewStatus, 'NEEDS_REVIEW');
+  assert.ok(result.reasons.some(reason => reason.includes('For/EXCEPT')));
 });
 
 test('large gap between extracted snapshot and persisted parts requires review', () => {
@@ -146,6 +285,7 @@ test('duplicate occurrences alone are surfaced as a warning without inventing a 
     duplicateOccurrenceCount: 1,
   });
   assert.equal(result.reviewStatus, 'READY');
+  assert.equal(result.score, 100);
   assert.ok(result.warnings.some(warning => warning.includes('duplicadas')));
   assert.ok(!result.reasons.some(reason => reason.includes('mais de um código')));
 });
@@ -170,6 +310,7 @@ test('generic section labels do not pretend to provide mechanical view context',
   });
 
   assert.equal(result.reviewStatus, 'READY');
+  assert.equal(result.score, 100);
   assert.ok(result.warnings.some(warning => warning.includes('seção genérica')));
 });
 
@@ -188,5 +329,6 @@ test('informative sections preserve a clean health result when view context is s
   });
 
   assert.equal(result.reviewStatus, 'READY');
+  assert.equal(result.score, 100);
   assert.ok(!result.warnings.some(warning => warning.includes('seção genérica')));
 });

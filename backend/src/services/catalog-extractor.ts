@@ -219,6 +219,25 @@ function applicationForBlock(blockText: string, knownPncs: string[], hintedPnc: 
     return { pncs: [], universal: true };
 }
 
+function applicationClause(value: string): string {
+    const exceptMatch = value.match(/\bFor\s+all\s+EXCEPT\s+([^\n.]+)/i);
+    if (exceptMatch && (exceptMatch[1].match(PNC_PATTERN) || []).length) return `For all EXCEPT ${exceptMatch[1].trim()}`;
+    const directMatch = value.match(/\bFor\s+([^\n.]+)/i);
+    if (directMatch && (directMatch[1].match(PNC_PATTERN) || []).length) return `For ${directMatch[1].trim()}`;
+    return '';
+}
+
+/**
+ * Alguns PDFs antigos não expõem a coluna de quantidade no texto extraído. Nesse
+ * layout o sufixo "1 For <PNC>" pode acabar dentro do nome. Removemos apenas o
+ * trecho que contém PNC explícito; a regra de aplicação é preservada em notes.
+ */
+function displayNameWithoutApplication(value: string): string {
+    const normalized = normalizedLine(value);
+    const match = normalized.match(/^(.*?)(?:\s+\d{1,3})?\s+For(?:\s+all\s+EXCEPT)?\s+[^\n.]*\b(?:\d{11}|\d{9})\b[^\n.]*$/i);
+    return clean(match?.[1] || normalized);
+}
+
 function splitInlineQuantity(value: string): { description: string; quantity: string; trailing: string } | null {
     const match = normalizedLine(value).match(/^(.*\S)\s+(\d{1,3})(?:\s+(.+))?$/);
     if (!match) return null;
@@ -366,10 +385,16 @@ export function parseHusqvarnaIplText(text: string, hints: CatalogHints = {}): C
         if (!parsedPage) continue;
 
         for (const row of parsedPage.rows) {
-            const application = applicationForBlock(row.comments, knownPncs, hintedPnc);
+            // A regra de PNC pode aparecer tanto em Comentário quanto colada à
+            // descrição nos PDFs cujo cabeçalho/quantidade não é reconhecido.
+            const applicationEvidence = [row.name, row.comments].filter(Boolean).join(' ');
+            const application = applicationForBlock(applicationEvidence, knownPncs, hintedPnc);
+            const inferredClause = applicationClause(applicationEvidence);
+            const rowName = displayNameWithoutApplication(row.name);
             const notes = [
                 row.quantity ? `Quantidade: ${row.quantity}` : '',
                 row.comments,
+                inferredClause && !row.comments.includes(inferredClause) ? inferredClause : '',
                 row.sectionCode ? `Seção do catálogo: ${row.sectionCode}` : '',
             ].filter(Boolean).join('. ');
 
@@ -382,7 +407,7 @@ export function parseHusqvarnaIplText(text: string, hints: CatalogHints = {}): C
                         universalAcrossPnc: false,
                         section: parsedPage.section,
                         position: row.position,
-                        name: row.name,
+                        name: rowName,
                         alternativeNames: [],
                         partNumber: row.partNumber,
                         page: page.page,
@@ -397,7 +422,7 @@ export function parseHusqvarnaIplText(text: string, hints: CatalogHints = {}): C
                     universalAcrossPnc: application.universal,
                     section: parsedPage.section,
                     position: row.position,
-                    name: row.name,
+                    name: rowName,
                     alternativeNames: [],
                     partNumber: row.partNumber,
                     page: page.page,
