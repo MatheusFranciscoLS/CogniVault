@@ -23,6 +23,10 @@ function sources(candidate: PartCandidate): RetrievalSource[] {
   return [...new Set(candidate.retrievalSources?.length ? candidate.retrievalSources : [candidate.searchMethod])];
 }
 
+function retrievalEvidence(candidate: PartCandidate): number {
+  return candidate.retrievalScore ?? Math.max(0, 1 - candidate.distance);
+}
+
 function explicitQualifierCount(question: string): number {
   const qualifiers = extractTechnicalQualifiers(question);
   return Object.values(qualifiers).filter(value => value !== null).length;
@@ -109,7 +113,7 @@ export function evaluateAnswerConfidence(params: {
 
   const retrievalSources = sources(chosen);
   const agreement = Math.max(chosen.retrievalAgreement || 0, retrievalSources.length);
-  const retrieval = chosen.retrievalScore ?? Math.max(0, 1 - chosen.distance);
+  const retrieval = retrievalEvidence(chosen);
   const semanticConfidence = Math.max(0, 1 - Math.max(0, chosen.distance - chosen.feedbackScore));
   const specificity = relationSpecificityBonus(question, {
     name: chosen.name,
@@ -122,6 +126,20 @@ export function evaluateAnswerConfidence(params: {
   const runnerEvidence = runnerUp ? rankingEvidence(question, runnerUp) : 0;
   const sameCodeRunner = Boolean(runnerUp && runnerUp.normalizedPartNumber === chosen.normalizedPartNumber);
   const margin = runnerUp ? chosenEvidence - runnerEvidence : 0.35;
+  const rawRetrievalMargin = runnerUp && !sameCodeRunner
+    ? retrieval - retrievalEvidence(runnerUp)
+    : 1;
+
+  // Se códigos diferentes chegam praticamente empatados pelos recuperadores,
+  // uma regra de desempate mecânico pode ordenar as opções, mas não deve sozinha
+  // transformar o primeiro colocado em certeza. O usuário ainda recebe o melhor
+  // candidato, porém precisa confirmar a aplicação/vista antes do código liberar.
+  const differentCodeNearTie = Boolean(
+    runnerUp
+    && !sameCodeRunner
+    && rawRetrievalMargin < 0.03
+    && margin < 0.16,
+  );
 
   let confidence = Math.min(clamp(params.selectionConfidence), clamp(Math.max(semanticConfidence, retrieval)));
   if (agreement >= 3) confidence += 0.10;
@@ -132,6 +150,7 @@ export function evaluateAnswerConfidence(params: {
   else if (margin >= 0.20) confidence += 0.06;
   else if (margin >= 0.10) confidence += 0.03;
   else if (margin < 0.05) confidence -= 0.12;
+  if (differentCodeNearTie) confidence -= 0.08;
   confidence += catalog.adjustment;
 
   const fuzzyOnly = retrievalSources.length === 1 && retrievalSources[0] === 'FUZZY';
@@ -145,13 +164,18 @@ export function evaluateAnswerConfidence(params: {
   const safe = confidence >= 0.72
     && strongLead
     && independentEvidence
+    && !differentCodeNearTie
     && !fuzzyOnly
     && !catalog.blocksInference;
   const evidence: string[] = [];
   if (agreement >= 2) evidence.push(`${agreement} métodos independentes concordaram com esta peça.`);
   else evidence.push(`Recuperação principal: ${retrievalSources[0] || chosen.searchMethod}.`);
   if (specificity > 0) evidence.push('Os detalhes mecânicos explícitos da pergunta combinam com o candidato.');
-  if (runnerUp && !sameCodeRunner) evidence.push(`Margem técnica sobre a segunda opção: ${Math.max(0, margin).toFixed(3)}.`);
+  if (runnerUp && !sameCodeRunner) {
+    evidence.push(`Margem técnica sobre a segunda opção: ${Math.max(0, margin).toFixed(3)}.`);
+    evidence.push(`Margem entre recuperadores para códigos diferentes: ${Math.max(0, rawRetrievalMargin).toFixed(3)}.`);
+  }
+  if (differentCodeNearTie) evidence.push('Dois códigos diferentes ficaram praticamente empatados na recuperação; confirmação humana obrigatória.');
   if (chosen.feedbackScore > 0.02) evidence.push('Há feedback positivo/correção anterior favorecendo este resultado.');
   if (fuzzyOnly) evidence.push('A peça apareceu apenas pela tolerância a erro de digitação; confirmação adicional é obrigatória.');
   evidence.push(...catalog.messages);
@@ -165,6 +189,8 @@ export function evaluateAnswerConfidence(params: {
       ? 'Há evidência independente, separação suficiente das alternativas e o catálogo não possui bloqueio estrutural conhecido.'
       : catalog.blocksInference
         ? 'O catálogo de origem precisa de revisão antes de uma resposta inferida ser liberada automaticamente.'
-        : 'A evidência ainda não é suficiente para liberar automaticamente um código.',
+        : differentCodeNearTie
+          ? 'Dois códigos diferentes ficaram próximos demais para eu liberar um deles automaticamente.'
+          : 'A evidência ainda não é suficiente para liberar automaticamente um código.',
   };
 }
