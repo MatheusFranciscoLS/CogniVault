@@ -9,6 +9,7 @@ import { AdminController } from '../controllers/admin.controller';
 import { AdminFeedbackController } from '../controllers/admin-feedback.controller';
 import { OperationalController } from '../controllers/operational.controller';
 import { OfficialPartVerificationController } from '../controllers/official-part-verification.controller';
+import { QualityController } from '../controllers/quality.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -21,6 +22,7 @@ const adminController = new AdminController();
 const adminFeedbackController = new AdminFeedbackController();
 const operationalController = new OperationalController();
 const officialPartVerificationController = new OfficialPartVerificationController();
+const qualityController = new QualityController();
 
 const upload = multer({ dest: 'uploads/', limits: { fileSize: 50 * 1024 * 1024 } });
 
@@ -60,5 +62,8 @@ router.post('/admin/users', authMiddleware, adminOnly, (req, res) => adminContro
 router.patch('/admin/users/:id', authMiddleware, adminOnly, (req, res) => adminController.updateUser(req, res));
 router.get('/admin/feedback', authMiddleware, adminOnly, (req, res) => adminFeedbackController.list(req, res));
 router.get('/admin/audit', authMiddleware, adminOnly, (req, res) => adminController.audit(req, res));
+router.get('/admin/quality', authMiddleware, adminOnly, (req, res) => qualityController.overview(req, res));
+router.post('/admin/quality/benchmark', authMiddleware, adminOnly, (req, res) => qualityController.benchmark(req, res));
+router.patch('/admin/quality/catalogs/:id', authMiddleware, adminOnly, (req, res) => qualityController.reviewDocument(req, res));
 
 export default router;
