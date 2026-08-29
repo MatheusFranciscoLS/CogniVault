@@ -40,38 +40,38 @@ const PART_NUMBER_PATTERN = `(?:${SPACED_PART_NUMBER_PATTERN}|${CONTIGUOUS_PART_
 const HUSQVARNA_ROW = new RegExp(`^(\\d{1,3})\\s+(${SPACED_PART_NUMBER_PATTERN})\\s+(.+?)\\s+([A-Z])\\s+(\\d+)(?:\\s+(.+))?$`, 'i');
 const GENERIC_PART_ROW = new RegExp(`^(\\d{1,3})\\s+(${SPACED_PART_NUMBER_PATTERN})\\s+(.+?)\\s+(\\d+)(?:\\s+(.+))?$`, 'i');
 const FLEXIBLE_ROW_START = new RegExp(`^(\\d{1,3})\\s+(${PART_NUMBER_PATTERN})\\s*(.*)$`, 'i');
-const LEGACY_PAGE_MARKER = /--\\s+(\\d+)\\s+of\\s+\\d+\\s+--/g;
-const PORTAL_PAGE_MARKER = /https?:\\/\\/[^\\n]*?\\s(\\d{1,4})\\/(\\d{1,4})\\s*$/gm;
-const PNC_PATTERN = /\\b\\d{8,12}\\b/g;
+const LEGACY_PAGE_MARKER = /--\s+(\d+)\s+of\s+\d+\s+--/g;
+const PORTAL_PAGE_MARKER = /https?:\/\/[^\n]*?\s(\d{1,4})\/(\d{1,4})\s*$/gm;
+const PNC_PATTERN = /\b(?:\d{11}|\d{9})\b/g;
 
 function clean(value: unknown): string {
     return typeof value === 'string' ? value.trim() : '';
 }
 
 function compactModel(value: string): string {
-    return value.replace(/\\s+/g, '');
+    return value.replace(/\s+/g, '');
 }
 
 function normalizedLine(value: string): string {
     return value
-        .replace(/\\u00a0/g, ' ')
-        .replace(/[\\u00ad\\ufffe\\ufffd]/g, '-')
-        .replace(/[ \\t]+/g, ' ')
+        .replace(/\u00a0/g, ' ')
+        .replace(/[\u00ad\ufffe\ufffd]/g, '-')
+        .replace(/[ \t]+/g, ' ')
         .trim();
 }
 
 function isPartsHeader(value: string): boolean {
     const line = normalizedLine(value).toLowerCase();
-    const hasPosition = /\\bpos(?:ition)?\\.?\\b/.test(line) || /\\bkey\\s+part\\b/.test(line);
-    const hasPartNumber = /\\bpart\\s*(?:nr|no|number)\\.?\\b/.test(line) || /\\bn[uú]mero\\s+do\\s+artigo\\b/.test(line);
+    const hasPosition = /\bpos(?:ition)?\.?\b/.test(line) || /\bkey\s+part\b/.test(line);
+    const hasPartNumber = /\bpart\s*(?:nr|no|number)\.?\b/.test(line) || /\bn[uú]mero\s+do\s+artigo\b/.test(line);
     return hasPosition && hasPartNumber;
 }
 
 function hasCatalogSignature(text: string): boolean {
-    return /\\bIPL,\\s*/i.test(text)
-        || /ILLUSTRATED\\s+PARTS\\s+LIST/i.test(text)
-        || /HUSQVARNA\\s+PORTAL/i.test(text)
-        || /HUSQVARNA.+MODEL\\s+NUMBER/i.test(text);
+    return /\bIPL,\s*/i.test(text)
+        || /ILLUSTRATED\s+PARTS\s+LIST/i.test(text)
+        || /HUSQVARNA\s+PORTAL/i.test(text)
+        || /HUSQVARNA.+MODEL\s+NUMBER/i.test(text);
 }
 
 function cleanPartNumber(value: string): string {
@@ -140,17 +140,17 @@ function sectionFromLines(lines: string[], lastRowIndex: number, fallback: strin
 function isNoiseLine(value: string): boolean {
     const line = normalizedLine(value);
     if (!line) return true;
-    if (/^https?:\\/\\//i.test(line)) return true;
-    if (/Husqvarna\\s+Portal\\s+BR/i.test(line)) return true;
-    if (/^\\d{1,2}\\/\\d{1,2}\\/\\d{4},?\\s+\\d{1,2}:\\d{2}/.test(line)) return true;
+    if (/^https?:\/\//i.test(line)) return true;
+    if (/Husqvarna\s+Portal\s+BR/i.test(line)) return true;
+    if (/^\d{1,2}\/\d{1,2}\/\d{4},?\s+\d{1,2}:\d{2}/.test(line)) return true;
     if (/^(?:Refer[eê]|ncia$|N[uú]mero do$|artigo$|Nome do artigo|Quanti$|dade$|Coment[aá]rio$)/i.test(line)) return true;
-    if (/^(?:KEY\\s+PART|NO\\.\\s+NO\\.\\s+DESCRIPTION)/i.test(line)) return true;
+    if (/^(?:KEY\s+PART|NO\.\s+NO\.\s+DESCRIPTION)/i.test(line)) return true;
     return isPartsHeader(line);
 }
 
 function filenameModel(filename: string): string {
-    const base = filename.replace(/\\.pdf$/i, '').replace(/\\s+/g, ' ').trim();
-    const afterBrand = base.match(/Husqvarna\\s+(.+)$/i)?.[1];
+    const base = filename.replace(/\.pdf$/i, '').replace(/\s+/g, ' ').trim();
+    const afterBrand = base.match(/Husqvarna\s+(.+)$/i)?.[1];
     return clean(afterBrand || '');
 }
 
@@ -158,13 +158,13 @@ function detectModel(text: string, hints: CatalogHints): string {
     const hinted = clean(hints.model);
     if (hinted) return hinted;
 
-    const iplModel = text.match(/IPL,\\s*([^,\\n]+),\\s*\\d{4}-\\d{2}/i)?.[1];
+    const iplModel = text.match(/IPL,\s*([^,\n]+),\s*\d{4}-\d{2}/i)?.[1];
     if (iplModel) return compactModel(clean(iplModel));
 
-    const modelNumber = text.match(/MODEL\\s+NUMBER\\s*:?\\s*([A-Z0-9][A-Z0-9 .®_-]*?)(?=\\s*\\(|\\s+MFG\\.|\\r?\\n|$)/i)?.[1];
+    const modelNumber = text.match(/MODEL\s+NUMBER\s*:?\s*([A-Z0-9][A-Z0-9 .®_-]*?)(?=\s*\(|\s+MFG\.|\r?\n|$)/i)?.[1];
     if (modelNumber) return clean(modelNumber);
 
-    const productLine = text.match(/^\\s*([A-Z0-9]{1,8}(?:\\s+[A-Z0-9®.-]{1,10}){0,2})\\s+(?:LAWN\\s+MOWER|CHAIN\\s+SAW|CHAINSAW|TRACTOR|BLOWER|TRIMMER|BRUSHCUTTER|ENGINE|SPRAYER|POLE\\s+SAW|HEDGE\\s+TRIMMER)\\b/im)?.[1];
+    const productLine = text.match(/^\s*([A-Z0-9]{1,8}(?:\s+[A-Z0-9®.-]{1,10}){0,2})\s+(?:LAWN\s+MOWER|CHAIN\s+SAW|CHAINSAW|TRACTOR|BLOWER|TRIMMER|BRUSHCUTTER|ENGINE|SPRAYER|POLE\s+SAW|HEDGE\s+TRIMMER)\b/im)?.[1];
     if (productLine) return clean(productLine);
 
     return filenameModel(clean(hints.filename));
@@ -181,13 +181,13 @@ function collectPncs(text: string, hints: CatalogHints): string[] {
     const hinted = clean(hints.pnc);
     if (hinted) values.push(hinted);
 
-    for (const match of text.matchAll(/MFG\\.\\s*ID\\.\\s*NUMBER\\s*:?\\s*(\\d{8,12})/gi)) {
+    for (const match of text.matchAll(/MFG\.\s*ID\.\s*NUMBER\s*:?\s*(\d{11}|\d{9})\b/gi)) {
         values.push(match[1]);
     }
-    for (const match of text.matchAll(/(?:PNC|PRODUCT\\s+(?:NO|NUMBER|NUMBER\\s+CODE))\\s*:?\\s*(\\d{8,12})/gi)) {
+    for (const match of text.matchAll(/(?:PNC|PRODUCT\s+(?:NO|NUMBER|NUMBER\s+CODE))\s*:?\s*(\d{11}|\d{9})\b/gi)) {
         values.push(match[1]);
     }
-    for (const match of text.matchAll(/\\bFor(?:\\s+all\\s+EXCEPT)?\\s+([^\\n.]+)/gi)) {
+    for (const match of text.matchAll(/\bFor(?:\s+all\s+EXCEPT)?\s+([^\n.]+)/gi)) {
         values.push(...(match[1].match(PNC_PATTERN) || []));
     }
 
@@ -195,14 +195,14 @@ function collectPncs(text: string, hints: CatalogHints): string[] {
 }
 
 function applicationForBlock(blockText: string, knownPncs: string[], hintedPnc: string): { pncs: string[]; universal: boolean } {
-    const exceptMatch = blockText.match(/\\bFor\\s+all\\s+EXCEPT\\s+([^\\n.]+)/i);
+    const exceptMatch = blockText.match(/\bFor\s+all\s+EXCEPT\s+([^\n.]+)/i);
     if (exceptMatch) {
         const excluded = new Set(exceptMatch[1].match(PNC_PATTERN) || []);
         const allowed = knownPncs.filter((pnc) => !excluded.has(pnc));
         return { pncs: unique(allowed), universal: false };
     }
 
-    const directMatch = blockText.match(/\\bFor\\s+([^\\n.]+)/i);
+    const directMatch = blockText.match(/\bFor\s+([^\n.]+)/i);
     if (directMatch) {
         const direct = unique(directMatch[1].match(PNC_PATTERN) || []);
         if (direct.length) return { pncs: direct, universal: false };
@@ -214,7 +214,7 @@ function applicationForBlock(blockText: string, knownPncs: string[], hintedPnc: 
 }
 
 function splitInlineQuantity(value: string): { description: string; quantity: string; trailing: string } | null {
-    const match = normalizedLine(value).match(/^(.*\\S)\\s+(\\d{1,3})(?:\\s+(.+))?$/);
+    const match = normalizedLine(value).match(/^(.*\S)\s+(\d{1,3})(?:\s+(.+))?$/);
     if (!match) return null;
     return {
         description: clean(match[1]),
@@ -238,7 +238,7 @@ function parseFlexibleBlock(lines: string[]): { name: string; quantity: string; 
             continue;
         }
 
-        const quantityOnly = line.match(/^(\\d{1,3})(?:\\s+(.+))?$/);
+        const quantityOnly = line.match(/^(\d{1,3})(?:\s+(.+))?$/);
         if (quantityOnly) {
             quantity = quantityOnly[1];
             if (quantityOnly[2]) comments.push(quantityOnly[2]);
@@ -346,7 +346,7 @@ export function parseHusqvarnaIplText(text: string, hints: CatalogHints = {}): C
     const parts: ExtractedPart[] = [];
 
     for (const page of textPages(text)) {
-        const lines = page.text.split(/\\r?\\n/).map(normalizedLine).filter(Boolean);
+        const lines = page.text.split(/\r?\n/).map(normalizedLine).filter(Boolean);
         const parsedPage = parseLegacyPage(lines) || parseFlexiblePage(lines);
         if (!parsedPage) continue;
 
