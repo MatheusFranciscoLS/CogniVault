@@ -93,7 +93,8 @@ test('seleciona EMBRAIAGEM e elimina parafuso/anilha da mesma vista CLUTCH', () 
 
 test('entende peça composta dividida entre nome e seção do catálogo', () => {
   const groups = buildSearchGroups('tambor da embreagem da 143RII', ['143RII']);
-  assert.ok(groups.some(group => group.key === 'clutch-drum'));
+  assert.ok(groups.some(group => group.key === 'clutch'));
+  assert.ok(groups.some(group => group.key === 'literal:tambor'));
 
   const drumScore = scorePartText('tambor da embreagem', { name: 'TAMBOR', section: '143RII CLUTCH' });
   const screwScore = scorePartText('tambor da embreagem', { name: 'PARAFUSO', section: '143RII CLUTCH' });
