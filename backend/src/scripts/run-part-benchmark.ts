@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { prisma } from '../config/prisma';
 import { buildFallbackIntent } from '../services/chat-reliability';
+import { buildFeedbackBenchmarkCases } from '../services/feedback-benchmark';
 import { HUSQVARNA_GOLDEN_BENCHMARK } from '../services/part-benchmark-cases';
 import { evaluatePartBenchmark, formatBenchmarkPercent } from '../services/part-benchmark';
 import { PartSearchService } from '../services/part-search.service';
@@ -18,6 +19,32 @@ function normalized(value: string): string {
   return value.replace(/[^A-Z0-9]/gi, '').toUpperCase();
 }
 
+async function feedbackCases(tenantId: string) {
+  const includeFeedback = process.argv.includes('--include-feedback') || enabled(process.env.BENCHMARK_INCLUDE_FEEDBACK);
+  if (!includeFeedback) return [];
+
+  const requestedLimit = Number(argValue('feedback-limit') || process.env.BENCHMARK_FEEDBACK_LIMIT || '50');
+  const feedbackLimit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(200, Math.trunc(requestedLimit))) : 50;
+  const rows = await prisma.searchFeedback.findMany({
+    where: {
+      tenantId,
+      correct: false,
+      correctedPartId: { not: null },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: feedbackLimit * 3,
+    select: {
+      id: true,
+      query: true,
+      pnc: true,
+      resultPart: { select: { partNumber: true, model: true, pnc: true } },
+      correctedPart: { select: { partNumber: true, model: true, pnc: true } },
+    },
+  });
+
+  return buildFeedbackBenchmarkCases(rows).slice(0, feedbackLimit);
+}
+
 async function main() {
   const tenantId = argValue('tenant') || process.env.BENCHMARK_TENANT_ID || '';
   if (!tenantId) {
@@ -28,10 +55,13 @@ async function main() {
   const limit = Number.isFinite(requestedLimit)
     ? Math.max(1, Math.min(HUSQVARNA_GOLDEN_BENCHMARK.length, Math.trunc(requestedLimit)))
     : HUSQVARNA_GOLDEN_BENCHMARK.length;
-  const cases = HUSQVARNA_GOLDEN_BENCHMARK.slice(0, limit);
+  const goldenCases = HUSQVARNA_GOLDEN_BENCHMARK.slice(0, limit);
+  const tenantFeedbackCases = await feedbackCases(tenantId);
+  const cases = [...goldenCases, ...tenantFeedbackCases];
   const observations = [];
 
-  console.log(`\n🧪 CogniVault benchmark: ${cases.length} casos reais de balcão`);
+  console.log(`\n🧪 CogniVault benchmark: ${cases.length} casos`);
+  console.log(`   Golden set: ${goldenCases.length} · correções reais do tenant: ${tenantFeedbackCases.length}`);
   console.log('   Métricas: Top-1, Recall@5, MRR, NDCG@5 e hard negatives\n');
 
   for (const [index, benchmarkCase] of cases.entries()) {
