@@ -147,7 +147,11 @@ function serialRange(part: CatalogHealthPart): SerialRange | null {
       : { lower: null, upper: serial };
   }
 
-  const compact = evidence.trim().match(/^(\d{8,16})\s*-\s*(\d{8,16}|CURRENT)$/);
+  // IPLs antigos também usam a faixa compacta sem rótulo, por exemplo
+  // 20090100001-20113100000 / 20113100001-Current. Procuramos isso somente em
+  // notes para não confundir números presentes no nome/código da peça.
+  const compactNotes = text(part.notes).toUpperCase();
+  const compact = compactNotes.match(/(?:^|\s)(\d{8,16})\s*-\s*(\d{8,16}|CURRENT)(?:\s|$)/);
   if (compact) {
     return {
       lower: serialNumber(compact[1]),
