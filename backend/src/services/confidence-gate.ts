@@ -9,6 +9,12 @@ export type ConfidenceDecision = {
   reason: string;
 };
 
+export type CatalogConfidenceContext = {
+  healthScore?: number | null;
+  reviewStatus?: 'PENDING' | 'READY' | 'NEEDS_REVIEW' | 'REVIEWED' | null;
+  reviewReasons?: string[];
+};
+
 function clamp(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
@@ -20,6 +26,56 @@ function sources(candidate: PartCandidate): RetrievalSource[] {
 function explicitQualifierCount(question: string): number {
   const qualifiers = extractTechnicalQualifiers(question);
   return Object.values(qualifiers).filter(value => value !== null).length;
+}
+
+function catalogEvidence(context: CatalogConfidenceContext | undefined): {
+  adjustment: number;
+  blocksInference: boolean;
+  messages: string[];
+} {
+  if (!context) return { adjustment: 0, blocksInference: false, messages: [] };
+  const health = typeof context.healthScore === 'number' && Number.isFinite(context.healthScore)
+    ? Math.max(0, Math.min(100, context.healthScore))
+    : null;
+  const status = context.reviewStatus || null;
+  const messages: string[] = [];
+  let adjustment = 0;
+  let blocksInference = false;
+
+  if (status === 'NEEDS_REVIEW') {
+    blocksInference = true;
+    adjustment -= 0.16;
+    messages.push('O catálogo de origem está marcado para revisão estrutural; respostas inferidas exigem conferência humana.');
+  } else if (status === 'REVIEWED') {
+    adjustment += 0.03;
+    messages.push('O catálogo de origem já passou por revisão administrativa de qualidade.');
+  } else if (status === 'READY') {
+    adjustment += 0.01;
+    messages.push('O catálogo de origem passou pelas verificações estruturais automáticas.');
+  } else if (status === 'PENDING') {
+    adjustment -= 0.02;
+    messages.push('A revisão estrutural do catálogo de origem ainda está pendente.');
+  }
+
+  if (health !== null && health > 0) {
+    if (health < 60) {
+      blocksInference = true;
+      adjustment -= 0.12;
+      messages.push(`Saúde estrutural do catálogo: ${Math.round(health)}/100, abaixo do mínimo para liberar uma inferência.`);
+    } else if (health < 75) {
+      adjustment -= 0.04;
+      messages.push(`Saúde estrutural do catálogo: ${Math.round(health)}/100; confiança reduzida.`);
+    } else if (health >= 90) {
+      adjustment += 0.02;
+      messages.push(`Saúde estrutural do catálogo: ${Math.round(health)}/100.`);
+    }
+  }
+
+  if (blocksInference && context.reviewReasons?.length) {
+    messages.push(`Motivo de revisão: ${context.reviewReasons[0]}.`);
+  }
+
+  return { adjustment, blocksInference, messages };
 }
 
 /**
@@ -34,15 +90,20 @@ export function evaluateAnswerConfidence(params: {
   runnerUp?: PartCandidate;
   selectionConfidence: number;
   exactCode?: boolean;
+  catalog?: CatalogConfidenceContext;
 }): ConfidenceDecision {
   const { question, chosen, runnerUp, exactCode = false } = params;
+  const catalog = catalogEvidence(params.catalog);
+
   if (exactCode || chosen.searchMethod === 'DIRECT_CODE') {
     return {
       safe: true,
       confidence: 1,
       level: 'EXACT',
-      evidence: ['Código localizado diretamente em um registro de peça ativo.'],
-      reason: 'Código exato encontrado na base técnica.',
+      evidence: ['Código localizado diretamente em um registro de peça ativo.', ...catalog.messages],
+      reason: catalog.blocksInference
+        ? 'Código exato encontrado na base técnica; o catálogo possui alerta estrutural para consultas inferidas.'
+        : 'Código exato encontrado na base técnica.',
     };
   }
 
@@ -71,6 +132,7 @@ export function evaluateAnswerConfidence(params: {
   else if (margin >= 0.20) confidence += 0.06;
   else if (margin >= 0.10) confidence += 0.03;
   else if (margin < 0.05) confidence -= 0.12;
+  confidence += catalog.adjustment;
 
   const fuzzyOnly = retrievalSources.length === 1 && retrievalSources[0] === 'FUZZY';
   const semanticOnly = retrievalSources.length === 1 && retrievalSources[0] === 'SEMANTIC';
@@ -80,7 +142,11 @@ export function evaluateAnswerConfidence(params: {
 
   const strongLead = !runnerUp || sameCodeRunner || margin >= 0.08;
   const independentEvidence = agreement >= 2 || retrievalSources.includes('LEXICAL') || retrievalSources.includes('FULL_TEXT');
-  const safe = confidence >= 0.72 && strongLead && independentEvidence && !fuzzyOnly;
+  const safe = confidence >= 0.72
+    && strongLead
+    && independentEvidence
+    && !fuzzyOnly
+    && !catalog.blocksInference;
   const evidence: string[] = [];
   if (agreement >= 2) evidence.push(`${agreement} métodos independentes concordaram com esta peça.`);
   else evidence.push(`Recuperação principal: ${retrievalSources[0] || chosen.searchMethod}.`);
@@ -88,6 +154,7 @@ export function evaluateAnswerConfidence(params: {
   if (runnerUp && !sameCodeRunner) evidence.push(`Margem técnica sobre a segunda opção: ${Math.max(0, margin).toFixed(3)}.`);
   if (chosen.feedbackScore > 0.02) evidence.push('Há feedback positivo/correção anterior favorecendo este resultado.');
   if (fuzzyOnly) evidence.push('A peça apareceu apenas pela tolerância a erro de digitação; confirmação adicional é obrigatória.');
+  evidence.push(...catalog.messages);
 
   return {
     safe,
@@ -95,7 +162,9 @@ export function evaluateAnswerConfidence(params: {
     level: safe && confidence >= 0.86 ? 'HIGH' : 'REVIEW',
     evidence,
     reason: safe
-      ? 'Há evidência independente e separação suficiente das alternativas.'
-      : 'A evidência ainda não é suficiente para liberar automaticamente um código.',
+      ? 'Há evidência independente, separação suficiente das alternativas e o catálogo não possui bloqueio estrutural conhecido.'
+      : catalog.blocksInference
+        ? 'O catálogo de origem precisa de revisão antes de uma resposta inferida ser liberada automaticamente.'
+        : 'A evidência ainda não é suficiente para liberar automaticamente um código.',
   };
 }
