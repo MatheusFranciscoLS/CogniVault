@@ -29,6 +29,12 @@ export function extractLikelyPnc(question: string): string {
   return match?.[1]?.trim() || '';
 }
 
+export function extractLikelyPosition(question: string): string {
+  const normalized = normalizeText(question);
+  const match = normalized.match(/\b(?:posicao|pos|item|ref|referencia)\s*[:#.-]?\s*(\d{1,3})\b/i);
+  return match?.[1] || '';
+}
+
 export function extractLikelyModel(question: string): string {
   const partNumber = extractLikelyPartNumber(question);
   const pnc = extractLikelyPnc(question);
@@ -54,7 +60,7 @@ export function buildFallbackIntent(question: string): SearchIntent {
     partDescription: question.trim(),
     partNumber: extractLikelyPartNumber(question),
     section: '',
-    position: '',
+    position: extractLikelyPosition(question),
   };
 }
 
@@ -68,24 +74,32 @@ export function chooseCandidateLocally(
 ): { id: string | null; confidence: number; ambiguous: boolean } {
   if (candidates.length === 1) return { id: candidates[0].id, confidence: 0.9, ambiguous: false };
 
+  const requestedPosition = normalizeIdentifier(extractLikelyPosition(question));
   const ranked = candidates.map(candidate => {
-    const score = scorePartText(question, {
+    const technicalScore = scorePartText(question, {
       name: candidate.name,
       section: candidate.section,
       aliases: candidate.aliases,
     });
-    // O score técnico pode chegar a 1. Mantemos o pequeno bônus de feedback
-    // fora desse teto para que confirmações/correções consigam desempatar duas
-    // descrições tecnicamente idênticas; a confiança exibida continua limitada.
-    return { id: candidate.id, score: score + (candidate.feedbackScore || 0) };
+    let score = technicalScore + (candidate.feedbackScore || 0);
+
+    // A posição é evidência determinística da vista explodida. Quando explicitada,
+    // ela desempata componentes iguais do mesmo conjunto (ex.: vários SCREW em CLUTCH).
+    if (requestedPosition) {
+      const candidatePosition = normalizeIdentifier(candidate.position);
+      if (candidatePosition === requestedPosition) score += 0.32;
+      else if (candidatePosition) score -= 0.16;
+    }
+
+    return { id: candidate.id, score };
   }).sort((a, b) => b.score - a.score);
 
   const best = ranked[0];
   const second = ranked[1];
   const safeLead = best && best.score >= 0.55 && (!second || best.score - second.score >= 0.18);
   return safeLead
-    ? { id: best.id, confidence: Math.max(0.72, Math.min(0.9, best.score)), ambiguous: false }
-    : { id: null, confidence: best?.score || 0, ambiguous: true };
+    ? { id: best.id, confidence: Math.max(0.72, Math.min(0.95, best.score)), ambiguous: false }
+    : { id: null, confidence: Math.max(0, Math.min(1, best?.score || 0)), ambiguous: true };
 }
 
 export function calibrateMatchConfidence(selectionConfidence: number, distance: number, exactCode = false): number {
