@@ -64,6 +64,7 @@ router.get('/admin/feedback', authMiddleware, adminOnly, (req, res) => adminFeed
 router.get('/admin/audit', authMiddleware, adminOnly, (req, res) => adminController.audit(req, res));
 router.get('/admin/quality', authMiddleware, adminOnly, (req, res) => qualityController.overview(req, res));
 router.post('/admin/quality/benchmark', authMiddleware, adminOnly, (req, res) => qualityController.benchmark(req, res));
+router.post('/admin/quality/rebuild-knowledge', authMiddleware, adminOnly, (req, res) => qualityController.rebuildKnowledge(req, res));
 router.patch('/admin/quality/catalogs/:id', authMiddleware, adminOnly, (req, res) => qualityController.reviewDocument(req, res));
 
 export default router;
