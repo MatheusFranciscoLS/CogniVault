@@ -14,6 +14,7 @@ import {
 import { relationSpecificityBonus } from './candidate-specificity';
 import { applyFeedbackLearning } from './feedback-learning';
 import { preferCurrentPartNumbers, resolveCurrentPartNumber } from './part-supersession';
+import { normalizedReciprocalRankFusionScores } from './retrieval-fusion';
 
 const MAX_DISTANCE = Number(process.env.PART_SEARCH_MAX_DISTANCE || '0.65');
 
@@ -38,6 +39,7 @@ export interface PartCandidate {
   distance: number;
   feedbackScore: number;
   searchMethod: 'DIRECT_CODE' | 'SEMANTIC' | 'LEXICAL';
+  retrievalScore?: number;
 }
 
 function technicalSectionIdentity(candidate: PartCandidate): string {
@@ -105,9 +107,11 @@ export function deduplicatePartCandidates(candidates: PartCandidate[]): PartCand
     const preferCandidate = candidateRank < currentRank || (candidateRank === currentRank && candidateHasMoreContext);
     const preferred = preferCandidate ? candidate : current;
     const other = preferCandidate ? current : candidate;
+    const retrievalScore = Math.max(preferred.retrievalScore || 0, other.retrievalScore || 0);
 
     byTechnicalOccurrence.set(key, {
       ...preferred,
+      ...(retrievalScore ? { retrievalScore } : {}),
       alternativeNames: mergedAliases(
         preferred.name,
         preferred.alternativeNames,
@@ -120,24 +124,19 @@ export function deduplicatePartCandidates(candidates: PartCandidate[]): PartCand
   return [...byTechnicalOccurrence.values()];
 }
 
+function rankingEvidence(question: string, candidate: PartCandidate): number {
+  const retrievalEvidence = candidate.retrievalScore ?? Math.max(0, 1 - candidate.distance);
+  return retrievalEvidence
+    + candidate.feedbackScore
+    + relationSpecificityBonus(question, {
+      name: candidate.name,
+      section: candidate.section,
+      aliases: candidate.alternativeNames,
+    }) * 0.5;
+}
+
 function rankCandidatesForQuestion(question: string, candidates: PartCandidate[]): PartCandidate[] {
-  return [...candidates].sort((a, b) => {
-    const aRank = a.distance
-      - a.feedbackScore
-      - relationSpecificityBonus(question, {
-        name: a.name,
-        section: a.section,
-        aliases: a.alternativeNames,
-      }) * 0.5;
-    const bRank = b.distance
-      - b.feedbackScore
-      - relationSpecificityBonus(question, {
-        name: b.name,
-        section: b.section,
-        aliases: b.alternativeNames,
-      }) * 0.5;
-    return aRank - bRank;
-  });
+  return [...candidates].sort((a, b) => rankingEvidence(question, b) - rankingEvidence(question, a));
 }
 
 export class PartSearchService {
@@ -272,7 +271,7 @@ export class PartSearchService {
     if (manufacturer) filters.push(Prisma.sql`(p."normalizedManufacturer" = ${manufacturer} OR p."normalizedManufacturer" IS NULL)`);
     if (pnc) filters.push(Prisma.sql`(p."normalizedPnc" = ${pnc} OR p."universalAcrossPnc" = true)`);
 
-    type Raw = Omit<PartCandidate, 'feedbackScore' | 'searchMethod'> & { documentPnc: string | null };
+    type Raw = Omit<PartCandidate, 'feedbackScore' | 'searchMethod' | 'retrievalScore'> & { documentPnc: string | null };
     const rows = await prisma.$queryRaw<Raw[]>(Prisma.sql`
       SELECT p."id", p."documentId", d."filename", p."manufacturer", p."model", p."normalizedModel",
              p."pnc", p."normalizedPnc", p."universalAcrossPnc", p."section", p."position", p."name",
@@ -305,8 +304,14 @@ export class PartSearchService {
       console.warn('⚠️ Aprendizado por feedback indisponível nesta consulta; mantendo ranking técnico.', error instanceof Error ? error.message : error);
     }
 
-    const combined = [...semanticCandidates, ...localCandidates]
-      .sort((a, b) => (a.distance - a.feedbackScore) - (b.distance - b.feedbackScore));
+    // Lexical e vetorial usam escalas diferentes. Em vez de somar uma distância
+    // sintética a uma distância de cosseno, fundimos as posições dos dois rankings.
+    // Isso premia concordância entre recuperadores sem tornar um deles autoridade.
+    const fusionScores = normalizedReciprocalRankFusionScores([semanticCandidates, localCandidates]);
+    const combined = [...semanticCandidates, ...localCandidates].map(candidate => ({
+      ...candidate,
+      retrievalScore: fusionScores.get(candidate.id) || 0,
+    }));
     const deduplicated = deduplicatePartCandidates(combined);
     return preferCurrentPartNumbers(rankCandidatesForQuestion(question, deduplicated));
   }
