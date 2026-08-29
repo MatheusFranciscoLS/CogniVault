@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assessCatalogHealth } from './catalog-health';
+import { assessCatalogHealth, isInformativeCatalogSection } from './catalog-health';
 
 test('keeps a well structured catalog ready with high health score', () => {
   const result = assessCatalogHealth({
@@ -148,4 +148,45 @@ test('duplicate occurrences alone are surfaced as a warning without inventing a 
   assert.equal(result.reviewStatus, 'READY');
   assert.ok(result.warnings.some(warning => warning.includes('duplicadas')));
   assert.ok(!result.reasons.some(reason => reason.includes('mais de um código')));
+});
+
+test('generic section labels do not pretend to provide mechanical view context', () => {
+  assert.equal(isInformativeCatalogSection('Peças'), false);
+  assert.equal(isInformativeCatalogSection('PARTS'), false);
+  assert.equal(isInformativeCatalogSection('Lista de peças'), false);
+  assert.equal(isInformativeCatalogSection('CLUTCH'), true);
+  assert.equal(isInformativeCatalogSection('CUTTING EQUIPMENT'), true);
+
+  const result = assessCatalogHealth({
+    manufacturer: 'Husqvarna',
+    model: 'LC 151',
+    partCount: 80,
+    partsWithPage: 80,
+    partsWithSection: 80,
+    partsWithInformativeSection: 0,
+    partsWithPosition: 80,
+    chunkCount: 8,
+    embeddedPartCount: 80,
+  });
+
+  assert.equal(result.reviewStatus, 'READY');
+  assert.ok(result.warnings.some(warning => warning.includes('seção genérica')));
+});
+
+test('informative sections preserve a clean health result when view context is strong', () => {
+  const result = assessCatalogHealth({
+    manufacturer: 'Husqvarna',
+    model: '372 XP',
+    pnc: '965702302',
+    partCount: 100,
+    partsWithPage: 100,
+    partsWithSection: 100,
+    partsWithInformativeSection: 95,
+    partsWithPosition: 100,
+    chunkCount: 10,
+    embeddedPartCount: 100,
+  });
+
+  assert.equal(result.reviewStatus, 'READY');
+  assert.ok(!result.warnings.some(warning => warning.includes('seção genérica')));
 });
