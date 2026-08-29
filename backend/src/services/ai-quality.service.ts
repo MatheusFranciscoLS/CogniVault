@@ -1,3 +1,4 @@
+import { GEMINI_GENERATIVE_MODEL } from '../config/gemini';
 import { prisma } from '../config/prisma';
 import { normalizeIdentifier } from '../utils/normalize';
 import { buildFallbackIntent } from './chat-reliability';
@@ -79,6 +80,9 @@ export class AiQualityService {
     const averageHealth = active.length
       ? Math.round(active.reduce((sum, document) => sum + document.healthScore, 0) / active.length)
       : 0;
+    const geminiCatalogs = active.filter(document => document.extractionMethod?.toUpperCase().startsWith('GEMINI')).length;
+    const parserCatalogs = active.filter(document => document.extractionMethod && !document.extractionMethod.toUpperCase().startsWith('GEMINI')).length;
+    const unknownExtractionCatalogs = active.filter(document => !document.extractionMethod).length;
 
     return {
       summary: {
@@ -91,6 +95,14 @@ export class AiQualityService {
         partsWithoutEmbedding: noEmbedding,
         partsWithoutPage: noPage,
         partsWithoutSection: noSection,
+      },
+      runtime: {
+        generativeModel: GEMINI_GENERATIVE_MODEL,
+        extraction: {
+          geminiCatalogs,
+          parserCatalogs,
+          unknownCatalogs: unknownExtractionCatalogs,
+        },
       },
       reviewQueue: needsReview,
       catalogs: documents,
