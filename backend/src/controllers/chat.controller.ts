@@ -4,7 +4,10 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { ChatService, type ChatSearchResult } from '../services/chat.service';
 import { buildFallbackIntent, extractLikelyPartNumber } from '../services/chat-reliability';
 import { OfficialPartVerificationService, type OfficialVerificationView } from '../services/official-part-verification.service';
+import { requiresSerialConfirmation, type SerialGuidanceCandidate } from '../services/serial-guidance';
 import { normalizeIdentifier } from '../utils/normalize';
+
+type GuidedChatSearchResult = ChatSearchResult & { serialRequired?: boolean };
 
 function prependOfficialNotice(result: ChatSearchResult, previousCode: string, currentCode: string): ChatSearchResult {
     const notice = `Verificação oficial: o código ${previousCode} foi substituído por ${currentCode} no Portal Husqvarna.`;
@@ -54,6 +57,69 @@ function matchesRequestedContext(part: ChatSearchResult['part'], question: strin
     return true;
 }
 
+function serialCandidates(result: ChatSearchResult): SerialGuidanceCandidate[] {
+    const candidates: SerialGuidanceCandidate[] = [];
+    if (result.part) {
+        candidates.push({
+            partNumber: result.part.partNumber,
+            pnc: result.part.pnc,
+            section: result.part.section,
+            position: result.part.position,
+            notes: result.part.notes,
+        });
+    }
+    for (const option of [...(result.options || []), ...(result.feedbackOptions || [])]) {
+        candidates.push({
+            partNumber: option.partNumber,
+            pnc: option.pnc,
+            section: option.section,
+            position: option.position,
+            notes: option.notes,
+        });
+    }
+
+    const seen = new Set<string>();
+    return candidates.filter(candidate => {
+        const key = [candidate.partNumber, candidate.pnc, candidate.section, candidate.position, candidate.notes].join('|');
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
+/**
+ * Última barreira antes de devolver a resposta ao cliente. Mesmo que algum
+ * recuperador/ranker coloque uma variante em primeiro, o código é removido se a
+ * própria base demonstra troca por S/N no mesmo PNC/vista/posição e o usuário
+ * ainda não informou o número de série.
+ */
+function enforceSerialConfirmation(result: ChatSearchResult, question: string, manualSelection: boolean): GuidedChatSearchResult {
+    if (manualSelection || result.status === 'PNC_REQUIRED' || result.status === 'MODEL_REQUIRED') return result;
+    const candidates = serialCandidates(result);
+    if (!requiresSerialConfirmation(question, candidates)) return result;
+
+    return {
+        ...result,
+        status: 'AMBIGUOUS',
+        serialRequired: true,
+        part: undefined,
+        options: undefined,
+        feedbackOptions: undefined,
+        answer: 'Este item possui códigos diferentes conforme o número de série. Informe o S/N (número de série) da etiqueta da máquina para eu escolher a variante correta sem arriscar o código.',
+        match: result.match ? {
+            ...result.match,
+            level: 'REVIEW',
+            explanation: 'O CogniVault detectou uma troca de código explicitamente condicionada por número de série e bloqueou a resposta até a identificação da máquina ser completada.',
+            evidence: [...(result.match.evidence || []), 'O mesmo PNC/vista/posição possui códigos diferentes separados por faixas explícitas de S/N.'],
+        } : result.match,
+        guidance: {
+            title: 'Número de série necessário',
+            description: 'O PNC sozinho não distingue as variantes deste item. A fronteira de aplicação está escrita no catálogo por S/N.',
+            tips: ['Localize S/N ou Serial Number na etiqueta da máquina.', 'Digite a consulta novamente acrescentando, por exemplo: “S/N 20240200001”.'],
+        },
+    };
+}
+
 export class ChatController {
     async ask(req: AuthenticatedRequest, res: Response): Promise<void> {
         try {
@@ -82,7 +148,8 @@ export class ChatController {
             const cleanQuestion = question.trim();
             const cleanPnc = typeof pnc === 'string' ? pnc.trim() : undefined;
             const cleanSelectedPartId = typeof selectedPartId === 'string' ? selectedPartId.trim() : undefined;
-            let result = await ChatService.askQuestion(req.user.tenantId, cleanQuestion, cleanPnc, cleanSelectedPartId);
+            let result: GuidedChatSearchResult = await ChatService.askQuestion(req.user.tenantId, cleanQuestion, cleanPnc, cleanSelectedPartId);
+            result = enforceSerialConfirmation(result, cleanQuestion, Boolean(cleanSelectedPartId));
 
             try {
                 const requestedCode = cleanSelectedPartId ? '' : extractLikelyPartNumber(cleanQuestion);
@@ -139,7 +206,7 @@ export class ChatController {
                     userId: req.user.id,
                     query: cleanQuestion,
                     pnc: cleanPnc || undefined,
-                    status: result.status,
+                    status: result.serialRequired ? 'SERIAL_REQUIRED' : result.status,
                     resultPartId: result.part?.id,
                     resultLabel: result.part?.name,
                     resultCode: result.part?.partNumber,
