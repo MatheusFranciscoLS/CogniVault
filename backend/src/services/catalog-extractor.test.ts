@@ -63,3 +63,85 @@ Intake
     assert.equal(extraction.parts[0].partNumber, '505 30 10-01');
     assert.equal(extraction.parts[0].section, 'Intake');
 });
+
+test('extrai tabela do Portal BR com código contínuo, linhas quebradas e aplicação por PNC', () => {
+    const text = `
+03/04/2025
+LC 151 LAWN MOWER LatAm
+03/04/2025, 14:57 Cortador de grama Husqvarna LC 151 Husqvarna | Husqvarna Portal BR
+https://portal.husqvarnagroup.com/br/cortadores/lc151/?printipl=true 1/3
+03/04/2025, 14:57 Cortador de grama Husqvarna LC 151 Husqvarna | Husqvarna Portal BR
+https://portal.husqvarnagroup.com/br/cortadores/lc151/?printipl=true 2/3
+1 598684111
+PLATE KIT SIDE DISCHARGE
+PLATE KIT
+1 SIDE DISCHARGE PLATE
+2 598818701 EIXO WHEEL AXLE FRONT 1
+For 970488301. WHEEL AXLE.
+3 529595301 EIXO WHEEL AXLE 1
+For 970488302. WHEEL AXLE.
+4 598512901 RODA FRONT WHEEL KIT 1 FRONT WHEEL
+5 598721701 SELO DE SUJIDADE DUST-PROOF RING 1
+For all EXCEPT 970488301. DUST-PROOF RING.
+6 598513301 EIXO REAR SHAFT KIT 1 REAR SHAFT
+7 598684109 EIXO WHEEL AXLE KIT 1 WHEEL AXLE
+8 598684103 RODA REAR WHEEL KIT 1 REAR WHEEL
+9 599138801 BIELA HEIGHT ADJUSTMENT ROD 1 HEIGHT ADJUSTMENT ROD
+10 599138901 MOLA HEIGHT ADJUSTMENT SPRING 1 HEIGHT ADJUSTMENT SPRING
+Referê
+ncia
+Número do
+artigo
+Nome do artigo Quanti
+dade
+Comentário
+03/04/2025, 14:57 Cortador de grama Husqvarna LC 151 Husqvarna | Husqvarna Portal BR
+https://portal.husqvarnagroup.com/br/cortadores/lc151/?printipl=true 3/3
+`;
+
+    const extraction = parseHusqvarnaIplText(text);
+    assert.ok(extraction);
+    assert.deepEqual(extraction.models, ['LC 151']);
+    assert.deepEqual(extraction.pncs.sort(), ['970488301', '970488302']);
+    assert.ok(extraction.parts.length >= 10);
+
+    const pnc301 = extraction.parts.find(part => part.position === '2' && part.pnc === '970488301');
+    const pnc302 = extraction.parts.find(part => part.position === '3' && part.pnc === '970488302');
+    const except301 = extraction.parts.filter(part => part.position === '5');
+    assert.equal(pnc301?.partNumber, '598818701');
+    assert.equal(pnc302?.partNumber, '529595301');
+    assert.deepEqual(except301.map(part => part.pnc), ['970488302']);
+    assert.equal(pnc301?.page, 3);
+});
+
+test('extrai tabela inglesa KEY/PART com MFG ID sem exigir quantidade', () => {
+    const text = `
+ILLUSTRATED PARTS LIST
+BRAND: HUSQVARNA
+ROTARY LAWN MOWER
+MODEL NUMBER: HU725AWD
+MFG. ID. NUMBER: 96145001703
+KEY PART
+NO. NO. DESCRIPTION
+1 585 85 48-06 Upper Handle Assembly
+2 532 42 49-83 Cable, Engine Zone Control
+17 581 78 21-01 Rear Baffle
+20 532 44 45-01 Rear Skirt
+21 532 41 99-49 Spring, Rear Door, LH, Black
+24 532 41 99-48 Spring, Rear Door, RH, Grey
+38 532 42 61-29 Discharge Deflector
+46 581 65 09-01 Blade Adapter
+47 587 19 96-01 Blade, 22"
+50 532 17 96-17 Bolt, Hex Head, Grade 8
+3/8-24 x 1-3/8
+`;
+
+    const extraction = parseHusqvarnaIplText(text);
+    assert.ok(extraction);
+    assert.deepEqual(extraction.models, ['HU725AWD']);
+    assert.deepEqual(extraction.pncs, ['96145001703']);
+    assert.equal(extraction.parts.length, 10);
+    assert.equal(extraction.parts.find(part => part.position === '21')?.partNumber, '532 41 99-49');
+    assert.match(extraction.parts.find(part => part.position === '21')?.name || '', /LH/i);
+    assert.match(extraction.parts.find(part => part.position === '50')?.name || '', /3\/8-24/);
+});
