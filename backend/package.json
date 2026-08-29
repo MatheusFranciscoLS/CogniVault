@@ -32,7 +32,8 @@
   "devDependencies": {
     "@types/amqplib": "^0.10.8",
     "@types/bcryptjs": "^2.4.6",
-    "@types/cors": "^5.0.6",
+    "@types/cors": "^8.2.19",
+    "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.2.0",
     "@types/node": "^26.3.0",
