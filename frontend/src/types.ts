@@ -38,6 +38,7 @@ export interface SearchHistoryItem {
 }
 export interface FavoriteItem {
   id:string; kind:'PART'|'DOCUMENT'; label:string; reference:string|null; model:string|null; pnc:string|null; partId:string|null; documentId:string|null; createdAt:string;
+  sourceFilename?:string|null; section?:string|null; position?:string|null; page?:number|null;
 }
 export interface SearchPart {
   id:string; name:string; partNumber:string; manufacturer:string|null; model:string; pnc:string|null; section:string|null; position:string|null; page:number|null; documentId:string; filename:string;
@@ -71,6 +72,7 @@ export interface BenchmarkMetrics {
 export interface BenchmarkRun { id:string; caseCount:number; metrics:BenchmarkMetrics; details:unknown; createdAt:string; }
 export interface AiQualityData {
   summary:{catalogs:number;readyCatalogs:number;needsReview:number;averageHealth:number;parts:number;technicalMemoryChunks:number;partsWithoutEmbedding:number;partsWithoutPage:number;partsWithoutSection:number};
+  runtime:{generativeModel:string;extraction:{geminiCatalogs:number;parserCatalogs:number;unknownCatalogs:number}};
   reviewQueue:QualityCatalog[]; catalogs:QualityCatalog[];
   hygiene:{archivedRecords:number;removedHistoricalRecords:number;legacyEmptyRecords:number;note:string}; benchmarkRuns:BenchmarkRun[];
 }

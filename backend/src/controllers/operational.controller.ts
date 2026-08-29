@@ -193,8 +193,38 @@ export class OperationalController {
             where: { tenantId: req.user.tenantId, userId: req.user.id },
             orderBy: { createdAt: 'desc' },
             take: 100,
+            select: {
+                id: true,
+                kind: true,
+                label: true,
+                reference: true,
+                model: true,
+                pnc: true,
+                partId: true,
+                documentId: true,
+                createdAt: true,
+                part: {
+                    select: {
+                        documentId: true,
+                        section: true,
+                        position: true,
+                        page: true,
+                        document: { select: { filename: true } },
+                    },
+                },
+                document: { select: { filename: true } },
+            },
         });
-        res.json({ favorites });
+        res.json({
+            favorites: favorites.map(({ part, document, ...favorite }) => ({
+                ...favorite,
+                documentId: favorite.documentId || part?.documentId || null,
+                sourceFilename: part?.document.filename || document?.filename || null,
+                section: part?.section || null,
+                position: part?.position || null,
+                page: part?.page || null,
+            })),
+        });
     }
 
     async addFavorite(req: AuthenticatedRequest, res: Response): Promise<void> {
