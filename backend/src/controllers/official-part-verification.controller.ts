@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { OfficialVerificationStatus } from '@prisma/client';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { normalizeIdentifier } from '../utils/normalize';
+import { HusqvarnaPortalService } from '../services/husqvarna-portal.service';
 import { OfficialPartVerificationService } from '../services/official-part-verification.service';
 
 const ALLOWED_STATUSES = new Set<OfficialVerificationStatus>(['VERIFIED', 'SUPERSEDED', 'REVIEW']);
@@ -21,6 +22,26 @@ export class OfficialPartVerificationController {
       res.json({ verifications });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : 'Não foi possível consultar as verificações.' });
+    }
+  }
+
+  async portalLookup(req: AuthenticatedRequest, res: Response): Promise<void> {
+    if (!req.user) return;
+    const code = String(req.params.code || '').trim();
+    if (!normalizeIdentifier(code)) {
+      res.status(400).json({ error: 'Código da peça inválido.' });
+      return;
+    }
+
+    try {
+      const lookup = await HusqvarnaPortalService.lookup(code);
+      res.json({ lookup });
+    } catch (error) {
+      res.status(502).json({
+        error: error instanceof Error
+          ? error.message
+          : 'Não foi possível consultar a página pública do Portal Husqvarna.',
+      });
     }
   }
 
