@@ -1,5 +1,6 @@
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import type { CandidateForAi, SearchIntent } from './chat-intent.service';
+import { relationSpecificityBonus } from './candidate-specificity';
 import { lexicalTerms, scorePartText } from './part-vocabulary';
 
 function isPncContext(question: string, index: number) {
@@ -88,7 +89,9 @@ export function chooseCandidateLocally(
       section: candidate.section,
       aliases: candidate.aliases,
     });
-    let score = technicalScore + (candidate.feedbackScore || 0);
+    let score = technicalScore
+      + relationSpecificityBonus(question, candidate)
+      + (candidate.feedbackScore || 0);
 
     // A posição é evidência determinística da vista explodida. Quando explicitada,
     // ela desempata componentes iguais do mesmo conjunto (ex.: vários SCREW em CLUTCH).
