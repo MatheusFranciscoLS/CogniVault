@@ -43,6 +43,7 @@ router.post('/part-verifications', authMiddleware, adminOnly, (req, res) => offi
 
 router.get('/documents', authMiddleware, (req, res) => documentController.list(req, res));
 router.get('/documents/:id/access', authMiddleware, (req, res) => documentController.access(req, res));
+router.patch('/documents/:id/category', authMiddleware, adminOnly, (req, res) => documentController.setCategory(req, res));
 router.post('/upload', authMiddleware, adminOnly, upload.single('file'), (req, res) => documentController.upload(req, res));
 router.post('/documents/:id/archive', authMiddleware, adminOnly, (req, res) => documentController.archive(req, res));
 router.post('/documents/:id/restore', authMiddleware, adminOnly, (req, res) => documentController.restore(req, res));
