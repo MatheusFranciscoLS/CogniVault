@@ -117,6 +117,7 @@ export async function rebuildDocumentMemory(
   tenantId: string,
   revision: number,
   parts: MemoryPart[],
+  options: { embeddings?: boolean } = {},
 ): Promise<{ chunks: number; embedded: number }> {
   const document = await prisma.document.findFirst({
     where: { id: documentId, tenantId, archivedAt: null },
@@ -133,7 +134,9 @@ export async function rebuildDocumentMemory(
       });
     }
   });
-  if (!chunks.length || !semanticEnabled()) return { chunks: chunks.length, embedded: 0 };
+
+  const shouldEmbed = options.embeddings ?? semanticEnabled();
+  if (!chunks.length || !shouldEmbed) return { chunks: chunks.length, embedded: 0 };
 
   try {
     const rows = await prisma.documentChunk.findMany({
