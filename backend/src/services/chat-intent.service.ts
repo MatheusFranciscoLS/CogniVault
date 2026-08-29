@@ -1,6 +1,6 @@
 import { GEMINI_GENERATIVE_MODEL, getGeminiClient, getGeminiType } from '../config/gemini';
 import { buildFallbackIntent, chooseCandidateLocally } from './chat-reliability';
-import { hasKnownPartVocabulary } from './part-vocabulary';
+import { hasKnownPartVocabulary, lexicalTerms } from './part-vocabulary';
 
 export interface SearchIntent {
   manufacturer: string;
@@ -27,13 +27,31 @@ export interface CandidateForAi {
 export class ChatIntentService {
   static async parse(question: string): Promise<SearchIntent> {
     const localIntent = buildFallbackIntent(question);
-    if (hasKnownPartVocabulary(question) || localIntent.model || localIntent.pnc || localIntent.partNumber) return localIntent;
+    const knownVocabulary = hasKnownPartVocabulary(question);
+    const unknownDescriptionTerms = lexicalTerms(question, [
+      localIntent.manufacturer,
+      localIntent.model,
+      localIntent.pnc,
+      localIntent.partNumber,
+    ]);
+
+    // Código é evidência determinística. Para conceitos já conhecidos pela
+    // ontologia, a interpretação local também é mais previsível e barata.
+    // Já um modelo conhecido NÃO deve bloquear a IA quando o nome da peça é
+    // desconhecido: isso era uma causa de falhas para traduções fora do dicionário.
+    if (localIntent.partNumber || knownVocabulary || !unknownDescriptionTerms.length) return localIntent;
 
     try {
       const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
+      const localHints = [
+        localIntent.manufacturer ? `Fabricante detectado localmente: ${localIntent.manufacturer}` : '',
+        localIntent.model ? `Modelo detectado localmente: ${localIntent.model}` : '',
+        localIntent.pnc ? `PNC detectado localmente: ${localIntent.pnc}` : '',
+      ].filter(Boolean).join('\n');
+
       const response = await ai.models.generateContent({
         model: GEMINI_GENERATIVE_MODEL,
-        contents: `Interprete uma consulta de balcão de peças. Extraia somente o que foi informado ou claramente implícito. Não invente modelo, PNC ou código.\n\nConsulta: ${question}`,
+        contents: `Interprete uma consulta de balcão de peças. Extraia somente o que foi informado ou claramente implícito. Não invente modelo, PNC, posição ou código.\n${localHints ? `\nPistas locais confiáveis (não contradiga):\n${localHints}\n` : ''}\nPara partDescription, preserve o nome pedido pelo usuário. Se houver um equivalente técnico inequívoco em inglês, português do Brasil ou português de Portugal, acrescente-o na mesma string separado por " / ". Exemplo: "volante magnético / flywheel". Não transforme um componente em conjunto completo e não invente sinônimos incertos.\n\nConsulta: ${question}`,
         config: {
           responseMimeType: 'application/json',
           responseSchema: {
@@ -54,11 +72,13 @@ export class ChatIntentService {
       const parsed = JSON.parse(response.text || '{}') as Partial<SearchIntent>;
       const clean = (v: unknown) => typeof v === 'string' ? v.trim() : '';
       return {
-        manufacturer: clean(parsed.manufacturer),
-        model: clean(parsed.model),
-        pnc: clean(parsed.pnc),
-        partDescription: clean(parsed.partDescription) || question.trim(),
-        partNumber: clean(parsed.partNumber),
+        // Pistas extraídas por regex têm prioridade para impedir que a IA altere
+        // 143RII para 143R/143RS ou confunda um PNC já informado.
+        manufacturer: localIntent.manufacturer || clean(parsed.manufacturer),
+        model: localIntent.model || clean(parsed.model),
+        pnc: localIntent.pnc || clean(parsed.pnc),
+        partDescription: clean(parsed.partDescription) || localIntent.partDescription || question.trim(),
+        partNumber: localIntent.partNumber || clean(parsed.partNumber),
         section: clean(parsed.section),
         position: clean(parsed.position),
       };
