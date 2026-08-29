@@ -10,7 +10,7 @@ import {
   scorePartText,
   semanticQueryText,
 } from './part-vocabulary';
-import { relationSpecificityBonus } from './candidate-specificity';
+import { relationSpecificityBonus, stripExplicitSerialContext } from './candidate-specificity';
 import { applyFeedbackLearning } from './feedback-learning';
 import { preferCurrentPartNumbers, resolveCurrentPartNumber } from './part-supersession';
 import { normalizedReciprocalRankFusionScores } from './retrieval-fusion';
@@ -128,6 +128,7 @@ export function rankingEvidence(question: string, candidate: PartCandidate): num
       section: candidate.section,
       aliases: candidate.alternativeNames,
       notes: candidate.notes,
+      pnc: candidate.pnc,
     }) * 0.55;
 }
 
@@ -251,12 +252,17 @@ export class PartSearchService {
   }
 
   static async semantic(tenantId: string, question: string, intent: SearchIntent): Promise<PartCandidate[]> {
-    const lexicalPromise = this.lexical(tenantId, question, intent);
-    const fullTextPromise = fullTextPartCandidates(tenantId, question, intent).catch(error => {
+    const retrievalQuestion = stripExplicitSerialContext(question) || question;
+    const retrievalIntent: SearchIntent = {
+      ...intent,
+      partDescription: stripExplicitSerialContext(intent.partDescription || retrievalQuestion) || retrievalQuestion,
+    };
+    const lexicalPromise = this.lexical(tenantId, retrievalQuestion, retrievalIntent);
+    const fullTextPromise = fullTextPartCandidates(tenantId, retrievalQuestion, retrievalIntent).catch(error => {
       console.warn('⚠️ Full-text search indisponível; usando os demais recuperadores.', error instanceof Error ? error.message : error);
       return [];
     });
-    const fuzzyPromise = fuzzyPartCandidates(tenantId, question, intent).catch(error => {
+    const fuzzyPromise = fuzzyPartCandidates(tenantId, retrievalQuestion, retrievalIntent).catch(error => {
       console.warn('⚠️ Busca fuzzy indisponível; usando os demais recuperadores.', error instanceof Error ? error.message : error);
       return [];
     });
@@ -264,25 +270,26 @@ export class PartSearchService {
     const [localCandidates, fullTextRows, fuzzyRows] = await Promise.all([lexicalPromise, fullTextPromise, fuzzyPromise]);
     const ftsCandidates = fullTextRows.map(hybridRowToCandidate);
     const fuzzyCandidates = fuzzyRows.map(hybridRowToCandidate);
-    const model = normalizeIdentifier(intent.model);
-    const manufacturer = normalizeIdentifier(intent.manufacturer);
-    const pnc = normalizeIdentifier(intent.pnc);
+    const model = normalizeIdentifier(retrievalIntent.model);
+    const pnc = normalizeIdentifier(retrievalIntent.pnc);
 
     for (const group of [ftsCandidates, fuzzyCandidates]) {
       if (!group.length) continue;
-      try { await this.applyFeedback(tenantId, question, model, pnc, group); }
+      try { await this.applyFeedback(tenantId, retrievalQuestion, model, pnc, group); }
       catch (error) { console.warn('⚠️ Feedback indisponível no recuperador híbrido.', error instanceof Error ? error.message : error); }
     }
 
-    const semanticCandidates = await this.semanticVector(tenantId, question, intent).catch(error => {
+    const semanticCandidates = await this.semanticVector(tenantId, retrievalQuestion, retrievalIntent).catch(error => {
       console.warn('⚠️ Recuperação vetorial indisponível; mantendo busca textual/fuzzy.', error instanceof Error ? error.message : error);
       return [];
     });
 
     const combined = mergeRetrieverResults([semanticCandidates, localCandidates, ftsCandidates, fuzzyCandidates]);
     if (!combined.length) return [];
-    const focused = focusCandidatesByDescription(intent.partDescription || question, combined);
+    const focused = focusCandidatesByDescription(retrievalIntent.partDescription || retrievalQuestion, combined);
     const deduplicated = deduplicatePartCandidates(focused);
+    // Ranking usa a pergunta ORIGINAL: o serial sai da recuperação textual, mas
+    // continua valendo como restrição mecânica explícita de aplicação.
     return preferCurrentPartNumbers(rankCandidatesForQuestion(question, deduplicated)).slice(0, 40);
   }
 

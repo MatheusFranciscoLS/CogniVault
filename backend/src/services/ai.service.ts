@@ -188,6 +188,7 @@ export class AIService {
                         manufacturer: document.manufacturer,
                         model: document.model,
                         pnc: document.pnc,
+                        filename: document.filename,
                     });
                     if (deterministic) {
                         extraction = deterministic.extraction;

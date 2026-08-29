@@ -1,4 +1,9 @@
-import { extractTechnicalQualifiers, relationSpecificityBonus } from './candidate-specificity';
+import {
+  extractExplicitSerialNumber,
+  extractTechnicalQualifiers,
+  relationSpecificityBonus,
+  serialApplicability,
+} from './candidate-specificity';
 import { rankingEvidence, type PartCandidate, type RetrievalSource } from './part-search.service';
 
 export type ConfidenceDecision = {
@@ -29,7 +34,8 @@ function retrievalEvidence(candidate: PartCandidate): number {
 
 function explicitQualifierCount(question: string): number {
   const qualifiers = extractTechnicalQualifiers(question);
-  return Object.values(qualifiers).filter(value => value !== null).length;
+  const standard = Object.values(qualifiers).filter(value => value !== null).length;
+  return standard + (extractExplicitSerialNumber(question) ? 1 : 0);
 }
 
 function plainText(value: string): string {
@@ -73,6 +79,16 @@ function explicitTechnicalContradictions(question: string, candidate: PartCandid
   const candidatePosition = candidate.position?.trim() || null;
   if (requestedPosition && candidatePosition && requestedPosition !== candidatePosition) {
     conflicts.push('posição da vista explodida');
+  }
+
+  if (serialApplicability(question, {
+    name: candidate.name,
+    section: candidate.section,
+    aliases: candidate.alternativeNames,
+    notes: candidate.notes,
+    pnc: candidate.pnc,
+  }) === 'CONFLICT') {
+    conflicts.push('número de série');
   }
 
   return conflicts;
@@ -166,8 +182,16 @@ export function evaluateAnswerConfidence(params: {
     section: chosen.section,
     aliases: chosen.alternativeNames,
     notes: chosen.notes,
+    pnc: chosen.pnc,
   });
   const qualifierCount = explicitQualifierCount(question);
+  const serial = serialApplicability(question, {
+    name: chosen.name,
+    section: chosen.section,
+    aliases: chosen.alternativeNames,
+    notes: chosen.notes,
+    pnc: chosen.pnc,
+  });
   const contradictions = explicitTechnicalContradictions(question, chosen);
   const chosenEvidence = rankingEvidence(question, chosen);
   const runnerEvidence = runnerUp ? rankingEvidence(question, runnerUp) : 0;
@@ -181,11 +205,14 @@ export function evaluateAnswerConfidence(params: {
   // uma regra de desempate mecânico pode ordenar as opções, mas não deve sozinha
   // transformar o primeiro colocado em certeza. O usuário ainda recebe o melhor
   // candidato, porém precisa confirmar a aplicação/vista antes do código liberar.
+  // Uma faixa de série explicitamente comprovada no próprio catálogo é tratada
+  // como restrição de aplicação e pode fornecer a separação mecânica que faltava.
   const differentCodeNearTie = Boolean(
     runnerUp
     && !sameCodeRunner
     && rawRetrievalMargin < 0.03
-    && margin < 0.16,
+    && margin < 0.16
+    && serial !== 'MATCH',
   );
 
   let confidence = Math.min(clamp(params.selectionConfidence), clamp(Math.max(semanticConfidence, retrieval)));
@@ -193,6 +220,7 @@ export function evaluateAnswerConfidence(params: {
   else if (agreement === 2) confidence += 0.06;
   if (specificity >= 0.18) confidence += 0.05;
   if (qualifierCount > 0 && specificity > 0) confidence += Math.min(0.05, qualifierCount * 0.015);
+  if (serial === 'MATCH') confidence += 0.08;
   if (!runnerUp || sameCodeRunner) confidence += 0.04;
   else if (margin >= 0.20) confidence += 0.06;
   else if (margin >= 0.10) confidence += 0.03;
@@ -207,7 +235,7 @@ export function evaluateAnswerConfidence(params: {
   if (semanticOnly) confidence = Math.min(confidence, 0.74);
   confidence = clamp(confidence);
 
-  const strongLead = !runnerUp || sameCodeRunner || margin >= 0.08;
+  const strongLead = !runnerUp || sameCodeRunner || margin >= 0.08 || serial === 'MATCH';
   const independentEvidence = agreement >= 2 || retrievalSources.includes('LEXICAL') || retrievalSources.includes('FULL_TEXT');
   const safe = confidence >= 0.72
     && strongLead
@@ -220,6 +248,7 @@ export function evaluateAnswerConfidence(params: {
   if (agreement >= 2) evidence.push(`${agreement} métodos independentes concordaram com esta peça.`);
   else evidence.push(`Recuperação principal: ${retrievalSources[0] || chosen.searchMethod}.`);
   if (specificity > 0) evidence.push('Os detalhes mecânicos explícitos da pergunta combinam com o candidato.');
+  if (serial === 'MATCH') evidence.push('O número de série informado está dentro da faixa explicitamente indicada para esta peça/PNC no catálogo.');
   if (runnerUp && !sameCodeRunner) {
     evidence.push(`Margem técnica sobre a segunda opção: ${Math.max(0, margin).toFixed(3)}.`);
     evidence.push(`Margem entre recuperadores para códigos diferentes: ${Math.max(0, rawRetrievalMargin).toFixed(3)}.`);

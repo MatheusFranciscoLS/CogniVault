@@ -1,4 +1,5 @@
 import { GEMINI_GENERATIVE_MODEL, getGeminiClient, getGeminiType } from '../config/gemini';
+import { extractExplicitSerialNumber } from './candidate-specificity';
 import { buildFallbackIntent, chooseCandidateLocally } from './chat-reliability';
 import { hasDomainKnowledge } from './husqvarna-domain-knowledge';
 import { hasKnownPartVocabulary, lexicalTerms } from './part-vocabulary';
@@ -33,11 +34,16 @@ export class ChatIntentService {
     const localIntent = buildFallbackIntent(question);
     const knownVocabulary = hasKnownPartVocabulary(question);
     const knownDomain = hasDomainKnowledge(question, localIntent.model);
+    const serial = extractExplicitSerialNumber(question);
     const unknownDescriptionTerms = lexicalTerms(question, [
       localIntent.manufacturer,
       localIntent.model,
       localIntent.pnc,
       localIntent.partNumber,
+      serial,
+      'serial',
+      'numero de serie',
+      'número de série',
     ]);
 
     if (localIntent.partNumber || knownVocabulary || knownDomain || !unknownDescriptionTerms.length) return localIntent;
@@ -48,6 +54,7 @@ export class ChatIntentService {
         localIntent.manufacturer ? `Fabricante detectado localmente: ${localIntent.manufacturer}` : '',
         localIntent.model ? `Modelo detectado localmente: ${localIntent.model}` : '',
         localIntent.pnc ? `PNC detectado localmente: ${localIntent.pnc}` : '',
+        serial ? `Número de série detectado localmente: ${serial}` : '',
       ].filter(Boolean).join('\n');
 
       const response = await ai.models.generateContent({
