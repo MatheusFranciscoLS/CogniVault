@@ -18,6 +18,8 @@ type TechnicalQualifiers = {
   teeth: number | null;
   chainPitch: string | null;
   metricThread: string | null;
+  metricSizeMm: number | null;
+  voltageV: number | null;
   inchSize: number | null;
 };
 
@@ -66,6 +68,16 @@ function extractMetricThread(text: string): string | null {
   return `M${match[1]}X${match[2]}`;
 }
 
+function extractMetricSizeMm(text: string): number | null {
+  const match = text.match(/(?:Ø|\bDIA(?:METRO)?\s*)?(\d{1,4}(?:\.\d+)?)\s*MM\b/);
+  return match ? Number(match[1]) : null;
+}
+
+function extractVoltage(text: string): number | null {
+  const match = text.match(/\b(\d{1,3}(?:\.\d+)?)\s*V(?:OLT(?:S)?)?\b/);
+  return match ? Number(match[1]) : null;
+}
+
 function extractInchSize(text: string): number | null {
   for (const match of text.matchAll(/\b(\d{1,3}(?:\.\d+)?)\s*(?:"|INCH(?:ES)?\b|IN\b|POLEGADAS?\b)/g)) {
     const start = match.index ?? 0;
@@ -85,6 +97,8 @@ export function extractTechnicalQualifiers(value: string): TechnicalQualifiers {
     teeth: extractTeeth(text),
     chainPitch: extractChainPitch(text),
     metricThread: extractMetricThread(text),
+    metricSizeMm: extractMetricSizeMm(text),
+    voltageV: extractVoltage(text),
     inchSize: extractInchSize(text),
   };
 }
@@ -99,8 +113,8 @@ function categoricalEvidence<T>(requested: T | null, candidate: T | null, match:
  * candidatos JÁ compatíveis com tenant/modelo/PNC. Não cria aplicação.
  *
  * Exemplos: LH/RH, dianteira/traseira, Rim/Spur, 7T/8T, 3/8 vs .325,
- * M5x20 e 12". Igualdade soma evidência; contradição reduz o score; ausência
- * de uma informação no candidato não é tratada como erro.
+ * M5x20, Ø22/Ø25 mm, 12 V e 12". Igualdade soma evidência; contradição reduz
+ * o score; ausência de uma informação no candidato não é tratada como erro.
  */
 export function technicalConstraintBonus(query: string, candidate: CandidateText): number {
   const requested = extractTechnicalQualifiers(query);
@@ -116,6 +130,8 @@ export function technicalConstraintBonus(query: string, candidate: CandidateText
   score += categoricalEvidence(requested.teeth, present.teeth, 0.18, 0.30);
   score += categoricalEvidence(requested.chainPitch, present.chainPitch, 0.22, 0.36);
   score += categoricalEvidence(requested.metricThread, present.metricThread, 0.20, 0.32);
+  score += categoricalEvidence(requested.metricSizeMm, present.metricSizeMm, 0.18, 0.30);
+  score += categoricalEvidence(requested.voltageV, present.voltageV, 0.16, 0.28);
   score += categoricalEvidence(requested.inchSize, present.inchSize, 0.16, 0.26);
 
   return Math.max(-0.9, Math.min(0.9, score));
@@ -126,9 +142,9 @@ export function technicalConstraintBonus(query: string, candidate: CandidateText
  *
  * Ex.: em "parafuso da embreagem", "Screw Clutch shoe" é evidência mais forte
  * do que um "SCREW" genérico que apenas aparece na vista CLUTCH. A mesma regra
- * vale para "mola do defletor", além de detalhes como lado, eixo, passo, dentes
- * e dimensão explicitamente pedidos. Nenhuma dessas regras cria código ou
- * compatibilidade; elas apenas ordenam candidatos já recuperados da base.
+ * vale para "mola do defletor", além de detalhes como lado, eixo, passo, dentes,
+ * rosca, medida e tensão explicitamente pedidos. Nenhuma dessas regras cria código
+ * ou compatibilidade; elas apenas ordenam candidatos já recuperados da base.
  */
 export function relationSpecificityBonus(query: string, candidate: CandidateText): number {
   const relation = inferPartQueryRelation(query);
