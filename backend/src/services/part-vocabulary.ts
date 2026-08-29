@@ -180,3 +180,22 @@ export function scorePartText(
   }
   return Math.max(0, Math.min(1, total / groups.length));
 }
+
+/**
+ * Quando existem correspondências fortes pelo nome/alias, remove itens que
+ * apareceram apenas por pertencerem à mesma seção da vista explodida.
+ */
+export function focusCandidatesByDescription<
+  T extends { name: string; section?: string | null; alternativeNames?: string[] },
+>(query: string, candidates: T[]): T[] {
+  const scored = candidates.map(candidate => ({
+    candidate,
+    score: scorePartText(query, {
+      name: candidate.name,
+      section: candidate.section,
+      aliases: candidate.alternativeNames,
+    }),
+  }));
+  const directMatches = scored.filter(item => item.score >= 0.85);
+  return directMatches.length ? directMatches.map(item => item.candidate) : candidates;
+}

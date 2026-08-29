@@ -4,7 +4,7 @@ import { ChatIntentService } from './chat-intent.service';
 import { buildFallbackIntent, calibrateMatchConfidence, extractLikelyPartNumber } from './chat-reliability';
 import { PartSearchService, type PartCandidate } from './part-search.service';
 import type { SearchIntent } from './chat-intent.service';
-import { buildSearchGroups } from './part-vocabulary';
+import { buildSearchGroups, focusCandidatesByDescription } from './part-vocabulary';
 import { filterCandidatesByMarket } from './catalog-market';
 
 const MIN_CONFIDENCE = Number(process.env.PART_SEARCH_MIN_CONFIDENCE || '0.72');
@@ -127,12 +127,20 @@ export class ChatService {
       }
     }
 
-    return this.withContext(await this.resolvePncOrAmbiguity(tenantId, question, intent.pnc, candidates, undefined), intent);
+    return this.withContext(await this.resolvePncOrAmbiguity(
+      tenantId,
+      question,
+      intent.partDescription || question,
+      intent.pnc,
+      candidates,
+      undefined,
+    ), intent);
   }
 
   private static async resolvePncOrAmbiguity(
     tenantId: string,
     question: string,
+    partDescription: string,
     requestedPnc: string,
     candidates: PartCandidate[],
     directConfidence?: number,
@@ -156,6 +164,7 @@ export class ChatService {
     }
 
     eligible = filterCandidatesByMarket(eligible);
+    eligible = focusCandidatesByDescription(partDescription, eligible);
 
     const selection = await ChatIntentService.choose(question, eligible.slice(0, 20).map(c => ({
       id: c.id, name: c.name, model: c.model, pnc: c.pnc, section: c.section, position: c.position, aliases: c.alternativeNames,

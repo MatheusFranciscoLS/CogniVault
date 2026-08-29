@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildFallbackIntent, calibrateMatchConfidence, chooseCandidateLocally, extractLikelyModel, extractLikelyPartNumber, extractLikelyPnc, lexicalSearchTerms } from './chat-reliability';
-import { buildSearchGroups, scorePartText } from './part-vocabulary';
+import { buildSearchGroups, focusCandidatesByDescription, scorePartText } from './part-vocabulary';
 
 test('identifica código formatado sem confundir modelo curto', () => {
   assert.equal(extractLikelyPartNumber('Preciso da peça 537 04 19-01 da roçadeira'), '537 04 19-01');
@@ -57,6 +57,15 @@ test('traduz vocabulário de balcão e tolera erro de digitação', () => {
   assert.ok(airFilter.some(group => group.variants.includes('airfilter')));
 
   assert.ok(scorePartText('carburador', { name: 'Carburettor', section: 'Intake' }) > scorePartText('carburador', { name: 'Screw', section: 'Carburettor' }));
+});
+
+test('prioriza o nome da peça e não oferece componentes vizinhos da mesma vista', () => {
+  const candidates = [
+    { id: 'assembly', name: 'CARBURADOR', section: '143RII CARBURETTOR', alternativeNames: [] },
+    { id: 'washer', name: 'ANILHA', section: '143RII CARBURETTOR', alternativeNames: [] },
+    { id: 'valve', name: 'VÁLVULA', section: '143RII CARBURETTOR', alternativeNames: [] },
+  ];
+  assert.deepEqual(focusCandidatesByDescription('carburador', candidates).map(item => item.id), ['assembly']);
 });
 
 test('seleciona a peça inglesa exata em vez de componentes da mesma seção', () => {
