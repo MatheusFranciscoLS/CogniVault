@@ -110,8 +110,12 @@ test('seleciona EMBRAIAGEM e elimina parafuso/anilha da mesma vista CLUTCH', () 
 
 test('entende peça composta dividida entre nome e seção do catálogo', () => {
   const groups = buildSearchGroups('tambor da embreagem da 143RII', ['143RII']);
-  assert.ok(groups.some(group => group.key === 'clutch-drum'));
+  assert.ok(groups.some(group => group.key === 'drum'));
   assert.ok(groups.some(group => group.key === 'clutch'));
+
+  const relation = inferPartQueryRelation('tambor da embreagem da 143RII');
+  assert.equal(relation?.primary.key, 'drum');
+  assert.equal(relation?.context.key, 'clutch');
 
   const drumScore = scorePartText('tambor da embreagem', { name: 'TAMBOR', section: '143RII CLUTCH' });
   const screwScore = scorePartText('tambor da embreagem', { name: 'PARAFUSO', section: '143RII CLUTCH' });
@@ -163,7 +167,7 @@ test('reconhece termos portugueses de Portugal e nomes usuais de revenda', () =>
   assert.ok(buildSearchGroups('ponteira da roçadeira', []).some(group => group.key === 'gearbox'));
   assert.ok(buildSearchGroups('caixa de engrenagem', []).some(group => group.key === 'gearbox'));
   assert.ok(buildSearchGroups('carretel de nylon', []).some(group => group.key === 'trimmer-head'));
-  assert.ok(buildSearchGroups('campana da embreagem', []).some(group => group.key === 'clutch-drum'));
+  assert.ok(buildSearchGroups('campana da embreagem', []).some(group => group.key === 'drum'));
   assert.ok(buildSearchGroups('sabre da motosserra', []).some(group => group.key === 'guide-bar'));
   assert.ok(buildSearchGroups('mufla da motosserra', []).some(group => group.key === 'muffler'));
 });
