@@ -341,15 +341,15 @@ export class PartSearchService {
       LIMIT 50
     `);
 
-    const candidates: PartCandidate[] = rows.map(row => {
+    const candidates: PartCandidate[] = rows.map<PartCandidate>(row => {
       const { documentPnc, ...candidate } = row;
       return {
         ...candidate,
         pnc: candidate.pnc || documentPnc,
         normalizedPnc: candidate.normalizedPnc || normalizeIdentifier(documentPnc) || null,
         universalAcrossPnc: documentPnc ? false : candidate.universalAcrossPnc,
-        distance: Number(candidate.distance), feedbackScore: 0, searchMethod: 'SEMANTIC',
-        retrievalSources: ['SEMANTIC'], retrievalAgreement: 1,
+        distance: Number(candidate.distance), feedbackScore: 0, searchMethod: 'SEMANTIC' as const,
+        retrievalSources: ['SEMANTIC'] as RetrievalSource[], retrievalAgreement: 1,
       };
     }).filter(candidate => candidate.distance <= MAX_DISTANCE);
 
