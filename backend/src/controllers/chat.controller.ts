@@ -1,7 +1,29 @@
 import { Response } from 'express';
 import { prisma } from '../config/prisma';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
-import { ChatService } from '../services/chat.service';
+import { ChatService, type ChatSearchResult } from '../services/chat.service';
+import { extractLikelyPartNumber } from '../services/chat-reliability';
+import { OfficialPartVerificationService } from '../services/official-part-verification.service';
+import { normalizeIdentifier } from '../utils/normalize';
+
+function prependOfficialNotice(result: ChatSearchResult, previousCode: string, currentCode: string): ChatSearchResult {
+    const notice = `Verificação oficial: o código ${previousCode} foi substituído por ${currentCode} no Portal Husqvarna.`;
+    return {
+        ...result,
+        answer: `${notice}\n${result.answer}`,
+        match: result.match ? {
+            ...result.match,
+            explanation: `${result.match.explanation} ${notice}`,
+        } : result.match,
+    };
+}
+
+function sameTechnicalApplication(left: ChatSearchResult['part'], right: ChatSearchResult['part']): boolean {
+    if (!left || !right) return false;
+    if (normalizeIdentifier(left.model) !== normalizeIdentifier(right.model)) return false;
+    if (left.pnc === 'Qualquer um' || right.pnc === 'Qualquer um') return true;
+    return normalizeIdentifier(left.pnc) === normalizeIdentifier(right.pnc);
+}
 
 export class ChatController {
     async ask(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -31,7 +53,33 @@ export class ChatController {
             const cleanQuestion = question.trim();
             const cleanPnc = typeof pnc === 'string' ? pnc.trim() : undefined;
             const cleanSelectedPartId = typeof selectedPartId === 'string' ? selectedPartId.trim() : undefined;
-            const result = await ChatService.askQuestion(req.user.tenantId, cleanQuestion, cleanPnc, cleanSelectedPartId);
+            const requestedCode = cleanSelectedPartId ? null : extractLikelyPartNumber(cleanQuestion);
+            const requestedVerification = requestedCode
+                ? await OfficialPartVerificationService.resolveCurrentCode(req.user.tenantId, requestedCode)
+                : null;
+
+            const effectiveQuestion = requestedVerification?.state === 'SUPERSEDED'
+                ? requestedVerification.currentPartNumber
+                : cleanQuestion;
+
+            let result = await ChatService.askQuestion(req.user.tenantId, effectiveQuestion, cleanPnc, cleanSelectedPartId);
+
+            if (requestedVerification?.state === 'SUPERSEDED' && result.status === 'FOUND') {
+                result = prependOfficialNotice(result, requestedVerification.queriedPartNumber, requestedVerification.currentPartNumber);
+            } else if (!cleanSelectedPartId && result.status === 'FOUND' && result.part) {
+                const foundVerification = await OfficialPartVerificationService.resolveCurrentCode(req.user.tenantId, result.part.partNumber);
+                if (foundVerification.state === 'SUPERSEDED') {
+                    const currentResult = await ChatService.askQuestion(req.user.tenantId, foundVerification.currentPartNumber, cleanPnc);
+                    if (currentResult.status === 'FOUND' && sameTechnicalApplication(result.part, currentResult.part)) {
+                        result = prependOfficialNotice(currentResult, foundVerification.queriedPartNumber, foundVerification.currentPartNumber);
+                    } else {
+                        result = {
+                            ...result,
+                            answer: `Existe uma substituição oficial ${foundVerification.queriedPartNumber} → ${foundVerification.currentPartNumber}, mas o CogniVault não conseguiu confirmar a mesma aplicação de modelo/PNC nesta consulta. Revise no portal antes de concluir.\n${result.answer}`,
+                        };
+                    }
+                }
+            }
 
             await prisma.searchHistory.create({
                 data: {
