@@ -41,7 +41,10 @@ const HUSQVARNA_ROW = new RegExp(`^(\\d{1,3})\\s+(${SPACED_PART_NUMBER_PATTERN})
 const GENERIC_PART_ROW = new RegExp(`^(\\d{1,3})\\s+(${SPACED_PART_NUMBER_PATTERN})\\s+(.+?)\\s+(\\d+)(?:\\s+(.+))?$`, 'i');
 const FLEXIBLE_ROW_START = new RegExp(`^(\\d{1,3})\\s+(${PART_NUMBER_PATTERN})\\s*(.*)$`, 'i');
 const LEGACY_PAGE_MARKER = /--\s+(\d+)\s+of\s+\d+\s+--/g;
-const PORTAL_PAGE_MARKER = /https?:\/\/[^\n]*?\s(\d{1,4})\/(\d{1,4})\s*$/gm;
+// O texto do Portal às vezes cola o fim "3/7" ao timestamp da página seguinte.
+// O total é lazy e a lookahead reconhece tanto um separador normal quanto a data
+// imediatamente concatenada, preservando a página de origem sem depender de OCR.
+const PORTAL_PAGE_MARKER = /https?:\/\/[^\s]+[\t ]+(\d{1,4})\/(\d{1,4}?)(?=(?:\d{2}\/\d{2}\/\d{4})|[\s\r\n]|$)/g;
 const PNC_PATTERN = /\b(?:\d{11}|\d{9})\b/g;
 
 function clean(value: unknown): string {
