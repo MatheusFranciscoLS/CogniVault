@@ -145,3 +145,38 @@ NO. NO. DESCRIPTION
     assert.match(extraction.parts.find(part => part.position === '21')?.name || '', /LH/i);
     assert.match(extraction.parts.find(part => part.position === '50')?.name || '', /3\/8-24/);
 });
+
+test('preserva For e For all EXCEPT quando a aplicação está colada ao nome, como no LB155S', () => {
+    const text = `
+ILLUSTRATED PARTS LIST
+BRAND: HUSQVARNA
+ROTARY LAWN MOWER
+MODEL NUMBER: LB 155S
+MFG. ID. NUMBER: 96121003700
+KEY PART
+NO. NO. DESCRIPTION
+28 586212501 PARAFUSO BOLT CARRIAGE 5/16-18 1 For 96121002700
+28 872250505 PARAFUSO CARRIAGE 5/16-18 X 5/8 1 For all EXCEPT 96121002700
+29 532000001 ARRUELA 1 For 96121003700
+30 532000002 PORCA
+31 532000003 SUPORTE
+32 532000004 MOLA
+33 532000005 PORTA
+34 532000006 CABO
+35 532000007 RODA
+36 532000008 EIXO
+`;
+
+    const extraction = parseHusqvarnaIplText(text);
+    assert.ok(extraction);
+    assert.deepEqual(extraction.pncs.sort(), ['96121002700', '96121003700']);
+
+    const specific = extraction.parts.filter(part => part.partNumber === '586212501');
+    const except = extraction.parts.filter(part => part.partNumber === '872250505');
+    assert.deepEqual(specific.map(part => part.pnc), ['96121002700']);
+    assert.deepEqual(except.map(part => part.pnc), ['96121003700']);
+    assert.ok(specific.every(part => !/\bFor\b/i.test(part.name)));
+    assert.ok(except.every(part => !/\bFor\b/i.test(part.name)));
+    assert.match(specific[0]?.notes || '', /For 96121002700/i);
+    assert.match(except[0]?.notes || '', /For all EXCEPT 96121002700/i);
+});
