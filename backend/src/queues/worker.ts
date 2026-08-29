@@ -2,6 +2,8 @@ import type { ConsumeMessage } from 'amqplib';
 import { prisma } from '../config/prisma';
 import { AIService } from '../services/ai.service';
 import { ensureCatalogCategory } from '../services/catalog-category-assignment';
+import { refreshCatalogHealth } from '../services/catalog-health';
+import { rebuildDocumentMemory } from '../services/document-memory';
 import { nextDocumentRetry } from '../utils/document-retry';
 import { DOCUMENT_PROCESSING_QUEUE, DOCUMENT_RETRY_QUEUE, rabbitMQ } from './connection';
 
@@ -26,6 +28,44 @@ function isValidMessage(value: unknown): value is DocumentMessage {
     const message = value as Record<string, unknown>;
     return [message.documentId, message.tenantId, message.jobId]
         .every((item) => typeof item === 'string' && item.trim().length > 0);
+}
+
+async function buildAuxiliaryCatalogKnowledge(documentId: string, tenantId: string): Promise<void> {
+    try {
+        const document = await prisma.document.findFirst({
+            where: { id: documentId, tenantId, archivedAt: null },
+            select: {
+                catalogRevision: true,
+                parts: {
+                    where: { active: true },
+                    orderBy: [{ page: 'asc' }, { section: 'asc' }, { position: 'asc' }],
+                    select: {
+                        model: true,
+                        pnc: true,
+                        universalAcrossPnc: true,
+                        page: true,
+                        section: true,
+                        position: true,
+                        name: true,
+                        alternativeNames: true,
+                        notes: true,
+                    },
+                },
+            },
+        });
+        if (!document || !document.parts.length) return;
+        const memory = await rebuildDocumentMemory(
+            documentId,
+            tenantId,
+            Math.max(1, document.catalogRevision),
+            document.parts,
+        );
+        console.log(`🧠 Memória técnica ${documentId}: ${memory.chunks} chunks (${memory.embedded} vetorizados).`);
+    } catch (memoryError) {
+        // Chunks explicam o contexto, mas nunca são a autoridade do Part Number.
+        // Uma falha desta camada não pode retirar do balcão peças já extraídas.
+        console.warn(`⚠️ Memória técnica auxiliar indisponível para ${documentId}:`, memoryError);
+    }
 }
 
 export class DocumentWorker {
@@ -80,6 +120,7 @@ export class DocumentWorker {
                 }
 
                 await AIService.processDocument(data.documentId, data.tenantId, data.jobId);
+                await buildAuxiliaryCatalogKnowledge(data.documentId, data.tenantId);
                 try {
                     const category = await ensureCatalogCategory(data.documentId, data.tenantId);
                     if (category) console.log(`🗂️ Catálogo ${data.documentId} classificado em ${category}.`);
@@ -87,6 +128,12 @@ export class DocumentWorker {
                     // Organização da biblioteca é auxiliar e nunca deve derrubar um
                     // catálogo que já foi extraído/indexado com sucesso.
                     console.warn(`⚠️ Não foi possível classificar o catálogo ${data.documentId}:`, categoryError);
+                }
+                try {
+                    const health = await refreshCatalogHealth(data.documentId, data.tenantId);
+                    if (health) console.log(`🩺 Saúde do catálogo ${data.documentId}: ${health.score}/100 · ${health.reviewStatus}.`);
+                } catch (healthError) {
+                    console.warn(`⚠️ Não foi possível calcular a saúde do catálogo ${data.documentId}:`, healthError);
                 }
                 await prisma.document.updateMany({
                     where: { id: data.documentId, processingJobId: data.jobId },
@@ -163,6 +210,9 @@ export class DocumentWorker {
                         processingError: readableProcessingError(error, hasUsableCatalog),
                     },
                 });
+                if (hasUsableCatalog) {
+                    try { await refreshCatalogHealth(data.documentId, data.tenantId); } catch { /* diagnóstico não bloqueia recuperação */ }
+                }
                 channel.ack(msg);
                 console.warn(
                     hasUsableCatalog
