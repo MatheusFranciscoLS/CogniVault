@@ -4,6 +4,14 @@ import type { DocumentItem, FavoriteItem } from '../types';
 import BatchCatalogUploader from './BatchCatalogUploader';
 
 type CatalogData = { documents: DocumentItem[]; favorites: FavoriteItem[]; categories: string[] };
+type StatusFilter = 'ALL' | 'FAILED' | 'REVIEW' | 'READY';
+
+type FailureGuidance = {
+  title: string;
+  description: string;
+  tone: string;
+  retryLabel: string;
+};
 
 async function fetchCatalogData(admin: boolean, archived: boolean): Promise<CatalogData> {
   const [documentsData, favoritesData] = await Promise.all([
@@ -37,11 +45,63 @@ function extractionLabel(method?:string|null):string {
   return method;
 }
 
+function failureGuidance(document:DocumentItem):FailureGuidance|null {
+  if(document.status!=='FAILED')return null;
+  const error=(document.processingError||'').toLowerCase();
+
+  if(/cota|quota/.test(error)&&/(ia|gemini)/.test(error)){
+    return {
+      title:'Cota da IA atingida',
+      description:'Este PDF precisa de leitura visual. Aguarde a renovação da cota antes de tentar novamente; se existir um IPL oficial com texto pesquisável, prefira esse arquivo.',
+      tone:'border-amber-200 bg-amber-50 text-amber-900',
+      retryLabel:'Tentar após renovar cota',
+    };
+  }
+  if(/leitura visual|tabela textual|texto pesquisável|texto pesquisavel/.test(error)){
+    return {
+      title:'PDF exige leitura visual',
+      description:'O parser local não encontrou uma tabela confiável. Tente novamente com IA disponível ou substitua por um IPL oficial com texto pesquisável.',
+      tone:'border-amber-200 bg-amber-50 text-amber-900',
+      retryLabel:'Tentar leitura novamente',
+    };
+  }
+  if(/fila|rabbit/.test(error)){
+    return {
+      title:'Fila temporariamente indisponível',
+      description:'O arquivo foi preservado. Tente novamente quando o processamento assíncrono estiver disponível.',
+      tone:'border-blue-200 bg-blue-50 text-blue-900',
+      retryLabel:'Tentar novamente',
+    };
+  }
+  if(/storage|armazen|supabase/.test(error)){
+    return {
+      title:'Falha de armazenamento',
+      description:'Confira o acesso ao storage antes de reprocessar. O sistema não deve substituir nem inventar conteúdo quando o PDF original não está acessível.',
+      tone:'border-rose-200 bg-rose-50 text-rose-900',
+      retryLabel:'Tentar novamente',
+    };
+  }
+  return {
+    title:'Falha de processamento',
+    description:'O PDF continua preservado. Consulte o detalhe abaixo e tente novamente somente depois de corrigir a causa indicada.',
+    tone:'border-rose-200 bg-rose-50 text-rose-900',
+    retryLabel:'Tentar novamente',
+  };
+}
+
+function matchesStatusFilter(document:DocumentItem,filter:StatusFilter):boolean {
+  if(filter==='ALL')return true;
+  if(filter==='FAILED')return document.status==='FAILED';
+  if(filter==='REVIEW')return document.status==='COMPLETED'&&(document.reviewStatus==='NEEDS_REVIEW'||document.reviewStatus==='PENDING');
+  return document.status==='COMPLETED'&&(document.reviewStatus==='READY'||document.reviewStatus==='REVIEWED');
+}
+
 export default function CatalogsPanel({admin}:{admin:boolean}) {
   const [docs,setDocs]=useState<DocumentItem[]>([]);
   const [favorites,setFavorites]=useState<FavoriteItem[]>([]);
   const [categories,setCategories]=useState<string[]>([]);
   const [categoryFilter,setCategoryFilter]=useState('ALL');
+  const [statusFilter,setStatusFilter]=useState<StatusFilter>('ALL');
   const [search,setSearch]=useState('');
   const [archived,setArchived]=useState(false);
   const [busy,setBusy]=useState(false);
@@ -77,6 +137,9 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
 
   const activeDocs=useMemo(()=>docs.filter(document=>archived||!document.archivedAt),[docs,archived]);
   const qualityPending=useMemo(()=>activeDocs.filter(document=>document.status==='COMPLETED'&&(!document.qualityCheckedAt||document.reviewStatus==='PENDING'||!document.healthScore)).length,[activeDocs]);
+  const failedCount=useMemo(()=>activeDocs.filter(document=>document.status==='FAILED').length,[activeDocs]);
+  const reviewCount=useMemo(()=>activeDocs.filter(document=>document.status==='COMPLETED'&&(document.reviewStatus==='NEEDS_REVIEW'||document.reviewStatus==='PENDING')).length,[activeDocs]);
+  const readyCount=useMemo(()=>activeDocs.filter(document=>document.status==='COMPLETED'&&(document.reviewStatus==='READY'||document.reviewStatus==='REVIEWED')).length,[activeDocs]);
   const categoryCounts=useMemo(()=>{
     const counts=new Map<string,number>();
     for(const document of activeDocs)counts.set(document.category,(counts.get(document.category)||0)+1);
@@ -85,9 +148,9 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
   const visibleCategories=useMemo(()=>categories.filter(category=>(categoryCounts.get(category)||0)>0),[categories,categoryCounts]);
   const effectiveCategoryFilter=categoryFilter==='ALL'||categories.includes(categoryFilter)?categoryFilter:'ALL';
   const normalizedSearch=search.trim().toLowerCase();
-  const filtered=useMemo(()=>activeDocs.filter(document=>(effectiveCategoryFilter==='ALL'||document.category===effectiveCategoryFilter)&&[
+  const filtered=useMemo(()=>activeDocs.filter(document=>matchesStatusFilter(document,statusFilter)&&(effectiveCategoryFilter==='ALL'||document.category===effectiveCategoryFilter)&&[
     document.filename,document.manufacturer,document.model,document.pnc,document.category,
-  ].some(value=>value?.toLowerCase().includes(normalizedSearch))),[activeDocs,effectiveCategoryFilter,normalizedSearch]);
+  ].some(value=>value?.toLowerCase().includes(normalizedSearch))),[activeDocs,effectiveCategoryFilter,normalizedSearch,statusFilter]);
   const favoritesByDocument=useMemo(()=>new Map(favorites.filter(item=>item.documentId).map(item=>[item.documentId!,item])),[favorites]);
 
   const flash=(text:string)=>{setNotice(text);window.setTimeout(()=>setNotice(''),2200)};
@@ -184,6 +247,13 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
     return document.status==='COMPLETED'?'Pronto':document.status==='PROCESSING'?'Processando':document.status==='PENDING'?'Na fila':'Falhou';
   };
 
+  const statusButtons:Array<[StatusFilter,string,number]>=[
+    ['ALL','Todos',activeDocs.length],
+    ['FAILED','Falhas',failedCount],
+    ['REVIEW','Revisar',reviewCount],
+    ['READY','Prontos',readyCount],
+  ];
+
   return <section>
     {notice&&<div role="status" className="fixed right-5 top-20 z-50 rounded-xl bg-slate-950 px-4 py-2.5 text-sm text-white shadow-xl">{notice}</div>}
     <div className="mb-6 flex flex-wrap justify-between gap-4">
@@ -193,6 +263,11 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
     {error&&<div role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
 
     {admin&&<BatchCatalogUploader onComplete={load} onNotice={flash} onError={setError}/>} 
+
+    {admin&&failedCount>0&&!archived&&<div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+      <div><div className="text-sm font-semibold text-amber-950">{failedCount} catálogo{failedCount===1?' precisa':'s precisam'} de recuperação</div><p className="mt-1 text-xs leading-5 text-amber-800">Veja o motivo classificado e a próxima ação recomendada antes de repetir o processamento.</p></div>
+      <button type="button" onClick={()=>setStatusFilter('FAILED')} className="rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-xs font-semibold text-amber-900">Ver falhas</button>
+    </div>}
 
     {admin&&qualityPending>0&&!archived&&<div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50/60 p-4">
       <div><div className="text-sm font-semibold text-blue-950">{qualityPending} catálogo{qualityPending===1?' ainda precisa':'s ainda precisam'} da análise de qualidade</div><p className="mt-1 text-xs leading-5 text-blue-800">A análise usa somente as peças já extraídas: organiza família, cria memória técnica e calcula saúde. Não reabre o PDF e não consome Gemini.</p></div>
@@ -221,22 +296,25 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
     <div className="cv-surface overflow-hidden rounded-[22px]">
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 p-4">
         <div className="min-w-0 flex-1"><label htmlFor="catalog-search" className="sr-only">Buscar catálogos</label><input id="catalog-search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Buscar por arquivo, fabricante, modelo, PNC ou seção" className="cv-field w-full max-w-xl text-sm"/></div>
+        <div className="flex flex-wrap gap-1.5">{statusButtons.map(([value,label,count])=><button key={value} type="button" onClick={()=>setStatusFilter(value)} className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${statusFilter===value?'border-slate-800 bg-slate-900 text-white':'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}>{label} · {count}</button>)}</div>
         {effectiveCategoryFilter!=='ALL'&&<button type="button" onClick={()=>setCategoryFilter('ALL')} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600">Limpar seção</button>}
       </div>
-      <div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-sm"><thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-[.08em] text-slate-400"><tr><th className="p-4">Catálogo</th><th>Seção</th><th>Modelo / PNC</th><th>Status / qualidade</th><th>Peças</th><th className="p-4">Ações</th></tr></thead><tbody>
-        {filtered.map(document=><tr key={document.id} className="border-t border-slate-100 transition hover:bg-slate-50/60">
+      <div className="overflow-x-auto"><table className="w-full min-w-[1160px] text-sm"><thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-[.08em] text-slate-400"><tr><th className="p-4">Catálogo</th><th>Seção</th><th>Modelo / PNC</th><th>Status / qualidade</th><th>Peças</th><th className="p-4">Ações</th></tr></thead><tbody>
+        {filtered.map(document=>{
+          const recovery=failureGuidance(document);
+          return <tr key={document.id} className="border-t border-slate-100 transition hover:bg-slate-50/60">
           <td className="p-4"><div className="flex items-start gap-2"><button type="button" title="Favoritar" aria-label={favoritesByDocument.has(document.id)?`Remover ${document.filename} dos favoritos`:`Favoritar ${document.filename}`} disabled={Boolean(document.archivedAt)} onClick={()=>void toggleFavorite(document)} className="text-lg leading-5 text-amber-500 disabled:opacity-30">{favoritesByDocument.has(document.id)?'★':'☆'}</button><div><b className="font-semibold text-slate-800">{document.filename}</b><div className="mt-1 text-xs text-slate-400">{document.manufacturer||'Fabricante não informado'} · {fmtDate(document.createdAt)}</div>{document.extractionMethod&&<div className="mt-1 text-[10px] font-medium text-slate-400">{extractionLabel(document.extractionMethod)}</div>}{document.archivedAt&&<span className="text-xs text-rose-600">Arquivado</span>}</div></div></td>
           <td className="pr-4">{admin?<select aria-label={`Seção de ${document.filename}`} disabled={busy||document.processingActive} value={document.category} onChange={event=>void setCategory(document,event.target.value)} className="max-w-[220px] rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-medium text-slate-700 disabled:opacity-50">{categories.map(category=><option key={category} value={category}>{category}</option>)}</select>:<span className="rounded-full bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-600">{document.category}</span>}</td>
           <td className="pr-4 text-slate-600">{document.model||'—'}<div className="text-xs text-slate-400">PNC {document.pnc||'—'}</div></td>
-          <td className="pr-4"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${badge(document)}`}>{statusLabel(document)}</span>{document.status==='COMPLETED'&&<div className={`mt-1 text-[10px] font-semibold ${qualityTone(document)}`}>{qualityLabel(document)}</div>}{document.reviewReasons?.[0]&&document.reviewStatus==='NEEDS_REVIEW'&&<div className="mt-1 max-w-72 text-[10px] leading-4 text-rose-600">{document.reviewReasons[0]}</div>}{document.processingError&&<div className="mt-1 max-w-72 text-[10px] leading-4 text-slate-500">{document.processingError}</div>}</td>
+          <td className="pr-4"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${badge(document)}`}>{statusLabel(document)}</span>{document.status==='COMPLETED'&&<div className={`mt-1 text-[10px] font-semibold ${qualityTone(document)}`}>{qualityLabel(document)}</div>}{document.reviewReasons?.[0]&&document.reviewStatus==='NEEDS_REVIEW'&&<div className="mt-1 max-w-72 text-[10px] leading-4 text-rose-600">{document.reviewReasons[0]}</div>}{recovery&&<div className={`mt-2 max-w-80 rounded-xl border p-2.5 text-[10px] leading-4 ${recovery.tone}`}><b className="block text-[11px]">{recovery.title}</b><span className="mt-1 block opacity-80">{recovery.description}</span>{document.processingError&&<details className="mt-1.5 opacity-75"><summary className="cursor-pointer font-semibold">Detalhe técnico</summary><div className="mt-1">{document.processingError}</div></details>}</div>}{!recovery&&document.processingError&&<div className="mt-1 max-w-72 text-[10px] leading-4 text-slate-500">{document.processingError}</div>}</td>
           <td className="pr-4 text-slate-600">{document.partCount}</td>
           <td className="p-4"><div className="flex flex-wrap gap-2">
             {document.status==='COMPLETED'&&!document.archivedAt&&<><button type="button" onClick={()=>void access(document.id,'view',document.filename)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium">Visualizar</button><button type="button" onClick={()=>void access(document.id,'download',document.filename)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium">Baixar</button></>}
-            {admin&&!document.archivedAt&&<><button type="button" disabled={busy||document.processingActive||['PENDING','PROCESSING'].includes(document.status)} onClick={()=>void action(document.id,'reprocess')} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40">{document.status==='COMPLETED'?'Reextrair peças':'Tentar novamente'}</button><button type="button" disabled={busy||document.processingActive} onClick={()=>void action(document.id,'archive')} className="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 disabled:opacity-40">Arquivar</button><button type="button" disabled={busy||document.processingActive} onClick={()=>void removePdf(document)} className="rounded-lg border border-rose-300 px-2.5 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-40">Excluir PDF</button></>}
+            {admin&&!document.archivedAt&&<><button type="button" disabled={busy||document.processingActive||['PENDING','PROCESSING'].includes(document.status)} onClick={()=>void action(document.id,'reprocess')} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40">{document.status==='COMPLETED'?'Reextrair peças':recovery?.retryLabel||'Tentar novamente'}</button><button type="button" disabled={busy||document.processingActive} onClick={()=>void action(document.id,'archive')} className="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 disabled:opacity-40">Arquivar</button><button type="button" disabled={busy||document.processingActive} onClick={()=>void removePdf(document)} className="rounded-lg border border-rose-300 px-2.5 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-40">Excluir PDF</button></>}
             {admin&&document.archivedAt&&<button type="button" disabled={busy} onClick={()=>void action(document.id,'restore')} className="rounded-lg border border-emerald-200 px-2.5 py-1.5 text-xs font-medium text-emerald-700">Restaurar</button>}
           </div></td>
-        </tr>)}
-      </tbody></table>{!filtered.length&&<div className="p-10 text-center text-sm text-slate-400">Nenhum catálogo encontrado nesta seção.</div>}</div>
+        </tr>})}
+      </tbody></table>{!filtered.length&&<div className="p-10 text-center text-sm text-slate-400">Nenhum catálogo encontrado com estes filtros.</div>}</div>
     </div>
 
     {pdf&&<div className="fixed inset-0 z-[90] bg-slate-950/90 p-3 md:p-6"><div className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white"><div className="flex items-center justify-between border-b border-slate-200 px-4 py-3"><div><div className="text-sm font-semibold">{pdf.title}</div><div className="text-xs text-slate-400">Visualizador técnico</div></div><button type="button" onClick={()=>setPdf(null)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">Fechar</button></div><iframe title={pdf.title} src={pdf.url} className="h-full w-full border-0"/></div></div>}
