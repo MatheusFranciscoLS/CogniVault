@@ -1,6 +1,7 @@
 import type { ConsumeMessage } from 'amqplib';
 import { prisma } from '../config/prisma';
 import { AIService } from '../services/ai.service';
+import { ensureCatalogCategory } from '../services/catalog-category-assignment';
 import { nextDocumentRetry } from '../utils/document-retry';
 import { DOCUMENT_PROCESSING_QUEUE, DOCUMENT_RETRY_QUEUE, rabbitMQ } from './connection';
 
@@ -79,6 +80,14 @@ export class DocumentWorker {
                 }
 
                 await AIService.processDocument(data.documentId, data.tenantId, data.jobId);
+                try {
+                    const category = await ensureCatalogCategory(data.documentId, data.tenantId);
+                    if (category) console.log(`🗂️ Catálogo ${data.documentId} classificado em ${category}.`);
+                } catch (categoryError) {
+                    // Organização da biblioteca é auxiliar e nunca deve derrubar um
+                    // catálogo que já foi extraído/indexado com sucesso.
+                    console.warn(`⚠️ Não foi possível classificar o catálogo ${data.documentId}:`, categoryError);
+                }
                 await prisma.document.updateMany({
                     where: { id: data.documentId, processingJobId: data.jobId },
                     data: {

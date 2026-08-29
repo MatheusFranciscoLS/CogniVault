@@ -98,10 +98,41 @@ export class DocumentController {
                 ? await documentService.listAdmin(req.user.tenantId)
                 : await documentService.list(req.user.tenantId);
 
-            res.status(200).json({ documents });
+            res.status(200).json({ documents, categories: documentService.categories() });
         } catch (error) {
             console.error('❌ Erro ao listar catálogos:', error);
             res.status(500).json({ error: 'Erro ao listar catálogos.' });
+        }
+    }
+
+    async setCategory(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            if (!req.user) return;
+            const document = await documentService.setCategory(
+                req.user.tenantId,
+                String(req.params.id),
+                req.body?.category,
+            );
+            await AuditService.record({
+                tenantId: req.user.tenantId,
+                userId: req.user.id,
+                action: 'DOCUMENT_CATEGORY_CHANGED',
+                targetType: 'DOCUMENT',
+                targetId: document.id,
+                metadata: { filename: document.filename, category: document.category },
+            });
+            res.status(200).json({ document });
+        } catch (error) {
+            if (error instanceof Error && error.message === 'DOCUMENT_NOT_FOUND') {
+                res.status(404).json({ error: 'Catálogo não encontrado.' });
+                return;
+            }
+            if (error instanceof Error && error.message === 'DOCUMENT_CATEGORY_INVALID') {
+                res.status(400).json({ error: 'Seção de catálogo inválida.' });
+                return;
+            }
+            console.error('❌ Erro ao alterar seção do catálogo:', error);
+            res.status(500).json({ error: 'Não foi possível alterar a seção do catálogo.' });
         }
     }
 

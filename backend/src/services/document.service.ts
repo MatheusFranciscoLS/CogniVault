@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import { prisma } from '../config/prisma';
 import { DocumentProducer } from '../queues/producer';
+import { CATALOG_CATEGORY_NAMES, inferCatalogCategory, isCatalogCategoryName } from './catalog-category';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
@@ -37,6 +38,10 @@ function hasPdfSignature(buffer: Buffer): boolean {
 }
 
 export class DocumentService {
+    categories(): readonly string[] {
+        return CATALOG_CATEGORY_NAMES;
+    }
+
     async handleNewUpload(tenantId: string, filename: string, filePath: string, metadata: UploadMetadata = {}) {
         try {
             const fileBuffer = fs.readFileSync(filePath);
@@ -132,6 +137,7 @@ export class DocumentService {
                 processingCurrent: true,
                 processingTotal: true,
                 processingError: true,
+                category: { select: { name: true } },
                 _count: { select: { parts: { where: { active: true } } } },
             },
         });
@@ -143,6 +149,7 @@ export class DocumentService {
             manufacturer: document.manufacturer,
             model: document.model,
             pnc: document.pnc,
+            category: document.category?.name || inferCatalogCategory({ filename: document.filename, model: document.model }),
             createdAt: document.createdAt,
             partCount: document._count.parts,
             archivedAt: document.archivedAt,
@@ -152,6 +159,29 @@ export class DocumentService {
             processingTotal: document.processingTotal,
             processingError: document.processingError,
         }));
+    }
+
+    async setCategory(tenantId: string, documentId: string, categoryName: unknown) {
+        if (!isCatalogCategoryName(categoryName)) throw new Error('DOCUMENT_CATEGORY_INVALID');
+
+        const document = await prisma.document.findFirst({
+            where: { id: documentId, tenantId, processingStage: { not: 'REMOVED' } },
+            select: { id: true, filename: true },
+        });
+        if (!document) throw new Error('DOCUMENT_NOT_FOUND');
+
+        const category = await prisma.category.upsert({
+            where: { name_tenantId: { name: categoryName, tenantId } },
+            update: {},
+            create: { name: categoryName, tenantId },
+        });
+
+        await prisma.document.update({
+            where: { id: document.id },
+            data: { categoryId: category.id },
+        });
+
+        return { id: document.id, filename: document.filename, category: category.name };
     }
 
     async createAccessUrl(tenantId: string, documentId: string, download = false): Promise<string> {
@@ -318,6 +348,7 @@ export class DocumentService {
                 processingCurrent: true,
                 processingTotal: true,
                 processingError: true,
+                category: { select: { name: true } },
                 _count: { select: { parts: { where: { active: true } } } },
             },
         });
@@ -329,6 +360,7 @@ export class DocumentService {
             manufacturer: document.manufacturer,
             model: document.model,
             pnc: document.pnc,
+            category: document.category?.name || inferCatalogCategory({ filename: document.filename, model: document.model }),
             createdAt: document.createdAt,
             archivedAt: document.archivedAt,
             partCount: document._count.parts,

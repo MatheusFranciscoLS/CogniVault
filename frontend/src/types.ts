@@ -4,7 +4,7 @@ export type SearchStatus = 'FOUND' | 'PNC_REQUIRED' | 'MODEL_REQUIRED' | 'PART_R
 export type OfficialVerificationState = 'UNVERIFIED' | 'VERIFIED' | 'SUPERSEDED' | 'REVIEW';
 
 export interface SessionUser { id:string; email:string; role:Role; status:string; tenant:{id:string;name:string}; }
-export interface DocumentItem { id:string; filename:string; status:string; manufacturer:string|null; model:string|null; pnc:string|null; createdAt:string; partCount:number; archivedAt?:string|null; processingActive?:boolean; processingStage?:string; processingCurrent?:number; processingTotal?:number; processingError?:string|null; }
+export interface DocumentItem { id:string; filename:string; status:string; manufacturer:string|null; model:string|null; pnc:string|null; category:string; createdAt:string; partCount:number; archivedAt?:string|null; processingActive?:boolean; processingStage?:string; processingCurrent?:number; processingTotal?:number; processingError?:string|null; }
 export interface FeedbackOption { id:string; name:string; partNumber:string; model:string; pnc:string|null; section:string|null; position:string|null; notes?:string|null; }
 export interface OfficialVerification {
   id:string|null; state:OfficialVerificationState; queriedPartNumber:string; currentPartNumber:string; description:string|null;
