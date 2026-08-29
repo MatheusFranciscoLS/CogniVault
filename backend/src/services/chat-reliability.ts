@@ -1,6 +1,6 @@
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import type { CandidateForAi, SearchIntent } from './chat-intent.service';
-import { relationSpecificityBonus } from './candidate-specificity';
+import { extractExplicitSerialNumber, relationSpecificityBonus } from './candidate-specificity';
 import { extractKnownHusqvarnaModel } from './husqvarna-domain-knowledge';
 import { lexicalTerms, scorePartText } from './part-vocabulary';
 
@@ -10,6 +10,7 @@ function isPncContext(question: string, index: number) {
 
 export function extractLikelyPartNumber(question: string): string {
   const candidates: Array<{ value: string; index: number }> = [];
+  const explicitSerial = normalizeIdentifier(extractExplicitSerialNumber(question));
   const grouped = /\b(?:[A-Z0-9]*\d[A-Z0-9]*)(?:[\s./-]+(?:[A-Z0-9]*\d[A-Z0-9]*)){1,}\b/gi;
   const compact = /\b(?:[A-Z]{1,3})?\d{6,}\b/gi;
   for (const pattern of [grouped, compact]) {
@@ -17,6 +18,7 @@ export function extractLikelyPartNumber(question: string): string {
       if (match.index === undefined || isPncContext(question, match.index)) continue;
       const value = match[0].trim();
       const normalized = normalizeIdentifier(value);
+      if (explicitSerial && normalized === explicitSerial) continue;
       const digits = normalized.replace(/\D/g, '').length;
       if (normalized.length >= 6 && digits >= 5) candidates.push({ value, index: match.index });
     }
@@ -38,8 +40,11 @@ export function extractLikelyPosition(question: string): string {
 export function extractLikelyModel(question: string): string {
   const partNumber = extractLikelyPartNumber(question);
   const pnc = extractLikelyPnc(question);
-  let withoutReferences = [partNumber, pnc].filter(Boolean).reduce((value, reference) => value.replace(reference, ' '), question);
-  withoutReferences = withoutReferences.replace(/\b(?:posição|posicao|pos|item|ref|referência|referencia)\s*[:#.-]?\s*\d{1,3}\b/gi, ' ');
+  const serial = extractExplicitSerialNumber(question);
+  let withoutReferences = [partNumber, pnc, serial].filter(Boolean).reduce((value, reference) => value.replace(reference, ' '), question);
+  withoutReferences = withoutReferences
+    .replace(/\b(?:posição|posicao|pos|item|ref|referência|referencia)\s*[:#.-]?\s*\d{1,3}\b/gi, ' ')
+    .replace(/\b(?:s\s*\/\s*n|sn|serial(?:\s+number)?|número\s+(?:de\s+)?série|numero\s+(?:de\s+)?serie)\s*[:#.-]?\s*/gi, ' ');
   const knownModel = extractKnownHusqvarnaModel(withoutReferences);
   if (knownModel && (/^\d+$/.test(knownModel) || knownModel.includes('MARK'))) return knownModel;
   const spaced = withoutReferences.match(/\b\d{2,4}\s*(?:r\s*)?(?:ii|iii|iv|v|rs|rx|rj|xp|x|[a-z]{1,3})\b/i);
