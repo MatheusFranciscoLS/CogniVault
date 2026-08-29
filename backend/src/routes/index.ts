@@ -37,6 +37,7 @@ router.delete('/favorites/:id', authMiddleware, (req, res) => operationalControl
 router.get('/notifications', authMiddleware, (req, res) => operationalController.notifications(req, res));
 
 router.get('/part-verifications', authMiddleware, (req, res) => officialPartVerificationController.list(req, res));
+router.get('/part-verifications/:code/portal', authMiddleware, (req, res) => officialPartVerificationController.portalLookup(req, res));
 router.get('/part-verifications/:code/history', authMiddleware, (req, res) => officialPartVerificationController.history(req, res));
 router.post('/part-verifications', authMiddleware, adminOnly, (req, res) => officialPartVerificationController.create(req, res));
 
