@@ -135,7 +135,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
   }, [loadVerifications, resolveQuery]);
 
   useEffect(() => {
-    if (normalizedInitialQuery.length < 2) { setLoading(false); return; }
+    if (normalizedInitialQuery.length < 2) return;
     const controller = new AbortController();
     void runSearch(normalizedInitialQuery, controller.signal);
     return () => controller.abort();
