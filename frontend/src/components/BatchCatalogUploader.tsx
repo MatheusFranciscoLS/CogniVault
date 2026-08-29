@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DragEvent, FormEvent } from 'react';
 import { apiJson } from '../lib';
 
@@ -30,6 +30,16 @@ function itemId(file: File, index: number): string {
   return `${fileIdentity(file)}|${Date.now()}|${index}`;
 }
 
+function clipboardFiles(data: DataTransfer | null): File[] {
+  if (!data) return [];
+  const directFiles = Array.from(data.files || []);
+  if (directFiles.length) return directFiles;
+  return Array.from(data.items || [])
+    .filter(item => item.kind === 'file')
+    .map(item => item.getAsFile())
+    .filter((file): file is File => Boolean(file));
+}
+
 function statusLabel(item: UploadItem): string {
   if (item.state === 'UPLOADING') return 'Enviando…';
   if (item.state === 'QUEUED') return 'Na fila de processamento';
@@ -59,7 +69,7 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
     setItems(current => current.map(item => item.id === id ? { ...item, ...patch } : item));
   };
 
-  const addFiles = (files: File[]) => {
+  const addFiles = useCallback((files: File[]) => {
     const existing = new Set(items.map(item => fileIdentity(item.file)));
     const accepted: File[] = [];
     const rejected: string[] = [];
@@ -91,7 +101,26 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
 
     if (rejected.length) onError(`Alguns arquivos foram ignorados: ${rejected.slice(0, 4).join(' · ')}${rejected.length > 4 ? '…' : ''}`);
     else if (selected.length) onError('');
-  };
+  }, [items, onError]);
+
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      if (busy) return;
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (target?.closest('input, textarea, [contenteditable="true"]')) return;
+
+      const files = clipboardFiles(event.clipboardData);
+      const pdfCount = files.filter(file => file.name.toLowerCase().endsWith('.pdf')).length;
+      if (!pdfCount) return;
+
+      event.preventDefault();
+      addFiles(files);
+      onNotice(`${pdfCount} PDF${pdfCount === 1 ? '' : 's'} adicionado${pdfCount === 1 ? '' : 's'} pelo Ctrl+V.`);
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [addFiles, busy, onNotice]);
 
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -133,9 +162,6 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
 
         const form = new FormData();
         form.append('file', entry.file);
-        // Metadados preenchidos manualmente só são aplicados a upload unitário.
-        // Em lote, cada PDF é interpretado individualmente para não contaminar
-        // modelos/PNCs diferentes com um mesmo valor global.
         if (applyManualMetadata) {
           if (manufacturer.trim()) form.append('manufacturer', manufacturer.trim());
           if (model.trim()) form.append('model', model.trim());
@@ -189,7 +215,7 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
   return <form onSubmit={upload} className="cv-surface mb-6 rounded-[22px] p-5">
     <div className="mb-1 font-semibold">Importar catálogos em lote</div>
     <p className="mb-4 text-xs leading-5 text-slate-400">
-      Arraste ou selecione até {MAX_BATCH_FILES} PDFs por vez. Cada arquivo é enviado separadamente, com até {UPLOAD_CONCURRENCY} uploads simultâneos, para não sobrecarregar o servidor. Não é necessário renomear os PDFs: o conteúdo do catálogo é a fonte principal para modelo e PNC.
+      Adicione até {MAX_BATCH_FILES} PDFs por vez. Não é necessário renomear os arquivos: modelo e PNC são identificados pelo conteúdo de cada catálogo.
     </p>
 
     <div
@@ -215,8 +241,13 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
           event.target.value = '';
         }}
       />
-      <div className="text-sm font-semibold text-slate-700">{dragActive ? 'Solte os PDFs aqui' : 'Arraste os PDFs aqui ou clique para selecionar'}</div>
-      <div className="mt-1 text-xs text-slate-400">Máximo de 50 MB por arquivo · duplicados são detectados pelo conteúdo</div>
+      <div className="text-sm font-semibold text-slate-700">{dragActive ? 'Solte os PDFs aqui' : 'Clique, arraste os PDFs ou cole com Ctrl+V'}</div>
+      <div className="mt-2 flex flex-wrap justify-center gap-2 text-[11px] font-medium text-slate-500">
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">Selecionar PDFs</span>
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">Arrastar e soltar</span>
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">Ctrl+V</span>
+      </div>
+      <div className="mt-2 text-xs text-slate-400">Até {MAX_BATCH_FILES} PDFs · máximo de 50 MB por arquivo · duplicados detectados pelo conteúdo</div>
     </div>
 
     {items.length === 1 && <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -226,7 +257,7 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
     </div>}
 
     {items.length > 1 && <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2 text-xs leading-5 text-blue-700">
-      Modo automático ativado para o lote: fabricante, modelo e PNC serão extraídos de cada PDF individualmente. Isso evita aplicar por engano o PNC de um catálogo em todos os outros.
+      Modo automático do lote: fabricante, modelo e PNC serão extraídos de cada PDF individualmente.
     </div>}
 
     {items.length > 0 && <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
