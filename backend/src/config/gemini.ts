@@ -1,4 +1,4 @@
-export const GEMINI_GENERATIVE_MODEL = process.env.GEMINI_GENERATIVE_MODEL?.trim() || 'gemini-3.6-flash';
+export const GEMINI_GENERATIVE_MODEL = process.env.GEMINI_GENERATIVE_MODEL?.trim() || 'gemini-3.7-flash';
 
 function apiKey(): string {
     const value = process.env.GEMINI_API_KEY?.trim();
