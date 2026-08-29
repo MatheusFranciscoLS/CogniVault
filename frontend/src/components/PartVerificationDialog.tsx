@@ -55,6 +55,17 @@ export function VerificationBadge({ verification, loading = false }: { verificat
 type VerificationTarget = Pick<SearchPart, 'partNumber' | 'name'>;
 type VerificationStatus = 'VERIFIED' | 'SUPERSEDED' | 'REVIEW';
 
+type PortalLookup = {
+  requestedPartNumber: string;
+  currentPartNumber: string;
+  description: string | null;
+  status: VerificationStatus;
+  officialUrl: string;
+  previousPartNumbers: string[];
+  fetchedAt: string;
+  source: 'HUSQVARNA_PUBLIC_PORTAL';
+};
+
 type Props = {
   target: VerificationTarget;
   existing?: OfficialVerification;
@@ -83,6 +94,8 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
   const [note, setNote] = useState(existing?.note || '');
   const [verifiedAt, setVerifiedAt] = useState(localDateTimeValue());
   const [saving, setSaving] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalLookup, setPortalLookup] = useState<PortalLookup | null>(null);
   const [error, setError] = useState('');
 
   const officialUrl = husqvarnaPortalUrl(currentPartNumber);
@@ -94,7 +107,34 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
 
   const changeQueried = (value: string) => {
     setQueriedPartNumber(value);
+    setPortalLookup(null);
     if (status === 'VERIFIED') setCurrentPartNumber(value);
+  };
+
+  const consultPublicPortal = async () => {
+    const code = normalizePartCode(queriedPartNumber);
+    if (!looksLikePartNumber(code)) {
+      setError('Informe um código de peça válido antes de consultar o portal.');
+      return;
+    }
+
+    setPortalLoading(true);
+    setError('');
+    try {
+      const data = await apiJson<{ lookup: PortalLookup }>(
+        `/api/part-verifications/${encodeURIComponent(code)}/portal`,
+        { timeoutMs: 15_000 },
+      );
+      const lookup = data.lookup;
+      setPortalLookup(lookup);
+      setStatus(lookup.status);
+      setCurrentPartNumber(lookup.currentPartNumber || code);
+      if (lookup.description) setDescription(lookup.description);
+    } catch (lookupError) {
+      setError(lookupError instanceof Error ? lookupError.message : 'Não foi possível consultar a página pública da Husqvarna.');
+    } finally {
+      setPortalLoading(false);
+    }
   };
 
   const submit = async (event: FormEvent) => {
@@ -130,7 +170,7 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
           <div>
             <div className="text-xs font-bold uppercase tracking-[.12em] text-[#1d4f91]">Administrador</div>
             <h2 className="mt-1 text-xl font-semibold">Verificação oficial Husqvarna</h2>
-            <p className="mt-2 text-xs leading-5 text-slate-500">Confira manualmente no portal público. O CogniVault não acessa login, sessão ou páginas autenticadas.</p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">Você pode abrir a página manualmente ou pedir ao CogniVault para ler a página pública da peça. A consulta automática não usa login, cookies ou sessão autenticada e nunca confirma o registro sem sua ação.</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">Fechar</button>
         </div>
@@ -142,6 +182,16 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
         )}
 
         {error && <div role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
+
+        {portalLookup && (
+          <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-5 text-blue-800">
+            <div className="font-semibold">Leitura da página pública concluída</div>
+            <div>Consultado: {portalLookup.requestedPartNumber} · Atual identificado: {portalLookup.currentPartNumber}</div>
+            {portalLookup.description && <div>Descrição: {portalLookup.description}</div>}
+            {portalLookup.previousPartNumbers.length > 0 && <div>Histórico encontrado: {portalLookup.previousPartNumbers.join(' → ')}</div>}
+            <div className="mt-1 text-blue-700">Revise os campos abaixo antes de registrar. O resultado da leitura pública não é salvo automaticamente.</div>
+          </div>
+        )}
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className="text-xs font-semibold text-slate-600">
@@ -180,7 +230,12 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
         </label>
 
         <div className="mt-5 flex flex-wrap justify-between gap-3">
-          <a href={officialUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-[#1d4f91]">Abrir Portal Husqvarna</a>
+          <div className="flex flex-wrap gap-2">
+            <a href={husqvarnaPortalUrl(queriedPartNumber)} target="_blank" rel="noreferrer" className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-[#1d4f91]">Abrir Portal Husqvarna</a>
+            <button type="button" disabled={portalLoading} onClick={() => void consultPublicPortal()} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-60">
+              {portalLoading ? 'Consultando página pública…' : 'Ler página pública'}
+            </button>
+          </div>
           <button type="submit" disabled={saving} className="cv-primary px-5 py-2.5 text-sm font-semibold disabled:opacity-60">{saving ? 'Registrando…' : 'Confirmar registro oficial'}</button>
         </div>
       </form>
