@@ -11,6 +11,7 @@ export type CatalogHealthInput = {
   partCount: number;
   partsWithPage: number;
   partsWithSection: number;
+  partsWithInformativeSection?: number;
   partsWithPosition?: number;
   chunkCount: number;
   embeddedPartCount: number;
@@ -46,6 +47,16 @@ type HealthPart = {
   normalizedPartNumber: string;
 };
 
+const GENERIC_SECTION_NAMES = new Set([
+  'pecas',
+  'parts',
+  'spare parts',
+  'lista de pecas',
+  'part list',
+  'itens',
+  'items',
+]);
+
 function text(value: string | null | undefined): string {
   return (value || '').trim();
 }
@@ -56,6 +67,17 @@ function unique(values: string[] | undefined): string[] {
 
 function safeCount(value: number | undefined): number {
   return Number.isFinite(value) ? Math.max(0, Math.trunc(value || 0)) : 0;
+}
+
+/**
+ * Uma seção preenchida não é necessariamente contexto mecânico. O parser local
+ * usa "Peças" como fallback quando o Portal não expõe o nome da vista; isso é
+ * melhor que null para navegação, mas não deve valer como CLUTCH, TRANSMISSION,
+ * CUTTING EQUIPMENT etc. na saúde técnica do catálogo.
+ */
+export function isInformativeCatalogSection(value: string | null | undefined): boolean {
+  const normalized = normalizeText(value || '');
+  return Boolean(normalized) && !GENERIC_SECTION_NAMES.has(normalized);
 }
 
 function partOccurrenceKey(part: HealthPart): string | null {
@@ -159,12 +181,21 @@ export function assessCatalogHealth(input: CatalogHealthInput): CatalogHealth {
   if (partCount > 0) {
     const pageRatio = Math.max(0, Math.min(1, input.partsWithPage / partCount));
     const sectionRatio = Math.max(0, Math.min(1, input.partsWithSection / partCount));
+    const informativeSectionCount = input.partsWithInformativeSection === undefined
+      ? input.partsWithSection
+      : Math.max(0, input.partsWithInformativeSection);
+    const informativeSectionRatio = Math.max(0, Math.min(1, informativeSectionCount / partCount));
     const positionCount = input.partsWithPosition === undefined ? partCount : Math.max(0, input.partsWithPosition);
     const positionRatio = Math.max(0, Math.min(1, positionCount / partCount));
     if (pageRatio < 0.5) findings.push({ message: 'Menos da metade das peças possui página de origem identificada.', penalty: 14, review: true });
     else if (pageRatio < 0.9) warnings.push('Algumas peças não possuem página de origem identificada.');
     if (sectionRatio < 0.5) findings.push({ message: 'Menos da metade das peças possui seção/vista identificada.', penalty: 16, review: true });
     else if (sectionRatio < 0.9) warnings.push('Algumas peças não possuem seção/vista identificada.');
+    if (sectionRatio >= 0.5 && informativeSectionRatio < 0.25) {
+      warnings.push('A maioria das peças possui apenas seção genérica (ex.: “Peças”); a busca continua válida, mas há menos contexto de conjunto/vista para desempate mecânico.');
+    } else if (informativeSectionRatio < 0.75) {
+      warnings.push('Parte das peças possui seção genérica; o contexto mecânico por vista está incompleto.');
+    }
     if (positionRatio < 0.5) findings.push({ message: 'Menos da metade das peças possui posição da vista explodida identificada.', penalty: 14, review: true });
     else if (positionRatio < 0.9) warnings.push('Algumas peças não possuem posição da vista explodida identificada.');
   }
@@ -277,6 +308,7 @@ export async function refreshCatalogHealth(documentId: string, tenantId: string)
   ]);
 
   const diagnostics = structuralDiagnostics(parts, document.model, document.pnc);
+  const partsWithInformativeSection = parts.filter(part => isInformativeCatalogSection(part.section)).length;
   const health = assessCatalogHealth({
     manufacturer: document.manufacturer,
     model: document.model,
@@ -287,6 +319,7 @@ export async function refreshCatalogHealth(documentId: string, tenantId: string)
     partCount: parts.length,
     partsWithPage,
     partsWithSection,
+    partsWithInformativeSection,
     partsWithPosition,
     chunkCount: document._count.chunks,
     embeddedPartCount,
