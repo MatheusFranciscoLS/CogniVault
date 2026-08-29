@@ -32,9 +32,13 @@ export function extractExplicitOccurrenceSection(question: string): string {
     .replace(/\b(?:posição|posicao|pos\.?|item|ref\.?|referência|referencia)\s*[:#.-]?\s*\d{1,3}\b.*$/i, ' ')
     .trim();
 
-  // Remove apenas um sufixo que claramente parece identificação de máquina
-  // (precisa conter dígito), preservando nomes como "freio da corrente".
-  section = section.replace(/\s+(?:da|do|de)\s+(?:husqvarna\s+)?(?=[a-z0-9\s-]*\d)[a-z0-9\s-]{2,24}$/i, ' ').trim();
+  // Remove apenas um sufixo que comece como identificação de máquina. O token
+  // principal precisa conter dígito; um prefixo curto cobre formatos como
+  // "LC 353AWD" sem consumir nomes mecânicos como "freio da corrente".
+  section = section.replace(
+    /\s+(?:da|do|de)\s+(?:husqvarna\s+)?(?:[a-z]{1,4}\s+)?(?=[a-z0-9-]*\d)[a-z0-9-]+(?:\s+[a-z0-9-]+){0,2}$/i,
+    ' ',
+  ).trim();
   section = section.replace(/\s+/g, ' ').replace(/^(?:de|da|do)\s+/i, '').trim();
 
   if (!section || section.length > 80) return '';
