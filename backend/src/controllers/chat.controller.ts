@@ -64,8 +64,15 @@ export class ChatController {
 
             let result = await ChatService.askQuestion(req.user.tenantId, effectiveQuestion, cleanPnc, cleanSelectedPartId);
 
-            if (requestedVerification?.state === 'SUPERSEDED' && result.status === 'FOUND') {
-                result = prependOfficialNotice(result, requestedVerification.queriedPartNumber, requestedVerification.currentPartNumber);
+            if (requestedVerification?.state === 'SUPERSEDED') {
+                if (result.status === 'FOUND') {
+                    result = prependOfficialNotice(result, requestedVerification.queriedPartNumber, requestedVerification.currentPartNumber);
+                } else {
+                    result = {
+                        ...result,
+                        answer: `Verificação oficial: o código ${requestedVerification.queriedPartNumber} foi substituído por ${requestedVerification.currentPartNumber} no Portal Husqvarna. O código atual ainda não foi localizado em um catálogo técnico ativo deste tenant; confirme a aplicação no portal antes de concluir.\n${result.answer}`,
+                    };
+                }
             } else if (!cleanSelectedPartId && result.status === 'FOUND' && result.part) {
                 const foundVerification = await OfficialPartVerificationService.resolveCurrentCode(req.user.tenantId, result.part.partNumber);
                 if (foundVerification.state === 'SUPERSEDED') {
