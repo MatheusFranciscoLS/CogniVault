@@ -24,25 +24,22 @@ const STOP_WORDS = new Set([
   'podador', 'giro', 'zero', 'jardim', 'grama', 'relva',
 ]);
 
-// Modificadores de linguagem natural refinam a intenção, mas não devem virar
-// um AND textual obrigatório. O conceito técnico correspondente incorpora esses
-// termos quando eles realmente distinguem uma peça completa/assembly.
 const QUERY_MODIFIERS = new Set([
   'completa', 'completo', 'conjunto', 'conjunto completo', 'assy', 'assembly',
   'peca completa', 'peça completa', 'inteira', 'inteiro',
 ]);
 
-// Peças genéricas que aparecem dentro de muitos conjuntos. Quando uma pergunta
-// segue a forma "parafuso da embreagem", "mola do carburador", etc., o primeiro
-// conceito deve ser procurado no NOME da peça e o segundo no contexto/seção.
+// Componentes que podem ser pedidos dentro de um conjunto: "parafuso da embreagem",
+// "mola do carburador", "tambor da embreagem". O componente é o alvo principal;
+// o segundo conceito é contexto técnico e pode estar na seção da vista.
 const RELATIONAL_PRIMARY_KEYS = new Set([
   'screw', 'nut', 'washer', 'spring', 'bearing', 'needle-bearing', 'bushing', 'spacer', 'pin',
-  'bracket', 'clamp', 'seal', 'gasket', 'o-ring', 'cover', 'housing', 'lever', 'latch',
+  'bracket', 'clamp', 'seal', 'gasket', 'o-ring', 'cover', 'housing', 'lever', 'latch', 'drum',
 ]);
 
-// Ontologia de balcão pesquisada a partir de nomenclatura Husqvarna BR/PT,
-// catálogos ilustrados e termos usuais de revenda. Ela aproxima nomes; nunca
-// cria código, compatibilidade, modelo ou PNC que não existam na base técnica.
+// Ontologia de balcão pesquisada em nomenclatura Husqvarna BR/PT, catálogos
+// ilustrados e termos usuais de revenda. Ela aproxima nomes; nunca cria código,
+// compatibilidade, modelo ou PNC que não existam na base técnica.
 const VOCABULARY: VocabularyEntry[] = [
   // Admissão, combustível e motor
   { key: 'air-filter', terms: ['filtro de ar', 'filtro ar', 'air filter', 'airfilter', 'elemento filtrante', 'elemento do filtro de ar'] },
@@ -75,7 +72,7 @@ const VOCABULARY: VocabularyEntry[] = [
   { key: 'starter-motor', terms: ['motor de partida', 'motor de arranque', 'motor partida', 'starter motor', 'electric starter'] },
 
   // Embreagem e transmissão
-  { key: 'clutch-drum', terms: ['tambor de embreagem', 'tambor embreagem', 'tambor de embraiagem', 'tambor embraiagem', 'copo da embreagem', 'campana da embreagem', 'campana de embreagem', 'clutch drum', 'drum clutch'] },
+  { key: 'drum', terms: ['tambor', 'copo', 'campana', 'drum'] },
   {
     key: 'clutch',
     terms: [
@@ -84,7 +81,6 @@ const VOCABULARY: VocabularyEntry[] = [
       'conjunto de embraiagem', 'conjunto da embraiagem', 'clutch assy', 'clutch assembly', 'complete clutch',
     ],
   },
-  { key: 'clutch-spring', terms: ['mola da embreagem', 'mola de embreagem', 'mola da embraiagem', 'clutch spring'] },
   { key: 'gearbox', terms: ['caixa de transmissao', 'caixa de transmissão', 'caixa de engrenagem', 'caixa de engrenagens', 'ponteira', 'ponteira da rocadeira', 'ponteira da roçadeira', 'engrenagem conica', 'engrenagem cônica', 'bevel gear', 'angle gear', 'gearbox', 'gear box'] },
   { key: 'gear', terms: ['engrenagem', 'carreto', 'gear'] },
   { key: 'shaft', terms: ['eixo', 'veio', 'shaft', 'drive shaft', 'eixo de transmissao', 'eixo de transmissão'] },
@@ -257,6 +253,7 @@ export function buildSearchGroups(value: string, ignoredValues: string[] = []): 
 
 function conceptOccurrences(value: string): Array<{ group: SearchGroup; index: number; end: number; length: number }> {
   const query = searchable(value);
+  const queryWords = query.split(' ');
   const matches: Array<{ group: SearchGroup; index: number; end: number; length: number }> = [];
 
   for (const entry of VOCABULARY) {
@@ -264,10 +261,15 @@ function conceptOccurrences(value: string): Array<{ group: SearchGroup; index: n
     for (const term of normalizedVariants(entry)) {
       const needle = searchable(term);
       if (!needle) continue;
-      const index = query.indexOf(needle);
-      if (index < 0) continue;
-      if (!best || index < best.index || (index === best.index && needle.length > best.length)) {
-        best = { index, end: index + needle.length, length: needle.length };
+      const needleWords = needle.split(' ');
+      for (let wordIndex = 0; wordIndex <= queryWords.length - needleWords.length; wordIndex += 1) {
+        const window = queryWords.slice(wordIndex, wordIndex + needleWords.length).join(' ');
+        if (window !== needle) continue;
+        const prefix = queryWords.slice(0, wordIndex).join(' ');
+        const index = prefix ? prefix.length + 1 : 0;
+        const candidate = { index, end: index + needle.length, length: needle.length };
+        if (!best || index < best.index || (index === best.index && needle.length > best.length)) best = candidate;
+        break;
       }
     }
     if (best) matches.push({ group: { key: entry.key, variants: normalizedVariants(entry) }, ...best });
@@ -276,10 +278,6 @@ function conceptOccurrences(value: string): Array<{ group: SearchGroup; index: n
   return matches.sort((a, b) => a.index - b.index || b.length - a.length);
 }
 
-/**
- * Detecta consultas relacionais como "parafuso da embreagem". O primeiro termo
- * é a peça procurada; o segundo descreve o conjunto/vista onde ela está.
- */
 export function inferPartQueryRelation(value: string): PartQueryRelation | null {
   const query = searchable(value);
   const occurrences = conceptOccurrences(value);
@@ -300,9 +298,6 @@ export function inferPartQueryRelation(value: string): PartQueryRelation | null 
   return null;
 }
 
-/**
- * Expande a consulta para embeddings sem trocar a pergunta original.
- */
 export function semanticQueryText(value: string, ignoredValues: string[] = []): string {
   const groups = buildSearchGroups(value, ignoredValues);
   const variants = [...new Set(groups.flatMap(group => group.variants))].slice(0, 48);
@@ -310,10 +305,6 @@ export function semanticQueryText(value: string, ignoredValues: string[] = []): 
   return [value.trim(), `Equivalentes técnicos: ${variants.join(', ')}`].filter(Boolean).join('\n');
 }
 
-/**
- * Equivalentes gerados deterministicamente para enriquecer a indexação. Não são
- * gravados como nomes oficiais e não alteram a evidência do PDF.
- */
 export function inferredSearchAliases(name: string, section = '', aliases: string[] = []): string[] {
   const concepts = findPartConcepts([name, section, ...aliases].filter(Boolean).join(' '));
   return [...new Set(concepts.flatMap(group => group.variants))].slice(0, 48);
@@ -362,13 +353,6 @@ function conceptStrength(
     matchStrength(candidate.section || '', group.variants, 0.28, 0.22),
   );
 
-  // Conceitos compostos podem ser divididos entre nome da peça e seção da vista.
-  if (group.key === 'clutch-drum') {
-    const nameHasDrum = ['tambor', 'drum', 'copo', 'campana'].some(term => containsVariant(candidate.name, term));
-    const contextHasClutch = ['embreagem', 'embraiagem', 'clutch'].some(term => containsVariant(`${candidate.section || ''} ${(candidate.aliases || []).join(' ')}`, term));
-    if (nameHasDrum && contextHasClutch) strength = Math.max(strength, 0.96);
-  }
-
   if (group.key === 'starter-rope') {
     const nameHasRope = ['corda', 'cordao', 'rope'].some(term => containsVariant(candidate.name, term));
     const contextHasStarter = ['partida', 'arranque', 'starter', 'recoil'].some(term => containsVariant(`${candidate.section || ''} ${(candidate.aliases || []).join(' ')}`, term));
@@ -402,16 +386,10 @@ export function scorePartText(
   const context = contextStrength(relation.context, candidate);
   if (primary < 0.6 || context < 0.2) return regularScore;
 
-  // Em "parafuso da embreagem", PARAFUSO precisa estar no nome/alias; CLUTCH
-  // pode estar na seção. Assim EMBRAIAGEM não vence um SCREW da vista CLUTCH.
   const relationScore = primary * 0.72 + context * 0.28;
   return Math.max(regularScore, Math.min(1, relationScore));
 }
 
-/**
- * Quando existem correspondências fortes pelo nome/alias ou pela relação
- * peça-dentro-do-conjunto, remove itens que apareceram apenas por vizinhança.
- */
 export function focusCandidatesByDescription<
   T extends { name: string; section?: string | null; alternativeNames?: string[] },
 >(query: string, candidates: T[]): T[] {
