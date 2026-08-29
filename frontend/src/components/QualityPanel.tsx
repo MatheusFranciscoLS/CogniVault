@@ -78,7 +78,7 @@ export default function QualityPanel() {
   const filteredQueue=useMemo(()=>data?.reviewQueue.filter(catalog=>[
     catalog.filename,catalog.manufacturer,catalog.model,catalog.pnc,catalog.category?.name,...catalog.reviewReasons,
   ].some(value=>value?.toLowerCase().includes(normalizedQueueFilter)))||[],[data,normalizedQueueFilter]);
-  const recommendations=useMemo(()=>{
+  const recommendations=(()=>{
     if(!data)return [] as string[];
     const items:string[]=[];
     if(data.summary.needsReview>0)items.push(`Revisar ${data.summary.needsReview} catálogo(s) na fila, começando pelos menores scores.`);
@@ -87,7 +87,7 @@ export default function QualityPanel() {
     if(metrics?.extractionGaps)items.push(`${metrics.extractionGaps} caso(s) do Golden Set possuem catálogo presente, mas a peça esperada não foi extraída.`);
     if(!items.length)items.push('Nenhuma ação estrutural urgente detectada. Continue alimentando o benchmark com casos reais e feedback do balcão.');
     return items;
-  },[data,metrics]);
+  })();
 
   return <section>
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
