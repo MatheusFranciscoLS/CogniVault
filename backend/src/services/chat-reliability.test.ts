@@ -175,13 +175,13 @@ test('saia lateral do TS114 converge para defletor/calha de descarga sem confund
   assert.ok(deflectorScore > bracketScore + 0.5);
 });
 
-test('entende componentes do defletor lateral sem transformar a mola no defletor completo', () => {
+test('entende componentes do defletor quando a vista confirma o conjunto de descarga', () => {
   const relation = inferPartQueryRelation('mola da saia lateral do TS114');
   assert.equal(relation?.primary.key, 'spring');
   assert.equal(relation?.context.key, 'discharge-deflector');
 
-  const springInDischarge = scorePartText('mola da saia lateral do TS114', { name: 'SPRING', section: 'SIDE DISCHARGE' });
-  const deflector = scorePartText('mola da saia lateral do TS114', { name: 'DEFLECTOR', section: 'SIDE DISCHARGE' });
+  const springInDischarge = scorePartText('mola da saia lateral do TS114', { name: 'SPRING', section: 'SIDE DISCHARGE DEFLECTOR' });
+  const deflector = scorePartText('mola da saia lateral do TS114', { name: 'DEFLECTOR', section: 'SIDE DISCHARGE DEFLECTOR' });
   const unrelatedSpring = scorePartText('mola da saia lateral do TS114', { name: 'SPRING', section: 'SEAT' });
   assert.ok(springInDischarge > deflector + 0.3);
   assert.ok(springInDischarge > unrelatedSpring + 0.2);
