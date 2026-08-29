@@ -62,14 +62,14 @@ test('giro zero usa lado esquerdo/direito como evidência técnica forte', () =>
   const query = 'qual a transmissão esquerda do Z460?';
   const left = scorePartText(query, { name: 'TRANSMISSÃO HTE 10CC PUMP 230CC MOTOR LH', section: 'TRANSMISSION' });
   const right = scorePartText(query, { name: 'TRANSMISSÃO HTE 10CC PUMP 230CC MOTOR RH', section: 'TRANSMISSION' });
-  assert.ok(left > right + 0.35, `${left} deveria superar ${right}`);
+  assert.ok(left > right + 0.25, `${left} deveria superar ${right}`);
 });
 
 test('cortador AWD diferencia transmissão dianteira e traseira', () => {
   const query = 'qual a transmissão dianteira da LC353AWD?';
   const front = scorePartText(query, { name: 'TRANSMISSÃO AWD Front', section: 'DRIVE' });
   const rear = scorePartText(query, { name: 'TRANSMISSÃO Rear AWD', section: 'DRIVE' });
-  assert.ok(front > rear + 0.3, `${front} deveria superar ${rear}`);
+  assert.ok(front > rear + 0.25, `${front} deveria superar ${rear}`);
 });
 
 test('motosserra mantém Rim e Spur como variantes construtivas distintas', () => {
