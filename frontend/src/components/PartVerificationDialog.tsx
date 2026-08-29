@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { apiJson, fmtDate } from '../lib';
