@@ -5,22 +5,13 @@ import { ensureCatalogCategory } from '../services/catalog-category-assignment';
 import { refreshCatalogHealth } from '../services/catalog-health';
 import { rebuildDocumentMemory } from '../services/document-memory';
 import { nextDocumentRetry } from '../utils/document-retry';
+import { readableProcessingError } from '../utils/processing-error';
 import { DOCUMENT_PROCESSING_QUEUE, DOCUMENT_RETRY_QUEUE, rabbitMQ } from './connection';
 
 interface DocumentMessage {
     documentId: string;
     tenantId: string;
     jobId: string;
-}
-
-function readableProcessingError(error: unknown, hasUsableCatalog: boolean): string {
-    const message = error instanceof Error ? error.message : String(error);
-    if (message.toLowerCase().includes('quota') || message.includes('RESOURCE_EXHAUSTED')) {
-        return hasUsableCatalog
-            ? 'As peças já gravadas foram preservadas. A IA opcional atingiu o limite temporário, sem bloquear o catálogo.'
-            : 'Este PDF não possui uma tabela textual reconhecível e precisa de leitura visual. A cota diária da IA foi atingida; tente novamente após a renovação da cota ou envie o IPL oficial com texto pesquisável.';
-    }
-    return message.slice(0, 600);
 }
 
 function isValidMessage(value: unknown): value is DocumentMessage {
@@ -180,7 +171,7 @@ export class DocumentWorker {
                                 processingStage: currentDocument.processingStage === 'INDEXING'
                                     ? 'INDEXING'
                                     : 'RETRYING',
-                                processingError: readableProcessingError(error, hasUsableCatalog),
+                                processingError: readableProcessingError(error, hasUsableCatalog, true),
                             },
                         });
                         channel.sendToQueue(DOCUMENT_RETRY_QUEUE, msg.content, {
@@ -207,7 +198,7 @@ export class DocumentWorker {
                                 ? 'READY_WITHOUT_EMBEDDINGS'
                                 : 'READY_WITH_WARNING')
                             : 'FAILED',
-                        processingError: readableProcessingError(error, hasUsableCatalog),
+                        processingError: readableProcessingError(error, hasUsableCatalog, false),
                     },
                 });
                 if (hasUsableCatalog) {
