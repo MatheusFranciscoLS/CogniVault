@@ -17,7 +17,7 @@ export interface OfficialVerification {
   officialUrl:string; note:string|null; verifiedAt:string|null; verifiedBy:string|null; source:'TENANT'|'BUILT_IN'|'NONE';
 }
 export interface ChatResponse {
-  status:SearchStatus; answer:string; pncOptions?:string[]; modelOptions?:string[]; confidence?:number;
+  status:SearchStatus; answer:string; pncOptions?:string[]; modelOptions?:string[]; serialRequired?:boolean; confidence?:number;
   interpreted?:{partDescription:string;manufacturer:string|null;model:string|null;pnc:string|null;partNumber:string|null};
   match?:{
     method:'DIRECT_CODE'|'SEMANTIC'|'LEXICAL';level:'EXACT'|'HIGH'|'REVIEW';explanation:string;
