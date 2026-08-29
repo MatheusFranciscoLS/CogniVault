@@ -1,5 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "feature/*": false,
+      "promote/*": false,
+      "fix/*": false,
+      "chore/*": false,
+      "main": true
+    }
+  },
   "ignoreCommand": "git diff --quiet \"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\" HEAD ./",
   "rewrites": [
     {
