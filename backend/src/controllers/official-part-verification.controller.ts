@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { OfficialVerificationStatus } from '@prisma/client';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { normalizeIdentifier } from '../utils/normalize';
 import { OfficialPartVerificationService } from '../services/official-part-verification.service';
 
 const ALLOWED_STATUSES = new Set<OfficialVerificationStatus>(['VERIFIED', 'SUPERSEDED', 'REVIEW']);
@@ -8,20 +9,28 @@ const ALLOWED_STATUSES = new Set<OfficialVerificationStatus>(['VERIFIED', 'SUPER
 export class OfficialPartVerificationController {
   async list(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
-    const codes = String(req.query.codes || '')
-      .split(',')
-      .map(code => code.trim())
-      .filter(Boolean)
-      .slice(0, 80);
+    try {
+      const codes = String(req.query.codes || '')
+        .split(',')
+        .map(code => code.trim())
+        .filter(code => Boolean(normalizeIdentifier(code)))
+        .slice(0, 80);
 
-    const uniqueCodes = [...new Set(codes)];
-    const verifications = await Promise.all(uniqueCodes.map(code => OfficialPartVerificationService.latestForCode(req.user!.tenantId, code)));
-    res.json({ verifications });
+      const uniqueCodes = [...new Set(codes)];
+      const verifications = await OfficialPartVerificationService.latestForCodes(req.user.tenantId, uniqueCodes);
+      res.json({ verifications });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Não foi possível consultar as verificações.' });
+    }
   }
 
   async history(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
     const code = String(req.params.code || '').trim();
+    if (!normalizeIdentifier(code)) {
+      res.status(400).json({ error: 'Código da peça inválido.' });
+      return;
+    }
     const history = await OfficialPartVerificationService.history(req.user.tenantId, code);
     res.json({ history });
   }
