@@ -61,15 +61,12 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
     return counts;
   },[activeDocs]);
   const visibleCategories=useMemo(()=>categories.filter(category=>(categoryCounts.get(category)||0)>0),[categories,categoryCounts]);
+  const effectiveCategoryFilter=categoryFilter==='ALL'||categories.includes(categoryFilter)?categoryFilter:'ALL';
   const normalizedSearch=search.trim().toLowerCase();
-  const filtered=useMemo(()=>activeDocs.filter(document=>(categoryFilter==='ALL'||document.category===categoryFilter)&&[
+  const filtered=useMemo(()=>activeDocs.filter(document=>(effectiveCategoryFilter==='ALL'||document.category===effectiveCategoryFilter)&&[
     document.filename,document.manufacturer,document.model,document.pnc,document.category,
-  ].some(value=>value?.toLowerCase().includes(normalizedSearch))),[activeDocs,categoryFilter,normalizedSearch]);
+  ].some(value=>value?.toLowerCase().includes(normalizedSearch))),[activeDocs,effectiveCategoryFilter,normalizedSearch]);
   const favoritesByDocument=useMemo(()=>new Map(favorites.filter(item=>item.documentId).map(item=>[item.documentId!,item])),[favorites]);
-
-  useEffect(()=>{
-    if(categoryFilter!=='ALL'&&!categories.includes(categoryFilter))setCategoryFilter('ALL');
-  },[categories,categoryFilter]);
 
   const flash=(text:string)=>{setNotice(text);window.setTimeout(()=>setNotice(''),1800)};
   const access=async(id:string,mode:'view'|'download',title='Catálogo')=>{
@@ -172,12 +169,12 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
         <div className="text-xs font-medium text-slate-400">{activeDocs.length} catálogo{activeDocs.length===1?'':'s'}</div>
       </div>
       <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-        <button type="button" onClick={()=>setCategoryFilter('ALL')} className={`rounded-2xl border px-4 py-3 text-left transition ${categoryFilter==='ALL'?'border-slate-700 bg-slate-900 text-white':'border-slate-200 bg-white text-slate-700 hover:border-slate-300'}`}>
-          <div className="text-sm font-semibold">Todos</div><div className={`mt-1 text-xs ${categoryFilter==='ALL'?'text-slate-300':'text-slate-400'}`}>{activeDocs.length} catálogo{activeDocs.length===1?'':'s'}</div>
+        <button type="button" onClick={()=>setCategoryFilter('ALL')} className={`rounded-2xl border px-4 py-3 text-left transition ${effectiveCategoryFilter==='ALL'?'border-slate-700 bg-slate-900 text-white':'border-slate-200 bg-white text-slate-700 hover:border-slate-300'}`}>
+          <div className="text-sm font-semibold">Todos</div><div className={`mt-1 text-xs ${effectiveCategoryFilter==='ALL'?'text-slate-300':'text-slate-400'}`}>{activeDocs.length} catálogo{activeDocs.length===1?'':'s'}</div>
         </button>
         {visibleCategories.map(category=>{
           const count=categoryCounts.get(category)||0;
-          const selected=categoryFilter===category;
+          const selected=effectiveCategoryFilter===category;
           return <button key={category} type="button" onClick={()=>setCategoryFilter(category)} className={`rounded-2xl border px-4 py-3 text-left transition ${selected?'border-slate-700 bg-slate-900 text-white':'border-slate-200 bg-white text-slate-700 hover:border-slate-300'}`}>
             <div className="text-sm font-semibold">{category}</div><div className={`mt-1 text-xs ${selected?'text-slate-300':'text-slate-400'}`}>{count} catálogo{count===1?'':'s'}</div>
           </button>;
@@ -188,7 +185,7 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
     <div className="cv-surface overflow-hidden rounded-[22px]">
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 p-4">
         <div className="min-w-0 flex-1"><label htmlFor="catalog-search" className="sr-only">Buscar catálogos</label><input id="catalog-search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Buscar por arquivo, fabricante, modelo, PNC ou seção" className="cv-field w-full max-w-xl text-sm"/></div>
-        {categoryFilter!=='ALL'&&<button type="button" onClick={()=>setCategoryFilter('ALL')} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600">Limpar seção</button>}
+        {effectiveCategoryFilter!=='ALL'&&<button type="button" onClick={()=>setCategoryFilter('ALL')} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600">Limpar seção</button>}
       </div>
       <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-sm"><thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-[.08em] text-slate-400"><tr><th className="p-4">Catálogo</th><th>Seção</th><th>Modelo / PNC</th><th>Status</th><th>Peças</th><th className="p-4">Ações</th></tr></thead><tbody>
         {filtered.map(document=><tr key={document.id} className="border-t border-slate-100 transition hover:bg-slate-50/60">
