@@ -17,6 +17,26 @@ async function fetchCatalogData(admin: boolean, archived: boolean): Promise<Cata
   };
 }
 
+function qualityLabel(document:DocumentItem):string {
+  if(document.reviewStatus==='REVIEWED')return `Revisado · ${document.healthScore||0}/100`;
+  if(document.reviewStatus==='READY')return `Qualidade OK · ${document.healthScore||0}/100`;
+  if(document.reviewStatus==='NEEDS_REVIEW')return `Revisar · ${document.healthScore||0}/100`;
+  return 'Qualidade pendente';
+}
+
+function qualityTone(document:DocumentItem):string {
+  if(document.reviewStatus==='REVIEWED'||document.reviewStatus==='READY')return 'text-emerald-700';
+  if(document.reviewStatus==='NEEDS_REVIEW')return 'text-rose-700';
+  return 'text-amber-700';
+}
+
+function extractionLabel(method?:string|null):string {
+  if(!method)return '';
+  if(method==='HUSQVARNA_IPL_TEXT')return 'Parser local · sem IA';
+  if(method.startsWith('GEMINI:'))return `IA · ${method.replace('GEMINI:','')}`;
+  return method;
+}
+
 export default function CatalogsPanel({admin}:{admin:boolean}) {
   const [docs,setDocs]=useState<DocumentItem[]>([]);
   const [favorites,setFavorites]=useState<FavoriteItem[]>([]);
@@ -25,6 +45,7 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
   const [search,setSearch]=useState('');
   const [archived,setArchived]=useState(false);
   const [busy,setBusy]=useState(false);
+  const [analyzingQuality,setAnalyzingQuality]=useState(false);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [pdf,setPdf]=useState<{url:string;title:string}|null>(null);
@@ -55,6 +76,7 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
   },[admin,archived,processing]);
 
   const activeDocs=useMemo(()=>docs.filter(document=>archived||!document.archivedAt),[docs,archived]);
+  const qualityPending=useMemo(()=>activeDocs.filter(document=>document.status==='COMPLETED'&&(!document.qualityCheckedAt||document.reviewStatus==='PENDING'||!document.healthScore)).length,[activeDocs]);
   const categoryCounts=useMemo(()=>{
     const counts=new Map<string,number>();
     for(const document of activeDocs)counts.set(document.category,(counts.get(document.category)||0)+1);
@@ -68,7 +90,7 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
   ].some(value=>value?.toLowerCase().includes(normalizedSearch))),[activeDocs,effectiveCategoryFilter,normalizedSearch]);
   const favoritesByDocument=useMemo(()=>new Map(favorites.filter(item=>item.documentId).map(item=>[item.documentId!,item])),[favorites]);
 
-  const flash=(text:string)=>{setNotice(text);window.setTimeout(()=>setNotice(''),1800)};
+  const flash=(text:string)=>{setNotice(text);window.setTimeout(()=>setNotice(''),2200)};
   const access=async(id:string,mode:'view'|'download',title='Catálogo')=>{
     try {
       const data=await apiJson<{url:string}>(`/api/documents/${id}/access?mode=${mode}`);
@@ -80,6 +102,15 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
     } catch(accessError) {
       setError(accessError instanceof Error?accessError.message:'Não foi possível abrir o catálogo.');
     }
+  };
+
+  const analyzeQuality=async()=>{
+    setAnalyzingQuality(true);setError('');
+    try{
+      const response=await apiJson<{message:string}>('/api/admin/quality/rebuild-knowledge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({limit:500})});
+      await load();flash(response.message||'Qualidade dos catálogos atualizada.');
+    }catch(analyzeError){setError(analyzeError instanceof Error?analyzeError.message:'Não foi possível analisar os catálogos.');}
+    finally{setAnalyzingQuality(false);}
   };
 
   const toggleFavorite=async(document:DocumentItem)=>{
@@ -163,6 +194,11 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
 
     {admin&&<BatchCatalogUploader onComplete={load} onNotice={flash} onError={setError}/>} 
 
+    {admin&&qualityPending>0&&!archived&&<div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50/60 p-4">
+      <div><div className="text-sm font-semibold text-blue-950">{qualityPending} catálogo{qualityPending===1?' ainda precisa':'s ainda precisam'} da análise de qualidade</div><p className="mt-1 text-xs leading-5 text-blue-800">A análise usa somente as peças já extraídas: organiza família, cria memória técnica e calcula saúde. Não reabre o PDF e não consome Gemini.</p></div>
+      <button type="button" disabled={analyzingQuality||processing} onClick={()=>void analyzeQuality()} className="rounded-xl bg-blue-700 px-4 py-2.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{analyzingQuality?'Analisando…':'Analisar catálogos · sem IA'}</button>
+    </div>}
+
     <div className="cv-surface mb-6 rounded-[22px] p-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div><div className="font-semibold text-slate-800">Biblioteca por seção</div><p className="mt-1 text-xs leading-5 text-slate-400">Os catálogos são classificados automaticamente. Clique em uma seção para visualizar somente aquela família.</p></div>
@@ -187,12 +223,12 @@ export default function CatalogsPanel({admin}:{admin:boolean}) {
         <div className="min-w-0 flex-1"><label htmlFor="catalog-search" className="sr-only">Buscar catálogos</label><input id="catalog-search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Buscar por arquivo, fabricante, modelo, PNC ou seção" className="cv-field w-full max-w-xl text-sm"/></div>
         {effectiveCategoryFilter!=='ALL'&&<button type="button" onClick={()=>setCategoryFilter('ALL')} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600">Limpar seção</button>}
       </div>
-      <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-sm"><thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-[.08em] text-slate-400"><tr><th className="p-4">Catálogo</th><th>Seção</th><th>Modelo / PNC</th><th>Status</th><th>Peças</th><th className="p-4">Ações</th></tr></thead><tbody>
+      <div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-sm"><thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-[.08em] text-slate-400"><tr><th className="p-4">Catálogo</th><th>Seção</th><th>Modelo / PNC</th><th>Status / qualidade</th><th>Peças</th><th className="p-4">Ações</th></tr></thead><tbody>
         {filtered.map(document=><tr key={document.id} className="border-t border-slate-100 transition hover:bg-slate-50/60">
-          <td className="p-4"><div className="flex items-start gap-2"><button type="button" title="Favoritar" aria-label={favoritesByDocument.has(document.id)?`Remover ${document.filename} dos favoritos`:`Favoritar ${document.filename}`} disabled={Boolean(document.archivedAt)} onClick={()=>void toggleFavorite(document)} className="text-lg leading-5 text-amber-500 disabled:opacity-30">{favoritesByDocument.has(document.id)?'★':'☆'}</button><div><b className="font-semibold text-slate-800">{document.filename}</b><div className="mt-1 text-xs text-slate-400">{document.manufacturer||'Fabricante não informado'} · {fmtDate(document.createdAt)}</div>{document.archivedAt&&<span className="text-xs text-rose-600">Arquivado</span>}</div></div></td>
+          <td className="p-4"><div className="flex items-start gap-2"><button type="button" title="Favoritar" aria-label={favoritesByDocument.has(document.id)?`Remover ${document.filename} dos favoritos`:`Favoritar ${document.filename}`} disabled={Boolean(document.archivedAt)} onClick={()=>void toggleFavorite(document)} className="text-lg leading-5 text-amber-500 disabled:opacity-30">{favoritesByDocument.has(document.id)?'★':'☆'}</button><div><b className="font-semibold text-slate-800">{document.filename}</b><div className="mt-1 text-xs text-slate-400">{document.manufacturer||'Fabricante não informado'} · {fmtDate(document.createdAt)}</div>{document.extractionMethod&&<div className="mt-1 text-[10px] font-medium text-slate-400">{extractionLabel(document.extractionMethod)}</div>}{document.archivedAt&&<span className="text-xs text-rose-600">Arquivado</span>}</div></div></td>
           <td className="pr-4">{admin?<select aria-label={`Seção de ${document.filename}`} disabled={busy||document.processingActive} value={document.category} onChange={event=>void setCategory(document,event.target.value)} className="max-w-[220px] rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-medium text-slate-700 disabled:opacity-50">{categories.map(category=><option key={category} value={category}>{category}</option>)}</select>:<span className="rounded-full bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-600">{document.category}</span>}</td>
           <td className="pr-4 text-slate-600">{document.model||'—'}<div className="text-xs text-slate-400">PNC {document.pnc||'—'}</div></td>
-          <td className="pr-4"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${badge(document)}`}>{statusLabel(document)}</span>{document.processingError&&<div className="mt-1 max-w-72 text-[10px] leading-4 text-slate-500">{document.processingError}</div>}</td>
+          <td className="pr-4"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${badge(document)}`}>{statusLabel(document)}</span>{document.status==='COMPLETED'&&<div className={`mt-1 text-[10px] font-semibold ${qualityTone(document)}`}>{qualityLabel(document)}</div>}{document.reviewReasons?.[0]&&document.reviewStatus==='NEEDS_REVIEW'&&<div className="mt-1 max-w-72 text-[10px] leading-4 text-rose-600">{document.reviewReasons[0]}</div>}{document.processingError&&<div className="mt-1 max-w-72 text-[10px] leading-4 text-slate-500">{document.processingError}</div>}</td>
           <td className="pr-4 text-slate-600">{document.partCount}</td>
           <td className="p-4"><div className="flex flex-wrap gap-2">
             {document.status==='COMPLETED'&&!document.archivedAt&&<><button type="button" onClick={()=>void access(document.id,'view',document.filename)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium">Visualizar</button><button type="button" onClick={()=>void access(document.id,'download',document.filename)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium">Baixar</button></>}
