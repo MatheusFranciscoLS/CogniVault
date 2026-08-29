@@ -34,12 +34,17 @@ function errorRecords(error: unknown): Record<string, unknown>[] {
     const queue: unknown[] = [error];
     const visited = new Set<unknown>();
 
-    while (queue.length && records.length < 12) {
+    while (queue.length && records.length < 40) {
         const current = queue.shift();
         if (!isRecord(current) || visited.has(current)) continue;
         visited.add(current);
         records.push(current);
+
         queue.push(current.cause, current.error, current.response);
+        for (const key of ['details', 'violations']) {
+            const nested = current[key];
+            if (Array.isArray(nested)) queue.push(...nested.slice(0, 20));
+        }
     }
 
     return records;
@@ -112,6 +117,11 @@ export function isTransientAIError(error: unknown): boolean {
 
 export function retryDelayMs(error: unknown): number | null {
     for (const record of errorRecords(error)) {
+        if (typeof record.retryDelay === 'string') {
+            const seconds = Number.parseFloat(record.retryDelay.replace(/s$/i, ''));
+            if (Number.isFinite(seconds) && seconds >= 0) return Math.ceil(seconds * 1_000);
+        }
+
         const details = Array.isArray(record.details) ? record.details : [];
         for (const detail of details) {
             if (!isRecord(detail) || typeof detail.retryDelay !== 'string') continue;
@@ -128,8 +138,17 @@ export function retryDelayMs(error: unknown): number | null {
 }
 
 export function isDailyAIQuotaError(error: unknown): boolean {
-    const message = errorMessage(error).toLowerCase();
-    return message.includes('perday') || message.includes('per day') || message.includes('daily quota');
+    const signals: string[] = [errorMessage(error)];
+    for (const record of errorRecords(error)) {
+        for (const value of [record.quotaId, record.quotaMetric]) {
+            if (typeof value === 'string') signals.push(value);
+        }
+    }
+
+    const combined = signals.join(' ').toLowerCase();
+    return combined.includes('perday')
+        || combined.includes('per day')
+        || combined.includes('daily quota');
 }
 
 export async function withTransientAIRetry<T>(
@@ -161,4 +180,3 @@ export async function withTransientAIRetry<T>(
 
     throw new Error(`Não foi possível concluir ${options.label}.`);
 }
-
