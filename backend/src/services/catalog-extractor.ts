@@ -148,6 +148,11 @@ function isNoiseLine(value: string): boolean {
     return isPartsHeader(line);
 }
 
+function hasQuantityColumn(lines: string[]): boolean {
+    const joined = lines.join(' ').toLowerCase();
+    return /\bqty\b|\bquantity\b|quanti\s*dade/.test(joined);
+}
+
 function filenameModel(filename: string): string {
     const base = filename.replace(/\.pdf$/i, '').replace(/\s+/g, ' ').trim();
     const afterBrand = base.match(/Husqvarna\s+(.+)$/i)?.[1];
@@ -170,10 +175,8 @@ function detectModel(text: string, hints: CatalogHints): string {
     return filenameModel(clean(hints.filename));
 }
 
-function detectManufacturer(text: string, hints: CatalogHints): string {
-    const hinted = clean(hints.manufacturer);
-    if (hinted) return hinted;
-    return /HUSQVARNA/i.test(text) ? 'Husqvarna' : '';
+function detectManufacturer(_text: string, hints: CatalogHints): string {
+    return clean(hints.manufacturer) || 'Husqvarna';
 }
 
 function collectPncs(text: string, hints: CatalogHints): string[] {
@@ -223,7 +226,15 @@ function splitInlineQuantity(value: string): { description: string; quantity: st
     };
 }
 
-function parseFlexibleBlock(lines: string[]): { name: string; quantity: string; comments: string } {
+function parseFlexibleBlock(lines: string[], expectsQuantity: boolean): { name: string; quantity: string; comments: string } {
+    if (!expectsQuantity) {
+        return {
+            name: normalizedLine(lines.filter((line) => !isNoiseLine(line)).join(' ')),
+            quantity: '',
+            comments: '',
+        };
+    }
+
     const description: string[] = [];
     const comments: string[] = [];
     let quantity = '';
@@ -314,12 +325,13 @@ function parseFlexiblePage(lines: string[]): { rows: ParsedRow[]; section: strin
     });
 
     if (!starts.length) return null;
+    const expectsQuantity = hasQuantityColumn(lines);
     const rows: ParsedRow[] = [];
     for (let index = 0; index < starts.length; index += 1) {
         const current = starts[index];
         const nextIndex = starts[index + 1]?.index ?? lines.length;
         const block = [current.remainder, ...lines.slice(current.index + 1, nextIndex)];
-        const parsed = parseFlexibleBlock(block);
+        const parsed = parseFlexibleBlock(block, expectsQuantity);
         if (!parsed.name) continue;
         rows.push({
             position: current.position,
@@ -398,7 +410,6 @@ export function parseHusqvarnaIplText(text: string, hints: CatalogHints = {}): C
     ])).values()];
     const sourceOccurrences = new Set(deduped.map((part) => [part.page, part.position, part.partNumber].join('|'))).size;
 
-    // Evita aceitar por engano um PDF que apenas contenha uma tabela semelhante.
     if (sourceOccurrences < 10) return null;
 
     return {
