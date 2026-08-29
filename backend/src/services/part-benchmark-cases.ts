@@ -120,4 +120,22 @@ export const HUSQVARNA_GOLDEN_BENCHMARK: PartBenchmarkCase[] = [
     expectedPartNumbers: ['504017002'],
     source: 'Motosserra Husqvarna 272 XP.pdf · p.24/25 · CONJ. DO PISTÃO Ø52',
   },
+  {
+    id: '143rii-clutch',
+    query: 'qual o código da embreagem completa da 143RII?',
+    model: '143RII',
+    pnc: '967332904',
+    expectedPartNumbers: ['599764701'],
+    hardNegativePartNumbers: ['599764801', '591425801', '505312401'],
+    source: '143RII.pdf · p.14 · 143RII CLUTCH · pos.14 EMBRAIAGEM',
+  },
+  {
+    id: '143rii-carburettor-latam',
+    query: 'qual o código do carburador da 143RII?',
+    model: '143RII',
+    pnc: '967332904',
+    expectedPartNumbers: ['587106701'],
+    hardNegativePartNumbers: ['528753801', '587822501', '586931401'],
+    source: '143RII.pdf · p.29 · 143RII CARBURETTOR & AIR FILTER · pos.15 CARBURADOR · ASIA, Latin America; 586931401 → 587106701 verificado no Portal Husqvarna Brasil',
+  },
 ];
