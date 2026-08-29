@@ -13,6 +13,7 @@ import {
     type ExtractedPart,
     extractCatalogDeterministically,
 } from './catalog-extractor';
+import { buildPartRetrievalContext } from './part-index-context';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
@@ -356,17 +357,18 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     : [];
                 const page = Number.isInteger(rawPart.page) && rawPart.page > 0 ? rawPart.page : null;
                 const notes = cleanString(rawPart.notes);
-                const searchText = [
-                    `Fabricante: ${manufacturer}`,
-                    `Modelo: ${model}`,
-                    pnc ? `PNC: ${pnc}` : '',
-                    section ? `Seção: ${section}` : '',
-                    position ? `Posição: ${position}` : '',
-                    `Peça: ${name}`,
-                    aliases.length ? `Nomes alternativos: ${aliases.join(', ')}` : '',
-                    `Part Number: ${partNumber}`,
-                    notes ? `Observações: ${notes}` : '',
-                ].filter(Boolean).join('\n');
+                const searchText = buildPartRetrievalContext({
+                    manufacturer,
+                    model,
+                    pnc,
+                    universalAcrossPnc,
+                    section,
+                    position,
+                    name,
+                    alternativeNames: aliases,
+                    partNumber,
+                    notes,
+                }).searchText;
 
                 preparedParts.push({
                     data: {
