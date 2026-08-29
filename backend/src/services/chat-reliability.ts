@@ -103,7 +103,10 @@ export function chooseCandidateLocally(
   const second = ranked[1];
   const safeLead = best && best.score >= 0.58 && (!second || best.score - second.score >= 0.16);
   return safeLead
-    ? { id: best.id, confidence: Math.max(0.72, Math.min(0.94, best.score)), ambiguous: false }
+    // Esta confiança pertence apenas ao desempate heurístico local. Ela não deve
+    // parecer "quase certeza": o gate final ainda precisa validar recuperadores,
+    // catálogo, PNC e separação entre códigos diferentes.
+    ? { id: best.id, confidence: Math.max(0.72, Math.min(0.9, best.score)), ambiguous: false }
     : { id: null, confidence: Math.max(0, Math.min(1, best?.score || 0)), ambiguous: true };
 }
 
