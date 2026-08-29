@@ -61,6 +61,7 @@ test('a near-tie between different codes remains ambiguous', () => {
     catalog: { healthScore: 91, reviewStatus: 'READY' },
   });
   assert.equal(result.safe, false);
+  assert.ok(result.evidence.some(item => item.includes('praticamente empatados')));
 });
 
 test('an inferred result is blocked when its catalog needs review even with strong retrieval agreement', () => {
@@ -85,4 +86,44 @@ test('a low-health catalog blocks inferred code release even when review status 
   });
   assert.equal(result.safe, false);
   assert.ok(result.evidence.some(item => item.includes('abaixo do mínimo')));
+});
+
+test('explicit LH/RH contradiction blocks an otherwise very strong candidate', () => {
+  const result = evaluateAnswerConfidence({
+    question: 'transmissão esquerda LH do Z460',
+    chosen: candidate({ name: 'Transmission RH', notes: 'RH', retrievalScore: 0.96, distance: 0.05 }),
+    selectionConfidence: 0.99,
+    catalog: { healthScore: 98, reviewStatus: 'REVIEWED' },
+  });
+  assert.equal(result.safe, false);
+  assert.ok(result.evidence.some(item => item.includes('lado LH/RH')));
+  assert.ok(result.reason.includes('contradiz'));
+});
+
+test('Rim cannot be released as Spur even when pitch and teeth match', () => {
+  const result = evaluateAnswerConfidence({
+    question: 'pinhão Rim 3/8 7 dentes da 365 Special',
+    chosen: candidate({
+      model: '365 Special', normalizedModel: '365SPECIAL', section: 'CLUTCH',
+      name: 'Spur 3/8 7T', notes: 'Spur 3/8 7T', retrievalScore: 0.95, distance: 0.06,
+    }),
+    selectionConfidence: 0.98,
+    catalog: { healthScore: 97, reviewStatus: 'REVIEWED' },
+  });
+  assert.equal(result.safe, false);
+  assert.ok(result.evidence.some(item => item.includes('Rim/Spur')));
+});
+
+test('explicit exploded-view position mismatch blocks automatic release', () => {
+  const result = evaluateAnswerConfidence({
+    question: 'parafuso posição 16 da embreagem da 143RII',
+    chosen: candidate({
+      model: '143RII', normalizedModel: '143RII', section: 'CLUTCH', position: '13',
+      name: 'Screw Clutch shoe', notes: null, retrievalScore: 0.96, distance: 0.05,
+    }),
+    selectionConfidence: 0.99,
+    catalog: { healthScore: 97, reviewStatus: 'REVIEWED' },
+  });
+  assert.equal(result.safe, false);
+  assert.ok(result.evidence.some(item => item.includes('posição da vista explodida')));
 });
