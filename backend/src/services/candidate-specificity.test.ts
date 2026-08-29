@@ -70,6 +70,29 @@ test('dimensão métrica contraditória reduz score do parafuso', () => {
   assert.ok(other < 0);
 });
 
+test('medida em milímetros distingue variantes físicas', () => {
+  const query = 'adaptador da lâmina 22 mm';
+  const exact = technicalConstraintBonus(query, { name: 'BLADE ADAPTER Ø22 mm' });
+  const other = technicalConstraintBonus(query, { name: 'BLADE ADAPTER Ø25 mm' });
+  assert.ok(exact > 0);
+  assert.ok(other < 0);
+});
+
+test('comprimento em milímetros pode desempatar eixo motriz', () => {
+  const query = 'eixo motriz 1114mm do 525P5S';
+  const exact = technicalConstraintBonus(query, { name: 'EIXO MOTRIZ ClickOn 1114mm' });
+  const other = technicalConstraintBonus(query, { name: 'EIXO MOTRIZ ClickOn 967mm' });
+  assert.ok(exact > other);
+});
+
+test('tensão elétrica explícita diferencia componentes', () => {
+  const query = 'motor de partida 12V';
+  const exact = technicalConstraintBonus(query, { name: 'STARTER MOTOR 12 V' });
+  const other = technicalConstraintBonus(query, { name: 'STARTER MOTOR 24 V' });
+  assert.ok(exact > 0);
+  assert.ok(other < 0);
+});
+
 test('medida em polegadas não confunde 12 polegadas com o 3/8 do passo', () => {
   const qualifiers = extractTechnicalQualifiers('lâmina 12" 3/8 mini');
   assert.equal(qualifiers.inchSize, 12);
