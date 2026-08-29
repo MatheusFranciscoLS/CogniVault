@@ -32,6 +32,52 @@ function explicitQualifierCount(question: string): number {
   return Object.values(qualifiers).filter(value => value !== null).length;
 }
 
+function plainText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+}
+
+function explicitPosition(value: string): string | null {
+  const match = plainText(value).match(/\b(?:POSICAO|POS|ITEM|REF|REFERENCIA)\s*[:#.-]?\s*(\d{1,3})\b/);
+  return match?.[1] || null;
+}
+
+function explicitTechnicalContradictions(question: string, candidate: PartCandidate): string[] {
+  const requested = extractTechnicalQualifiers(question);
+  const candidateText = [candidate.name, candidate.section, ...candidate.alternativeNames, candidate.notes]
+    .filter(Boolean)
+    .join(' ');
+  const present = extractTechnicalQualifiers(candidateText);
+  const labels: Array<[keyof typeof requested, string]> = [
+    ['direction', 'lado LH/RH'],
+    ['axlePosition', 'posição dianteira/traseira'],
+    ['sprocketType', 'tipo Rim/Spur'],
+    ['teeth', 'quantidade de dentes'],
+    ['chainPitch', 'passo da corrente'],
+    ['metricThread', 'rosca métrica'],
+    ['metricSizeMm', 'medida em milímetros'],
+    ['voltageV', 'tensão elétrica'],
+    ['inchSize', 'medida em polegadas'],
+  ];
+  const conflicts: string[] = [];
+
+  for (const [key, label] of labels) {
+    if (requested[key] !== null && present[key] !== null && requested[key] !== present[key]) {
+      conflicts.push(label);
+    }
+  }
+
+  const requestedPosition = explicitPosition(question);
+  const candidatePosition = candidate.position?.trim() || null;
+  if (requestedPosition && candidatePosition && requestedPosition !== candidatePosition) {
+    conflicts.push('posição da vista explodida');
+  }
+
+  return conflicts;
+}
+
 function catalogEvidence(context: CatalogConfidenceContext | undefined): {
   adjustment: number;
   blocksInference: boolean;
@@ -122,6 +168,7 @@ export function evaluateAnswerConfidence(params: {
     notes: chosen.notes,
   });
   const qualifierCount = explicitQualifierCount(question);
+  const contradictions = explicitTechnicalContradictions(question, chosen);
   const chosenEvidence = rankingEvidence(question, chosen);
   const runnerEvidence = runnerUp ? rankingEvidence(question, runnerUp) : 0;
   const sameCodeRunner = Boolean(runnerUp && runnerUp.normalizedPartNumber === chosen.normalizedPartNumber);
@@ -151,6 +198,7 @@ export function evaluateAnswerConfidence(params: {
   else if (margin >= 0.10) confidence += 0.03;
   else if (margin < 0.05) confidence -= 0.12;
   if (differentCodeNearTie) confidence -= 0.08;
+  if (contradictions.length) confidence -= Math.min(0.35, contradictions.length * 0.14);
   confidence += catalog.adjustment;
 
   const fuzzyOnly = retrievalSources.length === 1 && retrievalSources[0] === 'FUZZY';
@@ -165,6 +213,7 @@ export function evaluateAnswerConfidence(params: {
     && strongLead
     && independentEvidence
     && !differentCodeNearTie
+    && contradictions.length === 0
     && !fuzzyOnly
     && !catalog.blocksInference;
   const evidence: string[] = [];
@@ -176,6 +225,7 @@ export function evaluateAnswerConfidence(params: {
     evidence.push(`Margem entre recuperadores para códigos diferentes: ${Math.max(0, rawRetrievalMargin).toFixed(3)}.`);
   }
   if (differentCodeNearTie) evidence.push('Dois códigos diferentes ficaram praticamente empatados na recuperação; confirmação humana obrigatória.');
+  if (contradictions.length) evidence.push(`Contradição explícita detectada: ${contradictions.join(', ')}.`);
   if (chosen.feedbackScore > 0.02) evidence.push('Há feedback positivo/correção anterior favorecendo este resultado.');
   if (fuzzyOnly) evidence.push('A peça apareceu apenas pela tolerância a erro de digitação; confirmação adicional é obrigatória.');
   evidence.push(...catalog.messages);
@@ -187,10 +237,12 @@ export function evaluateAnswerConfidence(params: {
     evidence,
     reason: safe
       ? 'Há evidência independente, separação suficiente das alternativas e o catálogo não possui bloqueio estrutural conhecido.'
-      : catalog.blocksInference
-        ? 'O catálogo de origem precisa de revisão antes de uma resposta inferida ser liberada automaticamente.'
-        : differentCodeNearTie
-          ? 'Dois códigos diferentes ficaram próximos demais para eu liberar um deles automaticamente.'
-          : 'A evidência ainda não é suficiente para liberar automaticamente um código.',
+      : contradictions.length
+        ? 'O candidato contradiz um detalhe técnico informado explicitamente na consulta; não vou liberar o código.'
+        : catalog.blocksInference
+          ? 'O catálogo de origem precisa de revisão antes de uma resposta inferida ser liberada automaticamente.'
+          : differentCodeNearTie
+            ? 'Dois códigos diferentes ficaram próximos demais para eu liberar um deles automaticamente.'
+            : 'A evidência ainda não é suficiente para liberar automaticamente um código.',
   };
 }
