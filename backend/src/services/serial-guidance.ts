@@ -43,29 +43,22 @@ function occurrenceKey(candidate: SerialGuidanceCandidate): string {
 }
 
 /**
- * Retorna true somente quando os candidatos demonstram uma troca de código por
- * número de série na MESMA ocorrência técnica. Uma nota isolada nunca basta.
- * Se o usuário já informou S/N, o gate usa serialApplicability em vez de pedir de novo.
+ * Só pede S/N quando a ocorrência do PRIMEIRO candidato possui uma troca de
+ * código explicitamente delimitada por série. Isso evita que uma variante pouco
+ * relevante, mais abaixo no ranking, bloqueie uma consulta que não depende dela.
  */
 export function requiresSerialConfirmation(question: string, candidates: SerialGuidanceCandidate[]): boolean {
-  if (extractExplicitSerialNumber(question)) return false;
+  if (extractExplicitSerialNumber(question) || candidates.length < 2) return false;
+  const leadingKey = occurrenceKey(candidates[0]);
+  if (!normalizeIdentifier(candidates[0].position) || !normalizeIdentifier(candidates[0].section)) return false;
 
-  const groups = new Map<string, Array<{ code: string; directions: Set<SerialRuleDirection> }>>();
-  for (const candidate of candidates) {
-    const directions = serialDirections(candidate.notes);
-    if (!directions.size) continue;
-    if (!normalizeIdentifier(candidate.position) || !normalizeIdentifier(candidate.section)) continue;
-    const key = occurrenceKey(candidate);
-    const rows = groups.get(key) || [];
-    rows.push({ code: normalizeIdentifier(candidate.partNumber), directions });
-    groups.set(key, rows);
-  }
+  const rows = candidates
+    .filter(candidate => occurrenceKey(candidate) === leadingKey)
+    .map(candidate => ({ code: normalizeIdentifier(candidate.partNumber), directions: serialDirections(candidate.notes) }))
+    .filter(row => row.code && row.directions.size > 0);
 
-  for (const rows of groups.values()) {
-    const codes = new Set(rows.map(row => row.code).filter(Boolean));
-    if (codes.size < 2) continue;
-    const directions = new Set(rows.flatMap(row => [...row.directions]));
-    if (directions.has('UP_TO') && directions.has('FROM')) return true;
-  }
-  return false;
+  const codes = new Set(rows.map(row => row.code));
+  if (codes.size < 2) return false;
+  const directions = new Set(rows.flatMap(row => [...row.directions]));
+  return directions.has('UP_TO') && directions.has('FROM');
 }
