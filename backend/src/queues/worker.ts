@@ -3,6 +3,7 @@ import { prisma } from '../config/prisma';
 import { AIService } from '../services/ai.service';
 import { ensureCatalogCategory } from '../services/catalog-category-assignment';
 import { refreshCatalogHealth } from '../services/catalog-health';
+import { repairAutoDetectedDocumentMetadata } from '../services/catalog-metadata-repair';
 import { rebuildDocumentMemory } from '../services/document-memory';
 import { nextDocumentRetry } from '../utils/document-retry';
 import { readableProcessingError } from '../utils/processing-error';
@@ -111,6 +112,15 @@ export class DocumentWorker {
                 }
 
                 await AIService.processDocument(data.documentId, data.tenantId, data.jobId);
+                try {
+                    const repaired = await repairAutoDetectedDocumentMetadata(data.documentId, data.tenantId);
+                    if (repaired.changed) {
+                        console.log(`🧭 Metadados automáticos corrigidos para ${data.documentId}: ${JSON.stringify(repaired)}.`);
+                    }
+                } catch (metadataRepairError) {
+                    // Metadado auxiliar nunca deve invalidar Part Numbers já persistidos.
+                    console.warn(`⚠️ Não foi possível reconciliar metadados do catálogo ${data.documentId}:`, metadataRepairError);
+                }
                 await buildAuxiliaryCatalogKnowledge(data.documentId, data.tenantId);
                 try {
                     const category = await ensureCatalogCategory(data.documentId, data.tenantId);
