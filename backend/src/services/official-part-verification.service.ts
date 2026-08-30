@@ -1,4 +1,4 @@
-import { OfficialVerificationStatus } from '@prisma/client';
+import { OfficialVerificationApprovalStatus, OfficialVerificationStatus } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { normalizeIdentifier } from '../utils/normalize';
 import { VERIFIED_PART_SUPERSESSIONS, getVerifiedSupersession } from './part-supersession';
@@ -6,6 +6,7 @@ import { VERIFIED_PART_SUPERSESSIONS, getVerifiedSupersession } from './part-sup
 export const HUSQVARNA_PARTS_BASE_URL = 'https://portal.husqvarnagroup.com/br/spare-parts/?part=';
 
 export type PublicVerificationState = 'UNVERIFIED' | 'VERIFIED' | 'SUPERSEDED' | 'REVIEW';
+export type VerificationDecision = 'APPROVE' | 'REJECT';
 
 export interface OfficialVerificationView {
   id: string | null;
@@ -20,9 +21,27 @@ export interface OfficialVerificationView {
   source: 'TENANT' | 'BUILT_IN' | 'NONE';
 }
 
+export interface OfficialVerificationSubmissionView {
+  id: string;
+  status: OfficialVerificationStatus;
+  approvalStatus: OfficialVerificationApprovalStatus;
+  queriedPartNumber: string;
+  currentPartNumber: string;
+  description: string | null;
+  officialUrl: string;
+  note: string | null;
+  verifiedAt: string;
+  createdAt: string;
+  submittedBy: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewNote: string | null;
+}
+
 type VerificationRow = {
   id: string;
   status: OfficialVerificationStatus;
+  approvalStatus: OfficialVerificationApprovalStatus;
   queriedPartNumber: string;
   normalizedQueriedNumber: string;
   currentPartNumber: string;
@@ -31,8 +50,11 @@ type VerificationRow = {
   officialUrl: string;
   note: string | null;
   verifiedAt: Date;
+  reviewedAt: Date | null;
+  reviewNote: string | null;
   createdAt: Date;
   user: { email: string };
+  reviewedBy: { email: string } | null;
 };
 
 export function buildHusqvarnaPortalUrl(partNumber: string): string {
@@ -43,6 +65,16 @@ export function buildHusqvarnaPortalUrl(partNumber: string): string {
 
 export function isAllowedHusqvarnaPortalUrl(url: string, currentPartNumber: string): boolean {
   return url === buildHusqvarnaPortalUrl(currentPartNumber);
+}
+
+export function deriveOfficialVerificationStatus(
+  queriedPartNumber: string,
+  currentPartNumber: string,
+): OfficialVerificationStatus {
+  const queried = normalizeIdentifier(queriedPartNumber);
+  const current = normalizeIdentifier(currentPartNumber);
+  if (!queried || !current) throw new Error('Informe códigos de peça válidos.');
+  return queried === current ? 'VERIFIED' : 'SUPERSEDED';
 }
 
 function mapStatus(status: OfficialVerificationStatus): PublicVerificationState {
@@ -63,6 +95,25 @@ function rowToView(row: VerificationRow): OfficialVerificationView {
     verifiedAt: row.verifiedAt.toISOString(),
     verifiedBy: row.user.email,
     source: 'TENANT',
+  };
+}
+
+function rowToSubmissionView(row: VerificationRow): OfficialVerificationSubmissionView {
+  return {
+    id: row.id,
+    status: row.status,
+    approvalStatus: row.approvalStatus,
+    queriedPartNumber: row.queriedPartNumber,
+    currentPartNumber: row.currentPartNumber,
+    description: row.description,
+    officialUrl: row.officialUrl,
+    note: row.note,
+    verifiedAt: row.verifiedAt.toISOString(),
+    createdAt: row.createdAt.toISOString(),
+    submittedBy: row.user.email,
+    reviewedBy: row.reviewedBy?.email || null,
+    reviewedAt: row.reviewedAt?.toISOString() || null,
+    reviewNote: row.reviewNote,
   };
 }
 
@@ -111,19 +162,25 @@ function latestRowsByQueriedNumber(rows: VerificationRow[]): VerificationRow[] {
   });
 }
 
+const rowInclude = {
+  user: { select: { email: true } },
+  reviewedBy: { select: { email: true } },
+} as const;
+
 export class OfficialPartVerificationService {
   private static async tenantRowsForCodes(tenantId: string, normalizedCodes: string[]): Promise<VerificationRow[]> {
     if (!normalizedCodes.length) return [];
     return prisma.officialPartVerification.findMany({
       where: {
         tenantId,
+        approvalStatus: 'APPROVED',
         OR: [
           { normalizedQueriedNumber: { in: normalizedCodes } },
           { normalizedCurrentNumber: { in: normalizedCodes } },
         ],
       },
       orderBy: [{ verifiedAt: 'desc' }, { createdAt: 'desc' }],
-      include: { user: { select: { email: true } } },
+      include: rowInclude,
       take: 1000,
     });
   }
@@ -157,9 +214,13 @@ export class OfficialPartVerificationService {
     if (!normalized) throw new Error('Código da peça inválido.');
 
     const latest = await prisma.officialPartVerification.findFirst({
-      where: { tenantId, normalizedQueriedNumber: normalized },
+      where: {
+        tenantId,
+        normalizedQueriedNumber: normalized,
+        approvalStatus: 'APPROVED',
+      },
       orderBy: [{ verifiedAt: 'desc' }, { createdAt: 'desc' }],
-      include: { user: { select: { email: true } } },
+      include: rowInclude,
     });
 
     if (latest) {
@@ -172,10 +233,10 @@ export class OfficialPartVerificationService {
     return unverifiedView(partNumber);
   }
 
-  static async history(tenantId: string, partNumber: string) {
+  static async history(tenantId: string, partNumber: string): Promise<OfficialVerificationSubmissionView[]> {
     const normalized = normalizeIdentifier(partNumber);
     if (!normalized) return [];
-    return prisma.officialPartVerification.findMany({
+    const rows = await prisma.officialPartVerification.findMany({
       where: {
         tenantId,
         OR: [
@@ -184,78 +245,153 @@ export class OfficialPartVerificationService {
         ],
       },
       orderBy: [{ verifiedAt: 'desc' }, { createdAt: 'desc' }],
-      include: { user: { select: { email: true } } },
+      include: rowInclude,
       take: 50,
     });
+    return rows.map(rowToSubmissionView);
   }
 
-  static async register(input: {
+  static async pending(tenantId: string): Promise<OfficialVerificationSubmissionView[]> {
+    const rows = await prisma.officialPartVerification.findMany({
+      where: { tenantId, approvalStatus: 'PENDING' },
+      orderBy: { createdAt: 'asc' },
+      include: rowInclude,
+      take: 100,
+    });
+    return rows.map(rowToSubmissionView);
+  }
+
+  static async submit(input: {
     tenantId: string;
     userId: string;
-    status: OfficialVerificationStatus;
     queriedPartNumber: string;
     currentPartNumber: string;
     description?: string | null;
-    officialUrl: string;
     note?: string | null;
-    verifiedAt: Date;
-  }) {
+  }): Promise<OfficialVerificationSubmissionView> {
     const queriedPartNumber = input.queriedPartNumber.trim();
     const currentPartNumber = input.currentPartNumber.trim();
     const normalizedQueriedNumber = normalizeIdentifier(queriedPartNumber);
     const normalizedCurrentNumber = normalizeIdentifier(currentPartNumber);
+    const status = deriveOfficialVerificationStatus(queriedPartNumber, currentPartNumber);
 
     if (!normalizedQueriedNumber || !normalizedCurrentNumber) throw new Error('Informe códigos de peça válidos.');
     if (queriedPartNumber.length > 80 || currentPartNumber.length > 80) throw new Error('Código de peça muito longo.');
-    if (!Number.isFinite(input.verifiedAt.getTime())) throw new Error('Data da verificação inválida.');
     if ((input.description?.length || 0) > 500) throw new Error('Descrição muito longa.');
     if ((input.note?.length || 0) > 2000) throw new Error('Observação muito longa.');
-    if (!isAllowedHusqvarnaPortalUrl(input.officialUrl, currentPartNumber)) {
-      throw new Error('A URL oficial deve apontar exatamente para o Portal Husqvarna público usando o código atual.');
-    }
-    if (input.status === 'SUPERSEDED' && normalizedQueriedNumber === normalizedCurrentNumber) {
-      throw new Error('Uma substituição precisa ter código antigo e código atual diferentes.');
-    }
-    if (input.status === 'VERIFIED' && normalizedQueriedNumber !== normalizedCurrentNumber) {
-      throw new Error('Use o estado Código substituído quando o código atual for diferente do código consultado.');
-    }
 
-    return prisma.$transaction(async tx => {
-      const record = await tx.officialPartVerification.create({
+    const existingPending = await prisma.officialPartVerification.findFirst({
+      where: {
+        tenantId: input.tenantId,
+        approvalStatus: 'PENDING',
+        normalizedQueriedNumber,
+        normalizedCurrentNumber,
+      },
+      select: { id: true },
+    });
+    if (existingPending) throw new Error('VERIFICATION_ALREADY_PENDING');
+
+    const verifiedAt = new Date();
+    const officialUrl = buildHusqvarnaPortalUrl(currentPartNumber);
+    const record = await prisma.$transaction(async tx => {
+      const created = await tx.officialPartVerification.create({
         data: {
           tenantId: input.tenantId,
           userId: input.userId,
-          status: input.status,
+          status,
+          approvalStatus: 'PENDING',
           queriedPartNumber,
           normalizedQueriedNumber,
           currentPartNumber,
           normalizedCurrentNumber,
           description: input.description?.trim() || null,
-          officialUrl: input.officialUrl,
+          officialUrl,
           note: input.note?.trim() || null,
-          verifiedAt: input.verifiedAt,
+          verifiedAt,
         },
-        include: { user: { select: { email: true } } },
+        include: rowInclude,
       });
 
       await tx.auditLog.create({
         data: {
           tenantId: input.tenantId,
           userId: input.userId,
-          action: 'OFFICIAL_PART_VERIFICATION_CREATED',
+          action: 'OFFICIAL_PART_VERIFICATION_SUBMITTED',
           targetType: 'OfficialPartVerification',
-          targetId: record.id,
+          targetId: created.id,
           metadata: {
-            status: input.status,
-            queriedPartNumber: record.queriedPartNumber,
-            currentPartNumber: record.currentPartNumber,
-            officialUrl: record.officialUrl,
-            verifiedAt: record.verifiedAt.toISOString(),
+            status,
+            approvalStatus: 'PENDING',
+            queriedPartNumber: created.queriedPartNumber,
+            currentPartNumber: created.currentPartNumber,
+            officialUrl: created.officialUrl,
+            verifiedAt: created.verifiedAt.toISOString(),
           },
         },
       });
-
-      return record;
+      return created;
     });
+
+    return rowToSubmissionView(record);
+  }
+
+  static async decide(input: {
+    tenantId: string;
+    userId: string;
+    verificationId: string;
+    decision: VerificationDecision;
+    reviewNote?: string | null;
+  }): Promise<OfficialVerificationSubmissionView> {
+    if (!input.verificationId.trim()) throw new Error('VERIFICATION_NOT_FOUND');
+    if ((input.reviewNote?.length || 0) > 1000) throw new Error('Observação da revisão muito longa.');
+    const approvalStatus: OfficialVerificationApprovalStatus = input.decision === 'APPROVE' ? 'APPROVED' : 'REJECTED';
+    const reviewedAt = new Date();
+
+    const record = await prisma.$transaction(async tx => {
+      const existing = await tx.officialPartVerification.findFirst({
+        where: { id: input.verificationId, tenantId: input.tenantId },
+        select: { id: true, approvalStatus: true, queriedPartNumber: true, currentPartNumber: true, status: true },
+      });
+      if (!existing) throw new Error('VERIFICATION_NOT_FOUND');
+      if (existing.approvalStatus !== 'PENDING') throw new Error('VERIFICATION_ALREADY_REVIEWED');
+
+      const locked = await tx.officialPartVerification.updateMany({
+        where: { id: existing.id, tenantId: input.tenantId, approvalStatus: 'PENDING' },
+        data: {
+          approvalStatus,
+          reviewedById: input.userId,
+          reviewedAt,
+          reviewNote: input.reviewNote?.trim() || null,
+        },
+      });
+      if (locked.count !== 1) throw new Error('VERIFICATION_ALREADY_REVIEWED');
+
+      const updated = await tx.officialPartVerification.findUniqueOrThrow({
+        where: { id: existing.id },
+        include: rowInclude,
+      });
+
+      await tx.auditLog.create({
+        data: {
+          tenantId: input.tenantId,
+          userId: input.userId,
+          action: approvalStatus === 'APPROVED'
+            ? 'OFFICIAL_PART_VERIFICATION_APPROVED'
+            : 'OFFICIAL_PART_VERIFICATION_REJECTED',
+          targetType: 'OfficialPartVerification',
+          targetId: existing.id,
+          metadata: {
+            status: existing.status,
+            approvalStatus,
+            queriedPartNumber: existing.queriedPartNumber,
+            currentPartNumber: existing.currentPartNumber,
+            reviewNote: input.reviewNote?.trim() || null,
+          },
+        },
+      });
+      return updated;
+    });
+
+    return rowToSubmissionView(record);
   }
 }
