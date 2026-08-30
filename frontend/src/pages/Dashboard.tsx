@@ -54,7 +54,7 @@ export default function Dashboard(){
    {section==='favorites'&&<FavoritesPanel onSearch={search}/>} 
    {section==='users'&&user.role==='ADMIN'&&<UsersPanel/>}
    {section==='feedback'&&user.role==='ADMIN'&&<AdminFeedbackPanel/>}
-   {section==='quality'&&user.role==='ADMIN'&&<QualityPanel/>}
+   {section==='quality'&&user.role==='ADMIN'&&<QualityPanel onSearch={search}/>}
    {section==='audit'&&user.role==='ADMIN'&&<AuditPanel/>}
  </Shell>;
 }
