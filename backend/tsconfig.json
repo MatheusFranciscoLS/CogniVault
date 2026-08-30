@@ -10,6 +10,5 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["src/test-gemini.ts"]
+  "include": ["src/**/*"]
 }

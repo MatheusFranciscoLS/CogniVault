@@ -16,7 +16,7 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_GENERATIVE_MODEL
-        value: gemini-3.6-flash
+        value: gemini-3.7-flash
       - key: ENABLE_SEMANTIC_INDEXING
         value: "false"
       - key: PARTS_MARKET
@@ -32,7 +32,7 @@ services:
       - key: STORAGE_BUCKET
         value: catalogos
       - key: CORS_ORIGINS
-        value: http://localhost:5173
+        value: http://localhost:5173,https://cognivault-murex.vercel.app,https://cognivault-matheus-projects-50653618.vercel.app,https://cognivault-git-main-matheus-projects-50653618.vercel.app
       - key: PART_SEARCH_MAX_DISTANCE
         value: "0.65"
       - key: PART_SEARCH_MIN_CONFIDENCE

@@ -3,6 +3,7 @@ import cors from 'cors';
 import multer from 'multer';
 import routes from './routes';
 import { prisma } from './config/prisma';
+import { allowedCorsOrigins, isAllowedCorsOrigin } from './config/cors';
 import { rabbitMQ } from './queues/connection';
 
 const app = express();
@@ -26,33 +27,25 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
   }
 }
 
-const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173')
-  .split(',')
-  .map((origin) => origin.trim().replace(/\/$/, ''))
-  .filter(Boolean);
+const allowedOrigins = allowedCorsOrigins();
 
-function isAllowedVercelOrigin(origin: string) {
-  try {
-    const url = new URL(origin);
-    return (
-      url.protocol === 'https:' &&
-      /^cognivault(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(url.hostname)
-    );
-  } catch {
-    return false;
-  }
-}
+app.disable('x-powered-by');
+app.use((_req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'no-referrer',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  });
+  next();
+});
 
 app.use(cors({
   origin(origin, callback) {
     // Requests sem Origin (health checks, server-to-server) continuam permitidas.
     if (!origin) return callback(null, true);
 
-    const normalizedOrigin = origin.replace(/\/$/, '');
-    if (
-      allowedOrigins.includes(normalizedOrigin) ||
-      isAllowedVercelOrigin(normalizedOrigin)
-    ) {
+    if (isAllowedCorsOrigin(origin, allowedOrigins)) {
       return callback(null, true);
     }
 
@@ -104,11 +97,26 @@ app.use((_req, res) => {
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   const isUploadError = error instanceof multer.MulterError;
-  const status = error instanceof HttpError ? error.status : isUploadError && error.code === 'LIMIT_FILE_SIZE' ? 413 : isUploadError ? 400 : 500;
+  const bodyErrorType = typeof error === 'object' && error !== null && 'type' in error
+    ? String(error.type)
+    : '';
+  const isInvalidJson = error instanceof SyntaxError && bodyErrorType === 'entity.parse.failed';
+  const isBodyTooLarge = bodyErrorType === 'entity.too.large';
+  const isUploadTooLarge = isUploadError && error.code === 'LIMIT_FILE_SIZE';
+  const isPayloadTooLarge = isUploadTooLarge || isBodyTooLarge;
+  const status = error instanceof HttpError
+    ? error.status
+    : isPayloadTooLarge
+      ? 413
+      : isUploadError || isInvalidJson
+        ? 400
+        : 500;
   const message = error instanceof HttpError
     ? error.message
-    : isUploadError && error.code === 'LIMIT_FILE_SIZE'
-      ? 'O PDF excede o limite de 50 MB.'
+    : isPayloadTooLarge
+      ? isUploadTooLarge ? 'O PDF excede o limite de 50 MB.' : 'O corpo da requisição excede o limite permitido.'
+      : isInvalidJson
+        ? 'O corpo JSON da requisição é inválido.'
       : isUploadError
         ? 'Não foi possível receber o arquivo enviado.'
         : 'Erro interno do servidor.';

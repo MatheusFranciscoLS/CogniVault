@@ -1,6 +1,16 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiJson } from '../lib';
+
+type LoginResponse = {
+  token: string;
+  user: {
+    tenantId: string;
+    role: 'ADMIN' | 'MECHANIC';
+    email: string;
+  };
+};
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -14,16 +24,14 @@ export default function Login() {
     event.preventDefault();
     setError('');
     setLoading(true);
-    const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3333').replace(/\/$/, '');
 
     try {
-      const response = await fetch(`${apiUrl}/api/login`, {
+      const data = await apiJson<LoginResponse>('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
+        timeoutMs: 15_000,
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Não foi possível entrar.');
 
       localStorage.setItem('cognivault_token', data.token);
       localStorage.setItem('cognivault_tenant', data.user.tenantId);

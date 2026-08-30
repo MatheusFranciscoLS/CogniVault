@@ -76,7 +76,12 @@ export class AdminController {
             },
         });
 
-        res.json({ users: users.map((user) => ({ ...user, feedbackCount: user._count.searchFeedback, _count: undefined })) });
+        res.json({
+            users: users.map(({ _count, ...user }) => ({
+                ...user,
+                feedbackCount: _count.searchFeedback,
+            })),
+        });
     }
 
     async createUser(req: AuthenticatedRequest, res: Response): Promise<void> {

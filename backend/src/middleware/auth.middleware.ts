@@ -88,7 +88,8 @@ export async function authMiddleware(
 
         next();
     } catch (error) {
-        console.error('❌ Erro de autenticação:', error);
+        const expectedJwtError = error instanceof jwt.JsonWebTokenError || error instanceof jwt.TokenExpiredError;
+        if (!expectedJwtError) console.error('❌ Erro de autenticação:', error);
         res.status(401).json({ error: 'Token inválido ou expirado.' });
     }
 }

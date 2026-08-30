@@ -4,6 +4,20 @@ import { FeedbackService } from '../services/feedback.service';
 
 const ALLOWED_REASONS = ['WRONG_CODE', 'WRONG_PNC', 'WRONG_MODEL', 'WRONG_PART', 'OTHER'];
 
+function knownFeedbackError(error: unknown): { status: number; message: string } | null {
+    if (!(error instanceof Error)) return null;
+    if (error.message === 'Feedback não encontrado para este usuário.') {
+        return { status: 404, message: error.message };
+    }
+    if (
+        error.message === 'A peça avaliada não pertence a esta empresa.' ||
+        error.message === 'A peça correta selecionada não pertence a esta empresa.'
+    ) {
+        return { status: 400, message: error.message };
+    }
+    return null;
+}
+
 export class FeedbackController {
     async create(req: AuthenticatedRequest, res: Response): Promise<void> {
         try {
@@ -52,7 +66,8 @@ export class FeedbackController {
             });
         } catch (error) {
             console.error('❌ Erro ao salvar feedback:', error);
-            res.status(500).json({ error: error instanceof Error ? error.message : 'Erro ao salvar feedback.' });
+            const known = knownFeedbackError(error);
+            res.status(known?.status || 500).json({ error: known?.message || 'Erro ao salvar feedback.' });
         }
     }
 
@@ -88,7 +103,8 @@ export class FeedbackController {
             res.json({ message: result.correctedPart ? 'Correção salva.' : 'Detalhes do feedback salvos.', ...result });
         } catch (error) {
             console.error('❌ Erro ao atualizar feedback:', error);
-            res.status(500).json({ error: error instanceof Error ? error.message : 'Erro ao atualizar feedback.' });
+            const known = knownFeedbackError(error);
+            res.status(known?.status || 500).json({ error: known?.message || 'Erro ao atualizar feedback.' });
         }
     }
 }

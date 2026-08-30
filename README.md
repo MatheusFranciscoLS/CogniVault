@@ -64,7 +64,7 @@ A V6 inclui as migrations de peças/PNC, feedback, segurança administrativa, qu
 Dentro de `backend`:
 
 ```bash
-npm install
+npm ci
 npx prisma generate
 npm run build
 npm start
@@ -78,10 +78,18 @@ npm start
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run lint
 npm run dev
 ```
+
+No Windows, se o npm global estiver bloqueado por `EPERM`, use um cache dentro do próprio workspace em vez de executar como Administrador:
+
+```powershell
+npm ci --cache .npm-cache
+```
+
+O cache local pode ser removido depois e não deve ser versionado.
 
 A aplicação usa `VITE_API_URL` (veja `frontend/.env.example`).
 

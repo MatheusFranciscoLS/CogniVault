@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import fs from 'node:fs';
+import { unlink } from 'node:fs/promises';
 import { DocumentService } from '../services/document.service';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { AuditService } from '../services/audit.service';
@@ -25,7 +25,7 @@ export class DocumentController {
             }
 
             if (file.mimetype !== 'application/pdf' && !file.originalname.toLowerCase().endsWith('.pdf')) {
-                try { fs.unlinkSync(file.path); } catch { /* arquivo temporário já removido */ }
+                try { await unlink(file.path); } catch { /* arquivo temporário já removido */ }
                 res.status(400).json({ error: 'Somente arquivos PDF são permitidos.' });
                 return;
             }

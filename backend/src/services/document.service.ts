@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
+import { Prisma } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
-import fs from 'node:fs';
+import { readFile, unlink } from 'node:fs/promises';
 import { prisma } from '../config/prisma';
 import { DocumentProducer } from '../queues/producer';
 import { repairMultipartText } from '../utils/text-encoding';
@@ -77,7 +78,9 @@ const documentListSelect = {
     _count: { select: { parts: { where: { active: true } } } },
 } as const;
 
-function toDocumentListItem(document: any) {
+type DocumentListRecord = Prisma.DocumentGetPayload<{ select: typeof documentListSelect }>;
+
+function toDocumentListItem(document: DocumentListRecord) {
     const filename = safeFilename(document.filename);
     return {
         id: document.id,
@@ -110,7 +113,9 @@ export class DocumentService {
 
     async handleNewUpload(tenantId: string, filename: string, filePath: string, metadata: UploadMetadata = {}) {
         try {
-            const fileBuffer = fs.readFileSync(filePath);
+            // PDFs podem ter até 50 MB; I/O assíncrono evita bloquear login,
+            // buscas e health checks enquanto o arquivo é lido do disco.
+            const fileBuffer = await readFile(filePath);
             if (!hasPdfSignature(fileBuffer)) throw new Error('DOCUMENT_INVALID_PDF');
             const contentHash = createHash('sha256').update(fileBuffer).digest('hex');
             const duplicate = await prisma.document.findFirst({
@@ -175,12 +180,13 @@ export class DocumentService {
 
             return document;
         } finally {
-            if (fs.existsSync(filePath)) {
-                try {
-                    fs.unlinkSync(filePath);
-                } catch (error) {
-                    console.warn('⚠️ Não foi possível remover o upload temporário:', error);
-                }
+            try {
+                await unlink(filePath);
+            } catch (error) {
+                const code = typeof error === 'object' && error !== null && 'code' in error
+                    ? String(error.code)
+                    : '';
+                if (code !== 'ENOENT') console.warn('⚠️ Não foi possível remover o upload temporário:', error);
             }
         }
     }

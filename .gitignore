@@ -6,4 +6,5 @@ backend/dist/
 frontend/dist/
 backend/uploads/
 .vercel/
+.npm-cache/
 .DS_Store

@@ -3,6 +3,8 @@ import { buildHusqvarnaPortalUrl } from './official-part-verification.service';
 
 const PORTAL_HOST = 'portal.husqvarnagroup.com';
 const CACHE_TTL_MS = 15 * 60 * 1000;
+const MAX_CACHE_ENTRIES = 500;
+const MAX_HTML_BYTES = 2 * 1024 * 1024;
 const configuredTimeout = Number(process.env.HUSQVARNA_PORTAL_TIMEOUT_MS || '6000');
 const REQUEST_TIMEOUT_MS = Number.isFinite(configuredTimeout)
   ? Math.max(1_500, Math.min(12_000, configuredTimeout))
@@ -55,7 +57,7 @@ function tagText(html: string, tag: string): string[] {
     .filter(Boolean);
 }
 
-function normalizedPartNumber(value: string): string {
+export function normalizeHusqvarnaPartNumber(value: string): string {
   const normalized = normalizeIdentifier(value);
   const digits = normalized.replace(/\D/g, '');
   return digits.length >= 8 && digits.length <= 12 ? digits : '';
@@ -68,7 +70,7 @@ function extractNumberNearLabel(text: string): string {
   ];
   for (const pattern of patterns) {
     const match = text.match(pattern);
-    const parsed = match?.[1] ? normalizedPartNumber(match[1]) : '';
+    const parsed = match?.[1] ? normalizeHusqvarnaPartNumber(match[1]) : '';
     if (parsed) return parsed;
   }
   return '';
@@ -81,7 +83,7 @@ function extractExplicitReplacement(text: string): string {
   ];
   for (const pattern of patterns) {
     const match = text.match(pattern);
-    const parsed = match?.[1] ? normalizedPartNumber(match[1]) : '';
+    const parsed = match?.[1] ? normalizeHusqvarnaPartNumber(match[1]) : '';
     if (parsed) return parsed;
   }
   return '';
@@ -90,7 +92,7 @@ function extractExplicitReplacement(text: string): string {
 function extractPartNumbers(value: string): string[] {
   const formatted = value.match(/\b\d{3}[\s\u00a0]*\d{2}[\s\u00a0]*\d{2}(?:[\s\u00a0-]*\d{2})\b/g) || [];
   const compact = value.match(/\b\d{8,12}\b/g) || [];
-  return [...new Set([...formatted, ...compact].map(normalizedPartNumber).filter(Boolean))];
+  return [...new Set([...formatted, ...compact].map(normalizeHusqvarnaPartNumber).filter(Boolean))];
 }
 
 function replacementHistory(text: string, currentPartNumber: string): string[] {
@@ -117,7 +119,7 @@ function pageDescription(html: string): string | null {
 }
 
 export function parseHusqvarnaPortalHtml(html: string, requestedPartNumber: string): HusqvarnaPortalLookup {
-  const requested = normalizedPartNumber(requestedPartNumber);
+  const requested = normalizeHusqvarnaPartNumber(requestedPartNumber);
   if (!requested) throw new Error('Código de peça Husqvarna inválido.');
 
   const text = htmlToText(html);
@@ -161,13 +163,40 @@ function assertPublicPortalResponse(url: string): void {
   }
 }
 
+function cachedLookup(partNumber: string): HusqvarnaPortalLookup | null {
+  const cached = lookupCache.get(partNumber);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    lookupCache.delete(partNumber);
+    return null;
+  }
+
+  // Atualiza a ordem de inserção para manter uma política LRU simples.
+  lookupCache.delete(partNumber);
+  lookupCache.set(partNumber, cached);
+  return cached.value;
+}
+
+function storeLookup(partNumber: string, value: HusqvarnaPortalLookup): void {
+  const now = Date.now();
+  for (const [key, cached] of lookupCache) {
+    if (cached.expiresAt <= now) lookupCache.delete(key);
+  }
+  while (lookupCache.size >= MAX_CACHE_ENTRIES) {
+    const oldest = lookupCache.keys().next().value;
+    if (typeof oldest !== 'string') break;
+    lookupCache.delete(oldest);
+  }
+  lookupCache.set(partNumber, { expiresAt: now + CACHE_TTL_MS, value });
+}
+
 export class HusqvarnaPortalService {
   static async lookup(partNumber: string): Promise<HusqvarnaPortalLookup> {
-    const normalized = normalizedPartNumber(partNumber);
+    const normalized = normalizeHusqvarnaPartNumber(partNumber);
     if (!normalized) throw new Error('Código de peça Husqvarna inválido.');
 
-    const cached = lookupCache.get(normalized);
-    if (cached && cached.expiresAt > Date.now()) return cached.value;
+    const cached = cachedLookup(normalized);
+    if (cached) return cached;
 
     const url = buildHusqvarnaPortalUrl(normalized);
     const controller = new AbortController();
@@ -192,11 +221,19 @@ export class HusqvarnaPortalService {
         throw new Error('O Portal Husqvarna não retornou uma página HTML pública.');
       }
 
+      const declaredSize = Number(response.headers.get('content-length') || '0');
+      if (Number.isFinite(declaredSize) && declaredSize > MAX_HTML_BYTES) {
+        throw new Error('O Portal Husqvarna retornou uma página maior que o limite seguro.');
+      }
+
       const html = await response.text();
       if (!html.trim()) throw new Error('O Portal Husqvarna retornou uma página vazia.');
+      if (Buffer.byteLength(html, 'utf8') > MAX_HTML_BYTES) {
+        throw new Error('O Portal Husqvarna retornou uma página maior que o limite seguro.');
+      }
 
       const value = parseHusqvarnaPortalHtml(html, normalized);
-      lookupCache.set(normalized, { expiresAt: Date.now() + CACHE_TTL_MS, value });
+      storeLookup(normalized, value);
       return value;
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {

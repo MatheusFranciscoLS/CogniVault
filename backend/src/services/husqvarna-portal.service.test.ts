@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseHusqvarnaPortalHtml } from './husqvarna-portal.service';
+import { normalizeHusqvarnaPartNumber, parseHusqvarnaPortalHtml } from './husqvarna-portal.service';
+
+test('aceita somente códigos Husqvarna numéricos de 8 a 12 dígitos', () => {
+  assert.equal(normalizeHusqvarnaPartNumber('587 10 67-01'), '587106701');
+  assert.equal(normalizeHusqvarnaPartNumber('143RII'), '');
+  assert.equal(normalizeHusqvarnaPartNumber('1234567'), '');
+});
 
 test('lê peça atual e histórico da página pública Husqvarna', () => {
   const html = `

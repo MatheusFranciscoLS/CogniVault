@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { OfficialVerificationStatus } from '@prisma/client';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { normalizeIdentifier } from '../utils/normalize';
-import { HusqvarnaPortalService } from '../services/husqvarna-portal.service';
+import { HusqvarnaPortalService, normalizeHusqvarnaPartNumber } from '../services/husqvarna-portal.service';
 import { OfficialPartVerificationService } from '../services/official-part-verification.service';
 
 const ALLOWED_STATUSES = new Set<OfficialVerificationStatus>(['VERIFIED', 'SUPERSEDED', 'REVIEW']);
@@ -28,7 +28,7 @@ export class OfficialPartVerificationController {
   async portalLookup(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
     const code = String(req.params.code || '').trim();
-    if (!normalizeIdentifier(code)) {
+    if (!normalizeHusqvarnaPartNumber(code)) {
       res.status(400).json({ error: 'Código da peça inválido.' });
       return;
     }
