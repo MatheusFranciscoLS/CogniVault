@@ -157,14 +157,19 @@ function hasQuantityColumn(lines: string[]): boolean {
 }
 
 function filenameModel(filename: string): string {
-    const base = filename.replace(/\.pdf$/i, '').replace(/\s+/g, ' ').trim();
+    const base = filename.replace(/\.pdf$/i, '').replace(/[\u00a0\u202f]/g, ' ').replace(/\s+/g, ' ').trim();
     const afterBrand = base.match(/Husqvarna\s+(.+)$/i)?.[1];
     return clean(afterBrand || '');
 }
 
+export function looksLikePartRowModel(value: string | null | undefined): boolean {
+    const normalized = normalizedLine(clean(value).replace(/[\r\n]+/g, ' '));
+    return /^\d{1,3}\s+(?:\d{8,12}|\d{3}\s+\d{2}\s+\d{2}-\d{2})\s+\S+/i.test(normalized);
+}
+
 function detectModel(text: string, hints: CatalogHints): string {
     const hinted = clean(hints.model);
-    if (hinted) return hinted;
+    if (hinted && !looksLikePartRowModel(hinted)) return hinted;
 
     const iplModel = text.match(/IPL,\s*([^,\n]+),\s*\d{4}-\d{2}/i)?.[1];
     if (iplModel) return compactModel(clean(iplModel));
@@ -215,7 +220,12 @@ function applicationForBlock(blockText: string, knownPncs: string[], hintedPnc: 
     }
 
     if (hintedPnc) return { pncs: [hintedPnc], universal: false };
-    if (knownPncs.length) return { pncs: knownPncs, universal: false };
+
+    // No IPL do Portal, quando o documento lista vários PNCs e uma linha não traz
+    // cláusula "For"/"EXCEPT", a ocorrência é comum às variantes cobertas pelo
+    // próprio catálogo. Representá-la uma única vez evita multiplicar centenas de
+    // peças por cada PNC; linhas com restrição explícita continuam específicas.
+    if (knownPncs.length) return { pncs: [], universal: true };
     return { pncs: [], universal: true };
 }
 
