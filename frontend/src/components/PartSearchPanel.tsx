@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { api, apiJson, json } from '../lib';
 import type { OfficialVerification, PartDetail, SearchPart } from '../types';
+import OfficialVerificationApprovalPanel from './OfficialVerificationApprovalPanel';
 import PartVerificationDialog, {
   effectivePartNumber,
   husqvarnaPortalUrl,
@@ -387,6 +388,11 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
   const detailCode = detail ? effectivePartNumber(detail.partNumber, detailVerification) : '';
   const detailWasSuperseded = detail ? isSupersededForCode(detail.partNumber, detailVerification) : false;
 
+  const refreshApprovedVerifications = useCallback(() => {
+    if (parts.length) void loadVerifications(parts, true);
+    if (detail) void loadVerifications([detail]);
+  }, [detail, loadVerifications, parts]);
+
   return (
     <section>
       {notice && (
@@ -398,6 +404,8 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
       <p className="cv-kicker">Atendimento rápido</p>
       <h1 className="cv-page-title">Peças e catálogos</h1>
       <p className="mt-2 text-sm text-slate-500">Encontre, confira e copie o código sem interromper o atendimento ao cliente.</p>
+
+      {admin && <OfficialVerificationApprovalPanel onChanged={refreshApprovedVerifications} />}
 
       <form onSubmit={submit} className="cv-surface mt-6 rounded-[22px] p-2">
         <div className="flex gap-2">
@@ -512,11 +520,9 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                       <button type="button" onClick={() => void openPart(part.id)} disabled={opening} className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50">
                         {opening ? 'Abrindo…' : 'Ver detalhes'}
                       </button>
-                      {admin && (
-                        <button type="button" onClick={() => setVerificationTarget({ partNumber: part.partNumber, name: part.name })} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
-                          Registrar verificação
-                        </button>
-                      )}
+                      <button type="button" onClick={() => setVerificationTarget({ partNumber: part.partNumber, name: part.name })} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                        Registrar conferência
+                      </button>
                     </div>
                   </article>
                 );
@@ -599,11 +605,9 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                       )}
                       {detailVerification?.note && <div className="mt-2 text-xs leading-5 text-slate-500">{detailVerification.note}</div>}
                     </div>
-                    {admin && (
-                      <button type="button" onClick={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">
-                        Atualizar verificação
-                      </button>
-                    )}
+                    <button type="button" onClick={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">
+                      Registrar nova conferência
+                    </button>
                   </div>
                 </div>
 
@@ -656,7 +660,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
         </div>
       )}
 
-      {verificationTarget && admin && (
+      {verificationTarget && (
         <PartVerificationDialog
           key={`${normalizePartCode(verificationTarget.partNumber)}:${verifications[normalizePartCode(verificationTarget.partNumber)]?.id || 'new'}`}
           target={verificationTarget}
@@ -664,9 +668,8 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
           onClose={() => setVerificationTarget(null)}
           onSaved={() => {
             setVerificationTarget(null);
-            showNotice('Verificação oficial registrada.');
-            void loadVerifications(parts, true);
-            if (detail) void loadVerifications([detail]);
+            showNotice('Conferência enviada para aprovação.');
+            refreshApprovedVerifications();
           }}
         />
       )}
