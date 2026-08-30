@@ -1,11 +1,7 @@
 import { Response } from 'express';
-import { OfficialVerificationStatus } from '@prisma/client';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { normalizeIdentifier } from '../utils/normalize';
-import { HusqvarnaPortalService, normalizeHusqvarnaPartNumber } from '../services/husqvarna-portal.service';
-import { OfficialPartVerificationService } from '../services/official-part-verification.service';
-
-const ALLOWED_STATUSES = new Set<OfficialVerificationStatus>(['VERIFIED', 'SUPERSEDED', 'REVIEW']);
+import { OfficialPartVerificationService, type VerificationDecision } from '../services/official-part-verification.service';
 
 export class OfficialPartVerificationController {
   async list(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -25,23 +21,14 @@ export class OfficialPartVerificationController {
     }
   }
 
-  async portalLookup(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async pending(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
-    const code = String(req.params.code || '').trim();
-    if (!normalizeHusqvarnaPartNumber(code)) {
-      res.status(400).json({ error: 'Código da peça inválido.' });
-      return;
-    }
-
     try {
-      const lookup = await HusqvarnaPortalService.lookup(code);
-      res.json({ lookup });
+      const submissions = await OfficialPartVerificationService.pending(req.user.tenantId);
+      res.json({ submissions });
     } catch (error) {
-      res.status(502).json({
-        error: error instanceof Error
-          ? error.message
-          : 'Não foi possível consultar a página pública do Portal Husqvarna.',
-      });
+      console.error('❌ Erro ao listar verificações pendentes:', error);
+      res.status(500).json({ error: 'Não foi possível carregar as verificações pendentes.' });
     }
   }
 
@@ -59,38 +46,71 @@ export class OfficialPartVerificationController {
   async create(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
     try {
-      const status = String(req.body.status || '') as OfficialVerificationStatus;
-      if (!ALLOWED_STATUSES.has(status)) {
-        res.status(400).json({ error: 'Estado de verificação inválido.' });
-        return;
-      }
-
       const queriedPartNumber = String(req.body.queriedPartNumber || '').trim();
       const currentPartNumber = String(req.body.currentPartNumber || '').trim();
-      const officialUrl = String(req.body.officialUrl || '').trim();
       const description = typeof req.body.description === 'string' ? req.body.description : null;
       const note = typeof req.body.note === 'string' ? req.body.note : null;
-      const verifiedAt = new Date(String(req.body.verifiedAt || ''));
 
-      if (!queriedPartNumber || !currentPartNumber || !officialUrl) {
-        res.status(400).json({ error: 'Código consultado, código atual e URL oficial são obrigatórios.' });
+      if (!queriedPartNumber || !currentPartNumber) {
+        res.status(400).json({ error: 'Código consultado e código atual são obrigatórios.' });
         return;
       }
 
-      const verification = await OfficialPartVerificationService.register({
+      const submission = await OfficialPartVerificationService.submit({
         tenantId: req.user.tenantId,
         userId: req.user.id,
-        status,
         queriedPartNumber,
         currentPartNumber,
         description,
-        officialUrl,
         note,
-        verifiedAt,
       });
-      res.status(201).json({ verification });
+      res.status(201).json({
+        message: 'Conferência registrada e enviada para aprovação do Administrador.',
+        submission,
+      });
     } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : 'Não foi possível registrar a verificação.' });
+      const message = error instanceof Error ? error.message : '';
+      if (message === 'VERIFICATION_ALREADY_PENDING') {
+        res.status(409).json({ error: 'Já existe uma conferência igual aguardando aprovação.' });
+        return;
+      }
+      res.status(400).json({ error: message || 'Não foi possível enviar a conferência para aprovação.' });
+    }
+  }
+
+  async decision(req: AuthenticatedRequest, res: Response): Promise<void> {
+    if (!req.user) return;
+    try {
+      const decision = String(req.body.decision || '') as VerificationDecision;
+      if (decision !== 'APPROVE' && decision !== 'REJECT') {
+        res.status(400).json({ error: 'Decisão inválida.' });
+        return;
+      }
+      const reviewNote = typeof req.body.note === 'string' ? req.body.note : null;
+      const submission = await OfficialPartVerificationService.decide({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        verificationId: String(req.params.id || ''),
+        decision,
+        reviewNote,
+      });
+      res.json({
+        message: decision === 'APPROVE'
+          ? 'Conferência aprovada. A regra oficial já pode ser usada nas buscas.'
+          : 'Conferência rejeitada. Nenhuma regra oficial foi alterada.',
+        submission,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      if (message === 'VERIFICATION_NOT_FOUND') {
+        res.status(404).json({ error: 'Conferência não encontrada.' });
+        return;
+      }
+      if (message === 'VERIFICATION_ALREADY_REVIEWED') {
+        res.status(409).json({ error: 'Esta conferência já foi revisada.' });
+        return;
+      }
+      res.status(400).json({ error: message || 'Não foi possível revisar a conferência.' });
     }
   }
 }
