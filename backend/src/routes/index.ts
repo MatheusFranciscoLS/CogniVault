@@ -39,9 +39,10 @@ router.delete('/favorites/:id', authMiddleware, (req, res) => operationalControl
 router.get('/notifications', authMiddleware, (req, res) => operationalController.notifications(req, res));
 
 router.get('/part-verifications', authMiddleware, (req, res) => officialPartVerificationController.list(req, res));
-router.get('/part-verifications/:code/portal', authMiddleware, (req, res) => officialPartVerificationController.portalLookup(req, res));
+router.get('/part-verifications/pending', authMiddleware, adminOnly, (req, res) => officialPartVerificationController.pending(req, res));
 router.get('/part-verifications/:code/history', authMiddleware, (req, res) => officialPartVerificationController.history(req, res));
-router.post('/part-verifications', authMiddleware, adminOnly, (req, res) => officialPartVerificationController.create(req, res));
+router.post('/part-verifications', authMiddleware, (req, res) => officialPartVerificationController.create(req, res));
+router.patch('/part-verifications/:id/decision', authMiddleware, adminOnly, (req, res) => officialPartVerificationController.decision(req, res));
 
 router.get('/documents', authMiddleware, (req, res) => documentController.list(req, res));
 router.get('/documents/:id/access', authMiddleware, (req, res) => documentController.access(req, res));
