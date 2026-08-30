@@ -23,6 +23,7 @@ export type CatalogHealthInput = {
   modelMismatchCount?: number;
   pncMismatchCount?: number;
   malformedPartNumberCount?: number;
+  missingPositionCount?: number;
   extractionMethod?: string | null;
   processingStage?: string | null;
   category?: string | null;
@@ -95,6 +96,53 @@ function partOccurrenceKey(part: CatalogHealthPart): string | null {
   const page = part.page || 0;
   const section = normalizeText(part.section || '?');
   return `${model}|${pnc}|${page}|${section}|${position}`;
+}
+
+function positionGroupKey(part: CatalogHealthPart): string | null {
+  if (!part.page) return null;
+  const model = part.normalizedModel || normalizeIdentifier(part.model) || '?';
+  const pnc = part.universalAcrossPnc ? '*' : (part.normalizedPnc || normalizeIdentifier(part.pnc) || '?');
+  const section = normalizeText(part.section || '?');
+  return `${model}|${pnc}|${part.page}|${section}`;
+}
+
+function numericPosition(value: string | null | undefined): number | null {
+  const normalized = text(value);
+  if (!/^\d{1,3}$/.test(normalized)) return null;
+  const number = Number(normalized);
+  return Number.isInteger(number) && number > 0 ? number : null;
+}
+
+/**
+ * Detecta lacunas apenas em vistas que parecem sequenciais de verdade. Catálogos
+ * antigos do tipo KEY/PART podem listar 1,2,17,20,50 na mesma página; por isso
+ * exigimos início em 1 e densidade >= 75%. Assim 1..13 sem 8 ou 1..10 sem 3/6
+ * vira defeito provável, enquanto listas deliberadamente esparsas não são punidas.
+ */
+export function countLikelyMissingPositions(parts: CatalogHealthPart[]): number {
+  const groups = new Map<string, Set<number>>();
+  for (const part of parts) {
+    const key = positionGroupKey(part);
+    const position = numericPosition(part.position);
+    if (!key || position === null) continue;
+    const positions = groups.get(key) || new Set<number>();
+    positions.add(position);
+    groups.set(key, positions);
+  }
+
+  let missing = 0;
+  for (const positions of groups.values()) {
+    if (positions.size < 5 || !positions.has(1)) continue;
+    const ordered = [...positions].sort((left, right) => left - right);
+    const max = ordered[ordered.length - 1];
+    if (max < 5) continue;
+    const density = positions.size / max;
+    if (density < 0.75) continue;
+    for (let position = 1; position <= max; position += 1) {
+      if (!positions.has(position)) missing += 1;
+    }
+  }
+  return missing;
 }
 
 function applicabilityText(part: CatalogHealthPart): string {
@@ -298,6 +346,7 @@ export function diagnoseCatalogStructure(parts: CatalogHealthPart[], documentMod
     modelMismatchCount,
     pncMismatchCount,
     malformedPartNumberCount,
+    missingPositionCount: countLikelyMissingPositions(parts),
   };
 }
 
@@ -321,6 +370,7 @@ export function assessCatalogHealth(input: CatalogHealthInput): CatalogHealth {
   const modelMismatchCount = safeCount(input.modelMismatchCount);
   const pncMismatchCount = safeCount(input.pncMismatchCount);
   const malformedPartNumberCount = safeCount(input.malformedPartNumberCount);
+  const missingPositionCount = safeCount(input.missingPositionCount);
 
   if (!text(input.manufacturer)) findings.push({ message: 'Fabricante não confirmado no catálogo.', penalty: 8, review: true });
   if (!text(input.model)) findings.push({ message: 'Modelo não confirmado no catálogo.', penalty: 30, review: true });
@@ -364,6 +414,13 @@ export function assessCatalogHealth(input: CatalogHealthInput): CatalogHealth {
     else if (positionRatio < 0.9) warnings.push('Algumas peças não possuem posição da vista explodida identificada.');
   }
 
+  if (missingPositionCount > 0) {
+    findings.push({
+      message: `${missingPositionCount} posição(ões) intermediária(s) parecem ausentes em vistas sequenciais. Reextraia o PDF e confira a contagem visual antes de considerar o catálogo completo.`,
+      penalty: Math.min(34, 16 + missingPositionCount * 3),
+      review: true,
+    });
+  }
   if (applicationMismatchCount > 0) {
     findings.push({
       message: `${applicationMismatchCount} ocorrência(s) possuem PNC persistido incompatível com a própria regra “For/EXCEPT” do catálogo. Reextraia este PDF para corrigir a aplicação.`,
