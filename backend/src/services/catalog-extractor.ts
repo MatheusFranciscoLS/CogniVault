@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { PDFParse } from 'pdf-parse';
+import { inferCatalogSection } from './catalog-section-inference';
 
 export interface ExtractedPart {
     manufacturer: string;
@@ -92,7 +93,6 @@ function legacyTextPages(text: string): Array<{ page: number; text: string }> {
     const pages: Array<{ page: number; text: string }> = [];
     let cursor = 0;
     let match: RegExpExecArray | null;
-
     LEGACY_PAGE_MARKER.lastIndex = 0;
     while ((match = LEGACY_PAGE_MARKER.exec(text)) !== null) {
         pages.push({ page: Number(match[1]), text: text.slice(cursor, match.index).trim() });
@@ -105,7 +105,6 @@ function portalTextPages(text: string): Array<{ page: number; text: string }> {
     const pages: Array<{ page: number; text: string }> = [];
     let cursor = 0;
     let match: RegExpExecArray | null;
-
     PORTAL_PAGE_MARKER.lastIndex = 0;
     while ((match = PORTAL_PAGE_MARKER.exec(text)) !== null) {
         pages.push({ page: Number(match[1]), text: text.slice(cursor, match.index).trim() });
@@ -155,7 +154,6 @@ function filenameModel(filename: string): string {
 function portalModel(text: string): string {
     const header = text.match(/Husqvarna\s+([A-Z0-9][A-Z0-9 .®_-]{0,50}?)\s+Husqvarna\s*\|\s*Husqvarna\s+Portal\s+BR/i)?.[1];
     if (header) return clean(header);
-
     const slug = text.match(/https?:\/\/portal\.husqvarnagroup\.com\/br\/[^\s?]+?\/[^\s/?]*husqvarna-([a-z0-9-]+)\/?\?printipl=true/i)?.[1];
     if (slug) return slug.replace(/-/g, ' ').toUpperCase();
     return '';
@@ -167,10 +165,6 @@ export function looksLikePartRowModel(value: string | null | undefined): boolean
 }
 
 function detectModel(text: string, hints: CatalogHints): string {
-    // No Portal, o cabeçalho da página identifica o produto consultado e deve
-    // vencer comentários internos como "assy 321S sprayer". Isso também protege
-    // contra nomes de arquivo incorretos: a identidade publicada no Portal é a
-    // evidência técnica mais forte do catálogo.
     const portal = portalModel(text);
     if (portal) return portal;
 
@@ -239,15 +233,12 @@ function splitInlineQuantity(value: string): { description: string; quantity: st
 }
 
 function parseFlexibleBlock(lines: string[], expectsQuantity: boolean): { name: string; quantity: string; comments: string } {
-    if (!expectsQuantity) {
-        return { name: normalizedLine(lines.filter((line) => !isNoiseLine(line)).join(' ')), quantity: '', comments: '' };
-    }
+    if (!expectsQuantity) return { name: normalizedLine(lines.filter((line) => !isNoiseLine(line)).join(' ')), quantity: '', comments: '' };
 
     const description: string[] = [];
     const comments: string[] = [];
     let quantity = '';
     let afterQuantity = false;
-
     for (const raw of lines) {
         const line = normalizedLine(raw);
         if (!line || isNoiseLine(line)) continue;
@@ -272,7 +263,6 @@ function parseFlexibleBlock(lines: string[], expectsQuantity: boolean): { name: 
         }
         description.push(line);
     }
-
     return { name: normalizedLine(description.join(' ')), quantity, comments: normalizedLine(comments.join(' ')) };
 }
 
@@ -324,14 +314,7 @@ function parseFlexiblePage(lines: string[]): { rows: ParsedRow[]; section: strin
         const nextIndex = starts[index + 1]?.index ?? lines.length;
         const parsed = parseFlexibleBlock([current.remainder, ...lines.slice(current.index + 1, nextIndex)], expectsQuantity);
         if (!parsed.name) continue;
-        rows.push({
-            position: current.position,
-            partNumber: current.partNumber,
-            name: parsed.name,
-            quantity: parsed.quantity,
-            comments: parsed.comments,
-            sectionCode: '',
-        });
+        rows.push({ position: current.position, partNumber: current.partNumber, name: parsed.name, quantity: parsed.quantity, comments: parsed.comments, sectionCode: '' });
     }
     return rows.length ? { rows, section: 'Peças' } : null;
 }
@@ -344,8 +327,7 @@ function technicalSectionFromPage(pageText: string): string {
     const lines = pageText.split(/\r?\n/).map(normalizedLine).filter(Boolean);
     for (const line of lines) {
         if (isNoiseLine(line) || !TECHNICAL_SECTION_PATTERN.test(line)) continue;
-        if (FLEXIBLE_ROW_START.test(line)) continue;
-        if (line.length > 90) continue;
+        if (FLEXIBLE_ROW_START.test(line) || line.length > 90) continue;
         const letters = line.replace(/[^A-Za-z]/g, '');
         if (!letters) continue;
         const uppercaseLetters = letters.replace(/[^A-Z]/g, '');
@@ -374,8 +356,9 @@ export function parseHusqvarnaIplText(text: string, hints: CatalogHints = {}): C
         const parsedPage = parseLegacyPage(lines) || parseFlexiblePage(lines);
         if (!parsedPage) continue;
 
+        const inferredSection = inferCatalogSection(parsedPage.rows);
         const section = isGenericSection(parsedPage.section)
-            ? (sectionHints[pageIndex] || sectionHints[pageIndex - 1] || parsedPage.section)
+            ? (sectionHints[pageIndex] || sectionHints[pageIndex - 1] || inferredSection || parsedPage.section)
             : parsedPage.section;
 
         for (const row of parsedPage.rows) {
