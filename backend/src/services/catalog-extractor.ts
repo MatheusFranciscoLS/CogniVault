@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import { PDFParse } from 'pdf-parse';
 import { inferCatalogSection } from './catalog-section-inference';
+import { parseLegacyRefCatalog } from './catalog-legacy-ref-parser';
+import { detectTrustedCatalogModel } from './catalog-model-detection';
 
 export interface ExtractedPart { manufacturer:string; model:string; pnc:string; universalAcrossPnc:boolean; section:string; position:string; name:string; alternativeNames:string[]; partNumber:string; page:number; notes:string; }
 export interface CatalogExtraction { manufacturer:string; models:string[]; pncs:string[]; parts:ExtractedPart[]; }
@@ -46,8 +48,6 @@ function portalModel(text:string){
   return slug?canonicalCatalogModel(slug.replace(/-/g,' ').toUpperCase()):'';
 }
 function detectModel(text:string,hints:CatalogHints){
-  // O produto publicado no Portal é autoridade superior a comentários de linhas,
-  // que podem citar aplicações compartilhadas (ex. "assy 321S sprayer").
   const portal=portalModel(text);if(portal)return portal;
   const ipl=text.match(/IPL,\s*([^,\n]+),\s*\d{4}-\d{2}/i)?.[1];if(ipl)return canonicalCatalogModel(ipl);
   const model=text.match(/MODEL\s+NUMBER\s*:?\s*([A-Z0-9][A-Z0-9 .®_-]*?)(?=\s*\(|\s+MFG\.|\r?\n|$)/i)?.[1];if(model)return canonicalCatalogModel(model);
@@ -85,4 +85,17 @@ export function parseHusqvarnaIplText(text:string,hints:CatalogHints={}):Catalog
   const deduped=[...new Map(parts.map(p=>[[p.model,p.pnc,p.page,p.section,p.position,p.partNumber].join('|'),p])).values()];const occurrences=new Set(deduped.map(p=>[p.page,p.position,p.partNumber].join('|'))).size;if(occurrences<10)return null;return{manufacturer,models:[model],pncs:knownPncs,parts:deduped};
 }
 
-export async function extractCatalogDeterministically(filePath:string,hints:CatalogHints={}):Promise<DeterministicExtraction|null>{const parser=new PDFParse({data:fs.readFileSync(filePath)});try{const result=await parser.getText();const extraction=parseHusqvarnaIplText(result.text,hints);return extraction?{extraction,method:'HUSQVARNA_IPL_TEXT'}:null;}finally{await parser.destroy();}}
+export async function extractCatalogDeterministically(filePath:string,hints:CatalogHints={}):Promise<DeterministicExtraction|null>{
+  const parser=new PDFParse({data:fs.readFileSync(filePath)});
+  try{
+    const result=await parser.getText();
+    const trustedModel=detectTrustedCatalogModel(result.text,hints);
+    const extraction=parseLegacyRefCatalog(result.text,hints)||parseHusqvarnaIplText(result.text,hints);
+    if(!extraction)return null;
+    if(trustedModel){
+      extraction.models=[trustedModel];
+      extraction.parts=extraction.parts.map(part=>({...part,model:trustedModel}));
+    }
+    return{extraction,method:'HUSQVARNA_IPL_TEXT'};
+  }finally{await parser.destroy();}
+}
