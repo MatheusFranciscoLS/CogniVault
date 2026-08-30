@@ -7,6 +7,7 @@ import { HUSQVARNA_GOLDEN_BENCHMARK } from './part-benchmark-cases';
 import { evaluatePartBenchmark, type PartBenchmarkCase, type PartBenchmarkObservation } from './part-benchmark';
 import { PartSearchService } from './part-search.service';
 import { refreshCatalogHealth } from './catalog-health';
+import { buildSearchQualityRadar } from './search-quality-radar';
 
 function code(value: string): string { return normalizeIdentifier(value); }
 
@@ -44,7 +45,7 @@ export class AiQualityService {
       catch (error) { console.warn('⚠️ Diagnóstico de catálogo pendente:', error instanceof Error ? error.message : error); }
     }
 
-    const [documents, partCount, chunks, noEmbedding, noPage, noSection, archived, removed, legacyEmpty, latestRuns] = await Promise.all([
+    const [documents, partCount, chunks, noEmbedding, noPage, noSection, archived, removed, legacyEmpty, latestRuns, searchHistory] = await Promise.all([
       prisma.document.findMany({
         where: {
           tenantId,
@@ -72,6 +73,12 @@ export class AiQualityService {
       prisma.aiBenchmarkRun.findMany({
         where: { tenantId }, orderBy: { createdAt: 'desc' }, take: 10,
         select: { id: true, caseCount: true, metrics: true, details: true, createdAt: true },
+      }),
+      prisma.searchHistory.findMany({
+        where: { tenantId },
+        orderBy: { createdAt: 'desc' },
+        take: 300,
+        select: { query: true, pnc: true, status: true, createdAt: true },
       }),
     ]);
 
@@ -104,6 +111,7 @@ export class AiQualityService {
           unknownCatalogs: unknownExtractionCatalogs,
         },
       },
+      searchRadar: buildSearchQualityRadar(searchHistory, 10),
       reviewQueue: needsReview,
       catalogs: documents,
       hygiene: {

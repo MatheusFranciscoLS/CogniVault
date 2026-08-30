@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiJson, fmtDate } from '../lib';
-import type { AiQualityData, BenchmarkRun, QualityCatalog } from '../types';
+import type { AiQualityData, BenchmarkRun, QualityCatalog, SearchRadarItem } from '../types';
 
 function fetchQuality() { return apiJson<{quality:AiQualityData}>('/api/admin/quality'); }
 
@@ -21,9 +21,24 @@ function extractionLabel(method:string|null) {
   return method;
 }
 
+function radarLabel(status:SearchRadarItem['status']) {
+  return status==='AMBIGUOUS'?'Ambígua'
+    :status==='NOT_FOUND'?'Sem resultado'
+      :status==='PNC_REQUIRED'?'Faltou PNC'
+        :status==='MODEL_REQUIRED'?'Faltou modelo'
+          :'Faltou peça';
+}
+
+function radarSearchQuery(item:SearchRadarItem) {
+  if(!item.pnc)return item.query;
+  const queryDigits=item.query.replace(/\D/g,'');
+  const pncDigits=item.pnc.replace(/\D/g,'');
+  return pncDigits&&queryDigits.includes(pncDigits)?item.query:`${item.query} · PNC ${item.pnc}`;
+}
+
 function latestBenchmark(data:AiQualityData|null):BenchmarkRun|null { return data?.benchmarkRuns?.[0] || null; }
 
-export default function QualityPanel() {
+export default function QualityPanel({onSearch}:{onSearch?:(query:string)=>void}) {
   const [data,setData]=useState<AiQualityData|null>(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
@@ -81,6 +96,7 @@ export default function QualityPanel() {
   const recommendations=(()=>{
     if(!data)return [] as string[];
     const items:string[]=[];
+    if(data.searchRadar.length>0)items.push(`${data.searchRadar.length} consulta(s) recorrente(s) ainda terminaram sem código seguro; use o Radar para revalidar no motor atual.`);
     if(data.summary.needsReview>0)items.push(`Revisar ${data.summary.needsReview} catálogo(s) na fila, começando pelos menores scores.`);
     if(data.summary.partsWithoutPage>0)items.push(`${data.summary.partsWithoutPage} peça(s) ainda não possuem página; priorize reextração apenas dos catálogos afetados.`);
     if(data.summary.partsWithoutSection>0)items.push(`${data.summary.partsWithoutSection} peça(s) estão sem vista/seção, reduzindo a conferência mecânica.`);
@@ -123,6 +139,14 @@ export default function QualityPanel() {
         </div>
 
         <div className="cv-surface rounded-[22px] p-5"><div className="text-sm font-semibold text-slate-900">Integridade da indexação</div><div className="mt-4 grid gap-3"><InfoRow label="Sem embedding" value={data.summary.partsWithoutEmbedding}/><InfoRow label="Sem página" value={data.summary.partsWithoutPage}/><InfoRow label="Sem seção" value={data.summary.partsWithoutSection}/><InfoRow label="Registros legados vazios" value={data.hygiene.legacyEmptyRecords}/><InfoRow label="Arquivados" value={data.hygiene.archivedRecords}/><InfoRow label="Histórico removido" value={data.hygiene.removedHistoricalRecords}/></div><p className="mt-4 text-[11px] leading-5 text-slate-400">{data.hygiene.note}</p><div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3 text-[11px] leading-5 text-blue-800">“Analisar catálogos existentes” reaproveita somente peças já extraídas. Não reabre o PDF, não altera códigos, não cria embeddings e não consome Gemini.</div></div>
+      </div>
+
+      <div className="cv-surface mt-5 overflow-hidden rounded-[22px]">
+        <div className="border-b border-slate-200 p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-sm font-semibold text-slate-900">Radar de consultas problemáticas</div><p className="mt-1 max-w-3xl text-xs leading-5 text-slate-400">Agrupa pesquisas reais que terminaram sem código seguro. Se uma consulta igual depois termina em “encontrada”, ela sai do radar automaticamente. O radar não reexecuta IA e não altera ranking.</p></div><span className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">{data.searchRadar.length} pendência{data.searchRadar.length===1?'':'s'}</span></div></div>
+        {!data.searchRadar.length?<div className="p-8 text-center text-sm text-emerald-700">Nenhuma consulta recorrente permanece sem solução no histórico recente.</div>:<div className="divide-y divide-slate-100">{data.searchRadar.map(item=><div key={`${item.query}|${item.pnc||''}`} className="flex flex-wrap items-center justify-between gap-4 p-5">
+          <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><b className="text-sm text-slate-800">{item.query}</b><span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-800">{radarLabel(item.status)}</span>{item.count>1&&<span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700">{item.count} ocorrências</span>}</div><div className="mt-1 text-xs text-slate-400">{item.model?`Modelo ${item.model}`:'Modelo não confirmado'}{item.pnc?` · PNC ${item.pnc}`:''} · última em {fmtDate(item.lastSeen)}</div>{item.partDescription&&item.partDescription.toLowerCase()!==item.query.toLowerCase()&&<div className="mt-2 text-[11px] text-slate-500">Interpretação local: {item.partDescription}</div>}</div>
+          {onSearch&&<button type="button" onClick={()=>onSearch(radarSearchQuery(item))} className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-[#1d4f91] transition hover:bg-blue-50">Pesquisar na base atual</button>}
+        </div>)}</div>}
       </div>
 
       <div className="cv-surface mt-5 overflow-hidden rounded-[22px]">
