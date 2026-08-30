@@ -77,6 +77,15 @@ function safeCount(value: number | undefined): number {
   return Number.isFinite(value) ? Math.max(0, Math.trunc(value || 0)) : 0;
 }
 
+function looksLikeDescriptionModel(value: string | null | undefined): boolean {
+  const normalized = normalizeText(value || '');
+  if (!normalized) return false;
+  if (/^(?:assy|assembly|kit|set|service kit|conj(?:unto)?)\b/.test(normalized)) return true;
+  const words = normalized.split(/\s+/).filter(Boolean);
+  return words.length >= 3
+    && /\b(?:clutch|embreagem|muffler|silenciador|piston|pistao|cylinder|cilindro|gasket|junta|filter|filtro|carburettor|carburetor|carburador|housing|cobertura|sprayer)\b/.test(normalized);
+}
+
 /**
  * Uma seção preenchida não é necessariamente contexto mecânico. O parser local
  * usa "Peças" como fallback quando o Portal não expõe o nome da vista; isso é
@@ -114,10 +123,11 @@ function numericPosition(value: string | null | undefined): number | null {
 }
 
 /**
- * Detecta lacunas apenas em vistas que parecem sequenciais de verdade. Catálogos
- * antigos do tipo KEY/PART podem listar 1,2,17,20,50 na mesma página; por isso
- * exigimos início em 1 e densidade >= 75%. Assim 1..13 sem 8 ou 1..10 sem 3/6
- * vira defeito provável, enquanto listas deliberadamente esparsas não são punidas.
+ * Conta saltos numéricos em vistas que parecem sequenciais. Isso é apenas um
+ * diagnóstico: IPLs Husqvarna podem omitir números deliberadamente (por exemplo,
+ * 1,2,4,5,7,8,9,10 no STARTER do 321R). A ausência de um número na ilustração
+ * não prova que uma linha de peça deixou de ser extraída; completude deve ser
+ * sustentada pela tabela/snapshot, não pelo maior número visível da vista.
  */
 export function countLikelyMissingPositions(parts: CatalogHealthPart[]): number {
   const groups = new Map<string, Set<number>>();
@@ -374,6 +384,11 @@ export function assessCatalogHealth(input: CatalogHealthInput): CatalogHealth {
 
   if (!text(input.manufacturer)) findings.push({ message: 'Fabricante não confirmado no catálogo.', penalty: 8, review: true });
   if (!text(input.model)) findings.push({ message: 'Modelo não confirmado no catálogo.', penalty: 30, review: true });
+  else if (looksLikeDescriptionModel(input.model)) findings.push({
+    message: `O valor “${text(input.model)}” parece uma descrição de peça/conjunto, não um modelo de equipamento. Confirme o modelo e reextraia o catálogo.`,
+    penalty: 36,
+    review: true,
+  });
   if (!text(input.model) && models.length > 1) findings.push({ message: `O PDF contém mais de um modelo (${models.join(', ')}). Confirme qual escopo deve ser usado.`, penalty: 12, review: true });
 
   if (partCount === 0) findings.push({ message: 'Nenhuma peça ativa foi extraída.', penalty: 60, review: true });
@@ -415,11 +430,7 @@ export function assessCatalogHealth(input: CatalogHealthInput): CatalogHealth {
   }
 
   if (missingPositionCount > 0) {
-    findings.push({
-      message: `${missingPositionCount} posição(ões) intermediária(s) parecem ausentes em vistas sequenciais. Reextraia o PDF e confira a contagem visual antes de considerar o catálogo completo.`,
-      penalty: Math.min(34, 16 + missingPositionCount * 3),
-      review: true,
-    });
+    warnings.push(`${missingPositionCount} salto(s) na numeração de posições foram detectados. Isso pode ser normal no IPL e não é tratado como peça faltando sem evidência adicional da tabela.`);
   }
   if (applicationMismatchCount > 0) {
     findings.push({
