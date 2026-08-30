@@ -69,6 +69,10 @@ export interface QualityCatalog {
   extractionMethod:string|null; extractedAt:string|null; healthScore:number; reviewStatus:CatalogReviewStatus; reviewReasons:string[];
   qualityCheckedAt:string|null; metadataReviewedAt:string|null; category:{name:string}|null; _count:{parts:number;chunks:number};
 }
+export interface SearchRadarItem {
+  query:string; pnc:string|null; model:string|null; partDescription:string|null;
+  status:Exclude<SearchStatus,'FOUND'>; count:number; lastSeen:string;
+}
 export interface BenchmarkMetrics {
   total:number; top1Accuracy:number; recallAt5:number; mrr:number; ndcgAt5:number; missRate:number;
   hardNegativeCases:number; hardNegativeTop1Rate:number; hardNegativeWinRate:number;
@@ -79,6 +83,6 @@ export interface BenchmarkRun { id:string; caseCount:number; metrics:BenchmarkMe
 export interface AiQualityData {
   summary:{catalogs:number;readyCatalogs:number;needsReview:number;averageHealth:number;parts:number;technicalMemoryChunks:number;partsWithoutEmbedding:number;partsWithoutPage:number;partsWithoutSection:number};
   runtime:{generativeModel:string;extraction:{geminiCatalogs:number;parserCatalogs:number;unknownCatalogs:number}};
-  reviewQueue:QualityCatalog[]; catalogs:QualityCatalog[];
+  searchRadar:SearchRadarItem[]; reviewQueue:QualityCatalog[]; catalogs:QualityCatalog[];
   hygiene:{archivedRecords:number;removedHistoricalRecords:number;legacyEmptyRecords:number;note:string}; benchmarkRuns:BenchmarkRun[];
 }
