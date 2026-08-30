@@ -6,6 +6,7 @@ import { prisma } from '../config/prisma';
 import { DocumentProducer } from '../queues/producer';
 import { repairMultipartText } from '../utils/text-encoding';
 import { CATALOG_CATEGORY_NAMES, inferCatalogCategory, isCatalogCategoryName } from './catalog-category';
+import { looksLikePartRowModel } from './catalog-extractor';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
@@ -36,6 +37,26 @@ function safeFilename(value: string): string {
     return filename.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 240) || 'catalogo.pdf';
 }
 
+function modelFromFilename(filename: string): string | null {
+    const base = filename.replace(/\.pdf$/i, '').replace(/\s+/g, ' ').trim();
+    const afterBrand = base.match(/Husqvarna\s+(.+)$/i)?.[1]?.trim();
+    return afterBrand || null;
+}
+
+function snapshotPncs(value: Prisma.JsonValue | null): string[] {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+    const raw = (value as Record<string, unknown>).pncs;
+    if (!Array.isArray(raw)) return [];
+    return raw
+        .filter((item): item is string => typeof item === 'string')
+        .map(item => item.trim())
+        .filter(Boolean);
+}
+
+function uniqueStrings(values: Array<string | null | undefined>): string[] {
+    return [...new Set(values.map(value => value?.trim()).filter((value): value is string => Boolean(value)))];
+}
+
 function hasPdfSignature(buffer: Buffer): boolean {
     return buffer.subarray(0, Math.min(buffer.length, 1024)).includes(Buffer.from('%PDF-'));
 }
@@ -62,6 +83,7 @@ const documentListSelect = {
     manufacturer: true,
     model: true,
     pnc: true,
+    extractionSnapshot: true,
     createdAt: true,
     archivedAt: true,
     processingJobId: true,
@@ -82,14 +104,20 @@ type DocumentListRecord = Prisma.DocumentGetPayload<{ select: typeof documentLis
 
 function toDocumentListItem(document: DocumentListRecord) {
     const filename = safeFilename(document.filename);
+    const storedModel = document.model?.trim() || null;
+    const model = looksLikePartRowModel(storedModel)
+        ? modelFromFilename(filename)
+        : storedModel;
+    const pncs = uniqueStrings([document.pnc, ...snapshotPncs(document.extractionSnapshot)]);
     return {
         id: document.id,
         filename,
         status: document.status,
         manufacturer: document.manufacturer,
-        model: document.model,
+        model,
         pnc: document.pnc,
-        category: document.category?.name || inferCatalogCategory({ filename, model: document.model }),
+        pncs,
+        category: document.category?.name || inferCatalogCategory({ filename, model }),
         createdAt: document.createdAt,
         partCount: document._count.parts,
         archivedAt: document.archivedAt,

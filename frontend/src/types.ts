@@ -8,7 +8,7 @@ export type RetrievalSource = 'DIRECT_CODE' | 'SEMANTIC' | 'LEXICAL' | 'FULL_TEX
 
 export interface SessionUser { id:string; email:string; role:Role; status:string; tenant:{id:string;name:string}; }
 export interface DocumentItem {
-  id:string; filename:string; status:string; manufacturer:string|null; model:string|null; pnc:string|null; category:string; createdAt:string; partCount:number;
+  id:string; filename:string; status:string; manufacturer:string|null; model:string|null; pnc:string|null; pncs?:string[]; category:string; createdAt:string; partCount:number;
   archivedAt?:string|null; processingActive?:boolean; processingStage?:string; processingCurrent?:number; processingTotal?:number; processingError?:string|null;
   healthScore?:number; reviewStatus?:CatalogReviewStatus; reviewReasons?:string[]; qualityCheckedAt?:string|null; extractionMethod?:string|null;
 }
