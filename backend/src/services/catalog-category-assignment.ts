@@ -1,9 +1,10 @@
 import { prisma } from '../config/prisma';
 import { inferCatalogCategory } from './catalog-category';
+import { reconciledCatalogModel } from './catalog-metadata-reconciliation';
 
 /**
- * Persiste a seção apenas quando o catálogo ainda não tem categoria. Dessa forma
- * uma correção manual do administrador nunca é sobrescrita por reprocessamento.
+ * Reconcilia metadados técnicos não revisados e persiste a família apenas quando
+ * ela ainda não foi definida. Uma correção manual do administrador sempre vence.
  */
 export async function ensureCatalogCategory(documentId: string, tenantId: string): Promise<string | null> {
     const document = await prisma.document.findFirst({
@@ -12,22 +13,36 @@ export async function ensureCatalogCategory(documentId: string, tenantId: string
             id: true,
             filename: true,
             model: true,
+            metadataReviewedAt: true,
             categoryId: true,
             category: { select: { name: true } },
             parts: {
                 where: { active: true },
                 take: 500,
-                select: { name: true, section: true, notes: true },
+                select: { model: true, name: true, section: true, notes: true },
             },
         },
     });
 
     if (!document) return null;
+
+    const resolvedModel = reconciledCatalogModel({
+        storedModel: document.model,
+        metadataReviewedAt: document.metadataReviewedAt,
+        partModels: document.parts.map(part => part.model),
+    });
+    if (resolvedModel !== (document.model || null)) {
+        await prisma.document.updateMany({
+            where: { id: document.id, tenantId, metadataReviewedAt: null },
+            data: { model: resolvedModel },
+        });
+    }
+
     if (document.categoryId && document.category) return document.category.name;
 
     const categoryName = inferCatalogCategory({
         filename: document.filename,
-        model: document.model,
+        model: resolvedModel,
         parts: document.parts,
     });
     const category = await prisma.category.upsert({
