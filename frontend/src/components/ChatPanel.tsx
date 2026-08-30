@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, json } from '../lib';
 import { pdfPageUrl } from '../pdf';
-import type { ChatResponse, FeedbackOption, RetrievalSource } from '../types';
+import type { ChatResponse, FavoriteItem, FeedbackOption, RetrievalSource } from '../types';
 
 type FeedbackReason = 'WRONG_CODE' | 'WRONG_PNC' | 'WRONG_MODEL' | 'WRONG_PART' | 'OTHER';
 type Message = {
@@ -21,7 +21,7 @@ type Message = {
   feedbackError?: string;
 };
 type Equipment = { id: string; manufacturer: string; model: string; pnc: string; serial?: string; label: string };
-type Recent = { id: string; query: string; pnc: string };
+type Recent = { id: string; query: string; pnc: string; serial?: string };
 
 const EQUIPMENT_KEY = 'cognivault_saved_equipment';
 const RECENT_KEY = 'cognivault_recent_searches';
@@ -60,6 +60,7 @@ const save = <T,>(key: string, value: T) => {
 };
 
 const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+const extractSerialFromQuery = (value: string) => value.match(/\bS\s*\/\s*N\s*[:#.-]?\s*(\d{6,16})\b/i)?.[1] || '';
 
 function confidencePresentation(response: ChatResponse) {
   if (!response.match) return null;
@@ -191,11 +192,17 @@ function ReliabilityDetails({ response }: { response: ChatResponse }) {
 
 function ResultCard({
   response,
+  favorite,
+  favoritePending,
+  onToggleFavorite,
   onCopyCode,
   onCopySummary,
   onAccess,
 }: {
   response: ChatResponse;
+  favorite: boolean;
+  favoritePending: boolean;
+  onToggleFavorite: () => void;
   onCopyCode: () => void;
   onCopySummary: () => void;
   onAccess: (mode: 'view' | 'download') => void;
@@ -237,6 +244,7 @@ function ResultCard({
       ) : null}
 
       <div className="mt-4 flex flex-wrap gap-2">
+        <button type="button" disabled={favoritePending} onClick={onToggleFavorite} className={`rounded-xl border px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${favorite?'border-amber-300 bg-amber-50 text-amber-800':'border-slate-300 text-slate-700'}`}>{favorite?'★ Favoritada':'☆ Favoritar peça'}</button>
         <button type="button" onClick={onCopyCode} className="rounded-xl bg-[#1d4f91] px-3 py-2 text-xs font-semibold text-white">Copiar código</button>
         <button type="button" onClick={onCopySummary} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold">Copiar ficha</button>
         <button type="button" onClick={() => onAccess('view')} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold">Abrir na página</button>
@@ -258,6 +266,8 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
   const [loading, setLoading] = useState(false);
   const [equipment, setEquipment] = useState<Equipment[]>(() => read<Equipment[]>(equipmentKey, []));
   const [recent, setRecent] = useState<Recent[]>(() => read<Recent[]>(recentKey, []));
+  const [favoriteByPartId, setFavoriteByPartId] = useState<Record<string,string>>({});
+  const [favoritePendingId, setFavoritePendingId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [pdf, setPdf] = useState<{ url: string; page: number | null; title: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -269,6 +279,20 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, loading]);
+
+  useEffect(() => {
+    let active = true;
+    void api('/api/favorites')
+      .then(response => json<{ favorites: FavoriteItem[] }>(response))
+      .then(data => {
+        if (!active) return;
+        const next: Record<string,string> = {};
+        for (const item of data.favorites) if (item.partId) next[item.partId] = item.id;
+        setFavoriteByPartId(next);
+      })
+      .catch(() => { /* Favoritos indisponíveis não devem bloquear uma consulta. */ });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (!pdf) return;
@@ -297,7 +321,9 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
   };
 
   const remember = (query: string, usedPnc: string) => {
-    const next = [{ id: createId(), query, pnc: usedPnc }, ...recent.filter(item => item.query !== query || item.pnc !== usedPnc)].slice(0, 6);
+    const usedSerial = extractSerialFromQuery(query);
+    const nextItem: Recent = { id: createId(), query, pnc: usedPnc, serial: usedSerial || undefined };
+    const next = [nextItem, ...recent.filter(item => item.query !== query || item.pnc !== usedPnc || (item.serial || '') !== usedSerial)].slice(0, 6);
     setRecent(next);
     save(recentKey, next);
   };
@@ -345,6 +371,35 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
   };
 
   const cancel = () => requestRef.current?.abort();
+
+  const toggleFavorite = async (partId: string) => {
+    if (!partId || favoritePendingId) return;
+    setFavoritePendingId(partId);
+    const currentFavoriteId = favoriteByPartId[partId];
+    try {
+      if (currentFavoriteId) {
+        await json(await api(`/api/favorites/${currentFavoriteId}`, { method: 'DELETE' }));
+        setFavoriteByPartId(current => {
+          const next = { ...current };
+          delete next[partId];
+          return next;
+        });
+        notify('Peça removida dos favoritos.');
+      } else {
+        const result = await json<{ favorite: { id: string } }>(await api('/api/favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ partId }),
+        }));
+        setFavoriteByPartId(current => ({ ...current, [partId]: result.favorite.id }));
+        notify('Peça adicionada aos favoritos.');
+      }
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Não foi possível atualizar o favorito.');
+    } finally {
+      setFavoritePendingId(null);
+    }
+  };
 
   const positiveFeedback = async (index: number) => {
     const message = messages[index];
@@ -567,7 +622,7 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
                 <div className="max-w-lg">
                   <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-2xl text-[#1d4f91]">✦</div>
                   <h2 className="mt-4 font-semibold">O que você procura?</h2>
-                  <p className="mt-1 text-sm text-slate-400">Informe uma descrição ou um código. Modelo e PNC aumentam a precisão.</p>
+                  <p className="mt-1 text-sm text-slate-400">Informe uma descrição ou um código. Modelo, PNC e S/N aumentam a precisão quando existem no catálogo.</p>
                   <div className="mt-4 flex flex-wrap justify-center gap-2">
                     {quickPrompts.map(prompt => <button type="button" key={prompt} onClick={() => { setQuestion(prompt); questionRef.current?.focus(); }} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-[#1d4f91]">{prompt}</button>)}
                   </div>
@@ -587,6 +642,9 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
                       {message.response?.part ? (
                         <ResultCard
                           response={message.response}
+                          favorite={Boolean(favoriteByPartId[message.response.part.id])}
+                          favoritePending={favoritePendingId===message.response.part.id}
+                          onToggleFavorite={() => void toggleFavorite(message.response!.part!.id)}
                           onCopyCode={() => void copy(message.response?.part?.partNumber || '')}
                           onCopySummary={() => copySummary(message.response!)}
                           onAccess={mode => void access(message.response?.part?.documentId || '', mode, message.response?.part?.page ?? null, message.response?.part?.filename || 'Catálogo')}
@@ -635,7 +693,11 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
             <p className="mt-1 text-xs text-slate-400">Atalhos locais desta estação; o histórico completo fica salvo no sistema.</p>
             <div className="mt-4 grid gap-2">
               {!recent.length ? <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-400">As novas buscas aparecerão aqui.</div> : null}
-              {recent.map(item => <button type="button" key={item.id} onClick={() => void ask(item.query, item.pnc, false)} className="rounded-xl border border-slate-200 p-3 text-left text-xs hover:bg-slate-50"><b className="block text-slate-700">{item.query}</b><span className="mt-1 block text-slate-400">{item.pnc ? `PNC ${item.pnc}` : 'Sem PNC informado'}</span></button>)}
+              {recent.map(item => {
+                const itemSerial = item.serial || extractSerialFromQuery(item.query);
+                const context = [item.pnc ? `PNC ${item.pnc}` : '', itemSerial ? `S/N ${itemSerial}` : ''].filter(Boolean).join(' · ') || 'Sem PNC/S/N informado';
+                return <button type="button" key={item.id} onClick={() => { setPnc(item.pnc); setSerial(itemSerial); void ask(item.query, item.pnc, false); }} className="rounded-xl border border-slate-200 p-3 text-left text-xs hover:bg-slate-50"><b className="block text-slate-700">{item.query}</b><span className="mt-1 block text-slate-400">{context}</span></button>;
+              })}
             </div>
           </div>
 
