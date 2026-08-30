@@ -40,6 +40,7 @@ const PART_NUMBER_PATTERN = `(?:${SPACED_PART_NUMBER_PATTERN}|${CONTIGUOUS_PART_
 const HUSQVARNA_ROW = new RegExp(`^(\\d{1,3})\\s+(${SPACED_PART_NUMBER_PATTERN})\\s+(.+?)\\s+([A-Z])\\s+(\\d+)(?:\\s+(.+))?$`, 'i');
 const GENERIC_PART_ROW = new RegExp(`^(\\d{1,3})\\s+(${SPACED_PART_NUMBER_PATTERN})\\s+(.+?)\\s+(\\d+)(?:\\s+(.+))?$`, 'i');
 const FLEXIBLE_ROW_START = new RegExp(`^(\\d{1,3})\\s+(${PART_NUMBER_PATTERN})\\s*(.*)$`, 'i');
+const PART_NUMBER_ONLY = new RegExp(`^(${PART_NUMBER_PATTERN})\\s*(.*)$`, 'i');
 const LEGACY_PAGE_MARKER = /--\s+(\d+)\s+of\s+\d+\s+--/g;
 // O texto do Portal às vezes cola o fim "3/7" ao timestamp da página seguinte.
 // O total é lazy e a lookahead reconhece tanto um separador normal quanto a data
@@ -343,26 +344,62 @@ function parseLegacyPage(lines: string[]): { rows: ParsedRow[]; section: string 
     return { rows, section };
 }
 
-function parseFlexiblePage(lines: string[]): { rows: ParsedRow[]; section: string } | null {
-    const starts: Array<{ index: number; position: string; partNumber: string; remainder: string }> = [];
-    lines.forEach((line, index) => {
-        const match = FLEXIBLE_ROW_START.exec(line);
-        if (!match) return;
+type FlexibleRowStart = {
+    index: number;
+    contentIndex: number;
+    position: string;
+    partNumber: string;
+    remainder: string;
+};
+
+/**
+ * O PDF textual do Portal não é uma tabela real. Em algumas vistas a coordenada
+ * da posição cai em uma linha e o Part Number na linha seguinte. A implementação
+ * antiga aceitava apenas "8 589823301 ..." e descartava silenciosamente o padrão
+ * "8\n589823301 ...", causando lacunas como as vistas 17/19 da 321R.
+ */
+function flexibleRowStarts(lines: string[]): FlexibleRowStart[] {
+    const starts: FlexibleRowStart[] = [];
+    for (let index = 0; index < lines.length; index += 1) {
+        const direct = FLEXIBLE_ROW_START.exec(lines[index]);
+        if (direct) {
+            starts.push({
+                index,
+                contentIndex: index,
+                position: direct[1],
+                partNumber: cleanPartNumber(direct[2]),
+                remainder: clean(direct[3]),
+            });
+            continue;
+        }
+
+        const positionOnly = lines[index].match(/^(\d{1,3})$/);
+        if (!positionOnly || index + 1 >= lines.length) continue;
+        const splitPart = PART_NUMBER_ONLY.exec(lines[index + 1]);
+        if (!splitPart) continue;
+
         starts.push({
             index,
-            position: match[1],
-            partNumber: cleanPartNumber(match[2]),
-            remainder: clean(match[3]),
+            contentIndex: index + 1,
+            position: positionOnly[1],
+            partNumber: cleanPartNumber(splitPart[1]),
+            remainder: clean(splitPart[2]),
         });
-    });
+        index += 1;
+    }
+    return starts;
+}
 
+function parseFlexiblePage(lines: string[]): { rows: ParsedRow[]; section: string } | null {
+    const starts = flexibleRowStarts(lines);
     if (!starts.length) return null;
+
     const expectsQuantity = hasQuantityColumn(lines);
     const rows: ParsedRow[] = [];
     for (let index = 0; index < starts.length; index += 1) {
         const current = starts[index];
         const nextIndex = starts[index + 1]?.index ?? lines.length;
-        const block = [current.remainder, ...lines.slice(current.index + 1, nextIndex)];
+        const block = [current.remainder, ...lines.slice(current.contentIndex + 1, nextIndex)];
         const parsed = parseFlexibleBlock(block, expectsQuantity);
         if (!parsed.name) continue;
         rows.push({
