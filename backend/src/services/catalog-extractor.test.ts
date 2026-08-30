@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseHusqvarnaIplText } from './catalog-extractor';
+import { looksLikePartRowModel, parseHusqvarnaIplText } from './catalog-extractor';
 
 test('extrai linhas de peças do formato textual IPL da Husqvarna', () => {
     const rows = Array.from({ length: 10 }, (_, index) => (
@@ -103,11 +103,14 @@ https://portal.husqvarnagroup.com/br/cortadores/lc151/?printipl=true 3/3
     assert.ok(extraction);
     assert.deepEqual(extraction.models, ['LC 151']);
     assert.deepEqual(extraction.pncs.sort(), ['970488301', '970488302']);
-    assert.ok(extraction.parts.length >= 10);
+    assert.equal(extraction.parts.length, 10);
 
+    const common = extraction.parts.find(part => part.position === '1');
     const pnc301 = extraction.parts.find(part => part.position === '2' && part.pnc === '970488301');
     const pnc302 = extraction.parts.find(part => part.position === '3' && part.pnc === '970488302');
     const except301 = extraction.parts.filter(part => part.position === '5');
+    assert.equal(common?.pnc, '');
+    assert.equal(common?.universalAcrossPnc, true);
     assert.equal(pnc301?.partNumber, '598818701');
     assert.equal(pnc302?.partNumber, '529595301');
     assert.deepEqual(except301.map(part => part.pnc), ['970488302']);
@@ -173,10 +176,36 @@ NO. NO. DESCRIPTION
 
     const specific = extraction.parts.filter(part => part.partNumber === '586212501');
     const except = extraction.parts.filter(part => part.partNumber === '872250505');
+    const common = extraction.parts.find(part => part.partNumber === '532000002');
     assert.deepEqual(specific.map(part => part.pnc), ['96121002700']);
     assert.deepEqual(except.map(part => part.pnc), ['96121003700']);
+    assert.equal(common?.universalAcrossPnc, true);
+    assert.equal(common?.pnc, '');
     assert.ok(specific.every(part => !/\bFor\b/i.test(part.name)));
     assert.ok(except.every(part => !/\bFor\b/i.test(part.name)));
     assert.match(specific[0]?.notes || '', /For 96121002700/i);
     assert.match(except[0]?.notes || '', /For all EXCEPT 96121002700/i);
+});
+
+test('rejeita uma linha de peça usada indevidamente como hint de modelo', () => {
+    assert.equal(looksLikePartRowModel('1 \t586047302\nDECALQUE'), true);
+    assert.equal(looksLikePartRowModel('6 535482401 POLIA'), true);
+    assert.equal(looksLikePartRowModel('TS 254G'), false);
+
+    const rows = Array.from({ length: 10 }, (_, index) => `${index + 1} 53200${String(index).padStart(4, '0')} PEÇA ${index + 1} 1`).join('\n');
+    const text = `
+03/04/2025
+TS 148
+Trator de jardim Trator cortador de grama Husqvarna TS 148 Husqvarna | Husqvarna Portal BR
+https://portal.husqvarnagroup.com/br/tratores-de-jardim/trator-cortador-de-grama-husqvarna-ts148/?printipl=true 1/2
+${rows}
+Referência Número do artigo Nome do artigo Quantidade Comentário
+https://portal.husqvarnagroup.com/br/tratores-de-jardim/trator-cortador-de-grama-husqvarna-ts148/?printipl=true 2/2
+`;
+    const extraction = parseHusqvarnaIplText(text, {
+        model: '1 \t586047302\nDECALQUE',
+        filename: 'Trator cortador de grama Husqvarna TS 148.pdf',
+    });
+    assert.ok(extraction);
+    assert.deepEqual(extraction.models, ['TS 148']);
 });
