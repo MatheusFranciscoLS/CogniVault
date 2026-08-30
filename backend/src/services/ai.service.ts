@@ -13,6 +13,8 @@ import {
     type ExtractedPart,
     extractCatalogDeterministically,
 } from './catalog-extractor';
+import { countCatalogSourceRows } from './catalog-extraction-integrity';
+import { persistCatalogRevision } from './catalog-persistence';
 import { buildPartRetrievalContext } from './part-index-context';
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -180,20 +182,20 @@ export class AIService {
             let extractionMethod = forceReextraction ? 'REEXTRACTION' : (document.extractionMethod || 'SNAPSHOT');
 
             if (extraction) {
-                console.log(`♻️ Extração persistida reutilizada (${extraction.parts.length} peças).`);
+                console.log(`♻️ Extração persistida reutilizada (${extraction.parts.length} aplicações).`);
             } else {
                 await updateDocumentForJob(documentId, jobId, { processingStage: 'EXTRACTING' });
                 try {
                     const deterministic = await extractCatalogDeterministically(localFilePath, {
                         manufacturer: document.manufacturer,
-                        model: document.model,
+                        model: document.metadataReviewedAt ? document.model : null,
                         pnc: document.pnc,
                         filename: document.filename,
                     });
                     if (deterministic) {
                         extraction = deterministic.extraction;
                         extractionMethod = deterministic.method;
-                        console.log(`📋 Extração determinística concluída com ${extraction.parts.length} peças.`);
+                        console.log(`📋 Extração determinística concluída com ${countCatalogSourceRows(extraction)} linhas físicas e ${extraction.parts.length} aplicações.`);
                     }
                 } catch (error) {
                     console.warn('⚠️ Leitura textual do PDF indisponível; usando extração por IA.', error);
@@ -218,7 +220,7 @@ export class AIService {
 
                     const metadataHints = [
                         document.manufacturer ? `Fabricante informado no upload: ${document.manufacturer}` : '',
-                        document.model ? `Modelo informado no upload: ${document.model}` : '',
+                        document.metadataReviewedAt && document.model ? `Modelo revisado pelo administrador: ${document.model}` : '',
                         document.pnc ? `PNC informado no upload: ${document.pnc}` : '',
                     ].filter(Boolean).join('\n');
                     const prompt = `
@@ -310,6 +312,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     extractionSnapshot: extraction as unknown as Prisma.InputJsonValue,
                     extractionMethod,
                     extractedAt: new Date(),
+                    sourceRowCount: countCatalogSourceRows(extraction),
                 });
             }
 
@@ -317,6 +320,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 throw new Error('Nenhuma peça foi encontrada no catálogo.');
             }
 
+            const sourceRowCount = countCatalogSourceRows(extraction);
             const extractedManufacturer = cleanString(extraction.manufacturer);
             const models = Array.isArray(extraction.models)
                 ? extraction.models.map(cleanString).filter(Boolean)
@@ -330,8 +334,9 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 const name = cleanString(rawPart.name);
                 const partNumber = cleanString(rawPart.partNumber);
                 const model = cleanString(rawPart.model)
-                    || document.model
-                    || (models.length === 1 ? models[0] : '');
+                    || (document.metadataReviewedAt ? cleanString(document.model) : '')
+                    || (models.length === 1 ? models[0] : '')
+                    || cleanString(document.model);
                 if (!name || !partNumber || !model) continue;
 
                 const manufacturer = cleanString(rawPart.manufacturer)
@@ -341,9 +346,6 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 const documentPnc = cleanString(document.pnc);
                 let pnc = cleanString(rawPart.pnc) || documentPnc || '';
                 let universalAcrossPnc = Boolean(rawPart.universalAcrossPnc) || isUniversalPnc(pnc);
-                // Um catálogo enviado para um PNC específico não comprova que a
-                // peça serve em todos os PNCs. O escopo informado no upload tem
-                // precedência sobre uma inferência visual genérica da IA.
                 if (documentPnc) {
                     pnc = cleanString(rawPart.pnc);
                     if (!pnc || isUniversalPnc(pnc)) pnc = documentPnc;
@@ -419,7 +421,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
             const configuredMinimumRatio = Number(process.env.MIN_REPROCESS_PART_RATIO || '0.5');
             if (!hasSafeExtractionCoverage(previousActiveCount, preparedParts.length, configuredMinimumRatio)) {
                 throw new Error(
-                    `Reprocessamento interrompido por segurança: a extração retornou ${preparedParts.length} de ${previousActiveCount} peças anteriormente ativas.`,
+                    `Reprocessamento interrompido por segurança: a extração retornou ${preparedParts.length} de ${previousActiveCount} aplicações anteriormente ativas.`,
                 );
             }
 
@@ -438,63 +440,31 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     processingStage: 'INDEXING',
                     processingTotal: preparedParts.length,
                     processingError: null,
+                    sourceRowCount,
                 });
                 console.log(`↪️ Retomando indexação da revisão ${revision}.`);
             } else {
-                activePartIds = await prisma.$transaction(async (tx) => {
-                    const ids: string[] = [];
-                    for (const [index, identifiedPart] of identifiedParts.entries()) {
-                        const partData = {
-                            ...identifiedPart.item,
-                            sourceKey: identifiedPart.sourceKey,
-                            active: true,
-                            retiredAt: null,
-                            extractionRevision: revision,
-                            embeddingRevision: 0,
-                        };
-                        const savedPart = identifiedPart.existingId
-                            ? await tx.part.update({ where: { id: identifiedPart.existingId }, data: partData })
-                            : await tx.part.create({ data: partData });
-                        ids.push(savedPart.id);
-                        await tx.$executeRaw`
-                            UPDATE "Part" SET "embedding" = NULL, "embeddingRevision" = 0
-                            WHERE "id" = ${savedPart.id}
-                        `;
-                        if ((index + 1) % 100 === 0) {
-                            console.log(`💾 ${index + 1}/${preparedParts.length} peças preparadas para persistência.`);
-                        }
-                    }
-
-                    await tx.part.updateMany({
-                        where: { documentId, active: true, id: { notIn: ids } },
-                        data: { active: false, retiredAt: new Date() },
-                    });
-                    const documentUpdate = await tx.document.updateMany({
-                        where: { id: documentId, processingJobId: jobId },
-                        data: {
-                            manufacturer: document.manufacturer || extractedManufacturer || null,
-                            model: document.model || (models.length === 1 ? models[0] : null),
-                            pnc: document.pnc || (pncs.length === 1 ? pncs[0] : null),
-                            storagePath: canonicalStoragePath,
-                            url: canonicalStoragePath,
-                            contentHash,
-                            status: 'COMPLETED',
-                            catalogRevision: revision,
-                            processingStage: 'INDEXING',
-                            processingCurrent: 0,
-                            processingTotal: preparedParts.length,
-                            processingError: null,
-                        },
-                    });
-                    if (documentUpdate.count !== 1) throw new Error('STALE_DOCUMENT_JOB');
-                    return ids;
-                }, { maxWait: 10_000, timeout: 120_000 });
-                console.log(`💾 Catálogo já utilizável: ${preparedParts.length} peças salvas na revisão ${revision}.`);
+                const persistedModel = document.metadataReviewedAt && document.model
+                    ? document.model
+                    : (models.length === 1 ? models[0] : (document.model || null));
+                activePartIds = await persistCatalogRevision({
+                    documentId,
+                    jobId,
+                    revision,
+                    items: identifiedParts,
+                    document: {
+                        manufacturer: document.manufacturer || extractedManufacturer || null,
+                        model: persistedModel,
+                        pnc: document.pnc || (pncs.length === 1 ? pncs[0] : null),
+                        storagePath: canonicalStoragePath,
+                        url: canonicalStoragePath,
+                        contentHash,
+                        sourceRowCount,
+                    },
+                });
+                console.log(`💾 Catálogo utilizável: ${sourceRowCount} linhas físicas / ${preparedParts.length} aplicações na revisão ${revision}.`);
             }
 
-            // A busca lexical bilíngue funciona sem vetores. Em produção, a
-            // indisponibilidade/cota da IA nunca deve impedir um PDF já extraído
-            // de ficar pronto para o balcão.
             if (!semanticIndexingEnabled()) {
                 await updateDocumentForJob(documentId, jobId, {
                     status: 'COMPLETED',
@@ -503,7 +473,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     processingTotal: preparedParts.length,
                     processingError: null,
                 });
-                console.log(`✅ Catálogo ${documentId} pronto pela indexação textual (${preparedParts.length} peças).`);
+                console.log(`✅ Catálogo ${documentId} pronto pela indexação textual (${sourceRowCount} linhas / ${preparedParts.length} aplicações).`);
                 return;
             }
 
@@ -582,7 +552,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 console.warn(`⚠️ Catálogo ${documentId} pronto sem índice semântico opcional.`, indexingError);
                 return;
             }
-            console.log(`🏆 Catálogo ${documentId}: revisão ${revision} concluída com ${preparedParts.length} peças ativas.`);
+            console.log(`🏆 Catálogo ${documentId}: revisão ${revision} concluída com ${sourceRowCount} linhas e ${preparedParts.length} aplicações.`);
         } catch (error) {
             if (error instanceof Error && error.message === 'STALE_DOCUMENT_JOB') {
                 console.warn(`🧹 Trabalho obsoleto do documento ${documentId} foi interrompido.`);
