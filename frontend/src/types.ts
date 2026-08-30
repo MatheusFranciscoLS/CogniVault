@@ -2,6 +2,7 @@ export type Role = 'ADMIN' | 'MECHANIC';
 export type Section = 'home' | 'overview' | 'assistant' | 'parts' | 'catalogs' | 'history' | 'favorites' | 'users' | 'feedback' | 'quality' | 'audit';
 export type SearchStatus = 'FOUND' | 'PNC_REQUIRED' | 'MODEL_REQUIRED' | 'PART_REQUIRED' | 'AMBIGUOUS' | 'NOT_FOUND';
 export type OfficialVerificationState = 'UNVERIFIED' | 'VERIFIED' | 'SUPERSEDED' | 'REVIEW';
+export type OfficialVerificationApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type CatalogReviewStatus = 'PENDING' | 'READY' | 'NEEDS_REVIEW' | 'REVIEWED';
 export type RetrievalSource = 'DIRECT_CODE' | 'SEMANTIC' | 'LEXICAL' | 'FULL_TEXT' | 'FUZZY';
 
@@ -15,6 +16,11 @@ export interface FeedbackOption { id:string; name:string; partNumber:string; mod
 export interface OfficialVerification {
   id:string|null; state:OfficialVerificationState; queriedPartNumber:string; currentPartNumber:string; description:string|null;
   officialUrl:string; note:string|null; verifiedAt:string|null; verifiedBy:string|null; source:'TENANT'|'BUILT_IN'|'NONE';
+}
+export interface OfficialVerificationSubmission {
+  id:string; status:'VERIFIED'|'SUPERSEDED'|'REVIEW'; approvalStatus:OfficialVerificationApprovalStatus;
+  queriedPartNumber:string; currentPartNumber:string; description:string|null; officialUrl:string; note:string|null;
+  verifiedAt:string; createdAt:string; submittedBy:string; reviewedBy:string|null; reviewedAt:string|null; reviewNote:string|null;
 }
 export interface ChatResponse {
   status:SearchStatus; answer:string; pncOptions?:string[]; modelOptions?:string[]; serialRequired?:boolean; confidence?:number;

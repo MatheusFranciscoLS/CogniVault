@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildHusqvarnaPortalUrl, isAllowedHusqvarnaPortalUrl } from './official-part-verification.service';
+import {
+  buildHusqvarnaPortalUrl,
+  deriveOfficialVerificationStatus,
+  isAllowedHusqvarnaPortalUrl,
+} from './official-part-verification.service';
 
 test('builds only the public Husqvarna spare-parts URL with normalized code', () => {
   assert.equal(
@@ -26,4 +30,16 @@ test('rejects authenticated, alternate or mismatched URLs', () => {
     isAllowedHusqvarnaPortalUrl('https://portal.husqvarnagroup.com/br/spare-parts/?part=586931401', '587106701'),
     false,
   );
+});
+
+test('classifies an unchanged portal code as verified automatically', () => {
+  assert.equal(deriveOfficialVerificationStatus('587 106 701', '587106701'), 'VERIFIED');
+});
+
+test('classifies a changed portal code as superseded automatically', () => {
+  assert.equal(deriveOfficialVerificationStatus('586 931 401', '587 106 701'), 'SUPERSEDED');
+});
+
+test('refuses to classify invalid part numbers', () => {
+  assert.throws(() => deriveOfficialVerificationStatus('', '587106701'), /códigos de peça válidos/i);
 });

@@ -39,6 +39,12 @@ enum OfficialVerificationStatus {
   REVIEW
 }
 
+enum OfficialVerificationApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum CatalogReviewStatus {
   PENDING
   READY
@@ -47,21 +53,22 @@ enum CatalogReviewStatus {
 }
 
 model User {
-  id                    String                     @id @default(uuid())
-  email                 String                     @unique
-  password              String
-  role                   Role                       @default(MECHANIC)
-  status                 UserStatus                 @default(PENDING)
-  tenantId               String
-  tenant                 Tenant                     @relation(fields: [tenantId], references: [id])
-  searchFeedback         SearchFeedback[]
-  searchHistory          SearchHistory[]
-  favorites              Favorite[]
-  auditLogs              AuditLog[]
-  officialVerifications  OfficialPartVerification[]
-  reviewedDocuments      Document[]                 @relation("DocumentMetadataReviewer")
-  benchmarkRuns          AiBenchmarkRun[]
-  createdAt              DateTime                   @default(now())
+  id                           String                     @id @default(uuid())
+  email                        String                     @unique
+  password                     String
+  role                         Role                       @default(MECHANIC)
+  status                       UserStatus                 @default(PENDING)
+  tenantId                     String
+  tenant                       Tenant                     @relation(fields: [tenantId], references: [id])
+  searchFeedback               SearchFeedback[]
+  searchHistory                SearchHistory[]
+  favorites                    Favorite[]
+  auditLogs                    AuditLog[]
+  officialVerifications        OfficialPartVerification[] @relation("OfficialVerificationSubmitter")
+  reviewedOfficialVerifications OfficialPartVerification[] @relation("OfficialVerificationReviewer")
+  reviewedDocuments            Document[]                 @relation("DocumentMetadataReviewer")
+  benchmarkRuns                AiBenchmarkRun[]
+  createdAt                    DateTime                    @default(now())
 
   @@index([tenantId])
 }
@@ -113,13 +120,13 @@ model Document {
   archivedById    String?
   catalogRevision Int       @default(0)
 
-  healthScore       Int                 @default(0)
-  reviewStatus      CatalogReviewStatus @default(PENDING)
-  reviewReasons     String[]            @default([])
-  qualityCheckedAt  DateTime?
-  metadataReviewedAt DateTime?
+  healthScore          Int                 @default(0)
+  reviewStatus         CatalogReviewStatus @default(PENDING)
+  reviewReasons        String[]            @default([])
+  qualityCheckedAt     DateTime?
+  metadataReviewedAt   DateTime?
   metadataReviewedById String?
-  metadataReviewedBy User?              @relation("DocumentMetadataReviewer", fields: [metadataReviewedById], references: [id], onDelete: SetNull)
+  metadataReviewedBy   User?               @relation("DocumentMetadataReviewer", fields: [metadataReviewedById], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
@@ -312,12 +319,13 @@ model AuditLog {
 }
 
 model OfficialPartVerification {
-  id                       String                     @id @default(uuid())
+  id                       String                             @id @default(uuid())
   tenantId                 String
-  tenant                   Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant                   Tenant                             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   userId                   String
-  user                     User                       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user                     User                               @relation("OfficialVerificationSubmitter", fields: [userId], references: [id], onDelete: Restrict)
   status                   OfficialVerificationStatus
+  approvalStatus           OfficialVerificationApprovalStatus @default(PENDING)
   queriedPartNumber        String
   normalizedQueriedNumber  String
   currentPartNumber        String
@@ -326,12 +334,18 @@ model OfficialPartVerification {
   officialUrl              String
   note                     String?
   verifiedAt               DateTime
-  createdAt                DateTime                   @default(now())
+  reviewedById             String?
+  reviewedBy               User?                              @relation("OfficialVerificationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt               DateTime?
+  reviewNote               String?
+  createdAt                DateTime                            @default(now())
 
   @@index([tenantId, normalizedQueriedNumber, createdAt])
   @@index([tenantId, normalizedCurrentNumber, createdAt])
   @@index([tenantId, createdAt])
+  @@index([tenantId, approvalStatus, createdAt])
   @@index([userId, createdAt])
+  @@index([reviewedById, createdAt])
 }
 
 model AiBenchmarkRun {
