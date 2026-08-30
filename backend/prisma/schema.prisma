@@ -53,22 +53,22 @@ enum CatalogReviewStatus {
 }
 
 model User {
-  id                           String                     @id @default(uuid())
-  email                        String                     @unique
-  password                     String
-  role                         Role                       @default(MECHANIC)
-  status                       UserStatus                 @default(PENDING)
-  tenantId                     String
-  tenant                       Tenant                     @relation(fields: [tenantId], references: [id])
-  searchFeedback               SearchFeedback[]
-  searchHistory                SearchHistory[]
-  favorites                    Favorite[]
-  auditLogs                    AuditLog[]
-  officialVerifications        OfficialPartVerification[] @relation("OfficialVerificationSubmitter")
+  id                            String                     @id @default(uuid())
+  email                         String                     @unique
+  password                      String
+  role                          Role                       @default(MECHANIC)
+  status                        UserStatus                 @default(PENDING)
+  tenantId                      String
+  tenant                        Tenant                     @relation(fields: [tenantId], references: [id])
+  searchFeedback                SearchFeedback[]
+  searchHistory                 SearchHistory[]
+  favorites                     Favorite[]
+  auditLogs                     AuditLog[]
+  officialVerifications         OfficialPartVerification[] @relation("OfficialVerificationSubmitter")
   reviewedOfficialVerifications OfficialPartVerification[] @relation("OfficialVerificationReviewer")
-  reviewedDocuments            Document[]                 @relation("DocumentMetadataReviewer")
-  benchmarkRuns                AiBenchmarkRun[]
-  createdAt                    DateTime                    @default(now())
+  reviewedDocuments             Document[]                 @relation("DocumentMetadataReviewer")
+  benchmarkRuns                 AiBenchmarkRun[]
+  createdAt                     DateTime                   @default(now())
 
   @@index([tenantId])
 }
@@ -101,6 +101,7 @@ model Document {
   extractionSnapshot Json?
   extractionMethod   String?
   extractedAt        DateTime?
+  sourceRowCount     Int       @default(0)
 
   manufacturer String?
   model        String?
@@ -319,7 +320,7 @@ model AuditLog {
 }
 
 model OfficialPartVerification {
-  id                       String                             @id @default(uuid())
+  id                       String                              @id @default(uuid())
   tenantId                 String
   tenant                   Tenant                             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   userId                   String
