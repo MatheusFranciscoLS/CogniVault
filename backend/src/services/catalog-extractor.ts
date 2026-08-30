@@ -41,11 +41,10 @@ const HUSQVARNA_ROW = new RegExp(`^(\\d{1,3})\\s+(${SPACED_PART_NUMBER_PATTERN})
 const GENERIC_PART_ROW = new RegExp(`^(\\d{1,3})\\s+(${SPACED_PART_NUMBER_PATTERN})\\s+(.+?)\\s+(\\d+)(?:\\s+(.+))?$`, 'i');
 const FLEXIBLE_ROW_START = new RegExp(`^(\\d{1,3})\\s+(${PART_NUMBER_PATTERN})\\s*(.*)$`, 'i');
 const LEGACY_PAGE_MARKER = /--\s+(\d+)\s+of\s+\d+\s+--/g;
-// O texto do Portal às vezes cola o fim "3/7" ao timestamp da página seguinte.
-// O total é lazy e a lookahead reconhece tanto um separador normal quanto a data
-// imediatamente concatenada, preservando a página de origem sem depender de OCR.
 const PORTAL_PAGE_MARKER = /https?:\/\/[^\s]+[\t ]+(\d{1,4})\/(\d{1,4}?)(?=(?:\d{2}\/\d{2}\/\d{4})|[\s\r\n]|$)/g;
 const PNC_PATTERN = /\b(?:\d{11}|\d{9})\b/g;
+const GENERIC_SECTION_NAMES = new Set(['pecas', 'parts', 'spare parts', 'lista de pecas', 'items', 'itens']);
+const TECHNICAL_SECTION_PATTERN = /\b(?:CYLINDER|PISTON|AIR\s+FILTER|FILTER|MUFFLER|SILENCER|HANDLE|FUEL|HOUSING|SHAFT|CRANKCASE|CLUTCH|CLUTCHDRUM|STARTER|CARBURET(?:OR|TOR)|CARBURETTOR|IGNITION|GEAR|GEARBOX|CUTTING|GUARD|HARNESS|TANK|THROTTLE|DECK|TRANSMISSION|DRIVE|WHEEL|FRAME|STEERING|ELECTRICAL|ENGINE|FLYWHEEL|BRAKE|COVER|PUMP|BLADE|BAR|CHAIN|TUBE|PIPE|CONTROL|AV\s+SYSTEM|ANTI.?VIBRATION)\b/i;
 
 function clean(value: unknown): string {
     return typeof value === 'string' ? value.trim() : '';
@@ -61,6 +60,10 @@ function normalizedLine(value: string): string {
         .replace(/[\u00ad\ufffe\ufffd]/g, '-')
         .replace(/[ \t]+/g, ' ')
         .trim();
+}
+
+function normalizeComparable(value: string): string {
+    return normalizedLine(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 }
 
 function isPartsHeader(value: string): boolean {
@@ -92,13 +95,9 @@ function legacyTextPages(text: string): Array<{ page: number; text: string }> {
 
     LEGACY_PAGE_MARKER.lastIndex = 0;
     while ((match = LEGACY_PAGE_MARKER.exec(text)) !== null) {
-        pages.push({
-            page: Number(match[1]),
-            text: text.slice(cursor, match.index).trim(),
-        });
+        pages.push({ page: Number(match[1]), text: text.slice(cursor, match.index).trim() });
         cursor = LEGACY_PAGE_MARKER.lastIndex;
     }
-
     return pages.filter((page) => Number.isInteger(page.page) && page.page > 0);
 }
 
@@ -109,34 +108,25 @@ function portalTextPages(text: string): Array<{ page: number; text: string }> {
 
     PORTAL_PAGE_MARKER.lastIndex = 0;
     while ((match = PORTAL_PAGE_MARKER.exec(text)) !== null) {
-        pages.push({
-            page: Number(match[1]),
-            text: text.slice(cursor, match.index).trim(),
-        });
+        pages.push({ page: Number(match[1]), text: text.slice(cursor, match.index).trim() });
         cursor = PORTAL_PAGE_MARKER.lastIndex;
     }
-
     return pages.filter((page) => Number.isInteger(page.page) && page.page > 0);
 }
 
 function textPages(text: string): Array<{ page: number; text: string }> {
     const portalPages = portalTextPages(text);
     if (portalPages.length) return portalPages;
-
     const legacyPages = legacyTextPages(text);
     if (legacyPages.length) return legacyPages;
-
     return [{ page: 1, text: text.trim() }];
 }
 
 function sectionFromLines(lines: string[], lastRowIndex: number, fallback: string): string {
     for (let index = lines.length - 1; index > lastRowIndex; index -= 1) {
         const candidate = clean(lines[index]);
-        if (candidate && !isPartsHeader(candidate) && !isNoiseLine(candidate)) {
-            return candidate;
-        }
+        if (candidate && !isPartsHeader(candidate) && !isNoiseLine(candidate)) return candidate;
     }
-
     return fallback;
 }
 
@@ -162,12 +152,28 @@ function filenameModel(filename: string): string {
     return clean(afterBrand || '');
 }
 
+function portalModel(text: string): string {
+    const header = text.match(/Husqvarna\s+([A-Z0-9][A-Z0-9 .®_-]{0,50}?)\s+Husqvarna\s*\|\s*Husqvarna\s+Portal\s+BR/i)?.[1];
+    if (header) return clean(header);
+
+    const slug = text.match(/https?:\/\/portal\.husqvarnagroup\.com\/br\/[^\s?]+?\/[^\s/?]*husqvarna-([a-z0-9-]+)\/?\?printipl=true/i)?.[1];
+    if (slug) return slug.replace(/-/g, ' ').toUpperCase();
+    return '';
+}
+
 export function looksLikePartRowModel(value: string | null | undefined): boolean {
     const normalized = normalizedLine(clean(value).replace(/[\r\n]+/g, ' '));
     return /^\d{1,3}\s+(?:\d{8,12}|\d{3}\s+\d{2}\s+\d{2}-\d{2})\s+\S+/i.test(normalized);
 }
 
 function detectModel(text: string, hints: CatalogHints): string {
+    // No Portal, o cabeçalho da página identifica o produto consultado e deve
+    // vencer comentários internos como "assy 321S sprayer". Isso também protege
+    // contra nomes de arquivo incorretos: a identidade publicada no Portal é a
+    // evidência técnica mais forte do catálogo.
+    const portal = portalModel(text);
+    if (portal) return portal;
+
     const hinted = clean(hints.model);
     if (hinted && !looksLikePartRowModel(hinted)) return hinted;
 
@@ -178,7 +184,7 @@ function detectModel(text: string, hints: CatalogHints): string {
     if (modelNumber) return clean(modelNumber);
 
     const productLine = text.match(/^\s*([A-Z0-9]{1,8}(?:\s+[A-Z0-9®.-]{1,10}){0,2})\s+(?:LAWN\s+MOWER|CHAIN\s+SAW|CHAINSAW|TRACTOR|BLOWER|TRIMMER|BRUSHCUTTER|ENGINE|SPRAYER|POLE\s+SAW|HEDGE\s+TRIMMER)\b/im)?.[1];
-    if (productLine) return clean(productLine);
+    if (productLine && !/^(?:ASSY|ASSEMBLY|KIT)\b/i.test(productLine)) return clean(productLine);
 
     return filenameModel(clean(hints.filename));
 }
@@ -191,17 +197,9 @@ function collectPncs(text: string, hints: CatalogHints): string[] {
     const values: string[] = [];
     const hinted = clean(hints.pnc);
     if (hinted) values.push(hinted);
-
-    for (const match of text.matchAll(/MFG\.\s*ID\.\s*NUMBER\s*:?\s*(\d{11}|\d{9})\b/gi)) {
-        values.push(match[1]);
-    }
-    for (const match of text.matchAll(/(?:PNC|PRODUCT\s+(?:NO|NUMBER|NUMBER\s+CODE))\s*:?\s*(\d{11}|\d{9})\b/gi)) {
-        values.push(match[1]);
-    }
-    for (const match of text.matchAll(/\bFor(?:\s+all\s+EXCEPT)?\s+([^\n.]+)/gi)) {
-        values.push(...(match[1].match(PNC_PATTERN) || []));
-    }
-
+    for (const match of text.matchAll(/MFG\.\s*ID\.\s*NUMBER\s*:?\s*(\d{11}|\d{9})\b/gi)) values.push(match[1]);
+    for (const match of text.matchAll(/(?:PNC|PRODUCT\s+(?:NO|NUMBER|NUMBER\s+CODE))\s*:?\s*(\d{11}|\d{9})\b/gi)) values.push(match[1]);
+    for (const match of text.matchAll(/\bFor(?:\s+all\s+EXCEPT)?\s+([^\n.]+)/gi)) values.push(...(match[1].match(PNC_PATTERN) || []));
     return unique(values);
 }
 
@@ -209,23 +207,14 @@ function applicationForBlock(blockText: string, knownPncs: string[], hintedPnc: 
     const exceptMatch = blockText.match(/\bFor\s+all\s+EXCEPT\s+([^\n.]+)/i);
     if (exceptMatch) {
         const excluded = new Set(exceptMatch[1].match(PNC_PATTERN) || []);
-        const allowed = knownPncs.filter((pnc) => !excluded.has(pnc));
-        return { pncs: unique(allowed), universal: false };
+        return { pncs: unique(knownPncs.filter((pnc) => !excluded.has(pnc))), universal: false };
     }
-
     const directMatch = blockText.match(/\bFor\s+([^\n.]+)/i);
     if (directMatch) {
         const direct = unique(directMatch[1].match(PNC_PATTERN) || []);
         if (direct.length) return { pncs: direct, universal: false };
     }
-
     if (hintedPnc) return { pncs: [hintedPnc], universal: false };
-
-    // No IPL do Portal, quando o documento lista vários PNCs e uma linha não traz
-    // cláusula "For"/"EXCEPT", a ocorrência é comum às variantes cobertas pelo
-    // próprio catálogo. Representá-la uma única vez evita multiplicar centenas de
-    // peças por cada PNC; linhas com restrição explícita continuam específicas.
-    if (knownPncs.length) return { pncs: [], universal: true };
     return { pncs: [], universal: true };
 }
 
@@ -237,11 +226,6 @@ function applicationClause(value: string): string {
     return '';
 }
 
-/**
- * Alguns PDFs antigos não expõem a coluna de quantidade no texto extraído. Nesse
- * layout o sufixo "1 For <PNC>" pode acabar dentro do nome. Removemos apenas o
- * trecho que contém PNC explícito; a regra de aplicação é preservada em notes.
- */
 function displayNameWithoutApplication(value: string): string {
     const normalized = normalizedLine(value);
     const match = normalized.match(/^(.*?)(?:\s+\d{1,3})?\s+For(?:\s+all\s+EXCEPT)?\s+[^\n.]*\b(?:\d{11}|\d{9})\b[^\n.]*$/i);
@@ -251,20 +235,12 @@ function displayNameWithoutApplication(value: string): string {
 function splitInlineQuantity(value: string): { description: string; quantity: string; trailing: string } | null {
     const match = normalizedLine(value).match(/^(.*\S)\s+(\d{1,3})(?:\s+(.+))?$/);
     if (!match) return null;
-    return {
-        description: clean(match[1]),
-        quantity: match[2],
-        trailing: clean(match[3]),
-    };
+    return { description: clean(match[1]), quantity: match[2], trailing: clean(match[3]) };
 }
 
 function parseFlexibleBlock(lines: string[], expectsQuantity: boolean): { name: string; quantity: string; comments: string } {
     if (!expectsQuantity) {
-        return {
-            name: normalizedLine(lines.filter((line) => !isNoiseLine(line)).join(' ')),
-            quantity: '',
-            comments: '',
-        };
+        return { name: normalizedLine(lines.filter((line) => !isNoiseLine(line)).join(' ')), quantity: '', comments: '' };
     }
 
     const description: string[] = [];
@@ -275,12 +251,10 @@ function parseFlexibleBlock(lines: string[], expectsQuantity: boolean): { name: 
     for (const raw of lines) {
         const line = normalizedLine(raw);
         if (!line || isNoiseLine(line)) continue;
-
         if (afterQuantity) {
             comments.push(line);
             continue;
         }
-
         const quantityOnly = line.match(/^(\d{1,3})(?:\s+(.+))?$/);
         if (quantityOnly) {
             quantity = quantityOnly[1];
@@ -288,7 +262,6 @@ function parseFlexibleBlock(lines: string[], expectsQuantity: boolean): { name: 
             afterQuantity = true;
             continue;
         }
-
         const inline = splitInlineQuantity(line);
         if (inline) {
             if (inline.description) description.push(inline.description);
@@ -297,15 +270,10 @@ function parseFlexibleBlock(lines: string[], expectsQuantity: boolean): { name: 
             afterQuantity = true;
             continue;
         }
-
         description.push(line);
     }
 
-    return {
-        name: normalizedLine(description.join(' ')),
-        quantity,
-        comments: normalizedLine(comments.join(' ')),
-    };
+    return { name: normalizedLine(description.join(' ')), quantity, comments: normalizedLine(comments.join(' ')) };
 }
 
 type ParsedRow = {
@@ -319,7 +287,6 @@ type ParsedRow = {
 
 function parseLegacyPage(lines: string[]): { rows: ParsedRow[]; section: string } | null {
     if (!lines.some(isPartsHeader)) return null;
-
     const rows: Array<ParsedRow & { index: number }> = [];
     lines.forEach((line, index) => {
         const fullMatch = HUSQVARNA_ROW.exec(line);
@@ -337,10 +304,8 @@ function parseLegacyPage(lines: string[]): { rows: ParsedRow[]; section: string 
             comments: clean(hasSectionCode ? match[6] : match[5]),
         });
     });
-
     if (!rows.length) return null;
-    const section = sectionFromLines(lines, rows[rows.length - 1].index, rows[0].sectionCode || 'Peças');
-    return { rows, section };
+    return { rows, section: sectionFromLines(lines, rows[rows.length - 1].index, rows[0].sectionCode || 'Peças') };
 }
 
 function parseFlexiblePage(lines: string[]): { rows: ParsedRow[]; section: string } | null {
@@ -348,22 +313,16 @@ function parseFlexiblePage(lines: string[]): { rows: ParsedRow[]; section: strin
     lines.forEach((line, index) => {
         const match = FLEXIBLE_ROW_START.exec(line);
         if (!match) return;
-        starts.push({
-            index,
-            position: match[1],
-            partNumber: cleanPartNumber(match[2]),
-            remainder: clean(match[3]),
-        });
+        starts.push({ index, position: match[1], partNumber: cleanPartNumber(match[2]), remainder: clean(match[3]) });
     });
-
     if (!starts.length) return null;
+
     const expectsQuantity = hasQuantityColumn(lines);
     const rows: ParsedRow[] = [];
     for (let index = 0; index < starts.length; index += 1) {
         const current = starts[index];
         const nextIndex = starts[index + 1]?.index ?? lines.length;
-        const block = [current.remainder, ...lines.slice(current.index + 1, nextIndex)];
-        const parsed = parseFlexibleBlock(block, expectsQuantity);
+        const parsed = parseFlexibleBlock([current.remainder, ...lines.slice(current.index + 1, nextIndex)], expectsQuantity);
         if (!parsed.name) continue;
         rows.push({
             position: current.position,
@@ -374,8 +333,26 @@ function parseFlexiblePage(lines: string[]): { rows: ParsedRow[]; section: strin
             sectionCode: '',
         });
     }
-
     return rows.length ? { rows, section: 'Peças' } : null;
+}
+
+function isGenericSection(value: string): boolean {
+    return GENERIC_SECTION_NAMES.has(normalizeComparable(value));
+}
+
+function technicalSectionFromPage(pageText: string): string {
+    const lines = pageText.split(/\r?\n/).map(normalizedLine).filter(Boolean);
+    for (const line of lines) {
+        if (isNoiseLine(line) || !TECHNICAL_SECTION_PATTERN.test(line)) continue;
+        if (FLEXIBLE_ROW_START.test(line)) continue;
+        if (line.length > 90) continue;
+        const letters = line.replace(/[^A-Za-z]/g, '');
+        if (!letters) continue;
+        const uppercaseLetters = letters.replace(/[^A-Z]/g, '');
+        if (uppercaseLetters.length / letters.length < 0.8) continue;
+        return line;
+    }
+    return '';
 }
 
 export function parseHusqvarnaIplText(text: string, hints: CatalogHints = {}): CatalogExtraction | null {
@@ -388,15 +365,20 @@ export function parseHusqvarnaIplText(text: string, hints: CatalogHints = {}): C
     const hintedPnc = clean(hints.pnc);
     const knownPncs = collectPncs(text, hints);
     const parts: ExtractedPart[] = [];
+    const pages = textPages(text);
+    const sectionHints = pages.map((page) => technicalSectionFromPage(page.text));
 
-    for (const page of textPages(text)) {
+    for (let pageIndex = 0; pageIndex < pages.length; pageIndex += 1) {
+        const page = pages[pageIndex];
         const lines = page.text.split(/\r?\n/).map(normalizedLine).filter(Boolean);
         const parsedPage = parseLegacyPage(lines) || parseFlexiblePage(lines);
         if (!parsedPage) continue;
 
+        const section = isGenericSection(parsedPage.section)
+            ? (sectionHints[pageIndex] || sectionHints[pageIndex - 1] || parsedPage.section)
+            : parsedPage.section;
+
         for (const row of parsedPage.rows) {
-            // A regra de PNC pode aparecer tanto em Comentário quanto colada à
-            // descrição nos PDFs cujo cabeçalho/quantidade não é reconhecido.
             const applicationEvidence = [row.name, row.comments].filter(Boolean).join(' ');
             const application = applicationForBlock(applicationEvidence, knownPncs, hintedPnc);
             const inferredClause = applicationClause(applicationEvidence);
@@ -410,34 +392,10 @@ export function parseHusqvarnaIplText(text: string, hints: CatalogHints = {}): C
 
             if (application.pncs.length) {
                 for (const pnc of application.pncs) {
-                    parts.push({
-                        manufacturer,
-                        model,
-                        pnc,
-                        universalAcrossPnc: false,
-                        section: parsedPage.section,
-                        position: row.position,
-                        name: rowName,
-                        alternativeNames: [],
-                        partNumber: row.partNumber,
-                        page: page.page,
-                        notes,
-                    });
+                    parts.push({ manufacturer, model, pnc, universalAcrossPnc: false, section, position: row.position, name: rowName, alternativeNames: [], partNumber: row.partNumber, page: page.page, notes });
                 }
             } else {
-                parts.push({
-                    manufacturer,
-                    model,
-                    pnc: '',
-                    universalAcrossPnc: application.universal,
-                    section: parsedPage.section,
-                    position: row.position,
-                    name: rowName,
-                    alternativeNames: [],
-                    partNumber: row.partNumber,
-                    page: page.page,
-                    notes,
-                });
+                parts.push({ manufacturer, model, pnc: '', universalAcrossPnc: application.universal, section, position: row.position, name: rowName, alternativeNames: [], partNumber: row.partNumber, page: page.page, notes });
             }
         }
     }
@@ -447,15 +405,9 @@ export function parseHusqvarnaIplText(text: string, hints: CatalogHints = {}): C
         part,
     ])).values()];
     const sourceOccurrences = new Set(deduped.map((part) => [part.page, part.position, part.partNumber].join('|'))).size;
-
     if (sourceOccurrences < 10) return null;
 
-    return {
-        manufacturer,
-        models: [model],
-        pncs: knownPncs,
-        parts: deduped,
-    };
+    return { manufacturer, models: [model], pncs: knownPncs, parts: deduped };
 }
 
 export async function extractCatalogDeterministically(
@@ -463,7 +415,6 @@ export async function extractCatalogDeterministically(
     hints: CatalogHints = {},
 ): Promise<DeterministicExtraction | null> {
     const parser = new PDFParse({ data: fs.readFileSync(filePath) });
-
     try {
         const result = await parser.getText();
         const extraction = parseHusqvarnaIplText(result.text, hints);
