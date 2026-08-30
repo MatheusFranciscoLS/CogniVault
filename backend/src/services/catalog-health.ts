@@ -77,12 +77,6 @@ function safeCount(value: number | undefined): number {
   return Number.isFinite(value) ? Math.max(0, Math.trunc(value || 0)) : 0;
 }
 
-/**
- * Uma seção preenchida não é necessariamente contexto mecânico. O parser local
- * usa "Peças" como fallback quando o Portal não expõe o nome da vista; isso é
- * melhor que null para navegação, mas não deve valer como CLUTCH, TRANSMISSION,
- * CUTTING EQUIPMENT etc. na saúde técnica do catálogo.
- */
 export function isInformativeCatalogSection(value: string | null | undefined): boolean {
   const normalized = normalizeText(value || '');
   return Boolean(normalized) && !GENERIC_SECTION_NAMES.has(normalized);
@@ -98,51 +92,15 @@ function partOccurrenceKey(part: CatalogHealthPart): string | null {
   return `${model}|${pnc}|${page}|${section}|${position}`;
 }
 
-function positionGroupKey(part: CatalogHealthPart): string | null {
-  if (!part.page) return null;
-  const model = part.normalizedModel || normalizeIdentifier(part.model) || '?';
-  const pnc = part.universalAcrossPnc ? '*' : (part.normalizedPnc || normalizeIdentifier(part.pnc) || '?');
-  const section = normalizeText(part.section || '?');
-  return `${model}|${pnc}|${part.page}|${section}`;
-}
-
-function numericPosition(value: string | null | undefined): number | null {
-  const normalized = text(value);
-  if (!/^\d{1,3}$/.test(normalized)) return null;
-  const number = Number(normalized);
-  return Number.isInteger(number) && number > 0 ? number : null;
-}
-
 /**
- * Detecta lacunas apenas em vistas que parecem sequenciais de verdade. Catálogos
- * antigos do tipo KEY/PART podem listar 1,2,17,20,50 na mesma página; por isso
- * exigimos início em 1 e densidade >= 75%. Assim 1..13 sem 8 ou 1..10 sem 3/6
- * vira defeito provável, enquanto listas deliberadamente esparsas não são punidas.
+ * Não é possível inferir uma peça ausente apenas porque uma vista pula um número.
+ * IPLs oficiais fazem isso legitimamente (ex.: 321R: 1..7,9..13 e starter sem
+ * posições 3/6). O contador permanece exportado para futura comparação com uma
+ * lista de posições realmente observada no desenho, mas a tabela sozinha nunca
+ * cria uma ausência artificial.
  */
-export function countLikelyMissingPositions(parts: CatalogHealthPart[]): number {
-  const groups = new Map<string, Set<number>>();
-  for (const part of parts) {
-    const key = positionGroupKey(part);
-    const position = numericPosition(part.position);
-    if (!key || position === null) continue;
-    const positions = groups.get(key) || new Set<number>();
-    positions.add(position);
-    groups.set(key, positions);
-  }
-
-  let missing = 0;
-  for (const positions of groups.values()) {
-    if (positions.size < 5 || !positions.has(1)) continue;
-    const ordered = [...positions].sort((left, right) => left - right);
-    const max = ordered[ordered.length - 1];
-    if (max < 5) continue;
-    const density = positions.size / max;
-    if (density < 0.75) continue;
-    for (let position = 1; position <= max; position += 1) {
-      if (!positions.has(position)) missing += 1;
-    }
-  }
-  return missing;
+export function countLikelyMissingPositions(_parts: CatalogHealthPart[]): number {
+  return 0;
 }
 
 function applicabilityText(part: CatalogHealthPart): string {
@@ -195,9 +153,6 @@ function serialRange(part: CatalogHealthPart): SerialRange | null {
       : { lower: null, upper: serial };
   }
 
-  // IPLs antigos também usam a faixa compacta sem rótulo, por exemplo
-  // 20090100001-20113100000 / 20113100001-Current. Procuramos isso somente em
-  // notes para não confundir números presentes no nome/código da peça.
   const compactNotes = text(part.notes).toUpperCase();
   const compact = compactNotes.match(/(?:^|\s)(\d{8,16})\s*-\s*(\d{8,16}|CURRENT)(?:\s|$)/);
   if (compact) {
@@ -274,14 +229,6 @@ function isExplicitVariant(parts: CatalogHealthPart[]): boolean {
   return hasMutuallyExclusiveSerialVariants(parts) || hasMutuallyExclusiveMarketVariants(parts);
 }
 
-/**
- * Diagnostica conflitos somente quando a própria estrutura prova que se trata da
- * mesma ocorrência. PNC, página e seção fazem parte da chave. Se a seção é apenas
- * um fallback genérico, não afirmamos que duas posições pertencem à mesma vista.
- * Variantes mutuamente exclusivas por série ou mercado são cobertura legítima do
- * catálogo, não corrupção. Regras For/EXCEPT persistidas no PNC errado continuam
- * sendo tratadas como erro real de aplicação.
- */
 export function diagnoseCatalogStructure(parts: CatalogHealthPart[], documentModel?: string | null, documentPnc?: string | null) {
   const occurrences = new Map<string, CatalogHealthPart[]>();
   const normalizedDocumentModel = normalizeIdentifier(documentModel);
@@ -299,17 +246,8 @@ export function diagnoseCatalogStructure(parts: CatalogHealthPart[], documentMod
       occurrences.set(occurrence, rows);
     }
     if (explicitPncRuleMismatch(part)) applicationMismatchCount += 1;
-    if (normalizedDocumentModel && part.normalizedModel && part.normalizedModel !== normalizedDocumentModel) {
-      modelMismatchCount += 1;
-    }
-    if (
-      normalizedDocumentPnc
-      && !part.universalAcrossPnc
-      && part.normalizedPnc
-      && part.normalizedPnc !== normalizedDocumentPnc
-    ) {
-      pncMismatchCount += 1;
-    }
+    if (normalizedDocumentModel && part.normalizedModel && part.normalizedModel !== normalizedDocumentModel) modelMismatchCount += 1;
+    if (normalizedDocumentPnc && !part.universalAcrossPnc && part.normalizedPnc && part.normalizedPnc !== normalizedDocumentPnc) pncMismatchCount += 1;
     const code = normalizeIdentifier(part.normalizedPartNumber);
     const digitCount = code.replace(/\D/g, '').length;
     if (code.length < 6 || code.length > 18 || digitCount < 4) malformedPartNumberCount += 1;
@@ -324,16 +262,9 @@ export function diagnoseCatalogStructure(parts: CatalogHealthPart[], documentMod
     const uniqueCodes = new Set(codes);
     if (codes.length > uniqueCodes.size) duplicateOccurrenceCount += codes.length - uniqueCodes.size;
     if (uniqueCodes.size <= 1) continue;
-
     if (occurrenceParts.some(explicitPncRuleMismatch)) continue;
-    if (isExplicitVariant(occurrenceParts)) {
-      variantOccurrenceCount += 1;
-      continue;
-    }
-    if (!isInformativeCatalogSection(occurrenceParts[0]?.section)) {
-      uncertainOccurrenceCount += 1;
-      continue;
-    }
+    if (isExplicitVariant(occurrenceParts)) { variantOccurrenceCount += 1; continue; }
+    if (!isInformativeCatalogSection(occurrenceParts[0]?.section)) { uncertainOccurrenceCount += 1; continue; }
     conflictingOccurrenceCount += 1;
   }
 
@@ -346,16 +277,10 @@ export function diagnoseCatalogStructure(parts: CatalogHealthPart[], documentMod
     modelMismatchCount,
     pncMismatchCount,
     malformedPartNumberCount,
-    missingPositionCount: countLikelyMissingPositions(parts),
+    missingPositionCount: 0,
   };
 }
 
-/**
- * A nota mede somente defeitos estruturais detectados. Avisos operacionais
- * (Gemini, embedding ausente, seção genérica etc.) continuam visíveis, mas não
- * reduzem a saúde: um catálogo sem defeito estrutural pode e deve chegar a 100.
- * Vários PNCs no mesmo IPL representam cobertura válida e não são penalizados.
- */
 export function assessCatalogHealth(input: CatalogHealthInput): CatalogHealth {
   const findings: Finding[] = [];
   const warnings: string[] = [];
@@ -381,23 +306,14 @@ export function assessCatalogHealth(input: CatalogHealthInput): CatalogHealth {
 
   if (snapshotPartCount >= 10 && partCount > 0) {
     const persistenceRatio = partCount / snapshotPartCount;
-    if (persistenceRatio < 0.7) {
-      findings.push({
-        message: `Apenas ${partCount} de ${snapshotPartCount} linhas extraídas chegaram à base ativa; revise possíveis linhas descartadas ou extração incompleta.`,
-        penalty: 20,
-        review: true,
-      });
-    } else if (persistenceRatio < 0.9) {
-      warnings.push(`${snapshotPartCount - partCount} linha(s) do snapshot extraído não aparecem como peças ativas.`);
-    }
+    if (persistenceRatio < 0.7) findings.push({ message: `Apenas ${partCount} de ${snapshotPartCount} linhas extraídas chegaram à base ativa; revise possíveis linhas descartadas ou extração incompleta.`, penalty: 20, review: true });
+    else if (persistenceRatio < 0.9) warnings.push(`${snapshotPartCount - partCount} linha(s) do snapshot extraído não aparecem como peças ativas.`);
   }
 
   if (partCount > 0) {
     const pageRatio = Math.max(0, Math.min(1, input.partsWithPage / partCount));
     const sectionRatio = Math.max(0, Math.min(1, input.partsWithSection / partCount));
-    const informativeSectionCount = input.partsWithInformativeSection === undefined
-      ? input.partsWithSection
-      : Math.max(0, input.partsWithInformativeSection);
+    const informativeSectionCount = input.partsWithInformativeSection === undefined ? input.partsWithSection : Math.max(0, input.partsWithInformativeSection);
     const informativeSectionRatio = Math.max(0, Math.min(1, informativeSectionCount / partCount));
     const positionCount = input.partsWithPosition === undefined ? partCount : Math.max(0, input.partsWithPosition);
     const positionRatio = Math.max(0, Math.min(1, positionCount / partCount));
@@ -405,66 +321,27 @@ export function assessCatalogHealth(input: CatalogHealthInput): CatalogHealth {
     else if (pageRatio < 0.9) warnings.push('Algumas peças não possuem página de origem identificada.');
     if (sectionRatio < 0.5) findings.push({ message: 'Menos da metade das peças possui seção/vista identificada.', penalty: 16, review: true });
     else if (sectionRatio < 0.9) warnings.push('Algumas peças não possuem seção/vista identificada.');
-    if (sectionRatio >= 0.5 && informativeSectionRatio < 0.25) {
-      warnings.push('A maioria das peças possui apenas seção genérica (ex.: “Peças”); a busca continua válida, mas há menos contexto de conjunto/vista para desempate mecânico.');
-    } else if (informativeSectionRatio < 0.75) {
-      warnings.push('Parte das peças possui seção genérica; o contexto mecânico por vista está incompleto.');
-    }
-    if (positionRatio < 0.5) findings.push({ message: 'Menos da metade das peças possui posição da vista explodida identificada.', penalty: 14, review: true });
-    else if (positionRatio < 0.9) warnings.push('Algumas peças não possuem posição da vista explodida identificada.');
+    if (sectionRatio >= 0.5 && informativeSectionRatio < 0.25) warnings.push('A maioria das peças possui apenas seção genérica (ex.: “Peças”); a busca continua válida, mas há menos contexto de conjunto/vista para desempate mecânico.');
+    else if (informativeSectionRatio < 0.75) warnings.push('Parte das peças possui seção genérica; o contexto mecânico por vista está incompleto.');
+    // Alguns IPLs antigos (ex. 142R) não possuem posição numérica; usam REF/PART NO.
+    // Ausência de posição só é defeito quando o próprio formato deveria fornecê-la.
+    if (positionRatio < 0.5 && !/REF\s*\/\s*PART|REF\/PART/i.test(text(input.extractionMethod))) {
+      warnings.push('Poucas peças possuem posição numérica de vista; confirme se o formato do catálogo usa posições ou somente REF/PART NO.');
+    } else if (positionRatio < 0.9) warnings.push('Algumas peças não possuem posição da vista explodida identificada.');
   }
 
+  // Mantido apenas para futura evidência explícita de comparação desenho ↔ tabela.
   if (missingPositionCount > 0) {
-    findings.push({
-      message: `${missingPositionCount} posição(ões) intermediária(s) parecem ausentes em vistas sequenciais. Reextraia o PDF e confira a contagem visual antes de considerar o catálogo completo.`,
-      penalty: Math.min(34, 16 + missingPositionCount * 3),
-      review: true,
-    });
+    findings.push({ message: `${missingPositionCount} posição(ões) comprovadamente presentes na vista não possuem linha correspondente na tabela.`, penalty: Math.min(34, 16 + missingPositionCount * 3), review: true });
   }
-  if (applicationMismatchCount > 0) {
-    findings.push({
-      message: `${applicationMismatchCount} ocorrência(s) possuem PNC persistido incompatível com a própria regra “For/EXCEPT” do catálogo. Reextraia este PDF para corrigir a aplicação.`,
-      penalty: Math.min(36, 20 + applicationMismatchCount),
-      review: true,
-    });
-  }
-  if (conflictingOccurrenceCount > 0) {
-    findings.push({
-      message: `${conflictingOccurrenceCount} posição(ões) de vista técnica comprovada possuem mais de um código ativo sem regra de PNC, série ou mercado que os diferencie.`,
-      penalty: Math.min(32, 16 + conflictingOccurrenceCount * 4),
-      review: true,
-    });
-  }
-  if (variantOccurrenceCount > 0) {
-    warnings.push(`${variantOccurrenceCount} posição(ões) possuem variantes explícitas por número de série ou mercado; isso é cobertura válida do catálogo, não conflito.`);
-  }
-  if (uncertainOccurrenceCount > 0) {
-    warnings.push(`${uncertainOccurrenceCount} posição(ões) em seção genérica possuem códigos distintos. Como a vista não está identificada, isso não é tratado automaticamente como conflito.`);
-  }
-  if (duplicateOccurrenceCount > 0) {
-    warnings.push(`${duplicateOccurrenceCount} ocorrência(s) idêntica(s) parecem duplicadas na extração.`);
-  }
-  if (modelMismatchCount > 0) {
-    findings.push({
-      message: `${modelMismatchCount} peça(s) ativa(s) possuem modelo diferente do modelo confirmado no catálogo.`,
-      penalty: Math.min(32, 18 + modelMismatchCount),
-      review: true,
-    });
-  }
-  if (pncMismatchCount > 0) {
-    findings.push({
-      message: `${pncMismatchCount} peça(s) ativa(s) possuem PNC diferente do PNC confirmado no catálogo.`,
-      penalty: Math.min(34, 20 + pncMismatchCount),
-      review: true,
-    });
-  }
-  if (malformedPartNumberCount > 0) {
-    findings.push({
-      message: `${malformedPartNumberCount} código(s) possuem formato estrutural inesperado e precisam de conferência no PDF.`,
-      penalty: Math.min(28, 14 + malformedPartNumberCount * 2),
-      review: true,
-    });
-  }
+  if (applicationMismatchCount > 0) findings.push({ message: `${applicationMismatchCount} ocorrência(s) possuem PNC persistido incompatível com a própria regra “For/EXCEPT” do catálogo. Reextraia este PDF para corrigir a aplicação.`, penalty: Math.min(36, 20 + applicationMismatchCount), review: true });
+  if (conflictingOccurrenceCount > 0) findings.push({ message: `${conflictingOccurrenceCount} posição(ões) de vista técnica comprovada possuem mais de um código ativo sem regra de PNC, série ou mercado que os diferencie.`, penalty: Math.min(32, 16 + conflictingOccurrenceCount * 4), review: true });
+  if (variantOccurrenceCount > 0) warnings.push(`${variantOccurrenceCount} posição(ões) possuem variantes explícitas por número de série ou mercado; isso é cobertura válida do catálogo, não conflito.`);
+  if (uncertainOccurrenceCount > 0) warnings.push(`${uncertainOccurrenceCount} posição(ões) em seção genérica possuem códigos distintos. Como a vista não está identificada, isso não é tratado automaticamente como conflito.`);
+  if (duplicateOccurrenceCount > 0) warnings.push(`${duplicateOccurrenceCount} ocorrência(s) idêntica(s) parecem duplicadas na extração.`);
+  if (modelMismatchCount > 0) findings.push({ message: `${modelMismatchCount} peça(s) ativa(s) possuem modelo diferente do modelo confirmado no catálogo.`, penalty: Math.min(32, 18 + modelMismatchCount), review: true });
+  if (pncMismatchCount > 0) findings.push({ message: `${pncMismatchCount} peça(s) ativa(s) possuem PNC diferente do PNC confirmado no catálogo.`, penalty: Math.min(34, 20 + pncMismatchCount), review: true });
+  if (malformedPartNumberCount > 0) findings.push({ message: `${malformedPartNumberCount} código(s) possuem formato estrutural inesperado e precisam de conferência no PDF.`, penalty: Math.min(28, 14 + malformedPartNumberCount * 2), review: true });
 
   if (partCount > 0 && input.chunkCount === 0) warnings.push('Memória técnica por página/seção ainda não foi gerada.');
   if (partCount > 0 && input.embeddedPartCount === 0) warnings.push('Índice vetorial indisponível; busca textual e fuzzy continuam ativas.');
@@ -472,70 +349,35 @@ export function assessCatalogHealth(input: CatalogHealthInput): CatalogHealth {
 
   const method = text(input.extractionMethod).toUpperCase();
   if (method.startsWith('GEMINI:')) warnings.push('Extração visual por IA: recomenda-se revisão amostral das primeiras consultas.');
-  if (text(input.processingStage).includes('WARNING') || text(input.processingStage).includes('WITHOUT_EMBEDDINGS')) {
-    warnings.push('O último processamento terminou com aviso.');
-  }
+  if (text(input.processingStage).includes('WARNING') || text(input.processingStage).includes('WITHOUT_EMBEDDINGS')) warnings.push('O último processamento terminou com aviso.');
   if (text(input.category) === 'Outros / Não identificado') warnings.push('Família técnica não identificada automaticamente.');
 
   const penalty = findings.reduce((sum, finding) => sum + finding.penalty, 0);
   const score = Math.max(0, Math.min(100, 100 - penalty));
   const requiresReview = findings.some(finding => finding.review);
-  const reviewStatus = requiresReview
-    ? 'NEEDS_REVIEW'
-    : input.previouslyReviewed
-      ? 'REVIEWED'
-      : 'READY';
-
-  return {
-    score,
-    reviewStatus,
-    reasons: findings.map(finding => finding.message),
-    warnings,
-  };
+  const reviewStatus = requiresReview ? 'NEEDS_REVIEW' : input.previouslyReviewed ? 'REVIEWED' : 'READY';
+  return { score, reviewStatus, reasons: findings.map(finding => finding.message), warnings };
 }
 
 export async function refreshCatalogHealth(documentId: string, tenantId: string): Promise<CatalogHealth | null> {
   const document = await prisma.document.findFirst({
     where: { id: documentId, tenantId, processingStage: { not: 'REMOVED' } },
     select: {
-      id: true,
-      manufacturer: true,
-      model: true,
-      pnc: true,
-      extractionSnapshot: true,
-      extractionMethod: true,
-      processingStage: true,
-      reviewStatus: true,
-      category: { select: { name: true } },
-      _count: { select: { chunks: true } },
+      id: true, manufacturer: true, model: true, pnc: true, extractionSnapshot: true,
+      extractionMethod: true, processingStage: true, reviewStatus: true,
+      category: { select: { name: true } }, _count: { select: { chunks: true } },
     },
   });
   if (!document) return null;
 
   const snapshot = document.extractionSnapshot && typeof document.extractionSnapshot === 'object' && !Array.isArray(document.extractionSnapshot)
-    ? document.extractionSnapshot as Record<string, unknown>
-    : null;
+    ? document.extractionSnapshot as Record<string, unknown> : null;
   const extractedModels = Array.isArray(snapshot?.models) ? snapshot.models.filter((value): value is string => typeof value === 'string') : [];
   const extractedPncs = Array.isArray(snapshot?.pncs) ? snapshot.pncs.filter((value): value is string => typeof value === 'string') : [];
   const snapshotPartCount = Array.isArray(snapshot?.parts) ? snapshot.parts.length : 0;
 
   const [parts, partsWithPage, partsWithSection, partsWithPosition, embeddedPartCount] = await Promise.all([
-    prisma.part.findMany({
-      where: { documentId, active: true },
-      select: {
-        model: true,
-        normalizedModel: true,
-        pnc: true,
-        normalizedPnc: true,
-        universalAcrossPnc: true,
-        page: true,
-        section: true,
-        position: true,
-        name: true,
-        notes: true,
-        normalizedPartNumber: true,
-      },
-    }),
+    prisma.part.findMany({ where: { documentId, active: true }, select: { model: true, normalizedModel: true, pnc: true, normalizedPnc: true, universalAcrossPnc: true, page: true, section: true, position: true, name: true, notes: true, normalizedPartNumber: true } }),
     prisma.part.count({ where: { documentId, active: true, page: { not: null } } }),
     prisma.part.count({ where: { documentId, active: true, section: { not: null } } }),
     prisma.part.count({ where: { documentId, active: true, position: { not: null } } }),
@@ -545,34 +387,17 @@ export async function refreshCatalogHealth(documentId: string, tenantId: string)
   const diagnostics = diagnoseCatalogStructure(parts, document.model, document.pnc);
   const partsWithInformativeSection = parts.filter(part => isInformativeCatalogSection(part.section)).length;
   const health = assessCatalogHealth({
-    manufacturer: document.manufacturer,
-    model: document.model,
-    pnc: document.pnc,
-    extractedModels,
-    extractedPncs,
-    snapshotPartCount,
-    partCount: parts.length,
-    partsWithPage,
-    partsWithSection,
-    partsWithInformativeSection,
-    partsWithPosition,
-    chunkCount: document._count.chunks,
-    embeddedPartCount,
-    ...diagnostics,
-    extractionMethod: document.extractionMethod,
-    processingStage: document.processingStage,
-    category: document.category?.name,
-    previouslyReviewed: document.reviewStatus === 'REVIEWED',
+    manufacturer: document.manufacturer, model: document.model, pnc: document.pnc,
+    extractedModels, extractedPncs, snapshotPartCount, partCount: parts.length,
+    partsWithPage, partsWithSection, partsWithInformativeSection, partsWithPosition,
+    chunkCount: document._count.chunks, embeddedPartCount, ...diagnostics,
+    extractionMethod: document.extractionMethod, processingStage: document.processingStage,
+    category: document.category?.name, previouslyReviewed: document.reviewStatus === 'REVIEWED',
   });
 
   await prisma.document.update({
     where: { id: document.id },
-    data: {
-      healthScore: health.score,
-      reviewStatus: health.reviewStatus,
-      reviewReasons: [...health.reasons, ...health.warnings],
-      qualityCheckedAt: new Date(),
-    },
+    data: { healthScore: health.score, reviewStatus: health.reviewStatus, reviewReasons: [...health.reasons, ...health.warnings], qualityCheckedAt: new Date() },
   });
   return health;
 }
