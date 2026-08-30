@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { looksLikePartRowModel, parseHusqvarnaIplText } from './catalog-extractor';
+import { looksLikeDescriptionModel, looksLikePartRowModel, parseHusqvarnaIplText } from './catalog-extractor';
 
 test('extrai linhas de peças do formato textual IPL da Husqvarna', () => {
     const rows = Array.from({ length: 10 }, (_, index) => (
@@ -208,4 +208,36 @@ https://portal.husqvarnagroup.com/br/tratores-de-jardim/trator-cortador-de-grama
     });
     assert.ok(extraction);
     assert.deepEqual(extraction.models, ['TS 148']);
+});
+
+test('321R não aceita descrição compartilhada assy 321S como modelo do catálogo', () => {
+    assert.equal(looksLikeDescriptionModel('assy 321S'), true);
+    assert.equal(looksLikeDescriptionModel('Clutch Assy 321S sprayer'), true);
+    assert.equal(looksLikeDescriptionModel('321R'), false);
+
+    const text = `
+03/04/2025, 14:42 Roçadeira Roçadeira Husqvarna 321R Husqvarna | Husqvarna Portal BR
+1 531147359 CONJ DO CILINDRO 1
+2 589877401 SCREW SCREW IHSCM M5x16 8.8 1
+3 589535801 JUNTA Gasket Cylinder gasket 1
+4 590210901 CONJ. DO PISTÃO kit 321S sprayer 1
+5 589537001 ANEL DO PISTÃO Piston ring 1
+6 737440800 ANEL DE RETENÇÃO 1
+7 531147358 CONJ DA VIRABREQUIM 1
+8 531147379 TECLA 1
+9 590710101 VELA DE IGNIÇÃO HQT-2 1
+10 538929201 PLACA Plate 1
+Referência Número do artigo Nome do artigo Quantidade Comentário
+https://portal.husqvarnagroup.com/br/rocadeiras/rocadeira-husqvarna-321r/?printipl=true&iplId=HVA_PL-000030899 3/21
+`;
+
+    const extraction = parseHusqvarnaIplText(text, {
+        model: 'assy 321S',
+        filename: 'Roçadeira Husqvarna 321R.pdf',
+    });
+    assert.ok(extraction);
+    assert.deepEqual(extraction.models, ['321R']);
+    assert.equal(extraction.parts.length, 10);
+    assert.ok(extraction.parts.every(part => part.model === '321R'));
+    assert.ok(extraction.parts.every(part => part.section === 'CYLINDER PISTON'));
 });
