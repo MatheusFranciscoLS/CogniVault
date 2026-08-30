@@ -9,6 +9,20 @@ test('corrige NBSP UTF-8 interpretado como Latin-1 no nome do PDF', () => {
     );
 });
 
+test('corrige narrow no-break space quebrado como no Rider R 316TX', () => {
+    assert.equal(
+        repairMultipartText('Trator cortador de grama Husqvarna Râ¯316TX.pdf'),
+        'Trator cortador de grama Husqvarna R 316TX.pdf',
+    );
+});
+
+test('corrige narrow no-break space real para espaço comum', () => {
+    assert.equal(
+        repairMultipartText('Trator cortador de grama Husqvarna R 316TX.pdf'),
+        'Trator cortador de grama Husqvarna R 316TX.pdf',
+    );
+});
+
 test('corrige símbolo registrado quebrado sem alterar o restante do nome', () => {
     assert.equal(
         repairMultipartText('Motosserra Husqvarna 288 XPÂ®.pdf'),
