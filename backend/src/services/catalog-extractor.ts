@@ -168,18 +168,29 @@ export function looksLikePartRowModel(value: string | null | undefined): boolean
     return /^\d{1,3}\s+(?:\d{8,12}|\d{3}\s+\d{2}\s+\d{2}-\d{2})\s+\S+/i.test(normalized);
 }
 
-function detectModel(text: string, hints: CatalogHints): string {
-    const hinted = clean(hints.model);
-    if (hinted && !looksLikePartRowModel(hinted)) return hinted;
+function canonicalCatalogModel(value: string): string {
+    const normalized = clean(value);
+    // Famílias numéricas da Husqvarna costumam aparecer no cabeçalho com espaços
+    // tipográficos (321 R, 143 R II). Internamente o restante do sistema já usa
+    // 321R/143RII; não compactamos LC 151, TS 148 etc.
+    return /^\d{2,4}(?:\s+[A-Z0-9®.-]+)+$/i.test(normalized) ? compactModel(normalized) : normalized;
+}
 
+function detectModel(text: string, hints: CatalogHints): string {
+    // O conteúdo explícito do catálogo é a fonte de autoridade. Metadados antigos
+    // podem estar errados e não devem sobrescrever um MODEL NUMBER/linha de produto
+    // encontrada no próprio IPL durante uma reextração.
     const iplModel = text.match(/IPL,\s*([^,\n]+),\s*\d{4}-\d{2}/i)?.[1];
-    if (iplModel) return compactModel(clean(iplModel));
+    if (iplModel) return canonicalCatalogModel(iplModel);
 
     const modelNumber = text.match(/MODEL\s+NUMBER\s*:?\s*([A-Z0-9][A-Z0-9 .®_-]*?)(?=\s*\(|\s+MFG\.|\r?\n|$)/i)?.[1];
-    if (modelNumber) return clean(modelNumber);
+    if (modelNumber) return canonicalCatalogModel(modelNumber);
 
     const productLine = text.match(/^\s*([A-Z0-9]{1,8}(?:\s+[A-Z0-9®.-]{1,10}){0,2})\s+(?:LAWN\s+MOWER|CHAIN\s+SAW|CHAINSAW|TRACTOR|BLOWER|TRIMMER|BRUSHCUTTER|ENGINE|SPRAYER|POLE\s+SAW|HEDGE\s+TRIMMER)\b/im)?.[1];
-    if (productLine) return clean(productLine);
+    if (productLine) return canonicalCatalogModel(productLine);
+
+    const hinted = clean(hints.model);
+    if (hinted && !looksLikePartRowModel(hinted)) return hinted;
 
     return filenameModel(clean(hints.filename));
 }
