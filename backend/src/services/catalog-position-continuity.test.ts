@@ -10,20 +10,22 @@ function part(page:number, position:number):CatalogHealthPart {
   };
 }
 
-test('detecta exatamente as três lacunas observadas na 321R', () => {
+test('detecta os três saltos observados na 321R sem inventar peças ausentes', () => {
   const page17 = Array.from({length:13},(_,index)=>index+1).filter(position=>position!==8).map(position=>part(17,position));
   const page19 = Array.from({length:10},(_,index)=>index+1).filter(position=>position!==3&&position!==6).map(position=>part(19,position));
   assert.equal(countLikelyMissingPositions([...page17,...page19]), 3);
 
   const health = assessCatalogHealth({
     manufacturer:'Husqvarna', model:'321R', pnc:null,
+    snapshotPartCount:81,
     partCount:81, partsWithPage:81, partsWithSection:81, partsWithPosition:81,
     partsWithInformativeSection:0, chunkCount:10, embeddedPartCount:81,
     missingPositionCount:3, extractionMethod:'HUSQVARNA_IPL_TEXT', processingStage:'READY', category:'Roçadeiras',
   });
-  assert.equal(health.reviewStatus, 'NEEDS_REVIEW');
-  assert.ok(health.score < 100);
-  assert.match(health.reasons.join(' '), /3 posição\(ões\).*ausentes/i);
+  assert.equal(health.reviewStatus, 'READY');
+  assert.equal(health.score, 100);
+  assert.equal(health.reasons.length, 0);
+  assert.match(health.warnings.join(' '), /3 salto\(s\).*não é tratado como peça faltando/i);
 });
 
 test('não acusa listas KEY/PART deliberadamente esparsas', () => {
