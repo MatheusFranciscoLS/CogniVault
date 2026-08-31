@@ -19,6 +19,12 @@ async function bootstrap() {
                 + (catalogHealthMaintenance.failed ? ` · ${catalogHealthMaintenance.failed} falha(s)` : ''),
             );
         }
+        if (catalogHealthMaintenance.reextractQueued > 0 || catalogHealthMaintenance.reextractFailed > 0) {
+            console.log(
+                `🛠️ Correções de extração reenfileiradas: ${catalogHealthMaintenance.reextractQueued}`
+                + (catalogHealthMaintenance.reextractFailed ? ` · ${catalogHealthMaintenance.reextractFailed} falha(s)` : ''),
+            );
+        }
 
         const server = app.listen(PORT, () => {
             console.log(`🚀 Servidor rodando com sucesso na porta ${PORT}`);
