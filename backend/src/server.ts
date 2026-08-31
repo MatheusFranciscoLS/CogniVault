@@ -3,6 +3,7 @@ import app from './app';
 import { rabbitMQ } from './queues/connection';
 import { DocumentWorker } from './queues/worker';
 import { prisma } from './config/prisma';
+import { refreshLegacyCatalogHealth } from './services/catalog-health-maintenance';
 
 const PORT = process.env.PORT || 3333;
 
@@ -10,6 +11,14 @@ async function bootstrap() {
     try {
         await rabbitMQ.connect();
         await DocumentWorker.start();
+
+        const catalogHealthMaintenance = await refreshLegacyCatalogHealth();
+        if (catalogHealthMaintenance.found > 0) {
+            console.log(
+                `🩺 Diagnósticos legados recalculados: ${catalogHealthMaintenance.refreshed}/${catalogHealthMaintenance.found}`
+                + (catalogHealthMaintenance.failed ? ` · ${catalogHealthMaintenance.failed} falha(s)` : ''),
+            );
+        }
 
         const server = app.listen(PORT, () => {
             console.log(`🚀 Servidor rodando com sucesso na porta ${PORT}`);
