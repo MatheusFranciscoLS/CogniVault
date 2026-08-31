@@ -17,6 +17,7 @@ export interface FeedbackOption { id:string; name:string; partNumber:string; mod
 export interface OfficialVerification {
   id:string|null; state:OfficialVerificationState; queriedPartNumber:string; currentPartNumber:string; description:string|null;
   officialUrl:string; note:string|null; verifiedAt:string|null; verifiedBy:string|null; source:'TENANT'|'BUILT_IN'|'NONE';
+  cacheState:'FRESH'|'STALE'|'NONE'; freshUntil:string|null;
 }
 export interface OfficialVerificationSubmission {
   id:string; status:'VERIFIED'|'SUPERSEDED'|'REVIEW'; approvalStatus:OfficialVerificationApprovalStatus;
@@ -61,7 +62,7 @@ export interface HomeData {
 }
 export interface NotificationItem { id:string; type:'info'|'error'|'processing'; title:string; description:string; createdAt:string; }
 export interface AdminFeedback {
-  id:string; query:string; correct:boolean; reason:string|null; pnc:string|null; createdAt:string; user:{email:string}|null;
+  id:string; query:string; correct:boolean; reason:string|null; pnc:string|null; createdAt:string; user:{id:string;email:string}|null;
   resultPart:{name:string;partNumber:string;model:string}|null; correctedPart:{name:string;partNumber:string;model:string}|null;
 }
 
@@ -85,6 +86,10 @@ export interface BenchmarkRun { id:string; caseCount:number; metrics:BenchmarkMe
 export interface AiQualityData {
   summary:{catalogs:number;readyCatalogs:number;needsReview:number;averageHealth:number;parts:number;technicalMemoryChunks:number;partsWithoutEmbedding:number;partsWithoutPage:number;partsWithoutSection:number;modelIssues:number;catalogsWithoutConfirmedPnc:number};
   runtime:{generativeModel:string;extraction:{geminiCatalogs:number;parserCatalogs:number;unknownCatalogs:number}};
+  learning:{total:number;uniqueSignals:number;positive:number;corrected:number;negativeWithoutCorrection:number;level:'COLD_START'|'LEARNING'|'ESTABLISHED';nextMilestone:number|null};
+  semanticIndex:{enabled:boolean;indexedParts:number;totalParts:number;indexedChunks:number;totalChunks:number;batchLimit:number;runsToday:number;dailyRuns:number;canRun:boolean};
+  visualRetry:{candidates:number;eligible:number;coolingDown:number;cooldownHours:number;documents:Array<{id:string;filename:string}>};
+  officialVerification:{approved:number;pending:number;stale:number;cacheDays:number};
   searchRadar:SearchRadarItem[]; reviewQueue:QualityCatalog[]; catalogs:QualityCatalog[];
   hygiene:{archivedRecords:number;removedHistoricalRecords:number;legacyEmptyRecords:number;note:string}; benchmarkRuns:BenchmarkRun[];
 }

@@ -51,6 +51,8 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
   const [notice, setNotice] = useState('');
   const [benchmarking, setBenchmarking] = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
+  const [semanticIndexing, setSemanticIndexing] = useState(false);
+  const [retryingVisual, setRetryingVisual] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [queueFilter, setQueueFilter] = useState('');
@@ -96,6 +98,37 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
     } catch (rebuildError) {
       setError(rebuildError instanceof Error ? rebuildError.message : 'Não foi possível atualizar o diagnóstico.');
     } finally { setRebuilding(false); }
+  };
+
+  const indexSemantics = async () => {
+    setSemanticIndexing(true); setError(''); setNotice('');
+    try {
+      const response = await apiJson<{ message: string }>('/api/admin/quality/index-semantics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: data?.semanticIndex.batchLimit || 120 }),
+        timeoutMs: 120_000,
+      });
+      await load();
+      setNotice(response.message);
+    } catch (indexError) {
+      setError(indexError instanceof Error ? indexError.message : 'Não foi possível indexar o próximo lote.');
+    } finally { setSemanticIndexing(false); }
+  };
+
+  const retryVisualCatalogs = async () => {
+    setRetryingVisual(true); setError(''); setNotice('');
+    try {
+      const response = await apiJson<{ message: string }>('/api/admin/quality/retry-visual-catalogs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 1 }),
+      });
+      await load();
+      setNotice(response.message);
+    } catch (retryError) {
+      setError(retryError instanceof Error ? retryError.message : 'Não foi possível retomar a leitura visual.');
+    } finally { setRetryingVisual(false); }
   };
 
   const openEdit = (catalog: QualityCatalog) => {
@@ -146,9 +179,9 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
   return <section>
     <div className="cv-page-heading">
       <div>
-        <p className="cv-kicker">Confiabilidade da base</p>
-        <h1 className="cv-page-title">Saúde dos catálogos</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Veja somente o que afeta o atendimento: modelo correto, peças extraídas, página de origem e necessidade de conferência.</p>
+        <p className="cv-kicker">Confiabilidade operacional</p>
+        <h1 className="cv-page-title">Confiabilidade</h1>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Uma fila simples do que realmente exige ação: catálogos incompletos, perguntas sem resposta, aprendizado do balcão e conferências oficiais.</p>
       </div>
       <button type="button" disabled={rebuilding || benchmarking || loading} onClick={() => void rebuildKnowledge()} className="cv-secondary px-4 py-2.5 text-sm font-semibold">
         {rebuilding ? 'Atualizando diagnóstico…' : 'Atualizar diagnóstico'}
@@ -163,8 +196,32 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard label="Catálogos utilizáveis" value={data.summary.readyCatalogs} description="Com peças disponíveis para consulta" tone="navy" />
         <SummaryCard label="Precisam de atenção" value={data.summary.needsReview} description="Revisão de dados ou extração" tone={data.summary.needsReview ? 'warning' : 'success'} />
-        <SummaryCard label="Modelos suspeitos" value={data.summary.modelIssues} description="Possível título de peça no campo modelo" tone={data.summary.modelIssues ? 'danger' : 'success'} />
-        <SummaryCard label="Sem PNC confirmado" value={data.summary.catalogsWithoutConfirmedPnc} description="Alguns IPLs antigos não informam PNC" tone="neutral" />
+        <SummaryCard label="Perguntas pendentes" value={data.searchRadar.length} description="Consultas reais ainda sem código seguro" tone={data.searchRadar.length ? 'warning' : 'success'} />
+        <SummaryCard label="Sinais do balcão" value={data.learning.uniqueSignals} description={data.learning.nextMilestone ? `Próximo nível com ${data.learning.nextMilestone} confirmações` : 'Base de aprendizado já estabelecida'} tone={data.learning.level === 'COLD_START' ? 'neutral' : 'success'} />
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-3">
+        <div className={`rounded-[22px] border p-5 ${data.visualRetry.candidates ? 'border-amber-200 bg-amber-50/80' : 'border-emerald-200 bg-emerald-50/70'}`}>
+          <div className="text-[10px] font-bold uppercase tracking-[.1em] text-slate-500">Leitura visual de PDFs</div>
+          <div className="mt-2 text-lg font-semibold text-slate-900">{data.visualRetry.candidates ? `${data.visualRetry.candidates} aguardando cota` : 'Nenhuma falha de cota'}</div>
+          <p className="mt-2 text-xs leading-5 text-slate-600">{data.visualRetry.eligible ? `${data.visualRetry.documents[0]?.filename || 'Catálogo'} pode ser reenviado agora.` : data.visualRetry.coolingDown ? `Uma tentativa recente está no intervalo seguro de ${data.visualRetry.cooldownHours} horas.` : 'A leitura visual está sem pendências conhecidas.'}</p>
+          {data.visualRetry.candidates > 0 && <button type="button" disabled={!data.visualRetry.eligible || retryingVisual} onClick={() => void retryVisualCatalogs()} className="cv-secondary mt-4 px-3 py-2 text-xs font-semibold disabled:opacity-50">{retryingVisual ? 'Reenviando…' : 'Retomar 1 catálogo'}</button>}
+        </div>
+
+        <div className="rounded-[22px] border border-blue-200 bg-blue-50/65 p-5">
+          <div className="text-[10px] font-bold uppercase tracking-[.1em] text-blue-700">Busca semântica com limite</div>
+          <div className="mt-2 text-lg font-semibold text-slate-900">{data.semanticIndex.indexedParts} de {data.semanticIndex.totalParts} peças</div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-[#1d4f91]" style={{ width: `${data.semanticIndex.totalParts ? Math.max(2, Math.round(data.semanticIndex.indexedParts / data.semanticIndex.totalParts * 100)) : 0}%` }} /></div>
+          <p className="mt-2 text-xs leading-5 text-slate-600">Lotes de até {data.semanticIndex.batchLimit} itens · {data.semanticIndex.runsToday}/{data.semanticIndex.dailyRuns} usados hoje. A busca textual continua cobrindo 100% das peças.</p>
+          <button type="button" disabled={!data.semanticIndex.canRun || semanticIndexing} onClick={() => void indexSemantics()} className="cv-secondary mt-4 px-3 py-2 text-xs font-semibold disabled:opacity-50">{semanticIndexing ? 'Indexando lote…' : 'Indexar próximo lote'}</button>
+        </div>
+
+        <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(15,35,72,.04)]">
+          <div className="text-[10px] font-bold uppercase tracking-[.1em] text-slate-500">Portal oficial</div>
+          <div className="mt-2 text-lg font-semibold text-slate-900">{data.officialVerification.approved} aprovações reutilizáveis</div>
+          <p className="mt-2 text-xs leading-5 text-slate-600">{data.officialVerification.pending} aguardando aprovação · {data.officialVerification.stale} vencidas. Cada conferência vale {data.officialVerification.cacheDays} dias e depois volta para revisão humana.</p>
+          <div className="mt-4 text-xs font-semibold text-[#1d4f91]">Sem robô de login: cache aprovado + conferência no portal</div>
+        </div>
       </div>
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[1.45fr_.75fr]">
@@ -239,11 +296,11 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
             <h3 className="text-sm font-semibold">IA e indexação</h3>
             <p className="mt-2 text-xs leading-5 text-slate-600">O modelo {data.runtime.generativeModel} interpreta perguntas e PDFs visuais. Os códigos continuam vindo das peças estruturadas, nunca da imaginação da IA.</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-3"><RuntimeStat label="Leitura visual" value={data.runtime.extraction.geminiCatalogs} /><RuntimeStat label="Leitura local" value={data.runtime.extraction.parserCatalogs} /><RuntimeStat label="Legados" value={data.runtime.extraction.unknownCatalogs} /></div>
-            <p className="mt-3 text-[11px] leading-5 text-slate-500">Embeddings opcionais ausentes: {data.summary.partsWithoutEmbedding}. A busca textual e tolerante a erros continua ativa.</p>
+            <p className="mt-3 text-[11px] leading-5 text-slate-500">Aprendizado: {data.learning.positive} confirmações positivas e {data.learning.corrected} correções explícitas. Um voto isolado tem peso pequeno; concordância entre usuários aumenta o sinal com teto seguro.</p>
           </div>
           <div className="rounded-2xl bg-slate-50 p-4">
             <h3 className="text-sm font-semibold">Teste de regressão da busca</h3>
-            <p className="mt-2 text-xs leading-5 text-slate-600">O antigo “benchmark de produção” confere se uma mudança no ranking piorou casos conhecidos. Não é necessário no uso diário; execute somente após alterar a lógica de busca.</p>
+            <p className="mt-2 text-xs leading-5 text-slate-600">Confere {metrics?.goldenTotal || 30} perguntas reais de balcão com códigos comprovados nos PDFs, incluindo peças parecidas que não podem vencer a correta. Use após mudanças na busca.</p>
             {metrics && <div className="mt-3 grid grid-cols-2 gap-2"><Metric label="Primeiro resultado correto" value={`${metrics.top1Percent}%`} /><Metric label="Correto entre os 5" value={`${metrics.recallAt5Percent}%`} /></div>}
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <button type="button" disabled={benchmarking || rebuilding} onClick={() => void runBenchmark()} className="cv-secondary px-3 py-2 text-xs font-semibold">{benchmarking ? 'Executando teste…' : 'Executar teste agora'}</button>

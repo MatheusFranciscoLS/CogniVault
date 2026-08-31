@@ -21,7 +21,7 @@ export function husqvarnaPortalUrl(code: string) {
 }
 
 export function isSupersededForCode(code: string, verification?: OfficialVerification) {
-  if (!verification || verification.state !== 'SUPERSEDED') return false;
+  if (!verification || verification.state !== 'SUPERSEDED' || verification.cacheState === 'STALE') return false;
   return normalizePartCode(code) === normalizePartCode(verification.queriedPartNumber)
     && normalizePartCode(verification.queriedPartNumber) !== normalizePartCode(verification.currentPartNumber);
 }
@@ -32,6 +32,7 @@ export function effectivePartNumber(code: string, verification?: OfficialVerific
 
 export function verificationLabel(value?: OfficialVerification) {
   if (!value || value.state === 'UNVERIFIED') return 'Não verificado';
+  if (value.cacheState === 'STALE') return 'Revisão oficial vencida';
   if (value.state === 'VERIFIED') return 'Verificado oficialmente';
   if (value.state === 'SUPERSEDED') return 'Código substituído';
   return 'Precisa de revisão';
@@ -39,6 +40,7 @@ export function verificationLabel(value?: OfficialVerification) {
 
 function verificationClass(value?: OfficialVerification) {
   if (!value || value.state === 'UNVERIFIED') return 'border-slate-200 bg-slate-50 text-slate-500';
+  if (value.cacheState === 'STALE') return 'border-amber-200 bg-amber-50 text-amber-700';
   if (value.state === 'VERIFIED') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
   if (value.state === 'SUPERSEDED') return 'border-blue-200 bg-blue-50 text-blue-700';
   return 'border-amber-200 bg-amber-50 text-amber-700';
@@ -118,7 +120,9 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
 
         {existing?.source !== 'NONE' && existing?.verifiedAt && (
           <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-500">
-            Última aprovação oficial: {fmtDate(existing.verifiedAt)}{existing.verifiedBy ? ` · ${existing.verifiedBy}` : ''}. Uma nova conferência será adicionada ao histórico sem apagar a anterior.
+            Última aprovação oficial: {fmtDate(existing.verifiedAt)}{existing.verifiedBy ? ` · ${existing.verifiedBy}` : ''}.
+            {existing.cacheState === 'FRESH' ? ` O resultado está válido no cache${existing.freshUntil ? ` até ${fmtDate(existing.freshUntil)}` : ''}.` : ' A validade venceu e uma nova conferência pode ser enviada.'}
+            {' '}O histórico anterior nunca é apagado.
           </div>
         )}
 
@@ -163,7 +167,7 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
         </div>
 
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="text-[11px] leading-5 text-slate-400">Nenhuma leitura automática do Portal é feita pelo CogniVault.</div>
+          <div className="text-[11px] leading-5 text-slate-400">O CogniVault reutiliza aprovações recentes; telas novas ou vencidas continuam com conferência humana no portal.</div>
           <button type="submit" disabled={saving || !validCurrentCode} className="cv-primary px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50">
             {saving ? 'Enviando…' : 'Enviar para aprovação'}
           </button>

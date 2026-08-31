@@ -17,6 +17,7 @@ import {
     normalizeHusqvarnaPnc,
 } from './catalog-extractor';
 import { buildPartRetrievalContext } from './part-index-context';
+import { semanticIndexingEnabled, semanticPartBudgetPerDocument } from './semantic-indexing-policy';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
@@ -98,10 +99,6 @@ function catalogSnapshot(value: Prisma.JsonValue | null): CatalogExtraction | nu
 function embeddingBatchSize(): number {
     const configured = Number(process.env.EMBEDDING_BATCH_SIZE || '50');
     return Number.isFinite(configured) ? Math.min(100, Math.max(1, Math.trunc(configured))) : 50;
-}
-
-export function semanticIndexingEnabled(): boolean {
-    return ['1', 'true', 'yes', 'on'].includes((process.env.ENABLE_SEMANTIC_INDEXING || 'false').trim().toLowerCase());
 }
 
 function readableIndexingWarning(error: unknown): string {
@@ -547,16 +544,17 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     select: { id: true, embeddingRevision: true },
                 });
                 const embeddingRevisionById = new Map(revisionRows.map((part) => [part.id, part.embeddingRevision]));
-                const pendingIndexes = activePartIds
+                const allPendingIndexes = activePartIds
                     .map((id, index) => ({ id, index }))
                     .filter(({ id }) => embeddingRevisionById.get(id) !== revision);
-                let indexedCount = preparedParts.length - pendingIndexes.length;
+                const pendingIndexes = allPendingIndexes.slice(0, semanticPartBudgetPerDocument());
+                let indexedCount = preparedParts.length - allPendingIndexes.length;
 
                 await updateDocumentForJob(documentId, jobId, {
                     status: 'COMPLETED',
                     processingStage: 'INDEXING',
                     processingCurrent: indexedCount,
-                    processingTotal: preparedParts.length,
+                    processingTotal: Math.max(1, pendingIndexes.length),
                 });
 
                 const embeddingAi = ai || await getGeminiClient();
@@ -593,11 +591,11 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                         indexedCount += batch.length;
                         const progress = await tx.document.updateMany({
                             where: { id: documentId, processingJobId: jobId },
-                            data: { processingCurrent: indexedCount, processingTotal: preparedParts.length },
+                            data: { processingCurrent: Math.min(pendingIndexes.length, offset + batch.length), processingTotal: Math.max(1, pendingIndexes.length) },
                         });
                         if (progress.count !== 1) throw new Error('STALE_DOCUMENT_JOB');
                     }, { maxWait: 10_000, timeout: 60_000 });
-                    console.log(`🔎 Indexação semântica: ${indexedCount}/${preparedParts.length}.`);
+                    console.log(`🔎 Indexação semântica: ${Math.min(pendingIndexes.length, offset + batch.length)}/${pendingIndexes.length} do orçamento deste catálogo.`);
                 }
 
                 await updateDocumentForJob(documentId, jobId, {
@@ -607,6 +605,9 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     processingTotal: preparedParts.length,
                     processingError: null,
                 });
+                if (allPendingIndexes.length > pendingIndexes.length) {
+                    console.log(`💰 Índice semântico limitado a ${pendingIndexes.length}/${allPendingIndexes.length} peças; busca textual preservada para todas.`);
+                }
             } catch (indexingError) {
                 await updateDocumentForJob(documentId, jobId, {
                     status: 'COMPLETED',

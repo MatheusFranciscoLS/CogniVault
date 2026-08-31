@@ -38,7 +38,7 @@ test('hard negative que aparece depois do correto não é contado como vitória'
 });
 
 test('golden set tem IDs únicos e sempre aponta para código e fonte comprovada', () => {
-  assert.ok(HUSQVARNA_GOLDEN_BENCHMARK.length >= 15);
+  assert.ok(HUSQVARNA_GOLDEN_BENCHMARK.length >= 30);
   const ids = new Set(HUSQVARNA_GOLDEN_BENCHMARK.map(item => item.id));
   assert.equal(ids.size, HUSQVARNA_GOLDEN_BENCHMARK.length);
 

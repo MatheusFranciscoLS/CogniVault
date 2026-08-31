@@ -3,6 +3,11 @@ import { prisma } from '../config/prisma';
 import { getGeminiClient } from '../config/gemini';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { withTransientAIRetry } from '../utils/ai-retry';
+import {
+  consumeSemanticQueryBudget,
+  semanticChunkBudgetPerDocument,
+  semanticIndexingEnabled,
+} from './semantic-indexing-policy';
 
 export type MemoryPart = {
   model: string;
@@ -108,10 +113,6 @@ export function buildTechnicalMemoryChunks(parts: MemoryPart[], maxItemsPerChunk
   return chunks;
 }
 
-function semanticEnabled(): boolean {
-  return ['1', 'true', 'yes', 'on'].includes((process.env.ENABLE_SEMANTIC_INDEXING || 'false').trim().toLowerCase());
-}
-
 export async function rebuildDocumentMemory(
   documentId: string,
   tenantId: string,
@@ -135,13 +136,14 @@ export async function rebuildDocumentMemory(
     }
   });
 
-  const shouldEmbed = options.embeddings ?? semanticEnabled();
+  const shouldEmbed = options.embeddings ?? semanticIndexingEnabled();
   if (!chunks.length || !shouldEmbed) return { chunks: chunks.length, embedded: 0 };
 
   try {
     const rows = await prisma.documentChunk.findMany({
       where: { documentId, revision },
       orderBy: [{ page: 'asc' }, { id: 'asc' }],
+      take: semanticChunkBudgetPerDocument(),
       select: { id: true, searchText: true },
     });
     const ai = await getGeminiClient();
@@ -231,7 +233,50 @@ export async function retrieveTechnicalContext(
     ORDER BY "score" DESC
     LIMIT ${limit}
   `);
-  return fuzzy
+  const fuzzyHits = fuzzy
     .map(row => ({ ...row, score: Number(row.score), method: 'FUZZY' as const }))
     .filter(row => Number.isFinite(row.score) && row.score >= 0.16);
+  if (fuzzyHits.length) return fuzzyHits;
+
+  if (!semanticIndexingEnabled()) return [];
+  const hasSemanticMemory = await prisma.documentChunk.findFirst({
+    where: {
+      embeddingRevision: { gt: 0 },
+      document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+      ...(options.documentId ? { documentId: options.documentId } : {}),
+      ...(options.model ? { normalizedModel: normalizeIdentifier(options.model) } : {}),
+    },
+    select: { id: true },
+  });
+  if (!hasSemanticMemory || !consumeSemanticQueryBudget()) return [];
+
+  try {
+    const ai = await getGeminiClient();
+    const result = await withTransientAIRetry(
+      () => ai.models.embedContent({
+        model: process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001',
+        contents: query,
+        config: { outputDimensionality: 768, taskType: 'RETRIEVAL_QUERY' },
+      }),
+      { label: 'consulta da memória técnica' },
+    );
+    const values = result.embeddings?.[0]?.values;
+    if (!values || values.length !== 768) return [];
+    const vector = `[${values.join(',')}]`;
+    const semantic = await prisma.$queryRaw<Raw[]>(Prisma.sql`
+      SELECT c."id", c."documentId", d."filename", c."content", c."page", c."section", c."model", c."pnc",
+        1 - (c."embedding" <=> ${vector}::vector) AS "score"
+      FROM "DocumentChunk" c
+      INNER JOIN "Document" d ON d."id" = c."documentId"
+      WHERE ${Prisma.join(filters, ' AND ')} AND c."embedding" IS NOT NULL
+      ORDER BY c."embedding" <=> ${vector}::vector
+      LIMIT ${limit}
+    `);
+    return semantic
+      .map(row => ({ ...row, score: Number(row.score), method: 'SEMANTIC' as const }))
+      .filter(row => Number.isFinite(row.score) && row.score >= 0.35);
+  } catch (error) {
+    console.warn('⚠️ Memória semântica indisponível; busca textual preservada.', error instanceof Error ? error.message : error);
+    return [];
+  }
 }

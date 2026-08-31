@@ -27,7 +27,7 @@ const adminNav: NavItem[] = [
   ['overview', 'Visão geral'],
   ['users', 'Usuários'],
   ['feedback', 'Feedback da busca'],
-  ['quality', 'Saúde dos catálogos'],
+  ['quality', 'Confiabilidade'],
   ['audit', 'Auditoria'],
 ];
 

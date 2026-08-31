@@ -16,6 +16,8 @@ export interface FeedbackLearningSignal {
   normalizedQuery: string;
   normalizedModel: string | null;
   normalizedPnc: string | null;
+  userId?: string | null;
+  createdAt?: Date | string;
 }
 
 function groupKeys(value: string): Set<string> {
@@ -61,29 +63,60 @@ export function applyFeedbackLearning(
 ): number {
   let applied = 0;
 
-  for (const signal of signals) {
+  // Um usuário pode clicar/repetir a mesma consulta várias vezes. Para que isso
+  // não vire um “atalho” artificial, cada pessoa conta uma vez por sinal técnico.
+  const grouped = new Map<string, { signal: FeedbackLearningSignal; voters: Set<string>; newestAt: number }>();
+  signals.forEach((signal, index) => {
+    const key = [
+      signal.normalizedQuery,
+      signal.normalizedModel || '',
+      signal.normalizedPnc || '',
+      signal.resultPartId,
+      signal.correct ? '1' : '0',
+      signal.correctedPartId || '',
+    ].join('|');
+    const createdAt = signal.createdAt ? new Date(signal.createdAt).getTime() : Date.now();
+    const current = grouped.get(key) || { signal, voters: new Set<string>(), newestAt: createdAt };
+    current.voters.add(signal.userId || `legacy:${index}`);
+    if (createdAt >= current.newestAt) {
+      current.signal = signal;
+      current.newestAt = createdAt;
+    }
+    grouped.set(key, current);
+  });
+
+  for (const { signal, voters, newestAt } of grouped.values()) {
     const similarity = feedbackQuerySimilarity(currentQuery, signal.normalizedQuery);
     if (similarity < 0.55) continue;
+
+    const support = voters.size;
+    const ageDays = Math.max(0, (Date.now() - newestAt) / (24 * 60 * 60 * 1000));
+    const recencyWeight = Math.max(0.55, 1 - ageDays / 730);
+    const positiveStrength = support >= 3 ? 0.06 : support === 2 ? 0.04 : 0.02;
+    const negativeStrength = signal.correctedPartId
+      ? (support >= 2 ? 0.08 : 0.055)
+      : (support >= 2 ? 0.04 : 0.015);
+    const correctionStrength = support >= 2 ? 0.11 : 0.075;
 
     for (const candidate of candidates) {
       if (signal.normalizedModel && signal.normalizedModel !== candidate.normalizedModel) continue;
       if (signal.normalizedPnc && !candidate.universalAcrossPnc && signal.normalizedPnc !== candidate.normalizedPnc) continue;
 
       const contextWeight = (signal.normalizedModel ? 1 : 0.82) * (signal.normalizedPnc ? 1 : 0.88);
-      const weight = similarity * contextWeight;
+      const weight = similarity * contextWeight * recencyWeight;
       if (candidate.id === signal.resultPartId) {
-        candidate.feedbackScore += (signal.correct ? 0.06 : -0.08) * weight;
+        candidate.feedbackScore += (signal.correct ? positiveStrength : -negativeStrength) * weight;
         applied += 1;
       }
       if (!signal.correct && signal.correctedPartId === candidate.id) {
-        candidate.feedbackScore += 0.11 * weight;
+        candidate.feedbackScore += correctionStrength * weight;
         applied += 1;
       }
     }
   }
 
   for (const candidate of candidates) {
-    candidate.feedbackScore = Math.max(-0.18, Math.min(0.18, candidate.feedbackScore));
+    candidate.feedbackScore = Math.max(-0.16, Math.min(0.16, candidate.feedbackScore));
   }
   return applied;
 }

@@ -7,6 +7,8 @@ import { DocumentService } from '../services/document.service';
 import { refreshCatalogHealth } from '../services/catalog-health';
 import { isPlausibleCatalogModel, normalizeHusqvarnaPnc } from '../services/catalog-extractor';
 import { rebuildTenantTechnicalKnowledge } from '../services/knowledge-maintenance.service';
+import { indexNextSemanticBatch } from '../services/semantic-index-maintenance.service';
+import { retryEligibleVisualCatalogs } from '../services/visual-catalog-retry.service';
 
 const documentService = new DocumentService();
 
@@ -72,6 +74,50 @@ export class QualityController {
     } catch (error) {
       console.error('❌ Erro ao atualizar memória técnica existente:', error);
       res.status(500).json({ error: 'Não foi possível atualizar a memória técnica agora.' });
+    }
+  }
+
+  async indexSemantics(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) return;
+      const requested = Number(req.body?.limit ?? 120);
+      const result = await indexNextSemanticBatch(req.user.tenantId, req.user.id, requested);
+      res.json({
+        message: result.totalIndexed
+          ? `${result.totalIndexed} item(ns) receberam índice semântico dentro do limite desta execução.`
+          : 'Nenhum item pendente de índice semântico foi encontrado.',
+        result,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      if (message === 'SEMANTIC_INDEXING_DISABLED') {
+        res.status(409).json({ error: 'A indexação semântica está desativada na configuração do servidor.' });
+        return;
+      }
+      if (message === 'SEMANTIC_DAILY_BUDGET_EXHAUSTED') {
+        res.status(429).json({ error: 'O limite diário de lotes semânticos foi atingido. A busca textual continua disponível.' });
+        return;
+      }
+      console.error('❌ Erro no lote de indexação semântica:', error);
+      res.status(500).json({ error: 'Não foi possível indexar este lote agora. Nenhuma peça foi removida.' });
+    }
+  }
+
+  async retryVisualCatalogs(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) return;
+      const result = await retryEligibleVisualCatalogs(req.user.tenantId, req.user.id, Number(req.body?.limit ?? 1));
+      res.json({
+        message: result.queued.length
+          ? `${result.queued.length} catálogo(s) visual(is) reenviado(s) com intervalo seguro entre tentativas.`
+          : result.statusBefore.coolingDown
+            ? `A tentativa recente ainda está no intervalo de ${result.statusBefore.cooldownHours} horas. Evitei repetir a chamada e consumir a cota novamente.`
+            : 'Nenhum catálogo visual elegível para nova tentativa agora.',
+        result,
+      });
+    } catch (error) {
+      console.error('❌ Erro ao retomar catálogo visual:', error);
+      res.status(500).json({ error: 'Não foi possível retomar o catálogo visual agora.' });
     }
   }
 

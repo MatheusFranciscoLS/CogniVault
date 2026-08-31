@@ -19,6 +19,8 @@ export interface OfficialVerificationView {
   verifiedAt: string | null;
   verifiedBy: string | null;
   source: 'TENANT' | 'BUILT_IN' | 'NONE';
+  cacheState: 'FRESH' | 'STALE' | 'NONE';
+  freshUntil: string | null;
 }
 
 export interface OfficialVerificationSubmissionView {
@@ -83,7 +85,17 @@ function mapStatus(status: OfficialVerificationStatus): PublicVerificationState 
   return 'VERIFIED';
 }
 
+export function officialVerificationCacheDays(): number {
+  const configured = Number(process.env.OFFICIAL_VERIFICATION_CACHE_DAYS || '90');
+  return Number.isFinite(configured) ? Math.min(365, Math.max(7, Math.trunc(configured))) : 90;
+}
+
+export function officialVerificationFreshUntil(verifiedAt: Date): Date {
+  return new Date(verifiedAt.getTime() + officialVerificationCacheDays() * 24 * 60 * 60 * 1000);
+}
+
 function rowToView(row: VerificationRow): OfficialVerificationView {
+  const freshUntil = officialVerificationFreshUntil(row.verifiedAt);
   return {
     id: row.id,
     state: mapStatus(row.status),
@@ -95,6 +107,8 @@ function rowToView(row: VerificationRow): OfficialVerificationView {
     verifiedAt: row.verifiedAt.toISOString(),
     verifiedBy: row.user.email,
     source: 'TENANT',
+    cacheState: freshUntil.getTime() >= Date.now() ? 'FRESH' : 'STALE',
+    freshUntil: freshUntil.toISOString(),
   };
 }
 
@@ -135,6 +149,8 @@ function builtInViewForCode(partNumber: string): OfficialVerificationView | null
     verifiedAt: builtIn.verifiedAt,
     verifiedBy: null,
     source: 'BUILT_IN',
+    cacheState: 'FRESH',
+    freshUntil: null,
   };
 }
 
@@ -150,6 +166,8 @@ function unverifiedView(partNumber: string): OfficialVerificationView {
     verifiedAt: null,
     verifiedBy: null,
     source: 'NONE',
+    cacheState: 'NONE',
+    freshUntil: null,
   };
 }
 
@@ -225,6 +243,14 @@ export class OfficialPartVerificationService {
 
     if (latest) {
       const view = rowToView(latest);
+      if (view.cacheState === 'STALE') {
+        return {
+          ...view,
+          state: 'REVIEW',
+          currentPartNumber: partNumber,
+          note: 'A aprovação anterior venceu e precisa de nova conferência humana no Portal Husqvarna.',
+        };
+      }
       return view.state === 'SUPERSEDED' ? view : { ...view, currentPartNumber: partNumber };
     }
 
@@ -290,6 +316,18 @@ export class OfficialPartVerificationService {
       select: { id: true },
     });
     if (existingPending) throw new Error('VERIFICATION_ALREADY_PENDING');
+
+    const existingFresh = await prisma.officialPartVerification.findFirst({
+      where: {
+        tenantId: input.tenantId,
+        approvalStatus: 'APPROVED',
+        normalizedQueriedNumber,
+        normalizedCurrentNumber,
+        verifiedAt: { gte: new Date(Date.now() - officialVerificationCacheDays() * 24 * 60 * 60 * 1000) },
+      },
+      select: { id: true },
+    });
+    if (existingFresh) throw new Error('VERIFICATION_ALREADY_FRESH');
 
     const verifiedAt = new Date();
     const officialUrl = buildHusqvarnaPortalUrl(currentPartNumber);

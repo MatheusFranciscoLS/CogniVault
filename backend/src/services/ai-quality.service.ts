@@ -9,6 +9,9 @@ import { PartSearchService } from './part-search.service';
 import { refreshCatalogHealth } from './catalog-health';
 import { inferCatalogModelFromFilename, isLikelyHusqvarnaPnc, isPlausibleCatalogModel } from './catalog-extractor';
 import { buildSearchQualityRadar } from './search-quality-radar';
+import { officialVerificationCacheDays } from './official-part-verification.service';
+import { semanticIndexStatus } from './semantic-index-maintenance.service';
+import { visualCatalogRetryStatus } from './visual-catalog-retry.service';
 
 function code(value: string): string { return normalizeIdentifier(value); }
 
@@ -118,6 +121,38 @@ export class AiQualityService {
     const geminiCatalogs = active.filter(document => document.extractionMethod?.toUpperCase().startsWith('GEMINI')).length;
     const parserCatalogs = active.filter(document => document.extractionMethod && !document.extractionMethod.toUpperCase().startsWith('GEMINI')).length;
     const unknownExtractionCatalogs = active.filter(document => !document.extractionMethod).length;
+    const [semanticIndex, visualRetry, feedbackSignals, pendingOfficial, approvedOfficial, staleOfficial] = await Promise.all([
+      semanticIndexStatus(tenantId),
+      visualCatalogRetryStatus(tenantId),
+      prisma.searchFeedback.findMany({
+        where: { tenantId },
+        orderBy: { createdAt: 'desc' },
+        take: 1000,
+        select: {
+          userId: true, normalizedQuery: true, resultPartId: true, correctedPartId: true,
+          correct: true, createdAt: true,
+        },
+      }),
+      prisma.officialPartVerification.count({ where: { tenantId, approvalStatus: 'PENDING' } }),
+      prisma.officialPartVerification.count({ where: { tenantId, approvalStatus: 'APPROVED' } }),
+      prisma.officialPartVerification.count({
+        where: {
+          tenantId,
+          approvalStatus: 'APPROVED',
+          verifiedAt: { lt: new Date(Date.now() - officialVerificationCacheDays() * 24 * 60 * 60 * 1000) },
+        },
+      }),
+    ]);
+    const uniqueFeedbackSignals = new Set(feedbackSignals.map((signal, index) => [
+      signal.userId || `legacy:${index}`,
+      signal.normalizedQuery,
+      signal.resultPartId,
+      signal.correctedPartId || '',
+      signal.correct ? '1' : '0',
+    ].join('|'))).size;
+    const correctedFeedback = feedbackSignals.filter(signal => !signal.correct && signal.correctedPartId).length;
+    const positiveFeedback = feedbackSignals.filter(signal => signal.correct).length;
+    const learningLevel = uniqueFeedbackSignals >= 20 ? 'ESTABLISHED' : uniqueFeedbackSignals >= 5 ? 'LEARNING' : 'COLD_START';
 
     return {
       summary: {
@@ -140,6 +175,23 @@ export class AiQualityService {
           parserCatalogs,
           unknownCatalogs: unknownExtractionCatalogs,
         },
+      },
+      learning: {
+        total: feedbackSignals.length,
+        uniqueSignals: uniqueFeedbackSignals,
+        positive: positiveFeedback,
+        corrected: correctedFeedback,
+        negativeWithoutCorrection: feedbackSignals.length - positiveFeedback - correctedFeedback,
+        level: learningLevel,
+        nextMilestone: learningLevel === 'COLD_START' ? 5 : learningLevel === 'LEARNING' ? 20 : null,
+      },
+      semanticIndex,
+      visualRetry,
+      officialVerification: {
+        approved: approvedOfficial,
+        pending: pendingOfficial,
+        stale: staleOfficial,
+        cacheDays: officialVerificationCacheDays(),
       },
       searchRadar: buildSearchQualityRadar(searchHistory, 10),
       reviewQueue: needsReview,

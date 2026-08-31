@@ -4,6 +4,7 @@ import { rabbitMQ } from './queues/connection';
 import { DocumentWorker } from './queues/worker';
 import { prisma } from './config/prisma';
 import { refreshLegacyCatalogHealth } from './services/catalog-health-maintenance';
+import { retryVisualCatalogsAfterStartup } from './services/visual-catalog-retry.service';
 
 const PORT = process.env.PORT || 3333;
 
@@ -23,6 +24,14 @@ async function bootstrap() {
             console.log(
                 `🛠️ Correções de extração reenfileiradas: ${catalogHealthMaintenance.reextractQueued}`
                 + (catalogHealthMaintenance.reextractFailed ? ` · ${catalogHealthMaintenance.reextractFailed} falha(s)` : ''),
+            );
+        }
+
+        const visualRetry = await retryVisualCatalogsAfterStartup();
+        if (visualRetry.queued > 0 || visualRetry.failures > 0) {
+            console.log(
+                `👁️ PDFs visuais retomados após o intervalo seguro: ${visualRetry.queued}`
+                + (visualRetry.failures ? ` · ${visualRetry.failures} falha(s) ao enfileirar` : ''),
             );
         }
 

@@ -20,7 +20,25 @@ services:
       - key: GEMINI_GENERATIVE_MODEL
         value: gemini-3.7-flash
       - key: ENABLE_SEMANTIC_INDEXING
+        value: "true"
+      - key: SEMANTIC_PARTS_PER_DOCUMENT
+        value: "120"
+      - key: SEMANTIC_CHUNKS_PER_DOCUMENT
+        value: "24"
+      - key: SEMANTIC_ADMIN_BATCH_LIMIT
+        value: "120"
+      - key: SEMANTIC_DAILY_ADMIN_RUNS
+        value: "2"
+      - key: SEMANTIC_QUERY_LIMIT_PER_HOUR
+        value: "120"
+      - key: ENABLE_FEEDBACK_EMBEDDINGS
         value: "false"
+      - key: OFFICIAL_VERIFICATION_CACHE_DAYS
+        value: "90"
+      - key: VISUAL_RETRY_COOLDOWN_HOURS
+        value: "20"
+      - key: ENABLE_AUTOMATIC_VISUAL_RETRY
+        value: "true"
       - key: PARTS_MARKET
         value: LATIN_AMERICA
       - key: GEMINI_EMBEDDING_MODEL

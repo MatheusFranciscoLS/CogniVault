@@ -15,6 +15,7 @@ import { applyFeedbackLearning } from './feedback-learning';
 import { preferCurrentPartNumbers, resolveCurrentPartNumber } from './part-supersession';
 import { normalizedReciprocalRankFusionScores } from './retrieval-fusion';
 import { fullTextPartCandidates, fuzzyPartCandidates, type HybridTextCandidateRow } from './hybrid-part-retrieval';
+import { consumeSemanticQueryBudget, semanticIndexingEnabled } from './semantic-indexing-policy';
 
 const MAX_DISTANCE = Number(process.env.PART_SEARCH_MAX_DISTANCE || '0.65');
 
@@ -294,6 +295,7 @@ export class PartSearchService {
   }
 
   private static async semanticVector(tenantId: string, question: string, intent: SearchIntent): Promise<PartCandidate[]> {
+    if (!semanticIndexingEnabled()) return [];
     const model = normalizeIdentifier(intent.model);
     const manufacturer = normalizeIdentifier(intent.manufacturer);
     const pnc = normalizeIdentifier(intent.pnc);
@@ -311,7 +313,7 @@ export class PartSearchService {
       },
       select: { id: true },
     });
-    if (!hasSemanticIndex) return [];
+    if (!hasSemanticIndex || !consumeSemanticQueryBudget()) return [];
 
     const expanded = semanticQueryText(intent.partDescription || question, [intent.manufacturer, intent.model, intent.pnc]);
     const queryText = [expanded, intent.section, intent.position].filter(Boolean).join(' | ');
@@ -437,6 +439,7 @@ export class PartSearchService {
       select: {
         resultPartId: true, correctedPartId: true, correct: true,
         normalizedQuery: true, normalizedModel: true, normalizedPnc: true,
+        userId: true, createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
       take: 300,

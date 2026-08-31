@@ -4,6 +4,7 @@ import {
   buildHusqvarnaPortalUrl,
   deriveOfficialVerificationStatus,
   isAllowedHusqvarnaPortalUrl,
+  officialVerificationFreshUntil,
 } from './official-part-verification.service';
 
 test('builds only the public Husqvarna spare-parts URL with normalized code', () => {
@@ -42,4 +43,15 @@ test('classifies a changed portal code as superseded automatically', () => {
 
 test('refuses to classify invalid part numbers', () => {
   assert.throws(() => deriveOfficialVerificationStatus('', '587106701'), /códigos de peça válidos/i);
+});
+
+test('cache oficial tem validade previsível sem apagar o histórico', () => {
+  const previous = process.env.OFFICIAL_VERIFICATION_CACHE_DAYS;
+  process.env.OFFICIAL_VERIFICATION_CACHE_DAYS = '90';
+  assert.equal(
+    officialVerificationFreshUntil(new Date('2026-01-01T00:00:00Z')).toISOString(),
+    '2026-04-01T00:00:00.000Z',
+  );
+  if (previous === undefined) delete process.env.OFFICIAL_VERIFICATION_CACHE_DAYS;
+  else process.env.OFFICIAL_VERIFICATION_CACHE_DAYS = previous;
 });

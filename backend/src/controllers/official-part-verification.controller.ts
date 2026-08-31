@@ -74,6 +74,10 @@ export class OfficialPartVerificationController {
         res.status(409).json({ error: 'Já existe uma conferência igual aguardando aprovação.' });
         return;
       }
+      if (message === 'VERIFICATION_ALREADY_FRESH') {
+        res.status(409).json({ error: 'Esta relação já foi aprovada recentemente e está válida no cache oficial. Uma nova conferência será aceita quando a revisão vencer.' });
+        return;
+      }
       res.status(400).json({ error: message || 'Não foi possível enviar a conferência para aprovação.' });
     }
   }

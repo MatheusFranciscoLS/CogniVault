@@ -34,3 +34,30 @@ test('não transfere feedback entre modelos incompatíveis', () => {
   }]);
   assert.equal(candidates[0].feedbackScore, 0);
 });
+
+test('repetições do mesmo usuário não pesam como vários confirmadores', () => {
+  const one = [{ id: 'right', normalizedModel: '143RII', normalizedPnc: null, universalAcrossPnc: true, feedbackScore: 0 }];
+  const repeated = [{ ...one[0] }];
+  const signal = {
+    resultPartId: 'right', correctedPartId: null, correct: true,
+    normalizedQuery: 'carburador 143rii', normalizedModel: '143RII', normalizedPnc: null,
+    userId: 'same-user', createdAt: new Date(),
+  };
+  applyFeedbackLearning('carburador 143rii', one, [signal]);
+  applyFeedbackLearning('carburador 143rii', repeated, [signal, signal, signal]);
+  assert.equal(repeated[0].feedbackScore, one[0].feedbackScore);
+});
+
+test('confirmações independentes aumentam o sinal sem ultrapassar o teto', () => {
+  const single = [{ id: 'right', normalizedModel: '143RII', normalizedPnc: null, universalAcrossPnc: true, feedbackScore: 0 }];
+  const consensus = [{ ...single[0] }];
+  const base = {
+    resultPartId: 'right', correctedPartId: null, correct: true,
+    normalizedQuery: 'carburador 143rii', normalizedModel: '143RII', normalizedPnc: null,
+    createdAt: new Date(),
+  };
+  applyFeedbackLearning('carburador 143rii', single, [{ ...base, userId: 'u1' }]);
+  applyFeedbackLearning('carburador 143rii', consensus, [{ ...base, userId: 'u1' }, { ...base, userId: 'u2' }]);
+  assert.ok(consensus[0].feedbackScore > single[0].feedbackScore);
+  assert.ok(consensus[0].feedbackScore <= 0.16);
+});

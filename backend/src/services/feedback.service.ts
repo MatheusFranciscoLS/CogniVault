@@ -136,7 +136,10 @@ export class FeedbackService {
     }
 
     private static semanticFeedbackEnabled(): boolean {
-        return ['1', 'true', 'yes', 'on'].includes((process.env.ENABLE_SEMANTIC_INDEXING || 'false').trim().toLowerCase());
+        // A pontuação de aprendizado usa sinais estruturados e não consulta este
+        // vetor hoje. Mantê-lo separado evita custo sem benefício quando a busca
+        // semântica de peças estiver habilitada.
+        return ['1', 'true', 'yes', 'on'].includes((process.env.ENABLE_FEEDBACK_EMBEDDINGS || 'false').trim().toLowerCase());
     }
 
     private static async attachOptionalEmbedding(feedbackId: string, query: string): Promise<void> {
