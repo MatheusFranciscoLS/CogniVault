@@ -24,6 +24,7 @@ export type CatalogHealthInput = {
   modelMismatchCount?: number;
   pncMismatchCount?: number;
   malformedPartNumberCount?: number;
+  pncAsPartNumberCount?: number;
   missingPositionCount?: number;
   extractionMethod?: string | null;
   processingStage?: string | null;
@@ -154,7 +155,7 @@ function applicabilityText(part: CatalogHealthPart): string {
 function explicitPncRuleMismatch(part: CatalogHealthPart): boolean {
   const evidence = applicabilityText(part);
   const assigned = normalizeIdentifier(part.pnc).replace(/\D/g, '');
-  const except = evidence.match(/\bFor\s+all\s+EXCEPT\s+([^\n.]+)/i);
+  const except = evidence.match(/\bFor\s+all+\s+EXCEPT\s+([^\n.]+)/i);
   if (except) {
     const excluded = new Set((except[1].match(/\b(?:\d{11}|\d{9})\b/g) || []).filter(isLikelyHusqvarnaPnc).map(value => value.replace(/\D/g, '')));
     if (!excluded.size) return false;
@@ -179,8 +180,11 @@ function serialNumber(value: string | undefined): bigint | null {
 
 function serialRange(part: CatalogHealthPart): SerialRange | null {
   const evidence = applicabilityText(part).toUpperCase();
-  const explicitUpper = evidence.match(/(?:S\s*\/\s*N|SN|SERIAL(?:\s+NUMBER)?)\s*(?:UP\s+TO|ATE)\s*[:#.-]?\s*(\d{6,16})\b/);
-  const explicitLower = evidence.match(/(?:S\s*\/\s*N|SN|SERIAL(?:\s+NUMBER)?)\s*(?:FROM|A\s+PARTIR\s+DE)\s*[:#.-]?\s*(\d{6,16})\b/);
+  const serialLabel = '(?:S\\s*\\/\\s*N|SN|SERIAL(?:\\s+NUMBER)?)';
+  const upperDirection = '(?:UP\\s+TO|ATE)';
+  const lowerDirection = '(?:FROM|A\\s+PARTIR\\s+DE)';
+  const explicitUpper = evidence.match(new RegExp(`(?:${serialLabel}\\s*${upperDirection}|${upperDirection}\\s*${serialLabel})\\s*[:#.\\-–—]?\\s*(\\d{6,16})\\b`));
+  const explicitLower = evidence.match(new RegExp(`(?:${serialLabel}\\s*${lowerDirection}|${lowerDirection}\\s*${serialLabel})\\s*[:#.\\-–—]?\\s*(\\d{6,16})\\b`));
   if (explicitUpper || explicitLower) {
     return {
       lower: serialNumber(explicitLower?.[1]),
@@ -239,7 +243,7 @@ function hasMutuallyExclusiveSerialVariants(parts: CatalogHealthPart[]): boolean
 function marketTags(part: CatalogHealthPart): Set<string> {
   const evidence = normalizeText(applicabilityText(part));
   const tags = new Set<string>();
-  if (/\b(?:latin america|latam|america latina)\b/.test(evidence)) tags.add('LATAM');
+  if (/\b(?:latin america|south america|latam|america latina|america do sul)\b/.test(evidence)) tags.add('LATAM');
   if (/\basia\b/.test(evidence)) tags.add('ASIA');
   if (/\b(?:eu|europe|european)\b/.test(evidence)) tags.add('EU');
   if (/\b(?:au|australia|nz|new zealand)\b/.test(evidence)) tags.add('AU_NZ');
@@ -263,7 +267,11 @@ function hasMutuallyExclusiveMarketVariants(parts: CatalogHealthPart[]): boolean
     byCode.set(code, current);
   }
   const groups = [...byCode.values()];
-  if (groups.length < 2 || groups.some(group => group.size === 0)) return false;
+  if (groups.length < 2 || groups.every(group => group.size === 0)) return false;
+  // Uma linha "South America only" ao lado de uma linha sem mercado é uma
+  // substituição regional explícita no próprio Portal. A linha genérica não
+  // transforma a ocorrência em corrupção estrutural.
+  if (groups.some(group => group.size === 0)) return true;
   for (let left = 0; left < groups.length; left += 1) {
     for (let right = left + 1; right < groups.length; right += 1) {
       if (setsOverlap(groups[left], groups[right])) return false;
@@ -299,6 +307,7 @@ export function diagnoseCatalogStructure(
   let modelMismatchCount = 0;
   let pncMismatchCount = 0;
   let malformedPartNumberCount = 0;
+  let pncAsPartNumberCount = 0;
   let applicationMismatchCount = 0;
 
   for (const part of parts) {
@@ -321,6 +330,7 @@ export function diagnoseCatalogStructure(
       pncMismatchCount += 1;
     }
     const code = normalizeIdentifier(part.normalizedPartNumber);
+    if (allowedDocumentPncs.has(code)) pncAsPartNumberCount += 1;
     const digitCount = code.replace(/\D/g, '').length;
     if (code.length < 6 || code.length > 18 || digitCount < 4) malformedPartNumberCount += 1;
   }
@@ -356,6 +366,7 @@ export function diagnoseCatalogStructure(
     modelMismatchCount,
     pncMismatchCount,
     malformedPartNumberCount,
+    pncAsPartNumberCount,
     missingPositionCount: countLikelyMissingPositions(parts),
   };
 }
@@ -380,6 +391,7 @@ export function assessCatalogHealth(input: CatalogHealthInput): CatalogHealth {
   const modelMismatchCount = safeCount(input.modelMismatchCount);
   const pncMismatchCount = safeCount(input.pncMismatchCount);
   const malformedPartNumberCount = safeCount(input.malformedPartNumberCount);
+  const pncAsPartNumberCount = safeCount(input.pncAsPartNumberCount);
   const missingPositionCount = safeCount(input.missingPositionCount);
 
   if (!text(input.manufacturer)) findings.push({ message: 'Fabricante não confirmado no catálogo.', penalty: 8, review: true });
@@ -443,11 +455,7 @@ export function assessCatalogHealth(input: CatalogHealthInput): CatalogHealth {
     });
   }
   if (conflictingOccurrenceCount > 0) {
-    findings.push({
-      message: `${conflictingOccurrenceCount} posição(ões) de vista técnica comprovada possuem mais de um código ativo sem regra de PNC, série ou mercado que os diferencie.`,
-      penalty: Math.min(32, 16 + conflictingOccurrenceCount * 4),
-      review: true,
-    });
+    warnings.push(`${conflictingOccurrenceCount} posição(ões) possuem códigos alternativos publicados na mesma vista, sem discriminador explícito no PDF. Isso pode representar revisão, acabamento ou embalagem; a busca deve mostrar as opções e pedir confirmação em vez de escolher no escuro.`);
   }
   if (variantOccurrenceCount > 0) {
     warnings.push(`${variantOccurrenceCount} posição(ões) possuem variantes explícitas por número de série ou mercado; isso é cobertura válida do catálogo, não conflito.`);
@@ -476,6 +484,13 @@ export function assessCatalogHealth(input: CatalogHealthInput): CatalogHealth {
     findings.push({
       message: `${malformedPartNumberCount} código(s) possuem formato estrutural inesperado e precisam de conferência no PDF.`,
       penalty: Math.min(28, 14 + malformedPartNumberCount * 2),
+      review: true,
+    });
+  }
+  if (pncAsPartNumberCount > 0) {
+    findings.push({
+      message: `${pncAsPartNumberCount} PNC(s) do equipamento parecem ter sido lidos como código de peça. Reextraia o catálogo antes de confiar nessas linhas.`,
+      penalty: Math.min(36, 18 + pncAsPartNumberCount * 2),
       review: true,
     });
   }

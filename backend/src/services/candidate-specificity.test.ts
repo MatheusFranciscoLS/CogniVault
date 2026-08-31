@@ -122,6 +122,15 @@ test('faixa de série por PNC favorece a variante correta do adaptador da lâmin
   assert.ok(newVariant > oldVariant + 0.7);
 });
 
+test('aplica limites no formato oficial from S/N e up to S/N', () => {
+  const oldCandidate = { name: 'PARAFUSO', pnc: null, notes: 'up to s/n - 20194300360' };
+  const newCandidate = { name: 'PARAFUSO', pnc: null, notes: 'from s/n 20194300361 -' };
+  assert.equal(serialApplicability('parafuso S/N 20194300360', oldCandidate), 'MATCH');
+  assert.equal(serialApplicability('parafuso S/N 20194300360', newCandidate), 'CONFLICT');
+  assert.equal(serialApplicability('parafuso S/N 20194300361', oldCandidate), 'CONFLICT');
+  assert.equal(serialApplicability('parafuso S/N 20194300361', newCandidate), 'MATCH');
+});
+
 test('faixa de série usa apenas a cláusula do PNC do candidato', () => {
   const notes = 'For PNC 970488501 Up to S/N:20240200000, For PNC 970488502 Up to S/N:20241400000';
   const query = 'PNC 970488502 S/N 20241000000';

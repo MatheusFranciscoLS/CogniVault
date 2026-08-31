@@ -159,7 +159,7 @@ MFG. ID. NUMBER: 96121003700
 KEY PART
 NO. NO. DESCRIPTION
 28 586212501 PARAFUSO BOLT CARRIAGE 5/16-18 1 For 96121002700
-28 872250505 PARAFUSO CARRIAGE 5/16-18 X 5/8 1 For all EXCEPT 96121002700
+28 872250505 PARAFUSO CARRIAGE 5/16-18 X 5/8 1 For alll EXCEPT 96121002700
 29 532000001 ARRUELA 1 For 96121003700
 30 532000002 PORCA
 31 532000003 SUPORTE
@@ -185,6 +185,22 @@ NO. NO. DESCRIPTION
     assert.ok(except.every(part => !/\bFor\b/i.test(part.name)));
     assert.match(specific[0]?.notes || '', /For 96121002700/i);
     assert.match(except[0]?.notes || '', /For all EXCEPT 96121002700/i);
+});
+
+test('não transforma uma lista de PNCs do cabeçalho em peça vendável', () => {
+    const rows = Array.from({ length: 10 }, (_, index) => `${index + 2} 53200${String(index).padStart(4, '0')} ITEM ${index + 1}`).join('\n');
+    const text = `
+ILLUSTRATED PARTS LIST
+MODEL NUMBER: TS 138
+MFG. ID. NUMBER: 96041045400
+KEY PART NO. NO. DESCRIPTION
+1 96041045400 , 96041042100, 96041036702
+${rows}
+`;
+    const extraction = parseHusqvarnaIplText(text);
+    assert.ok(extraction);
+    assert.equal(extraction.parts.some(part => part.partNumber === '96041045400'), false);
+    assert.equal(extraction.parts.length, 10);
 });
 
 test('rejeita uma linha de peça usada indevidamente como hint de modelo', () => {

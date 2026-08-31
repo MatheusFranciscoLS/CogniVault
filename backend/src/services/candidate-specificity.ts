@@ -162,6 +162,18 @@ export function serialApplicability(query: string, candidate: CandidateText): Se
     constraints.push({ pnc, direction, serial });
   }
 
+  // Alguns IPLs imprimem a ordem inversa: "S/N up to 123".
+  const reversedPattern = /(?:FOR\s+PNC\s+(\d{9,11})[\s,:;-]*)?(?:S\s*\/\s*N|SN|SERIAL(?:\s+NUMBER)?)\s*(UP\s+TO|ATE|FROM|A\s+PARTIR\s+DE)\s*[:#.\-–—]?\s*(\d{6,16})\b/g;
+  for (const match of notes.matchAll(reversedPattern)) {
+    const pnc = match[1] || '';
+    if (pnc && candidatePnc && pnc !== candidatePnc) continue;
+    if (pnc && !candidatePnc) continue;
+    const serial = serialBigInt(match[3]);
+    if (serial === null) continue;
+    const direction = /^(?:UP\s+TO|ATE)$/.test(match[2]) ? 'UP_TO' : 'FROM';
+    constraints.push({ pnc, direction, serial });
+  }
+
   // Alguns catálogos usam "S/N 123 AND UP" / "AND BELOW".
   for (const match of notes.matchAll(/(?:FOR\s+PNC\s+(\d{9,11})[\s,:;-]*)?(?:S\s*\/\s*N|SN|SERIAL(?:\s+NUMBER)?)\s*[:#.-]?\s*(\d{6,16})\s+(?:AND\s+)?(UP|ABOVE|BELOW|DOWN)\b/g)) {
     const pnc = match[1] || '';

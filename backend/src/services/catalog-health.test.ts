@@ -143,7 +143,7 @@ test('very incomplete extraction is stopped for human review', () => {
   assert.ok(result.score < 40);
 });
 
-test('unresolved different codes in a proven exploded-view occurrence require review', () => {
+test('different codes published in one exploded-view position remain alternatives, not corruption', () => {
   const result = assessCatalogHealth({
     manufacturer: 'Husqvarna',
     model: 'LC 151S',
@@ -155,9 +155,9 @@ test('unresolved different codes in a proven exploded-view occurrence require re
     embeddedPartCount: 90,
     conflictingOccurrenceCount: 2,
   });
-  assert.equal(result.reviewStatus, 'NEEDS_REVIEW');
-  assert.ok(result.score < 100);
-  assert.ok(result.reasons.some(reason => reason.includes('sem regra de PNC, série ou mercado')));
+  assert.equal(result.reviewStatus, 'READY');
+  assert.equal(result.score, 100);
+  assert.ok(result.warnings.some(reason => reason.includes('códigos alternativos publicados')));
 });
 
 test('serial-range variants in the same position are coverage, not a structural conflict', () => {
@@ -177,6 +177,29 @@ test('serial-range variants in the same position are coverage, not a structural 
       name: 'POLIA',
       notes: 's/n from 20162204746',
       normalizedPartNumber: '528755401',
+    }),
+  ]);
+  assert.equal(diagnostics.conflictingOccurrenceCount, 0);
+  assert.equal(diagnostics.variantOccurrenceCount, 1);
+});
+
+test('serial variants in the official Portal order "from S/N" are recognized', () => {
+  const diagnostics = diagnoseCatalogStructure([
+    healthPart({
+      page: 5,
+      section: 'CLUTCH',
+      position: '6',
+      name: 'PARAFUSO',
+      notes: 'from s/n 20194300361 -',
+      normalizedPartNumber: '503200770',
+    }),
+    healthPart({
+      page: 5,
+      section: 'CLUTCH',
+      position: '6',
+      name: 'PARAFUSO',
+      notes: 'up to s/n - 20194300360',
+      normalizedPartNumber: '503202001',
     }),
   ]);
   assert.equal(diagnostics.conflictingOccurrenceCount, 0);
@@ -229,6 +252,29 @@ test('market variants in the same catalog position are coverage, not corruption'
   assert.equal(diagnostics.variantOccurrenceCount, 1);
 });
 
+test('South America only overrides the generic row in the same official Portal position', () => {
+  const diagnostics = diagnoseCatalogStructure([
+    healthPart({
+      page: 21,
+      section: 'HANDLE',
+      position: '4',
+      name: 'PARAFUSO',
+      notes: 'South America only',
+      normalizedPartNumber: '725533355',
+    }),
+    healthPart({
+      page: 21,
+      section: 'HANDLE',
+      position: '4',
+      name: 'SCREW',
+      notes: null,
+      normalizedPartNumber: '510523201',
+    }),
+  ]);
+  assert.equal(diagnostics.conflictingOccurrenceCount, 0);
+  assert.equal(diagnostics.variantOccurrenceCount, 1);
+});
+
 test('generic section does not pretend two equal positions belong to the same exploded view', () => {
   const diagnostics = diagnoseCatalogStructure([
     healthPart({ page: 5, section: 'Peças', position: '46', normalizedPartNumber: '581473301' }),
@@ -236,6 +282,30 @@ test('generic section does not pretend two equal positions belong to the same ex
   ]);
   assert.equal(diagnostics.conflictingOccurrenceCount, 0);
   assert.equal(diagnostics.uncertainOccurrenceCount, 1);
+});
+
+test('flags an equipment PNC misread as a part number', () => {
+  const diagnostics = diagnoseCatalogStructure([
+    healthPart({
+      normalizedPartNumber: '96041045400',
+      name: '96041045400, 96041042100',
+    }),
+  ], 'TS138', null, ['96041045400', '96041042100']);
+  assert.equal(diagnostics.pncAsPartNumberCount, 1);
+
+  const result = assessCatalogHealth({
+    manufacturer: 'Husqvarna',
+    model: 'TS138',
+    partCount: 100,
+    partsWithPage: 100,
+    partsWithSection: 100,
+    partsWithPosition: 100,
+    chunkCount: 10,
+    embeddedPartCount: 0,
+    pncAsPartNumberCount: diagnostics.pncAsPartNumberCount,
+  });
+  assert.equal(result.reviewStatus, 'NEEDS_REVIEW');
+  assert.ok(result.reasons.some(reason => reason.includes('lidos como código de peça')));
 });
 
 test('a persisted PNC that contradicts its own For rule is a real application error', () => {
