@@ -10,6 +10,11 @@ function retryCooldownHours(): number {
   return Number.isFinite(configured) ? Math.min(72, Math.max(6, Math.trunc(configured))) : 20;
 }
 
+function retryScanMinutes(): number {
+  const configured = Number(process.env.VISUAL_RETRY_SCAN_MINUTES || '60');
+  return Number.isFinite(configured) ? Math.min(360, Math.max(15, Math.trunc(configured))) : 60;
+}
+
 export async function visualCatalogRetryStatus(tenantId: string) {
   const documents = await prisma.document.findMany({
     where: {
@@ -100,4 +105,33 @@ export async function retryVisualCatalogsAfterStartup() {
   }
 
   return { tenants: tenantIds.length, queued, failures };
+}
+
+/**
+ * Reavalia periodicamente as falhas de cota. O cooldown persistido em AuditLog
+ * impede repetição em reinícios e entre instâncias; o timer apenas evita que a
+ * recuperação dependa de um novo deploy ou de um clique do administrador.
+ */
+export function startVisualCatalogRetryScheduler(): () => void {
+  let running = false;
+  const timer = setInterval(() => {
+    if (running) return;
+    running = true;
+    void retryVisualCatalogsAfterStartup()
+      .then(result => {
+        if (result.queued > 0 || result.failures > 0) {
+          console.log(
+            `👁️ Supervisor de PDFs visuais: ${result.queued} retomado(s)`
+            + (result.failures ? ` · ${result.failures} falha(s) ao enfileirar` : ''),
+          );
+        }
+      })
+      .catch(error => console.warn(
+        '⚠️ Supervisor de PDFs visuais não conseguiu consultar a fila; tentará novamente no próximo ciclo.',
+        error instanceof Error ? error.message : error,
+      ))
+      .finally(() => { running = false; });
+  }, retryScanMinutes() * 60 * 1000);
+  timer.unref();
+  return () => clearInterval(timer);
 }

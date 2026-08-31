@@ -37,6 +37,8 @@ services:
         value: "90"
       - key: VISUAL_RETRY_COOLDOWN_HOURS
         value: "20"
+      - key: VISUAL_RETRY_SCAN_MINUTES
+        value: "60"
       - key: ENABLE_AUTOMATIC_VISUAL_RETRY
         value: "true"
       - key: PARTS_MARKET

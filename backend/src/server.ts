@@ -4,11 +4,13 @@ import { rabbitMQ } from './queues/connection';
 import { DocumentWorker } from './queues/worker';
 import { prisma } from './config/prisma';
 import { refreshLegacyCatalogHealth } from './services/catalog-health-maintenance';
-import { retryVisualCatalogsAfterStartup } from './services/visual-catalog-retry.service';
+import { retryVisualCatalogsAfterStartup, startVisualCatalogRetryScheduler } from './services/visual-catalog-retry.service';
+import { semanticIndexingEnabled } from './services/semantic-indexing-policy';
 
 const PORT = process.env.PORT || 3333;
 
 async function bootstrap() {
+    let stopVisualRetryScheduler: () => void = () => undefined;
     try {
         await rabbitMQ.connect();
         await DocumentWorker.start();
@@ -34,6 +36,8 @@ async function bootstrap() {
                 + (visualRetry.failures ? ` · ${visualRetry.failures} falha(s) ao enfileirar` : ''),
             );
         }
+        stopVisualRetryScheduler = startVisualCatalogRetryScheduler();
+        console.log(`🔎 Busca semântica opcional: ${semanticIndexingEnabled() ? 'ativada com limites de custo' : 'desativada; busca textual preservada'}.`);
 
         const server = app.listen(PORT, () => {
             console.log(`🚀 Servidor rodando com sucesso na porta ${PORT}`);
@@ -48,6 +52,7 @@ async function bootstrap() {
 
             server.close(async () => {
                 try {
+                    stopVisualRetryScheduler();
                     await rabbitMQ.close();
                     await prisma.$disconnect();
                     process.exit(0);
