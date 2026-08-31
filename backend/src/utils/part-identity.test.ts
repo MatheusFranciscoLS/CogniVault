@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildPartIdentity, hasSafeExtractionCoverage, identifyParts, matchExistingPartIds } from './part-identity';
+import { buildPartIdentity, countDistinctPartOccurrences, hasSafeExtractionCoverage, identifyParts, matchExistingPartIds } from './part-identity';
 
 test('normaliza formatações diferentes do mesmo código para a mesma identidade', () => {
     const formatted = buildPartIdentity({
@@ -51,4 +51,23 @@ test('bloqueia uma reextração incompleta antes de aposentar peças válidas', 
     assert.equal(hasSafeExtractionCoverage(100, 49), false);
     assert.equal(hasSafeExtractionCoverage(100, 50), true);
     assert.equal(hasSafeExtractionCoverage(0, 1), true);
+});
+
+test('cobertura de reextração conta a ocorrência física sem multiplicar variantes de PNC', () => {
+    const previous = [
+        { model: 'LC151', pnc: '970488401', partNumber: '532123401', section: 'DECK', position: '1', page: 8 },
+        { model: 'LC151', pnc: '970488402', partNumber: '532123401', section: 'DECK', position: '1', page: 8 },
+        { model: 'LC151', pnc: '970488401', partNumber: '532567801', section: 'DECK', position: '2', page: 8 },
+    ];
+    const next = [
+        { model: 'LC151', pnc: null, universalAcrossPnc: true, partNumber: '532123401', section: 'DECK', position: '1', page: 8 },
+        { model: 'LC151', pnc: null, universalAcrossPnc: true, partNumber: '532567801', section: 'DECK', position: '2', page: 8 },
+    ];
+
+    assert.equal(countDistinctPartOccurrences(previous), 2);
+    assert.equal(countDistinctPartOccurrences(next), 2);
+    assert.equal(hasSafeExtractionCoverage(
+        countDistinctPartOccurrences(previous),
+        countDistinctPartOccurrences(next),
+    ), true);
 });

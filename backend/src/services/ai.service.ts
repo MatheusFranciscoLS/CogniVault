@@ -6,7 +6,7 @@ import path from 'node:path';
 import { prisma } from '../config/prisma';
 import { GEMINI_GENERATIVE_MODEL, getGeminiClient, getGeminiType } from '../config/gemini';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
-import { hasSafeExtractionCoverage, matchExistingPartIds } from '../utils/part-identity';
+import { countDistinctPartOccurrences, hasSafeExtractionCoverage, matchExistingPartIds } from '../utils/part-identity';
 import { withTransientAIRetry } from '../utils/ai-retry';
 import {
     type CatalogExtraction,
@@ -422,6 +422,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     partNumber: true,
                     section: true,
                     position: true,
+                    page: true,
                     embeddingRevision: true,
                 },
             });
@@ -430,10 +431,12 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 existingParts,
             );
             const previousActiveCount = existingParts.filter((part) => part.active).length;
+            const previousOccurrenceCount = countDistinctPartOccurrences(existingParts.filter((part) => part.active));
+            const nextOccurrenceCount = countDistinctPartOccurrences(preparedParts.map(part => part.data));
             const configuredMinimumRatio = Number(process.env.MIN_REPROCESS_PART_RATIO || '0.5');
-            if (!hasSafeExtractionCoverage(previousActiveCount, preparedParts.length, configuredMinimumRatio)) {
+            if (!hasSafeExtractionCoverage(previousOccurrenceCount, nextOccurrenceCount, configuredMinimumRatio)) {
                 throw new Error(
-                    `Reprocessamento interrompido por segurança: a extração retornou ${preparedParts.length} de ${previousActiveCount} peças anteriormente ativas.`,
+                    `Reprocessamento interrompido por segurança: a extração retornou ${nextOccurrenceCount} de ${previousOccurrenceCount} ocorrências técnicas anteriormente ativas (${preparedParts.length} de ${previousActiveCount} linhas por aplicação).`,
                 );
             }
 

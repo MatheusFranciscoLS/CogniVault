@@ -203,6 +203,22 @@ ${rows}
     assert.equal(extraction.parts.length, 10);
 });
 
+test('não transforma PNC com rótulo de mercado em peça vendável', () => {
+    const rows = Array.from({ length: 10 }, (_, index) => `${index + 2} 53210${String(index).padStart(4, '0')} ITEM ${index + 1}`).join('\n');
+    const text = `
+ILLUSTRATED PARTS LIST
+MODEL NUMBER: TS 138
+MFG. ID. NUMBER: 96041042900
+KEY PART NO. NO. DESCRIPTION
+1 96041042900 - North America Models
+${rows}
+`;
+    const extraction = parseHusqvarnaIplText(text);
+    assert.ok(extraction);
+    assert.equal(extraction.parts.some(part => part.partNumber === '96041042900'), false);
+    assert.equal(extraction.parts.length, 10);
+});
+
 test('rejeita uma linha de peça usada indevidamente como hint de modelo', () => {
     assert.equal(looksLikePartRowModel('1 \t586047302\nDECALQUE'), true);
     assert.equal(looksLikePartRowModel('6 535482401 POLIA'), true);

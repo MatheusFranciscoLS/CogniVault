@@ -8,6 +8,7 @@ export interface PartIdentityInput {
     partNumber: string;
     section?: string | null;
     position?: string | null;
+    page?: number | null;
 }
 
 export interface IdentifiedPart<T> {
@@ -77,4 +78,14 @@ export function hasSafeExtractionCoverage(
         : 0.5;
 
     return nextActiveCount >= Math.ceil(previousActiveCount * safeRatio);
+}
+
+export function countDistinctPartOccurrences(parts: PartIdentityInput[]): number {
+    return new Set(parts.map(part => [
+        normalizeIdentifier(part.model),
+        Number.isInteger(part.page) && Number(part.page) > 0 ? Number(part.page) : '',
+        normalizeText(part.section),
+        normalizeIdentifier(part.position),
+        normalizeIdentifier(part.partNumber),
+    ].join('|'))).size;
 }
