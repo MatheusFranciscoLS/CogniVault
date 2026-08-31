@@ -9,6 +9,8 @@ services:
     startCommand: cd backend && npm start
     healthCheckPath: /health
     envVars:
+      - key: NODE_VERSION
+        value: "22"
       - key: DATABASE_URL
         sync: false
       - key: RABBITMQ_URL

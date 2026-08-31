@@ -6,7 +6,7 @@ import CatalogsPanel from '../components/CatalogsPanel';
 import { AuditPanel, OverviewPanel, UsersPanel } from '../components/AdminPanels';
 import AdminFeedbackPanel from '../components/AdminFeedbackPanel';
 import QualityPanel from '../components/QualityPanel';
-import { HomePanel } from '../components/OperationalPanels';
+import HomePanel from '../components/HomePanel';
 import PartSearchPanel from '../components/PartSearchPanel';
 import { FavoritesPanel, HistoryPanel } from '../components/SavedItemsPanels';
 import { apiJson, clearSession, getToken, SESSION_EXPIRED_EVENT } from '../lib';
@@ -49,7 +49,7 @@ export default function Dashboard(){
    {section==='overview'&&user.role==='ADMIN'&&<OverviewPanel/>}
    {section==='assistant'&&<ChatPanel storageScope={user.id}/>}
    {section==='parts'&&<PartSearchPanel key={`${searchVersion}:${globalQuery||'empty-search'}`} initialQuery={globalQuery} onQueryChange={setGlobalQuery} admin={user.role==='ADMIN'}/>}
-   {section==='catalogs'&&<CatalogsPanel admin={user.role==='ADMIN'}/>} 
+   {section==='catalogs'&&<CatalogsPanel admin={user.role==='ADMIN'} onQuality={user.role==='ADMIN'?()=>setSection('quality'):undefined}/>}
    {section==='history'&&<HistoryPanel onSearch={search}/>} 
    {section==='favorites'&&<FavoritesPanel onSearch={search}/>} 
    {section==='users'&&user.role==='ADMIN'&&<UsersPanel/>}

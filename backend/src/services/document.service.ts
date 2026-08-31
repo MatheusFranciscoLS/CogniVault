@@ -6,7 +6,7 @@ import { prisma } from '../config/prisma';
 import { DocumentProducer } from '../queues/producer';
 import { repairMultipartText } from '../utils/text-encoding';
 import { CATALOG_CATEGORY_NAMES, inferCatalogCategory, isCatalogCategoryName } from './catalog-category';
-import { looksLikePartRowModel } from './catalog-extractor';
+import { inferCatalogModelFromFilename, isLikelyHusqvarnaPnc, isPlausibleCatalogModel, normalizeHusqvarnaPnc } from './catalog-extractor';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
@@ -37,24 +37,14 @@ function safeFilename(value: string): string {
     return filename.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 240) || 'catalogo.pdf';
 }
 
-function modelFromFilename(filename: string): string | null {
-    const base = filename.replace(/\.pdf$/i, '').replace(/\s+/g, ' ').trim();
-    const afterBrand = base.match(/Husqvarna\s+(.+)$/i)?.[1]?.trim();
-    return afterBrand || null;
-}
-
 function snapshotPncs(value: Prisma.JsonValue | null): string[] {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
     const raw = (value as Record<string, unknown>).pncs;
     if (!Array.isArray(raw)) return [];
     return raw
         .filter((item): item is string => typeof item === 'string')
-        .map(item => item.trim())
+        .map(normalizeHusqvarnaPnc)
         .filter(Boolean);
-}
-
-function uniqueStrings(values: Array<string | null | undefined>): string[] {
-    return [...new Set(values.map(value => value?.trim()).filter((value): value is string => Boolean(value)))];
 }
 
 function hasPdfSignature(buffer: Buffer): boolean {
@@ -102,22 +92,24 @@ const documentListSelect = {
 
 type DocumentListRecord = Prisma.DocumentGetPayload<{ select: typeof documentListSelect }>;
 
-function toDocumentListItem(document: DocumentListRecord) {
+function toDocumentListItem(document: DocumentListRecord, partPncs: string[] = []) {
     const filename = safeFilename(document.filename);
-    const storedModel = document.model?.trim() || null;
-    const model = looksLikePartRowModel(storedModel)
-        ? modelFromFilename(filename)
-        : storedModel;
-    const pncs = uniqueStrings([document.pnc, ...snapshotPncs(document.extractionSnapshot)]);
+    const modelNeedsReview = !isPlausibleCatalogModel(document.model);
+    const suggestedModel = modelNeedsReview ? inferCatalogModelFromFilename(filename) || null : null;
+    const pncs = [...new Set([document.pnc || '', ...snapshotPncs(document.extractionSnapshot), ...partPncs]
+        .filter(isLikelyHusqvarnaPnc)
+        .map(normalizeHusqvarnaPnc))];
     return {
         id: document.id,
         filename,
         status: document.status,
         manufacturer: document.manufacturer,
-        model,
+        model: document.model,
         pnc: document.pnc,
         pncs,
-        category: document.category?.name || inferCatalogCategory({ filename, model }),
+        suggestedModel,
+        modelNeedsReview,
+        category: document.category?.name || inferCatalogCategory({ filename, model: document.model }),
         createdAt: document.createdAt,
         partCount: document._count.parts,
         archivedAt: document.archivedAt,
@@ -132,6 +124,27 @@ function toDocumentListItem(document: DocumentListRecord) {
         reviewReasons: document.reviewReasons,
         qualityCheckedAt: document.qualityCheckedAt,
     };
+}
+
+async function documentListItems(tenantId: string, documents: DocumentListRecord[]) {
+    const rows = documents.length ? await prisma.part.findMany({
+        where: {
+            documentId: { in: documents.map(document => document.id) },
+            active: true,
+            pnc: { not: null },
+            document: { tenantId },
+        },
+        distinct: ['documentId', 'pnc'],
+        select: { documentId: true, pnc: true },
+    }) : [];
+    const pncsByDocument = new Map<string, string[]>();
+    for (const row of rows) {
+        if (!row.pnc) continue;
+        const values = pncsByDocument.get(row.documentId) || [];
+        values.push(row.pnc);
+        pncsByDocument.set(row.documentId, values);
+    }
+    return documents.map(document => toDocumentListItem(document, pncsByDocument.get(document.id)));
 }
 
 export class DocumentService {
@@ -231,7 +244,7 @@ export class DocumentService {
             select: documentListSelect,
         });
 
-        return documents.map(toDocumentListItem);
+        return documentListItems(tenantId, documents);
     }
 
     async setCategory(tenantId: string, documentId: string, categoryName: unknown) {
@@ -410,6 +423,6 @@ export class DocumentService {
             select: documentListSelect,
         });
 
-        return documents.map(toDocumentListItem);
+        return documentListItems(tenantId, documents);
     }
 }

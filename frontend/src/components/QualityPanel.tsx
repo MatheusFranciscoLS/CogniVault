@@ -2,166 +2,279 @@ import { useEffect, useMemo, useState } from 'react';
 import { apiJson, fmtDate } from '../lib';
 import type { AiQualityData, BenchmarkRun, QualityCatalog, SearchRadarItem } from '../types';
 
-function fetchQuality() { return apiJson<{quality:AiQualityData}>('/api/admin/quality'); }
+function fetchQuality() {
+  return apiJson<{ quality: AiQualityData }>('/api/admin/quality');
+}
 
-function healthTone(score:number) {
-  return score >= 90 ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-    : score >= 70 ? 'border-amber-200 bg-amber-50 text-amber-700'
+function healthTone(score: number) {
+  return score >= 90
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    : score >= 70
+      ? 'border-amber-200 bg-amber-50 text-amber-700'
       : 'border-rose-200 bg-rose-50 text-rose-700';
 }
 
-function reviewLabel(status:QualityCatalog['reviewStatus']) {
-  return status==='REVIEWED'?'Revisado':status==='READY'?'Pronto':status==='NEEDS_REVIEW'?'Revisar':'Pendente';
+function reviewLabel(status: QualityCatalog['reviewStatus']) {
+  return status === 'REVIEWED' ? 'Revisado' : status === 'READY' ? 'Pronto' : status === 'NEEDS_REVIEW' ? 'Revisar' : 'Pendente';
 }
 
-function extractionLabel(method:string|null) {
-  if(!method)return 'Método legado / não registrado';
-  if(method.toUpperCase().startsWith('GEMINI:'))return `Gemini · ${method.split(':').slice(1).join(':')}`;
-  if(method.toUpperCase().includes('PARSER'))return 'Parser local determinístico';
+function extractionLabel(method: string | null) {
+  if (!method) return 'Método não registrado';
+  if (method.toUpperCase().startsWith('GEMINI:')) return `Leitura visual · ${method.split(':').slice(1).join(':')}`;
+  if (method.toUpperCase().includes('IPL_TEXT')) return 'Leitura textual local';
   return method;
 }
 
-function radarLabel(status:SearchRadarItem['status']) {
-  return status==='AMBIGUOUS'?'Ambígua'
-    :status==='NOT_FOUND'?'Sem resultado'
-      :status==='PNC_REQUIRED'?'Faltou PNC'
-        :status==='MODEL_REQUIRED'?'Faltou modelo'
-          :'Faltou peça';
+function radarLabel(status: SearchRadarItem['status']) {
+  return status === 'AMBIGUOUS' ? 'Ambígua'
+    : status === 'NOT_FOUND' ? 'Sem resultado'
+      : status === 'PNC_REQUIRED' ? 'Faltou PNC'
+        : status === 'MODEL_REQUIRED' ? 'Faltou modelo'
+          : 'Faltou peça';
 }
 
-function radarSearchQuery(item:SearchRadarItem) {
-  if(!item.pnc)return item.query;
-  const queryDigits=item.query.replace(/\D/g,'');
-  const pncDigits=item.pnc.replace(/\D/g,'');
-  return pncDigits&&queryDigits.includes(pncDigits)?item.query:`${item.query} · PNC ${item.pnc}`;
+function radarSearchQuery(item: SearchRadarItem) {
+  if (!item.pnc) return item.query;
+  const queryDigits = item.query.replace(/\D/g, '');
+  const pncDigits = item.pnc.replace(/\D/g, '');
+  return pncDigits && queryDigits.includes(pncDigits) ? item.query : `${item.query} · PNC ${item.pnc}`;
 }
 
-function latestBenchmark(data:AiQualityData|null):BenchmarkRun|null { return data?.benchmarkRuns?.[0] || null; }
+function latestBenchmark(data: AiQualityData | null): BenchmarkRun | null {
+  return data?.benchmarkRuns?.[0] || null;
+}
 
-export default function QualityPanel({onSearch}:{onSearch?:(query:string)=>void}) {
-  const [data,setData]=useState<AiQualityData|null>(null);
-  const [loading,setLoading]=useState(true);
-  const [error,setError]=useState('');
-  const [notice,setNotice]=useState('');
-  const [benchmarking,setBenchmarking]=useState(false);
-  const [rebuilding,setRebuilding]=useState(false);
-  const [busyId,setBusyId]=useState<string|null>(null);
-  const [editing,setEditing]=useState<string|null>(null);
-  const [queueFilter,setQueueFilter]=useState('');
-  const [draft,setDraft]=useState({manufacturer:'',model:'',pnc:''});
+export default function QualityPanel({ onSearch }: { onSearch?: (query: string) => void }) {
+  const [data, setData] = useState<AiQualityData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [benchmarking, setBenchmarking] = useState(false);
+  const [rebuilding, setRebuilding] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [queueFilter, setQueueFilter] = useState('');
+  const [draft, setDraft] = useState({ manufacturer: '', model: '', pnc: '' });
 
-  const load=async()=>{const response=await fetchQuality();setData(response.quality);setError('')};
-  useEffect(()=>{
-    let active=true;
-    void fetchQuality().then(response=>{if(active)setData(response.quality)}).catch(loadError=>{if(active)setError(loadError instanceof Error?loadError.message:'Não foi possível carregar a qualidade.')}).finally(()=>{if(active)setLoading(false)});
-    return()=>{active=false};
-  },[]);
-
-  const runBenchmark=async()=>{
-    setBenchmarking(true);setError('');setNotice('');
-    try{await apiJson('/api/admin/quality/benchmark',{method:'POST'});await load();setNotice('Benchmark concluído e salvo para comparação futura.')}catch(runError){setError(runError instanceof Error?runError.message:'Não foi possível executar o benchmark.')}finally{setBenchmarking(false)}
-  };
-  const rebuildKnowledge=async()=>{
-    setRebuilding(true);setError('');setNotice('');
-    try{
-      const response=await apiJson<{message:string}>('/api/admin/quality/rebuild-knowledge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({limit:500})});
-      await load();setNotice(response.message);
-    }catch(rebuildError){setError(rebuildError instanceof Error?rebuildError.message:'Não foi possível analisar os catálogos existentes.')}finally{setRebuilding(false)}
-  };
-  const openEdit=(catalog:QualityCatalog)=>{setEditing(catalog.id);setDraft({manufacturer:catalog.manufacturer||'',model:catalog.model||'',pnc:catalog.pnc||''})};
-  const saveMetadata=async(catalog:QualityCatalog)=>{
-    setBusyId(catalog.id);setError('');setNotice('');
-    try{
-      await apiJson(`/api/admin/quality/catalogs/${catalog.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(draft)});
-      setEditing(null);await load();setNotice('Metadados salvos e catálogo enviado para reprocessamento seguro.');
-    }catch(saveError){setError(saveError instanceof Error?saveError.message:'Não foi possível salvar os metadados.')}finally{setBusyId(null)}
-  };
-  const confirmReview=async(catalog:QualityCatalog)=>{
-    setBusyId(catalog.id);setError('');setNotice('');
-    try{await apiJson(`/api/admin/quality/catalogs/${catalog.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:true})});await load();setNotice('Revisão administrativa registrada.')}catch(reviewError){setError(reviewError instanceof Error?reviewError.message:'Não foi possível confirmar a revisão.')}finally{setBusyId(null)}
+  const load = async () => {
+    const response = await fetchQuality();
+    setData(response.quality);
+    setError('');
   };
 
-  const benchmark=latestBenchmark(data);
-  const metrics=benchmark?.metrics;
-  const cards=data?[
-    ['Saúde média',`${data.summary.averageHealth}%`,'Estrutura dos catálogos ativos'],
-    ['Precisam revisão',data.summary.needsReview,'Metadados ou extração a conferir'],
-    ['Peças ativas',data.summary.parts,'Autoridade dos códigos consultados'],
-    ['Memória técnica',data.summary.technicalMemoryChunks,'Chunks por página e conjunto'],
-  ]:[];
-  const normalizedQueueFilter=queueFilter.trim().toLowerCase();
-  const filteredQueue=useMemo(()=>data?.reviewQueue.filter(catalog=>[
-    catalog.filename,catalog.manufacturer,catalog.model,catalog.pnc,catalog.category?.name,...catalog.reviewReasons,
-  ].some(value=>value?.toLowerCase().includes(normalizedQueueFilter)))||[],[data,normalizedQueueFilter]);
-  const recommendations=(()=>{
-    if(!data)return [] as string[];
-    const items:string[]=[];
-    if(data.searchRadar.length>0)items.push(`${data.searchRadar.length} consulta(s) recorrente(s) ainda terminaram sem código seguro; use o Radar para revalidar no motor atual.`);
-    if(data.summary.needsReview>0)items.push(`Revisar ${data.summary.needsReview} catálogo(s) na fila, começando pelos menores scores.`);
-    if(data.summary.partsWithoutPage>0)items.push(`${data.summary.partsWithoutPage} peça(s) ainda não possuem página; priorize reextração apenas dos catálogos afetados.`);
-    if(data.summary.partsWithoutSection>0)items.push(`${data.summary.partsWithoutSection} peça(s) estão sem vista/seção, reduzindo a conferência mecânica.`);
-    if(metrics?.extractionGaps)items.push(`${metrics.extractionGaps} caso(s) do Golden Set possuem catálogo presente, mas a peça esperada não foi extraída.`);
-    if(!items.length)items.push('Nenhuma ação estrutural urgente detectada. Continue alimentando o benchmark com casos reais e feedback do balcão.');
-    return items;
-  })();
+  useEffect(() => {
+    let active = true;
+    void fetchQuality()
+      .then(response => { if (active) setData(response.quality); })
+      .catch(loadError => { if (active) setError(loadError instanceof Error ? loadError.message : 'Não foi possível carregar o diagnóstico.'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  const runBenchmark = async () => {
+    setBenchmarking(true); setError(''); setNotice('');
+    try {
+      await apiJson('/api/admin/quality/benchmark', { method: 'POST', timeoutMs: 120_000 });
+      await load();
+      setNotice('Teste de regressão concluído. O resultado foi salvo para comparação.');
+    } catch (runError) {
+      setError(runError instanceof Error ? runError.message : 'Não foi possível executar o teste de regressão.');
+    } finally { setBenchmarking(false); }
+  };
+
+  const rebuildKnowledge = async () => {
+    setRebuilding(true); setError(''); setNotice('');
+    try {
+      const response = await apiJson<{ message: string }>('/api/admin/quality/rebuild-knowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 500 }),
+        timeoutMs: 120_000,
+      });
+      await load();
+      setNotice(response.message);
+    } catch (rebuildError) {
+      setError(rebuildError instanceof Error ? rebuildError.message : 'Não foi possível atualizar o diagnóstico.');
+    } finally { setRebuilding(false); }
+  };
+
+  const openEdit = (catalog: QualityCatalog) => {
+    setEditing(catalog.id);
+    setDraft({ manufacturer: catalog.manufacturer || 'Husqvarna', model: catalog.suggestedModel || catalog.model || '', pnc: catalog.pnc || '' });
+  };
+
+  const saveMetadata = async (catalog: QualityCatalog) => {
+    setBusyId(catalog.id); setError(''); setNotice('');
+    try {
+      await apiJson(`/api/admin/quality/catalogs/${catalog.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(draft),
+      });
+      setEditing(null);
+      await load();
+      setNotice('Dados corrigidos. O PDF foi enviado para uma reextração segura.');
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Não foi possível salvar os dados.');
+    } finally { setBusyId(null); }
+  };
+
+  const confirmReview = async (catalog: QualityCatalog) => {
+    setBusyId(catalog.id); setError(''); setNotice('');
+    try {
+      await apiJson(`/api/admin/quality/catalogs/${catalog.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: true }),
+      });
+      await load();
+      setNotice('Conferência administrativa registrada.');
+    } catch (reviewError) {
+      setError(reviewError instanceof Error ? reviewError.message : 'Não foi possível confirmar a conferência.');
+    } finally { setBusyId(null); }
+  };
+
+  const normalizedFilter = queueFilter.trim().toLowerCase();
+  const filteredQueue = useMemo(() => data?.reviewQueue.filter(catalog => [
+    catalog.filename, catalog.manufacturer, catalog.model, catalog.pnc, catalog.suggestedModel,
+    catalog.category?.name, ...catalog.reviewReasons,
+  ].some(value => value?.toLowerCase().includes(normalizedFilter))) || [], [data, normalizedFilter]);
+
+  const benchmark = latestBenchmark(data);
+  const metrics = benchmark?.metrics;
 
   return <section>
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-      <div><p className="cv-kicker">Confiabilidade</p><h1 className="cv-page-title">Qualidade IA</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Monitore a qualidade dos catálogos, veja qual IA está ativa, revise metadados e meça a busca com casos reais antes de confiar em uma alteração.</p></div>
-      <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={rebuilding||benchmarking||loading} onClick={()=>void rebuildKnowledge()} className="rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#1d4f91] disabled:cursor-not-allowed disabled:opacity-50">{rebuilding?'Analisando catálogos…':'Analisar catálogos existentes · sem IA'}</button>
-        <button type="button" disabled={benchmarking||rebuilding||loading} onClick={()=>void runBenchmark()} className="cv-primary px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50">{benchmarking?'Executando benchmark…':'Executar benchmark real'}</button>
+    <div className="cv-page-heading">
+      <div>
+        <p className="cv-kicker">Confiabilidade da base</p>
+        <h1 className="cv-page-title">Saúde dos catálogos</h1>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Veja somente o que afeta o atendimento: modelo correto, peças extraídas, página de origem e necessidade de conferência.</p>
       </div>
+      <button type="button" disabled={rebuilding || benchmarking || loading} onClick={() => void rebuildKnowledge()} className="cv-secondary px-4 py-2.5 text-sm font-semibold">
+        {rebuilding ? 'Atualizando diagnóstico…' : 'Atualizar diagnóstico'}
+      </button>
     </div>
-    {notice&&<div role="status" className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{notice}</div>}
-    {error&&<div role="alert" className="mb-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
-    {loading&&<div className="cv-surface rounded-[22px] p-8 text-sm text-slate-400">Calculando qualidade da base…</div>}
 
-    {data&&<>
-      <div className="mb-5 grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
-        <div className="cv-surface rounded-[22px] p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-xs font-semibold uppercase tracking-[.08em] text-slate-400">Runtime de IA</div><div className="mt-2 text-xl font-semibold text-slate-950">{data.runtime.generativeModel}</div></div><span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">Modelo ativo no backend</span></div>
-          <p className="mt-3 text-xs leading-5 text-slate-500">O Gemini interpreta linguagem e ajuda no ranking quando necessário. O Part Number continua vindo exclusivamente dos registros estruturados dos catálogos.</p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3"><RuntimeStat label="Extraídos com Gemini" value={data.runtime.extraction.geminiCatalogs}/><RuntimeStat label="Parser/local" value={data.runtime.extraction.parserCatalogs}/><RuntimeStat label="Método legado" value={data.runtime.extraction.unknownCatalogs}/></div>
-        </div>
-        <div className="cv-surface rounded-[22px] p-5"><div className="text-xs font-semibold uppercase tracking-[.08em] text-slate-400">Próximas ações</div><div className="mt-3 grid gap-2">{recommendations.map(item=><div key={item} className="rounded-xl bg-slate-50 px-3 py-2.5 text-xs leading-5 text-slate-600">• {item}</div>)}</div></div>
+    {notice && <div role="status" className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{notice}</div>}
+    {error && <div role="alert" className="mb-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
+    {loading && <div className="cv-surface rounded-[22px] p-8 text-sm text-slate-500">Conferindo a base técnica…</div>}
+
+    {data && <>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard label="Catálogos utilizáveis" value={data.summary.readyCatalogs} description="Com peças disponíveis para consulta" tone="navy" />
+        <SummaryCard label="Precisam de atenção" value={data.summary.needsReview} description="Revisão de dados ou extração" tone={data.summary.needsReview ? 'warning' : 'success'} />
+        <SummaryCard label="Modelos suspeitos" value={data.summary.modelIssues} description="Possível título de peça no campo modelo" tone={data.summary.modelIssues ? 'danger' : 'success'} />
+        <SummaryCard label="Sem PNC confirmado" value={data.summary.catalogsWithoutConfirmedPnc} description="Alguns IPLs antigos não informam PNC" tone="neutral" />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{cards.map(([label,value,description])=><div key={String(label)} className="cv-surface rounded-[22px] p-5"><div className="text-xs font-semibold uppercase tracking-[.08em] text-slate-400">{label}</div><div className="mt-3 text-3xl font-semibold tracking-[-.04em] text-slate-950">{value}</div><div className="mt-2 text-xs leading-5 text-slate-400">{description}</div></div>)}</div>
-
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1.4fr_.8fr]">
-        <div className="cv-surface rounded-[22px] p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-sm font-semibold text-slate-900">Benchmark de produção</div><p className="mt-1 text-xs leading-5 text-slate-400">Precisão é medida somente nos casos cujo código esperado realmente existe na base. Cobertura do catálogo é mostrada separadamente.</p></div>{benchmark&&<div className="text-xs text-slate-400">{fmtDate(benchmark.createdAt)}</div>}</div>
-          {metrics?<>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Metric label="Top-1" value={`${metrics.top1Percent}%`}/><Metric label="Recall@5" value={`${metrics.recallAt5Percent}%`}/><Metric label="MRR" value={metrics.mrr.toFixed(3)}/><Metric label="Hard negative venceu" value={`${metrics.hardNegativeWinPercent}%`} danger={metrics.hardNegativeWinRate>0}/></div>
-            <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-xs leading-6 text-slate-600"><b>Cobertura do Golden Set:</b> {metrics.goldenApplicable}/{metrics.goldenTotal} ({metrics.catalogCoveragePercent}%). <b>Gaps de extração:</b> {metrics.extractionGaps}. <b>Catálogos ainda ausentes:</b> {metrics.missingCatalogs}. <b>Casos aprendidos com feedback:</b> {metrics.feedbackCases}.</div>
-          </>:<div className="mt-6 rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">Nenhum benchmark foi executado neste tenant ainda.</div>}
+      <div className="mt-5 grid gap-5 xl:grid-cols-[1.45fr_.75fr]">
+        <div className="cv-surface overflow-hidden rounded-[24px]">
+          <div className="border-b border-slate-200/80 bg-slate-50/70 p-5">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div><h2 className="text-base font-semibold text-slate-900">Catálogos para conferir</h2><p className="mt-1 text-xs leading-5 text-slate-500">Comece pelos modelos sugeridos. Nenhum código é alterado apenas por abrir esta tela.</p></div>
+              <input value={queueFilter} onChange={event => setQueueFilter(event.target.value)} placeholder="Filtrar por arquivo, modelo ou motivo" className="cv-field w-full max-w-xs text-xs" />
+            </div>
+          </div>
+          {!filteredQueue.length
+            ? <div className="p-10 text-center"><div className="font-semibold text-emerald-700">Nenhuma pendência neste filtro</div><p className="mt-1 text-xs text-slate-500">A base continua disponível para o balcão.</p></div>
+            : <div className="divide-y divide-slate-100">{filteredQueue.map(catalog => <div key={catalog.id} className="p-5">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <b className="text-sm text-slate-900">{catalog.filename}</b>
+                    <span className={`rounded-full border px-2 py-1 text-[10px] font-semibold ${healthTone(catalog.healthScore)}`}>{catalog.healthScore}/100</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">{reviewLabel(catalog.reviewStatus)}</span>
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">Modelo: {catalog.model || 'não confirmado'} · PNC: {catalog.pnc || 'não impresso/confirmado'} · {extractionLabel(catalog.extractionMethod)}</div>
+                  {catalog.suggestedModel && <div className="mt-3 inline-flex rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800">Modelo sugerido pelo arquivo: {catalog.suggestedModel}</div>}
+                  {catalog.reviewReasons.length > 0 && <div className="mt-3 grid gap-1">{catalog.reviewReasons.slice(0, 4).map(reason => <div key={reason} className="text-xs leading-5 text-amber-900">• {reason}</div>)}</div>}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => openEdit(catalog)} className="cv-secondary px-3 py-2 text-xs font-semibold">Corrigir dados</button>
+                  <button type="button" disabled={busyId === catalog.id || Boolean(catalog.modelNeedsReview)} onClick={() => void confirmReview(catalog)} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">Marcar como conferido</button>
+                </div>
+              </div>
+              {editing === catalog.id && <div className="mt-4 rounded-2xl border border-blue-100 bg-[#f4f8fd] p-4">
+                <div className="mb-3 text-xs leading-5 text-slate-600"><b>Importante:</b> PNC identifica a variante do equipamento. Número de série não deve ser informado como PNC. Salvar relê o PDF para propagar o modelo às peças.</div>
+                <div className="grid gap-2 md:grid-cols-[1fr_1fr_1fr_auto_auto]">
+                  <input className="cv-field text-xs" value={draft.manufacturer} onChange={event => setDraft({ ...draft, manufacturer: event.target.value })} placeholder="Fabricante" />
+                  <input className="cv-field text-xs" value={draft.model} onChange={event => setDraft({ ...draft, model: event.target.value })} placeholder="Modelo (ex.: 143RII)" />
+                  <input className="cv-field text-xs" value={draft.pnc} onChange={event => setDraft({ ...draft, pnc: event.target.value })} placeholder="PNC opcional" inputMode="numeric" />
+                  <button type="button" disabled={busyId === catalog.id} onClick={() => void saveMetadata(catalog)} className="cv-primary px-3 py-2 text-xs font-semibold">Salvar e reextrair</button>
+                  <button type="button" onClick={() => setEditing(null)} className="px-3 py-2 text-xs font-semibold text-slate-500">Cancelar</button>
+                </div>
+              </div>}
+            </div>)}</div>}
         </div>
 
-        <div className="cv-surface rounded-[22px] p-5"><div className="text-sm font-semibold text-slate-900">Integridade da indexação</div><div className="mt-4 grid gap-3"><InfoRow label="Sem embedding" value={data.summary.partsWithoutEmbedding}/><InfoRow label="Sem página" value={data.summary.partsWithoutPage}/><InfoRow label="Sem seção" value={data.summary.partsWithoutSection}/><InfoRow label="Registros legados vazios" value={data.hygiene.legacyEmptyRecords}/><InfoRow label="Arquivados" value={data.hygiene.archivedRecords}/><InfoRow label="Histórico removido" value={data.hygiene.removedHistoricalRecords}/></div><p className="mt-4 text-[11px] leading-5 text-slate-400">{data.hygiene.note}</p><div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3 text-[11px] leading-5 text-blue-800">“Analisar catálogos existentes” reaproveita somente peças já extraídas. Não reabre o PDF, não altera códigos, não cria embeddings e não consome Gemini.</div></div>
+        <div className="grid content-start gap-4">
+          <div className="rounded-[24px] bg-[#10284d] p-5 text-white shadow-[0_18px_55px_rgba(15,35,72,.16)]">
+            <div className="text-xs font-bold uppercase tracking-[.12em] text-amber-300">Sobre o PNC</div>
+            <p className="mt-3 text-sm leading-6 text-slate-200">Uma vista explodida pode atender <b className="text-white">nenhum, um ou vários PNCs</b>. O sistema não deve inventar um PNC quando o catálogo informa apenas modelo ou faixa de série.</p>
+          </div>
+          <div className="cv-surface rounded-[24px] p-5">
+            <h2 className="text-sm font-semibold text-slate-900">Leitura rápida</h2>
+            <div className="mt-4 grid gap-3">
+              <InfoRow label="Peças consultáveis" value={data.summary.parts} />
+              <InfoRow label="Sem página de origem" value={data.summary.partsWithoutPage} />
+              <InfoRow label="Sem vista/seção" value={data.summary.partsWithoutSection} />
+              <InfoRow label="Memórias por página/vista" value={data.summary.technicalMemoryChunks} />
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="cv-surface mt-5 overflow-hidden rounded-[22px]">
-        <div className="border-b border-slate-200 p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-sm font-semibold text-slate-900">Radar de consultas problemáticas</div><p className="mt-1 max-w-3xl text-xs leading-5 text-slate-400">Agrupa pesquisas reais que terminaram sem código seguro. Se uma consulta igual depois termina em “encontrada”, ela sai do radar automaticamente. O radar não reexecuta IA e não altera ranking.</p></div><span className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">{data.searchRadar.length} pendência{data.searchRadar.length===1?'':'s'}</span></div></div>
-        {!data.searchRadar.length?<div className="p-8 text-center text-sm text-emerald-700">Nenhuma consulta recorrente permanece sem solução no histórico recente.</div>:<div className="divide-y divide-slate-100">{data.searchRadar.map(item=><div key={`${item.query}|${item.pnc||''}`} className="flex flex-wrap items-center justify-between gap-4 p-5">
-          <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><b className="text-sm text-slate-800">{item.query}</b><span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-800">{radarLabel(item.status)}</span>{item.count>1&&<span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700">{item.count} ocorrências</span>}</div><div className="mt-1 text-xs text-slate-400">{item.model?`Modelo ${item.model}`:'Modelo não confirmado'}{item.pnc?` · PNC ${item.pnc}`:''} · última em {fmtDate(item.lastSeen)}</div>{item.partDescription&&item.partDescription.toLowerCase()!==item.query.toLowerCase()&&<div className="mt-2 text-[11px] text-slate-500">Interpretação local: {item.partDescription}</div>}</div>
-          {onSearch&&<button type="button" onClick={()=>onSearch(radarSearchQuery(item))} className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-[#1d4f91] transition hover:bg-blue-50">Pesquisar na base atual</button>}
+      <div className="cv-surface mt-5 overflow-hidden rounded-[24px]">
+        <div className="border-b border-slate-200/80 bg-slate-50/70 p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-base font-semibold text-slate-900">Consultas que ainda precisam de solução</h2><p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">Agrupa perguntas reais que terminaram sem um código seguro. Quando uma consulta equivalente passa a ser encontrada, ela sai da lista automaticamente.</p></div><span className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">{data.searchRadar.length} pendência{data.searchRadar.length === 1 ? '' : 's'}</span></div></div>
+        {!data.searchRadar.length ? <div className="p-8 text-center text-sm text-emerald-700">Nenhuma consulta recorrente permanece sem solução.</div> : <div className="divide-y divide-slate-100">{data.searchRadar.map(item => <div key={`${item.query}|${item.pnc || ''}`} className="flex flex-wrap items-center justify-between gap-4 p-5">
+          <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><b className="text-sm text-slate-800">{item.query}</b><span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-800">{radarLabel(item.status)}</span>{item.count > 1 && <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700">{item.count} ocorrências</span>}</div><div className="mt-1 text-xs text-slate-400">{item.model ? `Modelo ${item.model}` : 'Modelo não confirmado'}{item.pnc ? ` · PNC ${item.pnc}` : ''} · última em {fmtDate(item.lastSeen)}</div>{item.partDescription && item.partDescription.toLowerCase() !== item.query.toLowerCase() && <div className="mt-2 text-[11px] text-slate-500">Interpretação local: {item.partDescription}</div>}</div>
+          {onSearch && <button type="button" onClick={() => onSearch(radarSearchQuery(item))} className="cv-secondary px-3 py-2 text-xs font-semibold">Pesquisar na base atual</button>}
         </div>)}</div>}
       </div>
 
-      <div className="cv-surface mt-5 overflow-hidden rounded-[22px]">
-        <div className="border-b border-slate-200 p-5"><div className="flex flex-wrap items-end justify-between gap-3"><div><div className="text-sm font-semibold text-slate-900">Fila de revisão</div><p className="mt-1 text-xs text-slate-400">A ordem já prioriza os menores scores. Filtre por arquivo, modelo, PNC, família ou motivo.</p></div><input value={queueFilter} onChange={event=>setQueueFilter(event.target.value)} placeholder="Filtrar fila de revisão" className="cv-field w-full max-w-xs text-xs"/></div></div>
-        {!filteredQueue.length?<div className="p-8 text-center text-sm text-emerald-700">{data.reviewQueue.length?'Nenhum catálogo corresponde ao filtro.':'Nenhum catálogo exige revisão no momento.'}</div>:<div className="divide-y divide-slate-100">{filteredQueue.map(catalog=><div key={catalog.id} className="p-5">
-          <div className="flex flex-wrap items-start justify-between gap-4"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><b className="truncate text-sm text-slate-800">{catalog.filename}</b><span className={`rounded-full border px-2 py-1 text-[10px] font-semibold ${healthTone(catalog.healthScore)}`}>{catalog.healthScore}/100</span><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">{reviewLabel(catalog.reviewStatus)}</span></div><div className="mt-1 text-xs text-slate-400">{catalog.model||'Modelo não confirmado'} · PNC {catalog.pnc||'não confirmado'} · {catalog.category?.name||'Sem seção'} · {extractionLabel(catalog.extractionMethod)}</div>{catalog.reviewReasons.length>0&&<div className="mt-3 grid gap-1">{catalog.reviewReasons.slice(0,5).map(reason=><div key={reason} className="text-xs leading-5 text-amber-800">• {reason}</div>)}</div>}</div><div className="flex gap-2"><button type="button" onClick={()=>openEdit(catalog)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">Corrigir metadados</button><button type="button" disabled={busyId===catalog.id} onClick={()=>void confirmReview(catalog)} className="rounded-xl border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700 disabled:opacity-40">Confirmar revisão</button></div></div>
-          {editing===catalog.id&&<div className="mt-4 grid gap-2 rounded-2xl bg-slate-50 p-4 md:grid-cols-[1fr_1fr_1fr_auto_auto]"><input className="cv-field text-xs" value={draft.manufacturer} onChange={event=>setDraft({...draft,manufacturer:event.target.value})} placeholder="Fabricante"/><input className="cv-field text-xs" value={draft.model} onChange={event=>setDraft({...draft,model:event.target.value})} placeholder="Modelo"/><input className="cv-field text-xs" value={draft.pnc} onChange={event=>setDraft({...draft,pnc:event.target.value})} placeholder="PNC"/><button type="button" disabled={busyId===catalog.id} onClick={()=>void saveMetadata(catalog)} className="cv-primary px-3 py-2 text-xs font-semibold disabled:opacity-40">Salvar e reprocessar</button><button type="button" onClick={()=>setEditing(null)} className="px-3 py-2 text-xs font-semibold text-slate-500">Cancelar</button></div>}
-        </div>)}</div>}
-      </div>
-
-      <div className="cv-surface cv-scrollbar mt-5 overflow-x-auto rounded-[22px]"><table className="w-full min-w-[980px] text-sm"><thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-[.08em] text-slate-400"><tr><th className="p-4">Catálogo</th><th>Família</th><th>Saúde</th><th>Extração</th><th>Peças</th><th>Memória</th><th className="p-4">Revisão</th></tr></thead><tbody>{data.catalogs.map(catalog=><tr key={catalog.id} className="border-t border-slate-100"><td className="p-4"><b className="text-slate-800">{catalog.filename}</b><div className="mt-1 text-xs text-slate-400">{catalog.model||'—'} · PNC {catalog.pnc||'—'}</div></td><td className="pr-4 text-slate-600">{catalog.category?.name||'—'}</td><td className="pr-4"><span className={`rounded-full border px-2 py-1 text-xs font-semibold ${healthTone(catalog.healthScore)}`}>{catalog.healthScore}/100</span></td><td className="pr-4 text-xs text-slate-500">{extractionLabel(catalog.extractionMethod)}</td><td className="pr-4 text-slate-600">{catalog._count.parts}</td><td className="pr-4 text-slate-600">{catalog._count.chunks}</td><td className="p-4 text-xs text-slate-600">{reviewLabel(catalog.reviewStatus)}</td></tr>)}</tbody></table></div>
+      <details className="cv-surface mt-5 rounded-[24px] p-5">
+        <summary className="cursor-pointer list-none text-sm font-semibold text-slate-900">Ferramentas técnicas avançadas <span className="ml-2 text-xs font-normal text-slate-400">uso eventual</span></summary>
+        <div className="mt-5 grid gap-5 xl:grid-cols-2">
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <h3 className="text-sm font-semibold">IA e indexação</h3>
+            <p className="mt-2 text-xs leading-5 text-slate-600">O modelo {data.runtime.generativeModel} interpreta perguntas e PDFs visuais. Os códigos continuam vindo das peças estruturadas, nunca da imaginação da IA.</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3"><RuntimeStat label="Leitura visual" value={data.runtime.extraction.geminiCatalogs} /><RuntimeStat label="Leitura local" value={data.runtime.extraction.parserCatalogs} /><RuntimeStat label="Legados" value={data.runtime.extraction.unknownCatalogs} /></div>
+            <p className="mt-3 text-[11px] leading-5 text-slate-500">Embeddings opcionais ausentes: {data.summary.partsWithoutEmbedding}. A busca textual e tolerante a erros continua ativa.</p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <h3 className="text-sm font-semibold">Teste de regressão da busca</h3>
+            <p className="mt-2 text-xs leading-5 text-slate-600">O antigo “benchmark de produção” confere se uma mudança no ranking piorou casos conhecidos. Não é necessário no uso diário; execute somente após alterar a lógica de busca.</p>
+            {metrics && <div className="mt-3 grid grid-cols-2 gap-2"><Metric label="Primeiro resultado correto" value={`${metrics.top1Percent}%`} /><Metric label="Correto entre os 5" value={`${metrics.recallAt5Percent}%`} /></div>}
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <button type="button" disabled={benchmarking || rebuilding} onClick={() => void runBenchmark()} className="cv-secondary px-3 py-2 text-xs font-semibold">{benchmarking ? 'Executando teste…' : 'Executar teste agora'}</button>
+              {benchmark && <span className="text-[11px] text-slate-400">Último: {fmtDate(benchmark.createdAt)}</span>}
+            </div>
+          </div>
+        </div>
+      </details>
     </>}
   </section>;
 }
 
-function Metric({label,value,danger=false}:{label:string;value:string;danger?:boolean}){return <div className={`rounded-2xl border p-4 ${danger?'border-rose-200 bg-rose-50':'border-slate-200 bg-white'}`}><div className="text-[10px] font-semibold uppercase tracking-[.08em] text-slate-400">{label}</div><div className={`mt-2 text-2xl font-semibold ${danger?'text-rose-700':'text-slate-900'}`}>{value}</div></div>}
-function InfoRow({label,value}:{label:string;value:number}){return <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5"><span className="text-xs text-slate-500">{label}</span><b className="text-sm text-slate-800">{value}</b></div>}
-function RuntimeStat({label,value}:{label:string;value:number}){return <div className="rounded-xl bg-slate-50 px-3 py-3"><div className="text-[9px] font-bold uppercase tracking-[.08em] text-slate-400">{label}</div><div className="mt-1 text-lg font-semibold text-slate-900">{value}</div></div>}
+function SummaryCard({ label, value, description, tone }: { label: string; value: number; description: string; tone: 'navy' | 'success' | 'warning' | 'danger' | 'neutral' }) {
+  const tones = {
+    navy: 'border-[#183965] bg-[#10284d] text-white',
+    success: 'border-emerald-200 bg-emerald-50/90 text-emerald-950',
+    warning: 'border-amber-200 bg-amber-50/90 text-amber-950',
+    danger: 'border-rose-200 bg-rose-50/90 text-rose-950',
+    neutral: 'border-slate-200 bg-slate-100/90 text-slate-900',
+  };
+  return <div className={`rounded-[22px] border p-5 shadow-[0_14px_40px_rgba(15,35,72,.055)] ${tones[tone]}`}><div className="text-[11px] font-bold uppercase tracking-[.09em] opacity-60">{label}</div><div className="mt-2 text-3xl font-semibold tracking-[-.04em]">{value}</div><div className="mt-2 text-xs leading-5 opacity-65">{description}</div></div>;
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-xl border border-slate-200 bg-white p-3"><div className="text-[9px] font-semibold uppercase tracking-[.08em] text-slate-400">{label}</div><div className="mt-1 text-xl font-semibold text-slate-900">{value}</div></div>;
+}
+
+function InfoRow({ label, value }: { label: string; value: number }) {
+  return <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5"><span className="text-xs text-slate-500">{label}</span><b className="text-sm text-slate-800">{value}</b></div>;
+}
+
+function RuntimeStat({ label, value }: { label: string; value: number }) {
+  return <div className="rounded-xl border border-slate-200 bg-white px-3 py-3"><div className="text-[9px] font-bold uppercase tracking-[.08em] text-slate-400">{label}</div><div className="mt-1 text-lg font-semibold text-slate-900">{value}</div></div>;
+}

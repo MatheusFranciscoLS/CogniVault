@@ -7,6 +7,7 @@ import { HUSQVARNA_GOLDEN_BENCHMARK } from './part-benchmark-cases';
 import { evaluatePartBenchmark, type PartBenchmarkCase, type PartBenchmarkObservation } from './part-benchmark';
 import { PartSearchService } from './part-search.service';
 import { refreshCatalogHealth } from './catalog-health';
+import { inferCatalogModelFromFilename, isLikelyHusqvarnaPnc, isPlausibleCatalogModel } from './catalog-extractor';
 import { buildSearchQualityRadar } from './search-quality-radar';
 
 function code(value: string): string { return normalizeIdentifier(value); }
@@ -82,8 +83,35 @@ export class AiQualityService {
       }),
     ]);
 
-    const active = documents.filter(document => document.status === 'COMPLETED');
-    const needsReview = documents.filter(document => document.reviewStatus === 'NEEDS_REVIEW' || document.reviewStatus === 'PENDING');
+    const pncRows = await prisma.part.findMany({
+      where: {
+        active: true,
+        pnc: { not: null },
+        document: { tenantId, archivedAt: null, status: 'COMPLETED', processingStage: { not: 'REMOVED' } },
+      },
+      distinct: ['documentId', 'pnc'],
+      select: { documentId: true, pnc: true },
+    });
+    const documentsWithConfirmedPnc = new Set(pncRows.filter(row => isLikelyHusqvarnaPnc(row.pnc)).map(row => row.documentId));
+    const effectiveDocuments = documents.map(document => {
+      const modelNeedsReview = document.status === 'COMPLETED' && !isPlausibleCatalogModel(document.model);
+      const suggestedModel = modelNeedsReview ? inferCatalogModelFromFilename(document.filename) || null : null;
+      const modelReason = suggestedModel
+        ? `Modelo atual não é confiável. Sugestão pelo nome do arquivo: ${suggestedModel}.`
+        : 'Modelo atual não é confiável e precisa ser confirmado no PDF.';
+      return {
+        ...document,
+        modelNeedsReview,
+        suggestedModel,
+        healthScore: modelNeedsReview ? Math.min(document.healthScore, 64) : document.healthScore,
+        reviewStatus: modelNeedsReview ? 'NEEDS_REVIEW' as const : document.reviewStatus,
+        reviewReasons: modelNeedsReview && !document.reviewReasons.includes(modelReason)
+          ? [modelReason, ...document.reviewReasons]
+          : document.reviewReasons,
+      };
+    });
+    const active = effectiveDocuments.filter(document => document.status === 'COMPLETED');
+    const needsReview = effectiveDocuments.filter(document => document.reviewStatus === 'NEEDS_REVIEW' || document.reviewStatus === 'PENDING');
     const averageHealth = active.length
       ? Math.round(active.reduce((sum, document) => sum + document.healthScore, 0) / active.length)
       : 0;
@@ -99,6 +127,8 @@ export class AiQualityService {
         averageHealth,
         parts: partCount,
         technicalMemoryChunks: chunks,
+        modelIssues: active.filter(document => document.modelNeedsReview).length,
+        catalogsWithoutConfirmedPnc: active.filter(document => !isLikelyHusqvarnaPnc(document.pnc) && !documentsWithConfirmedPnc.has(document.id)).length,
         partsWithoutEmbedding: noEmbedding,
         partsWithoutPage: noPage,
         partsWithoutSection: noSection,
@@ -113,7 +143,7 @@ export class AiQualityService {
       },
       searchRadar: buildSearchQualityRadar(searchHistory, 10),
       reviewQueue: needsReview,
-      catalogs: documents,
+      catalogs: effectiveDocuments,
       hygiene: {
         archivedRecords: archived,
         removedHistoricalRecords: removed,

@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { createClient } from '@supabase/supabase-js';
-import { createHash } from 'node:crypto';
-import fs from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
+import { access, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { prisma } from '../config/prisma';
 import { GEMINI_GENERATIVE_MODEL, getGeminiClient, getGeminiType } from '../config/gemini';
@@ -12,6 +12,8 @@ import {
     type CatalogExtraction,
     type ExtractedPart,
     extractCatalogDeterministically,
+    isPlausibleCatalogModel,
+    normalizeHusqvarnaPnc,
 } from './catalog-extractor';
 import { buildPartRetrievalContext } from './part-index-context';
 
@@ -55,6 +57,15 @@ function cleanString(value: unknown): string {
 function isUniversalPnc(value: string): boolean {
     const normalized = normalizeIdentifier(value);
     return ['ALL', 'ANY', 'TODOS', 'QUALQUER', 'QUALQUERUM', 'UNIVERSAL'].includes(normalized);
+}
+
+async function pathExists(value: string): Promise<boolean> {
+    try {
+        await access(value);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 function storageCandidates(tenantId: string, documentId: string, storagePath?: string | null): string[] {
@@ -139,28 +150,28 @@ export class AIService {
 
             if (document.url && !/^https?:\/\//i.test(document.url)) {
                 const candidate = path.resolve(document.url);
-                if (fs.existsSync(candidate)) localFilePath = candidate;
+                if (await pathExists(candidate)) localFilePath = candidate;
             }
 
             if (!localFilePath) {
                 const reprocessDir = path.resolve('uploads');
-                fs.mkdirSync(reprocessDir, { recursive: true });
+                await mkdir(reprocessDir, { recursive: true });
                 for (const candidatePath of storageCandidates(tenantId, documentId, document.storagePath)) {
                     const { data, error } = await supabase.storage.from(storageBucket).download(candidatePath);
                     if (error || !data) continue;
                     localFilePath = path.join(reprocessDir, `reprocess-${documentId}-${jobId}.pdf`);
-                    fs.writeFileSync(localFilePath, Buffer.from(await data.arrayBuffer()));
+                    await writeFile(localFilePath, Buffer.from(await data.arrayBuffer()));
                     downloadedStoragePath = candidatePath;
                     console.log(`📦 PDF recuperado do Storage: ${candidatePath}`);
                     break;
                 }
             }
 
-            if (!localFilePath || !fs.existsSync(localFilePath)) {
+            if (!localFilePath || !(await pathExists(localFilePath))) {
                 throw new Error('PDF original não encontrado no servidor nem no Storage.');
             }
 
-            const fileBuffer = fs.readFileSync(localFilePath);
+            const fileBuffer = await readFile(localFilePath);
             const contentHash = createHash('sha256').update(fileBuffer).digest('hex');
             const canonicalStoragePath = `${tenantId}/${documentId}.pdf`;
             if (downloadedStoragePath !== canonicalStoragePath) {
@@ -319,18 +330,21 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
 
             const extractedManufacturer = cleanString(extraction.manufacturer);
             const models = Array.isArray(extraction.models)
-                ? extraction.models.map(cleanString).filter(Boolean)
+                ? extraction.models.map(cleanString).filter(isPlausibleCatalogModel)
                 : [];
             const pncs = Array.isArray(extraction.pncs)
-                ? extraction.pncs.map(cleanString).filter(Boolean)
+                ? extraction.pncs.map(value => normalizeHusqvarnaPnc(cleanString(value))).filter(Boolean)
                 : [];
+            const trustedDocumentModel = isPlausibleCatalogModel(document.model) ? cleanString(document.model) : '';
+            const trustedDocumentPnc = normalizeHusqvarnaPnc(document.pnc);
             const preparedParts: PreparedPart[] = [];
 
             for (const rawPart of extraction.parts) {
                 const name = cleanString(rawPart.name);
                 const partNumber = cleanString(rawPart.partNumber);
-                const model = cleanString(rawPart.model)
-                    || document.model
+                const rawModel = cleanString(rawPart.model);
+                const model = (isPlausibleCatalogModel(rawModel) ? rawModel : '')
+                    || trustedDocumentModel
                     || (models.length === 1 ? models[0] : '');
                 if (!name || !partNumber || !model) continue;
 
@@ -338,15 +352,15 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     || document.manufacturer
                     || extractedManufacturer
                     || '';
-                const documentPnc = cleanString(document.pnc);
-                let pnc = cleanString(rawPart.pnc) || documentPnc || '';
+                const documentPnc = trustedDocumentPnc;
+                const extractedPartPnc = normalizeHusqvarnaPnc(cleanString(rawPart.pnc));
+                let pnc = extractedPartPnc || documentPnc || '';
                 let universalAcrossPnc = Boolean(rawPart.universalAcrossPnc) || isUniversalPnc(pnc);
                 // Um catálogo enviado para um PNC específico não comprova que a
                 // peça serve em todos os PNCs. O escopo informado no upload tem
                 // precedência sobre uma inferência visual genérica da IA.
                 if (documentPnc) {
-                    pnc = cleanString(rawPart.pnc);
-                    if (!pnc || isUniversalPnc(pnc)) pnc = documentPnc;
+                    pnc = extractedPartPnc || documentPnc;
                     universalAcrossPnc = false;
                 }
                 if (universalAcrossPnc) pnc = '';
@@ -441,40 +455,57 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 });
                 console.log(`↪️ Retomando indexação da revisão ${revision}.`);
             } else {
-                activePartIds = await prisma.$transaction(async (tx) => {
-                    const ids: string[] = [];
-                    for (const [index, identifiedPart] of identifiedParts.entries()) {
-                        const partData = {
-                            ...identifiedPart.item,
-                            sourceKey: identifiedPart.sourceKey,
-                            active: true,
-                            retiredAt: null,
-                            extractionRevision: revision,
-                            embeddingRevision: 0,
-                        };
-                        const savedPart = identifiedPart.existingId
-                            ? await tx.part.update({ where: { id: identifiedPart.existingId }, data: partData })
-                            : await tx.part.create({ data: partData });
-                        ids.push(savedPart.id);
-                        await tx.$executeRaw`
-                            UPDATE "Part" SET "embedding" = NULL, "embeddingRevision" = 0
-                            WHERE "id" = ${savedPart.id}
-                        `;
-                        if ((index + 1) % 100 === 0) {
-                            console.log(`💾 ${index + 1}/${preparedParts.length} peças preparadas para persistência.`);
-                        }
-                    }
+                const existingActiveById = new Map(existingParts.map(part => [part.id, part.active]));
+                const persistenceRows = identifiedParts.map(identifiedPart => ({
+                    id: identifiedPart.existingId || randomUUID(),
+                    existingId: identifiedPart.existingId,
+                    data: {
+                        ...identifiedPart.item,
+                        sourceKey: identifiedPart.sourceKey,
+                        // Peças novas só ficam visíveis na troca final. Peças já
+                        // ativas permanecem disponíveis durante toda a preparação.
+                        active: identifiedPart.existingId ? Boolean(existingActiveById.get(identifiedPart.existingId)) : false,
+                        retiredAt: identifiedPart.existingId && existingActiveById.get(identifiedPart.existingId) ? null : new Date(),
+                        extractionRevision: revision,
+                        embeddingRevision: 0,
+                    },
+                }));
+                activePartIds = persistenceRows.map(row => row.id);
 
+                // Uma única transação com 300–800 upserts excedia o limite de
+                // 120 s do Prisma/Render. Lotes independentes mantêm cada lock
+                // curto; a publicação dos novos IDs continua atômica logo abaixo.
+                const persistenceBatchSize = 60;
+                for (let offset = 0; offset < persistenceRows.length; offset += persistenceBatchSize) {
+                    const batch = persistenceRows.slice(offset, offset + persistenceBatchSize);
+                    const batchIds = batch.map(row => row.id);
+                    await prisma.$transaction([
+                        ...batch.map(row => row.existingId
+                            ? prisma.part.update({ where: { id: row.id }, data: row.data })
+                            : prisma.part.create({ data: { id: row.id, ...row.data } })),
+                        prisma.$executeRaw`
+                            UPDATE "Part" SET "embedding" = NULL, "embeddingRevision" = 0
+                            WHERE "id" IN (${Prisma.join(batchIds)})
+                        `,
+                    ]);
+                    console.log(`💾 ${Math.min(offset + batch.length, persistenceRows.length)}/${persistenceRows.length} peças preparadas para persistência.`);
+                }
+
+                await prisma.$transaction(async tx => {
+                    const activated = await tx.part.updateMany({
+                        where: { documentId, id: { in: activePartIds } },
+                        data: { active: true, retiredAt: null },
+                    });
                     await tx.part.updateMany({
-                        where: { documentId, active: true, id: { notIn: ids } },
+                        where: { documentId, active: true, id: { notIn: activePartIds } },
                         data: { active: false, retiredAt: new Date() },
                     });
                     const documentUpdate = await tx.document.updateMany({
                         where: { id: documentId, processingJobId: jobId },
                         data: {
                             manufacturer: document.manufacturer || extractedManufacturer || null,
-                            model: document.model || (models.length === 1 ? models[0] : null),
-                            pnc: document.pnc || (pncs.length === 1 ? pncs[0] : null),
+                            model: trustedDocumentModel || (models.length === 1 ? models[0] : null),
+                            pnc: trustedDocumentPnc || (pncs.length === 1 ? pncs[0] : null),
                             storagePath: canonicalStoragePath,
                             url: canonicalStoragePath,
                             contentHash,
@@ -486,9 +517,8 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                             processingError: null,
                         },
                     });
-                    if (documentUpdate.count !== 1) throw new Error('STALE_DOCUMENT_JOB');
-                    return ids;
-                }, { maxWait: 10_000, timeout: 120_000 });
+                    if (documentUpdate.count !== 1 || activated.count !== activePartIds.length) throw new Error('STALE_DOCUMENT_JOB');
+                }, { maxWait: 10_000, timeout: 30_000 });
                 console.log(`💾 Catálogo já utilizável: ${preparedParts.length} peças salvas na revisão ${revision}.`);
             }
 
@@ -591,11 +621,12 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
             }
             throw error;
         } finally {
-            if (localFilePath && fs.existsSync(localFilePath)) {
+            if (localFilePath) {
                 try {
-                    fs.unlinkSync(localFilePath);
+                    await unlink(localFilePath);
                 } catch (error) {
-                    console.warn('⚠️ Não foi possível remover o arquivo temporário:', error);
+                    const code = typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : '';
+                    if (code !== 'ENOENT') console.warn('⚠️ Não foi possível remover o arquivo temporário:', error);
                 }
             }
             if (uploadedFileName && ai) {

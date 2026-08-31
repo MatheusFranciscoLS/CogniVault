@@ -16,6 +16,9 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "engines": {
+    "node": ">=22 <27"
+  },
   "dependencies": {
     "@google/genai": "^2.19.0",
     "@prisma/client": "^5.22.0",

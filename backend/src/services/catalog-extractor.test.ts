@@ -241,3 +241,47 @@ https://portal.husqvarnagroup.com/br/rocadeiras/rocadeira-husqvarna-321r/?printi
     assert.ok(extraction.parts.every(part => part.model === '321R'));
     assert.ok(extraction.parts.every(part => part.section === 'CYLINDER PISTON'));
 });
+
+test('corrige modelo contaminado por título de peça usando o nome confiável do arquivo', () => {
+    const rows = Array.from({ length: 10 }, (_, index) => (
+        `${index + 1} ${598684111 + index} PEÇA TESTE ${index + 1} 1`
+    )).join('\n');
+    const text = `
+Husqvarna Portal BR
+FIOS TRIMMER
+Referência Número do artigo Nome do artigo Quantidade Comentário
+${rows}
+`;
+
+    const extraction = parseHusqvarnaIplText(text, {
+        model: 'FIOS',
+        filename: 'Roçadeira Husqvarna 545RX.pdf',
+    });
+
+    assert.ok(extraction);
+    assert.deepEqual(extraction.models, ['545RX']);
+    assert.ok(extraction.parts.every(part => part.model === '545RX'));
+});
+
+test('não mistura número de série com PNC em regras de aplicação', () => {
+    const rows = Array.from({ length: 10 }, (_, index) => (
+        `${index + 1} ${598684111 + index} PEÇA TESTE ${index + 1} 1 For 20100400017`
+    )).join('\n');
+    const text = `
+Husqvarna Portal BR
+365 SPECIAL CHAINSAW
+Referência Número do artigo Nome do artigo Quantidade Comentário
+${rows}
+`;
+
+    const extraction = parseHusqvarnaIplText(text, {
+        pnc: '20100400017',
+        filename: 'Motosserra Husqvarna 365 Special.pdf',
+    });
+
+    assert.ok(extraction);
+    assert.deepEqual(extraction.pncs, []);
+    assert.ok(extraction.parts.every(part => part.pnc === ''));
+    assert.ok(extraction.parts.every(part => part.universalAcrossPnc));
+    assert.match(extraction.parts[0]?.notes || '', /For 20100400017/i);
+});

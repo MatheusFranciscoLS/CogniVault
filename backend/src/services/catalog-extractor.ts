@@ -1,6 +1,7 @@
-import fs from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { PDFParse } from 'pdf-parse';
 import { inferCatalogSection } from './catalog-section-inference';
+import { extractKnownHusqvarnaModel } from './husqvarna-domain-knowledge';
 
 export interface ExtractedPart { manufacturer:string; model:string; pnc:string; universalAcrossPnc:boolean; section:string; position:string; name:string; alternativeNames:string[]; partNumber:string; page:number; notes:string; }
 export interface CatalogExtraction { manufacturer:string; models:string[]; pncs:string[]; parts:ExtractedPart[]; }
@@ -17,6 +18,7 @@ const PART_NUMBER_ONLY=new RegExp(`^(${PART_NUMBER_PATTERN})\\s*(.*)$`,'i');
 const LEGACY_PAGE_MARKER=/--\s+(\d+)\s+of\s+\d+\s+--/g;
 const PORTAL_PAGE_MARKER=/https?:\/\/[^\s]+[\t ]+(\d{1,4})\/(\d{1,4}?)(?=(?:\d{2}\/\d{2}\/\d{4})|[\s\r\n]|$)/g;
 const PNC_PATTERN=/\b(?:\d{11}|\d{9})\b/g;
+const MODEL_NOISE=/\b(?:ASSY|ASSEMBLY|CARBURETTOR|CARBURETOR|CHASSIS|COVER|TAMPA|FIO|FIOS|WIRE|WIRES|PARAFUSO|SCREW|PORCA|NUT|ARRUELA|WASHER|PE[CÇ]A|PARTS?)\b/i;
 const GENERIC_SECTIONS=new Set(['pecas','parts','spare parts','lista de pecas','items','itens']);
 const TECHNICAL_SECTION_PATTERN=/\b(?:CYLINDER|PISTON|AIR\s+FILTER|FILTER|MUFFLER|SILENCER|HANDLE|FUEL|HOUSING|SHAFT|CRANKCASE|CLUTCH|CLUTCHDRUM|STARTER|CARBURET(?:OR|TOR)|CARBURETTOR|IGNITION|GEAR|GEARBOX|CUTTING|GUARD|HARNESS|TANK|THROTTLE|DECK|TRANSMISSION|DRIVE|WHEEL|FRAME|STEERING|ELECTRICAL|ENGINE|FLYWHEEL|BRAKE|COVER|PUMP|BLADE|BAR|CHAIN|TUBE|PIPE|CONTROL|ANTI.?VIBRATION)\b/i;
 
@@ -36,9 +38,12 @@ function textPages(text:string){const p=portalTextPages(text);if(p.length)return
 function isNoiseLine(v:string){const l=normalizedLine(v);if(!l||/^https?:\/\//i.test(l)||/Husqvarna\s+Portal\s+BR/i.test(l)||/^\d{1,2}\/\d{1,2}\/\d{4},?\s+\d{1,2}:\d{2}/.test(l))return true;if(/^(?:Refer[eê]|ncia$|N[uú]mero do$|artigo$|Nome do artigo|Quanti$|dade$|Coment[aá]rio$)/i.test(l))return true;if(/^(?:KEY\s+PART|NO\.\s+NO\.\s+DESCRIPTION)/i.test(l))return true;return isPartsHeader(l);}
 function sectionFromLines(lines:string[],last:number,fallback:string){for(let i=lines.length-1;i>last;i--){const c=clean(lines[i]);if(c&&!isPartsHeader(c)&&!isNoiseLine(c))return c;}return fallback;}
 function hasQuantityColumn(lines:string[]){return /\bqty\b|\bquantity\b|quanti\s*dade/.test(lines.join(' ').toLowerCase());}
-function filenameModel(filename:string){const base=filename.replace(/\.pdf$/i,'').replace(/[\u00a0\u202f]/g,' ').replace(/\s+/g,' ').trim();return clean(base.match(/Husqvarna\s+(.+)$/i)?.[1]||'');}
 export function looksLikePartRowModel(v:string|null|undefined){const n=normalizedLine(clean(v).replace(/[\r\n]+/g,' '));return /^\d{1,3}\s+(?:\d{8,12}|\d{3}\s+\d{2}\s+\d{2}-\d{2})\s+\S+/i.test(n);}
 export function looksLikeDescriptionModel(v:string|null|undefined){const n=comparable(clean(v).replace(/[\r\n]+/g,' '));if(!n)return false;if(/^(?:assy|assembly|kit|set|service\s+kit|conj(?:unto)?)\b/.test(n))return true;const words=n.split(/\s+/).filter(Boolean);return words.length>=3&&/\b(?:clutch|embreagem|muffler|silenciador|piston|pistao|cylinder|cilindro|gasket|junta|filter|filtro|carburettor|carburetor|carburador|housing|cobertura|sprayer)\b/.test(n);}
+export function isPlausibleCatalogModel(value:string|null|undefined){const candidate=normalizedLine(clean(value).replace(/[\r\n]+/g,' '));if(!candidate||candidate.length>40)return false;if(!/^[A-Z0-9][A-Z0-9 .®_+/-]*$/i.test(candidate))return false;if(!/\d/.test(candidate)&&!/\s/.test(candidate))return false;if(MODEL_NOISE.test(candidate)||looksLikePartRowModel(candidate)||looksLikeDescriptionModel(candidate))return false;const digits=candidate.replace(/\D/g,'');if(/^\d{9}$|^\d{11}$/.test(digits)&&!/[A-Z]/i.test(candidate))return false;return true;}
+export function normalizeHusqvarnaPnc(value:string|null|undefined){const digits=clean(value).replace(/\D/g,'');return /^9\d{8}(?:\d{2})?$/.test(digits)?digits:'';}
+export function isLikelyHusqvarnaPnc(value:string|null|undefined){return Boolean(normalizeHusqvarnaPnc(value));}
+export function inferCatalogModelFromFilename(filename:string){const base=filename.replace(/\.pdf$/i,'').replace(/[\u00a0\u202f]/g,' ').replace(/\s+/g,' ').trim();const candidate=clean(base.match(/Husqvarna\s+(.+)$/i)?.[1]||'');if(isPlausibleCatalogModel(candidate))return canonicalCatalogModel(candidate);const known=extractKnownHusqvarnaModel(candidate||base);return known&&/[A-Z]/i.test(known)&&isPlausibleCatalogModel(known)?known:'';}
 function canonicalCatalogModel(v:string){const n=clean(v);return /^\d{2,4}(?:\s+[A-Z0-9®.-]+)+$/i.test(n)?compactModel(n):n;}
 function portalModel(text:string){
   const header=text.match(/Husqvarna\s+([A-Z0-9][A-Z0-9 .®_-]{0,50}?)\s+Husqvarna\s*\|\s*Husqvarna\s+Portal\s+BR/i)?.[1];
@@ -49,16 +54,16 @@ function portalModel(text:string){
 function detectModel(text:string,hints:CatalogHints){
   // O produto publicado no Portal é autoridade superior a comentários de linhas,
   // que podem citar aplicações compartilhadas (ex. "assy 321S sprayer").
-  const portal=portalModel(text);if(portal)return portal;
-  const ipl=text.match(/IPL,\s*([^,\n]+),\s*\d{4}-\d{2}/i)?.[1];if(ipl)return canonicalCatalogModel(ipl);
-  const model=text.match(/MODEL\s+NUMBER\s*:?\s*([A-Z0-9][A-Z0-9 .®_-]*?)(?=\s*\(|\s+MFG\.|\r?\n|$)/i)?.[1];if(model)return canonicalCatalogModel(model);
-  const product=text.match(/^\s*([A-Z0-9]{1,8}(?:\s+[A-Z0-9®.-]{1,10}){0,2})\s+(?:LAWN\s+MOWER|CHAIN\s+SAW|CHAINSAW|TRACTOR|BLOWER|TRIMMER|BRUSHCUTTER|ENGINE|SPRAYER|POLE\s+SAW|HEDGE\s+TRIMMER)\b/im)?.[1];if(product&&!/^(?:ASSY|ASSEMBLY|KIT)\b/i.test(product))return canonicalCatalogModel(product);
-  const hinted=clean(hints.model);if(hinted&&!looksLikePartRowModel(hinted)&&!looksLikeDescriptionModel(hinted))return hinted;
-  const fromFilename=filenameModel(clean(hints.filename));return fromFilename&&!looksLikeDescriptionModel(fromFilename)?fromFilename:'';
+  const portal=portalModel(text);if(isPlausibleCatalogModel(portal))return portal;
+  const ipl=text.match(/IPL,\s*([^,\n]+),\s*\d{4}-\d{2}/i)?.[1];if(isPlausibleCatalogModel(ipl))return canonicalCatalogModel(clean(ipl));
+  const model=text.match(/MODEL\s+NUMBER\s*:?\s*([A-Z0-9][A-Z0-9 .®_-]*?)(?=\s*\(|\s+MFG\.|\r?\n|$)/i)?.[1];if(isPlausibleCatalogModel(model))return canonicalCatalogModel(clean(model));
+  const product=text.match(/^\s*([A-Z0-9]{1,8}(?:\s+[A-Z0-9®.-]{1,10}){0,2})\s+(?:LAWN\s+MOWER|CHAIN\s+SAW|CHAINSAW|TRACTOR|BLOWER|TRIMMER|BRUSHCUTTER|ENGINE|SPRAYER|POLE\s+SAW|HEDGE\s+TRIMMER)\b/im)?.[1];if(isPlausibleCatalogModel(product))return canonicalCatalogModel(clean(product));
+  const hinted=clean(hints.model);if(isPlausibleCatalogModel(hinted))return canonicalCatalogModel(hinted);
+  return inferCatalogModelFromFilename(clean(hints.filename));
 }
 function detectManufacturer(_text:string,hints:CatalogHints){return clean(hints.manufacturer)||'Husqvarna';}
-function collectPncs(text:string,hints:CatalogHints){const v:string[]=[];if(clean(hints.pnc))v.push(clean(hints.pnc));for(const m of text.matchAll(/MFG\.\s*ID\.\s*NUMBER\s*:?\s*(\d{11}|\d{9})\b/gi))v.push(m[1]);for(const m of text.matchAll(/(?:PNC|PRODUCT\s+(?:NO|NUMBER|NUMBER\s+CODE))\s*:?\s*(\d{11}|\d{9})\b/gi))v.push(m[1]);for(const m of text.matchAll(/\bFor(?:\s+all\s+EXCEPT)?\s+([^\n.]+)/gi))v.push(...(m[1].match(PNC_PATTERN)||[]));return unique(v);}
-function applicationForBlock(block:string,known:string[],hinted:string){const ex=block.match(/\bFor\s+all\s+EXCEPT\s+([^\n.]+)/i);if(ex){const excluded=new Set(ex[1].match(PNC_PATTERN)||[]);return{pncs:unique(known.filter(p=>!excluded.has(p))),universal:false};}const direct=block.match(/\bFor\s+([^\n.]+)/i);if(direct){const p=unique(direct[1].match(PNC_PATTERN)||[]);if(p.length)return{pncs:p,universal:false};}if(hinted)return{pncs:[hinted],universal:false};return{pncs:[],universal:true};}
+function collectPncs(text:string,hints:CatalogHints){const v:string[]=[];const hinted=normalizeHusqvarnaPnc(hints.pnc);if(hinted)v.push(hinted);for(const m of text.matchAll(/MFG\.\s*ID\.\s*NUMBER\s*:?\s*(\d{11}|\d{9})\b/gi))v.push(m[1]);for(const m of text.matchAll(/(?:PNC|PRODUCT\s+(?:NO|NUMBER|NUMBER\s+CODE))\s*:?\s*(\d{11}|\d{9})\b/gi))v.push(m[1]);for(const m of text.matchAll(/\bFor(?:\s+all\s+EXCEPT)?\s+([^\n.]+)/gi))v.push(...(m[1].match(PNC_PATTERN)||[]));return unique(v.map(normalizeHusqvarnaPnc).filter(Boolean));}
+function applicationForBlock(block:string,known:string[],hinted:string){const ex=block.match(/\bFor\s+all\s+EXCEPT\s+([^\n.]+)/i);if(ex){const excluded=new Set((ex[1].match(PNC_PATTERN)||[]).map(normalizeHusqvarnaPnc).filter(Boolean));return{pncs:unique(known.filter(p=>!excluded.has(p))),universal:false};}const direct=block.match(/\bFor\s+([^\n.]+)/i);if(direct){const p=unique((direct[1].match(PNC_PATTERN)||[]).map(normalizeHusqvarnaPnc).filter(Boolean));if(p.length)return{pncs:p,universal:false};}if(hinted)return{pncs:[hinted],universal:false};return{pncs:[],universal:true};}
 function applicationClause(v:string){const ex=v.match(/\bFor\s+all\s+EXCEPT\s+([^\n.]+)/i);if(ex&&(ex[1].match(PNC_PATTERN)||[]).length)return`For all EXCEPT ${ex[1].trim()}`;const d=v.match(/\bFor\s+([^\n.]+)/i);return d&&(d[1].match(PNC_PATTERN)||[]).length?`For ${d[1].trim()}`:'';}
 function displayNameWithoutApplication(v:string){const n=normalizedLine(v);return clean(n.match(/^(.*?)(?:\s+\d{1,3})?\s+For(?:\s+all\s+EXCEPT)?\s+[^\n.]*\b(?:\d{11}|\d{9})\b[^\n.]*$/i)?.[1]||n);}
 function splitInlineQuantity(v:string){const m=normalizedLine(v).match(/^(.*\S)\s+(\d{1,3})(?:\s+(.+))?$/);return m?{description:clean(m[1]),quantity:m[2],trailing:clean(m[3])}:null;}
@@ -74,7 +79,7 @@ function technicalSectionFromPage(text:string){for(const line of text.split(/\r?
 
 export function parseHusqvarnaIplText(text:string,hints:CatalogHints={}):CatalogExtraction|null{
   if(!hasCatalogSignature(text))return null;const model=detectModel(text,hints),manufacturer=detectManufacturer(text,hints);if(!model||!manufacturer)return null;
-  const hintedPnc=clean(hints.pnc),knownPncs=collectPncs(text,hints),parts:ExtractedPart[]=[];const pages=textPages(text),sectionHints=pages.map(p=>technicalSectionFromPage(p.text));
+  const hintedPnc=normalizeHusqvarnaPnc(hints.pnc),knownPncs=collectPncs(text,hints),parts:ExtractedPart[]=[];const pages=textPages(text),sectionHints=pages.map(p=>technicalSectionFromPage(p.text));
   for(let pageIndex=0;pageIndex<pages.length;pageIndex++){
     const page=pages[pageIndex],lines=page.text.split(/\r?\n/).map(normalizedLine).filter(Boolean),parsed=parseLegacyPage(lines)||parseFlexiblePage(lines);if(!parsed)continue;
     const inferred=inferCatalogSection(parsed.rows);const section=isGenericSection(parsed.section)?(sectionHints[pageIndex]||sectionHints[pageIndex-1]||inferred||parsed.section):parsed.section;
@@ -86,4 +91,4 @@ export function parseHusqvarnaIplText(text:string,hints:CatalogHints={}):Catalog
   const deduped=[...new Map(parts.map(p=>[[p.model,p.pnc,p.page,p.section,p.position,p.partNumber].join('|'),p])).values()];const occurrences=new Set(deduped.map(p=>[p.page,p.position,p.partNumber].join('|'))).size;if(occurrences<10)return null;return{manufacturer,models:[model],pncs:knownPncs,parts:deduped};
 }
 
-export async function extractCatalogDeterministically(filePath:string,hints:CatalogHints={}):Promise<DeterministicExtraction|null>{const parser=new PDFParse({data:fs.readFileSync(filePath)});try{const result=await parser.getText();const extraction=parseHusqvarnaIplText(result.text,hints);return extraction?{extraction,method:'HUSQVARNA_IPL_TEXT'}:null;}finally{await parser.destroy();}}
+export async function extractCatalogDeterministically(filePath:string,hints:CatalogHints={}):Promise<DeterministicExtraction|null>{const parser=new PDFParse({data:await readFile(filePath)});try{const result=await parser.getText();const extraction=parseHusqvarnaIplText(result.text,hints);return extraction?{extraction,method:'HUSQVARNA_IPL_TEXT'}:null;}finally{await parser.destroy();}}

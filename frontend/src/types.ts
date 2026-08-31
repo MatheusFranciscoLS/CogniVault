@@ -9,6 +9,7 @@ export type RetrievalSource = 'DIRECT_CODE' | 'SEMANTIC' | 'LEXICAL' | 'FULL_TEX
 export interface SessionUser { id:string; email:string; role:Role; status:string; tenant:{id:string;name:string}; }
 export interface DocumentItem {
   id:string; filename:string; status:string; manufacturer:string|null; model:string|null; pnc:string|null; pncs?:string[]; category:string; createdAt:string; partCount:number;
+  suggestedModel?:string|null; modelNeedsReview?:boolean;
   archivedAt?:string|null; processingActive?:boolean; processingStage?:string; processingCurrent?:number; processingTotal?:number; processingError?:string|null;
   healthScore?:number; reviewStatus?:CatalogReviewStatus; reviewReasons?:string[]; qualityCheckedAt?:string|null; extractionMethod?:string|null;
 }
@@ -68,6 +69,7 @@ export interface QualityCatalog {
   id:string; filename:string; manufacturer:string|null; model:string|null; pnc:string|null; status:string; processingStage:string; processingError:string|null;
   extractionMethod:string|null; extractedAt:string|null; healthScore:number; reviewStatus:CatalogReviewStatus; reviewReasons:string[];
   qualityCheckedAt:string|null; metadataReviewedAt:string|null; category:{name:string}|null; _count:{parts:number;chunks:number};
+  suggestedModel?:string|null; modelNeedsReview?:boolean;
 }
 export interface SearchRadarItem {
   query:string; pnc:string|null; model:string|null; partDescription:string|null;
@@ -81,7 +83,7 @@ export interface BenchmarkMetrics {
 }
 export interface BenchmarkRun { id:string; caseCount:number; metrics:BenchmarkMetrics; details:unknown; createdAt:string; }
 export interface AiQualityData {
-  summary:{catalogs:number;readyCatalogs:number;needsReview:number;averageHealth:number;parts:number;technicalMemoryChunks:number;partsWithoutEmbedding:number;partsWithoutPage:number;partsWithoutSection:number};
+  summary:{catalogs:number;readyCatalogs:number;needsReview:number;averageHealth:number;parts:number;technicalMemoryChunks:number;partsWithoutEmbedding:number;partsWithoutPage:number;partsWithoutSection:number;modelIssues:number;catalogsWithoutConfirmedPnc:number};
   runtime:{generativeModel:string;extraction:{geminiCatalogs:number;parserCatalogs:number;unknownCatalogs:number}};
   searchRadar:SearchRadarItem[]; reviewQueue:QualityCatalog[]; catalogs:QualityCatalog[];
   hygiene:{archivedRecords:number;removedHistoricalRecords:number;legacyEmptyRecords:number;note:string}; benchmarkRuns:BenchmarkRun[];

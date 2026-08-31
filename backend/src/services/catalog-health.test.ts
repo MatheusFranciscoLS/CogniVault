@@ -68,6 +68,42 @@ test('multiple PNCs are valid catalog coverage and do not reduce health', () => 
   assert.ok(!result.reasons.some(reason => reason.includes('mais de um PNC')));
 });
 
+test('a part title persisted as model is detected even when the catalog has many parts', () => {
+  const result = assessCatalogHealth({
+    manufacturer: 'Husqvarna',
+    model: 'FIOS',
+    extractedModels: ['FIOS'],
+    partCount: 326,
+    partsWithPage: 326,
+    partsWithSection: 326,
+    partsWithPosition: 326,
+    chunkCount: 20,
+    embeddedPartCount: 0,
+  });
+
+  assert.equal(result.reviewStatus, 'NEEDS_REVIEW');
+  assert.ok(result.score < 100);
+  assert.ok(result.reasons.some(reason => reason.includes('título de peça')));
+});
+
+test('an old IPL without a confirmed PNC remains usable and explains the limitation', () => {
+  const result = assessCatalogHealth({
+    manufacturer: 'Husqvarna',
+    model: '226R',
+    extractedPncs: ['20100400017'],
+    partCount: 197,
+    partsWithPage: 197,
+    partsWithSection: 197,
+    partsWithPosition: 197,
+    chunkCount: 12,
+    embeddedPartCount: 0,
+  });
+
+  assert.equal(result.reviewStatus, 'READY');
+  assert.equal(result.score, 100);
+  assert.ok(result.warnings.some(warning => warning.includes('IPLs antigos')));
+});
+
 test('operational warnings do not reduce structural health', () => {
   const result = assessCatalogHealth({
     manufacturer: 'Husqvarna',

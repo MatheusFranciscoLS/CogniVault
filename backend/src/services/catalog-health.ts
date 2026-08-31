@@ -1,5 +1,6 @@
 import { prisma } from '../config/prisma';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
+import { isLikelyHusqvarnaPnc, isPlausibleCatalogModel } from './catalog-extractor';
 
 export type CatalogHealthInput = {
   manufacturer?: string | null;
@@ -75,15 +76,6 @@ function unique(values: string[] | undefined): string[] {
 
 function safeCount(value: number | undefined): number {
   return Number.isFinite(value) ? Math.max(0, Math.trunc(value || 0)) : 0;
-}
-
-function looksLikeDescriptionModel(value: string | null | undefined): boolean {
-  const normalized = normalizeText(value || '');
-  if (!normalized) return false;
-  if (/^(?:assy|assembly|kit|set|service kit|conj(?:unto)?)\b/.test(normalized)) return true;
-  const words = normalized.split(/\s+/).filter(Boolean);
-  return words.length >= 3
-    && /\b(?:clutch|embreagem|muffler|silenciador|piston|pistao|cylinder|cilindro|gasket|junta|filter|filtro|carburettor|carburetor|carburador|housing|cobertura|sprayer)\b/.test(normalized);
 }
 
 /**
@@ -164,7 +156,7 @@ function explicitPncRuleMismatch(part: CatalogHealthPart): boolean {
   const assigned = normalizeIdentifier(part.pnc).replace(/\D/g, '');
   const except = evidence.match(/\bFor\s+all\s+EXCEPT\s+([^\n.]+)/i);
   if (except) {
-    const excluded = new Set((except[1].match(/\b(?:\d{11}|\d{9})\b/g) || []).map(value => value.replace(/\D/g, '')));
+    const excluded = new Set((except[1].match(/\b(?:\d{11}|\d{9})\b/g) || []).filter(isLikelyHusqvarnaPnc).map(value => value.replace(/\D/g, '')));
     if (!excluded.size) return false;
     if (part.universalAcrossPnc || !assigned) return true;
     return excluded.has(assigned);
@@ -172,7 +164,7 @@ function explicitPncRuleMismatch(part: CatalogHealthPart): boolean {
 
   const direct = evidence.match(/\bFor\s+([^\n.]+)/i);
   if (direct) {
-    const allowed = new Set((direct[1].match(/\b(?:\d{11}|\d{9})\b/g) || []).map(value => value.replace(/\D/g, '')));
+    const allowed = new Set((direct[1].match(/\b(?:\d{11}|\d{9})\b/g) || []).filter(isLikelyHusqvarnaPnc).map(value => value.replace(/\D/g, '')));
     if (!allowed.size) return false;
     if (part.universalAcrossPnc || !assigned) return true;
     return !allowed.has(assigned);
@@ -292,10 +284,18 @@ function isExplicitVariant(parts: CatalogHealthPart[]): boolean {
  * catálogo, não corrupção. Regras For/EXCEPT persistidas no PNC errado continuam
  * sendo tratadas como erro real de aplicação.
  */
-export function diagnoseCatalogStructure(parts: CatalogHealthPart[], documentModel?: string | null, documentPnc?: string | null) {
+export function diagnoseCatalogStructure(
+  parts: CatalogHealthPart[],
+  documentModel?: string | null,
+  documentPnc?: string | null,
+  extractedPncs: string[] = [],
+) {
   const occurrences = new Map<string, CatalogHealthPart[]>();
   const normalizedDocumentModel = normalizeIdentifier(documentModel);
   const normalizedDocumentPnc = normalizeIdentifier(documentPnc);
+  const allowedDocumentPncs = new Set([documentPnc || '', ...extractedPncs]
+    .filter(isLikelyHusqvarnaPnc)
+    .map(normalizeIdentifier));
   let modelMismatchCount = 0;
   let pncMismatchCount = 0;
   let malformedPartNumberCount = 0;
@@ -316,7 +316,7 @@ export function diagnoseCatalogStructure(parts: CatalogHealthPart[], documentMod
       normalizedDocumentPnc
       && !part.universalAcrossPnc
       && part.normalizedPnc
-      && part.normalizedPnc !== normalizedDocumentPnc
+      && (allowedDocumentPncs.size ? !allowedDocumentPncs.has(part.normalizedPnc) : part.normalizedPnc !== normalizedDocumentPnc)
     ) {
       pncMismatchCount += 1;
     }
@@ -384,12 +384,15 @@ export function assessCatalogHealth(input: CatalogHealthInput): CatalogHealth {
 
   if (!text(input.manufacturer)) findings.push({ message: 'Fabricante não confirmado no catálogo.', penalty: 8, review: true });
   if (!text(input.model)) findings.push({ message: 'Modelo não confirmado no catálogo.', penalty: 30, review: true });
-  else if (looksLikeDescriptionModel(input.model)) findings.push({
-    message: `O valor “${text(input.model)}” parece uma descrição de peça/conjunto, não um modelo de equipamento. Confirme o modelo e reextraia o catálogo.`,
+  else if (!isPlausibleCatalogModel(input.model)) findings.push({
+    message: `“${text(input.model)}” não parece ser um modelo de equipamento; pode ser um título de peça ou uma descrição de peça/conjunto lida como modelo.`,
     penalty: 36,
     review: true,
   });
   if (!text(input.model) && models.length > 1) findings.push({ message: `O PDF contém mais de um modelo (${models.join(', ')}). Confirme qual escopo deve ser usado.`, penalty: 12, review: true });
+  if (!text(input.pnc) && !(input.extractedPncs || []).some(isLikelyHusqvarnaPnc)) {
+    warnings.push('PNC não identificado no PDF. Isso é comum em IPLs antigos; consulte por modelo e confirme a variante pela etiqueta quando necessário.');
+  }
 
   if (partCount === 0) findings.push({ message: 'Nenhuma peça ativa foi extraída.', penalty: 60, review: true });
   else if (partCount < 10) findings.push({ message: `Somente ${partCount} peças foram extraídas; confira se o catálogo foi lido por completo.`, penalty: 24, review: true });
@@ -553,7 +556,7 @@ export async function refreshCatalogHealth(documentId: string, tenantId: string)
     prisma.part.count({ where: { documentId, active: true, embeddingRevision: { gt: 0 } } }),
   ]);
 
-  const diagnostics = diagnoseCatalogStructure(parts, document.model, document.pnc);
+  const diagnostics = diagnoseCatalogStructure(parts, document.model, document.pnc, extractedPncs);
   const partsWithInformativeSection = parts.filter(part => isInformativeCatalogSection(part.section)).length;
   const health = assessCatalogHealth({
     manufacturer: document.manufacturer,

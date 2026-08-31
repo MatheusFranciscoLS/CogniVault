@@ -5,6 +5,7 @@ import { AiQualityService } from '../services/ai-quality.service';
 import { AuditService } from '../services/audit.service';
 import { DocumentService } from '../services/document.service';
 import { refreshCatalogHealth } from '../services/catalog-health';
+import { isPlausibleCatalogModel, normalizeHusqvarnaPnc } from '../services/catalog-extractor';
 import { rebuildTenantTechnicalKnowledge } from '../services/knowledge-maintenance.service';
 
 const documentService = new DocumentService();
@@ -87,7 +88,10 @@ export class QualityController {
 
       const manufacturer = metadataValue(req.body?.manufacturer, 'MANUFACTURER');
       const model = metadataValue(req.body?.model, 'MODEL');
-      const pnc = metadataValue(req.body?.pnc, 'PNC');
+      const rawPnc = metadataValue(req.body?.pnc, 'PNC');
+      const pnc = rawPnc ? normalizeHusqvarnaPnc(rawPnc) : rawPnc;
+      if (model && !isPlausibleCatalogModel(model)) { res.status(400).json({ error: 'Informe um modelo válido do equipamento, como 143RII ou TS138.' }); return; }
+      if (rawPnc && !pnc) { res.status(400).json({ error: 'O PNC deve ter 9 ou 11 dígitos e começar por 9. Não use número de série neste campo.' }); return; }
       const changed = manufacturer !== undefined || model !== undefined || pnc !== undefined;
       const confirm = req.body?.confirm === true;
       if (!changed && !confirm) { res.status(400).json({ error: 'Informe um metadado para corrigir ou confirme a revisão.' }); return; }
@@ -129,7 +133,7 @@ export class QualityController {
 
       const health = await refreshCatalogHealth(document.id, req.user.tenantId);
       if (!health) { res.status(404).json({ error: 'Catálogo não encontrado.' }); return; }
-      const critical = health.reasons.some(reason => /modelo|mais de um PNC|nenhuma peça|somente \d+ peças|menos da metade/i.test(reason));
+      const critical = health.reasons.some(reason => /modelo|nenhuma peça|somente \d+ peças|menos da metade/i.test(reason));
       if (critical) {
         res.status(409).json({ error: 'Ainda existem problemas estruturais que precisam ser corrigidos antes de marcar este catálogo como revisado.', reasons: health.reasons });
         return;
