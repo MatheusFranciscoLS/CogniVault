@@ -7,6 +7,7 @@ import { prisma } from '../config/prisma';
 import { GEMINI_GENERATIVE_MODEL, getGeminiClient, getGeminiType } from '../config/gemini';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { countDistinctPartOccurrences, hasSafeExtractionCoverage, matchExistingPartIds } from '../utils/part-identity';
+import { shouldForceCatalogReextraction } from '../utils/document-processing-intent';
 import { withTransientAIRetry } from '../utils/ai-retry';
 import {
     type CatalogExtraction,
@@ -137,7 +138,7 @@ export class AIService {
             if (document.tenantId !== tenantId) throw new Error('Documento não pertence ao tenant informado.');
             if (document.processingJobId !== jobId) throw new Error('STALE_DOCUMENT_JOB');
 
-            const forceReextraction = document.processingStage === 'QUEUED_REEXTRACT';
+            const forceReextraction = shouldForceCatalogReextraction(document.status, document.processingStage);
             const resumeIndexing = !forceReextraction && document.processingStage === 'INDEXING'
                 && document.catalogRevision > 0
                 && document.processingTotal > 0;
