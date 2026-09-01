@@ -1,80 +1,168 @@
-# CogniVault V6 — operação de balcão e inteligência de peças
+<div align="center">
 
-Sistema interno para biblioteca de catálogos técnicos e busca inteligente de peças.
+# CogniVault
 
-## Perfis
+### Catálogo técnico inteligente para operação de peças
 
-### Balcão (`MECHANIC` no código)
-- Consultar o Assistente IA.
-- Informar modelo, PNC e número de série quando necessários.
-- Confirmar/corrigir resultados (👍/👎).
-- Buscar por peça, código, modelo e PNC.
-- Usar histórico, favoritos, detalhes e compatibilidade.
-- Visualizar e baixar catálogos processados no leitor interno.
-- **Não pode** enviar, arquivar, restaurar, excluir ou reprocessar PDFs.
-- **Não pode** administrar usuários.
+Centraliza catálogos privados, peças e conhecimento operacional em uma experiência de busca rápida, segura e baseada em evidências.
 
-### Administrador (`ADMIN`)
-Além das funções acima:
-- Painel com quantidade de catálogos, peças, usuários e feedback.
-- Upload de PDFs.
-- Reprocessamento de catálogo.
-- Arquivamento e restauração de catálogo.
-- Exclusão do arquivo PDF quando ele realmente não deve mais permanecer no storage.
+[Abrir aplicação](https://cognivault-murex.vercel.app) · [Ver no portfólio](https://matheusfranciscols.github.io/#projetos) · [Falar com o autor](https://www.linkedin.com/in/matheusfranciscols)
+
+![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-1F5A96?style=flat-square&logo=typescript&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-315B8A?style=flat-square&logo=postgresql&logoColor=white)
+![RabbitMQ](https://img.shields.io/badge/RabbitMQ-E85B14?style=flat-square&logo=rabbitmq&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-217A57?style=flat-square&logo=supabase&logoColor=white)
+![CI](https://img.shields.io/badge/CI-GitHub_Actions-315B8A?style=flat-square&logo=githubactions&logoColor=white)
+
+</div>
+
+<a href="https://cognivault-murex.vercel.app">
+  <img src="https://matheusfranciscols.github.io/assets/cognivault-login.webp" alt="Tela real de login do CogniVault" width="100%">
+</a>
+
+## Visão do produto
+
+O **CogniVault** é um sistema interno para consulta de peças, catálogos técnicos e conhecimento operacional. Ele foi projetado para reduzir a dispersão de informação no balcão e tornar a identificação de componentes mais confiável.
+
+A plataforma combina dados estruturados, documentos privados, regras técnicas e IA. Quando a evidência é insuficiente ou existem variantes incompatíveis, o sistema solicita confirmação em vez de inventar um código de peça.
+
+| Problema | Resposta do produto |
+| :--- | :--- |
+| Catálogos e conhecimento espalhados em diferentes fontes. | Biblioteca central com busca por peça, código, modelo, PNC e número de série. |
+| Documentos técnicos sensíveis. | Storage privado, URLs assinadas e autorização aplicada pelo backend. |
+| Risco de uma resposta de IA parecer correta sem possuir evidência. | Part Numbers originados de registros estruturados, restrições técnicas e rastreabilidade de fontes. |
+| Processamento de PDFs sujeito a falhas e operações demoradas. | Filas, reprocessamento controlado, estados de saúde e rotinas de recuperação. |
+
+## Evidências técnicas verificadas
+
+| 45 | 17 | 12 | 2 |
+| :---: | :---: | :---: | :---: |
+| arquivos de teste automatizado | migrations versionadas | modelos de domínio no Prisma | perfis operacionais |
+
+> Os números acima foram levantados diretamente na estrutura atual do repositório. Eles demonstram profundidade de engenharia; métricas de uso e impacto operacional não são publicadas porque a aplicação é interna.
+
+## Principais recursos
+
+### Operação de balcão
+
+- Assistente de IA com respostas baseadas em evidências.
+- Busca por peça, código, modelo, PNC e número de série.
+- Histórico, favoritos, detalhes e compatibilidade.
+- Confirmação e correção de resultados por feedback.
+- Leitor interno para visualizar e baixar catálogos processados.
+- Separação explícita entre evidência técnica, contexto e ranking.
+
+### Administração e qualidade
+
+- Painel com catálogos, peças, usuários e feedback.
+- Upload em lote, processamento e reprocessamento de PDFs.
+- Arquivamento reversível e exclusão controlada do arquivo original.
 - Gestão de usuários e perfis.
-- Auditoria das ações administrativas.
-- Painel de qualidade, revisão de metadados e benchmark da busca.
+- Auditoria de ações administrativas.
+- Revisão de metadados, benchmark e radar de qualidade da busca.
+- Fluxo de aprovação para verificações oficiais de peças.
 
-## Segurança de catálogos
+## Arquitetura
 
-O CogniVault diferencia **arquivar** de **excluir PDF**:
+```mermaid
+flowchart LR
+    U[Operação de balcão] --> F[React + TypeScript<br/>Vercel]
+    A[Administração] --> F
+    F --> API[API Node.js + TypeScript<br/>Render]
+    API --> DB[(PostgreSQL<br/>Prisma)]
+    API --> MQ[RabbitMQ<br/>processamento assíncrono]
+    API --> ST[Supabase Storage<br/>bucket privado]
+    API --> AI[IA generativa<br/>respostas com evidência]
+    MQ --> PX[Extração, indexação<br/>e reprocessamento]
+    PX --> DB
+```
 
-- **Arquivar** é reversível: o catálogo sai das consultas e buscas, mas o PDF permanece armazenado e pode ser restaurado por um administrador.
-- **Excluir PDF** é irreversível para o arquivo: o conteúdo é removido do storage e deixa de participar da operação. O registro histórico/auditoria é preservado para rastreabilidade.
+### Fluxo de conhecimento
 
-O backend aplica as permissões independentemente do frontend. A conta é revalidada no banco em cada requisição, então bloqueios e mudanças de perfil têm efeito imediato.
+```text
+UPLOAD → EXTRAÇÃO → INDEXAÇÃO → RECUPERAÇÃO → RESPOSTA → FEEDBACK
+```
 
-Os PDFs são acessados por signed URL do Supabase quando `storagePath` está disponível. O bucket `catalogos` deve permanecer privado.
+1. Um administrador envia um catálogo técnico.
+2. O backend armazena o original em bucket privado e cria o trabalho de processamento.
+3. Peças, PNCs, metadados e contexto são extraídos e persistidos.
+4. A busca aplica restrições técnicas e combina diferentes sinais de recuperação.
+5. A IA interpreta a consulta e responde sem substituir os dados estruturados de peça.
+6. O feedback alimenta revisão, benchmark e manutenção da qualidade.
 
-> A interface apresenta somente os perfis **Administrador** e **Balcão**. `MECHANIC` é apenas o identificador interno legado do perfil Balcão.
+## Decisões de engenharia
 
-## Confiabilidade da busca
+### Segurança aplicada no servidor
 
-- Part Numbers exibidos vêm dos registros estruturados de peças; memória técnica e IA servem para interpretação, contexto e ranking.
-- Modelo, PNC, número de série, vista e posição podem atuar como restrições técnicas quando há evidência no catálogo.
-- Quando a evidência é insuficiente ou há variantes incompatíveis, o sistema deve pedir confirmação em vez de inventar um código.
-- Substituições oficiais registradas manualmente preservam histórico e priorizam o código atual somente quando a compatibilidade técnica é mantida.
+O frontend apresenta apenas as ações permitidas, mas a autorização real é validada pelo backend. A conta é reconsultada no banco a cada requisição, portanto bloqueios e mudanças de perfil têm efeito imediato. Não existe autocadastro público.
 
-## Saúde e produção
+### Arquivar não é excluir
 
-- Frontend: Vite + React na Vercel.
-- Backend: TypeScript compilado em JavaScript no Render.
-- Dados: PostgreSQL + Prisma.
-- Catálogos: Supabase Storage privado.
-- Processamento assíncrono: RabbitMQ.
-- `GET /health/live`: processo HTTP ativo.
-- `GET /health`: readiness de PostgreSQL e RabbitMQ; retorna `503` quando uma dependência essencial está indisponível.
+- **Arquivar** remove o catálogo das consultas, preserva o PDF e permite restauração.
+- **Excluir PDF** remove o arquivo do storage de forma irreversível, mantendo o histórico necessário para auditoria.
 
-A integração da Vercel reserva deployments automáticos para `main`; branches de feature/promoção são validadas pelo GitHub Actions sem consumir builds de preview desnecessários.
+### IA com limite de confiança
 
-## Banco / migrations
+Os códigos exibidos vêm de registros estruturados. Modelo, PNC, número de série, vista e posição podem restringir a busca quando existe evidência no catálogo. Em cenários ambíguos, a aplicação pede contexto adicional.
 
-A V6 inclui as migrations de peças/PNC, feedback, segurança administrativa, qualidade e operação diária.
+### Operação observável
 
-Dentro de `backend`:
+- `GET /health/live` confirma que o processo HTTP está ativo.
+- `GET /health` verifica PostgreSQL e RabbitMQ e retorna `503` quando uma dependência essencial está indisponível.
+- GitHub Actions valida backend e frontend antes da promoção para produção.
+
+## Stack
+
+| Camada | Tecnologias |
+| :--- | :--- |
+| Frontend | React, TypeScript, Vite, Tailwind CSS |
+| Backend | Node.js, TypeScript, Express |
+| Dados | PostgreSQL, Prisma ORM |
+| Documentos | Supabase Storage privado e URLs assinadas |
+| Processamento | RabbitMQ, extração e indexação assíncrona |
+| IA e busca | Gemini, recuperação híbrida, ranking, feedback e benchmark |
+| Entrega | Vercel, Render e GitHub Actions |
+
+## Estrutura do repositório
+
+```text
+CogniVault/
+├── frontend/              # aplicação React e experiência operacional
+│   └── src/
+│       ├── components/    # busca, chat, catálogos, qualidade e administração
+│       └── pages/         # autenticação e dashboard
+├── backend/               # API, regras de negócio e processamento
+│   ├── prisma/            # schema e migrations versionadas
+│   └── src/
+│       ├── controllers/
+│       ├── middleware/
+│       ├── queues/
+│       ├── services/
+│       └── utils/
+├── .github/workflows/     # validação contínua
+└── render.yaml            # infraestrutura do backend
+```
+
+## Execução local
+
+### Backend
 
 ```bash
+cd backend
 npm ci
 npx prisma generate
 npm run build
 npm start
 ```
 
-> Em banco de produção, use apenas migrations revisadas com `npx prisma migrate deploy`.
->
-> Nunca use `prisma migrate reset`, `db push --accept-data-loss` ou qualquer fluxo que apague dados.
+Use migrations revisadas em produção:
 
-## Frontend
+```bash
+npx prisma migrate deploy
+```
+
+### Frontend
 
 ```bash
 cd frontend
@@ -83,22 +171,30 @@ npm run lint
 npm run dev
 ```
 
-No Windows, se o npm global estiver bloqueado por `EPERM`, use um cache dentro do próprio workspace em vez de executar como Administrador:
+A aplicação usa `VITE_API_URL`; as demais configurações necessárias estão documentadas nos arquivos `.env.example` de cada camada.
 
-```powershell
-npm ci --cache .npm-cache
-```
+## Processamento e recuperação
 
-O cache local pode ser removido depois e não deve ser versionado.
+O PDF local temporário é removido após o processamento. No reprocessamento, o backend recupera o original pelo `storagePath`, cria um temporário, atualiza a extração e o índice e remove o temporário novamente.
 
-A aplicação usa `VITE_API_URL` (veja `frontend/.env.example`).
+A atualização de memória técnica é uma operação separada: reutiliza as peças já extraídas para recalcular memória, categoria e saúde sem reabrir o PDF nem iniciar uma nova extração por IA.
 
-## Usuários
+<details>
+<summary><strong>English overview</strong></summary>
 
-Os acessos da equipe são criados pelo administrador no painel **Usuários**. Não há rota pública de autocadastro na aplicação.
+CogniVault is an internal technical catalog and parts-intelligence platform. It centralizes private documents, structured parts data and operational knowledge with role-based access, asynchronous processing and evidence-grounded AI answers.
 
-## Reprocessamento
+The current repository contains **45 automated test files, 17 versioned database migrations, 12 Prisma domain models and 2 operational roles**. Part numbers originate from structured records; AI supports interpretation, context and ranking without replacing technical evidence.
 
-O PDF local temporário é removido após o processamento. Ao reprocessar, o backend recupera o original pelo `storagePath` no Supabase, cria um temporário, reextrai/indexa o catálogo e remove o temporário novamente.
+[Open application](https://cognivault-murex.vercel.app) · [View portfolio](https://matheusfranciscols.github.io/) · [Contact Matheus](https://www.linkedin.com/in/matheusfranciscols)
 
-O comando administrativo de atualização de memória técnica é diferente de reprocessamento: ele reaproveita as peças já extraídas para recalcular memória, categoria e saúde sem reabrir o PDF e sem consumir Gemini para uma nova extração.
+</details>
+
+---
+
+<div align="center">
+
+Projetado e desenvolvido por [Matheus Francisco](https://github.com/MatheusFranciscoLS).
+
+</div>
+
