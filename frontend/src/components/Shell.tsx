@@ -18,7 +18,6 @@ type NavItem = readonly [Section, string];
 
 const operationNav: NavItem[] = [
   ['home', 'Início'],
-  ['assistant', 'Assistente IA'],
   ['parts', 'Peças e busca'],
   ['catalogs', 'Catálogos'],
   ['history', 'Histórico'],

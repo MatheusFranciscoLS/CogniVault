@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import Shell from '../components/Shell';
 import HomePanel from '../components/HomePanel';
 import PartSearchPanel from '../components/PartSearchPanel';
-import ChatPanel from '../components/ChatPanel';
 import CatalogsPanel from '../components/CatalogsPanel';
 import { apiJson, clearSession, getToken, SESSION_EXPIRED_EVENT } from '../lib';
 import type { Section, SessionUser } from '../types';
@@ -66,7 +65,7 @@ export default function Dashboard() {
 
   const handleSectionChange = (next: Section) => {
     if (next !== 'catalogs') setCatalogFilter('');
-    setSection(next);
+    setSection(next === 'assistant' ? 'parts' : next);
   };
 
   if (error) {
@@ -97,15 +96,15 @@ export default function Dashboard() {
   return (
     <Shell user={user} section={section} onSection={handleSectionChange} onLogout={logout} onSearch={search}>
       {section === 'home' && <HomePanel onSearch={search} onCatalogs={openCatalogs} />}
-      {section === 'parts' && (
+      {(section === 'parts' || section === 'assistant') && (
         <PartSearchPanel
           key={`${searchVersion}:${globalQuery || 'empty-search'}`}
           initialQuery={globalQuery}
           onQueryChange={setGlobalQuery}
           admin={user.role === 'ADMIN'}
+          storageScope={user.id}
         />
       )}
-      {section === 'assistant' && <ChatPanel storageScope={user.id} />}
       {section === 'catalogs' && (
         <CatalogsPanel
           key={catalogFilter || 'all-catalogs'}

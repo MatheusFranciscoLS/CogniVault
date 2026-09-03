@@ -4,6 +4,7 @@ import { api, apiJson, json } from '../lib';
 import { toast } from 'sonner';
 import type { OfficialVerification, PartDetail, SearchPart } from '../types';
 import OfficialVerificationApprovalPanel from './OfficialVerificationApprovalPanel';
+import ChatPanel from './ChatPanel';
 import PartVerificationDialog, {
   effectivePartNumber,
   husqvarnaPortalUrl,
@@ -34,6 +35,7 @@ type Props = {
   initialQuery: string;
   onQueryChange: (query: string) => void;
   admin?: boolean;
+  storageScope?: string;
 };
 
 function isTextEditingTarget(target: EventTarget | null) {
@@ -83,7 +85,7 @@ function SearchSkeleton() {
   );
 }
 
-export default function PartSearchPanel({ initialQuery, onQueryChange, admin = false }: Props) {
+export default function PartSearchPanel({ initialQuery, onQueryChange, admin = false, storageScope }: Props) {
   const normalizedInitialQuery = initialQuery.trim();
   const [query, setQuery] = useState(initialQuery);
   const [lastQuery, setLastQuery] = useState(normalizedInitialQuery);
@@ -100,13 +102,22 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
   const [verifications, setVerifications] = useState<Record<string, OfficialVerification>>({});
   const [replacementVerification, setReplacementVerification] = useState<OfficialVerification | null>(null);
   const [verificationTarget, setVerificationTarget] = useState<VerificationTarget | null>(null);
+  const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
+  const [aiInitialPrompt, setAiInitialPrompt] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const resultRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const openAiAssistant = useCallback((prompt?: string) => {
+    setAiInitialPrompt(prompt || (query.trim() ? `Tenho uma dúvida sobre a pesquisa "${query.trim()}". Pode me ajudar?` : ''));
+    setAiDrawerOpen(true);
+  }, [query]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (pdf) {
+        if (aiDrawerOpen) {
+          setAiDrawerOpen(false);
+        } else if (pdf) {
           setPdf(null);
         } else if (verificationTarget) {
           setVerificationTarget(null);
@@ -117,7 +128,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pdf, verificationTarget, detail]);
+  }, [aiDrawerOpen, pdf, verificationTarget, detail]);
 
   const loadVerifications = useCallback(async (items: Array<Pick<SearchPart, 'partNumber'>>, replace = false) => {
     if (!items.length) {
@@ -276,6 +287,11 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
   useEffect(() => {
     const handleKeyboard = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        if (aiDrawerOpen) {
+          event.preventDefault();
+          setAiDrawerOpen(false);
+          return;
+        }
         if (verificationTarget) {
           event.preventDefault();
           setVerificationTarget(null);
@@ -306,7 +322,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
         return;
       }
 
-      if (detail || pdf || verificationTarget || isEditing || !parts.length) return;
+      if (aiDrawerOpen || detail || pdf || verificationTarget || isEditing || !parts.length) return;
 
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         if (!isSearchInput && !isResultButton && targetElement !== document.body) return;
@@ -334,7 +350,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
 
     window.addEventListener('keydown', handleKeyboard);
     return () => window.removeEventListener('keydown', handleKeyboard);
-  }, [copyCode, detail, parts, pdf, selectedIndex, verificationTarget, verifications]);
+  }, [aiDrawerOpen, copyCode, detail, parts, pdf, selectedIndex, verificationTarget, verifications]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -459,7 +475,17 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
               <div className="font-semibold">Resultado da consulta</div>
               <div role="status" aria-live="polite" className="mt-0.5 text-xs text-slate-400">{resultSummary}</div>
             </div>
-            {parts.length > 0 && <span className="cv-soft-badge">Selecione para ver compatibilidade</span>}
+            <div className="flex items-center gap-2">
+              {parts.length > 0 && <span className="cv-soft-badge hidden sm:inline-flex">Selecione para ver compatibilidade</span>}
+              <button
+                type="button"
+                onClick={() => openAiAssistant(query.trim() ? `Tenho uma dúvida sobre a pesquisa "${query.trim()}". Pode me ajudar?` : undefined)}
+                className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:border-blue-400 dark:hover:border-blue-500 hover:text-[#1d4f91] dark:hover:text-blue-300 transition shadow-sm"
+              >
+                <span className="text-amber-500 font-bold" aria-hidden="true">✦</span>
+                <span>Assistente IA</span>
+              </button>
+            </div>
           </div>
 
           {loading ? <SearchSkeleton /> : (
@@ -519,6 +545,13 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                     </button>
                     <div className="flex flex-wrap items-center gap-2 self-center px-2 pb-2 sm:flex-col sm:items-stretch sm:pb-0">
                       <VerificationBadge verification={verification} loading={verificationLoading} />
+                      <button
+                        type="button"
+                        onClick={() => openAiAssistant(`Tenho uma dúvida sobre a peça ${part.name} (código ${codeToUse}) do modelo ${part.model}. Pode me ajudar com a aplicação e compatibilidade?`)}
+                        className="rounded-xl border border-indigo-200 dark:border-indigo-800/80 bg-indigo-50/60 dark:bg-indigo-950/40 px-3 py-2 text-center text-xs font-semibold text-indigo-700 dark:text-indigo-300 transition hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
+                      >
+                        ✦ Perguntar à IA
+                      </button>
                       <a href={verification?.officialUrl || husqvarnaPortalUrl(codeToUse)} target="_blank" rel="noreferrer" className="rounded-xl border border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] px-3 py-2 text-center text-xs font-semibold text-[#1d4f91] dark:text-blue-300 transition hover:bg-blue-100">
                         Verificar no portal Husqvarna
                       </a>
@@ -696,6 +729,24 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
               </div>
             </div>
             <iframe title={pdf.title} src={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} className="h-full w-full border-0" />
+          </div>
+        </div>
+      )}
+
+      {aiDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm transition-opacity"
+            onClick={() => setAiDrawerOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="relative z-10 flex h-full w-full max-w-[560px] flex-col bg-white dark:bg-slate-900 shadow-2xl">
+            <ChatPanel
+              storageScope={storageScope || 'balcao'}
+              initialPrompt={aiInitialPrompt}
+              onClose={() => setAiDrawerOpen(false)}
+              isDrawer
+            />
           </div>
         </div>
       )}

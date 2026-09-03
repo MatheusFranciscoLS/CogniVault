@@ -62,11 +62,21 @@ const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 const extractSerialFromQuery = (value: string) => value.match(/\bS\s*\/\s*N\s*[:#.-]?\s*(\d{6,16})\b/i)?.[1] || '';
 
 
-export default function ChatPanel({ storageScope }: { storageScope: string }) {
+export default function ChatPanel({
+  storageScope,
+  initialPrompt,
+  onClose,
+  isDrawer,
+}: {
+  storageScope: string;
+  initialPrompt?: string;
+  onClose?: () => void;
+  isDrawer?: boolean;
+}) {
   const equipmentKey = `${EQUIPMENT_KEY}:${storageScope}`;
   const recentKey = `${RECENT_KEY}:${storageScope}`;
   const [messages, setMessages] = useState<Message[]>([]);
-  const [question, setQuestion] = useState('');
+  const [question, setQuestion] = useState(initialPrompt || '');
   const [manufacturer, setManufacturer] = useState('');
   const [model, setModel] = useState('');
   const [pnc, setPnc] = useState('');
@@ -84,9 +94,19 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
   const noticeTimerRef = useRef<number | null>(null);
   const conversationVersionRef = useRef(0);
 
+  const askedPromptRef = useRef<string | null>(null);
+  const askRef = useRef<((query: string, forcedPnc?: string, store?: boolean, selectedPartId?: string) => Promise<void>) | null>(null);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, loading]);
+
+  useEffect(() => {
+    if (initialPrompt && initialPrompt.trim() && askedPromptRef.current !== initialPrompt.trim()) {
+      askedPromptRef.current = initialPrompt.trim();
+      void askRef.current?.(initialPrompt.trim());
+    }
+  }, [initialPrompt]);
 
   useEffect(() => {
     if (!pdf) return;
@@ -182,6 +202,7 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
       setLoading(false);
     }
   };
+  askRef.current = ask;
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -411,6 +432,181 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
     window.requestAnimationFrame(() => questionRef.current?.focus());
   };
 
+  const messagesContent = (
+    <>
+      {!messages.length ? (
+        <div className="grid h-[320px] place-items-center text-center">
+          <div className="max-w-md">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-xl text-[#1d4f91] dark:text-blue-400">✦</div>
+            <h2 className="mt-3 font-semibold text-slate-900 dark:text-white">Dúvida sobre uma peça?</h2>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Informe uma descrição ou código para tirar dúvidas técnicas sobre compatibilidade e aplicação.</p>
+            <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+              {quickPrompts.map(prompt => <button type="button" key={prompt} onClick={() => { setQuestion(prompt); questionRef.current?.focus(); }} className="rounded-full border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/60 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 transition hover:border-blue-200 dark:hover:border-blue-500/50 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-[#1d4f91] dark:hover:text-blue-300">{prompt}</button>)}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {messages.map((message, index) => (
+        <motion.div 
+          key={message.id} 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}
+        >
+          <div className={`max-w-[94%] rounded-2xl px-4 py-3 text-sm shadow-sm ${message.role === 'user' ? 'bg-[#1d4f91] text-white rounded-br-sm' : 'bg-white dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 rounded-bl-sm border border-slate-200/60 dark:border-slate-700/50'}`}>
+            {message.role === 'user' ? <div>{message.text}</div> : (
+              <>
+                {message.response ? <Guidance response={message.response} /> : null}
+                {!message.response?.part ? <div className={message.response ? 'mt-3 whitespace-pre-line text-sm leading-6' : 'whitespace-pre-line text-sm leading-6'}>{message.text}</div> : null}
+                {message.response ? <Interpretation response={message.response} /> : null}
+                {message.response && !message.response.part ? <ReliabilityDetails response={message.response}/> : null}
+                {message.response?.part ? (
+                  <ResultCard
+                    response={message.response}
+                    favorite={Boolean(favoriteByPartId[message.response.part.id])}
+                    favoritePending={favoritePendingId===message.response.part.id}
+                    onToggleFavorite={() => void toggleFavorite(message.response!.part!.id)}
+                    onCopyCode={() => void copy(message.response?.part?.partNumber || '')}
+                    onCopySummary={() => copySummary(message.response!)}
+                    onAccess={mode => void access(message.response?.part?.documentId || '', mode, message.response?.part?.page ?? null, message.response?.part?.filename || 'Catálogo')}
+                  />
+                ) : null}
+
+                {message.response?.pncOptions?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600 dark:text-slate-400">Selecione o PNC da etiqueta</div><div className="flex flex-wrap gap-2">{message.response.pncOptions.map(option => <button type="button" key={option} onClick={() => choosePnc(message, option)} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs hover:border-[#1d4f91] hover:text-[#1d4f91] dark:text-blue-300 transition">PNC {option}</button>)}</div></motion.div> : null}
+                {message.response?.modelOptions?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600 dark:text-slate-400">Confirmar modelo</div><div className="flex flex-wrap gap-2">{message.response.modelOptions.map(option => <button type="button" key={option} onClick={() => chooseModel(message, option)} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs hover:border-[#1d4f91] hover:text-[#1d4f91] dark:text-blue-300 transition">{option}</button>)}</div></motion.div> : null}
+                {message.response?.serialRequired ? <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}><SerialFollowUp disabled={loading} onSubmit={nextSerial => continueWithSerial(message, nextSerial)} /></motion.div> : null}
+                {message.response?.status === 'AMBIGUOUS' && message.response.options?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3"><div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Qual item da vista corresponde à peça?</div><div className="mt-2 grid gap-2">{message.response.options.map(option => <button type="button" key={option.id} onClick={() => chooseAmbiguousOption(message, option)} className="rounded-lg border border-slate-200 dark:border-slate-700 p-2 text-left text-xs hover:bg-slate-50 dark:bg-slate-800/50 transition"><b>{option.name}</b><span className="mt-0.5 block font-semibold text-[#1d4f91] dark:text-blue-300">Código {option.partNumber}</span><span className="block text-slate-500 dark:text-slate-400">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span>{option.section ? <span className="mt-1 block text-slate-500 dark:text-slate-400">Vista: {option.section}</span> : null}{option.notes ? <span className="mt-1 block font-semibold text-amber-700 dark:text-amber-300">Aplicação: {option.notes}</span> : null}</button>)}</div></motion.div> : null}
+
+                {message.response?.part && !message.feedback ? <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 dark:border-slate-700 pt-3"><span className="text-xs text-slate-500 dark:text-slate-400">Este resultado ajudou?</span><button type="button" disabled={message.feedbackPending} onClick={() => void positiveFeedback(index)} className="rounded-lg bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 text-emerald-700 dark:text-emerald-300 transition hover:bg-emerald-100 disabled:opacity-50">👍 Sim</button><button type="button" disabled={message.feedbackPending} onClick={() => void startNegative(index)} className="rounded-lg bg-rose-50 dark:bg-rose-900/30 px-2 py-1 text-rose-700 dark:text-rose-300 transition hover:bg-rose-100 disabled:opacity-50">👎 Não</button>{message.feedbackPending ? <span className="text-xs text-slate-400">Salvando…</span> : null}</div> : null}
+                {message.showReasons ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3"><div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Feedback negativo salvo. O que estava errado?</div><div className="mt-1 text-[11px] text-slate-400">Detalhar é opcional e ajuda o ranking das próximas buscas.</div><div className="mt-2 flex flex-wrap gap-2">{reasons.map(([reason, label]) => <button type="button" disabled={message.feedbackPending} key={reason} onClick={() => void chooseReason(index, reason)} className="rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-800/50 disabled:opacity-50 transition">{label}</button>)}</div><button type="button" onClick={() => setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, showReasons: false } : item))} className="mt-2 text-xs font-semibold text-slate-400 underline">Concluir sem detalhar</button></motion.div> : null}
+                {message.showCorrections ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3"><div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Selecione a peça correta, se ela aparecer abaixo.</div><div className="mt-2 grid gap-2">{message.response?.feedbackOptions?.filter(option => option.id !== message.response?.part?.id).map(option => <button type="button" key={option.id} onClick={() => void negativeFeedback(index, option)} className="rounded-lg border border-slate-200 dark:border-slate-700 p-2 text-left text-xs transition hover:bg-slate-50 dark:bg-slate-800/50"><b>{option.name}</b><span className="block font-semibold text-[#1d4f91] dark:text-blue-300">{option.partNumber}</span><span className="block text-slate-500 dark:text-slate-400">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span>{option.notes ? <span className="mt-1 block font-semibold text-amber-700 dark:text-amber-300">Aplicação: {option.notes}</span> : null}</button>)}</div><button type="button" onClick={() => void negativeFeedback(index)} className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400 underline">Nenhuma dessas / apenas registrar o erro</button></motion.div> : null}
+                {message.feedback && !message.showReasons && !message.showCorrections ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-2 text-xs text-slate-500 dark:text-slate-400">{message.feedback === 'correct' ? '✓ Confirmação salva e considerada no ranking' : message.feedback === 'corrected' ? '✓ Correção salva e considerada no ranking' : '✓ Feedback salvo e considerado no ranking'}</motion.div> : null}
+                {message.feedbackError ? <div role="alert" className="mt-2 text-xs font-medium text-rose-600">{message.feedbackError}</div> : null}
+              </>
+            )}
+          </div>
+        </motion.div>
+      ))}
+
+      {loading ? (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          role="status"
+          className="flex items-center gap-3 rounded-xl border border-blue-100 dark:border-blue-900/50 bg-blue-50/70 dark:bg-blue-950/30 px-4 py-3 text-sm text-blue-900 dark:text-blue-200"
+        >
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-blue-200 dark:border-blue-700 border-t-[#1d4f91] dark:border-t-blue-400" />
+          <span className="font-medium text-xs sm:text-sm">Consultando catálogo e portal Husqvarna…</span>
+          <button type="button" onClick={cancel} className="ml-auto text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 underline">
+            Cancelar
+          </button>
+        </motion.div>
+      ) : null}
+      <div ref={messagesEndRef} />
+    </>
+  );
+
+  const formContent = (
+    <form onSubmit={submit} className="flex gap-2 sm:gap-3 border-t border-slate-200 dark:border-slate-800/60 p-3 sm:p-4">
+      <label htmlFor="assistant-question" className="sr-only">Digite a peça, descrição ou código</label>
+      <input
+        ref={questionRef}
+        id="assistant-question"
+        value={question}
+        onChange={event => setQuestion(event.target.value)}
+        placeholder="Digite a dúvida sobre a peça…"
+        minLength={2}
+        required
+        className="rounded-xl border-none bg-slate-100/50 dark:bg-slate-800/40 px-3.5 py-2.5 sm:px-4 sm:py-3 text-sm outline-none transition-all focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-[#1d4f91]/20 dark:focus:ring-blue-500/30 min-w-0 flex-1"
+      />
+      {question ? (
+        <button
+          type="button"
+          onClick={() => { setQuestion(''); questionRef.current?.focus(); }}
+          className="flex items-center rounded-xl px-2 text-xs font-semibold text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:text-slate-300"
+        >
+          Limpar
+        </button>
+      ) : null}
+      <button type="submit" disabled={loading} className="cv-primary px-4 sm:px-5 text-xs sm:text-sm font-semibold disabled:opacity-50">
+        Enviar
+      </button>
+    </form>
+  );
+
+  const pdfModal = pdf ? (
+    <div onMouseDown={e => { if (e.target === e.currentTarget) setPdf(null); }} className="fixed inset-0 z-[90] bg-slate-950/90 p-3 md:p-6">
+      <div role="dialog" aria-modal="true" aria-labelledby="assistant-pdf-title" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white dark:bg-slate-800">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 px-4 py-3">
+          <div>
+            <div id="assistant-pdf-title" className="text-sm font-semibold">{pdf.title}</div>
+            <div className="text-xs text-slate-400">{pdf.page ? `Página ${pdf.page}` : 'Visualização do catálogo'}</div>
+          </div>
+          <div className="flex gap-2">
+            <a href={pdfPageUrl(pdf.url, pdf.page)} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-[#1d4f91] dark:text-blue-300">Nova aba</a>
+            <button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button>
+          </div>
+        </div>
+        <iframe title={pdf.title} src={pdfPageUrl(pdf.url, pdf.page)} className="h-full w-full border-0" />
+      </div>
+    </div>
+  ) : null;
+
+  if (isDrawer) {
+    return (
+      <section className="flex h-full flex-col overflow-hidden bg-white dark:bg-slate-900">
+        {notice ? <div role="status" aria-live="polite" className="fixed right-5 top-20 z-[100] rounded-xl bg-slate-900 px-4 py-2.5 text-sm text-white shadow-lg">{notice}</div> : null}
+
+        {/* Drawer Header */}
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-800/90 px-4 py-3 backdrop-blur">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-blue-100 dark:bg-blue-900/60 text-[#1d4f91] dark:text-blue-300 font-bold text-sm">✦</span>
+            <div>
+              <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">Assistente IA de Peças</div>
+              <div className="text-[10px] text-slate-400">Dúvidas técnicas e compatibilidade</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {messages.length ? (
+              <button
+                type="button"
+                onClick={newConversation}
+                title="Limpar conversa"
+                className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+              >
+                Limpar
+              </button>
+            ) : null}
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Fechar assistente"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 transition"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Drawer Messages list */}
+        <div className="cv-scrollbar flex-1 space-y-4 overflow-y-auto p-4" aria-busy={loading}>
+          {messagesContent}
+        </div>
+
+        {/* Drawer Form */}
+        <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          {formContent}
+        </div>
+
+        {pdfModal}
+      </section>
+    );
+  }
+
   return (
     <section>
       {notice ? <div role="status" aria-live="polite" className="fixed right-5 top-20 z-[100] rounded-xl bg-slate-900 px-4 py-2.5 text-sm text-white shadow-lg">{notice}</div> : null}
@@ -450,89 +646,10 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
           </div>
 
           <div className="cv-scrollbar min-h-[480px] max-h-[62vh] space-y-4 overflow-auto p-5" aria-busy={loading}>
-            {!messages.length ? (
-              <div className="grid h-[420px] place-items-center text-center">
-                <div className="max-w-lg">
-                  <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-2xl text-[#1d4f91] dark:text-blue-400">✦</div>
-                  <h2 className="mt-4 font-semibold text-slate-900 dark:text-white">O que você procura?</h2>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Informe uma descrição ou um código. Modelo, PNC e S/N aumentam a precisão quando existem no catálogo.</p>
-                  <div className="mt-4 flex flex-wrap justify-center gap-2">
-                    {quickPrompts.map(prompt => <button type="button" key={prompt} onClick={() => { setQuestion(prompt); questionRef.current?.focus(); }} className="rounded-full border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 transition hover:border-blue-200 dark:hover:border-blue-500/50 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-[#1d4f91] dark:hover:text-blue-300">{prompt}</button>)}
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {messages.map((message, index) => (
-              <motion.div 
-                key={message.id} 
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
-                className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}
-              >
-                <div className={`max-w-[94%] rounded-2xl px-4 py-3 text-sm shadow-sm ${message.role === 'user' ? 'bg-[#1d4f91] text-white rounded-br-sm' : 'bg-white dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 rounded-bl-sm border border-slate-200/60 dark:border-slate-700/50'}`}>
-                  {message.role === 'user' ? <div>{message.text}</div> : (
-                    <>
-                      {message.response ? <Guidance response={message.response} /> : null}
-                      {!message.response?.part ? <div className={message.response ? 'mt-3 whitespace-pre-line text-sm leading-6' : 'whitespace-pre-line text-sm leading-6'}>{message.text}</div> : null}
-                      {message.response ? <Interpretation response={message.response} /> : null}
-                      {message.response && !message.response.part ? <ReliabilityDetails response={message.response}/> : null}
-                      {message.response?.part ? (
-                        <ResultCard
-                          response={message.response}
-                          favorite={Boolean(favoriteByPartId[message.response.part.id])}
-                          favoritePending={favoritePendingId===message.response.part.id}
-                          onToggleFavorite={() => void toggleFavorite(message.response!.part!.id)}
-                          onCopyCode={() => void copy(message.response?.part?.partNumber || '')}
-                          onCopySummary={() => copySummary(message.response!)}
-                          onAccess={mode => void access(message.response?.part?.documentId || '', mode, message.response?.part?.page ?? null, message.response?.part?.filename || 'Catálogo')}
-                        />
-                      ) : null}
-
-                      {message.response?.pncOptions?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600 dark:text-slate-400">Selecione o PNC da etiqueta</div><div className="flex flex-wrap gap-2">{message.response.pncOptions.map(option => <button type="button" key={option} onClick={() => choosePnc(message, option)} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs hover:border-[#1d4f91] hover:text-[#1d4f91] dark:text-blue-300 transition">PNC {option}</button>)}</div></motion.div> : null}
-                      {message.response?.modelOptions?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600 dark:text-slate-400">Confirmar modelo</div><div className="flex flex-wrap gap-2">{message.response.modelOptions.map(option => <button type="button" key={option} onClick={() => chooseModel(message, option)} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs hover:border-[#1d4f91] hover:text-[#1d4f91] dark:text-blue-300 transition">{option}</button>)}</div></motion.div> : null}
-                      {message.response?.serialRequired ? <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}><SerialFollowUp disabled={loading} onSubmit={nextSerial => continueWithSerial(message, nextSerial)} /></motion.div> : null}
-                      {message.response?.status === 'AMBIGUOUS' && message.response.options?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3"><div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Qual item da vista corresponde à peça?</div><div className="mt-2 grid gap-2">{message.response.options.map(option => <button type="button" key={option.id} onClick={() => chooseAmbiguousOption(message, option)} className="rounded-lg border border-slate-200 dark:border-slate-700 p-2 text-left text-xs hover:bg-slate-50 dark:bg-slate-800/50 transition"><b>{option.name}</b><span className="mt-0.5 block font-semibold text-[#1d4f91] dark:text-blue-300">Código {option.partNumber}</span><span className="block text-slate-500 dark:text-slate-400">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span>{option.section ? <span className="mt-1 block text-slate-500 dark:text-slate-400">Vista: {option.section}</span> : null}{option.notes ? <span className="mt-1 block font-semibold text-amber-700 dark:text-amber-300">Aplicação: {option.notes}</span> : null}</button>)}</div></motion.div> : null}
-
-                      {message.response?.part && !message.feedback ? <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 dark:border-slate-700 pt-3"><span className="text-xs text-slate-500 dark:text-slate-400">Este resultado ajudou?</span><button type="button" disabled={message.feedbackPending} onClick={() => void positiveFeedback(index)} className="rounded-lg bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 text-emerald-700 dark:text-emerald-300 transition hover:bg-emerald-100 disabled:opacity-50">👍 Sim</button><button type="button" disabled={message.feedbackPending} onClick={() => void startNegative(index)} className="rounded-lg bg-rose-50 dark:bg-rose-900/30 px-2 py-1 text-rose-700 dark:text-rose-300 transition hover:bg-rose-100 disabled:opacity-50">👎 Não</button>{message.feedbackPending ? <span className="text-xs text-slate-400">Salvando…</span> : null}</div> : null}
-                      {message.showReasons ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3"><div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Feedback negativo salvo. O que estava errado?</div><div className="mt-1 text-[11px] text-slate-400">Detalhar é opcional e ajuda o ranking das próximas buscas.</div><div className="mt-2 flex flex-wrap gap-2">{reasons.map(([reason, label]) => <button type="button" disabled={message.feedbackPending} key={reason} onClick={() => void chooseReason(index, reason)} className="rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-800/50 disabled:opacity-50 transition">{label}</button>)}</div><button type="button" onClick={() => setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, showReasons: false } : item))} className="mt-2 text-xs font-semibold text-slate-400 underline">Concluir sem detalhar</button></motion.div> : null}
-                      {message.showCorrections ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3"><div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Selecione a peça correta, se ela aparecer abaixo.</div><div className="mt-2 grid gap-2">{message.response?.feedbackOptions?.filter(option => option.id !== message.response?.part?.id).map(option => <button type="button" key={option.id} onClick={() => void negativeFeedback(index, option)} className="rounded-lg border border-slate-200 dark:border-slate-700 p-2 text-left text-xs transition hover:bg-slate-50 dark:bg-slate-800/50"><b>{option.name}</b><span className="block font-semibold text-[#1d4f91] dark:text-blue-300">{option.partNumber}</span><span className="block text-slate-500 dark:text-slate-400">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span>{option.notes ? <span className="mt-1 block font-semibold text-amber-700 dark:text-amber-300">Aplicação: {option.notes}</span> : null}</button>)}</div><button type="button" onClick={() => void negativeFeedback(index)} className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400 underline">Nenhuma dessas / apenas registrar o erro</button></motion.div> : null}
-                      {message.feedback && !message.showReasons && !message.showCorrections ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-2 text-xs text-slate-500 dark:text-slate-400">{message.feedback === 'correct' ? '✓ Confirmação salva e considerada no ranking' : message.feedback === 'corrected' ? '✓ Correção salva e considerada no ranking' : '✓ Feedback salvo e considerado no ranking'}</motion.div> : null}
-                      {message.feedbackError ? <div role="alert" className="mt-2 text-xs font-medium text-rose-600">{message.feedbackError}</div> : null}
-                    </>
-                  )}
-                </div>
-              </motion.div>
-            ))}
-
-            {loading ? (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                role="status"
-                className="flex items-center gap-3 rounded-xl border border-blue-100 dark:border-blue-900/50 bg-blue-50/70 dark:bg-blue-950/30 px-4 py-3 text-sm text-blue-900 dark:text-blue-200"
-              >
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-blue-200 dark:border-blue-700 border-t-[#1d4f91] dark:border-t-blue-400" />
-                <span className="font-medium">Consultando catálogo técnico e portal oficial Husqvarna…</span>
-                <button type="button" onClick={cancel} className="ml-auto text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 underline">
-                  Cancelar
-                </button>
-              </motion.div>
-            ) : null}
-            <div ref={messagesEndRef} />
+            {messagesContent}
           </div>
 
-          <form onSubmit={submit} className="flex gap-2 sm:gap-3 border-t border-slate-200 dark:border-slate-800/60 p-4">
-            <label htmlFor="assistant-question" className="sr-only">Digite a peça, descrição ou código</label>
-            <input ref={questionRef} id="assistant-question" value={question} onChange={event => setQuestion(event.target.value)} placeholder="Digite a peça, descrição ou código…" minLength={2} required className="rounded-xl border-none bg-slate-100/50 dark:bg-slate-800/40 px-4 py-3 text-sm outline-none transition-all focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-[#1d4f91]/20 dark:focus:ring-blue-500/30 min-w-0 flex-1" />
-            {question ? (
-              <button type="button" onClick={() => { setQuestion(''); questionRef.current?.focus(); }} className="flex items-center rounded-xl px-2.5 sm:px-3 text-xs font-semibold text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:text-slate-300">
-                Limpar
-              </button>
-            ) : null}
-            <button type="submit" disabled={loading} className="cv-primary px-5 font-semibold disabled:opacity-50">Pesquisar</button>
-          </form>
+          {formContent}
         </div>
 
         <aside className="space-y-4">
@@ -565,7 +682,7 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
         </aside>
       </div>
 
-      {pdf ? <div onMouseDown={e => { if (e.target === e.currentTarget) setPdf(null); }} className="fixed inset-0 z-[90] bg-slate-950/90 p-3 md:p-6"><div role="dialog" aria-modal="true" aria-labelledby="assistant-pdf-title" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white dark:bg-slate-800"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 px-4 py-3"><div><div id="assistant-pdf-title" className="text-sm font-semibold">{pdf.title}</div><div className="text-xs text-slate-400">{pdf.page ? `Página ${pdf.page}` : 'Visualização do catálogo'}</div></div><div className="flex gap-2"><a href={pdfPageUrl(pdf.url, pdf.page)} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-[#1d4f91] dark:text-blue-300">Nova aba</a><button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button></div></div><iframe title={pdf.title} src={pdfPageUrl(pdf.url, pdf.page)} className="h-full w-full border-0" /></div></div> : null}
+      {pdfModal}
     </section>
   );
 }
