@@ -124,9 +124,9 @@ export default function CatalogsPanel({admin,onQuality}:{admin:boolean;onQuality
     },
   });
 
-  const docs = data?.documents || [];
-  const favorites = data?.favorites || [];
-  const categories = data?.categories || [];
+  const docs = useMemo(() => data?.documents || [], [data?.documents]);
+  const favorites = useMemo(() => data?.favorites || [], [data?.favorites]);
+  const categories = useMemo(() => data?.categories || [], [data?.categories]);
 
   const error = actionError || (loadError instanceof Error ? loadError.message : loadError ? 'Erro ao carregar catálogos.' : '');
   const setError = setActionError;
