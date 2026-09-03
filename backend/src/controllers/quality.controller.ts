@@ -103,6 +103,35 @@ export class QualityController {
     }
   }
 
+  async clearSemantics(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) return;
+      const tenantId = req.user.tenantId;
+      const [partsCount, chunksCount] = await prisma.$transaction([
+        prisma.$executeRaw`
+          UPDATE "Part" p
+          SET "embedding" = NULL, "embeddingRevision" = 0
+          FROM "Document" d
+          WHERE d."id" = p."documentId" AND d."tenantId" = ${tenantId} AND p."embedding" IS NOT NULL
+        `,
+        prisma.$executeRaw`
+          UPDATE "DocumentChunk" c
+          SET "embedding" = NULL, "embeddingRevision" = 0
+          FROM "Document" d
+          WHERE d."id" = c."documentId" AND d."tenantId" = ${tenantId} AND c."embedding" IS NOT NULL
+        `,
+      ]);
+      res.json({
+        message: `Embeddings removidos com sucesso (${partsCount} peças e ${chunksCount} seções). O sistema agora opera com busca 100% direta e instantânea.`,
+        partsCleared: partsCount,
+        chunksCleared: chunksCount,
+      });
+    } catch (error) {
+      console.error('❌ Erro ao limpar embeddings:', error);
+      res.status(500).json({ error: 'Não foi possível limpar os embeddings antigos.' });
+    }
+  }
+
   async retryVisualCatalogs(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.user) return;

@@ -86,7 +86,10 @@ export class AiQualityService {
         select: { id: true, caseCount: true, metrics: true, details: true, createdAt: true },
       }),
       prisma.searchHistory.findMany({
-        where: { tenantId },
+        where: {
+          tenantId,
+          createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+        },
         orderBy: { createdAt: 'desc' },
         take: 300,
         select: { query: true, pnc: true, status: true, createdAt: true },

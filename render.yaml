@@ -20,7 +20,7 @@ services:
       - key: GEMINI_GENERATIVE_MODEL
         value: gemini-3.7-flash
       - key: ENABLE_SEMANTIC_INDEXING
-        value: "true"
+        value: "false"
       - key: SEMANTIC_PARTS_PER_DOCUMENT
         value: "120"
       - key: SEMANTIC_CHUNKS_PER_DOCUMENT

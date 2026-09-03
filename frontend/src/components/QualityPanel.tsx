@@ -51,7 +51,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
   const [notice, setNotice] = useState('');
   const [benchmarking, setBenchmarking] = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
-  const [semanticIndexing, setSemanticIndexing] = useState(false);
+  const [clearingSemantics, setClearingSemantics] = useState(false);
   const [retryingVisual, setRetryingVisual] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
@@ -78,11 +78,16 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
   const runBenchmark = async () => {
     setBenchmarking(true); setError(''); setNotice('');
     try {
-      await apiJson('/api/admin/quality/benchmark', { method: 'POST', timeoutMs: 120_000 });
+      const response = await apiJson<{ message: string }>('/api/admin/quality/benchmark', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 40 }),
+        timeoutMs: 120_000,
+      });
       await load();
-      setNotice('Teste de regressão concluído. O resultado foi salvo para comparação.');
-    } catch (runError) {
-      setError(runError instanceof Error ? runError.message : 'Não foi possível executar o teste de regressão.');
+      setNotice(response.message);
+    } catch (benchmarkError) {
+      setError(benchmarkError instanceof Error ? benchmarkError.message : 'Não foi possível executar o teste de regressão.');
     } finally { setBenchmarking(false); }
   };
 
@@ -102,20 +107,18 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
     } finally { setRebuilding(false); }
   };
 
-  const indexSemantics = async () => {
-    setSemanticIndexing(true); setError(''); setNotice('');
+  const clearSemantics = async () => {
+    if (!window.confirm('Deseja remover os embeddings antigos das peças e seções para manter a busca 100% direta e limpa?')) return;
+    setClearingSemantics(true); setError(''); setNotice('');
     try {
-      const response = await apiJson<{ message: string }>('/api/admin/quality/index-semantics', {
+      const response = await apiJson<{ message: string }>('/api/admin/quality/clear-semantics', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ limit: data?.semanticIndex.batchLimit || 120 }),
-        timeoutMs: 120_000,
       });
       await load();
       setNotice(response.message);
-    } catch (indexError) {
-      setError(indexError instanceof Error ? indexError.message : 'Não foi possível indexar o próximo lote.');
-    } finally { setSemanticIndexing(false); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Não foi possível limpar os embeddings antigos.');
+    } finally { setClearingSemantics(false); }
   };
 
   const retryVisualCatalogs = async () => {
@@ -315,12 +318,32 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
               {data.visualRetry.candidates > 0 && <button type="button" disabled={!data.visualRetry.eligible || retryingVisual} onClick={() => void retryVisualCatalogs()} className="cv-secondary mt-4 px-3 py-2 text-xs font-semibold disabled:opacity-50">{retryingVisual ? 'Reenviando…' : 'Retomar 1 catálogo'}</button>}
             </div>
 
-            <div className="rounded-[22px] border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 p-5">
-              <div className="text-[10px] font-bold uppercase tracking-[.1em] text-blue-700 dark:text-blue-300">Busca semântica com limite</div>
-              <div className="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-100">{data.semanticIndex.indexedParts} de {data.semanticIndex.totalParts} peças</div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white dark:bg-slate-800"><div className="h-full rounded-full bg-[#1d4f91] dark:bg-[#1d4f91]/80" style={{ width: `${data.semanticIndex.totalParts ? Math.max(2, Math.round(data.semanticIndex.indexedParts / data.semanticIndex.totalParts * 100)) : 0}%` }} /></div>
-              <p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-400">Lotes de até {data.semanticIndex.batchLimit} itens · {data.semanticIndex.runsToday}/{data.semanticIndex.dailyRuns} usados hoje. A busca textual continua cobrindo 100% das peças.</p>
-              <button type="button" disabled={!data.semanticIndex.canRun || semanticIndexing} onClick={() => void indexSemantics()} className="cv-secondary mt-4 px-3 py-2 text-xs font-semibold disabled:opacity-50">{semanticIndexing ? 'Indexando lote…' : 'Indexar próximo lote'}</button>
+            <div className="rounded-[22px] border border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-900/30 p-5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-[.1em] text-emerald-800 dark:text-emerald-300">Motor de Busca Instantânea</span>
+                <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 text-[9px] font-bold uppercase text-emerald-800 dark:text-emerald-300">100% Ativo</span>
+              </div>
+              <div className="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-100">{data.summary.parts} peças consultáveis</div>
+              <p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-400">
+                Busca de alta velocidade por código exato, modelo, substituições e vocabulário de balcão, sem dependência de cotas ou limites diários.
+              </p>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  <span>Cobertura total imediata</span>
+                </div>
+                {Boolean(data.semanticIndex && data.semanticIndex.indexedParts > 0) && (
+                  <button
+                    type="button"
+                    disabled={clearingSemantics}
+                    onClick={() => void clearSemantics()}
+                    className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 px-2.5 py-1 text-[11px] font-semibold text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-200 transition disabled:opacity-50"
+                    title="Remove os vetores legados das 554 peças"
+                  >
+                    {clearingSemantics ? 'Limpando…' : 'Limpar vetores antigos'}
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="rounded-[22px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-[0_14px_40px_rgba(15,35,72,.04)]">
