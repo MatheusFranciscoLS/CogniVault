@@ -209,6 +209,7 @@ model Part {
   @@index([documentId, active])
   @@index([documentId, sourceKey])
   @@index([normalizedModel])
+  @@index([normalizedModel, active])
   @@index([normalizedModel, normalizedPnc])
   @@index([partNumber])
   @@index([normalizedPartNumber, active])

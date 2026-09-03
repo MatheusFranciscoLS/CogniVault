@@ -401,7 +401,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
             className="min-w-0 flex-1 rounded-2xl border-0 px-4 py-3 text-sm outline-none"
           />
           {query && (
-            <button type="button" onClick={clearSearch} className="hidden rounded-xl px-3 text-xs font-semibold text-slate-400 transition hover:bg-slate-100 dark:bg-slate-700 hover:text-slate-700 dark:text-slate-300 sm:block">
+            <button type="button" onClick={clearSearch} className="flex items-center rounded-xl px-2.5 sm:px-3 text-xs font-semibold text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:text-slate-300">
               Limpar
             </button>
           )}

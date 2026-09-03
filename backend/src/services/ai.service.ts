@@ -18,6 +18,7 @@ import {
 } from './catalog-extractor';
 import { buildPartRetrievalContext } from './part-index-context';
 import { semanticIndexingEnabled, semanticPartBudgetPerDocument } from './semantic-indexing-policy';
+import { invalidateHomeCountsCache } from '../controllers/operational.controller';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
@@ -518,6 +519,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     });
                     if (documentUpdate.count !== 1 || activated.count !== activePartIds.length) throw new Error('STALE_DOCUMENT_JOB');
                 }, { maxWait: 10_000, timeout: 30_000 });
+                invalidateHomeCountsCache(document.tenantId);
                 console.log(`💾 Catálogo já utilizável: ${preparedParts.length} peças salvas na revisão ${revision}.`);
             }
 

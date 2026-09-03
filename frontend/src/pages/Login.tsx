@@ -175,7 +175,7 @@ export default function Login() {
             </form>
 
             <div className="mt-8 flex items-center justify-between gap-4 border-t border-slate-200 dark:border-slate-700/80 pt-5 text-[11px] text-slate-400">
-              <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/300" />Acesso protegido</span>
+              <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,.5)]" />Acesso protegido</span>
               <span>Administrador e Balcão</span>
             </div>
           </div>

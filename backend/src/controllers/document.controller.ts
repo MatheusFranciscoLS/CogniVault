@@ -3,6 +3,7 @@ import { unlink } from 'node:fs/promises';
 import { DocumentService } from '../services/document.service';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { AuditService } from '../services/audit.service';
+import { invalidateHomeCountsCache } from './operational.controller';
 
 const documentService = new DocumentService();
 
@@ -54,6 +55,8 @@ export class DocumentController {
                     pnc: document.pnc,
                 },
             });
+
+            invalidateHomeCountsCache(req.user.tenantId);
 
             res.status(201).json({
                 message: 'Catálogo recebido e enviado para processamento.',
@@ -181,6 +184,7 @@ export class DocumentController {
                 targetId: document.id,
                 metadata: { filename: document.filename },
             });
+            invalidateHomeCountsCache(req.user.tenantId);
             res.json({ message: 'Catálogo arquivado com segurança.' });
         } catch (error) {
             if (error instanceof Error && error.message === 'DOCUMENT_NOT_FOUND') {
@@ -204,6 +208,7 @@ export class DocumentController {
                 targetId: document.id,
                 metadata: { filename: document.filename },
             });
+            invalidateHomeCountsCache(req.user.tenantId);
             res.json({ message: 'Catálogo restaurado.' });
         } catch (error) {
             if (error instanceof Error && error.message === 'DOCUMENT_NOT_FOUND') {
@@ -258,6 +263,7 @@ export class DocumentController {
                 targetId: document.id,
                 metadata: { filename: document.filename },
             });
+            invalidateHomeCountsCache(req.user.tenantId);
             res.json({ message: 'PDF excluído. O registro de auditoria foi preservado.' });
         } catch (error) {
             if (error instanceof Error && error.message === 'DOCUMENT_NOT_FOUND') {
