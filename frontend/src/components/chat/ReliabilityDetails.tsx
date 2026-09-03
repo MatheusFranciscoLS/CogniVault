@@ -21,7 +21,7 @@ export default function ReliabilityDetails({ response }: { response: ChatRespons
         <div className="mt-3">
           <div className="text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">Métodos que encontraram a peça</div>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {sources.map(source => <span key={source} className="rounded-full bg-white dark:bg-slate-800 px-2.5 py-1 text-[10px] font-semibold text-[#1d4f91] ring-1 ring-blue-100">{retrievalLabels[source as RetrievalSource]}</span>)}
+            {sources.map(source => <span key={source} className="rounded-full bg-white dark:bg-slate-800 px-2.5 py-1 text-[10px] font-semibold text-[#1d4f91] dark:text-blue-300 ring-1 ring-blue-100">{retrievalLabels[source as RetrievalSource]}</span>)}
           </div>
         </div>
       ) : null}

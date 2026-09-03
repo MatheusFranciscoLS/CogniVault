@@ -40,10 +40,10 @@ export function verificationLabel(value?: OfficialVerification) {
 
 function verificationClass(value?: OfficialVerification) {
   if (!value || value.state === 'UNVERIFIED') return 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400';
-  if (value.cacheState === 'STALE') return 'border-amber-200 bg-amber-50 text-amber-700';
-  if (value.state === 'VERIFIED') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-  if (value.state === 'SUPERSEDED') return 'border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] text-blue-700';
-  return 'border-amber-200 bg-amber-50 text-amber-700';
+  if (value.cacheState === 'STALE') return 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300';
+  if (value.state === 'VERIFIED') return 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300';
+  if (value.state === 'SUPERSEDED') return 'border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] text-blue-700 dark:text-blue-300';
+  return 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300';
 }
 
 export function VerificationBadge({ verification, loading = false }: { verification?: OfficialVerification; loading?: boolean }) {
@@ -111,7 +111,7 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
       <form onSubmit={submit} className="max-h-[92vh] w-full max-w-xl overflow-auto rounded-[24px] bg-white dark:bg-slate-800 p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-xs font-bold uppercase tracking-[.12em] text-[#1d4f91]">Conferência assistida</div>
+            <div className="text-xs font-bold uppercase tracking-[.12em] text-[#1d4f91] dark:text-blue-300">Conferência assistida</div>
             <h2 className="mt-1 text-xl font-semibold">Registrar conferência Husqvarna</h2>
             <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">Abra o Portal Husqvarna, confira o código exibido e informe somente o código atual. O CogniVault registra usuário, data, fonte oficial e tipo da alteração automaticamente. O resultado só passa a valer depois da aprovação do Administrador.</p>
           </div>
@@ -126,13 +126,13 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
           </div>
         )}
 
-        {error && <div role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
+        {error && <div role="alert" className="mt-4 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 p-3 text-sm text-rose-700 dark:text-rose-300">{error}</div>}
 
         <div className="mt-5 rounded-2xl border border-blue-100 dark:border-blue-700 bg-blue-50 dark:bg-[#123867]/50 p-4">
-          <div className="text-[10px] font-bold uppercase tracking-[.1em] text-blue-700">Peça conferida</div>
+          <div className="text-[10px] font-bold uppercase tracking-[.1em] text-blue-700 dark:text-blue-300">Peça conferida</div>
           <div className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-200">{target.name}</div>
-          <div className="mt-1 text-lg font-bold text-[#1d4f91]">{target.partNumber}</div>
-          <a href={husqvarnaPortalUrl(target.partNumber)} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-xl border border-blue-200 dark:border-blue-600 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-semibold text-[#1d4f91]">
+          <div className="mt-1 text-lg font-bold text-[#1d4f91] dark:text-blue-300">{target.partNumber}</div>
+          <a href={husqvarnaPortalUrl(target.partNumber)} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-xl border border-blue-200 dark:border-blue-600 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-semibold text-[#1d4f91] dark:text-blue-300">
             Abrir Portal Husqvarna →
           </a>
         </div>
@@ -149,7 +149,7 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
           />
         </label>
 
-        <div className={`mt-3 rounded-xl border p-3 text-xs leading-5 ${changed ? 'border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] text-blue-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
+        <div className={`mt-3 rounded-xl border p-3 text-xs leading-5 ${changed ? 'border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] text-blue-800 dark:text-blue-300' : 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300'}`}>
           {validCurrentCode ? (
             changed
               ? <><b>Substituição detectada automaticamente:</b> {target.partNumber} → {currentPartNumber}. O Administrador precisará aprovar antes de o sistema usar o novo código.</>

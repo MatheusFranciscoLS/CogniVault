@@ -49,11 +49,11 @@ function statusLabel(item: UploadItem): string {
 }
 
 function statusClass(state: UploadState): string {
-  if (state === 'QUEUED') return 'bg-emerald-50 text-emerald-700';
-  if (state === 'UPLOADING') return 'bg-amber-50 text-amber-700';
+  if (state === 'QUEUED') return 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300';
+  if (state === 'UPLOADING') return 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300';
   if (state === 'DUPLICATE') return 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400';
-  if (state === 'FAILED') return 'bg-rose-50 text-rose-700';
-  return 'bg-blue-50 dark:bg-[#123867] text-blue-700';
+  if (state === 'FAILED') return 'bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300';
+  return 'bg-blue-50 dark:bg-[#123867] text-blue-700 dark:text-blue-300';
 }
 
 export default function BatchCatalogUploader({ onComplete, onNotice, onError }: Props) {
@@ -256,7 +256,7 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
       <input aria-label="PNC" value={pnc} onChange={event => setPnc(event.target.value)} placeholder="PNC (opcional)" className="cv-field text-sm" />
     </div>}
 
-    {items.length > 1 && <div className="mt-4 rounded-xl border border-blue-100 dark:border-blue-700 bg-blue-50 dark:bg-[#123867]/70 px-3 py-2 text-xs leading-5 text-blue-700">
+    {items.length > 1 && <div className="mt-4 rounded-xl border border-blue-100 dark:border-blue-700 bg-blue-50 dark:bg-[#123867]/70 px-3 py-2 text-xs leading-5 text-blue-700 dark:text-blue-300">
       Modo automático do lote: fabricante, modelo e PNC serão extraídos de cada PDF individualmente.
     </div>}
 

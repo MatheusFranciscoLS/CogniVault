@@ -41,8 +41,8 @@ export default function Dashboard(){
    setSection('parts');
  };
 
- if(error)return <main className="grid min-h-screen place-items-center bg-[#f4f7fb] p-6"><div role="alert" className="max-w-md rounded-[22px] border border-rose-200 bg-white p-6 text-center shadow-xl shadow-slate-900/5"><div className="text-sm font-semibold text-rose-700">Não foi possível abrir o CogniVault</div><p className="mt-2 text-xs leading-5 text-slate-500">{error}</p></div></main>;
- if(!user)return <main className="grid min-h-screen place-items-center bg-[#f4f7fb] p-6"><div className="text-center"><img src="/vardao-logo-transparent.png" alt="Vardão Máquinas" className="mx-auto w-40"/><div className="mx-auto mt-6 h-1 w-28 overflow-hidden rounded-full bg-slate-200"><div className="h-full w-1/2 animate-pulse rounded-full bg-[#1d4f91]"/></div><p className="mt-3 text-xs font-medium text-slate-400">Preparando sua área de trabalho…</p></div></main>;
+ if(error)return <main className="grid min-h-screen place-items-center bg-[#f4f7fb] p-6"><div role="alert" className="max-w-md rounded-[22px] border border-rose-200 dark:border-rose-800 bg-white p-6 text-center shadow-xl shadow-slate-900/5"><div className="text-sm font-semibold text-rose-700 dark:text-rose-300">Não foi possível abrir o CogniVault</div><p className="mt-2 text-xs leading-5 text-slate-500">{error}</p></div></main>;
+ if(!user)return <main className="grid min-h-screen place-items-center bg-[#f4f7fb] p-6"><div className="text-center"><img src="/vardao-logo-transparent.png" alt="Vardão Máquinas" className="mx-auto w-40"/><div className="mx-auto mt-6 h-1 w-28 overflow-hidden rounded-full bg-slate-200"><div className="h-full w-1/2 animate-pulse rounded-full bg-[#1d4f91] dark:bg-[#1d4f91]/80"/></div><p className="mt-3 text-xs font-medium text-slate-400">Preparando sua área de trabalho…</p></div></main>;
 
  return <Shell user={user} section={section} onSection={setSection} onLogout={logout} onSearch={search}>
    {section==='home'&&<HomePanel onSearch={search} onCatalogs={()=>setSection('catalogs')}/>}

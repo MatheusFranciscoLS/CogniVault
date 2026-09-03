@@ -100,7 +100,7 @@ export default function Login() {
       </section>
 
       <section className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-6 py-10 sm:px-10 lg:px-12">
-        <div className="pointer-events-none absolute -right-28 -top-24 h-80 w-80 rounded-full bg-[#1d4f91]/[.07] blur-3xl" />
+        <div className="pointer-events-none absolute -right-28 -top-24 h-80 w-80 rounded-full bg-[#1d4f91] dark:bg-[#1d4f91]/80/[.07] blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-amber-400/[.07] blur-3xl" />
 
         <div className="relative z-10 w-full max-w-[440px]">
@@ -116,23 +116,23 @@ export default function Login() {
               <div className="mb-8 flex items-center gap-3 lg:hidden">
                 <img src="/favicon.png" alt="" className="h-10 w-10 rounded-xl object-cover" />
                 <div>
-                  <div className="font-semibold text-slate-900">CogniVault</div>
+                  <div className="font-semibold text-slate-900 dark:text-slate-100">CogniVault</div>
                   <div className="text-[9px] uppercase tracking-[.18em] text-slate-400">Inteligência de peças</div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[.15em] text-[#1d4f91]">
-                <span className="h-px w-7 bg-[#1d4f91]/50" />
+              <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[.15em] text-[#1d4f91] dark:text-blue-300">
+                <span className="h-px w-7 bg-[#1d4f91]/50 dark:bg-[#1d4f91]/80" />
                 Acesso interno
               </div>
               <h2 className="mt-5 text-[2.45rem] font-semibold leading-[1.03] tracking-[-.055em] text-slate-950">Entre no CogniVault</h2>
               <p className="mt-4 max-w-sm text-sm leading-6 text-slate-500">Consulte peças, aplicações e catálogos com as credenciais da sua equipe.</p>
             </div>
 
-            {error && <div role="alert" aria-live="polite" className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
+            {error && <div role="alert" aria-live="polite" className="mb-6 rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 px-4 py-3 text-sm text-rose-700 dark:text-rose-300">{error}</div>}
 
             <form onSubmit={handleLogin} className="space-y-5" aria-busy={loading}>
               <div>
-                <label htmlFor="login-email" className="mb-2 block text-xs font-semibold text-slate-700">E-mail</label>
+                <label htmlFor="login-email" className="mb-2 block text-xs font-semibold text-slate-700 dark:text-slate-300">E-mail</label>
                 <input
                   id="login-email"
                   type="email"
@@ -146,7 +146,7 @@ export default function Login() {
                 />
               </div>
               <div>
-                <label htmlFor="login-password" className="mb-2 block text-xs font-semibold text-slate-700">Senha</label>
+                <label htmlFor="login-password" className="mb-2 block text-xs font-semibold text-slate-700 dark:text-slate-300">Senha</label>
                 <div className="relative">
                   <input
                     id="login-password"
@@ -161,7 +161,7 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(value => !value)}
-                    className="absolute inset-y-0 right-0 px-4 text-xs font-semibold text-slate-500 transition hover:text-[#1d4f91]"
+                    className="absolute inset-y-0 right-0 px-4 text-xs font-semibold text-slate-500 transition hover:text-[#1d4f91] dark:text-blue-300"
                     aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                   >
                     {showPassword ? 'Ocultar' : 'Mostrar'}
@@ -174,8 +174,8 @@ export default function Login() {
               </button>
             </form>
 
-            <div className="mt-8 flex items-center justify-between gap-4 border-t border-slate-200/80 pt-5 text-[11px] text-slate-400">
-              <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Acesso protegido</span>
+            <div className="mt-8 flex items-center justify-between gap-4 border-t border-slate-200 dark:border-slate-700/80 pt-5 text-[11px] text-slate-400">
+              <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/300" />Acesso protegido</span>
               <span>Administrador e Balcão</span>
             </div>
           </div>

@@ -3,10 +3,10 @@ import type { ChatResponse } from '../../types';
 export default function Guidance({ response }: { response: ChatResponse }) {
   if (!response.guidance) return null;
   const palette = response.status === 'FOUND'
-    ? 'border-emerald-200 bg-emerald-50/70 text-emerald-950'
+    ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-900/30 text-emerald-950'
     : response.status === 'NOT_FOUND'
-      ? 'border-rose-200 bg-rose-50/70 text-rose-950'
-      : 'border-amber-200 bg-amber-50/70 text-amber-950';
+      ? 'border-rose-200 dark:border-rose-800 bg-rose-50/70 dark:bg-rose-900/30 text-rose-950'
+      : 'border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-900/30 text-amber-950';
 
   return (
     <div className={`rounded-2xl border p-3.5 ${palette}`}>
