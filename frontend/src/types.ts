@@ -50,7 +50,7 @@ export interface FavoriteItem {
   sourceFilename?:string|null; section?:string|null; position?:string|null; page?:number|null;
 }
 export interface SearchPart {
-  id:string; name:string; partNumber:string; manufacturer:string|null; model:string; pnc:string|null; section:string|null; position:string|null; page:number|null; documentId:string; filename:string;
+  id:string; name:string; partNumber:string; manufacturer:string|null; model:string; pnc:string|null; section:string|null; position:string|null; page:number|null; documentId:string; filename:string; notes?:string|null;
 }
 export interface PartDetail extends SearchPart {
   notes:string|null; favoriteId:string|null; document:{id:string;filename:string;manufacturer:string|null;model:string|null;pnc:string|null};

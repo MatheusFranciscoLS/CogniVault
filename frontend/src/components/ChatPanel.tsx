@@ -497,7 +497,20 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
               </motion.div>
             ))}
 
-            {loading ? <div role="status" className="flex items-center gap-3 text-sm text-slate-400"><span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-200 dark:border-slate-700 border-t-[#1d4f91]" />Interpretando e cruzando com os catálogos… <button type="button" onClick={cancel} className="text-xs font-semibold text-slate-500 dark:text-slate-400 underline">Cancelar</button></div> : null}
+            {loading ? (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                role="status"
+                className="flex items-center gap-3 rounded-xl border border-blue-100 dark:border-blue-900/50 bg-blue-50/70 dark:bg-blue-950/30 px-4 py-3 text-sm text-blue-900 dark:text-blue-200"
+              >
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-blue-200 dark:border-blue-700 border-t-[#1d4f91] dark:border-t-blue-400" />
+                <span className="font-medium">Consultando catálogo técnico e portal oficial Husqvarna…</span>
+                <button type="button" onClick={cancel} className="ml-auto text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 underline">
+                  Cancelar
+                </button>
+              </motion.div>
+            ) : null}
             <div ref={messagesEndRef} />
           </div>
 

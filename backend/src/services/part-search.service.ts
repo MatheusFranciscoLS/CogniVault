@@ -15,9 +15,20 @@ import { applyFeedbackLearning } from './feedback-learning';
 import { allRelatedPartNumbers, preferCurrentPartNumbers, resolveCurrentPartNumber } from './part-supersession';
 import { normalizedReciprocalRankFusionScores } from './retrieval-fusion';
 import { fullTextPartCandidates, fuzzyPartCandidates, type HybridTextCandidateRow } from './hybrid-part-retrieval';
+import { LRUCache } from 'lru-cache';
 import { consumeSemanticQueryBudget, semanticIndexingEnabled } from './semantic-indexing-policy';
 
 const MAX_DISTANCE = Number(process.env.PART_SEARCH_MAX_DISTANCE || '0.65');
+
+const pncsCache = new LRUCache<string, string[]>({
+  max: 500,
+  ttl: 5 * 60 * 1000, // 5 minutes
+});
+
+const modelsCache = new LRUCache<string, string[]>({
+  max: 200,
+  ttl: 5 * 60 * 1000, // 5 minutes
+});
 
 export type RetrievalSource = 'DIRECT_CODE' | 'SEMANTIC' | 'LEXICAL' | 'FULL_TEXT' | 'FUZZY';
 
@@ -241,22 +252,34 @@ export class PartSearchService {
   }
 
   static async availablePncs(tenantId: string, normalizedModel: string): Promise<string[]> {
+    const key = `${tenantId}:${normalizedModel}`;
+    const cached = pncsCache.get(key);
+    if (cached) return cached;
+
     const rows = await prisma.part.findMany({
       where: { normalizedModel, active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } },
       select: { pnc: true, document: { select: { pnc: true } } },
     });
-    return [...new Set(rows.map(r => r.pnc || r.document.pnc).filter((value): value is string => Boolean(value)))];
+    const result = [...new Set(rows.map(r => r.pnc || r.document.pnc).filter((value): value is string => Boolean(value)))];
+    pncsCache.set(key, result);
+    return result;
   }
 
   static async similarModels(tenantId: string, requested: string): Promise<string[]> {
+    const key = `${tenantId}:${requested}`;
+    const cached = modelsCache.get(key);
+    if (cached) return cached;
+
     const rows = await prisma.part.findMany({
       where: { active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } },
       select: { model: true, normalizedModel: true }, distinct: ['normalizedModel'], take: 300,
     });
-    return rows
+    const result = rows
       .filter(row => row.normalizedModel.includes(requested) || requested.includes(row.normalizedModel))
       .slice(0, 8)
       .map(row => row.model);
+    modelsCache.set(key, result);
+    return result;
   }
 
   static async semantic(tenantId: string, question: string, intent: SearchIntent): Promise<PartCandidate[]> {

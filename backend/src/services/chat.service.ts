@@ -74,12 +74,24 @@ function unique<T>(items: T[]): T[] { return [...new Set(items)]; }
 function escapeRegExp(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
 export class ChatService {
-  static async askQuestion(tenantId: string, question: string, explicitPnc?: string, selectedPartId?: string): Promise<ChatSearchResult> {
-    const result = await this.askQuestionInternal(tenantId, question, explicitPnc, selectedPartId);
+  static async askQuestion(
+    tenantId: string,
+    question: string,
+    explicitPnc?: string,
+    selectedPartId?: string,
+    fallbackModel?: string,
+  ): Promise<ChatSearchResult> {
+    const result = await this.askQuestionInternal(tenantId, question, explicitPnc, selectedPartId, fallbackModel);
     return result;
   }
 
-  private static async askQuestionInternal(tenantId: string, question: string, explicitPnc?: string, selectedPartId?: string): Promise<ChatSearchResult> {
+  private static async askQuestionInternal(
+    tenantId: string,
+    question: string,
+    explicitPnc?: string,
+    selectedPartId?: string,
+    fallbackModel?: string,
+  ): Promise<ChatSearchResult> {
     if (selectedPartId) {
       const selected = await PartSearchService.byId(tenantId, selectedPartId);
       const selectionIntent = buildFallbackIntent(question);
@@ -111,6 +123,9 @@ export class ChatService {
     }
 
     const intent = await ChatIntentService.parse(question);
+    if (!intent.model && fallbackModel?.trim()) {
+      intent.model = fallbackModel.trim();
+    }
     if (explicitPnc?.trim()) intent.pnc = explicitPnc.trim();
     if (intent.partNumber) {
       const direct = await PartSearchService.directByCode(tenantId, intent.partNumber);

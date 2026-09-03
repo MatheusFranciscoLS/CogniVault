@@ -3,27 +3,49 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
+import { LRUCache } from 'lru-cache';
 import { buildFallbackIntent } from '../services/chat-reliability';
 import { buildSearchGroups, scorePartText } from '../services/part-vocabulary';
 import { allRelatedPartNumbers, preferCurrentPartNumbers } from '../services/part-supersession';
 import { filterCandidatesByMarket } from '../services/catalog-market';
+
+const homeCountsCache = new LRUCache<string, { parts: number; documents: number }>({
+    max: 200,
+    ttl: 30 * 1000, // 30 seconds
+});
+
+export function invalidateHomeCountsCache(tenantId?: string): void {
+    if (tenantId) {
+        homeCountsCache.delete(tenantId);
+    } else {
+        homeCountsCache.clear();
+    }
+}
 
 export class OperationalController {
     async home(req: AuthenticatedRequest, res: Response): Promise<void> {
         if (!req.user) return;
         const { tenantId, id: userId } = req.user;
 
-        const [recentSearches, favorites, recentDocuments, parts, documents] = await Promise.all([
+        let counts = homeCountsCache.get(tenantId);
+        if (!counts) {
+            const [parts, documents] = await Promise.all([
+                prisma.part.count({ where: { active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } } }),
+                prisma.document.count({ where: { tenantId, archivedAt: null, status: 'COMPLETED' } }),
+            ]);
+            counts = { parts, documents };
+            homeCountsCache.set(tenantId, counts);
+        }
+
+        const [recentSearches, favorites, recentDocuments] = await Promise.all([
             prisma.searchHistory.findMany({ where: { tenantId, userId }, orderBy: { createdAt: 'desc' }, take: 6 }),
             prisma.favorite.findMany({ where: { tenantId, userId }, orderBy: { createdAt: 'desc' }, take: 6 }),
             prisma.document.findMany({ where: { tenantId, archivedAt: null, status: 'COMPLETED' }, orderBy: { createdAt: 'desc' }, take: 5, select: { id: true, filename: true, manufacturer: true, model: true, pnc: true, createdAt: true, _count: { select: { parts: { where: { active: true } } } } } }),
-            prisma.part.count({ where: { active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } } }),
-            prisma.document.count({ where: { tenantId, archivedAt: null, status: 'COMPLETED' } }),
         ]);
 
         res.json({
             home: {
-                counts: { parts, documents },
+                counts,
                 recentSearches,
                 favorites,
                 recentDocuments: recentDocuments.map((item) => ({ ...item, partCount: item._count.parts, _count: undefined })),

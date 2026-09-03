@@ -53,7 +53,30 @@ export default function ResultCard({
         <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3">Posição / página<b className="mt-1 block">{part.position || '—'} · pág. {part.page ?? '—'}</b></div>
       </div>
       <div className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 p-3 text-xs">Catálogo<b className="mt-1 block break-words">{part.filename}</b></div>
-      {part.notes ? <div className="mt-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 p-3 text-xs text-amber-900 dark:text-amber-300"><b className="block">Observação do catálogo</b><span className="mt-1 block">{part.notes}</span></div> : null}
+      {part.notes ? (
+        part.notes.includes('Substituição oficial') ? (
+          <div className="mt-3 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50/90 dark:bg-amber-950/40 p-3.5 text-xs text-amber-900 dark:text-amber-200 shadow-sm">
+            <div className="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-300">
+              <span className="text-base leading-none">★</span>
+              <span>Substituição Oficial Husqvarna</span>
+            </div>
+            <p className="mt-1.5 leading-relaxed font-medium">{part.notes}</p>
+            <a
+              href={`https://parts.husqvarna.com/br/spare-parts/search?q=${encodeURIComponent(part.partNumber.replace(/[^0-9]/g, ''))}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-amber-600 dark:bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700 dark:hover:bg-amber-600"
+            >
+              Conferir no portal Husqvarna Brasil ↗
+            </a>
+          </div>
+        ) : (
+          <div className="mt-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 p-3 text-xs text-amber-900 dark:text-amber-300">
+            <b className="block">Observação do catálogo</b>
+            <span className="mt-1 block">{part.notes}</span>
+          </div>
+        )
+      ) : null}
 
       {(part.applications?.length || 0) > 1 ? (
         <div className="mt-3 rounded-xl border border-blue-100 dark:border-blue-700 bg-blue-50 dark:bg-[#123867]/60 p-3">

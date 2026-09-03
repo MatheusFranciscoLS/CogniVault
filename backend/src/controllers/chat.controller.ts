@@ -148,7 +148,36 @@ export class ChatController {
             const cleanQuestion = question.trim();
             const cleanPnc = typeof pnc === 'string' ? pnc.trim() : undefined;
             const cleanSelectedPartId = typeof selectedPartId === 'string' ? selectedPartId.trim() : undefined;
-            let result: GuidedChatSearchResult = await ChatService.askQuestion(req.user.tenantId, cleanQuestion, cleanPnc, cleanSelectedPartId);
+
+            let fallbackModel: string | undefined;
+            const quickIntent = buildFallbackIntent(cleanQuestion);
+            if (!quickIntent.model && !cleanSelectedPartId) {
+                try {
+                    const recent = await prisma.searchHistory.findFirst({
+                        where: {
+                            tenantId: req.user.tenantId,
+                            userId: req.user.id,
+                            resultModel: { not: null },
+                            createdAt: { gte: new Date(Date.now() - 15 * 60 * 1000) },
+                        },
+                        orderBy: { createdAt: 'desc' },
+                        select: { resultModel: true },
+                    });
+                    if (recent?.resultModel) {
+                        fallbackModel = recent.resultModel;
+                    }
+                } catch {
+                    // Histórico indisponível não deve bloquear
+                }
+            }
+
+            let result: GuidedChatSearchResult = await ChatService.askQuestion(
+                req.user.tenantId,
+                cleanQuestion,
+                cleanPnc,
+                cleanSelectedPartId,
+                fallbackModel,
+            );
             result = enforceSerialConfirmation(result, cleanQuestion, Boolean(cleanSelectedPartId));
 
             try {

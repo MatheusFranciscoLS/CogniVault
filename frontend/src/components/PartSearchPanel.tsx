@@ -479,6 +479,19 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                             ) : part.partNumber}
                           </div>
                           {isCurrentReplacement && <div className="mt-1 text-[11px] font-medium text-blue-700 dark:text-blue-300">Código atual de {verification?.queriedPartNumber}</div>}
+                          {part.notes && (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {part.notes.includes('Substituição oficial') ? (
+                                <span className="inline-flex items-center gap-1 rounded-md border border-amber-400/40 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:text-amber-200">
+                                  <span aria-hidden="true" className="text-amber-500">★</span> {part.notes}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:text-slate-300">
+                                  {part.notes}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                         {part.position && <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">Pos. {part.position}</span>}
                       </div>
@@ -548,7 +561,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
       {detail && (
         <div onMouseDown={closeDetailFromBackdrop} className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/45 p-0 backdrop-blur-sm md:items-center md:p-6">
           <div role="dialog" aria-modal="true" aria-labelledby="part-detail-title" className="max-h-[92vh] w-full max-w-5xl overflow-auto rounded-t-[28px] bg-white dark:bg-slate-800 shadow-2xl md:rounded-[28px]">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white/$1 dark:bg-slate-800/$1 px-5 py-4 backdrop-blur">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 px-5 py-4 backdrop-blur">
               <div>
                 <div className="text-xs font-bold uppercase tracking-[.12em] text-[#1d4f91] dark:text-blue-300">Detalhe da peça</div>
                 <div id="part-detail-title" className="mt-1 text-lg font-semibold">{detail.name}</div>

@@ -11,6 +11,7 @@ import { OperationalController } from '../controllers/operational.controller';
 import { OfficialPartVerificationController } from '../controllers/official-part-verification.controller';
 import { QualityController } from '../controllers/quality.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
+import { loginLimiter } from '../middleware/rate-limit.middleware';
 
 const router = Router();
 
@@ -26,7 +27,7 @@ const qualityController = new QualityController();
 
 const upload = multer({ dest: 'uploads/', limits: { fileSize: 50 * 1024 * 1024 } });
 
-router.post('/login', (req, res) => authController.login(req, res));
+router.post('/login', loginLimiter, (req, res) => authController.login(req, res));
 router.get('/me', authMiddleware, (req, res) => adminController.me(req, res));
 
 router.get('/home', authMiddleware, (req, res) => operationalController.home(req, res));
