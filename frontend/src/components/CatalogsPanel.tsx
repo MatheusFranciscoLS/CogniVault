@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, apiJson, fmtDate, json } from '../lib';
 import { toast } from 'sonner';
@@ -157,6 +157,16 @@ export default function CatalogsPanel({admin,onQuality}:{admin:boolean;onQuality
   const favoritesByDocument=useMemo(()=>new Map(favorites.filter(item=>item.documentId).map(item=>[item.documentId!,item])),[favorites]);
 
   const flash=(text:string)=>{toast.success(text);};
+
+  useEffect(() => {
+    if (!pdf) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPdf(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [pdf]);
+
   const access=async(id:string,mode:'view'|'download',title='Catálogo')=>{
     try {
       const data=await apiJson<{url:string}>(`/api/documents/${id}/access?mode=${mode}`);
@@ -166,7 +176,9 @@ export default function CatalogsPanel({admin,onQuality}:{admin:boolean;onQuality
         link.href=data.url;link.target='_blank';link.rel='noopener noreferrer';link.click();
       }
     } catch(accessError) {
-      setError(accessError instanceof Error?accessError.message:'Não foi possível abrir o catálogo.');
+      const msg = accessError instanceof Error?accessError.message:'Não foi possível abrir o catálogo.';
+      setError(msg);
+      toast.error(msg);
     }
   };
 
@@ -302,7 +314,15 @@ export default function CatalogsPanel({admin,onQuality}:{admin:boolean;onQuality
 
     <div className="cv-surface overflow-hidden rounded-[22px]">
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 dark:border-slate-700 p-4">
-        <div className="min-w-0 flex-1"><label htmlFor="catalog-search" className="sr-only">Buscar catálogos</label><input id="catalog-search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Buscar por arquivo, fabricante, modelo, PNC ou seção" className="cv-field w-full max-w-xl text-sm"/></div>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <label htmlFor="catalog-search" className="sr-only">Buscar catálogos</label>
+          <input id="catalog-search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Buscar por arquivo, fabricante, modelo, PNC ou seção" className="cv-field w-full max-w-xl text-sm"/>
+          {search ? (
+            <button type="button" onClick={()=>setSearch('')} className="flex items-center rounded-xl px-2.5 sm:px-3 text-xs font-semibold text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:text-slate-300">
+              Limpar
+            </button>
+          ) : null}
+        </div>
         <div className="flex flex-wrap gap-1.5">{statusButtons.map(([value,label,count])=><button key={value} type="button" onClick={()=>setStatusFilter(value)} className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${statusFilter===value?'border-slate-800 bg-slate-900 text-white':'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:border-slate-600'}`}>{label} · {count}</button>)}</div>
         {effectiveCategoryFilter!=='ALL'&&<button type="button" onClick={()=>setCategoryFilter('ALL')} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-400">Limpar seção</button>}
       </div>
@@ -325,6 +345,6 @@ export default function CatalogsPanel({admin,onQuality}:{admin:boolean;onQuality
       </tbody></table>{!filtered.length&&<div className="p-10 text-center text-sm text-slate-400">Nenhum catálogo encontrado com estes filtros.</div>}</div>
     </div>
 
-    {pdf&&<div className="fixed inset-0 z-[90] bg-slate-950/90 p-3 md:p-6"><div className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white dark:bg-slate-800"><div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 px-4 py-3"><div><div className="text-sm font-semibold">{pdf.title}</div><div className="text-xs text-slate-400">Visualizador técnico</div></div><button type="button" onClick={()=>setPdf(null)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm">Fechar</button></div><iframe title={pdf.title} src={pdf.url} className="h-full w-full border-0"/></div></div>}
+    {pdf&&<div onMouseDown={e=>{if(e.target===e.currentTarget)setPdf(null);}} className="fixed inset-0 z-[90] bg-slate-950/90 p-3 md:p-6"><div className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white dark:bg-slate-800"><div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 px-4 py-3"><div><div className="text-sm font-semibold">{pdf.title}</div><div className="text-xs text-slate-400">Visualizador técnico</div></div><button type="button" onClick={()=>setPdf(null)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button></div><iframe title={pdf.title} src={pdf.url} className="h-full w-full border-0"/></div></div>}
   </section>;
 }

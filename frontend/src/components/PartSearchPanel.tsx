@@ -103,6 +103,22 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
   const inputRef = useRef<HTMLInputElement>(null);
   const resultRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (pdf) {
+          setPdf(null);
+        } else if (verificationTarget) {
+          setVerificationTarget(null);
+        } else if (detail) {
+          setDetail(null);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [pdf, verificationTarget, detail]);
+
   const loadVerifications = useCallback(async (items: Array<Pick<SearchPart, 'partNumber'>>, replace = false) => {
     if (!items.length) {
       if (replace) setVerifications({});

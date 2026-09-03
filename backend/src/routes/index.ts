@@ -25,7 +25,19 @@ const operationalController = new OperationalController();
 const officialPartVerificationController = new OfficialPartVerificationController();
 const qualityController = new QualityController();
 
-const upload = multer({ dest: 'uploads/', limits: { fileSize: 50 * 1024 * 1024 } });
+const upload = multer({
+  dest: 'uploads/',
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const isPdfMime = file.mimetype === 'application/pdf';
+    const isPdfExt = file.originalname.toLowerCase().endsWith('.pdf');
+    if (isPdfMime || isPdfExt) {
+      cb(null, true);
+    } else {
+      cb(new Error('Somente arquivos PDF são permitidos.'));
+    }
+  },
+});
 
 router.post('/login', loginLimiter, (req, res) => authController.login(req, res));
 router.get('/me', authMiddleware, (req, res) => adminController.me(req, res));

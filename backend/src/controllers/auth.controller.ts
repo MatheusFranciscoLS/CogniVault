@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { AuditService } from '../services/audit.service';
 
 const JWT_SECRET: string = process.env.JWT_SECRET || (() => {
     throw new Error('JWT_SECRET não definida no .env');
@@ -87,6 +88,15 @@ export class AuthController {
                     expiresIn: '8h'
                 }
             );
+
+            AuditService.record({
+                tenantId: user.tenantId,
+                userId: user.id,
+                action: 'USER_LOGIN',
+                targetType: 'USER',
+                targetId: user.id,
+                metadata: { email: user.email, role: user.role },
+            });
 
             res.status(200).json({
                 message: 'Login realizado com sucesso!',

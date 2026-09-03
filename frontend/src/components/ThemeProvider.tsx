@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { Toaster } from 'sonner';
 
 type Theme = 'dark' | 'light' | 'system';
 
@@ -68,3 +69,8 @@ export const useTheme = () => {
     throw new Error('useTheme must be used within a ThemeProvider');
   return context;
 };
+
+export function ThemedToaster() {
+  const { theme } = useTheme();
+  return <Toaster position="bottom-right" richColors theme={theme === 'system' ? 'system' : theme} />;
+}

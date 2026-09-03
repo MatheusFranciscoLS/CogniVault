@@ -29,9 +29,14 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
           <p className="text-[10px] font-bold uppercase tracking-[.18em] text-amber-200">Vardão Máquinas · Operação de balcão</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-[-.045em] md:text-[2.65rem]">Qual peça você precisa encontrar?</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Pesquise por código, descrição, modelo ou PNC. O CogniVault entende nomes de peças em português e inglês e cruza a consulta apenas com os catálogos processados.</p>
-          <form onSubmit={submit} className="mt-6 flex gap-2 rounded-2xl bg-white dark:bg-slate-800 p-2 shadow-2xl shadow-black/10">
+          <form onSubmit={submit} className="mt-6 flex items-center gap-2 rounded-2xl bg-white dark:bg-slate-800 p-2 shadow-2xl shadow-black/10">
             <label htmlFor="home-search" className="sr-only">Pesquisar peça, modelo ou PNC</label>
             <input id="home-search" autoFocus value={query} onChange={event => setQuery(event.target.value)} placeholder="Ex.: carburador 143RII ou 537 29 58-02" className="min-w-0 flex-1 rounded-xl border-0 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 outline-none" />
+            {query ? (
+              <button type="button" onClick={() => setQuery('')} className="flex items-center rounded-xl px-2.5 sm:px-3 text-xs font-semibold text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:text-slate-300">
+                Limpar
+              </button>
+            ) : null}
             <button className="cv-primary px-5 text-sm font-semibold">Pesquisar</button>
           </form>
           <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-slate-400"><span className="mr-1">Exemplos:</span>{examples.map(example => <button type="button" key={example} onClick={() => onSearch(example)} className="rounded-full border border-white/15 bg-white/[.06] px-3 py-1.5 font-medium text-slate-200 transition hover:bg-white/[.12]">{example}</button>)}<span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 font-medium text-emerald-100">Português + inglês · tolera pequenos erros</span><span className="ml-auto hidden items-center gap-1.5 text-slate-400 sm:flex"><kbd className="rounded border border-white/15 bg-white/[.06] px-1.5 py-0.5 text-[9px] text-slate-200">Ctrl K</kbd> busca rápida em qualquer tela</span></div>

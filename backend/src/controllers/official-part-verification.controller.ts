@@ -34,13 +34,18 @@ export class OfficialPartVerificationController {
 
   async history(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
-    const code = String(req.params.code || '').trim();
-    if (!normalizeIdentifier(code)) {
-      res.status(400).json({ error: 'Código da peça inválido.' });
-      return;
+    try {
+      const code = String(req.params.code || '').trim();
+      if (!normalizeIdentifier(code)) {
+        res.status(400).json({ error: 'Código da peça inválido.' });
+        return;
+      }
+      const history = await OfficialPartVerificationService.history(req.user.tenantId, code);
+      res.json({ history });
+    } catch (error) {
+      console.error('❌ Erro ao consultar histórico de conferência:', error);
+      res.status(500).json({ error: 'Não foi possível carregar o histórico de conferência.' });
     }
-    const history = await OfficialPartVerificationService.history(req.user.tenantId, code);
-    res.json({ history });
   }
 
   async create(req: AuthenticatedRequest, res: Response): Promise<void> {

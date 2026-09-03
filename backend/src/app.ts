@@ -108,6 +108,7 @@ app.use((_req, res) => {
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   const isUploadError = error instanceof multer.MulterError;
+  const isCustomUploadError = error instanceof Error && error.message === 'Somente arquivos PDF são permitidos.';
   const bodyErrorType = typeof error === 'object' && error !== null && 'type' in error
     ? String(error.type)
     : '';
@@ -117,20 +118,24 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   const isPayloadTooLarge = isUploadTooLarge || isBodyTooLarge;
   const status = error instanceof HttpError
     ? error.status
-    : isPayloadTooLarge
-      ? 413
-      : isUploadError || isInvalidJson
-        ? 400
-        : 500;
+    : isCustomUploadError
+      ? 400
+      : isPayloadTooLarge
+        ? 413
+        : isUploadError || isInvalidJson
+          ? 400
+          : 500;
   const message = error instanceof HttpError
     ? error.message
-    : isPayloadTooLarge
-      ? isUploadTooLarge ? 'O PDF excede o limite de 50 MB.' : 'O corpo da requisição excede o limite permitido.'
-      : isInvalidJson
-        ? 'O corpo JSON da requisição é inválido.'
-      : isUploadError
-        ? 'Não foi possível receber o arquivo enviado.'
-        : 'Erro interno do servidor.';
+    : isCustomUploadError
+      ? error.message
+      : isPayloadTooLarge
+        ? isUploadTooLarge ? 'O PDF excede o limite de 50 MB.' : 'O corpo da requisição excede o limite permitido.'
+        : isInvalidJson
+          ? 'O corpo JSON da requisição é inválido.'
+        : isUploadError
+          ? 'Não foi possível receber o arquivo enviado.'
+          : 'Erro interno do servidor.';
 
   if (status >= 500) console.error('❌ Erro não tratado na API:', error);
   res.status(status).json({ error: message });
