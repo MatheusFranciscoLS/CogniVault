@@ -89,6 +89,15 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
   }, [messages, loading]);
 
   useEffect(() => {
+    if (!pdf) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPdf(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [pdf]);
+
+  useEffect(() => {
     let active = true;
     void api('/api/favorites')
       .then(response => json<{ favorites: FavoriteItem[] }>(response))
@@ -556,7 +565,7 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
         </aside>
       </div>
 
-      {pdf ? <div className="fixed inset-0 z-[90] bg-slate-950/90 p-3 md:p-6"><div role="dialog" aria-modal="true" aria-labelledby="assistant-pdf-title" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white dark:bg-slate-800"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 px-4 py-3"><div><div id="assistant-pdf-title" className="text-sm font-semibold">{pdf.title}</div><div className="text-xs text-slate-400">{pdf.page ? `Página ${pdf.page}` : 'Visualização do catálogo'}</div></div><div className="flex gap-2"><a href={pdfPageUrl(pdf.url, pdf.page)} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-[#1d4f91] dark:text-blue-300">Nova aba</a><button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button></div></div><iframe title={pdf.title} src={pdfPageUrl(pdf.url, pdf.page)} className="h-full w-full border-0" /></div></div> : null}
+      {pdf ? <div onMouseDown={e => { if (e.target === e.currentTarget) setPdf(null); }} className="fixed inset-0 z-[90] bg-slate-950/90 p-3 md:p-6"><div role="dialog" aria-modal="true" aria-labelledby="assistant-pdf-title" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white dark:bg-slate-800"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 px-4 py-3"><div><div id="assistant-pdf-title" className="text-sm font-semibold">{pdf.title}</div><div className="text-xs text-slate-400">{pdf.page ? `Página ${pdf.page}` : 'Visualização do catálogo'}</div></div><div className="flex gap-2"><a href={pdfPageUrl(pdf.url, pdf.page)} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-[#1d4f91] dark:text-blue-300">Nova aba</a><button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button></div></div><iframe title={pdf.title} src={pdfPageUrl(pdf.url, pdf.page)} className="h-full w-full border-0" /></div></div> : null}
     </section>
   );
 }

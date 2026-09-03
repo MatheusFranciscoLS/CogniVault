@@ -104,10 +104,10 @@ function matchesStatusFilter(document:DocumentItem,filter:StatusFilter):boolean 
   return document.status==='COMPLETED'&&!document.modelNeedsReview&&(document.reviewStatus==='READY'||document.reviewStatus==='REVIEWED');
 }
 
-export default function CatalogsPanel({admin,onQuality}:{admin:boolean;onQuality?:()=>void}) {
-  const [categoryFilter,setCategoryFilter]=useState('ALL');
+export default function CatalogsPanel({admin,onQuality,initialSearch}:{admin:boolean;onQuality?:()=>void;initialSearch?:string}){
   const [statusFilter,setStatusFilter]=useState<StatusFilter>('ALL');
-  const [search,setSearch]=useState('');
+  const [categoryFilter,setCategoryFilter]=useState('ALL');
+  const [search,setSearch]=useState(initialSearch||'');
   const [archived,setArchived]=useState(false);
   const [busy,setBusy]=useState(false);
   const [analyzingQuality,setAnalyzingQuality]=useState(false);

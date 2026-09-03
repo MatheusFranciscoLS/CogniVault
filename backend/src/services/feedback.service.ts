@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { getGeminiClient } from '../config/gemini';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
+import { invalidateSearchFeedbackCache } from './part-search.service';
 
 export class FeedbackService {
     static async register(params: {
@@ -52,6 +53,8 @@ export class FeedbackService {
                 correctedPartId: correctedPart?.id,
             },
         });
+
+        invalidateSearchFeedbackCache(tenantId);
 
         // O voto é o dado importante e já está salvo. O embedding é apenas uma
         // otimização opcional; quota/indisponibilidade do Gemini nunca pode

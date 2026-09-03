@@ -11,7 +11,7 @@ import {
   semanticQueryText,
 } from './part-vocabulary';
 import { relationSpecificityBonus, stripExplicitSerialContext } from './candidate-specificity';
-import { applyFeedbackLearning } from './feedback-learning';
+import { applyFeedbackLearning, type FeedbackLearningSignal } from './feedback-learning';
 import { allRelatedPartNumbers, preferCurrentPartNumbers, resolveCurrentPartNumber } from './part-supersession';
 import { normalizedReciprocalRankFusionScores } from './retrieval-fusion';
 import { fullTextPartCandidates, fuzzyPartCandidates, type HybridTextCandidateRow } from './hybrid-part-retrieval';
@@ -29,6 +29,21 @@ const modelsCache = new LRUCache<string, string[]>({
   max: 200,
   ttl: 5 * 60 * 1000, // 5 minutes
 });
+
+const feedbackCache = new LRUCache<string, FeedbackLearningSignal[]>({
+  max: 300,
+  ttl: 30 * 1000, // 30 seconds
+});
+
+export function invalidateSearchFeedbackCache(tenantId?: string): void {
+  if (tenantId) {
+    for (const key of feedbackCache.keys()) {
+      if (key.startsWith(`${tenantId}:`)) feedbackCache.delete(key);
+    }
+  } else {
+    feedbackCache.clear();
+  }
+}
 
 export type RetrievalSource = 'DIRECT_CODE' | 'SEMANTIC' | 'LEXICAL' | 'FULL_TEXT' | 'FUZZY';
 
@@ -461,19 +476,25 @@ export class PartSearchService {
   }
 
   private static async applyFeedback(tenantId: string, question: string, model: string, pnc: string, candidates: PartCandidate[]): Promise<void> {
-    const contextFilters: Prisma.SearchFeedbackWhereInput[] = [];
-    if (model) contextFilters.push({ OR: [{ normalizedModel: model }, { normalizedModel: null }] });
-    if (pnc) contextFilters.push({ OR: [{ normalizedPnc: pnc }, { normalizedPnc: null }] });
-    const rows = await prisma.searchFeedback.findMany({
-      where: { tenantId, ...(contextFilters.length ? { AND: contextFilters } : {}) },
-      select: {
-        resultPartId: true, correctedPartId: true, correct: true,
-        normalizedQuery: true, normalizedModel: true, normalizedPnc: true,
-        userId: true, createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 300,
-    });
+    const cacheKey = `${tenantId}:${model || '*'}:${pnc || '*'}`;
+    let rows = feedbackCache.get(cacheKey);
+    if (!rows) {
+      const contextFilters: Prisma.SearchFeedbackWhereInput[] = [];
+      if (model) contextFilters.push({ OR: [{ normalizedModel: model }, { normalizedModel: null }] });
+      if (pnc) contextFilters.push({ OR: [{ normalizedPnc: pnc }, { normalizedPnc: null }] });
+      const fetched = await prisma.searchFeedback.findMany({
+        where: { tenantId, ...(contextFilters.length ? { AND: contextFilters } : {}) },
+        select: {
+          resultPartId: true, correctedPartId: true, correct: true,
+          normalizedQuery: true, normalizedModel: true, normalizedPnc: true,
+          userId: true, createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 300,
+      });
+      rows = fetched;
+      feedbackCache.set(cacheKey, rows);
+    }
     applyFeedbackLearning(question, candidates, rows);
   }
 }
