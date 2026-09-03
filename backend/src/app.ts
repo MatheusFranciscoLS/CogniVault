@@ -5,6 +5,9 @@ import routes from './routes';
 import { prisma } from './config/prisma';
 import { allowedCorsOrigins, isAllowedCorsOrigin } from './config/cors';
 import { rabbitMQ } from './queues/connection';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import compression from 'compression';
 
 const app = express();
 
@@ -29,16 +32,23 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
 
 const allowedOrigins = allowedCorsOrigins();
 
+// Segurança: Adiciona proteções modernas aos cabeçalhos HTTP
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }, // Permite requisições do frontend
+}));
 app.disable('x-powered-by');
-app.use((_req, res, next) => {
-  res.set({
-    'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'DENY',
-    'Referrer-Policy': 'no-referrer',
-    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-  });
-  next();
+
+// Limite de requisições (Rate Limiting) para proteger a infraestrutura e não esgotar cotas gratuitas
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minuto
+  limit: 100, // Limite de 100 requisições por IP a cada 1 minuto (para todo o /api ou global)
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas requisições deste IP, tente novamente em um minuto.' },
 });
+
+// Aplica o limitador de requisições
+app.use(apiLimiter);
 
 app.use(cors({
   origin(origin, callback) {
@@ -55,6 +65,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
+app.use(compression());
 app.use(express.json({ limit: '2mb' }));
 
 app.use('/api', routes);

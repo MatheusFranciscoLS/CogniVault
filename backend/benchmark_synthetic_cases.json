@@ -1,0 +1,3502 @@
+[
+  {
+    "id": "synth_001",
+    "query": "Qual o valor da carbura da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_002",
+    "query": "Quero comprar o virabrequim da máquina MZ54 orig",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_003",
+    "query": "Estou com um módulo de ignição da máquina MZ54 pro meu cliente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_004",
+    "query": "Estou com um cabo do acelerador da máquina MZ54 original",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_005",
+    "query": "Qual o valor da elemento do ar da máquina MZ54 orig",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_006",
+    "query": "Tem aí o pistao da máquina MZ54 pra ontem",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_007",
+    "query": "Me arruma a anéis de segmento da máquina MZ54 pro meu cliente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_008",
+    "query": "Preciso da vela de ignicao da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_009",
+    "query": "Quero comprar o embreagem da máquina MZ54 pro meu cliente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_010",
+    "query": "Estou com um cabeçote de fio da máquina MZ54 original",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_011",
+    "query": "Qual o valor da hélice da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_012",
+    "query": "Me arruma a correia da máquina MZ54 original",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_013",
+    "query": "Me arruma a carbura da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_014",
+    "query": "Tem aí o vira da máquina 143R-II orig",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_015",
+    "query": "Tem aí o bobina da máquina 143R-II pro meu cliente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_016",
+    "query": "Estou precisando de um cabo de acelerador da máquina 143R-II orig",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_017",
+    "query": "Estou com um elemento do ar da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_018",
+    "query": "Me arruma a cabeça da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_019",
+    "query": "Qual o valor da aneis da máquina 143R-II pro meu cliente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_020",
+    "query": "Me arruma a vela da máquina 143R-II orig",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_021",
+    "query": "Vê pra mim a conjunto de embreagem da máquina 143R-II pro meu cliente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_022",
+    "query": "Qual o valor da carretel da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_023",
+    "query": "Estou precisando de um faca de corte da máquina 143R-II pra ontem",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_024",
+    "query": "Me arruma a correia da plataforma da máquina 143R-II urgente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_025",
+    "query": "Vê pra mim a carburador completo da máquina 143RS original",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_026",
+    "query": "Me arruma a girabrequim da máquina 143RS original",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_027",
+    "query": "Estou precisando de um bobina de ignição da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_028",
+    "query": "Estou com um cabo de acelerador da máquina 143RS original",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_029",
+    "query": "Tem aí o espuma do ar da máquina 143RS original",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_030",
+    "query": "Tem aí o pistao da máquina 143RS pra ontem",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_031",
+    "query": "Preciso da anéis de segmento da máquina 143RS urgente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_032",
+    "query": "Quero comprar o vela de ignicao da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_033",
+    "query": "Tem aí o sapatas da máquina 143RS orig",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_034",
+    "query": "Estou com um trimmy da máquina 143RS pro meu cliente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_035",
+    "query": "Vê pra mim a faca de corte da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_036",
+    "query": "Tem aí o correia de tração da máquina 143RS orig",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_037",
+    "query": "Tem aí o carburador completo da máquina 125B pra ontem",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_038",
+    "query": "Estou precisando de um virabrequim da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_039",
+    "query": "Preciso da faiscador da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_040",
+    "query": "Vê pra mim a cabo do acelerador da máquina 125B orig",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_041",
+    "query": "Quero comprar o filtro da máquina 125B original",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_042",
+    "query": "Quero comprar o cabeça da máquina 125B pro meu cliente",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_043",
+    "query": "Tem aí o jogo de anéis da máquina 125B orig",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_044",
+    "query": "Vê pra mim a vela de ignição da máquina 125B pra ontem",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_045",
+    "query": "Consegue embreagem da máquina 125B orig",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_046",
+    "query": "Vê pra mim a cabeça de nylon da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_047",
+    "query": "Estou precisando de um faca de corte da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_048",
+    "query": "Me arruma a correia da máquina 125B orig",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_049",
+    "query": "Tem aí o bura da máquina Z248F orig",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_050",
+    "query": "Qual o valor da vira da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_051",
+    "query": "Consegue faiscador da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_052",
+    "query": "Tem aí o cabo do acelerador da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_053",
+    "query": "Estou com um espuma do ar da máquina Z248F pra ontem",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_054",
+    "query": "Me arruma a cabeça da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_055",
+    "query": "Me arruma a aneis da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_056",
+    "query": "Tem aí o vela da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_057",
+    "query": "Preciso da embreagem da máquina Z248F pra ontem",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_058",
+    "query": "Estou com um trimmy da máquina Z248F pra ontem",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_059",
+    "query": "Me arruma a faca da máquina Z248F original",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_060",
+    "query": "Consegue correia da plataforma da máquina Z248F orig",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_061",
+    "query": "Consegue carburador da máquina TS114 pro meu cliente",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_062",
+    "query": "Estou precisando de um virabrequim da máquina TS114 pro meu cliente",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_063",
+    "query": "Tem aí o módulo de ignição da máquina TS114 orig",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_064",
+    "query": "Estou precisando de um cabo de acelerador da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_065",
+    "query": "Tem aí o espuma do ar da máquina TS114 pro meu cliente",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_066",
+    "query": "Preciso da pistão da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_067",
+    "query": "Tem aí o jogo de anéis da máquina TS114 orig",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_068",
+    "query": "Qual o valor da vela de ignição da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_069",
+    "query": "Quero comprar o patim da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_070",
+    "query": "Estou precisando de um trimmy da máquina TS114 urgente",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_071",
+    "query": "Consegue faca de corte da máquina TS114 urgente",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_072",
+    "query": "Estou com um correia da máquina TS114 pro meu cliente",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_073",
+    "query": "Quero comprar o carburador completo da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_074",
+    "query": "Vê pra mim a vira da máquina TS217 orig",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_075",
+    "query": "Qual o valor da bobina de ignição da máquina TS217 pra ontem",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_076",
+    "query": "Tem aí o cabo do acelerador da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_077",
+    "query": "Estou precisando de um espuma do ar da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_078",
+    "query": "Tem aí o pistão da máquina TS217 original",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_079",
+    "query": "Consegue anéis de segmento da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_080",
+    "query": "Estou precisando de um vela da máquina TS217 original",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_081",
+    "query": "Quero comprar o patim da máquina TS217 urgente",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_082",
+    "query": "Qual o valor da trimmy da máquina TS217 orig",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_083",
+    "query": "Estou com um hélice da máquina TS217 pro meu cliente",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_084",
+    "query": "Vê pra mim a correia da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_085",
+    "query": "Preciso da carburador completo da máquina MZ54 pro meu cliente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_086",
+    "query": "Vê pra mim a virabrequim da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_087",
+    "query": "Vê pra mim a faiscador da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_088",
+    "query": "Qual o valor da cabo de acelerador da máquina MZ54 pra ontem",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_089",
+    "query": "Preciso da filtro de ar da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_090",
+    "query": "Qual o valor da pistão da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_091",
+    "query": "Estou precisando de um anéis de segmento da máquina MZ54 urgente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_092",
+    "query": "Consegue vela da máquina MZ54 urgente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_093",
+    "query": "Quero comprar o embreagem da máquina MZ54 pro meu cliente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_094",
+    "query": "Estou com um trimmy da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_095",
+    "query": "Qual o valor da faca da máquina MZ54 original",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_096",
+    "query": "Quero comprar o correia da máquina MZ54 original",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_097",
+    "query": "Consegue carbura da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_098",
+    "query": "Me arruma a virabrequim da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_099",
+    "query": "Vê pra mim a bobina da máquina 143R-II urgente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_100",
+    "query": "Tem aí o cabo do acelerador da máquina 143R-II pro meu cliente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_101",
+    "query": "Consegue elemento do ar da máquina 143R-II orig",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_102",
+    "query": "Consegue pistao da máquina 143R-II urgente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_103",
+    "query": "Qual o valor da jogo de anéis da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_104",
+    "query": "Qual o valor da vela de ignicao da máquina 143R-II pra ontem",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_105",
+    "query": "Vê pra mim a sapatas da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_106",
+    "query": "Preciso da trimmy da máquina 143R-II urgente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_107",
+    "query": "Estou precisando de um hélice da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_108",
+    "query": "Tem aí o correia da plataforma da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_109",
+    "query": "Me arruma a carburador completo da máquina 143RS orig",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_110",
+    "query": "Quero comprar o eixo da máquina 143RS pra ontem",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_111",
+    "query": "Me arruma a bobina da máquina 143RS urgente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_112",
+    "query": "Me arruma a cabo de acelerador da máquina 143RS urgente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_113",
+    "query": "Qual o valor da espuma do ar da máquina 143RS original",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_114",
+    "query": "Estou com um pistao da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_115",
+    "query": "Quero comprar o anéis de segmento da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_116",
+    "query": "Tem aí o vela de ignição da máquina 143RS original",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_117",
+    "query": "Consegue embreagem da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_118",
+    "query": "Tem aí o carretel da máquina 143RS original",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_119",
+    "query": "Consegue faca da máquina 143RS urgente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_120",
+    "query": "Estou com um correia da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_121",
+    "query": "Me arruma a bura da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_122",
+    "query": "Preciso da girabrequim da máquina 125B pra ontem",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_123",
+    "query": "Qual o valor da bobina de ignição da máquina 125B pra ontem",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_124",
+    "query": "Tem aí o cabo do acelerador da máquina 125B original",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_125",
+    "query": "Tem aí o filtro de ar da máquina 125B original",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_126",
+    "query": "Tem aí o pistao da máquina 125B pro meu cliente",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_127",
+    "query": "Preciso da aneis da máquina 125B orig",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_128",
+    "query": "Consegue vela de ignição da máquina 125B urgente",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_129",
+    "query": "Estou precisando de um sapatas da máquina 125B urgente",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_130",
+    "query": "Tem aí o cabeça de nylon da máquina 125B urgente",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_131",
+    "query": "Tem aí o faca da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_132",
+    "query": "Qual o valor da correia da máquina 125B pro meu cliente",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_133",
+    "query": "Tem aí o bura da máquina Z248F urgente",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_134",
+    "query": "Estou precisando de um girabrequim da máquina Z248F urgente",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_135",
+    "query": "Me arruma a bobina de ignição da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_136",
+    "query": "Estou com um cabo do acelerador da máquina Z248F original",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_137",
+    "query": "Quero comprar o filtro da máquina Z248F orig",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_138",
+    "query": "Consegue cabeça da máquina Z248F orig",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_139",
+    "query": "Estou com um aneis da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_140",
+    "query": "Me arruma a vela de ignicao da máquina Z248F pro meu cliente",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_141",
+    "query": "Preciso da embreagem da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_142",
+    "query": "Estou precisando de um carretel da máquina Z248F orig",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_143",
+    "query": "Estou precisando de um lamina da máquina Z248F orig",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_144",
+    "query": "Vê pra mim a correia da plataforma da máquina Z248F orig",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_145",
+    "query": "Preciso da carbura da máquina TS114 original",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_146",
+    "query": "Vê pra mim a virabrequim da máquina TS114 orig",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_147",
+    "query": "Vê pra mim a faiscador da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_148",
+    "query": "Vê pra mim a espia da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_149",
+    "query": "Vê pra mim a espuma do ar da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_150",
+    "query": "Qual o valor da pistao da máquina TS114 pro meu cliente",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_151",
+    "query": "Preciso da aneis da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_152",
+    "query": "Preciso da vela da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_153",
+    "query": "Qual o valor da conjunto de embreagem da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_154",
+    "query": "Vê pra mim a cabeça de nylon da máquina TS114 pra ontem",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_155",
+    "query": "Quero comprar o lamina da máquina TS114 original",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_156",
+    "query": "Quero comprar o correia da máquina TS114 pro meu cliente",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_157",
+    "query": "Me arruma a carbura da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_158",
+    "query": "Tem aí o vira da máquina TS217 pra ontem",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_159",
+    "query": "Qual o valor da módulo de ignição da máquina TS217 pra ontem",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_160",
+    "query": "Me arruma a espia da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_161",
+    "query": "Preciso da filtro de ar da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_162",
+    "query": "Tem aí o pistao da máquina TS217 pro meu cliente",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_163",
+    "query": "Tem aí o anéis de segmento da máquina TS217 original",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_164",
+    "query": "Me arruma a vela de ignicao da máquina TS217 pro meu cliente",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_165",
+    "query": "Consegue conjunto de embreagem da máquina TS217 orig",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_166",
+    "query": "Estou com um cabeçote de fio da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_167",
+    "query": "Vê pra mim a faca de corte da máquina TS217 orig",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_168",
+    "query": "Tem aí o correia da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_169",
+    "query": "Vê pra mim a carburador completo da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_170",
+    "query": "Tem aí o vira da máquina MZ54 orig",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_171",
+    "query": "Estou com um faiscador da máquina MZ54 original",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_172",
+    "query": "Tem aí o cabo do acelerador da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_173",
+    "query": "Tem aí o elemento do ar da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_174",
+    "query": "Estou com um cabeça da máquina MZ54 urgente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_175",
+    "query": "Preciso da anéis de segmento da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_176",
+    "query": "Consegue vela de ignicao da máquina MZ54 pro meu cliente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_177",
+    "query": "Me arruma a sapatas da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_178",
+    "query": "Vê pra mim a cabeçote de fio da máquina MZ54 pro meu cliente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_179",
+    "query": "Preciso da lamina da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_180",
+    "query": "Tem aí o correia da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_181",
+    "query": "Consegue carburador completo da máquina 143R-II original",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_182",
+    "query": "Me arruma a girabrequim da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_183",
+    "query": "Me arruma a faiscador da máquina 143R-II urgente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_184",
+    "query": "Me arruma a cabo de acelerador da máquina 143R-II urgente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_185",
+    "query": "Preciso da espuma do ar da máquina 143R-II original",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_186",
+    "query": "Vê pra mim a cabeça da máquina 143R-II urgente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_187",
+    "query": "Me arruma a anéis de segmento da máquina 143R-II urgente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_188",
+    "query": "Tem aí o vela de ignição da máquina 143R-II pra ontem",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_189",
+    "query": "Consegue sapatas da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_190",
+    "query": "Vê pra mim a cabeçote de fio da máquina 143R-II orig",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_191",
+    "query": "Consegue faca da máquina 143R-II urgente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_192",
+    "query": "Estou precisando de um correia de tração da máquina 143R-II orig",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_193",
+    "query": "Qual o valor da carburador completo da máquina 143RS pro meu cliente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_194",
+    "query": "Quero comprar o eixo da máquina 143RS original",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_195",
+    "query": "Me arruma a bobina de ignição da máquina 143RS original",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_196",
+    "query": "Vê pra mim a cabo do acelerador da máquina 143RS urgente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_197",
+    "query": "Tem aí o espuma do ar da máquina 143RS urgente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_198",
+    "query": "Estou com um cabeça da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_199",
+    "query": "Quero comprar o aneis da máquina 143RS urgente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_200",
+    "query": "Consegue vela de ignição da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_201",
+    "query": "Estou precisando de um conjunto de embreagem da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_202",
+    "query": "Me arruma a carretel da máquina 143RS pra ontem",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_203",
+    "query": "Consegue faca da máquina 143RS pro meu cliente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_204",
+    "query": "Estou precisando de um correia da plataforma da máquina 143RS original",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_205",
+    "query": "Tem aí o bura da máquina 125B pra ontem",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_206",
+    "query": "Estou precisando de um eixo da máquina 125B original",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_207",
+    "query": "Vê pra mim a faiscador da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_208",
+    "query": "Estou precisando de um espia da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_209",
+    "query": "Estou precisando de um filtro de ar da máquina 125B original",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_210",
+    "query": "Estou com um pistao da máquina 125B orig",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_211",
+    "query": "Qual o valor da anéis de segmento da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_212",
+    "query": "Estou com um vela da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_213",
+    "query": "Estou com um patim da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_214",
+    "query": "Quero comprar o cabeça de nylon da máquina 125B orig",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_215",
+    "query": "Tem aí o faca de corte da máquina 125B pro meu cliente",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_216",
+    "query": "Estou precisando de um correia da plataforma da máquina 125B pra ontem",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_217",
+    "query": "Me arruma a carburador da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_218",
+    "query": "Tem aí o eixo da máquina Z248F urgente",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_219",
+    "query": "Preciso da módulo de ignição da máquina Z248F pro meu cliente",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_220",
+    "query": "Estou precisando de um espia da máquina Z248F pro meu cliente",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_221",
+    "query": "Estou precisando de um elemento do ar da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_222",
+    "query": "Tem aí o pistão da máquina Z248F orig",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_223",
+    "query": "Consegue anéis de segmento da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_224",
+    "query": "Tem aí o vela de ignicao da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_225",
+    "query": "Me arruma a patim da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_226",
+    "query": "Estou precisando de um carretel da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_227",
+    "query": "Vê pra mim a hélice da máquina Z248F original",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_228",
+    "query": "Estou precisando de um correia de tração da máquina Z248F pro meu cliente",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_229",
+    "query": "Estou precisando de um carburador completo da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_230",
+    "query": "Estou com um vira da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_231",
+    "query": "Consegue bobina da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_232",
+    "query": "Vê pra mim a espia da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_233",
+    "query": "Consegue filtro de ar da máquina TS114 orig",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_234",
+    "query": "Consegue pistao da máquina TS114 urgente",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_235",
+    "query": "Quero comprar o aneis da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_236",
+    "query": "Tem aí o vela da máquina TS114 original",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_237",
+    "query": "Preciso da sapatas da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_238",
+    "query": "Estou precisando de um trimmy da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_239",
+    "query": "Me arruma a faca de corte da máquina TS114 urgente",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_240",
+    "query": "Me arruma a correia de tração da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_241",
+    "query": "Tem aí o carburador completo da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_242",
+    "query": "Me arruma a virabrequim da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_243",
+    "query": "Me arruma a bobina da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_244",
+    "query": "Consegue espia da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_245",
+    "query": "Estou precisando de um elemento do ar da máquina TS217 urgente",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_246",
+    "query": "Qual o valor da pistao da máquina TS217 pro meu cliente",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_247",
+    "query": "Estou com um aneis da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_248",
+    "query": "Preciso da vela da máquina TS217 urgente",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_249",
+    "query": "Tem aí o sapatas da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_250",
+    "query": "Qual o valor da trimmy da máquina TS217 orig",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_251",
+    "query": "Preciso da lamina da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_252",
+    "query": "Preciso da correia da máquina TS217 original",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_253",
+    "query": "Tem aí o carbura da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_254",
+    "query": "Consegue virabrequim da máquina MZ54 orig",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_255",
+    "query": "Qual o valor da bobina de ignição da máquina MZ54 pro meu cliente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_256",
+    "query": "Estou com um cabo de acelerador da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_257",
+    "query": "Estou com um filtro da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_258",
+    "query": "Vê pra mim a pistao da máquina MZ54 urgente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_259",
+    "query": "Consegue aneis da máquina MZ54 orig",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_260",
+    "query": "Quero comprar o vela da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_261",
+    "query": "Estou precisando de um sapatas da máquina MZ54 original",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_262",
+    "query": "Consegue cabeça de nylon da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_263",
+    "query": "Consegue hélice da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_264",
+    "query": "Preciso da correia de tração da máquina MZ54 urgente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_265",
+    "query": "Estou com um bura da máquina 143R-II orig",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_266",
+    "query": "Vê pra mim a girabrequim da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_267",
+    "query": "Quero comprar o módulo de ignição da máquina 143R-II original",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_268",
+    "query": "Qual o valor da cabo do acelerador da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_269",
+    "query": "Me arruma a espuma do ar da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_270",
+    "query": "Consegue cabeça da máquina 143R-II urgente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_271",
+    "query": "Estou precisando de um anéis de segmento da máquina 143R-II original",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_272",
+    "query": "Estou precisando de um vela da máquina 143R-II original",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_273",
+    "query": "Me arruma a embreagem da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_274",
+    "query": "Quero comprar o trimmy da máquina 143R-II original",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_275",
+    "query": "Consegue faca da máquina 143R-II pra ontem",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_276",
+    "query": "Me arruma a correia da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_277",
+    "query": "Consegue carburador da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_278",
+    "query": "Estou precisando de um virabrequim da máquina 143RS urgente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_279",
+    "query": "Vê pra mim a módulo de ignição da máquina 143RS original",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_280",
+    "query": "Tem aí o espia da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_281",
+    "query": "Consegue filtro de ar da máquina 143RS urgente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_282",
+    "query": "Me arruma a cabeça da máquina 143RS pro meu cliente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_283",
+    "query": "Preciso da jogo de anéis da máquina 143RS urgente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_284",
+    "query": "Vê pra mim a vela da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_285",
+    "query": "Quero comprar o conjunto de embreagem da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_286",
+    "query": "Tem aí o trimmy da máquina 143RS urgente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_287",
+    "query": "Quero comprar o faca de corte da máquina 143RS pro meu cliente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_288",
+    "query": "Vê pra mim a correia da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_289",
+    "query": "Quero comprar o bura da máquina 125B pra ontem",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_290",
+    "query": "Preciso da vira da máquina 125B orig",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_291",
+    "query": "Qual o valor da faiscador da máquina 125B orig",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_292",
+    "query": "Estou precisando de um cabo do acelerador da máquina 125B original",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_293",
+    "query": "Quero comprar o filtro da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_294",
+    "query": "Consegue cabeça da máquina 125B urgente",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_295",
+    "query": "Tem aí o aneis da máquina 125B orig",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_296",
+    "query": "Quero comprar o vela de ignicao da máquina 125B original",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_297",
+    "query": "Estou precisando de um sapatas da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_298",
+    "query": "Preciso da cabeçote de fio da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_299",
+    "query": "Estou precisando de um lamina da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_300",
+    "query": "Me arruma a correia da plataforma da máquina 125B pra ontem",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_301",
+    "query": "Quero comprar o carburador da máquina Z248F orig",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_302",
+    "query": "Estou com um virabrequim da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_303",
+    "query": "Tem aí o módulo de ignição da máquina Z248F urgente",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_304",
+    "query": "Vê pra mim a cabo de acelerador da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_305",
+    "query": "Tem aí o filtro de ar da máquina Z248F pra ontem",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_306",
+    "query": "Quero comprar o pistão da máquina Z248F orig",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_307",
+    "query": "Qual o valor da aneis da máquina Z248F orig",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_308",
+    "query": "Vê pra mim a vela de ignicao da máquina Z248F urgente",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_309",
+    "query": "Vê pra mim a conjunto de embreagem da máquina Z248F original",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_310",
+    "query": "Estou com um cabeça de nylon da máquina Z248F original",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_311",
+    "query": "Qual o valor da hélice da máquina Z248F urgente",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_312",
+    "query": "Quero comprar o correia de tração da máquina Z248F orig",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_313",
+    "query": "Vê pra mim a carburador completo da máquina TS114 pra ontem",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_314",
+    "query": "Me arruma a girabrequim da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_315",
+    "query": "Estou precisando de um módulo de ignição da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_316",
+    "query": "Consegue cabo do acelerador da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_317",
+    "query": "Vê pra mim a espuma do ar da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_318",
+    "query": "Estou com um pistão da máquina TS114 urgente",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_319",
+    "query": "Estou com um aneis da máquina TS114 original",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_320",
+    "query": "Preciso da vela de ignição da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_321",
+    "query": "Consegue patim da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_322",
+    "query": "Qual o valor da trimmy da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_323",
+    "query": "Quero comprar o lamina da máquina TS114 urgente",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_324",
+    "query": "Me arruma a correia da máquina TS114 original",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_325",
+    "query": "Tem aí o bura da máquina TS217 urgente",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_326",
+    "query": "Qual o valor da girabrequim da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_327",
+    "query": "Estou com um bobina da máquina TS217 pro meu cliente",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_328",
+    "query": "Consegue espia da máquina TS217 pra ontem",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_329",
+    "query": "Vê pra mim a filtro da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_330",
+    "query": "Qual o valor da pistao da máquina TS217 pro meu cliente",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_331",
+    "query": "Estou com um aneis da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_332",
+    "query": "Qual o valor da vela de ignição da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_333",
+    "query": "Quero comprar o embreagem da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_334",
+    "query": "Estou precisando de um trimmy da máquina TS217 original",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_335",
+    "query": "Preciso da faca de corte da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_336",
+    "query": "Preciso da correia da plataforma da máquina TS217 pro meu cliente",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_337",
+    "query": "Tem aí o carburador completo da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_338",
+    "query": "Qual o valor da eixo da máquina MZ54 urgente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_339",
+    "query": "Consegue bobina de ignição da máquina MZ54 pra ontem",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_340",
+    "query": "Me arruma a cabo do acelerador da máquina MZ54 pra ontem",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_341",
+    "query": "Estou precisando de um espuma do ar da máquina MZ54 pra ontem",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_342",
+    "query": "Me arruma a pistao da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_343",
+    "query": "Qual o valor da jogo de anéis da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_344",
+    "query": "Preciso da vela da máquina MZ54 pra ontem",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_345",
+    "query": "Preciso da conjunto de embreagem da máquina MZ54 pro meu cliente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_346",
+    "query": "Tem aí o cabeça de nylon da máquina MZ54 orig",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_347",
+    "query": "Me arruma a faca de corte da máquina MZ54 pro meu cliente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_348",
+    "query": "Me arruma a correia de tração da máquina MZ54 orig",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_349",
+    "query": "Qual o valor da bura da máquina 143R-II pra ontem",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_350",
+    "query": "Preciso da vira da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_351",
+    "query": "Qual o valor da módulo de ignição da máquina 143R-II pra ontem",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_352",
+    "query": "Tem aí o cabo do acelerador da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_353",
+    "query": "Qual o valor da filtro da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_354",
+    "query": "Quero comprar o cabeça da máquina 143R-II pro meu cliente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_355",
+    "query": "Tem aí o jogo de anéis da máquina 143R-II pro meu cliente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_356",
+    "query": "Qual o valor da vela de ignicao da máquina 143R-II pro meu cliente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_357",
+    "query": "Estou com um patim da máquina 143R-II orig",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_358",
+    "query": "Quero comprar o cabeça de nylon da máquina 143R-II pra ontem",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_359",
+    "query": "Tem aí o hélice da máquina 143R-II urgente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_360",
+    "query": "Consegue correia de tração da máquina 143R-II pra ontem",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_361",
+    "query": "Vê pra mim a bura da máquina 143RS pro meu cliente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_362",
+    "query": "Tem aí o vira da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_363",
+    "query": "Estou precisando de um módulo de ignição da máquina 143RS pro meu cliente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_364",
+    "query": "Quero comprar o cabo do acelerador da máquina 143RS original",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_365",
+    "query": "Qual o valor da espuma do ar da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_366",
+    "query": "Estou com um pistão da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_367",
+    "query": "Qual o valor da anéis de segmento da máquina 143RS pro meu cliente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_368",
+    "query": "Tem aí o vela da máquina 143RS orig",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_369",
+    "query": "Estou com um embreagem da máquina 143RS pro meu cliente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_370",
+    "query": "Me arruma a trimmy da máquina 143RS orig",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_371",
+    "query": "Consegue faca de corte da máquina 143RS orig",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_372",
+    "query": "Estou com um correia da máquina 143RS pra ontem",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_373",
+    "query": "Estou precisando de um bura da máquina 125B pro meu cliente",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_374",
+    "query": "Preciso da eixo da máquina 125B pra ontem",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_375",
+    "query": "Tem aí o módulo de ignição da máquina 125B pra ontem",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_376",
+    "query": "Quero comprar o cabo do acelerador da máquina 125B pro meu cliente",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_377",
+    "query": "Vê pra mim a espuma do ar da máquina 125B orig",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_378",
+    "query": "Preciso da pistão da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_379",
+    "query": "Qual o valor da segmentos da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_380",
+    "query": "Consegue vela de ignicao da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_381",
+    "query": "Consegue embreagem da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_382",
+    "query": "Vê pra mim a carretel da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_383",
+    "query": "Me arruma a hélice da máquina 125B original",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_384",
+    "query": "Estou precisando de um correia da plataforma da máquina 125B pro meu cliente",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_385",
+    "query": "Tem aí o carbura da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_386",
+    "query": "Consegue virabrequim da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_387",
+    "query": "Vê pra mim a bobina de ignição da máquina Z248F pra ontem",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_388",
+    "query": "Vê pra mim a cabo do acelerador da máquina Z248F original",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_389",
+    "query": "Qual o valor da filtro de ar da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_390",
+    "query": "Estou com um pistao da máquina Z248F orig",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_391",
+    "query": "Vê pra mim a aneis da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_392",
+    "query": "Me arruma a vela de ignição da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_393",
+    "query": "Tem aí o conjunto de embreagem da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_394",
+    "query": "Quero comprar o carretel da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_395",
+    "query": "Me arruma a faca de corte da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_396",
+    "query": "Preciso da correia de tração da máquina Z248F pra ontem",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_397",
+    "query": "Tem aí o bura da máquina TS114 pra ontem",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_398",
+    "query": "Tem aí o eixo da máquina TS114 urgente",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_399",
+    "query": "Consegue faiscador da máquina TS114 pra ontem",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_400",
+    "query": "Preciso da espia da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_401",
+    "query": "Vê pra mim a elemento do ar da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_402",
+    "query": "Me arruma a cabeça da máquina TS114 pra ontem",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_403",
+    "query": "Estou precisando de um segmentos da máquina TS114 orig",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_404",
+    "query": "Qual o valor da vela da máquina TS114 pra ontem",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_405",
+    "query": "Quero comprar o patim da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_406",
+    "query": "Consegue cabeçote de fio da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_407",
+    "query": "Tem aí o lamina da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_408",
+    "query": "Tem aí o correia da máquina TS114 orig",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_409",
+    "query": "Quero comprar o bura da máquina TS217 pra ontem",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_410",
+    "query": "Qual o valor da girabrequim da máquina TS217 pro meu cliente",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_411",
+    "query": "Preciso da bobina de ignição da máquina TS217 pra ontem",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_412",
+    "query": "Tem aí o cabo de acelerador da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_413",
+    "query": "Estou com um filtro da máquina TS217 pra ontem",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_414",
+    "query": "Quero comprar o cabeça da máquina TS217 pro meu cliente",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_415",
+    "query": "Quero comprar o segmentos da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_416",
+    "query": "Preciso da vela de ignição da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_417",
+    "query": "Preciso da embreagem da máquina TS217 pro meu cliente",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_418",
+    "query": "Me arruma a cabeça de nylon da máquina TS217 original",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_419",
+    "query": "Estou com um faca de corte da máquina TS217 pro meu cliente",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_420",
+    "query": "Vê pra mim a correia de tração da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_421",
+    "query": "Estou com um bura da máquina MZ54 pro meu cliente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_422",
+    "query": "Me arruma a virabrequim da máquina MZ54 orig",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_423",
+    "query": "Quero comprar o módulo de ignição da máquina MZ54 pro meu cliente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_424",
+    "query": "Preciso da espia da máquina MZ54 pra ontem",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_425",
+    "query": "Me arruma a elemento do ar da máquina MZ54 pro meu cliente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_426",
+    "query": "Preciso da pistão da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_427",
+    "query": "Consegue jogo de anéis da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_428",
+    "query": "Preciso da vela da máquina MZ54",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_429",
+    "query": "Consegue patim da máquina MZ54 pro meu cliente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_430",
+    "query": "Qual o valor da carretel da máquina MZ54 pro meu cliente",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_431",
+    "query": "Preciso da lamina da máquina MZ54 orig",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_432",
+    "query": "Preciso da correia da plataforma da máquina MZ54 orig",
+    "model": "MZ54",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_433",
+    "query": "Qual o valor da carburador completo da máquina 143R-II pra ontem",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_434",
+    "query": "Estou com um eixo da máquina 143R-II urgente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_435",
+    "query": "Quero comprar o módulo de ignição da máquina 143R-II urgente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_436",
+    "query": "Vê pra mim a espia da máquina 143R-II urgente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_437",
+    "query": "Qual o valor da filtro da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_438",
+    "query": "Vê pra mim a pistão da máquina 143R-II original",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_439",
+    "query": "Qual o valor da anéis de segmento da máquina 143R-II pro meu cliente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_440",
+    "query": "Me arruma a vela da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_441",
+    "query": "Estou com um conjunto de embreagem da máquina 143R-II pro meu cliente",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_442",
+    "query": "Estou com um trimmy da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_443",
+    "query": "Consegue faca de corte da máquina 143R-II orig",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_444",
+    "query": "Tem aí o correia da plataforma da máquina 143R-II",
+    "model": "143R-II",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_445",
+    "query": "Qual o valor da carburador da máquina 143RS pra ontem",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_446",
+    "query": "Preciso da virabrequim da máquina 143RS original",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_447",
+    "query": "Qual o valor da faiscador da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_448",
+    "query": "Consegue espia da máquina 143RS pra ontem",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_449",
+    "query": "Tem aí o filtro da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_450",
+    "query": "Estou precisando de um pistão da máquina 143RS urgente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_451",
+    "query": "Me arruma a aneis da máquina 143RS urgente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_452",
+    "query": "Consegue vela da máquina 143RS pra ontem",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_453",
+    "query": "Quero comprar o embreagem da máquina 143RS pro meu cliente",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_454",
+    "query": "Estou precisando de um cabeça de nylon da máquina 143RS original",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_455",
+    "query": "Quero comprar o faca de corte da máquina 143RS pra ontem",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_456",
+    "query": "Quero comprar o correia da máquina 143RS",
+    "model": "143RS",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_457",
+    "query": "Consegue carbura da máquina 125B orig",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_458",
+    "query": "Vê pra mim a virabrequim da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_459",
+    "query": "Tem aí o bobina de ignição da máquina 125B urgente",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_460",
+    "query": "Estou com um espia da máquina 125B pra ontem",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_461",
+    "query": "Qual o valor da elemento do ar da máquina 125B pra ontem",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_462",
+    "query": "Me arruma a pistão da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_463",
+    "query": "Estou com um segmentos da máquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_464",
+    "query": "Qual o valor da vela de ignição da máquina 125B pra ontem",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_465",
+    "query": "Preciso da conjunto de embreagem da máquina 125B orig",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_466",
+    "query": "Tem aí o trimmy da máquina 125B original",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_467",
+    "query": "Qual o valor da faca de corte da máquina 125B urgente",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_468",
+    "query": "Consegue correia da plataforma da máquina 125B original",
+    "model": "125B",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_469",
+    "query": "Tem aí o carburador da máquina Z248F urgente",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_470",
+    "query": "Estou com um virabrequim da máquina Z248F original",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_471",
+    "query": "Tem aí o bobina de ignição da máquina Z248F original",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_472",
+    "query": "Preciso da cabo de acelerador da máquina Z248F pra ontem",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_473",
+    "query": "Vê pra mim a elemento do ar da máquina Z248F orig",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_474",
+    "query": "Quero comprar o cabeça da máquina Z248F orig",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_475",
+    "query": "Estou com um jogo de anéis da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_476",
+    "query": "Estou com um vela de ignição da máquina Z248F pro meu cliente",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_477",
+    "query": "Me arruma a conjunto de embreagem da máquina Z248F pra ontem",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_478",
+    "query": "Preciso da cabeçote de fio da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_479",
+    "query": "Qual o valor da lamina da máquina Z248F",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_480",
+    "query": "Estou precisando de um correia da máquina Z248F pra ontem",
+    "model": "Z248F",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_481",
+    "query": "Estou com um bura da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_482",
+    "query": "Quero comprar o eixo da máquina TS114 pro meu cliente",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_483",
+    "query": "Consegue faiscador da máquina TS114 pro meu cliente",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_484",
+    "query": "Me arruma a cabo de acelerador da máquina TS114 pra ontem",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_485",
+    "query": "Tem aí o filtro da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_486",
+    "query": "Tem aí o pistão da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_487",
+    "query": "Qual o valor da segmentos da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_488",
+    "query": "Estou precisando de um vela da máquina TS114 pro meu cliente",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_489",
+    "query": "Tem aí o sapatas da máquina TS114 original",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_490",
+    "query": "Consegue cabeça de nylon da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_491",
+    "query": "Vê pra mim a faca da máquina TS114",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_492",
+    "query": "Estou com um correia de tração da máquina TS114 pro meu cliente",
+    "model": "TS114",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_493",
+    "query": "Estou precisando de um carburador completo da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_494",
+    "query": "Me arruma a eixo da máquina TS217 pro meu cliente",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_495",
+    "query": "Tem aí o faiscador da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_496",
+    "query": "Estou precisando de um espia da máquina TS217 orig",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_497",
+    "query": "Estou precisando de um filtro de ar da máquina TS217 original",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_498",
+    "query": "Quero comprar o cabeça da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_499",
+    "query": "Vê pra mim a aneis da máquina TS217 pro meu cliente",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  },
+  {
+    "id": "synth_500",
+    "query": "Estou com um vela de ignicao da máquina TS217",
+    "model": "TS217",
+    "expectedPartNumbers": [],
+    "source": "Geração Procedural por Templates"
+  }
+]

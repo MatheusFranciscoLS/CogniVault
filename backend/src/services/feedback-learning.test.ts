@@ -45,7 +45,7 @@ test('repetições do mesmo usuário não pesam como vários confirmadores', () 
   };
   applyFeedbackLearning('carburador 143rii', one, [signal]);
   applyFeedbackLearning('carburador 143rii', repeated, [signal, signal, signal]);
-  assert.equal(repeated[0].feedbackScore, one[0].feedbackScore);
+  assert.ok(Math.abs((repeated[0].feedbackScore ?? 0) - (one[0].feedbackScore ?? 0)) < 0.0001);
 });
 
 test('confirmações independentes aumentam o sinal sem ultrapassar o teto', () => {

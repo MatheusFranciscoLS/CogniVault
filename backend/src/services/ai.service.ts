@@ -4,7 +4,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { access, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { prisma } from '../config/prisma';
-import { GEMINI_GENERATIVE_MODEL, getGeminiClient, getGeminiType } from '../config/gemini';
+import { GEMINI_GENERATIVE_MODEL, getGeminiClient } from '../config/gemini';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { countDistinctPartOccurrences, hasSafeExtractionCoverage, matchExistingPartIds } from '../utils/part-identity';
 import { shouldForceCatalogReextraction } from '../utils/document-processing-intent';
@@ -213,7 +213,7 @@ export class AIService {
                         processingStage: 'AI_EXTRACTION',
                         processingError: 'Tabela textual não reconhecida; iniciando leitura visual assistida.',
                     });
-                    const [gemini, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);
+                    const gemini = await getGeminiClient();
                     ai = gemini;
                     const uploadedFile = await withTransientAIRetry(
                         () => gemini.files.upload({
@@ -255,57 +255,55 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
 `;
 
                     const response = await withTransientAIRetry(
-                        () => gemini.models.generateContent({
+                        () => gemini.interactions.create({
                             model: GEMINI_GENERATIVE_MODEL,
-                            contents: [{
-                                role: 'user',
-                                parts: [
-                                    { fileData: { fileUri: uploadedFile.uri, mimeType: 'application/pdf' } },
-                                    { text: prompt },
-                                ],
-                            }],
-                            config: {
-                                responseMimeType: 'application/json',
-                                responseSchema: {
-                                    type: Type.OBJECT,
-                                    properties: {
-                                        manufacturer: { type: Type.STRING },
-                                        models: { type: Type.ARRAY, items: { type: Type.STRING } },
-                                        pncs: { type: Type.ARRAY, items: { type: Type.STRING } },
-                                        parts: {
-                                            type: Type.ARRAY,
-                                            items: {
-                                                type: Type.OBJECT,
-                                                properties: {
-                                                    manufacturer: { type: Type.STRING },
-                                                    model: { type: Type.STRING },
-                                                    pnc: { type: Type.STRING },
-                                                    universalAcrossPnc: { type: Type.BOOLEAN },
-                                                    section: { type: Type.STRING },
-                                                    position: { type: Type.STRING },
-                                                    name: { type: Type.STRING },
-                                                    alternativeNames: { type: Type.ARRAY, items: { type: Type.STRING } },
-                                                    partNumber: { type: Type.STRING },
-                                                    page: { type: Type.INTEGER },
-                                                    notes: { type: Type.STRING },
-                                                },
-                                                required: [
-                                                    'manufacturer', 'model', 'pnc', 'universalAcrossPnc',
-                                                    'section', 'position', 'name', 'alternativeNames',
-                                                    'partNumber', 'page', 'notes',
-                                                ],
+                            input: [
+                                { type: 'document', uri: uploadedFile.uri as string, mime_type: 'application/pdf' },
+                                { type: 'text', text: prompt },
+                            ],
+                            response_format: {
+                                type: 'text',
+                                mime_type: 'application/json',
+                                schema: {
+                                type: 'object',
+                                properties: {
+                                    manufacturer: { type: 'string' },
+                                    models: { type: 'array', items: { type: 'string' } },
+                                    pncs: { type: 'array', items: { type: 'string' } },
+                                    parts: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                manufacturer: { type: 'string' },
+                                                model: { type: 'string' },
+                                                pnc: { type: 'string' },
+                                                universalAcrossPnc: { type: 'boolean' },
+                                                section: { type: 'string' },
+                                                position: { type: 'string' },
+                                                name: { type: 'string' },
+                                                alternativeNames: { type: 'array', items: { type: 'string' } },
+                                                partNumber: { type: 'string' },
+                                                page: { type: 'integer' },
+                                                notes: { type: 'string' },
                                             },
+                                            required: [
+                                                'manufacturer', 'model', 'pnc', 'universalAcrossPnc',
+                                                'section', 'position', 'name', 'alternativeNames',
+                                                'partNumber', 'page', 'notes',
+                                            ],
                                         },
                                     },
-                                    required: ['manufacturer', 'models', 'pncs', 'parts'],
                                 },
+                                required: ['manufacturer', 'models', 'pncs', 'parts'],
                             },
-                        }),
+                        },
+                    }),
                         { label: `extração do catálogo ${documentId}` },
                     );
-                    if (!response.text?.trim()) throw new Error('Gemini não conseguiu extrair informações do PDF.');
+                    if (!(response as any).output_text?.trim()) throw new Error('Gemini não conseguiu extrair informações do PDF.');
                     try {
-                        extraction = JSON.parse(response.text) as CatalogExtraction;
+                        extraction = JSON.parse((response as any).output_text) as CatalogExtraction;
                     } catch {
                         throw new Error('Gemini retornou JSON inválido durante a extração do catálogo.');
                     }

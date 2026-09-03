@@ -1,0 +1,4502 @@
+export const syntheticCases = [
+  {
+    "id": "143rii-embreagem-157",
+    "query": "codigo husqvarna patim de embreagem 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-76",
+    "query": "preciso do carburacao da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-427",
+    "query": "qual o codigo do carburador p/ 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-393",
+    "query": "peça original husqvarna 143RII elemento filtrante",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-37",
+    "query": "código de reposição bura para o 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-101",
+    "query": "preciso do carburador zama da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-178",
+    "query": "quero comprar conjunto de embreagem 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "125b-carburador-428",
+    "query": "quero comprar carburador 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-6",
+    "query": "carburador 143RII husqvarna",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-95",
+    "query": "carburacao para 143RII, qual o part number?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-494",
+    "query": "preciso substituir o carburador original que quebrou no 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-315",
+    "query": "alguém sabe o cod do mola de retorno do trator 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-246",
+    "query": "numero da peça mola da embreagem 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-43",
+    "query": "peça original husqvarna 143RII bura",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-425",
+    "query": "onde acho esponja do ar do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-303",
+    "query": "quero comprar mola de retorno 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-14",
+    "query": "preciso da peça carburador que vai na 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-187",
+    "query": "código de reposição conjunto de embreagem para o 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-361",
+    "query": "vende espuma do ar do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-324",
+    "query": "catalogo 143RII mola de retorno",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-347",
+    "query": "codigo de vista explodida do filtro de ar 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-245",
+    "query": "mola da embreagem para 143RII, qual o part number?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-59",
+    "query": "cliente quer carburador original da maquina 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-154",
+    "query": "tem patim de embreagem pro 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "125b-carburador-463",
+    "query": "qual a numeração do bura - 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-228",
+    "query": "quero comprar mola da embreagem 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-67",
+    "query": "vê pra mim o preço do carburador original da 143RII (só código por favor)",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-64",
+    "query": "preciso da peça carburador original que vai na 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-469",
+    "query": "preciso substituir o bura que quebrou no 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-299",
+    "query": "catalogo 143RII mola do patim",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-332",
+    "query": "codigo husqvarna filtro de ar 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-232",
+    "query": "codigo husqvarna mola da embreagem 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-394",
+    "query": "preciso substituir o elemento filtrante que quebrou no 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-61",
+    "query": "vende carburador original do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-385",
+    "query": "buscando o codigo de fabrica do elemento filtrante da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-220",
+    "query": "embreagem centrifugo para 143RII, qual o part number?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-109",
+    "query": "cliente quer carburador zama da maquina 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-384",
+    "query": "cliente quer elemento filtrante da maquina 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-203",
+    "query": "quero comprar embreagem centrifugo 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-86",
+    "query": "vende carburacao do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-182",
+    "query": "codigo husqvarna conjunto de embreagem 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-274",
+    "query": "catalogo 143RII molinha",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-123",
+    "query": "me passa a referencia do carburador zama do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-412",
+    "query": "código de reposição esponja do ar para o 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-217",
+    "query": "vê pra mim o preço do embreagem centrifugo da 143RII (só código por favor)",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-223",
+    "query": "me passa a referencia do embreagem centrifugo do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-201",
+    "query": "preciso do embreagem centrifugo da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-231",
+    "query": "mola da embreagem 143RII husqvarna",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-497",
+    "query": "codigo de vista explodida do carburador original 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-39",
+    "query": "preciso da peça bura que vai na 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-180",
+    "query": "me arruma o pn do conjunto de embreagem do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "125b-carburador-452",
+    "query": "qual o codigo do bura p/ 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-53",
+    "query": "quero comprar carburador original 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-265",
+    "query": "alguém sabe o cod do molinha do trator 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-179",
+    "query": "tem conjunto de embreagem pro 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "125b-carburador-461",
+    "query": "vende bura do 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-439",
+    "query": "preciso da peça carburador que vai na 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-134",
+    "query": "cliente quer embreagem completa da maquina 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-345",
+    "query": "filtro de ar para 143RII, qual o part number?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-169",
+    "query": "preciso substituir o patim de embreagem que quebrou no 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-51",
+    "query": "preciso do carburador original da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-390",
+    "query": "alguém sabe o cod do elemento filtrante do trator 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-117",
+    "query": "vê pra mim o preço do carburador zama da 143RII (só código por favor)",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-36",
+    "query": "vende bura do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-317",
+    "query": "vê pra mim o preço do mola de retorno da 143RII (só código por favor)",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-200",
+    "query": "onde acho conjunto de embreagem do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-119",
+    "query": "preciso substituir o carburador zama que quebrou no 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-493",
+    "query": "peça original husqvarna 125B carburador original",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-16",
+    "query": "orçamento de carburador p/ roçadeira 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-271",
+    "query": "numero da peça molinha 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-68",
+    "query": "peça original husqvarna 143RII carburador original",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-407",
+    "query": "codigo husqvarna esponja do ar 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-230",
+    "query": "me arruma o pn do mola da embreagem do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-236",
+    "query": "vende mola da embreagem do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-193",
+    "query": "peça original husqvarna 143RII conjunto de embreagem",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-300",
+    "query": "onde acho mola do patim do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-172",
+    "query": "codigo de vista explodida do patim de embreagem 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-366",
+    "query": "orçamento de espuma do ar p/ roçadeira 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-127",
+    "query": "qual o codigo do embreagem completa p/ 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-130",
+    "query": "me arruma o pn do embreagem completa do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-278",
+    "query": "quero comprar mola do patim 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-436",
+    "query": "vende carburador do 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-41",
+    "query": "orçamento de bura p/ roçadeira 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-46",
+    "query": "numero da peça bura 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-205",
+    "query": "me arruma o pn do embreagem centrifugo do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-186",
+    "query": "vende conjunto de embreagem do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-365",
+    "query": "alguém sabe o cod do espuma do ar do trator 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-121",
+    "query": "numero da peça carburador zama 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-71",
+    "query": "numero da peça carburador original 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-333",
+    "query": "143RII filtro de ar",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-55",
+    "query": "me arruma o pn do carburador original do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-128",
+    "query": "quero comprar embreagem completa 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "125b-carburador-455",
+    "query": "me arruma o pn do bura do 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-174",
+    "query": "catalogo 143RII patim de embreagem",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-382",
+    "query": "codigo husqvarna elemento filtrante 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-256",
+    "query": "molinha 143RII husqvarna",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-462",
+    "query": "código de reposição bura para o 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-207",
+    "query": "codigo husqvarna embreagem centrifugo 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-18",
+    "query": "peça original husqvarna 143RII carburador",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-91",
+    "query": "orçamento de carburacao p/ roçadeira 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-405",
+    "query": "me arruma o pn do esponja do ar do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-158",
+    "query": "143RII patim de embreagem",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-420",
+    "query": "esponja do ar para 143RII, qual o part number?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-183",
+    "query": "143RII conjunto de embreagem",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-310",
+    "query": "buscando o codigo de fabrica do mola de retorno da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-124",
+    "query": "catalogo 143RII carburador zama",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-371",
+    "query": "numero da peça espuma do ar 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-368",
+    "query": "peça original husqvarna 143RII espuma do ar",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-414",
+    "query": "preciso da peça esponja do ar que vai na 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-32",
+    "query": "codigo husqvarna bura 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-2",
+    "query": "qual o codigo do carburador p/ 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-488",
+    "query": "qual a numeração do carburador original - 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-490",
+    "query": "alguém sabe o cod do carburador original do trator 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-190",
+    "query": "alguém sabe o cod do conjunto de embreagem do trator 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-338",
+    "query": "qual a numeração do filtro de ar - 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-309",
+    "query": "cliente quer mola de retorno da maquina 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-31",
+    "query": "bura 143RII husqvarna",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-276",
+    "query": "preciso do mola do patim da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-391",
+    "query": "orçamento de elemento filtrante p/ roçadeira 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-235",
+    "query": "buscando o codigo de fabrica do mola da embreagem da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-225",
+    "query": "onde acho embreagem centrifugo do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-56",
+    "query": "carburador original 143RII husqvarna",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-244",
+    "query": "preciso substituir o mola da embreagem que quebrou no 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-339",
+    "query": "preciso da peça filtro de ar que vai na 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-104",
+    "query": "tem carburador zama pro 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-194",
+    "query": "preciso substituir o conjunto de embreagem que quebrou no 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-383",
+    "query": "143RII elemento filtrante",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-150",
+    "query": "onde acho embreagem completa do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "125b-carburador-473",
+    "query": "me passa a referencia do bura do 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-216",
+    "query": "orçamento de embreagem centrifugo p/ roçadeira 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-374",
+    "query": "catalogo 143RII espuma do ar",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "125b-carburador-465",
+    "query": "alguém sabe o cod do bura do trator 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-435",
+    "query": "buscando o codigo de fabrica do carburador da 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-242",
+    "query": "vê pra mim o preço do mola da embreagem da 143RII (só código por favor)",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-40",
+    "query": "alguém sabe o cod do bura do trator 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-483",
+    "query": "125B carburador original",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-89",
+    "query": "preciso da peça carburacao que vai na 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-140",
+    "query": "alguém sabe o cod do embreagem completa do trator 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-21",
+    "query": "numero da peça carburador 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-105",
+    "query": "me arruma o pn do carburador zama do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-58",
+    "query": "143RII carburador original",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-264",
+    "query": "preciso da peça molinha que vai na 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-370",
+    "query": "espuma do ar para 143RII, qual o part number?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-263",
+    "query": "qual a numeração do molinha - 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-373",
+    "query": "me passa a referencia do espuma do ar do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-396",
+    "query": "numero da peça elemento filtrante 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-249",
+    "query": "catalogo 143RII mola da embreagem",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-65",
+    "query": "alguém sabe o cod do carburador original do trator 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-83",
+    "query": "143RII carburacao",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-90",
+    "query": "alguém sabe o cod do carburacao do trator 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-12",
+    "query": "código de reposição carburador para o 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-470",
+    "query": "bura para 125B, qual o part number?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-484",
+    "query": "cliente quer carburador original da maquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-50",
+    "query": "onde acho bura do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-464",
+    "query": "preciso da peça bura que vai na 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-45",
+    "query": "bura para 143RII, qual o part number?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-163",
+    "query": "qual a numeração do patim de embreagem - 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-1",
+    "query": "preciso do carburador da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-442",
+    "query": "vê pra mim o preço do carburador da 125B (só código por favor)",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-110",
+    "query": "buscando o codigo de fabrica do carburador zama da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-75",
+    "query": "onde acho carburador original do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-212",
+    "query": "código de reposição embreagem centrifugo para o 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-17",
+    "query": "vê pra mim o preço do carburador da 143RII (só código por favor)",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-252",
+    "query": "qual o codigo do molinha p/ 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-327",
+    "query": "qual o codigo do filtro de ar p/ 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-80",
+    "query": "me arruma o pn do carburacao do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-146",
+    "query": "numero da peça embreagem completa 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-311",
+    "query": "vende mola de retorno do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-281",
+    "query": "mola do patim 143RII husqvarna",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-404",
+    "query": "tem esponja do ar pro 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "125b-carburador-467",
+    "query": "vê pra mim o preço do bura da 125B (só código por favor)",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-22",
+    "query": "codigo de vista explodida do carburador 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-410",
+    "query": "buscando o codigo de fabrica do esponja do ar da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-143",
+    "query": "peça original husqvarna 143RII embreagem completa",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-376",
+    "query": "preciso do elemento filtrante da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-42",
+    "query": "vê pra mim o preço do bura da 143RII (só código por favor)",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-270",
+    "query": "molinha para 143RII, qual o part number?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-430",
+    "query": "me arruma o pn do carburador do 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-489",
+    "query": "preciso da peça carburador original que vai na 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-152",
+    "query": "qual o codigo do patim de embreagem p/ 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "125b-carburador-458",
+    "query": "125B bura",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-185",
+    "query": "buscando o codigo de fabrica do conjunto de embreagem da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-293",
+    "query": "peça original husqvarna 143RII mola do patim",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-380",
+    "query": "me arruma o pn do elemento filtrante do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-247",
+    "query": "codigo de vista explodida do mola da embreagem 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-66",
+    "query": "orçamento de carburador original p/ roçadeira 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-316",
+    "query": "orçamento de mola de retorno p/ roçadeira 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-487",
+    "query": "código de reposição carburador original para o 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-219",
+    "query": "preciso substituir o embreagem centrifugo que quebrou no 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-352",
+    "query": "qual o codigo do espuma do ar p/ 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "125b-carburador-496",
+    "query": "numero da peça carburador original 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-137",
+    "query": "código de reposição embreagem completa para o 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-63",
+    "query": "qual a numeração do carburador original - 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-258",
+    "query": "143RII molinha",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-135",
+    "query": "buscando o codigo de fabrica do embreagem completa da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-402",
+    "query": "qual o codigo do esponja do ar p/ 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-129",
+    "query": "tem embreagem completa pro 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-267",
+    "query": "vê pra mim o preço do molinha da 143RII (só código por favor)",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-26",
+    "query": "preciso do bura da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-206",
+    "query": "embreagem centrifugo 143RII husqvarna",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-348",
+    "query": "me passa a referencia do filtro de ar do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-147",
+    "query": "codigo de vista explodida do embreagem completa 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-335",
+    "query": "buscando o codigo de fabrica do filtro de ar da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "125b-carburador-450",
+    "query": "onde acho carburador do 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-176",
+    "query": "preciso do conjunto de embreagem da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "125b-carburador-444",
+    "query": "preciso substituir o carburador que quebrou no 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-454",
+    "query": "tem bura pro 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-362",
+    "query": "código de reposição espuma do ar para o 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-221",
+    "query": "numero da peça embreagem centrifugo 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-188",
+    "query": "qual a numeração do conjunto de embreagem - 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-419",
+    "query": "preciso substituir o esponja do ar que quebrou no 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-292",
+    "query": "vê pra mim o preço do mola do patim da 143RII (só código por favor)",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-449",
+    "query": "catalogo 125B carburador",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-411",
+    "query": "vende esponja do ar do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "125b-carburador-440",
+    "query": "alguém sabe o cod do carburador do trator 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-431",
+    "query": "carburador 125B husqvarna",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-208",
+    "query": "143RII embreagem centrifugo",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-353",
+    "query": "quero comprar espuma do ar 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-257",
+    "query": "codigo husqvarna molinha 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-302",
+    "query": "qual o codigo do mola de retorno p/ 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-96",
+    "query": "numero da peça carburacao 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-322",
+    "query": "codigo de vista explodida do mola de retorno 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-287",
+    "query": "código de reposição mola do patim para o 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-165",
+    "query": "alguém sabe o cod do patim de embreagem do trator 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-395",
+    "query": "elemento filtrante para 143RII, qual o part number?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-79",
+    "query": "tem carburacao pro 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-266",
+    "query": "orçamento de molinha p/ roçadeira 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-106",
+    "query": "carburador zama 143RII husqvarna",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-191",
+    "query": "orçamento de conjunto de embreagem p/ roçadeira 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-60",
+    "query": "buscando o codigo de fabrica do carburador original da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-401",
+    "query": "preciso do esponja do ar da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-326",
+    "query": "preciso do filtro de ar da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-10",
+    "query": "buscando o codigo de fabrica do carburador da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-102",
+    "query": "qual o codigo do carburador zama p/ 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-472",
+    "query": "codigo de vista explodida do bura 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-341",
+    "query": "orçamento de filtro de ar p/ roçadeira 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-372",
+    "query": "codigo de vista explodida do espuma do ar 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-151",
+    "query": "preciso do patim de embreagem da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-142",
+    "query": "vê pra mim o preço do embreagem completa da 143RII (só código por favor)",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-112",
+    "query": "código de reposição carburador zama para o 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-369",
+    "query": "preciso substituir o espuma do ar que quebrou no 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-409",
+    "query": "cliente quer esponja do ar da maquina 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-423",
+    "query": "me passa a referencia do esponja do ar do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "125b-carburador-447",
+    "query": "codigo de vista explodida do carburador 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-253",
+    "query": "quero comprar molinha 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-417",
+    "query": "vê pra mim o preço do esponja do ar da 143RII (só código por favor)",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-397",
+    "query": "codigo de vista explodida do elemento filtrante 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-24",
+    "query": "catalogo 143RII carburador",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-94",
+    "query": "preciso substituir o carburacao que quebrou no 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-456",
+    "query": "bura 125B husqvarna",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-306",
+    "query": "mola de retorno 143RII husqvarna",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-499",
+    "query": "catalogo 125B carburador original",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-438",
+    "query": "qual a numeração do carburador - 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-209",
+    "query": "cliente quer embreagem centrifugo da maquina 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-241",
+    "query": "orçamento de mola da embreagem p/ roçadeira 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-308",
+    "query": "143RII mola de retorno",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-213",
+    "query": "qual a numeração do embreagem centrifugo - 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-70",
+    "query": "carburador original para 143RII, qual o part number?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-8",
+    "query": "143RII carburador",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-471",
+    "query": "numero da peça bura 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-399",
+    "query": "catalogo 143RII elemento filtrante",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-82",
+    "query": "codigo husqvarna carburacao 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-33",
+    "query": "143RII bura",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-4",
+    "query": "tem carburador pro 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-357",
+    "query": "codigo husqvarna espuma do ar 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-334",
+    "query": "cliente quer filtro de ar da maquina 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "125b-carburador-429",
+    "query": "tem carburador pro 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-398",
+    "query": "me passa a referencia do elemento filtrante do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-115",
+    "query": "alguém sabe o cod do carburador zama do trator 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-323",
+    "query": "me passa a referencia do mola de retorno do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-356",
+    "query": "espuma do ar 143RII husqvarna",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-342",
+    "query": "vê pra mim o preço do filtro de ar da 143RII (só código por favor)",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-77",
+    "query": "qual o codigo do carburacao p/ 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-93",
+    "query": "peça original husqvarna 143RII carburacao",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-350",
+    "query": "onde acho filtro de ar do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-210",
+    "query": "buscando o codigo de fabrica do embreagem centrifugo da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-251",
+    "query": "preciso do molinha da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-240",
+    "query": "alguém sabe o cod do mola da embreagem do trator 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-250",
+    "query": "onde acho mola da embreagem do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-254",
+    "query": "tem molinha pro 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-3",
+    "query": "quero comprar carburador 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-173",
+    "query": "me passa a referencia do patim de embreagem do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-377",
+    "query": "qual o codigo do elemento filtrante p/ 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "125b-carburador-485",
+    "query": "buscando o codigo de fabrica do carburador original da 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-35",
+    "query": "buscando o codigo de fabrica do bura da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-418",
+    "query": "peça original husqvarna 143RII esponja do ar",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-359",
+    "query": "cliente quer espuma do ar da maquina 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-118",
+    "query": "peça original husqvarna 143RII carburador zama",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-197",
+    "query": "codigo de vista explodida do conjunto de embreagem 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-344",
+    "query": "preciso substituir o filtro de ar que quebrou no 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-34",
+    "query": "cliente quer bura da maquina 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-15",
+    "query": "alguém sabe o cod do carburador do trator 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-153",
+    "query": "quero comprar patim de embreagem 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-400",
+    "query": "onde acho elemento filtrante do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-305",
+    "query": "me arruma o pn do mola de retorno do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-314",
+    "query": "preciso da peça mola de retorno que vai na 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-199",
+    "query": "catalogo 143RII conjunto de embreagem",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-388",
+    "query": "qual a numeração do elemento filtrante - 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-312",
+    "query": "código de reposição mola de retorno para o 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-184",
+    "query": "cliente quer conjunto de embreagem da maquina 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-320",
+    "query": "mola de retorno para 143RII, qual o part number?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-88",
+    "query": "qual a numeração do carburacao - 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-290",
+    "query": "alguém sabe o cod do mola do patim do trator 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-19",
+    "query": "preciso substituir o carburador que quebrou no 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-406",
+    "query": "esponja do ar 143RII husqvarna",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-78",
+    "query": "quero comprar carburacao 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-441",
+    "query": "orçamento de carburador p/ roçadeira 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-319",
+    "query": "preciso substituir o mola de retorno que quebrou no 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-189",
+    "query": "preciso da peça conjunto de embreagem que vai na 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-224",
+    "query": "catalogo 143RII embreagem centrifugo",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "125b-carburador-495",
+    "query": "carburador original para 125B, qual o part number?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-164",
+    "query": "preciso da peça patim de embreagem que vai na 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-181",
+    "query": "conjunto de embreagem 143RII husqvarna",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-408",
+    "query": "143RII esponja do ar",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-155",
+    "query": "me arruma o pn do patim de embreagem do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-260",
+    "query": "buscando o codigo de fabrica do molinha da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-432",
+    "query": "codigo husqvarna carburador 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-304",
+    "query": "tem mola de retorno pro 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-325",
+    "query": "onde acho mola de retorno do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-11",
+    "query": "vende carburador do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-424",
+    "query": "catalogo 143RII esponja do ar",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "125b-carburador-500",
+    "query": "onde acho carburador original do 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-288",
+    "query": "qual a numeração do mola do patim - 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-275",
+    "query": "onde acho molinha do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-433",
+    "query": "125B carburador",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-126",
+    "query": "preciso do embreagem completa da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-381",
+    "query": "elemento filtrante 143RII husqvarna",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-166",
+    "query": "orçamento de patim de embreagem p/ roçadeira 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-277",
+    "query": "qual o codigo do mola do patim p/ 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-177",
+    "query": "qual o codigo do conjunto de embreagem p/ 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-279",
+    "query": "tem mola do patim pro 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-113",
+    "query": "qual a numeração do carburador zama - 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-269",
+    "query": "preciso substituir o molinha que quebrou no 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-84",
+    "query": "cliente quer carburacao da maquina 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-141",
+    "query": "orçamento de embreagem completa p/ roçadeira 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-111",
+    "query": "vende carburador zama do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-364",
+    "query": "preciso da peça espuma do ar que vai na 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-282",
+    "query": "codigo husqvarna mola do patim 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-491",
+    "query": "orçamento de carburador original p/ roçadeira 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-389",
+    "query": "preciso da peça elemento filtrante que vai na 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-291",
+    "query": "orçamento de mola do patim p/ roçadeira 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-477",
+    "query": "qual o codigo do carburador original p/ 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-52",
+    "query": "qual o codigo do carburador original p/ 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-69",
+    "query": "preciso substituir o carburador original que quebrou no 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-301",
+    "query": "preciso do mola de retorno da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-354",
+    "query": "tem espuma do ar pro 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-103",
+    "query": "quero comprar carburador zama 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-403",
+    "query": "quero comprar esponja do ar 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-38",
+    "query": "qual a numeração do bura - 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-156",
+    "query": "patim de embreagem 143RII husqvarna",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-413",
+    "query": "qual a numeração do esponja do ar - 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-149",
+    "query": "catalogo 143RII embreagem completa",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-7",
+    "query": "codigo husqvarna carburador 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-474",
+    "query": "catalogo 125B bura",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-57",
+    "query": "codigo husqvarna carburador original 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-218",
+    "query": "peça original husqvarna 143RII embreagem centrifugo",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-313",
+    "query": "qual a numeração do mola de retorno - 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-421",
+    "query": "numero da peça esponja do ar 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-131",
+    "query": "embreagem completa 143RII husqvarna",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-259",
+    "query": "cliente quer molinha da maquina 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-363",
+    "query": "qual a numeração do espuma do ar - 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-255",
+    "query": "me arruma o pn do molinha do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-379",
+    "query": "tem elemento filtrante pro 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-161",
+    "query": "vende patim de embreagem do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "125b-carburador-457",
+    "query": "codigo husqvarna bura 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-168",
+    "query": "peça original husqvarna 143RII patim de embreagem",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-261",
+    "query": "vende molinha do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-446",
+    "query": "numero da peça carburador 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-195",
+    "query": "conjunto de embreagem para 143RII, qual o part number?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-100",
+    "query": "onde acho carburacao do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-116",
+    "query": "orçamento de carburador zama p/ roçadeira 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-74",
+    "query": "catalogo 143RII carburador original",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-481",
+    "query": "carburador original 125B husqvarna",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-47",
+    "query": "codigo de vista explodida do bura 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-330",
+    "query": "me arruma o pn do filtro de ar do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-286",
+    "query": "vende mola do patim do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-13",
+    "query": "qual a numeração do carburador - 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-27",
+    "query": "qual o codigo do bura p/ 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-475",
+    "query": "onde acho bura do 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-133",
+    "query": "143RII embreagem completa",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-114",
+    "query": "preciso da peça carburador zama que vai na 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-28",
+    "query": "quero comprar bura 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-49",
+    "query": "catalogo 143RII bura",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-92",
+    "query": "vê pra mim o preço do carburacao da 143RII (só código por favor)",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-97",
+    "query": "codigo de vista explodida do carburacao 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-415",
+    "query": "alguém sabe o cod do esponja do ar do trator 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-262",
+    "query": "código de reposição molinha para o 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-387",
+    "query": "código de reposição elemento filtrante para o 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-214",
+    "query": "preciso da peça embreagem centrifugo que vai na 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-144",
+    "query": "preciso substituir o embreagem completa que quebrou no 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-145",
+    "query": "embreagem completa para 143RII, qual o part number?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "125b-carburador-498",
+    "query": "me passa a referencia do carburador original do 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-479",
+    "query": "tem carburador original pro 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-307",
+    "query": "codigo husqvarna mola de retorno 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-285",
+    "query": "buscando o codigo de fabrica do mola do patim da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-192",
+    "query": "vê pra mim o preço do conjunto de embreagem da 143RII (só código por favor)",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-9",
+    "query": "cliente quer carburador da maquina 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-5",
+    "query": "me arruma o pn do carburador do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-351",
+    "query": "preciso do espuma do ar da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-297",
+    "query": "codigo de vista explodida do mola do patim 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-85",
+    "query": "buscando o codigo de fabrica do carburacao da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-295",
+    "query": "mola do patim para 143RII, qual o part number?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-215",
+    "query": "alguém sabe o cod do embreagem centrifugo do trator 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-296",
+    "query": "numero da peça mola do patim 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-476",
+    "query": "preciso do carburador original da 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-355",
+    "query": "me arruma o pn do espuma do ar do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-386",
+    "query": "vende elemento filtrante do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-170",
+    "query": "patim de embreagem para 143RII, qual o part number?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "125b-carburador-486",
+    "query": "vende carburador original do 125B?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-426",
+    "query": "preciso do carburador da 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-298",
+    "query": "me passa a referencia do mola do patim do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-466",
+    "query": "orçamento de bura p/ roçadeira 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-328",
+    "query": "quero comprar filtro de ar 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-29",
+    "query": "tem bura pro 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-238",
+    "query": "qual a numeração do mola da embreagem - 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-234",
+    "query": "cliente quer mola da embreagem da maquina 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-482",
+    "query": "codigo husqvarna carburador original 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-268",
+    "query": "peça original husqvarna 143RII molinha",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-437",
+    "query": "código de reposição carburador para o 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-243",
+    "query": "peça original husqvarna 143RII mola da embreagem",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-132",
+    "query": "codigo husqvarna embreagem completa 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-329",
+    "query": "tem filtro de ar pro 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-331",
+    "query": "filtro de ar 143RII husqvarna",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "125b-carburador-445",
+    "query": "carburador para 125B, qual o part number?",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-227",
+    "query": "qual o codigo do mola da embreagem p/ 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-73",
+    "query": "me passa a referencia do carburador original do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-196",
+    "query": "numero da peça conjunto de embreagem 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-289",
+    "query": "preciso da peça mola do patim que vai na 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-367",
+    "query": "vê pra mim o preço do espuma do ar da 143RII (só código por favor)",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-360",
+    "query": "buscando o codigo de fabrica do espuma do ar da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-23",
+    "query": "me passa a referencia do carburador do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-378",
+    "query": "quero comprar elemento filtrante 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-233",
+    "query": "143RII mola da embreagem",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-294",
+    "query": "preciso substituir o mola do patim que quebrou no 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-478",
+    "query": "quero comprar carburador original 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-136",
+    "query": "vende embreagem completa do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-120",
+    "query": "carburador zama para 143RII, qual o part number?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-54",
+    "query": "tem carburador original pro 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-87",
+    "query": "código de reposição carburacao para o 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-459",
+    "query": "cliente quer bura da maquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-139",
+    "query": "preciso da peça embreagem completa que vai na 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-20",
+    "query": "carburador para 143RII, qual o part number?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-226",
+    "query": "preciso do mola da embreagem da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-416",
+    "query": "orçamento de esponja do ar p/ roçadeira 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-108",
+    "query": "143RII carburador zama",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-248",
+    "query": "me passa a referencia do mola da embreagem do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-202",
+    "query": "qual o codigo do embreagem centrifugo p/ 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-48",
+    "query": "me passa a referencia do bura do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-434",
+    "query": "cliente quer carburador da maquina 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-204",
+    "query": "tem embreagem centrifugo pro 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-171",
+    "query": "numero da peça patim de embreagem 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-198",
+    "query": "me passa a referencia do conjunto de embreagem do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-148",
+    "query": "me passa a referencia do embreagem completa do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-107",
+    "query": "codigo husqvarna carburador zama 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-358",
+    "query": "143RII espuma do ar",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-162",
+    "query": "código de reposição patim de embreagem para o 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-122",
+    "query": "codigo de vista explodida do carburador zama 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-72",
+    "query": "codigo de vista explodida do carburador original 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-448",
+    "query": "me passa a referencia do carburador do 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-237",
+    "query": "código de reposição mola da embreagem para o 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-492",
+    "query": "vê pra mim o preço do carburador original da 125B (só código por favor)",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-280",
+    "query": "me arruma o pn do mola do patim do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-125",
+    "query": "onde acho carburador zama do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-229",
+    "query": "tem mola da embreagem pro 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-443",
+    "query": "peça original husqvarna 125B carburador",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-453",
+    "query": "quero comprar bura 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-273",
+    "query": "me passa a referencia do molinha do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-272",
+    "query": "codigo de vista explodida do molinha 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-349",
+    "query": "catalogo 143RII filtro de ar",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-375",
+    "query": "onde acho espuma do ar do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-343",
+    "query": "peça original husqvarna 143RII filtro de ar",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "125b-carburador-451",
+    "query": "preciso do bura da 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-211",
+    "query": "vende embreagem centrifugo do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-321",
+    "query": "numero da peça mola de retorno 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-346",
+    "query": "numero da peça filtro de ar 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-283",
+    "query": "143RII mola do patim",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-embreagem-175",
+    "query": "onde acho patim de embreagem do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-239",
+    "query": "preciso da peça mola da embreagem que vai na 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-468",
+    "query": "peça original husqvarna 125B bura",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-25",
+    "query": "onde acho carburador do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-222",
+    "query": "codigo de vista explodida do embreagem centrifugo 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-392",
+    "query": "vê pra mim o preço do elemento filtrante da 143RII (só código por favor)",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-44",
+    "query": "preciso substituir o bura que quebrou no 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-99",
+    "query": "catalogo 143RII carburacao",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-167",
+    "query": "vê pra mim o preço do patim de embreagem da 143RII (só código por favor)",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-318",
+    "query": "peça original husqvarna 143RII mola de retorno",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-336",
+    "query": "vende filtro de ar do 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-embreagem-159",
+    "query": "cliente quer patim de embreagem da maquina 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-337",
+    "query": "código de reposição filtro de ar para o 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-340",
+    "query": "alguém sabe o cod do filtro de ar do trator 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  },
+  {
+    "id": "143rii-carburador-81",
+    "query": "carburacao 143RII husqvarna",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-98",
+    "query": "me passa a referencia do carburacao do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-160",
+    "query": "buscando o codigo de fabrica do patim de embreagem da 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-carburador-62",
+    "query": "código de reposição carburador original para o 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "125b-carburador-480",
+    "query": "me arruma o pn do carburador original do 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-embreagem-138",
+    "query": "qual a numeração do embreagem completa - 143RII?",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "503600402"
+    ],
+    "source": "Golden Set 500 (Embreagem)"
+  },
+  {
+    "id": "143rii-mola-da-embreagem-284",
+    "query": "cliente quer mola do patim da maquina 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505297801"
+    ],
+    "source": "Golden Set 500 (Mola da Embreagem)"
+  },
+  {
+    "id": "125b-carburador-460",
+    "query": "buscando o codigo de fabrica do bura da 125B",
+    "model": "125B",
+    "expectedPartNumbers": [
+      "545081811"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-carburador-30",
+    "query": "me arruma o pn do bura do 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "587106701"
+    ],
+    "source": "Golden Set 500 (Carburador)"
+  },
+  {
+    "id": "143rii-filtro-de-ar-422",
+    "query": "codigo de vista explodida do esponja do ar 143RII",
+    "model": "143RII",
+    "expectedPartNumbers": [
+      "505309201"
+    ],
+    "source": "Golden Set 500 (Filtro de Ar)"
+  }
+];

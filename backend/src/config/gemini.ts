@@ -21,8 +21,3 @@ export function getGeminiClient() {
     clientPromise ??= createGeminiClient();
     return clientPromise;
 }
-
-export async function getGeminiType() {
-    const { Type } = await loadGenAi();
-    return Type;
-}

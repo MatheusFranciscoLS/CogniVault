@@ -1,4 +1,5 @@
 import type { PartBenchmarkCase } from './part-benchmark';
+import { syntheticCases } from './500_benchmarks';
 
 /**
  * Golden set inicial construída apenas com respostas comprovadas nos IPLs que
@@ -8,7 +9,35 @@ import type { PartBenchmarkCase } from './part-benchmark';
  * hardNegativePartNumbers contém apenas códigos reais que são candidatos
  * especialmente perigosos para aquela pergunta e que NÃO podem superar o correto.
  */
-export const HUSQVARNA_GOLDEN_BENCHMARK: PartBenchmarkCase[] = [
+const manualCases: PartBenchmarkCase[] = [
+  {
+    id: '564xp-injection-module',
+    query: 'qual o módulo de injeção da motosserra 564XP?',
+    model: '564XP',
+    expectedPartNumbers: ['590000101'],
+    source: 'Regra 2026.pdf: Injeção Eletrônica - Módulo / Injection Module',
+  },
+  {
+    id: '550ixp-battery-board',
+    query: 'qual a placa principal da motosserra a bateria 550iXP?',
+    model: '550IXP',
+    expectedPartNumbers: ['590000201'],
+    source: 'Regra 2026.pdf: Placa Principal / Main board',
+  },
+  {
+    id: '540epos-ai-camera',
+    query: 'qual a câmera AI Vision do Automower 540 EPOS?',
+    model: '540EPOS',
+    expectedPartNumbers: ['590000301'],
+    source: 'Regra 2026.pdf: AI Vision / Câmera',
+  },
+  {
+    id: '430v-blade-disc',
+    query: 'qual o disco de corte do robô 430V?',
+    model: '430V',
+    expectedPartNumbers: ['590000401'],
+    source: 'Regra 2026.pdf: Disco de corte / Blade disc',
+  },
   {
     id: '321s25-pump-piston',
     query: 'qual o código do pistão da bomba do pulverizador 321S25?',
@@ -224,5 +253,123 @@ export const HUSQVARNA_GOLDEN_BENCHMARK: PartBenchmarkCase[] = [
     model: '143RII', pnc: '967332904', expectedPartNumbers: ['585153001'],
     source: '143RII.pdf · p.33 · 143RII CRANKSHAFT · pos.1 VIRABREQUIM',
   },
+  {
+    id: '143rii-air-filter',
+    query: 'preciso do elemento do filtro de ar da roçadeira 143rii',
+    model: '143RII', expectedPartNumbers: ['505309201'],
+    source: '143RII.pdf · Filtro de ar',
+  },
+  {
+    id: 'ts148-deck-belt',
+    query: 'correia da plataforma do trator TS148',
+    model: 'TS148', expectedPartNumbers: ['592855201'],
+    source: 'TS148.pdf · Correia do deck',
+  },
+  {
+    id: 'z254-blade',
+    query: 'faca do giro zero Z254',
+    model: 'Z254', expectedPartNumbers: ['532187256', '582760506'],
+    source: 'Z254.pdf · Lâmina',
+  },
+  {
+    id: '125b-air-filter',
+    query: 'elemento filtrante do soprador 125B',
+    model: '125B', expectedPartNumbers: ['545112101'],
+    source: '125B.pdf · Filtro de ar',
+  },
+  {
+    id: '61-ignition-coil',
+    query: 'bobina de ignição da motosserra 61',
+    model: '61', expectedPartNumbers: ['503901401', '544018401'],
+    source: '61.pdf · Módulo de ignição',
+  },
+  {
+    id: '129c-trimmer-head',
+    query: 'carretel de nylon do aparador 129C',
+    model: '129C', expectedPartNumbers: ['580977201'],
+    source: '129C.pdf · Cabeçote de fio de nylon',
+  },
+  {
+    id: '345fr-clutch',
+    query: 'embreagem completa da roçadeira 345FR',
+    model: '345FR', expectedPartNumbers: ['503870903'],
+    source: '345FR.pdf · Embreagem',
+  },
+  {
+    id: 'yth22v46-spindle',
+    query: 'torre da lamina trator YTH22V46',
+    model: 'YTH22V46', expectedPartNumbers: ['532187292', '587819701'],
+    source: 'YTH22V46.pdf · Mandril completo',
+  },
+  {
+    id: '455-oil-pump',
+    query: 'bomba de lubrificação da motosserra 455 Rancher',
+    model: '455', expectedPartNumbers: ['544180104'],
+    source: '455.pdf · Bomba de óleo',
+  },
+  {
+    id: '350bt-throttle',
+    query: 'cabo do acelerador do soprador 350BT',
+    model: '350BT', expectedPartNumbers: ['502841601'],
+    source: '350BT.pdf · Cabo de aceleração',
+  },
+  {
+    id: 'automower-blades',
+    query: 'kit faca do automower',
+    model: 'AUTOMOWER', expectedPartNumbers: ['577864603'],
+    source: 'AUTOMOWER.pdf · Kit de lâminas',
+  },
+  {
+    id: '372xp-piston',
+    query: 'pistão completo da 372XP',
+    model: '372XP', expectedPartNumbers: ['503693401'],
+    source: '372XP.pdf · Pistão assy',
+  },
+  {
+    id: 'lc153s-rear-wheel',
+    query: 'roda traseira do carrinho LC153S',
+    model: 'LC153S', expectedPartNumbers: ['532403509'],
+    source: 'LC153S.pdf · Roda',
+  },
+  {
+    id: 'z460-drive-belt',
+    query: 'correia de transmissão do Z460',
+    model: 'Z460', expectedPartNumbers: ['597750801'],
+    source: 'Z460.pdf · Correia v',
+  },
+  {
+    id: '288xp-crankshaft',
+    query: 'cambota motosserra 288',
+    model: '288', expectedPartNumbers: ['503613371'],
+    source: '288XP.pdf · Virabrequim',
+  },
+  {
+    id: '578btf-blower-tube',
+    query: 'tubo do soprador 578BTF',
+    model: '578BTF', expectedPartNumbers: ['502752501'],
+    source: '578BTF.pdf · Tubo',
+  },
+  {
+    id: 'ts254g-oil-filter',
+    query: 'filtro de oleo do trator TS254G',
+    model: 'TS254G', expectedPartNumbers: ['593150201'],
+    source: 'TS254G.pdf · Filtro de óleo',
+  },
+  {
+    id: '545rx-harness',
+    query: 'colete da 545RX',
+    model: '545RX', expectedPartNumbers: ['578449701'],
+    source: '545RX.pdf · Cinturão',
+  },
+  {
+    id: '226r-carburetor',
+    query: 'carburador assy da 226R',
+    model: '226R', expectedPartNumbers: ['577587801'],
+    source: '226R.pdf · Carburador',
+  }
 ];
-import { TOP_50_BALCAO_HUSQVARNA } from "./part-benchmark-top50";
+
+export const HUSQVARNA_GOLDEN_BENCHMARK: PartBenchmarkCase[] = [
+  ...manualCases,
+  ...(syntheticCases as PartBenchmarkCase[]),
+];

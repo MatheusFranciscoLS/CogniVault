@@ -4,6 +4,7 @@ import { ChatIntentService } from './chat-intent.service';
 import { buildFallbackIntent, extractLikelyPartNumber } from './chat-reliability';
 import { PartSearchService, type PartCandidate, type RetrievalSource } from './part-search.service';
 import type { SearchIntent } from './chat-intent.service';
+import { ReActAgentService } from './react-agent.service';
 import { buildSearchGroups, focusCandidatesByDescription } from './part-vocabulary';
 import { filterCandidatesByMarket } from './catalog-market';
 import { resolveEngineCatalogRoute } from './husqvarna-domain-knowledge';
@@ -61,6 +62,12 @@ export interface ChatSearchResult {
   };
   options?: Array<{ id: string; name: string; partNumber: string; model: string; pnc: string | null; section: string | null; position: string | null; notes: string | null }>;
   feedbackOptions?: Array<{ id: string; name: string; partNumber: string; model: string; pnc: string | null; section: string | null; position: string | null; notes: string | null }>;
+  b2bPortal?: {
+    stockStatus: string;
+    supersededBy?: string;
+    success: boolean;
+    message?: string;
+  };
 }
 
 function unique<T>(items: T[]): T[] { return [...new Set(items)]; }
@@ -68,6 +75,11 @@ function escapeRegExp(value: string): string { return value.replace(/[.*+?^${}()
 
 export class ChatService {
   static async askQuestion(tenantId: string, question: string, explicitPnc?: string, selectedPartId?: string): Promise<ChatSearchResult> {
+    const result = await this.askQuestionInternal(tenantId, question, explicitPnc, selectedPartId);
+    return result;
+  }
+
+  private static async askQuestionInternal(tenantId: string, question: string, explicitPnc?: string, selectedPartId?: string): Promise<ChatSearchResult> {
     if (selectedPartId) {
       const selected = await PartSearchService.byId(tenantId, selectedPartId);
       const selectionIntent = buildFallbackIntent(question);
@@ -135,6 +147,24 @@ export class ChatService {
       }
     }
 
+    const reactResult = await ReActAgentService.execute(tenantId, question, intent.pnc || undefined);
+    
+    if (reactResult.status === 'FOUND' && reactResult.chosenPartId) {
+       const chosen = await PartSearchService.byId(tenantId, reactResult.chosenPartId);
+       if (chosen) {
+         const decision = evaluateAnswerConfidence({
+           question, chosen, runnerUp: undefined, selectionConfidence: 0.9, exactCode: false,
+           catalog: await this.catalogConfidenceContext(tenantId, chosen.documentId)
+         });
+         
+         const result = this.found(chosen, 0.9, chosen.universalAcrossPnc ? 'Qualquer um' : (chosen.pnc || intent.pnc || 'Não informado'), [chosen], decision);
+         // Attach reasoning explanation to the match
+         if (result.match) result.match.explanation += `\nReAct Reasoning: ${reactResult.explanation}`;
+         return this.withContext(await this.enrichWithTechnicalContext(tenantId, question, chosen, result), intent);
+       }
+    }
+    
+    // Fallback to local logic if ReAct fails or is ambiguous
     const candidates = await PartSearchService.semantic(tenantId, question, intent);
     if (!candidates.length) {
       const engineFallback = await this.tryEngineCatalogFallback(tenantId, question, intent);
