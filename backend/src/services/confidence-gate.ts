@@ -200,6 +200,8 @@ export function evaluateAnswerConfidence(params: {
   const rawRetrievalMargin = runnerUp && !sameCodeRunner
     ? retrieval - retrievalEvidence(runnerUp)
     : 1;
+  const feedbackAdvantage = runnerUp ? chosen.feedbackScore - runnerUp.feedbackScore : chosen.feedbackScore;
+  const hasFeedbackAdvantage = feedbackAdvantage >= 0.03;
 
   // Se códigos diferentes chegam praticamente empatados pelos recuperadores,
   // uma regra de desempate mecânico pode ordenar as opções, mas não deve sozinha
@@ -212,7 +214,8 @@ export function evaluateAnswerConfidence(params: {
     && !sameCodeRunner
     && rawRetrievalMargin < 0.03
     && margin < 0.16
-    && serial !== 'MATCH',
+    && serial !== 'MATCH'
+    && !hasFeedbackAdvantage
   );
 
   let confidence = Math.min(clamp(params.selectionConfidence), clamp(Math.max(semanticConfidence, retrieval)));
@@ -224,7 +227,7 @@ export function evaluateAnswerConfidence(params: {
   if (!runnerUp || sameCodeRunner) confidence += 0.04;
   else if (margin >= 0.20) confidence += 0.06;
   else if (margin >= 0.10) confidence += 0.03;
-  else if (margin < 0.05) confidence -= 0.12;
+  else if (margin < 0.05 && !hasFeedbackAdvantage) confidence -= 0.12;
   if (differentCodeNearTie) confidence -= 0.08;
   if (contradictions.length) confidence -= Math.min(0.35, contradictions.length * 0.14);
   confidence += catalog.adjustment;
@@ -235,7 +238,7 @@ export function evaluateAnswerConfidence(params: {
   if (semanticOnly) confidence = Math.min(confidence, 0.74);
   confidence = clamp(confidence);
 
-  const strongLead = !runnerUp || sameCodeRunner || margin >= 0.08 || serial === 'MATCH';
+  const strongLead = !runnerUp || sameCodeRunner || margin >= 0.08 || serial === 'MATCH' || hasFeedbackAdvantage;
   const independentEvidence = agreement >= 2 || retrievalSources.includes('LEXICAL') || retrievalSources.includes('FULL_TEXT');
   const safe = confidence >= 0.72
     && strongLead

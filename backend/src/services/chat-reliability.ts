@@ -113,7 +113,12 @@ export function chooseCandidateLocally(
 
   const best = ranked[0];
   const second = ranked[1];
-  const safeLead = best && best.score >= 0.58 && (!second || best.score - second.score >= 0.16);
+  
+  const bestCandidate = best ? candidates.find(c => c.id === best.id) : undefined;
+  const secondCandidate = second ? candidates.find(c => c.id === second.id) : undefined;
+  const hasFeedbackAdvantage = bestCandidate && secondCandidate && (bestCandidate.feedbackScore || 0) - (secondCandidate.feedbackScore || 0) >= 0.03;
+
+  const safeLead = best && best.score >= 0.58 && (!second || best.score - second.score >= 0.16 || (hasFeedbackAdvantage && best.score - second.score >= 0.04));
   return safeLead
     // Esta confiança pertence apenas ao desempate heurístico local. Ela não deve
     // parecer "quase certeza": o gate final ainda precisa validar recuperadores,

@@ -52,7 +52,7 @@ export default function Login() {
   ];
 
   return (
-    <main className="min-h-[100dvh] bg-[#f7f9fc] text-slate-950 lg:grid lg:grid-cols-[minmax(0,1.12fr)_minmax(430px,.88fr)]">
+    <main className="min-h-[100dvh] bg-[#f7f9fc] dark:bg-[#0b1626] text-slate-950 dark:text-white lg:grid lg:grid-cols-[minmax(0,1.12fr)_minmax(430px,.88fr)]">
       <section className="relative hidden min-h-[100dvh] overflow-hidden bg-[#081a34] px-12 py-10 text-white lg:flex lg:flex-col lg:justify-between xl:px-16 xl:py-12">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(47,111,187,.28),transparent_34%),radial-gradient(circle_at_88%_92%,rgba(226,174,71,.13),transparent_26%)]" />
         <div className="pointer-events-none absolute inset-0 opacity-[.05] [background-image:linear-gradient(rgba(255,255,255,.18)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.18)_1px,transparent_1px)] [background-size:64px_64px]" />
@@ -124,7 +124,7 @@ export default function Login() {
                 <span className="h-px w-7 bg-[#1d4f91]/50 dark:bg-[#1d4f91]/80" />
                 Acesso interno
               </div>
-              <h2 className="mt-5 text-[2.45rem] font-semibold leading-[1.03] tracking-[-.055em] text-slate-950">Entre no CogniVault</h2>
+              <h2 className="mt-5 text-[2.45rem] font-semibold leading-[1.03] tracking-[-.055em] text-slate-950 dark:text-white">Entre no CogniVault</h2>
               <p className="mt-4 max-w-sm text-sm leading-6 text-slate-500">Consulte peças, aplicações e catálogos com as credenciais da sua equipe.</p>
             </div>
 
