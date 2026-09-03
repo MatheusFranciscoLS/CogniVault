@@ -122,13 +122,12 @@ export class ChatIntentService {
 
     const localSelection = chooseCandidateLocally(question, candidates);
     if (!localSelection.ambiguous) return localSelection;
-    if (hasKnownPartVocabulary(question) || hasDomainKnowledge(question)) return localSelection;
 
     try {
       const ai = await getGeminiClient();
       const response = await ai.interactions.create({
         model: GEMINI_GENERATIVE_MODEL,
-        input: `Você está escolhendo uma peça entre candidatos JÁ ENCONTRADOS no banco.\nNunca crie IDs. Nunca escolha apenas por modelo parecido. Diferencie peça completa, kit, junta, parafuso, suporte etc.\nOs campos retrievalScore/retrievalAgreement apenas informam concordância dos recuperadores; eles não substituem compatibilidade mecânica.\nSe houver duas opções plausíveis, marque ambiguous=true.\n\nPergunta: ${question}\n\nCandidatos:\n${candidates.map(candidate => JSON.stringify(candidate)).join('\n')}`,
+        input: `Você está escolhendo uma peça entre candidatos JÁ ENCONTRADOS no banco.\nNunca crie IDs. Nunca escolha apenas por modelo parecido. Diferencie peça completa, kit, junta, parafuso, suporte etc.\nOs campos retrievalScore/retrievalAgreement apenas informam concordância dos recuperadores; eles não substituem compatibilidade mecânica.\nConsidere que a revenda está no Brasil. Se houver restrição regional nos nomes ou notas (ex: EU, US, ASIA, Latin America), dê preferência à opção compatível com o Brasil (Latin America, BR, etc) e descarte as de outras regiões.\nSe ainda houver duas opções plausíveis, marque ambiguous=true.\n\nPergunta: ${question}\n\nCandidatos:\n${candidates.map(candidate => JSON.stringify(candidate)).join('\n')}`,
           response_format: {
             type: 'text',
             mime_type: 'application/json',
