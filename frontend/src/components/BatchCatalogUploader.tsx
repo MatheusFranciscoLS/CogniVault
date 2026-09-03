@@ -51,9 +51,9 @@ function statusLabel(item: UploadItem): string {
 function statusClass(state: UploadState): string {
   if (state === 'QUEUED') return 'bg-emerald-50 text-emerald-700';
   if (state === 'UPLOADING') return 'bg-amber-50 text-amber-700';
-  if (state === 'DUPLICATE') return 'bg-slate-100 text-slate-600';
+  if (state === 'DUPLICATE') return 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400';
   if (state === 'FAILED') return 'bg-rose-50 text-rose-700';
-  return 'bg-blue-50 text-blue-700';
+  return 'bg-blue-50 dark:bg-[#123867] text-blue-700';
 }
 
 export default function BatchCatalogUploader({ onComplete, onNotice, onError }: Props) {
@@ -227,7 +227,7 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
       onDragOver={event => event.preventDefault()}
       onDragLeave={event => { event.preventDefault(); if (event.currentTarget === event.target) setDragActive(false); }}
       onDrop={handleDrop}
-      className={`cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition ${dragActive ? 'border-slate-500 bg-slate-50' : 'border-slate-200 bg-white hover:border-slate-300'} ${busy ? 'pointer-events-none opacity-60' : ''}`}
+      className={`cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition ${dragActive ? 'border-slate-500 bg-slate-50 dark:bg-slate-800/50' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:border-slate-600'} ${busy ? 'pointer-events-none opacity-60' : ''}`}
     >
       <input
         ref={inputRef}
@@ -241,11 +241,11 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
           event.target.value = '';
         }}
       />
-      <div className="text-sm font-semibold text-slate-700">{dragActive ? 'Solte os PDFs aqui' : 'Clique, arraste os PDFs ou cole com Ctrl+V'}</div>
-      <div className="mt-2 flex flex-wrap justify-center gap-2 text-[11px] font-medium text-slate-500">
-        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">Selecionar PDFs</span>
-        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">Arrastar e soltar</span>
-        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">Ctrl+V</span>
+      <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">{dragActive ? 'Solte os PDFs aqui' : 'Clique, arraste os PDFs ou cole com Ctrl+V'}</div>
+      <div className="mt-2 flex flex-wrap justify-center gap-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+        <span className="rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-3 py-1">Selecionar PDFs</span>
+        <span className="rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-3 py-1">Arrastar e soltar</span>
+        <span className="rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-3 py-1">Ctrl+V</span>
       </div>
       <div className="mt-2 text-xs text-slate-400">Até {MAX_BATCH_FILES} PDFs · máximo de 50 MB por arquivo · duplicados detectados pelo conteúdo</div>
     </div>
@@ -256,23 +256,23 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
       <input aria-label="PNC" value={pnc} onChange={event => setPnc(event.target.value)} placeholder="PNC (opcional)" className="cv-field text-sm" />
     </div>}
 
-    {items.length > 1 && <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2 text-xs leading-5 text-blue-700">
+    {items.length > 1 && <div className="mt-4 rounded-xl border border-blue-100 dark:border-blue-700 bg-blue-50 dark:bg-[#123867]/70 px-3 py-2 text-xs leading-5 text-blue-700">
       Modo automático do lote: fabricante, modelo e PNC serão extraídos de cada PDF individualmente.
     </div>}
 
-    {items.length > 0 && <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-      <div className="flex items-center justify-between bg-slate-50 px-3 py-2 text-xs text-slate-500">
+    {items.length > 0 && <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+      <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
         <span>{items.length} arquivo{items.length === 1 ? '' : 's'} no lote</span>
-        {finishedCount > 0 && <button type="button" disabled={busy} onClick={clearFinished} className="font-medium text-slate-600 disabled:opacity-40">Limpar concluídos</button>}
+        {finishedCount > 0 && <button type="button" disabled={busy} onClick={clearFinished} className="font-medium text-slate-600 dark:text-slate-400 disabled:opacity-40">Limpar concluídos</button>}
       </div>
       <div className="max-h-72 divide-y divide-slate-100 overflow-y-auto">
         {items.map(item => <div key={item.id} className="flex items-center gap-3 px-3 py-2.5 text-xs">
           <div className="min-w-0 flex-1">
-            <div className="truncate font-medium text-slate-700">{item.file.name}</div>
+            <div className="truncate font-medium text-slate-700 dark:text-slate-300">{item.file.name}</div>
             <div className="mt-0.5 text-[10px] text-slate-400">{(item.file.size / 1024 / 1024).toFixed(1)} MB{item.message ? ` · ${item.message}` : ''}</div>
           </div>
           <span className={`whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-semibold ${statusClass(item.state)}`}>{statusLabel(item)}</span>
-          {!busy && item.state !== 'UPLOADING' && <button type="button" onClick={() => removeItem(item.id)} aria-label={`Remover ${item.file.name}`} className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">×</button>}
+          {!busy && item.state !== 'UPLOADING' && <button type="button" onClick={() => removeItem(item.id)} aria-label={`Remover ${item.file.name}`} className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 dark:bg-slate-700 hover:text-slate-700 dark:text-slate-300">×</button>}
         </div>)}
       </div>
     </div>}
@@ -281,7 +281,7 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
       <button disabled={busy || readyCount === 0} className="cv-primary px-4 py-2.5 text-sm font-semibold disabled:opacity-50">
         {busy ? 'Importando…' : readyCount > 1 ? `Importar ${readyCount} PDFs` : 'Importar PDF'}
       </button>
-      {items.length > 0 && !busy && <button type="button" onClick={() => setItems([])} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600">Limpar lote</button>}
+      {items.length > 0 && !busy && <button type="button" onClick={() => setItems([])} className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400">Limpar lote</button>}
     </div>
   </form>;
 }

@@ -12,10 +12,10 @@ export default function Interpretation({ response }: { response: ChatResponse })
 
   if (!entries.length) return null;
   return (
-    <details className="mt-3 rounded-xl border border-slate-200 bg-white/80 p-3 text-xs text-slate-600">
-      <summary className="cursor-pointer font-semibold text-slate-700">O que o assistente entendeu</summary>
+    <details className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/$1 dark:bg-slate-800/$1 p-3 text-xs text-slate-600 dark:text-slate-400">
+      <summary className="cursor-pointer font-semibold text-slate-700 dark:text-slate-300">O que o assistente entendeu</summary>
       <div className="mt-2 flex flex-wrap gap-2">
-        {entries.map(([label, value]) => <span key={`${label}-${value}`} className="rounded-full bg-slate-100 px-2.5 py-1"><b>{label}:</b> {value}</span>)}
+        {entries.map(([label, value]) => <span key={`${label}-${value}`} className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1"><b>{label}:</b> {value}</span>)}
       </div>
     </details>
   );

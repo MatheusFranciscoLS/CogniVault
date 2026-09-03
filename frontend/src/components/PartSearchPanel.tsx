@@ -49,8 +49,8 @@ function isTextEditingTarget(target: EventTarget | null) {
 function EmptyState({ title, description }: { title: string; description: string }) {
   return (
     <div className="cv-empty">
-      <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-400" aria-hidden="true">⌕</div>
-      <div className="text-sm font-semibold text-slate-700">{title}</div>
+      <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-400" aria-hidden="true">⌕</div>
+      <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">{title}</div>
       <div className="mt-1 text-xs leading-5 text-slate-400">{description}</div>
     </div>
   );
@@ -58,9 +58,9 @@ function EmptyState({ title, description }: { title: string; description: string
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[18px] border border-slate-200 bg-white p-4">
+    <div className="rounded-[18px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
       <div className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">{label}</div>
-      <div className="mt-1 text-sm font-semibold text-slate-800">{value}</div>
+      <div className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-200">{value}</div>
     </div>
   );
 }
@@ -70,12 +70,12 @@ function SearchSkeleton() {
     <div className="divide-y divide-slate-100" aria-hidden="true">
       {[0, 1, 2].map(item => (
         <div key={item} className="animate-pulse p-5">
-          <div className="h-3 w-2/5 rounded-full bg-slate-200" />
+          <div className="h-3 w-2/5 rounded-full bg-slate-200 dark:bg-slate-600" />
           <div className="mt-3 h-6 w-1/3 rounded-lg bg-blue-100" />
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div className="h-3 rounded-full bg-slate-100" />
-            <div className="h-3 rounded-full bg-slate-100" />
-            <div className="h-3 rounded-full bg-slate-100" />
+            <div className="h-3 rounded-full bg-slate-100 dark:bg-slate-700" />
+            <div className="h-3 rounded-full bg-slate-100 dark:bg-slate-700" />
+            <div className="h-3 rounded-full bg-slate-100 dark:bg-slate-700" />
           </div>
         </div>
       ))}
@@ -382,7 +382,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
     <section>
       <p className="cv-kicker">Atendimento rápido</p>
       <h1 className="cv-page-title">Peças e catálogos</h1>
-      <p className="mt-2 text-sm text-slate-500">Encontre, confira e copie o código sem interromper o atendimento ao cliente.</p>
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Encontre, confira e copie o código sem interromper o atendimento ao cliente.</p>
 
       {admin && <OfficialVerificationApprovalPanel onChanged={refreshApprovedVerifications} />}
 
@@ -401,7 +401,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
             className="min-w-0 flex-1 rounded-2xl border-0 px-4 py-3 text-sm outline-none"
           />
           {query && (
-            <button type="button" onClick={clearSearch} className="hidden rounded-xl px-3 text-xs font-semibold text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 sm:block">
+            <button type="button" onClick={clearSearch} className="hidden rounded-xl px-3 text-xs font-semibold text-slate-400 transition hover:bg-slate-100 dark:bg-slate-700 hover:text-slate-700 dark:text-slate-300 sm:block">
               Limpar
             </button>
           )}
@@ -409,7 +409,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
             {loading ? 'Buscando…' : 'Buscar'}
           </button>
         </div>
-        <div id="parts-search-help" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 px-3 pb-1 pt-2 text-[10px] text-slate-400">
+        <div id="parts-search-help" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 dark:border-slate-800 px-3 pb-1 pt-2 text-[10px] text-slate-400">
           <span><kbd>/</kbd> focar busca</span>
           <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
           <span><kbd>Enter</kbd> abrir</span>
@@ -419,7 +419,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
       </form>
 
       {replacementVerification && (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] p-3 text-sm text-blue-800">
           <span><strong>Substituição oficial:</strong> {replacementVerification.queriedPartNumber} → {replacementVerification.currentPartNumber}. A busca foi direcionada ao código atual.</span>
           <a href={replacementVerification.officialUrl} target="_blank" rel="noreferrer" className="text-xs font-semibold text-[#1d4f91]">Abrir fonte oficial →</a>
         </div>
@@ -429,7 +429,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
         <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
           <span>{error}</span>
           {lastQuery.length >= 2 && (
-            <button type="button" onClick={() => void runSearch(lastQuery)} className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold">
+            <button type="button" onClick={() => void runSearch(lastQuery)} className="rounded-lg border border-rose-200 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold">
               Tentar novamente
             </button>
           )}
@@ -438,7 +438,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,.55fr)]">
         <div className="cv-surface overflow-hidden rounded-[22px]" aria-busy={loading}>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 px-5 py-4">
             <div>
               <div className="font-semibold">Resultado da consulta</div>
               <div role="status" aria-live="polite" className="mt-0.5 text-xs text-slate-400">{resultSummary}</div>
@@ -459,7 +459,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                   && normalizePartCode(part.partNumber) === normalizePartCode(verification.currentPartNumber);
 
                 return (
-                  <article key={part.id} className={`grid gap-3 p-3 transition sm:grid-cols-[minmax(0,1fr)_210px] ${selected ? 'bg-blue-50/70 ring-1 ring-inset ring-blue-200' : 'hover:bg-slate-50'}`}>
+                  <article key={part.id} className={`grid gap-3 p-3 transition sm:grid-cols-[minmax(0,1fr)_210px] ${selected ? 'bg-blue-50 dark:bg-[#123867]/70 ring-1 ring-inset ring-blue-200' : 'hover:bg-slate-50 dark:bg-slate-800/50'}`}>
                     <button
                       type="button"
                       ref={element => { resultRefs.current[index] = element; }}
@@ -472,7 +472,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="text-sm font-semibold text-slate-800">{part.name}</div>
+                          <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{part.name}</div>
                           <div className="mt-1 text-xl font-bold tracking-tight text-[#1d4f91]">
                             {superseded ? (
                               <><span className="text-slate-400 line-through">{part.partNumber}</span> <span>→ {verification?.currentPartNumber}</span></>
@@ -480,26 +480,26 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                           </div>
                           {isCurrentReplacement && <div className="mt-1 text-[11px] font-medium text-blue-700">Código atual de {verification?.queriedPartNumber}</div>}
                         </div>
-                        {part.position && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-500">Pos. {part.position}</span>}
+                        {part.position && <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">Pos. {part.position}</span>}
                       </div>
                       <div className="mt-3 grid gap-x-4 gap-y-2 text-xs sm:grid-cols-3">
-                        <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">Modelo</span><strong className="mt-0.5 block text-slate-700">{part.model}</strong></div>
-                        <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">PNC</span><strong className="mt-0.5 block text-slate-700">{part.pnc || '—'}</strong></div>
-                        <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">Fonte</span><strong className="mt-0.5 block truncate text-slate-700">{part.filename}</strong></div>
+                        <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">Modelo</span><strong className="mt-0.5 block text-slate-700 dark:text-slate-300">{part.model}</strong></div>
+                        <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">PNC</span><strong className="mt-0.5 block text-slate-700 dark:text-slate-300">{part.pnc || '—'}</strong></div>
+                        <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">Fonte</span><strong className="mt-0.5 block truncate text-slate-700 dark:text-slate-300">{part.filename}</strong></div>
                       </div>
                     </button>
                     <div className="flex flex-wrap items-center gap-2 self-center px-2 pb-2 sm:flex-col sm:items-stretch sm:pb-0">
                       <VerificationBadge verification={verification} loading={verificationLoading} />
-                      <a href={verification?.officialUrl || husqvarnaPortalUrl(codeToUse)} target="_blank" rel="noreferrer" className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-center text-xs font-semibold text-[#1d4f91] transition hover:bg-blue-100">
+                      <a href={verification?.officialUrl || husqvarnaPortalUrl(codeToUse)} target="_blank" rel="noreferrer" className="rounded-xl border border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] px-3 py-2 text-center text-xs font-semibold text-[#1d4f91] transition hover:bg-blue-100">
                         Verificar no portal Husqvarna
                       </a>
-                      <button type="button" onClick={() => void copyCode(codeToUse)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#1d4f91] transition hover:border-blue-200 hover:bg-blue-50">
+                      <button type="button" onClick={() => void copyCode(codeToUse)} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-[#1d4f91] transition hover:border-blue-200 dark:border-blue-600 hover:bg-blue-50 dark:bg-[#123867]">
                         Copiar código
                       </button>
-                      <button type="button" onClick={() => void openPart(part.id)} disabled={opening} className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50">
+                      <button type="button" onClick={() => void openPart(part.id)} disabled={opening} className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 transition hover:bg-slate-100 dark:bg-slate-700 hover:text-slate-800 dark:text-slate-200 disabled:opacity-50">
                         {opening ? 'Abrindo…' : 'Ver detalhes'}
                       </button>
-                      <button type="button" onClick={() => setVerificationTarget({ partNumber: part.partNumber, name: part.name })} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                      <button type="button" onClick={() => setVerificationTarget({ partNumber: part.partNumber, name: part.name })} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:bg-slate-800/50">
                         Registrar conferência
                       </button>
                     </div>
@@ -529,7 +529,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
           </div>
           <div className="mt-4 grid gap-2">
             {documents.map(document => (
-              <div key={document.id} className="rounded-xl border border-slate-200 p-3">
+              <div key={document.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
                 <div className="truncate text-sm font-semibold" title={document.filename}>{document.filename}</div>
                 <div className="mt-1 text-xs leading-5 text-slate-400">
                   {document.manufacturer || 'Fabricante não informado'}<br />
@@ -540,20 +540,20 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                 </button>
               </div>
             ))}
-            {!documents.length && <div className="rounded-xl bg-slate-50 p-4 text-xs leading-5 text-slate-400">Os catálogos associados à pesquisa aparecerão aqui.</div>}
+            {!documents.length && <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-4 text-xs leading-5 text-slate-400">Os catálogos associados à pesquisa aparecerão aqui.</div>}
           </div>
         </aside>
       </div>
 
       {detail && (
         <div onMouseDown={closeDetailFromBackdrop} className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/45 p-0 backdrop-blur-sm md:items-center md:p-6">
-          <div role="dialog" aria-modal="true" aria-labelledby="part-detail-title" className="max-h-[92vh] w-full max-w-5xl overflow-auto rounded-t-[28px] bg-white shadow-2xl md:rounded-[28px]">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur">
+          <div role="dialog" aria-modal="true" aria-labelledby="part-detail-title" className="max-h-[92vh] w-full max-w-5xl overflow-auto rounded-t-[28px] bg-white dark:bg-slate-800 shadow-2xl md:rounded-[28px]">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white/$1 dark:bg-slate-800/$1 px-5 py-4 backdrop-blur">
               <div>
                 <div className="text-xs font-bold uppercase tracking-[.12em] text-[#1d4f91]">Detalhe da peça</div>
                 <div id="part-detail-title" className="mt-1 text-lg font-semibold">{detail.name}</div>
               </div>
-              <button type="button" autoFocus onClick={() => setDetail(null)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button>
+              <button type="button" autoFocus onClick={() => setDetail(null)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button>
             </div>
 
             <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -564,14 +564,14 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                     {detailWasSuperseded ? <><span className="text-slate-400 line-through">{detail.partNumber}</span> → {detailCode}</> : detail.partNumber}
                   </div>
                   <div className="mt-5 flex flex-wrap gap-2">
-                    <button type="button" onClick={() => void copyCode(detailCode)} className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-[#0d2348]">Copiar código</button>
+                    <button type="button" onClick={() => void copyCode(detailCode)} className="rounded-xl bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-[#0d2348]">Copiar código</button>
                     <button type="button" onClick={() => void toggleFavorite()} className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold">{detail.favoriteId ? '★ Favoritada' : '☆ Favoritar'}</button>
                     <button type="button" onClick={() => void accessPdf(detail.documentId, detail.page, detail.filename)} className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold">Abrir no catálogo</button>
                     <a href={detailVerification?.officialUrl || husqvarnaPortalUrl(detailCode)} target="_blank" rel="noreferrer" className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold">Verificar no portal Husqvarna</a>
                   </div>
                 </div>
 
-                <div className="mt-4 rounded-[18px] border border-slate-200 bg-white p-4">
+                <div className="mt-4 rounded-[18px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">Verificação oficial</div>
@@ -582,9 +582,9 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                       {detailVerification?.verifiedAt && (
                         <div className="mt-2 text-xs text-slate-400">Verificado em {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(detailVerification.verifiedAt))}{detailVerification.verifiedBy ? ` por ${detailVerification.verifiedBy}` : ''}</div>
                       )}
-                      {detailVerification?.note && <div className="mt-2 text-xs leading-5 text-slate-500">{detailVerification.note}</div>}
+                      {detailVerification?.note && <div className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{detailVerification.note}</div>}
                     </div>
-                    <button type="button" onClick={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">
+                    <button type="button" onClick={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
                       Registrar nova conferência
                     </button>
                   </div>
@@ -603,7 +603,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                   <div className="font-semibold">Compatibilidade encontrada</div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {detail.compatibility.map((item, index) => (
-                      <span key={`${item.model}-${item.pnc}-${index}`} className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-800">
+                      <span key={`${item.model}-${item.pnc}-${index}`} className="rounded-full border border-blue-100 dark:border-blue-700 bg-blue-50 dark:bg-[#123867] px-3 py-1.5 text-xs font-medium text-blue-800">
                         {item.model} · PNC {item.pnc || '—'}
                       </span>
                     ))}
@@ -613,21 +613,21 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
               </div>
 
               <div>
-                <div className="rounded-[22px] border border-slate-200 p-4">
+                <div className="rounded-[22px] border border-slate-200 dark:border-slate-700 p-4">
                   <div className="text-xs uppercase tracking-[.1em] text-slate-400">Fonte técnica</div>
                   <div className="mt-2 break-words text-sm font-semibold">{detail.filename}</div>
                   <div className="mt-1 text-xs text-slate-400">{detail.document.manufacturer || '—'} · {detail.document.model || '—'}</div>
                 </div>
-                <div className="mt-4 rounded-[22px] border border-slate-200 p-4">
+                <div className="mt-4 rounded-[22px] border border-slate-200 dark:border-slate-700 p-4">
                   <div className="font-semibold">Peças relacionadas</div>
                   <div className="mt-3 grid gap-2">
                     {detail.related.map(item => (
-                      <div key={item.id} className="flex items-center gap-2 rounded-xl bg-slate-50 p-2">
+                      <div key={item.id} className="flex items-center gap-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2">
                         <button type="button" onClick={() => void openPart(item.id)} className="min-w-0 flex-1 p-1 text-left">
                           <div className="text-xs font-semibold">{item.name}</div>
                           <div className="mt-1 text-xs text-slate-400">{item.partNumber} · posição {item.position || '—'}</div>
                         </button>
-                        <button type="button" onClick={() => void copyCode(item.partNumber)} aria-label={`Copiar código ${item.partNumber}`} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-[#1d4f91]">Copiar</button>
+                        <button type="button" onClick={() => void copyCode(item.partNumber)} aria-label={`Copiar código ${item.partNumber}`} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5 text-[10px] font-semibold text-[#1d4f91]">Copiar</button>
                       </div>
                     ))}
                     {!detail.related.length && <span className="text-xs text-slate-400">Nenhuma peça relacionada encontrada.</span>}
@@ -655,15 +655,15 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
 
       {pdf && (
         <div onMouseDown={closePdfFromBackdrop} className="fixed inset-0 z-[90] bg-slate-950/90 p-3 md:p-6">
-          <div role="dialog" aria-modal="true" aria-labelledby="pdf-preview-title" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+          <div role="dialog" aria-modal="true" aria-labelledby="pdf-preview-title" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white dark:bg-slate-800">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 px-4 py-3">
               <div>
                 <div id="pdf-preview-title" className="text-sm font-semibold">{pdf.title}</div>
                 <div className="text-xs text-slate-400">{pdf.page ? `Abrindo na página ${pdf.page}` : 'Visualização do catálogo'}</div>
               </div>
               <div className="flex items-center gap-2">
-                <a href={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-[#1d4f91]">Nova aba</a>
-                <button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button>
+                <a href={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-[#1d4f91]">Nova aba</a>
+                <button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button>
               </div>
             </div>
             <iframe title={pdf.title} src={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} className="h-full w-full border-0" />

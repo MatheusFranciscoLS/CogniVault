@@ -39,10 +39,10 @@ export function verificationLabel(value?: OfficialVerification) {
 }
 
 function verificationClass(value?: OfficialVerification) {
-  if (!value || value.state === 'UNVERIFIED') return 'border-slate-200 bg-slate-50 text-slate-500';
+  if (!value || value.state === 'UNVERIFIED') return 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400';
   if (value.cacheState === 'STALE') return 'border-amber-200 bg-amber-50 text-amber-700';
   if (value.state === 'VERIFIED') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-  if (value.state === 'SUPERSEDED') return 'border-blue-200 bg-blue-50 text-blue-700';
+  if (value.state === 'SUPERSEDED') return 'border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] text-blue-700';
   return 'border-amber-200 bg-amber-50 text-amber-700';
 }
 
@@ -108,18 +108,18 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
 
   return (
     <div className="fixed inset-0 z-[85] grid place-items-center bg-slate-950/50 p-4 backdrop-blur-sm">
-      <form onSubmit={submit} className="max-h-[92vh] w-full max-w-xl overflow-auto rounded-[24px] bg-white p-6 shadow-2xl">
+      <form onSubmit={submit} className="max-h-[92vh] w-full max-w-xl overflow-auto rounded-[24px] bg-white dark:bg-slate-800 p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-xs font-bold uppercase tracking-[.12em] text-[#1d4f91]">Conferência assistida</div>
             <h2 className="mt-1 text-xl font-semibold">Registrar conferência Husqvarna</h2>
-            <p className="mt-2 text-xs leading-5 text-slate-500">Abra o Portal Husqvarna, confira o código exibido e informe somente o código atual. O CogniVault registra usuário, data, fonte oficial e tipo da alteração automaticamente. O resultado só passa a valer depois da aprovação do Administrador.</p>
+            <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">Abra o Portal Husqvarna, confira o código exibido e informe somente o código atual. O CogniVault registra usuário, data, fonte oficial e tipo da alteração automaticamente. O resultado só passa a valer depois da aprovação do Administrador.</p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">Fechar</button>
+          <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm">Fechar</button>
         </div>
 
         {existing?.source !== 'NONE' && existing?.verifiedAt && (
-          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-500">
+          <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-3 text-xs leading-5 text-slate-500 dark:text-slate-400">
             Última aprovação oficial: {fmtDate(existing.verifiedAt)}{existing.verifiedBy ? ` · ${existing.verifiedBy}` : ''}.
             {existing.cacheState === 'FRESH' ? ` O resultado está válido no cache${existing.freshUntil ? ` até ${fmtDate(existing.freshUntil)}` : ''}.` : ' A validade venceu e uma nova conferência pode ser enviada.'}
             {' '}O histórico anterior nunca é apagado.
@@ -128,16 +128,16 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
 
         {error && <div role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
 
-        <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+        <div className="mt-5 rounded-2xl border border-blue-100 dark:border-blue-700 bg-blue-50 dark:bg-[#123867]/50 p-4">
           <div className="text-[10px] font-bold uppercase tracking-[.1em] text-blue-700">Peça conferida</div>
-          <div className="mt-1 text-sm font-semibold text-slate-800">{target.name}</div>
+          <div className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-200">{target.name}</div>
           <div className="mt-1 text-lg font-bold text-[#1d4f91]">{target.partNumber}</div>
-          <a href={husqvarnaPortalUrl(target.partNumber)} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#1d4f91]">
+          <a href={husqvarnaPortalUrl(target.partNumber)} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-xl border border-blue-200 dark:border-blue-600 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-semibold text-[#1d4f91]">
             Abrir Portal Husqvarna →
           </a>
         </div>
 
-        <label className="mt-5 block text-xs font-semibold text-slate-600">
+        <label className="mt-5 block text-xs font-semibold text-slate-600 dark:text-slate-400">
           Código atual mostrado no Portal
           <input
             autoFocus
@@ -145,11 +145,11 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
             value={currentPartNumber}
             onChange={event => setCurrentPartNumber(event.target.value)}
             placeholder="Digite ou cole o código atual"
-            className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm"
+            className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-3 text-sm"
           />
         </label>
 
-        <div className={`mt-3 rounded-xl border p-3 text-xs leading-5 ${changed ? 'border-blue-200 bg-blue-50 text-blue-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
+        <div className={`mt-3 rounded-xl border p-3 text-xs leading-5 ${changed ? 'border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] text-blue-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
           {validCurrentCode ? (
             changed
               ? <><b>Substituição detectada automaticamente:</b> {target.partNumber} → {currentPartNumber}. O Administrador precisará aprovar antes de o sistema usar o novo código.</>
@@ -157,13 +157,13 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
           ) : 'Digite um código válido para o CogniVault identificar automaticamente se houve substituição.'}
         </div>
 
-        <label className="mt-4 block text-xs font-semibold text-slate-600">
+        <label className="mt-4 block text-xs font-semibold text-slate-600 dark:text-slate-400">
           Observação opcional
-          <textarea value={note} onChange={event => setNote(event.target.value)} maxLength={2000} rows={3} placeholder="Ex.: conferido na tela de spare parts; descrição apresentada no portal." className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm" />
+          <textarea value={note} onChange={event => setNote(event.target.value)} maxLength={2000} rows={3} placeholder="Ex.: conferido na tela de spare parts; descrição apresentada no portal." className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-3 text-sm" />
         </label>
 
-        <div className="mt-3 rounded-xl bg-slate-50 p-3 text-[11px] leading-5 text-slate-500">
-          Fonte que ficará vinculada automaticamente: <span className="break-all font-medium text-slate-700">{generatedUrl}</span>
+        <div className="mt-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
+          Fonte que ficará vinculada automaticamente: <span className="break-all font-medium text-slate-700 dark:text-slate-300">{generatedUrl}</span>
         </div>
 
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
