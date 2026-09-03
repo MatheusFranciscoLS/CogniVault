@@ -403,3 +403,21 @@ html.dark { background: #0f172a; }
   border-color: #334155;
   color: #cbd5e1;
 }
+
+
+.dark .text-rose-700 { @apply text-rose-400; }
+.dark .bg-rose-50 { @apply bg-rose-950/40; }
+.dark .border-rose-200 { @apply border-rose-800; }
+
+.dark .text-amber-700 { @apply text-amber-400; }
+.dark .text-amber-900 { @apply text-amber-200; }
+.dark .bg-amber-50 { @apply bg-amber-950/40; }
+.dark .border-amber-200 { @apply border-amber-800; }
+.dark .border-amber-300 { @apply border-amber-700; }
+
+.dark .text-emerald-700 { @apply text-emerald-400; }
+.dark .bg-emerald-50 { @apply bg-emerald-950/40; }
+.dark .border-emerald-200 { @apply border-emerald-800; }
+
+.dark .text-blue-700 { @apply text-blue-400; }
+.dark .text-blue-900 { @apply text-blue-200; }
