@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
 import { apiJson, fmtDate } from '../lib';
 import type { NotificationItem, Section, SessionUser } from '../types';
+import { useTheme } from './ThemeProvider';
 
 type Props = {
   user: SessionUser;
@@ -55,6 +57,20 @@ function BellIcon() {
   return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>;
 }
 
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  const toggle = () => setTheme(theme === 'dark' ? 'light' : 'dark');
+  return (
+    <button type="button" onClick={toggle} aria-label="Alternar tema escuro" className="cv-icon-button">
+      {theme === 'dark' ? (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      ) : (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      )}
+    </button>
+  );
+}
+
 function fetchNotifications() { return apiJson<{ notifications: NotificationItem[] }>('/api/notifications'); }
 
 export default function Shell({ user, section, onSection, onLogout, onSearch, children }: Props) {
@@ -74,18 +90,17 @@ export default function Shell({ user, section, onSection, onLogout, onSearch, ch
     return () => { active = false; window.clearInterval(timer); };
   }, []);
 
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        const searchField = document.getElementById('cv-global-search') as HTMLInputElement | null;
-        searchField?.focus(); searchField?.select();
-      }
-      if (event.key === 'Escape') { setNotificationsOpen(false); setMenuOpen(false); }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
+  useHotkeys('ctrl+k, meta+k', (event) => {
+    event.preventDefault();
+    const searchField = document.getElementById('cv-global-search') as HTMLInputElement | null;
+    searchField?.focus();
+    searchField?.select();
+  }, { enableOnFormTags: true });
+
+  useHotkeys('escape', () => {
+    setNotificationsOpen(false);
+    setMenuOpen(false);
+  }, { enableOnFormTags: true });
 
   const select = (next: Section) => { onSection(next); setMenuOpen(false); };
   const submit = (event: FormEvent) => { event.preventDefault(); if (search.trim().length < 2) return; onSearch(search.trim()); setSearch(''); };
@@ -105,7 +120,7 @@ export default function Shell({ user, section, onSection, onLogout, onSearch, ch
     {menuOpen && <div className="fixed inset-0 z-50 lg:hidden"><button type="button" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} className="absolute inset-0 bg-slate-950/35 backdrop-blur-[2px]"/><div className="relative h-full w-[292px] max-w-[86vw] shadow-2xl">{sidebar}</div></div>}
     <main className="min-w-0"><header className="sticky top-0 z-40 border-b border-slate-200/70 bg-[#f8fbff]/90 backdrop-blur-xl"><div className="flex min-h-[70px] items-center gap-3 px-4 sm:px-6 md:px-8"><button type="button" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} className="cv-icon-button lg:hidden"><span aria-hidden="true" className="text-lg leading-none">☰</span></button><div className="hidden min-w-[128px] xl:block"><div className="text-[10px] font-bold uppercase tracking-[.13em] text-slate-400">Área atual</div><div className="mt-0.5 text-sm font-semibold text-slate-800">{currentLabel}</div></div>
       <form role="search" onSubmit={submit} className="relative min-w-0 flex-1 xl:max-w-2xl"><svg aria-hidden="true" viewBox="0 0 24 24" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><label htmlFor="cv-global-search" className="sr-only">Buscar peça, código, modelo ou PNC</label><input id="cv-global-search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar peça, código, modelo ou PNC…" minLength={2} required aria-keyshortcuts="Control+K Meta+K" className="w-full rounded-[14px] border border-slate-200 bg-slate-50/80 py-2.5 pl-10 pr-20 text-sm outline-none transition focus:border-[#1d4f91] focus:bg-white focus:ring-4 focus:ring-blue-500/10"/>{search ? <button type="button" onClick={()=>setSearch('')} aria-label="Limpar busca" className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">Limpar</button> : <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] font-medium text-slate-400 sm:block">Ctrl K</span>}</form>
-      <div className="ml-auto flex items-center gap-2"><div className="relative"><button type="button" onClick={() => { setNotificationsOpen(value => !value); refreshNotifications(); }} aria-label="Notificações" aria-expanded={notificationsOpen} className="cv-icon-button relative"><BellIcon/>{notifications.length > 0 && <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-[#1d4f91] px-1 text-[9px] font-bold leading-4 text-white">{Math.min(notifications.length, 9)}</span>}</button>{notificationsOpen && <div className="absolute right-0 top-12 z-50 w-[360px] max-w-[88vw] overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-2xl"><div className="border-b border-slate-100 px-4 py-3"><div className="text-sm font-semibold">Notificações</div><div className="mt-0.5 text-xs text-slate-400">Atualizações operacionais do CogniVault</div></div><div className="cv-scrollbar max-h-[420px] overflow-auto">{notifications.map(item => <div key={item.id} className="border-b border-slate-100 p-4 last:border-0"><div className={`text-xs font-semibold ${item.type === 'error' ? 'text-rose-700' : item.type === 'processing' ? 'text-amber-700' : 'text-slate-700'}`}>{item.title}</div><div className="mt-1 text-xs leading-5 text-slate-500">{item.description}</div><div className="mt-1.5 text-[10px] text-slate-400">{fmtDate(item.createdAt)}</div></div>)}{!notifications.length && <div className="p-8 text-center"><div className="text-sm font-semibold text-slate-600">Tudo em dia</div><div className="mt-1 text-xs text-slate-400">Nenhuma atualização importante agora.</div></div>}</div></div>}</div><div className="hidden items-center gap-2 rounded-[14px] border border-slate-200 bg-white px-2.5 py-2 sm:flex"><span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,.1)]"/><div><div className="max-w-[150px] truncate text-[11px] font-semibold text-slate-700">{user.tenant.name}</div><div className="text-[9px] text-slate-400">{user.role === 'ADMIN' ? 'Administrador' : 'Balcão'}</div></div></div></div>
+      <div className="ml-auto flex items-center gap-2"><ThemeToggle /><div className="relative"><button type="button" onClick={() => { setNotificationsOpen(value => !value); refreshNotifications(); }} aria-label="Notificações" aria-expanded={notificationsOpen} className="cv-icon-button relative"><BellIcon/>{notifications.length > 0 && <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-[#1d4f91] px-1 text-[9px] font-bold leading-4 text-white">{Math.min(notifications.length, 9)}</span>}</button>{notificationsOpen && <div className="absolute right-0 top-12 z-50 w-[360px] max-w-[88vw] overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-2xl"><div className="border-b border-slate-100 px-4 py-3"><div className="text-sm font-semibold">Notificações</div><div className="mt-0.5 text-xs text-slate-400">Atualizações operacionais do CogniVault</div></div><div className="cv-scrollbar max-h-[420px] overflow-auto">{notifications.map(item => <div key={item.id} className="border-b border-slate-100 p-4 last:border-0"><div className={`text-xs font-semibold ${item.type === 'error' ? 'text-rose-700' : item.type === 'processing' ? 'text-amber-700' : 'text-slate-700'}`}>{item.title}</div><div className="mt-1 text-xs leading-5 text-slate-500">{item.description}</div><div className="mt-1.5 text-[10px] text-slate-400">{fmtDate(item.createdAt)}</div></div>)}{!notifications.length && <div className="p-8 text-center"><div className="text-sm font-semibold text-slate-600">Tudo em dia</div><div className="mt-1 text-xs text-slate-400">Nenhuma atualização importante agora.</div></div>}</div></div>}</div><div className="hidden items-center gap-2 rounded-[14px] border border-slate-200 bg-white px-2.5 py-2 sm:flex"><span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,.1)]"/><div><div className="max-w-[150px] truncate text-[11px] font-semibold text-slate-700">{user.tenant.name}</div><div className="text-[9px] text-slate-400">{user.role === 'ADMIN' ? 'Administrador' : 'Balcão'}</div></div></div></div>
     </div></header><div className="mx-auto max-w-[1540px] p-4 sm:p-6 md:p-8 lg:p-10">{children}</div></main>
   </div>;
 }

@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { api, apiJson, fmtDate, json } from '../lib';
+import { toast } from 'sonner';
 import type { DocumentItem, FavoriteItem } from '../types';
 import BatchCatalogUploader from './BatchCatalogUploader';
 
@@ -103,45 +105,36 @@ function matchesStatusFilter(document:DocumentItem,filter:StatusFilter):boolean 
 }
 
 export default function CatalogsPanel({admin,onQuality}:{admin:boolean;onQuality?:()=>void}) {
-  const [docs,setDocs]=useState<DocumentItem[]>([]);
-  const [favorites,setFavorites]=useState<FavoriteItem[]>([]);
-  const [categories,setCategories]=useState<string[]>([]);
   const [categoryFilter,setCategoryFilter]=useState('ALL');
   const [statusFilter,setStatusFilter]=useState<StatusFilter>('ALL');
   const [search,setSearch]=useState('');
   const [archived,setArchived]=useState(false);
   const [busy,setBusy]=useState(false);
   const [analyzingQuality,setAnalyzingQuality]=useState(false);
-  const [error,setError]=useState('');
-  const [notice,setNotice]=useState('');
+  const [actionError,setActionError]=useState('');
   const [pdf,setPdf]=useState<{url:string;title:string}|null>(null);
 
-  const applyData=(data:CatalogData)=>{
-    setDocs(data.documents);
-    setFavorites(data.favorites);
-    setCategories(data.categories);
-    setError('');
-  };
-  const load=async()=>applyData(await fetchCatalogData(admin,archived));
+  const { data, refetch, error: loadError } = useQuery({
+    queryKey: ['catalogs', admin, archived],
+    queryFn: () => fetchCatalogData(admin, archived),
+    refetchInterval: (query) => {
+      const currentDocs = query.state.data?.documents || [];
+      const processing = currentDocs.some(document => document.processingActive || ['PENDING', 'PROCESSING'].includes(document.status));
+      return processing ? 8000 : false;
+    },
+  });
 
-  useEffect(()=>{
-    let active=true;
-    void fetchCatalogData(admin,archived)
-      .then(data=>{if(active)applyData(data)})
-      .catch(loadError=>{if(active)setError(loadError instanceof Error?loadError.message:'Erro ao carregar catálogos.')});
-    return()=>{active=false};
-  },[admin,archived]);
+  const docs = data?.documents || [];
+  const favorites = data?.favorites || [];
+  const categories = data?.categories || [];
 
-  const processing=docs.some(document=>document.processingActive||['PENDING','PROCESSING'].includes(document.status));
-  useEffect(()=>{
-    if(!processing)return;
-    let active=true;
-    const refresh=()=>{void fetchCatalogData(admin,archived).then(data=>{if(active)applyData(data)}).catch(()=>{/* A próxima atualização tentará novamente. */})};
-    const timer=window.setInterval(refresh,8_000);
-    return()=>{active=false;window.clearInterval(timer)};
-  },[admin,archived,processing]);
+  const error = actionError || (loadError instanceof Error ? loadError.message : loadError ? 'Erro ao carregar catálogos.' : '');
+  const setError = setActionError;
+
+  const load = async () => { await refetch(); };
 
   const activeDocs=useMemo(()=>docs.filter(document=>archived||!document.archivedAt),[docs,archived]);
+  const processing = activeDocs.some(document=>document.processingActive||['PENDING','PROCESSING'].includes(document.status));
   const qualityPending=useMemo(()=>activeDocs.filter(document=>document.status==='COMPLETED'&&(!document.qualityCheckedAt||document.reviewStatus==='PENDING'||!document.healthScore)).length,[activeDocs]);
   const failedCount=useMemo(()=>activeDocs.filter(document=>document.status==='FAILED').length,[activeDocs]);
   const reviewCount=useMemo(()=>activeDocs.filter(document=>document.status==='COMPLETED'&&(document.modelNeedsReview||document.reviewStatus==='NEEDS_REVIEW'||document.reviewStatus==='PENDING')).length,[activeDocs]);
@@ -163,7 +156,7 @@ export default function CatalogsPanel({admin,onQuality}:{admin:boolean;onQuality
   }),[activeDocs,effectiveCategoryFilter,normalizedSearch,statusFilter]);
   const favoritesByDocument=useMemo(()=>new Map(favorites.filter(item=>item.documentId).map(item=>[item.documentId!,item])),[favorites]);
 
-  const flash=(text:string)=>{setNotice(text);window.setTimeout(()=>setNotice(''),2200)};
+  const flash=(text:string)=>{toast.success(text);};
   const access=async(id:string,mode:'view'|'download',title='Catálogo')=>{
     try {
       const data=await apiJson<{url:string}>(`/api/documents/${id}/access?mode=${mode}`);
@@ -265,7 +258,6 @@ export default function CatalogsPanel({admin,onQuality}:{admin:boolean;onQuality
   ];
 
   return <section>
-    {notice&&<div role="status" className="fixed right-5 top-20 z-50 rounded-xl bg-slate-950 px-4 py-2.5 text-sm text-white shadow-xl">{notice}</div>}
     <div className="cv-page-heading">
       <div><p className="cv-kicker">Biblioteca técnica</p><h1 className="cv-page-title">Catálogos</h1><p className="mt-2 max-w-2xl text-sm text-slate-500">Consulte os manuais por família de máquina, favorite os mais usados e acompanhe o processamento dos PDFs.</p></div>
       {admin&&<label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={archived} onChange={event=>setArchived(event.target.checked)}/> Mostrar arquivados</label>}

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { apiJson } from '../lib';
 import type { HomeData } from '../types';
 
@@ -8,14 +9,12 @@ function Empty({ title, description }: { title: string; description: string }) {
 }
 
 export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: string) => void; onCatalogs: () => void }) {
-  const [data, setData] = useState<HomeData | null>(null);
   const [query, setQuery] = useState('');
 
-  useEffect(() => {
-    let active = true;
-    void apiJson<{ home: HomeData }>('/api/home').then(result => { if (active) setData(result.home); }).catch(() => { if (active) setData(null); });
-    return () => { active = false; };
-  }, []);
+  const { data } = useQuery({
+    queryKey: ['home'],
+    queryFn: () => apiJson<{ home: HomeData }>('/api/home').then(res => res.home),
+  });
 
   const submit = (event: FormEvent) => { event.preventDefault(); if (query.trim()) onSearch(query.trim()); };
   const examples = ['carburador 143RII', 'filtro de ar 143RII', 'vela 143RII'];

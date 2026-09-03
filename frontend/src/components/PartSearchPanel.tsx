@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { api, apiJson, json } from '../lib';
+import { toast } from 'sonner';
 import type { OfficialVerification, PartDetail, SearchPart } from '../types';
 import OfficialVerificationApprovalPanel from './OfficialVerificationApprovalPanel';
 import PartVerificationDialog, {
@@ -43,22 +44,7 @@ function isTextEditingTarget(target: EventTarget | null) {
     || target.isContentEditable;
 }
 
-function useTransientNotice() {
-  const [notice, setNotice] = useState('');
-  const timer = useRef<number | null>(null);
 
-  const showNotice = useCallback((message: string) => {
-    if (timer.current !== null) window.clearTimeout(timer.current);
-    setNotice(message);
-    timer.current = window.setTimeout(() => setNotice(''), 1800);
-  }, []);
-
-  useEffect(() => () => {
-    if (timer.current !== null) window.clearTimeout(timer.current);
-  }, []);
-
-  return { notice, showNotice };
-}
 
 function EmptyState({ title, description }: { title: string; description: string }) {
   return (
@@ -116,7 +102,6 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
   const [verificationTarget, setVerificationTarget] = useState<VerificationTarget | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const { notice, showNotice } = useTransientNotice();
 
   const loadVerifications = useCallback(async (items: Array<Pick<SearchPart, 'partNumber'>>, replace = false) => {
     if (!items.length) {
@@ -221,11 +206,11 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
   const copyCode = useCallback(async (value: string) => {
     try {
       await navigator.clipboard.writeText(value);
-      showNotice(`Código ${value} copiado.`);
+      toast.success(`Código ${value} copiado.`);
     } catch {
-      showNotice(`Código: ${value}`);
+      toast.info(`Código: ${value}`);
     }
-  }, [showNotice]);
+  }, []);
 
   const openPart = useCallback(async (id: string) => {
     setDetailLoadingId(id);
@@ -257,7 +242,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
       if (detail.favoriteId) {
         await json(await api(`/api/favorites/${detail.favoriteId}`, { method: 'DELETE' }));
         setDetail(current => current ? { ...current, favoriteId: null } : current);
-        showNotice('Favorito removido.');
+        toast.success('Favorito removido.');
       } else {
         const data = await apiJson<{ favorite: { id: string } }>('/api/favorites', {
           method: 'POST',
@@ -265,12 +250,12 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
           body: JSON.stringify({ partId: detail.id }),
         });
         setDetail(current => current ? { ...current, favoriteId: data.favorite.id } : current);
-        showNotice('Peça adicionada aos favoritos.');
+        toast.success('Peça adicionada aos favoritos.');
       }
     } catch (favoriteError) {
       setError(favoriteError instanceof Error ? favoriteError.message : 'Não foi possível atualizar o favorito.');
     }
-  }, [detail, showNotice]);
+  }, [detail]);
 
   useEffect(() => {
     const handleKeyboard = (event: KeyboardEvent) => {
@@ -395,12 +380,6 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
 
   return (
     <section>
-      {notice && (
-        <div role="status" aria-live="polite" className="fixed right-5 top-20 z-[100] rounded-xl bg-slate-950 px-4 py-2.5 text-sm text-white shadow-xl">
-          {notice}
-        </div>
-      )}
-
       <p className="cv-kicker">Atendimento rápido</p>
       <h1 className="cv-page-title">Peças e catálogos</h1>
       <p className="mt-2 text-sm text-slate-500">Encontre, confira e copie o código sem interromper o atendimento ao cliente.</p>
@@ -668,7 +647,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
           onClose={() => setVerificationTarget(null)}
           onSaved={() => {
             setVerificationTarget(null);
-            showNotice('Conferência enviada para aprovação.');
+            toast.success('Conferência enviada para aprovação.');
             refreshApprovedVerifications();
           }}
         />
