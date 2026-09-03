@@ -348,22 +348,41 @@ export class OperationalController {
     async notifications(req: AuthenticatedRequest, res: Response): Promise<void> {
         if (!req.user) return;
         const tenantId = req.user.tenantId;
+        const isAdmin = req.user.role === 'ADMIN';
         try {
-            const [documents, audits] = await Promise.all([
+            const [documents, audits, verifications] = await Promise.all([
                 prisma.document.findMany({
                     where: { tenantId, archivedAt: null, status: { in: ['FAILED', 'PROCESSING', 'PENDING'] } },
                     orderBy: { createdAt: 'desc' }, take: 8,
                     select: { id: true, filename: true, status: true, createdAt: true },
                 }),
-                req.user.role === 'ADMIN' ? prisma.auditLog.findMany({
+                isAdmin ? prisma.auditLog.findMany({
                     where: { tenantId }, orderBy: { createdAt: 'desc' }, take: 12,
                     select: { id: true, action: true, targetType: true, createdAt: true, user: { select: { email: true } } },
+                }) : Promise.resolve([]),
+                isAdmin ? prisma.officialPartVerification.findMany({
+                    where: { tenantId, approvalStatus: 'PENDING' },
+                    orderBy: { createdAt: 'desc' }, take: 8,
+                    select: { id: true, queriedPartNumber: true, currentPartNumber: true, status: true, user: { select: { email: true } }, createdAt: true },
                 }) : Promise.resolve([]),
             ]);
 
             const items = [
-                ...documents.map((item) => ({ id: `doc-${item.id}`, type: item.status === 'FAILED' ? 'error' : 'processing', title: item.status === 'FAILED' ? 'Falha no processamento' : 'Catálogo em processamento', description: item.filename, createdAt: item.createdAt })),
-                ...audits.map((item) => ({ id: `audit-${item.id}`, type: 'info', title: item.action.replaceAll('_', ' '), description: item.user?.email || 'Sistema', createdAt: item.createdAt })),
+                ...verifications.map((item) => {
+                    const isSuperseded = item.status === 'SUPERSEDED' || item.queriedPartNumber.replace(/\W/g, '') !== item.currentPartNumber.replace(/\W/g, '');
+                    const label = isSuperseded
+                        ? `Substituição ${item.queriedPartNumber} → ${item.currentPartNumber}`
+                        : `Conferência da peça ${item.queriedPartNumber}`;
+                    return {
+                        id: `verification-${item.id}`,
+                        type: 'warning' as const,
+                        title: 'Conferência pendente de aprovação',
+                        description: `${label} (por ${item.user.email})`,
+                        createdAt: item.createdAt,
+                    };
+                }),
+                ...documents.map((item) => ({ id: `doc-${item.id}`, type: item.status === 'FAILED' ? 'error' as const : 'processing' as const, title: item.status === 'FAILED' ? 'Falha no processamento' : 'Catálogo em processamento', description: item.filename, createdAt: item.createdAt })),
+                ...audits.map((item) => ({ id: `audit-${item.id}`, type: 'info' as const, title: item.action.replaceAll('_', ' '), description: item.user?.email || 'Sistema', createdAt: item.createdAt })),
             ].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)).slice(0, 20);
 
             res.json({ notifications: items });

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { toast } from 'sonner';
 import { api, apiJson, fmtDate, json } from '../lib';
 import { pdfPageUrl } from '../pdf';
 import type { FavoriteItem, SearchHistoryItem, SearchStatus } from '../types';
@@ -32,31 +33,13 @@ function EmptyState({ title, description }: { title: string; description: string
   );
 }
 
-function useCopyNotice() {
-  const [notice, setNotice] = useState('');
-  const timer = useRef<number | null>(null);
-
-  const copy = useCallback(async (value: string) => {
-    if (timer.current !== null) window.clearTimeout(timer.current);
-    try {
-      await navigator.clipboard.writeText(value);
-      setNotice(`Código ${value} copiado.`);
-    } catch {
-      setNotice(`Código: ${value}`);
-    }
-    timer.current = window.setTimeout(() => setNotice(''), 1800);
-  }, []);
-
-  useEffect(() => () => {
-    if (timer.current !== null) window.clearTimeout(timer.current);
-  }, []);
-
-  return { notice, copy };
-}
-
-function Toast({ message }: { message: string }) {
-  if (!message) return null;
-  return <div role="status" aria-live="polite" className="fixed right-5 top-20 z-[100] rounded-xl bg-slate-950 px-4 py-2.5 text-sm text-white shadow-xl">{message}</div>;
+async function copyCode(value: string) {
+  try {
+    await navigator.clipboard.writeText(value);
+    toast.success(`Código ${value} copiado.`);
+  } catch {
+    toast.info(`Código: ${value}`);
+  }
 }
 
 function LoadingCards() {
@@ -89,7 +72,6 @@ export function HistoryPanel({ onSearch }: { onSearch: (query: string) => void }
   const [statusFilter, setStatusFilter] = useState<'ALL' | SearchStatus>('ALL');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const { notice, copy } = useCopyNotice();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -135,7 +117,6 @@ export function HistoryPanel({ onSearch }: { onSearch: (query: string) => void }
 
   return (
     <section>
-      <Toast message={notice} />
       <p className="cv-kicker">Continuidade do atendimento</p>
       <h1 className="cv-page-title">Histórico inteligente</h1>
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Retome o contexto original da consulta, identifique pesquisas recorrentes e filtre atendimentos que ainda precisam de confirmação.</p>
@@ -189,7 +170,7 @@ export function HistoryPanel({ onSearch }: { onSearch: (query: string) => void }
                       <div className="mt-1 text-[10px] text-slate-400">{fmtDate(item.createdAt)}{item.pnc ? ` · PNC usado ${item.pnc}` : ''}{item.sourceFilename ? ` · ${item.sourceFilename}` : ''}</div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {item.resultCode && <button type="button" onClick={() => void copy(item.resultCode!)} className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/60 px-3 py-2 text-xs font-semibold text-[#1d4f91] dark:text-blue-300 transition hover:border-blue-200 dark:hover:border-blue-500/50 hover:bg-blue-50 dark:hover:bg-blue-500/10">Copiar código</button>}
+                      {item.resultCode && <button type="button" onClick={() => void copyCode(item.resultCode!)} className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/60 px-3 py-2 text-xs font-semibold text-[#1d4f91] dark:text-blue-300 transition hover:border-blue-200 dark:hover:border-blue-500/50 hover:bg-blue-50 dark:hover:bg-blue-500/10">Copiar código</button>}
                       {item.resultCode && <button type="button" onClick={() => onSearch(item.resultCode!)} className="rounded-xl border border-blue-200 dark:border-blue-600 bg-white dark:bg-slate-800/60 px-3 py-2 text-xs font-semibold text-[#1d4f91] dark:text-blue-300 transition hover:bg-blue-50 dark:hover:bg-blue-500/10">Consultar código</button>}
                       <button type="button" onClick={() => onSearch(replayQuery(item))} className="cv-primary px-3 py-2 text-xs font-semibold">Retomar contexto</button>
                     </div>
@@ -219,7 +200,6 @@ export function FavoritesPanel({ onSearch }: { onSearch: (query: string) => void
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [pdf, setPdf] = useState<{ url: string; title: string; page: number | null } | null>(null);
-  const { notice, copy } = useCopyNotice();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -258,8 +238,11 @@ export function FavoritesPanel({ onSearch }: { onSearch: (query: string) => void
     try {
       await json(await api(`/api/favorites/${id}`, { method: 'DELETE' }));
       setItems(current => current.filter(item => item.id !== id));
+      toast.success('Item removido dos favoritos.');
     } catch (removeError) {
-      setError(removeError instanceof Error ? removeError.message : 'Não foi possível remover o favorito.');
+      const msg = removeError instanceof Error ? removeError.message : 'Não foi possível remover o favorito.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setRemovingId(null);
     }
@@ -287,7 +270,6 @@ export function FavoritesPanel({ onSearch }: { onSearch: (query: string) => void
 
   return (
     <section>
-      <Toast message={notice} />
       <p className="cv-kicker">Atalhos pessoais</p>
       <h1 className="cv-page-title">Favoritos operacionais</h1>
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Mantenha peças e catálogos recorrentes prontos para copiar, consultar ou abrir diretamente na fonte técnica.</p>
@@ -324,7 +306,7 @@ export function FavoritesPanel({ onSearch }: { onSearch: (query: string) => void
               {item.kind === 'PART' && (item.section || item.position || item.page) && <div className="mt-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3 text-[11px] leading-5 text-slate-500 dark:text-slate-400">{item.section ? `Vista: ${item.section}` : 'Vista não informada'}{item.position ? ` · posição ${item.position}` : ''}{item.page ? ` · pág. ${item.page}` : ''}</div>}
               {item.sourceFilename && <div className="mt-2 truncate text-[10px] text-slate-400" title={item.sourceFilename}>{item.sourceFilename}</div>}
               <div className="mt-auto flex flex-wrap gap-2 pt-5">
-                {item.reference && <button type="button" onClick={() => void copy(item.reference!)} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-[#1d4f91] dark:text-blue-300 transition hover:border-blue-200 dark:border-blue-600 hover:bg-blue-50 dark:bg-[#123867]">Copiar código</button>}
+                {item.reference && <button type="button" onClick={() => void copyCode(item.reference!)} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-[#1d4f91] dark:text-blue-300 transition hover:border-blue-200 dark:border-blue-600 hover:bg-blue-50 dark:bg-[#123867]">Copiar código</button>}
                 {item.reference && <button type="button" onClick={() => onSearch(item.reference!)} className="cv-primary px-3 py-2 text-xs font-semibold">Consultar</button>}
                 {item.documentId && <button type="button" onClick={() => void openCatalog(item)} className="rounded-xl border border-blue-200 dark:border-blue-600 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-[#1d4f91] dark:text-blue-300 transition hover:bg-blue-50 dark:bg-[#123867]">{item.page ? 'Abrir na página' : 'Abrir catálogo'}</button>}
                 <button type="button" onClick={() => void remove(item.id)} disabled={removingId === item.id} className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-400 transition hover:bg-rose-50 dark:bg-rose-900/30 hover:text-rose-600 disabled:opacity-50">{removingId === item.id ? 'Removendo…' : 'Remover'}</button>

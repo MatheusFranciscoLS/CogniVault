@@ -61,7 +61,7 @@ export interface HomeData {
   counts:{parts:number;documents:number}; recentSearches:SearchHistoryItem[]; favorites:FavoriteItem[];
   recentDocuments:Array<{id:string;filename:string;manufacturer:string|null;model:string|null;pnc:string|null;createdAt:string;partCount:number}>;
 }
-export interface NotificationItem { id:string; type:'info'|'error'|'processing'; title:string; description:string; createdAt:string; }
+export interface NotificationItem { id:string; type:'info'|'error'|'processing'|'warning'; title:string; description:string; createdAt:string; }
 export interface AdminFeedback {
   id:string; query:string; correct:boolean; reason:string|null; pnc:string|null; createdAt:string; user:{id:string;email:string}|null;
   resultPart:{name:string;partNumber:string;model:string}|null; correctedPart:{name:string;partNumber:string;model:string}|null;
