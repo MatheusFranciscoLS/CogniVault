@@ -146,7 +146,14 @@ export class OperationalController {
 
         const seen = new Set<string>();
         const rankedParts = resolvedParts
-            .map(part => ({ part, score: groups.length ? scorePartText(q, { name: part.name, section: part.section, aliases: part.alternativeNames }) : 0 }))
+            .map(part => {
+                let score = groups.length ? scorePartText(q, { name: part.name, section: part.section, aliases: part.alternativeNames }) : 0;
+                if (identifier && part.normalizedPartNumber === identifier) score += 1000;
+                else if (relatedCodes.length && relatedCodes.includes(part.normalizedPartNumber)) score += 800;
+                if (normalizedModel && part.normalizedModel === normalizedModel) score += 200;
+                if (normalizedPnc && part.normalizedPnc === normalizedPnc) score += 150;
+                return { part, score };
+            })
             .sort((a, b) => b.score - a.score || a.part.name.localeCompare(b.part.name, 'pt-BR'))
             .filter(({ part }) => {
                 const identity = `${part.normalizedPartNumber}|${part.normalizedModel}|${part.universalAcrossPnc ? '*' : (part.normalizedPnc || '')}`;
@@ -184,6 +191,9 @@ export class OperationalController {
                 return;
             }
 
+            const relatedCodes = allRelatedPartNumbers(part.normalizedPartNumber).map(normalizeIdentifier).filter(Boolean);
+            const compatibilityCodes = relatedCodes.length ? relatedCodes : [part.normalizedPartNumber];
+
             const [related, compatibility, favorite] = await Promise.all([
                 prisma.part.findMany({
                     where: {
@@ -196,12 +206,12 @@ export class OperationalController {
                 }),
                 prisma.part.findMany({
                     where: {
-                        normalizedPartNumber: part.normalizedPartNumber,
+                        normalizedPartNumber: { in: compatibilityCodes },
                         active: true,
                         document: { tenantId: req.user.tenantId, archivedAt: null, status: 'COMPLETED' },
                     },
                     distinct: ['normalizedModel', 'normalizedPnc'],
-                    take: 30,
+                    take: 50,
                     select: { model: true, pnc: true, universalAcrossPnc: true },
                 }),
                 prisma.favorite.findFirst({ where: { userId: req.user.id, partId: part.id }, select: { id: true } }),

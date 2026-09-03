@@ -627,6 +627,19 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                   </div>
                   <div className="mt-5 flex flex-wrap gap-2">
                     <button type="button" onClick={() => void copyCode(detailCode)} className="rounded-xl bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-[#0d2348]">Copiar código</button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetName = detail.name;
+                        const targetCode = detailCode;
+                        const targetModel = detail.model;
+                        setDetail(null);
+                        openAiAssistant(`Tenho uma dúvida sobre a peça ${targetName} (código ${targetCode}) do modelo ${targetModel}. Pode me orientar sobre aplicação e compatibilidade?`);
+                      }}
+                      className="rounded-xl border border-indigo-300/60 dark:border-indigo-500/60 bg-indigo-600/90 hover:bg-indigo-600 text-white px-3 py-2 text-xs font-semibold shadow-sm transition"
+                    >
+                      ✦ Perguntar à IA
+                    </button>
                     <button type="button" onClick={() => void toggleFavorite()} className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold">{detail.favoriteId ? '★ Favoritada' : '☆ Favoritar'}</button>
                     <button type="button" onClick={() => void accessPdf(detail.documentId, detail.page, detail.filename)} className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold">Abrir no catálogo</button>
                     <a href={detailVerification?.officialUrl || husqvarnaPortalUrl(detailCode)} target="_blank" rel="noreferrer" className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold">Verificar no portal Husqvarna</a>

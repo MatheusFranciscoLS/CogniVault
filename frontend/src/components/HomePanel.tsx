@@ -11,7 +11,7 @@ function Empty({ title, description }: { title: string; description: string }) {
 export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: string) => void; onCatalogs: (filter?: string) => void }) {
   const [query, setQuery] = useState('');
 
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['home'],
     queryFn: () => apiJson<{ home: HomeData }>('/api/home').then(res => res.home),
   });
@@ -49,17 +49,120 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
     </div>
 
     <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div className="cv-stat"><div className="flex items-center justify-between"><div className="cv-stat-label">Peças indexadas</div><span className="cv-stat-icon" aria-hidden="true">#</span></div><div className="cv-stat-value">{formatCount(data?.counts.parts)}</div><div className="cv-stat-caption">Disponíveis para consulta</div></div>
-      <div className="cv-stat"><div className="flex items-center justify-between"><div className="cv-stat-label">Catálogos ativos</div><span className="cv-stat-icon" aria-hidden="true">▤</span></div><div className="cv-stat-value">{formatCount(data?.counts.documents)}</div><div className="cv-stat-caption">Base técnica processada</div></div>
+      <div className="cv-stat">
+        <div className="flex items-center justify-between">
+          <div className="cv-stat-label">Peças indexadas</div>
+          <span className="cv-stat-icon" aria-hidden="true">#</span>
+        </div>
+        <div className="cv-stat-value">
+          {isLoading ? <span className="inline-block h-8 w-20 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" /> : formatCount(data?.counts.parts)}
+        </div>
+        <div className="cv-stat-caption">Disponíveis para consulta</div>
+      </div>
+      <div className="cv-stat">
+        <div className="flex items-center justify-between">
+          <div className="cv-stat-label">Catálogos ativos</div>
+          <span className="cv-stat-icon" aria-hidden="true">▤</span>
+        </div>
+        <div className="cv-stat-value">
+          {isLoading ? <span className="inline-block h-8 w-16 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" /> : formatCount(data?.counts.documents)}
+        </div>
+        <div className="cv-stat-caption">Base técnica processada</div>
+      </div>
       <button type="button" onClick={() => onSearch('carburador 143RII')} className="cv-quick-action"><span className="cv-stat-icon" aria-hidden="true">⌕</span><span><strong>Pesquisar por descrição</strong><small>Encontre mesmo sem saber o código</small></span><span aria-hidden="true" className="ml-auto text-lg text-slate-300">→</span></button>
       <button type="button" onClick={() => onCatalogs()} className="cv-quick-action"><span className="cv-stat-icon" aria-hidden="true">▱</span><span><strong>Abrir catálogos</strong><small>Consulte PDFs e aplicações</small></span><span aria-hidden="true" className="ml-auto text-lg text-slate-300">→</span></button>
     </div>
 
     <div className="mt-5 grid gap-5 xl:grid-cols-2">
-      <div className="cv-surface rounded-[22px] p-5"><div className="flex items-center justify-between"><div><div className="font-semibold">Pesquisas recentes</div><div className="mt-1 text-xs text-slate-400">Continue de onde o balcão parou.</div></div><span className="cv-soft-badge">Histórico</span></div><div className="mt-4 grid gap-2">{data?.recentSearches.length ? data.recentSearches.map(item => <button key={item.id} onClick={() => onSearch(item.resultCode || item.query)} className="cv-list-row"><div><div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{item.query}</div><div className="mt-1 text-xs text-slate-400">{item.resultCode ? `${item.resultCode} · ${item.resultModel || ''}` : item.status.replaceAll('_', ' ')}</div></div><span aria-hidden="true" className="text-slate-300">→</span></button>) : <Empty title="Sem pesquisas ainda" description="As consultas feitas pela equipe aparecerão aqui." />}</div></div>
-      <div className="cv-surface rounded-[22px] p-5"><div className="flex items-center justify-between"><div><div className="font-semibold">Favoritos</div><div className="mt-1 text-xs text-slate-400">Peças e catálogos usados com frequência.</div></div><span className="cv-soft-badge">★ Salvos</span></div><div className="mt-4 grid gap-2">{data?.favorites.length ? data.favorites.map(item => <button key={item.id} onClick={() => item.reference ? onSearch(item.reference) : onCatalogs()} className="cv-list-row"><div><div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{item.label}</div><div className="mt-1 text-xs text-slate-400">{item.reference || item.model || 'Catálogo salvo'}</div></div><span aria-hidden="true" className="text-amber-400">★</span></button>) : <Empty title="Nenhum favorito" description="Salve peças frequentes para ganhar tempo no atendimento." />}</div></div>
+      <div className="cv-surface rounded-[22px] p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-semibold">Pesquisas recentes</div>
+            <div className="mt-1 text-xs text-slate-400">Continue de onde o balcão parou.</div>
+          </div>
+          <span className="cv-soft-badge">Histórico</span>
+        </div>
+        <div className="mt-4 grid gap-2">
+          {isLoading ? (
+            <div className="grid gap-2">
+              <div className="h-14 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800/60" />
+              <div className="h-14 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800/60" />
+            </div>
+          ) : data?.recentSearches.length ? (
+            data.recentSearches.map(item => (
+              <button key={item.id} onClick={() => onSearch(item.resultCode || item.query)} className="cv-list-row">
+                <div>
+                  <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{item.query}</div>
+                  <div className="mt-1 text-xs text-slate-400">{item.resultCode ? `${item.resultCode} · ${item.resultModel || ''}` : item.status.replaceAll('_', ' ')}</div>
+                </div>
+                <span aria-hidden="true" className="text-slate-300">→</span>
+              </button>
+            ))
+          ) : (
+            <Empty title="Sem pesquisas ainda" description="As consultas feitas pela equipe aparecerão aqui." />
+          )}
+        </div>
+      </div>
+
+      <div className="cv-surface rounded-[22px] p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-semibold">Favoritos</div>
+            <div className="mt-1 text-xs text-slate-400">Peças e catálogos usados com frequência.</div>
+          </div>
+          <span className="cv-soft-badge">★ Salvos</span>
+        </div>
+        <div className="mt-4 grid gap-2">
+          {isLoading ? (
+            <div className="grid gap-2">
+              <div className="h-14 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800/60" />
+              <div className="h-14 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800/60" />
+            </div>
+          ) : data?.favorites.length ? (
+            data.favorites.map(item => (
+              <button key={item.id} onClick={() => item.reference ? onSearch(item.reference) : onCatalogs()} className="cv-list-row">
+                <div>
+                  <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{item.label}</div>
+                  <div className="mt-1 text-xs text-slate-400">{item.reference || item.model || 'Catálogo salvo'}</div>
+                </div>
+                <span aria-hidden="true" className="text-amber-400">★</span>
+              </button>
+            ))
+          ) : (
+            <Empty title="Nenhum favorito" description="Salve peças frequentes para ganhar tempo no atendimento." />
+          )}
+        </div>
+      </div>
     </div>
 
-    <div className="cv-surface mt-5 rounded-[22px] p-5"><div className="flex items-center justify-between"><div><div className="font-semibold">Catálogos recentes</div><div className="mt-1 text-xs text-slate-400">Últimas bases técnicas adicionadas.</div></div><button type="button" onClick={() => onCatalogs()} className="cv-link">Ver todos →</button></div><div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{data?.recentDocuments.map(document => <button type="button" onClick={() => onCatalogs(document.model || document.filename)} key={document.id} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-4 text-left transition hover:-translate-y-0.5 hover:border-blue-200 dark:hover:border-blue-500 hover:shadow-md"><div className="mb-3 grid h-9 w-9 place-items-center rounded-xl bg-blue-50 dark:bg-[#123867] text-sm font-bold text-[#1d4f91] dark:text-blue-300" aria-hidden="true">PDF</div><div className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{document.filename}</div><div className="mt-2 text-xs leading-5 text-slate-400">{document.manufacturer || 'Fabricante não informado'} · {document.model || 'Modelo não informado'}<br />PNC {document.pnc || 'não informado'} · {formatCount(document.partCount)} peças</div></button>)}</div>{data && !data.recentDocuments.length && <div className="mt-4"><Empty title="Nenhum catálogo recente" description="Os novos PDFs processados aparecerão aqui." /></div>}</div>
+    <div className="cv-surface mt-5 rounded-[22px] p-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="font-semibold">Catálogos recentes</div>
+          <div className="mt-1 text-xs text-slate-400">Últimas bases técnicas adicionadas.</div>
+        </div>
+        <button type="button" onClick={() => onCatalogs()} className="cv-link">Ver todos →</button>
+      </div>
+      {isLoading ? (
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="h-28 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800/60" />
+          <div className="h-28 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800/60" />
+          <div className="h-28 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800/60" />
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {data?.recentDocuments.map(document => (
+            <button type="button" onClick={() => onCatalogs(document.model || document.filename)} key={document.id} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-4 text-left transition hover:-translate-y-0.5 hover:border-blue-200 dark:hover:border-blue-500 hover:shadow-md">
+              <div className="mb-3 grid h-9 w-9 place-items-center rounded-xl bg-blue-50 dark:bg-[#123867] text-sm font-bold text-[#1d4f91] dark:text-blue-300" aria-hidden="true">PDF</div>
+              <div className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{document.filename}</div>
+              <div className="mt-2 text-xs leading-5 text-slate-400">{document.manufacturer || 'Fabricante não informado'} · {document.model || 'Modelo não informado'}<br />PNC {document.pnc || 'não informado'} · {formatCount(document.partCount)} peças</div>
+            </button>
+          ))}
+        </div>
+      )}
+      {data && !data.recentDocuments.length && !isLoading && (
+        <div className="mt-4"><Empty title="Nenhum catálogo recente" description="Os novos PDFs processados aparecerão aqui." /></div>
+      )}
+    </div>
   </section>;
 }

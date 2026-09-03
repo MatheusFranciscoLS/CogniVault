@@ -271,11 +271,19 @@ export class PartSearchService {
     const cached = pncsCache.get(key);
     if (cached) return cached;
 
-    const rows = await prisma.part.findMany({
-      where: { normalizedModel, active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } },
-      select: { pnc: true, document: { select: { pnc: true } } },
-    });
-    const result = [...new Set(rows.map(r => r.pnc || r.document.pnc).filter((value): value is string => Boolean(value)))];
+    const [partRows, docRows] = await Promise.all([
+      prisma.part.findMany({
+        where: { normalizedModel, active: true, pnc: { not: null }, document: { tenantId, archivedAt: null, status: 'COMPLETED' } },
+        select: { pnc: true },
+        distinct: ['pnc'],
+      }),
+      prisma.document.findMany({
+        where: { tenantId, archivedAt: null, status: 'COMPLETED', pnc: { not: null }, model: { contains: normalizedModel, mode: 'insensitive' } },
+        select: { pnc: true },
+        distinct: ['pnc'],
+      }),
+    ]);
+    const result = [...new Set([...partRows.map(r => r.pnc), ...docRows.map(r => r.pnc)].filter((value): value is string => Boolean(value)))];
     pncsCache.set(key, result);
     return result;
   }
@@ -285,14 +293,34 @@ export class PartSearchService {
     const cached = modelsCache.get(key);
     if (cached) return cached;
 
-    const rows = await prisma.part.findMany({
-      where: { active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } },
-      select: { model: true, normalizedModel: true }, distinct: ['normalizedModel'], take: 300,
+    const rows = await prisma.document.findMany({
+      where: { tenantId, archivedAt: null, status: 'COMPLETED', model: { not: null } },
+      select: { model: true },
+      distinct: ['model'],
+      take: 200,
     });
-    const result = rows
-      .filter(row => row.normalizedModel.includes(requested) || requested.includes(row.normalizedModel))
+    let result = rows
+      .filter(row => {
+        if (!row.model) return false;
+        const norm = normalizeIdentifier(row.model);
+        return norm.includes(requested) || requested.includes(norm);
+      })
       .slice(0, 8)
-      .map(row => row.model);
+      .map(row => row.model as string);
+
+    if (!result.length) {
+      const partRows = await prisma.part.findMany({
+        where: { active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } },
+        select: { model: true, normalizedModel: true },
+        distinct: ['normalizedModel'],
+        take: 100,
+      });
+      result = partRows
+        .filter(row => row.normalizedModel.includes(requested) || requested.includes(row.normalizedModel))
+        .slice(0, 8)
+        .map(row => row.model);
+    }
+
     modelsCache.set(key, result);
     return result;
   }

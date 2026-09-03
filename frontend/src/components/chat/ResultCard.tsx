@@ -1,5 +1,6 @@
 import type { ChatResponse } from '../../types';
 import ReliabilityDetails from './ReliabilityDetails';
+import { husqvarnaPortalUrl } from '../PartVerificationDialog';
 
 function confidencePresentation(response: ChatResponse) {
   if (!response.match) return null;
@@ -62,7 +63,7 @@ export default function ResultCard({
             </div>
             <p className="mt-1.5 leading-relaxed font-medium">{part.notes}</p>
             <a
-              href={`https://parts.husqvarna.com/br/spare-parts/search?q=${encodeURIComponent(part.partNumber.replace(/[^0-9]/g, ''))}`}
+              href={husqvarnaPortalUrl(part.partNumber)}
               target="_blank"
               rel="noreferrer"
               className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-amber-600 dark:bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700 dark:hover:bg-amber-600"
