@@ -212,7 +212,8 @@ export function evaluateAnswerConfidence(params: {
     && !sameCodeRunner
     && rawRetrievalMargin < 0.03
     && margin < 0.16
-    && serial !== 'MATCH',
+    && serial !== 'MATCH'
+    && params.selectionConfidence < 0.85,
   );
 
   let confidence = Math.min(clamp(params.selectionConfidence), clamp(Math.max(semanticConfidence, retrieval)));
@@ -224,7 +225,7 @@ export function evaluateAnswerConfidence(params: {
   if (!runnerUp || sameCodeRunner) confidence += 0.04;
   else if (margin >= 0.20) confidence += 0.06;
   else if (margin >= 0.10) confidence += 0.03;
-  else if (margin < 0.05) confidence -= 0.12;
+  else if (margin < 0.05 && params.selectionConfidence < 0.85) confidence -= 0.12;
   if (differentCodeNearTie) confidence -= 0.08;
   if (contradictions.length) confidence -= Math.min(0.35, contradictions.length * 0.14);
   confidence += catalog.adjustment;
@@ -235,8 +236,9 @@ export function evaluateAnswerConfidence(params: {
   if (semanticOnly) confidence = Math.min(confidence, 0.74);
   confidence = clamp(confidence);
 
-  const strongLead = !runnerUp || sameCodeRunner || margin >= 0.08 || serial === 'MATCH';
-  const independentEvidence = agreement >= 2 || retrievalSources.includes('LEXICAL') || retrievalSources.includes('FULL_TEXT');
+  const aiConfirmed = params.selectionConfidence >= 0.85;
+  const strongLead = !runnerUp || sameCodeRunner || margin >= 0.08 || serial === 'MATCH' || aiConfirmed;
+  const independentEvidence = agreement >= 2 || retrievalSources.includes('LEXICAL') || retrievalSources.includes('FULL_TEXT') || aiConfirmed;
   const safe = confidence >= 0.72
     && strongLead
     && independentEvidence

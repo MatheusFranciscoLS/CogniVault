@@ -59,7 +59,7 @@ export class ChatIntentService {
 
       const response = await ai.models.generateContent({
         model: GEMINI_GENERATIVE_MODEL,
-        contents: `Interprete uma consulta de balcão de peças. Extraia somente o que foi informado ou claramente implícito. Não invente modelo, PNC, posição ou código.\n${localHints ? `\nPistas locais confiáveis (não contradiga):\n${localHints}\n` : ''}\nPara partDescription, preserve o nome pedido pelo usuário. Se houver um equivalente técnico inequívoco em inglês, português do Brasil ou português de Portugal, acrescente-o na mesma string separado por " / ". Exemplo: "volante magnético / flywheel". Não transforme um componente em conjunto completo e não invente sinônimos incertos.\n\nConsulta: ${question}`,
+        contents: `Interprete uma consulta de balcão de peças. Extraia somente o que foi informado ou claramente implícito. Não invente modelo, PNC, posição ou código.\n${localHints ? `\nPistas locais confiáveis (não contradiga):\n${localHints}\n` : ''}\nPara partDescription, preserve o nome pedido pelo usuário. Se houver um equivalente técnico inequívoco em inglês, espanhol, português do Brasil ou português de Portugal, acrescente-o na mesma string separado por " / ". Exemplo: "volante magnético / flywheel / volante". Não transforme um componente em conjunto completo e não invente sinônimos incertos.\n\nConsulta: ${question}`,
         config: {
           responseMimeType: 'application/json',
           responseSchema: {
@@ -99,7 +99,6 @@ export class ChatIntentService {
 
     const localSelection = chooseCandidateLocally(question, candidates);
     if (!localSelection.ambiguous) return localSelection;
-    if (hasKnownPartVocabulary(question) || hasDomainKnowledge(question)) return localSelection;
 
     try {
       const [ai, Type] = await Promise.all([getGeminiClient(), getGeminiType()]);

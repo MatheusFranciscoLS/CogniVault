@@ -225,3 +225,4 @@ export const HUSQVARNA_GOLDEN_BENCHMARK: PartBenchmarkCase[] = [
     source: '143RII.pdf · p.33 · 143RII CRANKSHAFT · pos.1 VIRABREQUIM',
   },
 ];
+import { TOP_50_BALCAO_HUSQVARNA } from "./part-benchmark-top50";

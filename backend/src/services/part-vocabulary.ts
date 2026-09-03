@@ -120,6 +120,7 @@ const VOCABULARY: VocabularyEntry[] = [
       'saia lateral', 'saia lateral do deck', 'defletor', 'defletor lateral', 'defletor de descarga',
       'defletor de descarga lateral', 'calha lateral', 'calha de descarga', 'calha de descarga lateral',
       'bica lateral', 'bica de descarga', 'saida lateral', 'saída lateral', 'chute lateral',
+      'descarte lateral', 'descarte de grama',
       'side discharge chute', 'discharge chute', 'discharge deflector', 'grass deflector',
     ],
   },
