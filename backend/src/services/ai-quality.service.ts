@@ -44,9 +44,16 @@ export class AiQualityService {
       take: 40,
       select: { id: true },
     });
-    for (const document of unchecked) {
-      try { await refreshCatalogHealth(document.id, tenantId); }
-      catch (error) { console.warn('⚠️ Diagnóstico de catálogo pendente:', error instanceof Error ? error.message : error); }
+    if (unchecked.length > 0) {
+      const BATCH_SIZE = 6;
+      for (let i = 0; i < unchecked.length; i += BATCH_SIZE) {
+        const batch = unchecked.slice(i, i + BATCH_SIZE);
+        await Promise.allSettled(
+          batch.map(document => refreshCatalogHealth(document.id, tenantId).catch(error => {
+            console.warn('⚠️ Diagnóstico de catálogo pendente:', error instanceof Error ? error.message : error);
+          }))
+        );
+      }
     }
 
     const [documents, partCount, chunks, noEmbedding, noPage, noSection, archived, removed, legacyEmpty, latestRuns, searchHistory] = await Promise.all([

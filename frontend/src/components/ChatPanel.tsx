@@ -514,9 +514,14 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
             <div ref={messagesEndRef} />
           </div>
 
-          <form onSubmit={submit} className="flex gap-3 border-t border-slate-200 dark:border-slate-800/60 p-4">
+          <form onSubmit={submit} className="flex gap-2 sm:gap-3 border-t border-slate-200 dark:border-slate-800/60 p-4">
             <label htmlFor="assistant-question" className="sr-only">Digite a peça, descrição ou código</label>
             <input ref={questionRef} id="assistant-question" value={question} onChange={event => setQuestion(event.target.value)} placeholder="Digite a peça, descrição ou código…" minLength={2} required className="rounded-xl border-none bg-slate-100/50 dark:bg-slate-800/40 px-4 py-3 text-sm outline-none transition-all focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-[#1d4f91]/20 dark:focus:ring-blue-500/30 min-w-0 flex-1" />
+            {question ? (
+              <button type="button" onClick={() => { setQuestion(''); questionRef.current?.focus(); }} className="flex items-center rounded-xl px-2.5 sm:px-3 text-xs font-semibold text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:text-slate-300">
+                Limpar
+              </button>
+            ) : null}
             <button type="submit" disabled={loading} className="cv-primary px-5 font-semibold disabled:opacity-50">Pesquisar</button>
           </form>
         </div>

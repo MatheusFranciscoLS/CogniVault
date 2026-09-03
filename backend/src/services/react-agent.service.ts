@@ -5,6 +5,8 @@ import { ChatIntentService } from './chat-intent.service';
 import { filterCandidatesByMarket } from './catalog-market';
 import { findPartConcepts } from './part-vocabulary';
 import { retrieveTechnicalContext } from './document-memory';
+import { preferCurrentPartNumbers } from './part-supersession';
+import { chooseCandidateLocally } from './chat-reliability';
 
 export interface ReActSearchResult {
   status: 'FOUND' | 'NOT_FOUND' | 'AMBIGUOUS' | 'MODEL_REQUIRED' | 'PNC_REQUIRED';
@@ -51,8 +53,8 @@ export class ReActAgentService {
       };
     }
 
-    // Step 3: Market Filtering (Strict priority to Latin America / Brazil)
-    const candidates = filterCandidatesByMarket(rawCandidates);
+    // Step 3: Market Filtering & Official Supersession (Strict priority to Latin America / Brazil)
+    const candidates = preferCurrentPartNumbers(filterCandidatesByMarket(rawCandidates));
     if (!candidates.length) {
       return {
         status: 'NOT_FOUND',
@@ -60,23 +62,54 @@ export class ReActAgentService {
       };
     }
 
-    // Fast-path 1: Single remaining candidate
+    // Fast-path 1: Single remaining candidate (0ms)
     if (candidates.length === 1) {
+      const single = candidates[0];
+      const supersessionNotice = single.notes?.includes('Substituição oficial') ? ` [Substituição oficial ativa: ${single.partNumber}]` : '';
       return {
         status: 'FOUND',
-        chosenPartId: candidates[0].id,
-        explanation: `Peça única identificada com certeza técnica para o modelo ${candidates[0].model} (${candidates[0].name}, código ${candidates[0].partNumber}).`,
+        chosenPartId: single.id,
+        explanation: `Peça única identificada com certeza técnica para o modelo ${single.model} (${single.name}, código ${single.partNumber})${supersessionNotice}.`,
       };
     }
 
-    // Fast-path 2: Dominant winner with decisive margin or strong retrieval agreement
+    // Fast-path 2: Deterministic local selection using Husqvarna engineering ontology (<20ms)
+    const localSelection = chooseCandidateLocally(question, candidates.map(c => ({
+      id: c.id,
+      name: c.name,
+      model: c.model,
+      pnc: c.pnc,
+      section: c.section,
+      position: c.position,
+      aliases: c.alternativeNames,
+      feedbackScore: c.feedbackScore,
+      notes: c.notes,
+      retrievalScore: c.retrievalScore,
+      retrievalAgreement: c.retrievalAgreement,
+      retrievalSources: c.retrievalSources,
+    })));
+
+    if (!localSelection.ambiguous && localSelection.id) {
+      const top = candidates.find(c => c.id === localSelection.id);
+      if (top) {
+        const supersessionNotice = top.notes?.includes('Substituição oficial') ? ` [Substituição oficial ativa: ${top.partNumber}]` : '';
+        return {
+          status: 'FOUND',
+          chosenPartId: top.id,
+          explanation: `Peça identificada com alta certeza técnica e semântica para o modelo ${top.model} (${top.name}, código ${top.partNumber})${supersessionNotice}.`,
+        };
+      }
+    }
+
+    // Fast-path 3: Dominant winner with decisive margin or strong retrieval agreement
     const top = candidates[0];
     const second = candidates[1];
-    if (top.distance <= 0.22 && (second.distance - top.distance >= 0.35 || (top.retrievalAgreement && top.retrievalAgreement >= 3))) {
+    if (top.distance <= 0.22 && (second.distance - top.distance >= 0.25 || (top.retrievalAgreement && top.retrievalAgreement >= 2))) {
+      const supersessionNotice = top.notes?.includes('Substituição oficial') ? ` [Substituição oficial ativa: ${top.partNumber}]` : '';
       return {
         status: 'FOUND',
         chosenPartId: top.id,
-        explanation: `Peça correspondente de alta precisão identificada para o modelo ${top.model} (${top.name}, código ${top.partNumber}).`,
+        explanation: `Peça correspondente de alta precisão identificada para o modelo ${top.model} (${top.name}, código ${top.partNumber})${supersessionNotice}.`,
       };
     }
 
@@ -158,10 +191,11 @@ Retorne um JSON com:
         }
       } catch (e) {}
 
+      const supersessionNotice = chosenCandidate.notes?.includes('Substituição oficial') ? ` [Substituição oficial ativa: ${chosenCandidate.partNumber}]` : '';
       return {
         status: 'FOUND',
         chosenPartId: chosenCandidate.id,
-        explanation: `${decision.explanation}${contextEvidence ? ' (Confirmado no contexto do IPL)' : ''}`,
+        explanation: `${decision.explanation}${contextEvidence ? ' (Confirmado no contexto do IPL)' : ''}${supersessionNotice}`,
       };
 
     } catch (e) {

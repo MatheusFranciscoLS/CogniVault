@@ -378,6 +378,7 @@ export class ChatService {
         candidate.section ? `Seção: ${candidate.section}` : '',
         candidate.position ? `Posição na vista: ${candidate.position}` : '',
         candidate.page ? `Página: ${candidate.page}` : '',
+        candidate.notes ? `Nota técnica: ${candidate.notes}` : '',
         `Fonte: ${candidate.filename}`,
       ].filter(Boolean).join('\n'),
       part: {
@@ -391,6 +392,12 @@ export class ChatService {
           return [`${application.model}|${application.pnc}`, application] as const;
         })).values()].slice(0, 12),
       },
+      b2bPortal: (candidate.notes?.includes('Substituição oficial') || getVerifiedSupersession(candidate.partNumber)) ? {
+        stockStatus: 'Código oficial ativo no Portal Husqvarna',
+        supersededBy: getVerifiedSupersession(candidate.partNumber)?.currentPartNumber !== candidate.partNumber ? getVerifiedSupersession(candidate.partNumber)?.currentPartNumber : undefined,
+        success: true,
+        message: 'Substituição oficial comprovada no portal público Husqvarna Brasil.',
+      } : undefined,
       feedbackOptions: this.options(candidates.filter(candidateItem => candidateItem.normalizedModel === candidate.normalizedModel).slice(0, 5)),
     };
   }
