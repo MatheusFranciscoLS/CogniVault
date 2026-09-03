@@ -421,3 +421,8 @@ html.dark { background: #0f172a; }
 
 .dark .text-blue-700 { @apply text-blue-400; }
 .dark .text-blue-900 { @apply text-blue-200; }
+
+.dark .text-\\[\\#123867\\] { @apply text-blue-300; }
+.dark .text-\\[\\#0d2348\\] { @apply text-blue-200; }
+.dark .bg-\\[\\#eaf2fc\\] { @apply bg-blue-900/30; }
+.dark .text-\\[\\#1d4f91\\] { @apply text-blue-400; }
