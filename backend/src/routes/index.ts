@@ -82,5 +82,6 @@ router.post('/admin/quality/rebuild-knowledge', authMiddleware, adminOnly, (req,
 router.post('/admin/quality/index-semantics', authMiddleware, adminOnly, (req, res) => qualityController.indexSemantics(req, res));
 router.post('/admin/quality/retry-visual-catalogs', authMiddleware, adminOnly, (req, res) => qualityController.retryVisualCatalogs(req, res));
 router.patch('/admin/quality/catalogs/:id', authMiddleware, adminOnly, (req, res) => qualityController.reviewDocument(req, res));
+router.post('/admin/quality/radar/resolve', authMiddleware, adminOnly, (req, res) => qualityController.resolveRadar(req, res));
 
 export default router;

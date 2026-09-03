@@ -169,6 +169,65 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
     } finally { setBusyId(null); }
   };
 
+  const approveSuggestedModel = async (catalog: QualityCatalog) => {
+    if (!catalog.suggestedModel) return;
+    setBusyId(catalog.id); setError(''); setNotice('');
+    try {
+      await apiJson(`/api/admin/quality/catalogs/${catalog.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          manufacturer: catalog.manufacturer || 'Husqvarna',
+          model: catalog.suggestedModel,
+          pnc: catalog.pnc || null,
+        }),
+      });
+      await load();
+      setNotice(`Modelo "${catalog.suggestedModel}" aprovado com sucesso!`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível aprovar o modelo.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const [resolvingRadar, setResolvingRadar] = useState(false);
+
+  const dismissRadarItem = async (item: SearchRadarItem) => {
+    setResolvingRadar(true); setError(''); setNotice('');
+    try {
+      await apiJson('/api/admin/quality/radar/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: item.query, pnc: item.pnc }),
+      });
+      setNotice(`Consulta "${item.query}" dispensada.`);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao dispensar consulta.');
+    } finally {
+      setResolvingRadar(false);
+    }
+  };
+
+  const clearAllRadar = async () => {
+    if (!window.confirm('Deseja dispensar todas as consultas pendentes do radar?')) return;
+    setResolvingRadar(true); setError(''); setNotice('');
+    try {
+      const res = await apiJson<{ message: string }>('/api/admin/quality/radar/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ all: true }),
+      });
+      setNotice(res.message);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao limpar radar.');
+    } finally {
+      setResolvingRadar(false);
+    }
+  };
+
   const normalizedFilter = queueFilter.trim().toLowerCase();
   const filteredQueue = useMemo(() => data?.reviewQueue.filter(catalog => [
     catalog.filename, catalog.manufacturer, catalog.model, catalog.pnc, catalog.suggestedModel,
@@ -228,7 +287,24 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
             <SummaryCard label="Catálogos utilizáveis" value={data.summary.readyCatalogs} description="Com peças disponíveis para consulta" tone="navy" />
             <SummaryCard label="Precisam de atenção" value={data.summary.needsReview} description="Revisão de dados ou extração" tone={data.summary.needsReview ? 'warning' : 'success'} />
             <SummaryCard label="Perguntas pendentes" value={data.searchRadar.length} description="Consultas reais ainda sem código seguro" tone={data.searchRadar.length ? 'warning' : 'success'} />
-            <SummaryCard label="Sinais do balcão" value={data.learning.uniqueSignals} description={data.learning.nextMilestone ? `Próximo nível com ${data.learning.nextMilestone} confirmações` : 'Base de aprendizado já estabelecida'} tone={data.learning.level === 'COLD_START' ? 'neutral' : 'success'} />
+            <div className="rounded-[22px] border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/20 p-5 shadow-[0_14px_40px_rgba(15,35,72,.03)] transition-transform hover:-translate-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-[.09em] text-emerald-800 dark:text-emerald-300">Sinais do balcão</span>
+                <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 text-[9px] font-bold uppercase text-emerald-800 dark:text-emerald-300">Evolução da IA</span>
+              </div>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-3xl font-semibold tracking-[-.04em] text-emerald-950 dark:text-emerald-200">{data.learning.uniqueSignals}</span>
+                <span className="text-sm font-medium text-emerald-700/80 dark:text-emerald-400">/ {data.learning.nextMilestone || 5} confirmações</span>
+              </div>
+              <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-emerald-200 dark:bg-emerald-900/50">
+                <div className="h-full rounded-full bg-emerald-600 transition-all duration-500" style={{ width: `${Math.min(100, Math.round((data.learning.uniqueSignals / (data.learning.nextMilestone || 5)) * 100))}%` }} />
+              </div>
+              <div className="mt-2 text-xs leading-5 text-emerald-900/70 dark:text-emerald-300/70">
+                {data.learning.nextMilestone
+                  ? `Falta ${data.learning.nextMilestone - data.learning.uniqueSignals} confirmação para subir o nível da IA.`
+                  : 'Base de aprendizado contínuo ativa.'}
+              </div>
+            </div>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
@@ -306,6 +382,16 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
                     {catalog.reviewReasons.length > 0 && <div className="mt-3 grid gap-1">{catalog.reviewReasons.slice(0, 4).map(reason => <div key={reason} className="text-xs leading-5 text-amber-900 dark:text-amber-300">• {reason}</div>)}</div>}
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    {catalog.suggestedModel && (
+                      <button
+                        type="button"
+                        disabled={busyId === catalog.id}
+                        onClick={() => void approveSuggestedModel(catalog)}
+                        className="inline-flex items-center gap-1 rounded-xl bg-[#1d4f91] hover:bg-[#163e72] text-white px-3 py-2 text-xs font-semibold shadow-sm transition disabled:opacity-50"
+                      >
+                        <span>✦ Aprovar modelo &quot;{catalog.suggestedModel}&quot;</span>
+                      </button>
+                    )}
                     <button type="button" onClick={() => openEdit(catalog)} className="cv-secondary px-3 py-2 text-xs font-semibold">Corrigir dados</button>
                     <button type="button" disabled={busyId === catalog.id || Boolean(catalog.modelNeedsReview)} onClick={() => void confirmReview(catalog)} className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors disabled:cursor-not-allowed disabled:opacity-40">Marcar como conferido</button>
                   </div>
@@ -329,7 +415,19 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
                   <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Consultas sem solução</h2>
                   <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500 dark:text-slate-400">Agrupa perguntas reais que terminaram sem um código seguro. Quando uma consulta equivalente passa a ser encontrada, ela sai da lista automaticamente.</p>
                 </div>
-                <span className="rounded-full bg-amber-50 dark:bg-amber-900/30 px-3 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">{data.searchRadar.length} pendência{data.searchRadar.length === 1 ? '' : 's'}</span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-amber-50 dark:bg-amber-900/30 px-3 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">{data.searchRadar.length} pendência{data.searchRadar.length === 1 ? '' : 's'}</span>
+                  {data.searchRadar.length > 0 && (
+                    <button
+                      type="button"
+                      disabled={resolvingRadar}
+                      onClick={() => void clearAllRadar()}
+                      className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition disabled:opacity-50"
+                    >
+                      {resolvingRadar ? 'Limpando…' : 'Limpar todas'}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
             {!data.searchRadar.length ? <div className="p-8 text-center text-sm text-emerald-700 dark:text-emerald-300">Nenhuma consulta recorrente permanece sem solução.</div> : <div className="divide-y divide-slate-100 dark:divide-slate-800">{data.searchRadar.map(item => <div key={`${item.query}|${item.pnc || ''}`} className="flex flex-wrap items-center justify-between gap-4 p-5 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
@@ -342,7 +440,17 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
                 <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{item.model ? `Modelo ${item.model}` : 'Modelo não confirmado'}{item.pnc ? ` · PNC ${item.pnc}` : ''} · última em {fmtDate(item.lastSeen)}</div>
                 {item.partDescription && item.partDescription.toLowerCase() !== item.query.toLowerCase() && <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">Interpretação local: {item.partDescription}</div>}
               </div>
-              {onSearch && <button type="button" onClick={() => onSearch(radarSearchQuery(item))} className="cv-secondary px-3 py-2 text-xs font-semibold">Pesquisar na base atual</button>}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={resolvingRadar}
+                  onClick={() => void dismissRadarItem(item)}
+                  className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50"
+                >
+                  Dispensar
+                </button>
+                {onSearch && <button type="button" onClick={() => onSearch(radarSearchQuery(item))} className="cv-secondary px-3 py-2 text-xs font-semibold">Pesquisar na base atual</button>}
+              </div>
             </div>)}</div>}
           </div>
         </div>

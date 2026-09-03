@@ -205,4 +205,58 @@ export class QualityController {
       res.status(500).json({ error: 'Não foi possível concluir a revisão do catálogo.' });
     }
   }
+
+  async resolveRadar(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) return;
+      const tenantId = req.user.tenantId;
+      const unresolvedStatuses = ['PNC_REQUIRED', 'MODEL_REQUIRED', 'PART_REQUIRED', 'AMBIGUOUS', 'NOT_FOUND'];
+
+      if (req.body?.all === true) {
+        const result = await prisma.searchHistory.updateMany({
+          where: { tenantId, status: { in: unresolvedStatuses } },
+          data: { status: 'RESOLVED' },
+        });
+        AuditService.record({
+          tenantId,
+          userId: req.user.id,
+          action: 'SEARCH_RADAR_CLEARED',
+          targetType: 'SEARCH_RADAR',
+          metadata: { count: result.count },
+        });
+        res.json({ message: `${result.count} consulta(s) pendente(s) foram dispensadas do radar.` });
+        return;
+      }
+
+      const query = typeof req.body?.query === 'string' ? req.body.query.trim() : '';
+      if (!query) {
+        res.status(400).json({ error: 'Informe a consulta a ser resolvida.' });
+        return;
+      }
+
+      const pnc = typeof req.body?.pnc === 'string' && req.body.pnc.trim() ? req.body.pnc.trim() : undefined;
+      const result = await prisma.searchHistory.updateMany({
+        where: {
+          tenantId,
+          query: { equals: query, mode: 'insensitive' },
+          ...(pnc ? { pnc } : {}),
+          status: { in: unresolvedStatuses },
+        },
+        data: { status: 'RESOLVED' },
+      });
+
+      AuditService.record({
+        tenantId,
+        userId: req.user.id,
+        action: 'SEARCH_RADAR_ITEM_DISMISSED',
+        targetType: 'SEARCH_RADAR',
+        metadata: { query, pnc, count: result.count },
+      });
+
+      res.json({ message: `Consulta "${query}" dispensada do radar com sucesso.` });
+    } catch (error) {
+      console.error('❌ Erro ao dispensar consulta do radar:', error);
+      res.status(500).json({ error: 'Não foi possível dispensar a consulta do radar agora.' });
+    }
+  }
 }
