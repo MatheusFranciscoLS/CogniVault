@@ -30,21 +30,27 @@ button:disabled { cursor: not-allowed; }
 
 ::selection { background: #c9daf2; color: #0d2348; }
 
+
+::selection { background: #c9daf2; color: #0d2348; }
+
 .brand-logo-clean {
   mix-blend-mode: multiply;
   filter: contrast(1.06) saturate(1.04);
 }
 
 .cv-surface {
-  background: linear-gradient(145deg, rgba(255, 255, 255, .96), rgba(248, 251, 255, .94));
-  border: 1px solid rgba(203, 213, 225, 0.74);
-  box-shadow: 0 18px 55px rgba(15, 35, 72, 0.065);
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 8px 32px 0 rgba(15, 35, 72, 0.05);
 }
 
 .cv-app-shell {
   background:
-    radial-gradient(circle at 82% 2%, rgba(77, 125, 183, .12), transparent 30rem),
-    linear-gradient(145deg, #edf3f9 0%, #e7eef6 100%);
+    radial-gradient(circle at 15% 85%, rgba(29, 79, 145, 0.15), transparent 40rem),
+    radial-gradient(circle at 82% 2%, rgba(226, 174, 71, 0.15), transparent 30rem),
+    linear-gradient(145deg, #f0f4f8 0%, #e1e9f2 100%);
 }
 
 .cv-page-heading {
@@ -57,50 +63,69 @@ button:disabled { cursor: not-allowed; }
 }
 
 .cv-secondary {
-  border: 1px solid #c9d7e8;
+  border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 14px;
-  background: rgba(255, 255, 255, .86);
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
   color: #173f76;
-  box-shadow: 0 7px 22px rgba(15, 35, 72, .055);
-  transition: transform .18s ease, border-color .18s ease, background .18s ease, opacity .18s ease;
+  box-shadow: 0 4px 15px rgba(15, 35, 72, 0.05);
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .cv-secondary:hover:not(:disabled) {
-  transform: translateY(-1px);
-  border-color: #91acd0;
-  background: #fff;
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 8px 25px rgba(15, 35, 72, 0.08);
 }
 
 .cv-secondary:disabled { cursor: not-allowed; opacity: .5; }
 
 .cv-field {
   width: 100%;
-  border: 1px solid #d7e0eb;
-  background: #fbfdff;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(8px);
   border-radius: 14px;
   padding: 0.78rem 0.95rem;
   color: #0f172a;
   outline: none;
-  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
 }
 
 .cv-field:focus {
   border-color: #1d4f91;
-  background: #fff;
-  box-shadow: 0 0 0 4px rgba(29, 79, 145, 0.1);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 4px rgba(29, 79, 145, 0.15), inset 0 2px 4px rgba(0, 0, 0, 0.01);
 }
 
 .cv-primary {
   border-radius: 14px;
   background: linear-gradient(135deg, #1d4f91 0%, #163f76 100%);
   color: #fff;
-  box-shadow: 0 10px 28px rgba(29, 79, 145, 0.22);
-  transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+  box-shadow: 0 8px 20px rgba(29, 79, 145, 0.25);
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.cv-primary::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(rgba(255,255,255,0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.25s ease;
 }
 
 .cv-primary:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 14px 34px rgba(29, 79, 145, 0.28);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(29, 79, 145, 0.35);
+}
+
+.cv-primary:hover:not(:disabled)::after {
+  opacity: 1;
 }
 
 .cv-primary:disabled { opacity: .55; }

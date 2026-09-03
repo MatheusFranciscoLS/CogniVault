@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
+import { motion } from 'framer-motion';
 import { api, json } from '../lib';
 import { pdfPageUrl } from '../pdf';
-import type { ChatResponse, FavoriteItem, FeedbackOption, RetrievalSource } from '../types';
+import type { ChatResponse, FavoriteItem, FeedbackOption } from '../types';
+
+import Guidance from './chat/Guidance';
+import SerialFollowUp from './chat/SerialFollowUp';
+import Interpretation from './chat/Interpretation';
+import ReliabilityDetails from './chat/ReliabilityDetails';
+import ResultCard from './chat/ResultCard';
 
 type FeedbackReason = 'WRONG_CODE' | 'WRONG_PNC' | 'WRONG_MODEL' | 'WRONG_PART' | 'OTHER';
 type Message = {
@@ -34,14 +41,6 @@ const reasons: Array<[FeedbackReason, string]> = [
   ['OTHER', 'Outro motivo'],
 ];
 
-const retrievalLabels: Record<RetrievalSource, string> = {
-  DIRECT_CODE: 'Código exato',
-  SEMANTIC: 'Semântica',
-  LEXICAL: 'Vocabulário técnico',
-  FULL_TEXT: 'Texto do catálogo',
-  FUZZY: 'Tolerância a digitação',
-};
-
 const read = <T,>(key: string, fallback: T): T => {
   try {
     const raw = localStorage.getItem(key);
@@ -62,197 +61,6 @@ const save = <T,>(key: string, value: T) => {
 const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 const extractSerialFromQuery = (value: string) => value.match(/\bS\s*\/\s*N\s*[:#.-]?\s*(\d{6,16})\b/i)?.[1] || '';
 
-function confidencePresentation(response: ChatResponse) {
-  if (!response.match) return null;
-  const presentations = {
-    EXACT: { label: 'Correspondência exata', style: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
-    HIGH: { label: 'Confiança alta', style: 'bg-blue-50 text-blue-700 ring-blue-200' },
-    REVIEW: { label: 'Requer conferência', style: 'bg-amber-50 text-amber-800 ring-amber-200' },
-  } as const;
-  return presentations[response.match.level];
-}
-
-function Guidance({ response }: { response: ChatResponse }) {
-  if (!response.guidance) return null;
-  const palette = response.status === 'FOUND'
-    ? 'border-emerald-200 bg-emerald-50/70 text-emerald-950'
-    : response.status === 'NOT_FOUND'
-      ? 'border-rose-200 bg-rose-50/70 text-rose-950'
-      : 'border-amber-200 bg-amber-50/70 text-amber-950';
-
-  return (
-    <div className={`rounded-2xl border p-3.5 ${palette}`}>
-      <div className="text-xs font-bold">{response.guidance.title}</div>
-      <div className="mt-1 text-xs leading-5 opacity-75">{response.guidance.description}</div>
-      {response.guidance.tips.length ? (
-        <ul className="mt-2 space-y-1 text-[11px] opacity-75">
-          {response.guidance.tips.map(tip => <li key={tip}>• {tip}</li>)}
-        </ul>
-      ) : null}
-    </div>
-  );
-}
-
-function SerialFollowUp({ disabled, onSubmit }: { disabled: boolean; onSubmit: (serial: string) => void }) {
-  const [serial, setSerial] = useState('');
-  const submitSerial = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const clean = serial.replace(/\D/g, '');
-    if (clean.length < 6 || clean.length > 16) return;
-    onSubmit(clean);
-  };
-
-  return (
-    <form onSubmit={submitSerial} className="mt-3 rounded-xl border border-amber-200 bg-white p-3">
-      <label className="block text-xs font-semibold text-slate-700" htmlFor="guided-serial-number">Digite o número de série da etiqueta</label>
-      <p className="mt-1 text-[11px] leading-4 text-slate-400">Não é preciso repetir peça, modelo ou PNC. O CogniVault continuará a consulta anterior com este S/N.</p>
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-        <input
-          id="guided-serial-number"
-          inputMode="numeric"
-          autoComplete="off"
-          value={serial}
-          onChange={event => setSerial(event.target.value.replace(/\D/g, '').slice(0, 16))}
-          placeholder="Ex.: 20240200001"
-          minLength={6}
-          maxLength={16}
-          required
-          className="cv-field min-w-0 flex-1 text-sm"
-        />
-        <button type="submit" disabled={disabled || serial.length < 6} className="cv-primary px-4 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50">Continuar com S/N</button>
-      </div>
-    </form>
-  );
-}
-
-function Interpretation({ response }: { response: ChatResponse }) {
-  if (!response.interpreted) return null;
-  const entries = [
-    response.interpreted.partDescription ? ['Peça', response.interpreted.partDescription] : null,
-    response.interpreted.manufacturer ? ['Fabricante', response.interpreted.manufacturer] : null,
-    response.interpreted.model ? ['Modelo', response.interpreted.model] : null,
-    response.interpreted.pnc ? ['PNC', response.interpreted.pnc] : null,
-    response.interpreted.partNumber ? ['Código', response.interpreted.partNumber] : null,
-  ].filter((entry): entry is string[] => Boolean(entry));
-
-  if (!entries.length) return null;
-  return (
-    <details className="mt-3 rounded-xl border border-slate-200 bg-white/80 p-3 text-xs text-slate-600">
-      <summary className="cursor-pointer font-semibold text-slate-700">O que o assistente entendeu</summary>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {entries.map(([label, value]) => <span key={`${label}-${value}`} className="rounded-full bg-slate-100 px-2.5 py-1"><b>{label}:</b> {value}</span>)}
-      </div>
-    </details>
-  );
-}
-
-function ReliabilityDetails({ response }: { response: ChatResponse }) {
-  const evidence = response.match?.evidence || [];
-  const sources = response.match?.retrievalSources || [];
-  const context = response.technicalContext || [];
-  if (!evidence.length && !sources.length && !context.length) return null;
-
-  return (
-    <details open={response.match?.level === 'REVIEW'} className="mt-3 rounded-xl border border-blue-100 bg-blue-50/40 p-3 text-xs text-slate-600">
-      <summary className="cursor-pointer font-semibold text-[#173f76]">Evidências da decisão</summary>
-      {sources.length ? (
-        <div className="mt-3">
-          <div className="text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">Métodos que encontraram a peça</div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {sources.map(source => <span key={source} className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-[#1d4f91] ring-1 ring-blue-100">{retrievalLabels[source]}</span>)}
-          </div>
-        </div>
-      ) : null}
-      {evidence.length ? (
-        <ul className="mt-3 space-y-1.5 leading-5 text-slate-600">
-          {evidence.map((item, index) => <li key={`${item}-${index}`}>• {item}</li>)}
-        </ul>
-      ) : null}
-      {context.length ? (
-        <div className="mt-3 border-t border-blue-100 pt-3">
-          <div className="text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">Memória técnica da mesma fonte</div>
-          <p className="mt-1 text-[10px] leading-4 text-slate-400">Estes trechos servem para conferir contexto mecânico. O Part Number não é extraído deles; o código exibido vem do registro estruturado da peça.</p>
-          <div className="mt-2 grid gap-2">
-            {context.map((item, index) => (
-              <div key={`${item.filename}-${item.page}-${item.section}-${index}`} className="rounded-lg border border-blue-100 bg-white p-2.5">
-                <div className="flex flex-wrap gap-x-2 gap-y-1 text-[10px] font-semibold text-[#173f76]">
-                  <span>{item.filename}</span>
-                  {item.page ? <span>pág. {item.page}</span> : null}
-                  {item.section ? <span>vista {item.section}</span> : null}
-                </div>
-                <div className="mt-1 line-clamp-4 whitespace-pre-line text-[10px] leading-4 text-slate-500">{item.excerpt}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </details>
-  );
-}
-
-function ResultCard({
-  response,
-  favorite,
-  favoritePending,
-  onToggleFavorite,
-  onCopyCode,
-  onCopySummary,
-  onAccess,
-}: {
-  response: ChatResponse;
-  favorite: boolean;
-  favoritePending: boolean;
-  onToggleFavorite: () => void;
-  onCopyCode: () => void;
-  onCopySummary: () => void;
-  onAccess: (mode: 'view' | 'download') => void;
-}) {
-  if (!response.part) return null;
-  const part = response.part;
-  const confidence = confidencePresentation(response);
-
-  return (
-    <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4 text-slate-800 shadow-sm">
-      <div className="flex flex-wrap justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase tracking-[.15em] text-[#1d4f91]">Resultado técnico</div>
-          <div className="mt-1 font-semibold">{part.name}</div>
-          <div className="mt-2 break-all text-2xl font-bold text-[#1d4f91]">{part.partNumber}</div>
-        </div>
-        {confidence ? <span className={`h-fit rounded-full px-3 py-1 text-xs font-semibold ring-1 ${confidence.style}`}>{confidence.label}</span> : null}
-      </div>
-
-      {response.match ? <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-500">{response.match.explanation}</div> : null}
-      <ReliabilityDetails response={response}/>
-
-      <div className="mt-4 grid gap-2 text-xs sm:grid-cols-2">
-        <div className="rounded-xl bg-slate-50 p-3">Modelo<b className="mt-1 block">{part.model}</b></div>
-        <div className="rounded-xl bg-slate-50 p-3">PNC<b className="mt-1 block">{part.pnc || 'Não informado'}</b></div>
-        <div className="rounded-xl bg-slate-50 p-3">Seção<b className="mt-1 block">{part.section || '—'}</b></div>
-        <div className="rounded-xl bg-slate-50 p-3">Posição / página<b className="mt-1 block">{part.position || '—'} · pág. {part.page ?? '—'}</b></div>
-      </div>
-      <div className="mt-3 rounded-xl border border-slate-200 p-3 text-xs">Catálogo<b className="mt-1 block break-words">{part.filename}</b></div>
-      {part.notes ? <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"><b className="block">Observação do catálogo</b><span className="mt-1 block">{part.notes}</span></div> : null}
-
-      {(part.applications?.length || 0) > 1 ? (
-        <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
-          <div className="text-[10px] font-bold uppercase tracking-[.1em] text-blue-700">Aplicações confirmadas deste código</div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {part.applications?.map(application => <span key={`${application.model}-${application.pnc}`} className="rounded-full bg-white px-2.5 py-1 text-[10px] font-medium text-blue-800 ring-1 ring-blue-100">{application.model} · PNC {application.pnc}</span>)}
-          </div>
-        </div>
-      ) : null}
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" disabled={favoritePending} onClick={onToggleFavorite} className={`rounded-xl border px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${favorite?'border-amber-300 bg-amber-50 text-amber-800':'border-slate-300 text-slate-700'}`}>{favorite?'★ Favoritada':'☆ Favoritar peça'}</button>
-        <button type="button" onClick={onCopyCode} className="rounded-xl bg-[#1d4f91] px-3 py-2 text-xs font-semibold text-white">Copiar código</button>
-        <button type="button" onClick={onCopySummary} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold">Copiar ficha</button>
-        <button type="button" onClick={() => onAccess('view')} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold">Abrir na página</button>
-        <button type="button" onClick={() => onAccess('download')} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold">Baixar PDF</button>
-      </div>
-    </div>
-  );
-}
 
 export default function ChatPanel({ storageScope }: { storageScope: string }) {
   const equipmentKey = `${EQUIPMENT_KEY}:${storageScope}`;
@@ -346,6 +154,10 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
         signal: controller.signal,
       });
       const data = await json<ChatResponse>(response);
+      
+      // The backend now provides data.b2bPortal directly via HusqvarnaPortalService
+      // No need to query localhost:3000 companion app anymore.
+
       if (conversationVersion !== conversationVersionRef.current) return;
       setMessages(current => [...current, { id: createId(), role: 'ai', text: data.answer, response: data, query, pnc: usedPnc }]);
       if (store) remember(query, usedPnc);
@@ -631,8 +443,14 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
             ) : null}
 
             {messages.map((message, index) => (
-              <div key={message.id} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-                <div className={`max-w-[94%] rounded-2xl px-4 py-3 text-sm ${message.role === 'user' ? 'bg-[#1d4f91] text-white' : 'bg-slate-100 text-slate-800'}`}>
+              <motion.div 
+                key={message.id} 
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+                className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}
+              >
+                <div className={`max-w-[94%] rounded-2xl px-4 py-3 text-sm shadow-sm ${message.role === 'user' ? 'bg-[#1d4f91] text-white rounded-br-sm' : 'bg-slate-100 text-slate-800 rounded-bl-sm border border-slate-200'}`}>
                   {message.role === 'user' ? <div>{message.text}</div> : (
                     <>
                       {message.response ? <Guidance response={message.response} /> : null}
@@ -651,20 +469,20 @@ export default function ChatPanel({ storageScope }: { storageScope: string }) {
                         />
                       ) : null}
 
-                      {message.response?.pncOptions?.length ? <div className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600">Selecione o PNC da etiqueta</div><div className="flex flex-wrap gap-2">{message.response.pncOptions.map(option => <button type="button" key={option} onClick={() => choosePnc(message, option)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs">PNC {option}</button>)}</div></div> : null}
-                      {message.response?.modelOptions?.length ? <div className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600">Confirmar modelo</div><div className="flex flex-wrap gap-2">{message.response.modelOptions.map(option => <button type="button" key={option} onClick={() => chooseModel(message, option)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs">{option}</button>)}</div></div> : null}
-                      {message.response?.serialRequired ? <SerialFollowUp disabled={loading} onSubmit={nextSerial => continueWithSerial(message, nextSerial)} /> : null}
-                      {message.response?.status === 'AMBIGUOUS' && message.response.options?.length ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Qual item da vista corresponde à peça?</div><div className="mt-2 grid gap-2">{message.response.options.map(option => <button type="button" key={option.id} onClick={() => chooseAmbiguousOption(message, option)} className="rounded-lg border border-slate-200 p-2 text-left text-xs hover:bg-slate-50"><b>{option.name}</b><span className="mt-0.5 block font-semibold text-[#1d4f91]">Código {option.partNumber}</span><span className="block text-slate-500">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span>{option.section ? <span className="mt-1 block text-slate-500">Vista: {option.section}</span> : null}{option.notes ? <span className="mt-1 block font-semibold text-amber-700">Aplicação: {option.notes}</span> : null}</button>)}</div></div> : null}
+                      {message.response?.pncOptions?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600">Selecione o PNC da etiqueta</div><div className="flex flex-wrap gap-2">{message.response.pncOptions.map(option => <button type="button" key={option} onClick={() => choosePnc(message, option)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs hover:border-[#1d4f91] hover:text-[#1d4f91] transition">PNC {option}</button>)}</div></motion.div> : null}
+                      {message.response?.modelOptions?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600">Confirmar modelo</div><div className="flex flex-wrap gap-2">{message.response.modelOptions.map(option => <button type="button" key={option} onClick={() => chooseModel(message, option)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs hover:border-[#1d4f91] hover:text-[#1d4f91] transition">{option}</button>)}</div></motion.div> : null}
+                      {message.response?.serialRequired ? <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}><SerialFollowUp disabled={loading} onSubmit={nextSerial => continueWithSerial(message, nextSerial)} /></motion.div> : null}
+                      {message.response?.status === 'AMBIGUOUS' && message.response.options?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Qual item da vista corresponde à peça?</div><div className="mt-2 grid gap-2">{message.response.options.map(option => <button type="button" key={option.id} onClick={() => chooseAmbiguousOption(message, option)} className="rounded-lg border border-slate-200 p-2 text-left text-xs hover:bg-slate-50 transition"><b>{option.name}</b><span className="mt-0.5 block font-semibold text-[#1d4f91]">Código {option.partNumber}</span><span className="block text-slate-500">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span>{option.section ? <span className="mt-1 block text-slate-500">Vista: {option.section}</span> : null}{option.notes ? <span className="mt-1 block font-semibold text-amber-700">Aplicação: {option.notes}</span> : null}</button>)}</div></motion.div> : null}
 
-                      {message.response?.part && !message.feedback ? <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3"><span className="text-xs text-slate-500">Este resultado ajudou?</span><button type="button" disabled={message.feedbackPending} onClick={() => void positiveFeedback(index)} className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-700 disabled:opacity-50">👍 Sim</button><button type="button" disabled={message.feedbackPending} onClick={() => void startNegative(index)} className="rounded-lg bg-rose-50 px-2 py-1 text-rose-700 disabled:opacity-50">👎 Não</button>{message.feedbackPending ? <span className="text-xs text-slate-400">Salvando…</span> : null}</div> : null}
-                      {message.showReasons ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Feedback negativo salvo. O que estava errado?</div><div className="mt-1 text-[11px] text-slate-400">Detalhar é opcional e ajuda o ranking das próximas buscas.</div><div className="mt-2 flex flex-wrap gap-2">{reasons.map(([reason, label]) => <button type="button" disabled={message.feedbackPending} key={reason} onClick={() => void chooseReason(index, reason)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50">{label}</button>)}</div><button type="button" onClick={() => setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, showReasons: false } : item))} className="mt-2 text-xs font-semibold text-slate-400 underline">Concluir sem detalhar</button></div> : null}
-                      {message.showCorrections ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Selecione a peça correta, se ela aparecer abaixo.</div><div className="mt-2 grid gap-2">{message.response?.feedbackOptions?.filter(option => option.id !== message.response?.part?.id).map(option => <button type="button" key={option.id} onClick={() => void negativeFeedback(index, option)} className="rounded-lg border border-slate-200 p-2 text-left text-xs"><b>{option.name}</b><span className="block font-semibold text-[#1d4f91]">{option.partNumber}</span><span className="block text-slate-500">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span>{option.notes ? <span className="mt-1 block font-semibold text-amber-700">Aplicação: {option.notes}</span> : null}</button>)}</div><button type="button" onClick={() => void negativeFeedback(index)} className="mt-2 text-xs font-semibold text-slate-500 underline">Nenhuma dessas / apenas registrar o erro</button></div> : null}
-                      {message.feedback && !message.showReasons && !message.showCorrections ? <div className="mt-2 text-xs text-slate-500">{message.feedback === 'correct' ? '✓ Confirmação salva e considerada no ranking' : message.feedback === 'corrected' ? '✓ Correção salva e considerada no ranking' : '✓ Feedback salvo e considerado no ranking'}</div> : null}
+                      {message.response?.part && !message.feedback ? <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3"><span className="text-xs text-slate-500">Este resultado ajudou?</span><button type="button" disabled={message.feedbackPending} onClick={() => void positiveFeedback(index)} className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50">👍 Sim</button><button type="button" disabled={message.feedbackPending} onClick={() => void startNegative(index)} className="rounded-lg bg-rose-50 px-2 py-1 text-rose-700 transition hover:bg-rose-100 disabled:opacity-50">👎 Não</button>{message.feedbackPending ? <span className="text-xs text-slate-400">Salvando…</span> : null}</div> : null}
+                      {message.showReasons ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Feedback negativo salvo. O que estava errado?</div><div className="mt-1 text-[11px] text-slate-400">Detalhar é opcional e ajuda o ranking das próximas buscas.</div><div className="mt-2 flex flex-wrap gap-2">{reasons.map(([reason, label]) => <button type="button" disabled={message.feedbackPending} key={reason} onClick={() => void chooseReason(index, reason)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition">{label}</button>)}</div><button type="button" onClick={() => setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, showReasons: false } : item))} className="mt-2 text-xs font-semibold text-slate-400 underline">Concluir sem detalhar</button></motion.div> : null}
+                      {message.showCorrections ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-700">Selecione a peça correta, se ela aparecer abaixo.</div><div className="mt-2 grid gap-2">{message.response?.feedbackOptions?.filter(option => option.id !== message.response?.part?.id).map(option => <button type="button" key={option.id} onClick={() => void negativeFeedback(index, option)} className="rounded-lg border border-slate-200 p-2 text-left text-xs transition hover:bg-slate-50"><b>{option.name}</b><span className="block font-semibold text-[#1d4f91]">{option.partNumber}</span><span className="block text-slate-500">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span>{option.notes ? <span className="mt-1 block font-semibold text-amber-700">Aplicação: {option.notes}</span> : null}</button>)}</div><button type="button" onClick={() => void negativeFeedback(index)} className="mt-2 text-xs font-semibold text-slate-500 underline">Nenhuma dessas / apenas registrar o erro</button></motion.div> : null}
+                      {message.feedback && !message.showReasons && !message.showCorrections ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-2 text-xs text-slate-500">{message.feedback === 'correct' ? '✓ Confirmação salva e considerada no ranking' : message.feedback === 'corrected' ? '✓ Correção salva e considerada no ranking' : '✓ Feedback salvo e considerado no ranking'}</motion.div> : null}
                       {message.feedbackError ? <div role="alert" className="mt-2 text-xs font-medium text-rose-600">{message.feedbackError}</div> : null}
                     </>
                   )}
                 </div>
-              </div>
+              </motion.div>
             ))}
 
             {loading ? <div role="status" className="flex items-center gap-3 text-sm text-slate-400"><span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-[#1d4f91]" />Interpretando e cruzando com os catálogos… <button type="button" onClick={cancel} className="text-xs font-semibold text-slate-500 underline">Cancelar</button></div> : null}
