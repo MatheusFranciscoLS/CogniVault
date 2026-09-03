@@ -147,7 +147,7 @@ export class ChatService {
       }
     }
 
-    const reactResult = await ReActAgentService.execute(tenantId, question, intent.pnc || undefined);
+    const reactResult = await ReActAgentService.execute(tenantId, question, intent.pnc || undefined, intent);
     
     if (reactResult.status === 'FOUND' && reactResult.chosenPartId) {
        const chosen = await PartSearchService.byId(tenantId, reactResult.chosenPartId);

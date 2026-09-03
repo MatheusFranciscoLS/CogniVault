@@ -2,7 +2,8 @@ import { GEMINI_GENERATIVE_MODEL, getGeminiClient } from '../config/gemini';
 import { PartSearchService, type PartCandidate } from './part-search.service';
 import type { SearchIntent } from './chat-intent.service';
 import { ChatIntentService } from './chat-intent.service';
-import { evaluateAnswerConfidence } from './confidence-gate';
+import { filterCandidatesByMarket } from './catalog-market';
+import { findPartConcepts } from './part-vocabulary';
 import { retrieveTechnicalContext } from './document-memory';
 
 export interface ReActSearchResult {
@@ -15,54 +16,72 @@ export interface ReActSearchResult {
 
 export class ReActAgentService {
   /**
-   * Executa o fluxo de reasoning e ação para resolver a intenção do usuário.
+   * Executa o fluxo de reasoning e ação para resolver a intenção do usuário com alta velocidade e certeza técnica.
    */
-  static async execute(tenantId: string, question: string, explicitPnc?: string): Promise<ReActSearchResult> {
-    const ai = await getGeminiClient();
-    
+  static async execute(
+    tenantId: string,
+    question: string,
+    explicitPnc?: string,
+    preParsedIntent?: SearchIntent,
+  ): Promise<ReActSearchResult> {
     // Step 1: Parse and Expand Query (Reasoning)
-    const intent = await ChatIntentService.parse(question);
+    const intent = preParsedIntent || (await ChatIntentService.parse(question));
     if (explicitPnc) intent.pnc = explicitPnc;
 
-    // Expanding terms (Translating to Husqvarna Technical English/Spanish)
-    const expansionPrompt = `O usuário está buscando uma peça de equipamento Husqvarna.
-Consulta original: "${question}"
-Equipamento detectado: ${intent.model || 'Nenhum'}
-Descrição detectada: ${intent.partDescription || 'Nenhuma'}
-
-Forneça sinônimos técnicos e traduções comuns (Inglês e Espanhol) para esta peça que costumam aparecer nos Manuais de Peças (IPL) da Husqvarna. 
-Retorne apenas os sinônimos separados por " / ". Não inclua o nome do modelo.`;
-
-    let expandedDescription = intent.partDescription;
-    try {
-      const expansionResponse = await ai.interactions.create({
-        model: GEMINI_GENERATIVE_MODEL,
-        input: expansionPrompt,
-      });
-      const synonyms = expansionResponse.output_text?.trim() || '';
-      if (synonyms && !synonyms.includes('{') && !synonyms.includes('}')) {
-        expandedDescription = `${intent.partDescription} / ${synonyms}`;
-      }
-    } catch (e) {
-      console.warn('⚠️ Falha ao expandir sinônimos no ReAct Agent.', e);
+    // Fast local concept expansion using Husqvarna ontology (zero latency)
+    let expandedDescription = intent.partDescription || '';
+    const concepts = findPartConcepts(intent.partDescription || question);
+    if (concepts.length > 0) {
+      const allTerms = concepts.flatMap(c => c.variants);
+      expandedDescription = [...new Set([expandedDescription, ...allTerms])].filter(Boolean).join(' / ');
     }
 
     const searchIntent: SearchIntent = {
       ...intent,
-      partDescription: expandedDescription,
+      partDescription: expandedDescription || intent.partDescription,
     };
 
-    // Step 2: Action - Search Database
-    const candidates = await PartSearchService.semantic(tenantId, question, searchIntent);
+    // Step 2: Action - Search Database (Hybrid Retrieval)
+    const rawCandidates = await PartSearchService.semantic(tenantId, question, searchIntent);
 
-    if (!candidates.length) {
+    if (!rawCandidates.length) {
       return {
         status: 'NOT_FOUND',
-        explanation: 'Não encontrei nenhuma peça correspondente após expandir a busca para múltiplos idiomas e sinônimos técnicos.',
+        explanation: 'Não encontrei nenhuma peça correspondente no catálogo técnico.',
       };
     }
 
-    // Step 3: Observation & Reasoning - Let Gemini pick the best candidate based on technical context
+    // Step 3: Market Filtering (Strict priority to Latin America / Brazil)
+    const candidates = filterCandidatesByMarket(rawCandidates);
+    if (!candidates.length) {
+      return {
+        status: 'NOT_FOUND',
+        explanation: 'Nenhuma peça correspondente foi encontrada para a região de mercado configurada.',
+      };
+    }
+
+    // Fast-path 1: Single remaining candidate
+    if (candidates.length === 1) {
+      return {
+        status: 'FOUND',
+        chosenPartId: candidates[0].id,
+        explanation: `Peça única identificada com certeza técnica para o modelo ${candidates[0].model} (${candidates[0].name}, código ${candidates[0].partNumber}).`,
+      };
+    }
+
+    // Fast-path 2: Dominant winner with decisive margin or strong retrieval agreement
+    const top = candidates[0];
+    const second = candidates[1];
+    if (top.distance <= 0.22 && (second.distance - top.distance >= 0.35 || (top.retrievalAgreement && top.retrievalAgreement >= 3))) {
+      return {
+        status: 'FOUND',
+        chosenPartId: top.id,
+        explanation: `Peça correspondente de alta precisão identificada para o modelo ${top.model} (${top.name}, código ${top.partNumber}).`,
+      };
+    }
+
+    // Step 4: Observation & Reasoning via Gemini with technical notes and market context
+    const ai = await getGeminiClient();
     const candidatesSummary = candidates.slice(0, 10).map((c, index) => {
       return `Opção ${index + 1}:
 ID: ${c.id}
@@ -72,6 +91,7 @@ Modelo: ${c.model}
 PNC: ${c.pnc || 'Qualquer'}
 Seção: ${c.section || 'N/A'}
 Posição: ${c.position || 'N/A'}
+Mercado/Notas: ${c.notes || 'Universal'}
 Score de Recuperação: ${c.distance} (menor é melhor)`;
     }).join('\n\n');
 
@@ -83,9 +103,11 @@ ${candidatesSummary}
 
 Instruções:
 1. Analise cuidadosamente a pergunta do usuário e os candidatos.
-2. Identifique qual é a peça exata que o usuário deseja. Leve em conta modelo, posição e descrições equivalentes (português, inglês, espanhol).
-3. Se não houver uma peça claramente correta, retorne ambiguous = true.
-4. Explique seu raciocínio (Thought) detalhadamente na explicação.
+2. Priorize estritamente opções para o mercado regional (Brasil / América Latina / South America). Se houver indicação de substituição oficial vigente, preserve o código atualizado.
+3. Identifique qual é a peça exata que o usuário deseja com base em modelo, seção, posição e descrição técnica.
+4. Se houver uma peça claramente correta no mercado regional, escolha-a.
+5. Se não houver uma peça claramente correta, retorne ambiguous = true.
+6. Explique seu raciocínio técnico.
 
 Retorne um JSON com:
 - chosenId: O ID da peça escolhida (ou null se ambíguo/não encontrado)
@@ -100,16 +122,16 @@ Retorne um JSON com:
           type: 'text',
           mime_type: 'application/json',
           schema: {
-          type: 'object',
-          properties: {
-            chosenId: { type: 'string' },
-            explanation: { type: 'string' },
-            ambiguous: { type: 'boolean' },
+            type: 'object',
+            properties: {
+              chosenId: { type: 'string' },
+              explanation: { type: 'string' },
+              ambiguous: { type: 'boolean' },
+            },
+            required: ['explanation', 'ambiguous'],
           },
-          required: ['explanation', 'ambiguous'],
         },
-      },
-    });
+      });
 
       const decision = JSON.parse((decisionResponse as any).output_text || '{}');
       if (decision.ambiguous || !decision.chosenId) {
@@ -124,7 +146,6 @@ Retorne um JSON com:
         return { status: 'NOT_FOUND', explanation: 'O candidato escolhido não é válido.' };
       }
 
-      // Action 2: Get Context to verify
       let contextEvidence = '';
       try {
         const hits = await retrieveTechnicalContext(tenantId, question, {
@@ -149,3 +170,4 @@ Retorne um JSON com:
     }
   }
 }
+

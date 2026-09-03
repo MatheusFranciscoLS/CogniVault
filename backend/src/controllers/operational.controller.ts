@@ -5,6 +5,8 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { buildFallbackIntent } from '../services/chat-reliability';
 import { buildSearchGroups, scorePartText } from '../services/part-vocabulary';
+import { allRelatedPartNumbers, preferCurrentPartNumbers } from '../services/part-supersession';
+import { filterCandidatesByMarket } from '../services/catalog-market';
 
 export class OperationalController {
     async home(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -39,6 +41,7 @@ export class OperationalController {
 
         const normalized = normalizeText(q);
         const identifier = normalizeIdentifier(q);
+        const relatedCodes = identifier ? allRelatedPartNumbers(identifier).map(normalizeIdentifier).filter(Boolean) : [];
         const tenantId = req.user.tenantId;
         const intent = buildFallbackIntent(q);
         const normalizedModel = normalizeIdentifier(intent.model);
@@ -65,8 +68,8 @@ export class OperationalController {
                 OR: [
                     { partNumber: { contains: q, mode: 'insensitive' } },
                     ...(normalized ? [{ normalizedName: { contains: normalized } }] : []),
+                    ...(relatedCodes.length ? [{ normalizedPartNumber: { in: relatedCodes } }] : (identifier ? [{ normalizedPartNumber: { contains: identifier } }] : [])),
                     ...(identifier ? [
-                        { normalizedPartNumber: { contains: identifier } },
                         { normalizedModel: { contains: identifier } },
                         { normalizedPnc: { contains: identifier } },
                     ] : []),
@@ -86,7 +89,7 @@ export class OperationalController {
                     id: true, name: true, partNumber: true, manufacturer: true, model: true, pnc: true,
                     universalAcrossPnc: true, section: true, position: true, page: true, documentId: true,
                     normalizedName: true, normalizedPartNumber: true, normalizedModel: true, normalizedPnc: true,
-                    alternativeNames: true,
+                    alternativeNames: true, notes: true,
                     document: { select: { filename: true } },
                 },
             }),
@@ -109,8 +112,11 @@ export class OperationalController {
             }),
         ]);
 
+        const marketFiltered = filterCandidatesByMarket(parts);
+        const resolvedParts = preferCurrentPartNumbers(marketFiltered);
+
         const seen = new Set<string>();
-        const rankedParts = parts
+        const rankedParts = resolvedParts
             .map(part => ({ part, score: groups.length ? scorePartText(q, { name: part.name, section: part.section, aliases: part.alternativeNames }) : 0 }))
             .sort((a, b) => b.score - a.score || a.part.name.localeCompare(b.part.name, 'pt-BR'))
             .filter(({ part }) => {
@@ -166,10 +172,12 @@ export class OperationalController {
             prisma.favorite.findFirst({ where: { userId: req.user.id, partId: part.id }, select: { id: true } }),
         ]);
 
+        const [resolvedPart] = preferCurrentPartNumbers([part]);
+
         res.json({
             part: {
-                ...part,
-                pnc: part.universalAcrossPnc ? 'Qualquer um' : part.pnc,
+                ...resolvedPart,
+                pnc: resolvedPart.universalAcrossPnc ? 'Qualquer um' : resolvedPart.pnc,
                 related,
                 compatibility: compatibility.map((item) => ({ model: item.model, pnc: item.universalAcrossPnc ? 'Qualquer um' : item.pnc })),
                 favoriteId: favorite?.id || null,

@@ -42,31 +42,60 @@ function occurrenceKey(candidate: MarketCandidate): string | null {
 }
 
 /**
- * Mantém somente variantes explicitamente destinadas ao mercado configurado.
- * Se o catálogo não possuir marcação compatível, preserva todos os candidatos
- * para que a aplicação continue pedindo confirmação em vez de adivinhar.
+ * Mantém somente variantes destinadas ao mercado configurado (padrão Brasil/América Latina).
+ * Se o catálogo possuir marcação compatível com a região, elimina candidatos restritos
+ * a outros mercados conflitantes (ex: EU, USA) e dá preferência à versão regional.
+ * Se o catálogo não possuir marcação regional, preserva os candidatos existentes.
  */
 export function filterCandidatesByMarket<T extends MarketCandidate>(
   candidates: T[],
-  preferredMarket = process.env.PARTS_MARKET || '',
+  preferredMarket = process.env.PARTS_MARKET || 'LATIN_AMERICA',
 ): T[] {
   if (!preferredMarket.trim()) return candidates;
-  if (!candidates.some(candidate => occurrenceKey(candidate))) {
-    const matching = candidates.filter(candidate => matchesMarket(candidateEvidence(candidate), preferredMarket));
-    const hasExplicitAlternative = candidates.some(candidate => isMarketSpecific(candidateEvidence(candidate)));
-    return matching.length && hasExplicitAlternative ? matching : candidates;
+
+  const hasAnyMarketMatch = candidates.some(candidate =>
+    matchesMarket(candidateEvidence(candidate), preferredMarket),
+  );
+  if (!hasAnyMarketMatch) {
+    return candidates;
   }
+
+  // Se existe pelo menos um candidato compatível com o mercado preferido,
+  // descarta candidatos que são explicitamente restritos a outros mercados conflitantes (ex: EU, USA).
+  const withoutForeign = candidates.filter(candidate => {
+    const evidence = candidateEvidence(candidate);
+    if (isMarketSpecific(evidence) && !matchesMarket(evidence, preferredMarket)) {
+      return false;
+    }
+    return true;
+  });
+
+  if (!withoutForeign.some(candidate => occurrenceKey(candidate))) {
+    const matching = withoutForeign.filter(candidate =>
+      matchesMarket(candidateEvidence(candidate), preferredMarket),
+    );
+    return matching.length ? matching : withoutForeign;
+  }
+
   const groups = new Map<string, T[]>();
-  for (const [index, candidate] of candidates.entries()) {
+  for (const [index, candidate] of withoutForeign.entries()) {
     const key = occurrenceKey(candidate) || `__ungrouped__${index}`;
     groups.set(key, [...(groups.get(key) || []), candidate]);
   }
 
   const filtered: T[] = [];
   for (const group of groups.values()) {
-    const matching = group.filter(candidate => matchesMarket(candidateEvidence(candidate), preferredMarket));
-    const hasExplicitAlternative = group.some(candidate => isMarketSpecific(candidateEvidence(candidate)));
-    filtered.push(...(matching.length && hasExplicitAlternative ? matching : group));
+    const matching = group.filter(candidate =>
+      matchesMarket(candidateEvidence(candidate), preferredMarket),
+    );
+    const hasGeneric = group.some(candidate => !isMarketSpecific(candidateEvidence(candidate)));
+    if (matching.length && hasGeneric) {
+      filtered.push(...matching);
+    } else {
+      filtered.push(...group);
+    }
   }
+
   return filtered;
 }
+

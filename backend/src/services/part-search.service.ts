@@ -12,7 +12,7 @@ import {
 } from './part-vocabulary';
 import { relationSpecificityBonus, stripExplicitSerialContext } from './candidate-specificity';
 import { applyFeedbackLearning } from './feedback-learning';
-import { preferCurrentPartNumbers, resolveCurrentPartNumber } from './part-supersession';
+import { allRelatedPartNumbers, preferCurrentPartNumbers, resolveCurrentPartNumber } from './part-supersession';
 import { normalizedReciprocalRankFusionScores } from './retrieval-fusion';
 import { fullTextPartCandidates, fuzzyPartCandidates, type HybridTextCandidateRow } from './hybrid-part-retrieval';
 import { consumeSemanticQueryBudget, semanticIndexingEnabled } from './semantic-indexing-policy';
@@ -200,7 +200,7 @@ export class PartSearchService {
       include: { document: { select: { filename: true, pnc: true } } },
     });
     if (!part) return null;
-    return {
+    const candidate: PartCandidate = {
       id: part.id, documentId: part.documentId, filename: part.document.filename,
       manufacturer: part.manufacturer, model: part.model, normalizedModel: part.normalizedModel,
       pnc: part.pnc || part.document.pnc,
@@ -211,13 +211,20 @@ export class PartSearchService {
       page: part.page, notes: part.notes, distance: 0, feedbackScore: 0, searchMethod: 'LEXICAL',
       retrievalSources: ['LEXICAL'], retrievalAgreement: 1,
     };
+    return preferCurrentPartNumbers([candidate])[0] || candidate;
   }
 
   static async directByCode(tenantId: string, partNumber: string): Promise<PartCandidate[]> {
-    const needle = normalizeIdentifier(resolveCurrentPartNumber(partNumber));
-    if (!needle) return [];
+    const raw = normalizeIdentifier(partNumber);
+    if (!raw) return [];
+    const related = allRelatedPartNumbers(partNumber).map(normalizeIdentifier).filter(Boolean);
+    if (!related.length) return [];
     const rows = await prisma.part.findMany({
-      where: { normalizedPartNumber: needle, active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } },
+      where: {
+        normalizedPartNumber: { in: related },
+        active: true,
+        document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+      },
       include: { document: { select: { filename: true, pnc: true } } },
     });
     return preferCurrentPartNumbers(deduplicatePartCandidates(rows.map(p => ({
