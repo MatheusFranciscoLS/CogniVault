@@ -177,10 +177,23 @@ export class DocumentService {
             const contentHash = createHash('sha256').update(fileBuffer).digest('hex');
             const duplicate = await prisma.document.findFirst({
                 where: { tenantId, contentHash, archivedAt: null },
-                select: { id: true },
+                select: { id: true, status: true },
             });
 
-            if (duplicate) throw new Error(`DOCUMENT_DUPLICATE:${duplicate.id}`);
+            if (duplicate) {
+                if (duplicate.status === 'FAILED') {
+                    // Se o PDF anterior falhou, arquiva o registro morto para permitir nova extração limpa
+                    await prisma.document.update({
+                        where: { id: duplicate.id },
+                        data: {
+                            archivedAt: new Date(),
+                            processingStage: 'REPLACED_ON_REUPLOAD',
+                        },
+                    });
+                } else {
+                    throw new Error(`DOCUMENT_DUPLICATE:${duplicate.id}`);
+                }
+            }
 
             const documentId = randomUUID();
             const jobId = randomUUID();
@@ -344,14 +357,22 @@ export class DocumentService {
 
         if (!document) throw new Error('DOCUMENT_NOT_FOUND');
 
-        if (document.processingJobId || ['PENDING', 'PROCESSING'].includes(document.status)) {
+        const isFailed = document.status === 'FAILED';
+        if (!isFailed && (document.processingJobId || ['PENDING', 'PROCESSING'].includes(document.status))) {
             throw new Error('DOCUMENT_ALREADY_PROCESSING');
         }
 
         const hasUsableCatalog = document.status === 'COMPLETED';
         const jobId = randomUUID();
         const locked = await prisma.document.updateMany({
-            where: { id: document.id, tenantId, processingJobId: null },
+            where: {
+                id: document.id,
+                tenantId,
+                OR: [
+                    { processingJobId: null },
+                    { status: 'FAILED' },
+                ],
+            },
             data: {
                 status: hasUsableCatalog ? 'COMPLETED' : 'PENDING',
                 processingJobId: jobId,
@@ -391,7 +412,10 @@ export class DocumentService {
         });
 
         if (!document) throw new Error('DOCUMENT_NOT_FOUND');
-        if (document.processingJobId) throw new Error('DOCUMENT_ALREADY_PROCESSING');
+
+        if (document.processingJobId && document.status !== 'FAILED') {
+            throw new Error('DOCUMENT_ALREADY_PROCESSING');
+        }
 
         const archivedAt = new Date();
         await prisma.document.update({
