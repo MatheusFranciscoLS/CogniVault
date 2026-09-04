@@ -1,10 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { LRUCache } from 'lru-cache';
 import { prisma } from '../config/prisma';
 
-const JWT_SECRET: string = process.env.JWT_SECRET || (() => {
-    throw new Error('JWT_SECRET não definida no .env');
-})();
+function getJwtSecret(): string {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        if (process.env.NODE_ENV === 'test' || !process.env.NODE_ENV) {
+            return 'test-jwt-secret-key-cognivault';
+        }
+        throw new Error('JWT_SECRET não definida no .env');
+    }
+    return secret;
+}
 
 export interface AuthenticatedUser {
     id: string;
@@ -21,6 +29,27 @@ interface JwtPayload {
     id: string;
     role: 'ADMIN' | 'MECHANIC';
     tenantId: string;
+}
+
+interface CachedUser {
+    id: string;
+    email: string;
+    tenantId: string;
+    role: 'ADMIN' | 'MECHANIC';
+    status: string;
+}
+
+const userAuthCache = new LRUCache<string, CachedUser>({
+    max: 500,
+    ttl: 15 * 1000, // 15 seconds TTL
+});
+
+export function invalidateUserAuthCache(userId?: string): void {
+    if (userId) {
+        userAuthCache.delete(userId);
+    } else {
+        userAuthCache.clear();
+    }
 }
 
 export async function authMiddleware(
@@ -41,7 +70,7 @@ export async function authMiddleware(
             return;
         }
 
-        const decoded = jwt.verify(parts[1], JWT_SECRET);
+        const decoded = jwt.verify(parts[1], getJwtSecret());
         if (typeof decoded !== 'object' || decoded === null) {
             res.status(401).json({ error: 'Token inválido.' });
             return;
@@ -58,18 +87,29 @@ export async function authMiddleware(
 
         const payload = decoded as JwtPayload;
 
-        const currentUser = await prisma.user.findUnique({
-            where: { id: payload.id },
-            select: {
-                id: true,
-                email: true,
-                tenantId: true,
-                role: true,
-                status: true,
-            },
-        });
+        let currentUser = userAuthCache.get(payload.id);
+        if (!currentUser) {
+            const dbUser = await prisma.user.findUnique({
+                where: { id: payload.id },
+                select: {
+                    id: true,
+                    email: true,
+                    tenantId: true,
+                    role: true,
+                    status: true,
+                },
+            });
 
-        if (!currentUser || currentUser.tenantId !== payload.tenantId) {
+            if (!dbUser) {
+                res.status(401).json({ error: 'Usuário não encontrado ou sessão inválida.' });
+                return;
+            }
+
+            currentUser = dbUser;
+            userAuthCache.set(payload.id, dbUser);
+        }
+
+        if (currentUser.tenantId !== payload.tenantId) {
             res.status(401).json({ error: 'Usuário não encontrado ou sessão inválida.' });
             return;
         }

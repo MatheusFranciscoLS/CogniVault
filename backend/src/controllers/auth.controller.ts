@@ -3,10 +3,18 @@ import { prisma } from '../config/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { AuditService } from '../services/audit.service';
+import { invalidateUserAuthCache } from '../middleware/auth.middleware';
 
-const JWT_SECRET: string = process.env.JWT_SECRET || (() => {
-    throw new Error('JWT_SECRET não definida no .env');
-})();
+function getJwtSecret(): string {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        if (process.env.NODE_ENV === 'test' || !process.env.NODE_ENV) {
+            return 'test-jwt-secret-key-cognivault';
+        }
+        throw new Error('JWT_SECRET não definida no .env');
+    }
+    return secret;
+}
 
 
 export class AuthController {
@@ -83,7 +91,7 @@ export class AuthController {
                     role: user.role,
                     tenantId: user.tenantId
                 },
-                JWT_SECRET,
+                getJwtSecret(),
                 {
                     expiresIn: '8h'
                 }
@@ -97,6 +105,8 @@ export class AuthController {
                 targetId: user.id,
                 metadata: { email: user.email, role: user.role },
             });
+
+            invalidateUserAuthCache(user.id);
 
             res.status(200).json({
                 message: 'Login realizado com sucesso!',

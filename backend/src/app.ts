@@ -38,12 +38,13 @@ app.use(helmet({
 }));
 app.disable('x-powered-by');
 
-// Limite de requisições (Rate Limiting) para proteger a infraestrutura e não esgotar cotas gratuitas
+// Limite de requisições (Rate Limiting) para proteger a infraestrutura e permitir uso fluido em balcão/oficina
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minuto
-  limit: 100, // Limite de 100 requisições por IP a cada 1 minuto (para todo o /api ou global)
+  limit: 300, // 300 requisições por IP por minuto (permite múltiplos atendentes na mesma rede sem bloqueio)
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.path.startsWith('/health'), // Probes de orquestrador (Render/Kubernetes) nunca são bloqueadas
   message: { error: 'Muitas requisições deste IP, tente novamente em um minuto.' },
 });
 

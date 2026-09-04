@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../config/prisma';
-import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { AuthenticatedRequest, invalidateUserAuthCache } from '../middleware/auth.middleware';
 import { AuditService } from '../services/audit.service';
 
 export class AdminController {
@@ -192,6 +192,8 @@ export class AdminController {
                 },
                 select: { id: true, email: true, role: true, status: true, createdAt: true },
             });
+
+            invalidateUserAuthCache(target.id);
 
             await AuditService.record({
                 tenantId: req.user.tenantId,
