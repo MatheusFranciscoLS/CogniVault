@@ -17,7 +17,9 @@ export default function QuickQuoteCart() {
     openWhatsApp,
   } = useQuoteCart();
 
-  const [customerInfo, setCustomerInfo] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('A Combinar no Balcão');
 
   if (totalItems === 0 && !isOpen) {
     return null;
@@ -85,19 +87,54 @@ export default function QuickQuoteCart() {
               </button>
             </div>
 
-            {/* Campo Opcional de Identificação do Cliente / Máquina */}
-            <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-4">
-              <label htmlFor="quote-customer-info" className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Máquina ou Cliente (Opcional):
-              </label>
-              <input
-                id="quote-customer-info"
-                type="text"
-                value={customerInfo}
-                onChange={e => setCustomerInfo(e.target.value)}
-                placeholder="Ex.: 143RII - Sr. Carlos"
-                className="mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-800 dark:text-slate-100 outline-none transition focus:border-[#1d4f91] focus:ring-2 focus:ring-blue-500/20"
-              />
+            {/* Campo de Identificação do Cliente, Telefone e Pagamento */}
+            <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-3.5 space-y-2.5">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label htmlFor="quote-customer-name" className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Cliente / Máquina:
+                  </label>
+                  <input
+                    id="quote-customer-name"
+                    type="text"
+                    value={customerName}
+                    onChange={e => setCustomerName(e.target.value)}
+                    placeholder="Ex.: Sr. Carlos (143RII)"
+                    className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#1d4f91] focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="quote-customer-phone" className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    WhatsApp (Opcional):
+                  </label>
+                  <input
+                    id="quote-customer-phone"
+                    type="text"
+                    value={customerPhone}
+                    onChange={e => setCustomerPhone(e.target.value)}
+                    placeholder="(44) 99999-9999"
+                    className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#1d4f91] focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="quote-payment-method" className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Condição de Pagamento:
+                </label>
+                <select
+                  id="quote-payment-method"
+                  value={paymentMethod}
+                  onChange={e => setPaymentMethod(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-[#1d4f91]"
+                >
+                  <option value="A Combinar no Balcão">A Combinar no Balcão</option>
+                  <option value="À Vista / PIX (5% desc.)">À Vista / PIX (5% desc.)</option>
+                  <option value="Cartão de Débito">Cartão de Débito</option>
+                  <option value="Cartão de Crédito (até 3x)">Cartão de Crédito (até 3x)</option>
+                  <option value="Boleto Faturado (14/28 dias)">Boleto Faturado (14/28 dias)</option>
+                </select>
+              </div>
             </div>
 
             {/* Lista de Peças */}
@@ -220,7 +257,7 @@ export default function QuickQuoteCart() {
 
                 <button
                   type="button"
-                  onClick={() => void copyQuoteToClipboard(customerInfo)}
+                  onClick={() => void copyQuoteToClipboard({ customerName, customerPhone, paymentMethod })}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white py-3 px-4 text-xs font-bold shadow-md transition hover:shadow-lg active:scale-98"
                 >
                   <span>📋</span>
@@ -229,11 +266,11 @@ export default function QuickQuoteCart() {
 
                 <button
                   type="button"
-                  onClick={() => openWhatsApp(customerInfo)}
+                  onClick={() => openWhatsApp({ customerName, customerPhone, paymentMethod })}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 font-extrabold py-2.5 px-4 text-xs shadow-sm transition active:scale-98"
                 >
                   <span>💬</span>
-                  <span>Abrir no WhatsApp Web</span>
+                  <span>{customerPhone ? `Abrir WhatsApp do Cliente (${customerPhone})` : 'Abrir no WhatsApp Web'}</span>
                 </button>
 
                 <button
@@ -274,7 +311,9 @@ export default function QuickQuoteCart() {
             </div>
             <div className="text-right text-xs">
               <p><strong>Data:</strong> {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
-              {customerInfo && <p className="mt-1 font-semibold text-slate-800"><strong>Cliente / Ref:</strong> {customerInfo}</p>}
+              {customerName && <p className="mt-1 font-semibold text-slate-800"><strong>Cliente:</strong> {customerName}</p>}
+              {customerPhone && <p className="text-slate-600"><strong>WhatsApp:</strong> {customerPhone}</p>}
+              {paymentMethod && <p className="text-slate-600"><strong>Condição:</strong> {paymentMethod}</p>}
               <p className="mt-0.5 text-slate-500">Total de itens: {totalItems}</p>
               {totalPrice > 0 && (
                 <p className="mt-1 font-bold text-sm text-slate-950">

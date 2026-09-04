@@ -6,6 +6,7 @@ import type { OfficialVerification, PartDetail, SearchPart } from '../types';
 import OfficialVerificationApprovalPanel from './OfficialVerificationApprovalPanel';
 import ChatPanel from './ChatPanel';
 import { useQuoteCart } from '../context/QuoteCartContext';
+import { playCopySound } from '../lib/sound';
 import PartVerificationDialog, {
   effectivePartNumber,
   husqvarnaPortalUrl,
@@ -183,6 +184,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
     const shareUrl = `${window.location.origin}${window.location.pathname}?tab=parts&code=${encodeURIComponent(partCode)}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
+      playCopySound();
       toast.success('Link direto da peça copiado com sucesso!');
     } catch {
       toast.info(`Link direto: ${shareUrl}`);
@@ -328,6 +330,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
   const copyCode = useCallback(async (value: string) => {
     try {
       await navigator.clipboard.writeText(value);
+      playCopySound();
       toast.success(`Código ${value} copiado.`);
     } catch {
       toast.info(`Código: ${value}`);
@@ -509,6 +512,37 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
     () => detail ? quoteCart.items.find(i => normalizePartCode(i.partNumber) === normalizePartCode(detailCode) || normalizePartCode(i.partNumber) === normalizePartCode(detail.partNumber)) : undefined,
     [detail, detailCode, quoteCart.items],
   );
+
+  const [userNoteOverride, setUserNoteOverride] = useState<{ code: string; text: string } | null>(null);
+  const [editingNote, setEditingNote] = useState(false);
+
+  const warehouseNote = useMemo(() => {
+    if (!detailCode) return '';
+    if (userNoteOverride && userNoteOverride.code === detailCode) {
+      return userNoteOverride.text;
+    }
+    try {
+      return localStorage.getItem(`cognivault_part_note_${detailCode}`) || '';
+    } catch {
+      return '';
+    }
+  }, [detailCode, userNoteOverride]);
+
+  const saveWarehouseNote = (text: string) => {
+    if (!detailCode) return;
+    try {
+      if (text.trim()) {
+        localStorage.setItem(`cognivault_part_note_${detailCode}`, text.trim());
+      } else {
+        localStorage.removeItem(`cognivault_part_note_${detailCode}`);
+      }
+      setUserNoteOverride({ code: detailCode, text: text.trim() });
+      setEditingNote(false);
+      toast.success('Localização de estoque registrada.');
+    } catch {
+      // ignore
+    }
+  };
 
   const refreshApprovedVerifications = useCallback(() => {
     if (parts.length) void loadVerifications(parts, true);
@@ -1005,6 +1039,72 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                 </div>
 
                 {detail.notes && <div className="mt-4 rounded-[18px] border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 p-4 text-sm leading-6 text-amber-900 dark:text-amber-300">{detail.notes}</div>}
+
+                {/* Localização de Estoque / Anotação da Oficina */}
+                <div className="mt-4 rounded-[18px] border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base" aria-hidden="true">📍</span>
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                        Localização de Estoque / Prateleira:
+                      </span>
+                    </div>
+                    {!editingNote && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingNote(true)}
+                        className="text-[11px] font-semibold text-[#1d4f91] dark:text-blue-300 hover:underline"
+                      >
+                        {warehouseNote ? 'Editar' : '+ Inserir gaveta / prateleira'}
+                      </button>
+                    )}
+                  </div>
+                  {editingNote ? (
+                    <div className="mt-2.5 flex items-center gap-2">
+                      <input
+                        type="text"
+                        defaultValue={warehouseNote}
+                        id="warehouse-note-input"
+                        placeholder="Ex.: Prateleira A4 - Caixa 12"
+                        className="flex-1 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-850 px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#1d4f91]"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            saveWarehouseNote((e.target as HTMLInputElement).value);
+                          } else if (e.key === 'Escape') {
+                            setEditingNote(false);
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const el = document.getElementById('warehouse-note-input') as HTMLInputElement | null;
+                          if (el) saveWarehouseNote(el.value);
+                        }}
+                        className="rounded-xl bg-[#1d4f91] hover:bg-[#123867] text-white px-3 py-1.5 text-xs font-bold transition shadow-xs"
+                      >
+                        Salvar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingNote(false)}
+                        className="rounded-xl border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-xs text-slate-500"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : warehouseNote ? (
+                    <div className="mt-2 text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                      <span className="rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1 shadow-2xs text-[#1d4f91] dark:text-blue-300 font-mono">
+                        🏷️ {warehouseNote}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Nenhuma localização registrada neste terminal. Clique em &quot;Inserir gaveta / prateleira&quot; para agilizar a retirada da peça.
+                    </p>
+                  )}
+                </div>
 
                 <div className="mt-5">
                   <div className="font-semibold">Compatibilidade encontrada</div>

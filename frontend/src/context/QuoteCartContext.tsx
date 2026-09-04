@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { formatHusqvarnaPartNumber } from '../lib';
+import { playCartSound } from '../lib/sound';
 
 export interface QuoteCartItem {
   id: string; // unique key: `${partNumber}|${model}|${pnc || ''}`
@@ -18,6 +19,13 @@ export interface QuoteCartItem {
   unitPrice?: number;
 }
 
+export interface QuoteTextOptions {
+  machineModel?: string;
+  customerName?: string;
+  customerPhone?: string;
+  paymentMethod?: string;
+}
+
 interface QuoteCartContextType {
   items: QuoteCartItem[];
   addItem: (item: Omit<QuoteCartItem, 'quantity' | 'id'> & { quantity?: number }) => void;
@@ -29,9 +37,9 @@ interface QuoteCartContextType {
   setIsOpen: (open: boolean) => void;
   totalItems: number;
   totalPrice: number;
-  generateWhatsAppText: (machineModel?: string) => string;
-  copyQuoteToClipboard: (machineModel?: string) => Promise<void>;
-  openWhatsApp: (machineModel?: string) => void;
+  generateWhatsAppText: (optionsOrModel?: string | QuoteTextOptions) => string;
+  copyQuoteToClipboard: (optionsOrModel?: string | QuoteTextOptions) => Promise<void>;
+  openWhatsApp: (optionsOrModel?: string | QuoteTextOptions) => void;
 }
 
 const QuoteCartContext = createContext<QuoteCartContextType | null>(null);
@@ -74,6 +82,8 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       }
       return [...current, { ...item, id, quantity: qty }];
     });
+
+    playCartSound();
 
     toast.success(`Peça "${item.name}" adicionada ao orçamento.`, {
       action: {
@@ -124,16 +134,23 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     return items.reduce((acc, item) => acc + item.quantity * (item.unitPrice || 0), 0);
   }, [items]);
 
-  const generateWhatsAppText = (machineModel?: string) => {
+  const generateWhatsAppText = (optionsOrModel?: string | QuoteTextOptions) => {
     if (!items.length) return '';
+
+    const opts: QuoteTextOptions = typeof optionsOrModel === 'string'
+      ? { machineModel: optionsOrModel }
+      : (optionsOrModel || {});
 
     const now = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date());
     const modelsFound = [...new Set(items.map(i => i.model).filter(Boolean))];
-    const headerModel = machineModel || (modelsFound.length === 1 ? modelsFound[0] : modelsFound.join(' / '));
+    const headerModel = opts.machineModel || (modelsFound.length === 1 ? modelsFound[0] : modelsFound.join(' / '));
     const hasAnyPrice = items.some(i => (i.unitPrice || 0) > 0);
 
     let text = `🛠️ *ORÇAMENTO DE PEÇAS — VARDÃO MÁQUINAS*\n`;
     text += `📅 Data: ${now}\n`;
+    if (opts.customerName) {
+      text += `👤 Cliente: *${opts.customerName}*\n`;
+    }
     if (headerModel) {
       text += `⚙️ Aplicação / Modelo: *Husqvarna ${headerModel}*\n`;
     }
@@ -162,6 +179,11 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       text += `\n💰 *VALOR TOTAL ESTIMADO: R$ ${totalPrice.toFixed(2).replace('.', ',')}*\n`;
     }
 
+    if (opts.paymentMethod && opts.paymentMethod !== 'A Combinar no Balcão') {
+      text += `💳 Condição: *${opts.paymentMethod}*\n`;
+    }
+
+    text += `⏱️ Validade da Proposta: 7 dias úteis\n`;
     text += `\n━━━━━━━━━━━━━━━━━━━━\n`;
     text += `✅ *Peças 100% Originais Husqvarna*\n`;
     text += `🏬 *Vardão Máquinas* · Assistência Técnica Autorizada`;
@@ -169,8 +191,8 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     return text;
   };
 
-  const copyQuoteToClipboard = async (machineModel?: string) => {
-    const text = generateWhatsAppText(machineModel);
+  const copyQuoteToClipboard = async (optionsOrModel?: string | QuoteTextOptions) => {
+    const text = generateWhatsAppText(optionsOrModel);
     if (!text) {
       toast.error('A cesta de orçamento está vazia.');
       return;
@@ -184,10 +206,23 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const openWhatsApp = (machineModel?: string) => {
-    const text = generateWhatsAppText(machineModel);
+  const openWhatsApp = (optionsOrModel?: string | QuoteTextOptions) => {
+    const text = generateWhatsAppText(optionsOrModel);
     if (!text) return;
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+
+    const opts: QuoteTextOptions = typeof optionsOrModel === 'string'
+      ? { machineModel: optionsOrModel }
+      : (optionsOrModel || {});
+
+    const cleanPhone = (opts.customerPhone || '').replace(/\D/g, '');
+    const fullPhone = cleanPhone
+      ? (cleanPhone.length >= 10 && !cleanPhone.startsWith('55') ? `55${cleanPhone}` : cleanPhone)
+      : '';
+
+    const url = fullPhone
+      ? `https://wa.me/${fullPhone}?text=${encodeURIComponent(text)}`
+      : `https://wa.me/?text=${encodeURIComponent(text)}`;
+
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 

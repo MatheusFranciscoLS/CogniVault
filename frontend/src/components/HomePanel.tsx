@@ -5,6 +5,7 @@ import { apiJson } from '../lib';
 import type { HomeData } from '../types';
 import { useQuoteCart } from '../context/QuoteCartContext';
 import { toast } from 'sonner';
+import { playCopySound } from '../lib/sound';
 
 function Empty({ title, description }: { title: string; description: string }) {
   return (
@@ -180,13 +181,283 @@ const DIAGNOSTIC_SYMPTOMS = [
   },
 ];
 
+interface BarSpec {
+  lengthInches: number;
+  lengthCm: number;
+  pitch: string;
+  gauge: string;
+  driveLinks: number;
+  fileDiameter: string;
+  chainModel: string;
+  chainPartNumber: string;
+  barModel: string;
+  barPartNumber: string;
+  isStandard?: boolean;
+}
+
+interface ChainsawGuideModel {
+  id: string;
+  name: string;
+  displacement: string;
+  popularUses: string;
+  bars: BarSpec[];
+}
+
+const CHAINSAW_GUIDE_MODELS: ChainsawGuideModel[] = [
+  {
+    id: '272xp',
+    name: '272XP / 61 / 268',
+    displacement: '72.2 cc · 3.6 kW',
+    popularUses: 'Reflorestamento, carvoaria e toras pesadas',
+    bars: [
+      {
+        lengthInches: 18,
+        lengthCm: 45,
+        pitch: '3/8" Standard',
+        gauge: '1.5 mm (.058")',
+        driveLinks: 68,
+        fileDiameter: '5.5 mm (7/32")',
+        chainModel: 'H42 / C85 (Semi-Quadrada)',
+        chainPartNumber: '501 84 14-68',
+        barModel: 'X-Force Ponta Rolante 18"',
+        barPartNumber: '508 91 21-68',
+        isStandard: true,
+      },
+      {
+        lengthInches: 20,
+        lengthCm: 50,
+        pitch: '3/8" Standard',
+        gauge: '1.5 mm (.058")',
+        driveLinks: 72,
+        fileDiameter: '5.5 mm (7/32")',
+        chainModel: 'H42 / C85 (Semi-Quadrada)',
+        chainPartNumber: '501 84 14-72',
+        barModel: 'X-Force Ponta Rolante 20"',
+        barPartNumber: '508 91 21-72',
+      },
+      {
+        lengthInches: 24,
+        lengthCm: 60,
+        pitch: '3/8" Standard',
+        gauge: '1.5 mm (.058")',
+        driveLinks: 84,
+        fileDiameter: '5.5 mm (7/32")',
+        chainModel: 'H42 / C85 (Semi-Quadrada)',
+        chainPartNumber: '501 84 14-84',
+        barModel: 'Ponta Dura Sólido 24"',
+        barPartNumber: '501 95 69-84',
+      },
+      {
+        lengthInches: 28,
+        lengthCm: 70,
+        pitch: '3/8" Standard',
+        gauge: '1.5 mm (.058")',
+        driveLinks: 92,
+        fileDiameter: '5.5 mm (7/32")',
+        chainModel: 'H42 / C85 (Semi-Quadrada)',
+        chainPartNumber: '501 84 14-92',
+        barModel: 'Ponta Dura Sólido 28"',
+        barPartNumber: '501 95 69-92',
+      },
+    ],
+  },
+  {
+    id: '120mark2',
+    name: '120 Mark II / 236 / 135',
+    displacement: '38.2 cc · 1.4 kW',
+    popularUses: 'Poda residencial, lenha, sítios e chácaras',
+    bars: [
+      {
+        lengthInches: 14,
+        lengthCm: 35,
+        pitch: '3/8" LP (Picco)',
+        gauge: '1.3 mm (.050")',
+        driveLinks: 52,
+        fileDiameter: '4.0 mm (5/32")',
+        chainModel: 'S93G / H37 (Semi-Chisel)',
+        chainPartNumber: '585 42 21-52',
+        barModel: 'Ponta Rolante Laminada 14"',
+        barPartNumber: '585 95 08-52',
+      },
+      {
+        lengthInches: 16,
+        lengthCm: 40,
+        pitch: '3/8" LP (Picco)',
+        gauge: '1.3 mm (.050")',
+        driveLinks: 56,
+        fileDiameter: '4.0 mm (5/32")',
+        chainModel: 'S93G / H37 (Semi-Chisel)',
+        chainPartNumber: '585 42 21-56',
+        barModel: 'Ponta Rolante Laminada 16"',
+        barPartNumber: '585 95 08-56',
+        isStandard: true,
+      },
+    ],
+  },
+  {
+    id: '353',
+    name: '353 / 55 / 450',
+    displacement: '51.7 cc · 2.4 kW',
+    popularUses: 'Agropecuária intensiva, desgalhe e corte médio',
+    bars: [
+      {
+        lengthInches: 15,
+        lengthCm: 38,
+        pitch: '.325"',
+        gauge: '1.5 mm (.058")',
+        driveLinks: 64,
+        fileDiameter: '4.8 mm (3/16")',
+        chainModel: 'H25 / SP33G (Pixel)',
+        chainPartNumber: '501 84 04-64',
+        barModel: 'Ponta Rolante Laminada 15"',
+        barPartNumber: '508 92 61-64',
+      },
+      {
+        lengthInches: 18,
+        lengthCm: 45,
+        pitch: '.325"',
+        gauge: '1.5 mm (.058")',
+        driveLinks: 72,
+        fileDiameter: '4.8 mm (3/16")',
+        chainModel: 'H25 / SP33G (Pixel)',
+        chainPartNumber: '501 84 04-72',
+        barModel: 'Ponta Rolante Laminada 18"',
+        barPartNumber: '508 92 61-72',
+        isStandard: true,
+      },
+      {
+        lengthInches: 20,
+        lengthCm: 50,
+        pitch: '.325"',
+        gauge: '1.5 mm (.058")',
+        driveLinks: 78,
+        fileDiameter: '4.8 mm (3/16")',
+        chainModel: 'H25 / SP33G (Pixel)',
+        chainPartNumber: '501 84 04-78',
+        barModel: 'Ponta Rolante Laminada 20"',
+        barPartNumber: '508 92 61-78',
+      },
+    ],
+  },
+  {
+    id: '372xp',
+    name: '365 / 372XP / 390XP',
+    displacement: '70.7 cc · 3.9 kW',
+    popularUses: 'Florestal pesado contínuo e madeireiras',
+    bars: [
+      {
+        lengthInches: 18,
+        lengthCm: 45,
+        pitch: '3/8" Standard',
+        gauge: '1.5 mm (.058")',
+        driveLinks: 68,
+        fileDiameter: '5.5 mm (7/32")',
+        chainModel: 'H42 / C85 (Semi-Quadrada)',
+        chainPartNumber: '501 84 14-68',
+        barModel: 'X-Force Ponta Rolante 18"',
+        barPartNumber: '508 91 21-68',
+      },
+      {
+        lengthInches: 20,
+        lengthCm: 50,
+        pitch: '3/8" Standard',
+        gauge: '1.5 mm (.058")',
+        driveLinks: 72,
+        fileDiameter: '5.5 mm (7/32")',
+        chainModel: 'H42 / C85 (Semi-Quadrada)',
+        chainPartNumber: '501 84 14-72',
+        barModel: 'X-Force Ponta Rolante 20"',
+        barPartNumber: '508 91 21-72',
+        isStandard: true,
+      },
+      {
+        lengthInches: 24,
+        lengthCm: 60,
+        pitch: '3/8" Standard',
+        gauge: '1.5 mm (.058")',
+        driveLinks: 84,
+        fileDiameter: '5.5 mm (7/32")',
+        chainModel: 'H42 / C85 (Semi-Quadrada)',
+        chainPartNumber: '501 84 14-84',
+        barModel: 'Ponta Dura Sólido 24"',
+        barPartNumber: '501 95 69-84',
+      },
+    ],
+  },
+  {
+    id: 't435',
+    name: 'T435 (Poda no Alto)',
+    displacement: '35.2 cc · 1.5 kW',
+    popularUses: 'Arboricultura, poda em altura com escalada',
+    bars: [
+      {
+        lengthInches: 12,
+        lengthCm: 30,
+        pitch: '3/8" LP (Picco)',
+        gauge: '1.3 mm (.050")',
+        driveLinks: 45,
+        fileDiameter: '4.0 mm (5/32")',
+        chainModel: 'S93G / H37',
+        chainPartNumber: '585 42 21-45',
+        barModel: 'Ponta Rolante 12"',
+        barPartNumber: '585 95 08-45',
+        isStandard: true,
+      },
+      {
+        lengthInches: 14,
+        lengthCm: 35,
+        pitch: '3/8" LP (Picco)',
+        gauge: '1.3 mm (.050")',
+        driveLinks: 52,
+        fileDiameter: '4.0 mm (5/32")',
+        chainModel: 'S93G / H37',
+        chainPartNumber: '585 42 21-52',
+        barModel: 'Ponta Rolante 14"',
+        barPartNumber: '585 95 08-52',
+      },
+    ],
+  },
+];
+
 export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: string) => void; onCatalogs: (filter?: string) => void }) {
   const [query, setQuery] = useState('');
   const quoteCart = useQuoteCart();
   const [fuelLiters, setFuelLiters] = useState<number>(5);
   const [fuelRatio, setFuelRatio] = useState<50 | 33 | 25>(50);
   const [activeSymptom, setActiveSymptom] = useState<string>('sem-partida');
+  const [selectedChainsawId, setSelectedChainsawId] = useState<string>('272xp');
+  const [selectedBarLength, setSelectedBarLength] = useState<number>(18);
   const oilMl = Math.round((fuelLiters * 1000) / fuelRatio);
+
+  const currentChainsaw = CHAINSAW_GUIDE_MODELS.find(m => m.id === selectedChainsawId) || CHAINSAW_GUIDE_MODELS[0];
+  const currentBar = currentChainsaw.bars.find(b => b.lengthInches === selectedBarLength) || currentChainsaw.bars[0];
+
+  const changeChainsawModel = (newId: string) => {
+    setSelectedChainsawId(newId);
+    const target = CHAINSAW_GUIDE_MODELS.find(m => m.id === newId);
+    if (target) {
+      const std = target.bars.find(b => b.isStandard) || target.bars[0];
+      setSelectedBarLength(std.lengthInches);
+    }
+  };
+
+  const copyChainsawSpec = () => {
+    const text = `*Especificação de Sabre e Corrente Husqvarna - Vardão Máquinas*\n\n` +
+      `🌲 *Motosserra:* Husqvarna ${currentChainsaw.name}\n` +
+      `📏 *Sabre:* ${currentBar.lengthInches}" (${currentBar.lengthCm} cm) - ${currentBar.barModel}\n` +
+      `⚙️ *Passo da Corrente:* ${currentBar.pitch}\n` +
+      `📐 *Calibre da Canaleta:* ${currentBar.gauge}\n` +
+      `🔗 *Quantidade de Elos de Tração (DL):* ${currentBar.driveLinks} elos\n` +
+      `🪚 *Corrente Recomendada:* ${currentBar.chainModel}\n` +
+      `🔘 *Lima de Afiação Redonda:* ${currentBar.fileDiameter}\n\n` +
+      `📦 *Códigos Originais Husqvarna:*\n` +
+      `• Sabre: ${currentBar.barPartNumber}\n` +
+      `• Corrente: ${currentBar.chainPartNumber}\n\n` +
+      `_Atendimento Técnico Vardão Máquinas_`;
+    void navigator.clipboard.writeText(text);
+    playCopySound();
+    toast.success('Especificação do sabre e corrente copiada para WhatsApp!');
+  };
 
   const currentSymptom = DIAGNOSTIC_SYMPTOMS.find(s => s.id === activeSymptom) || DIAGNOSTIC_SYMPTOMS[0];
 
@@ -681,6 +952,253 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
                 );
               })}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Guia & Seletor de Sabres, Correntes e Limas Husqvarna */}
+      <div className="cv-surface rounded-[26px] p-6 shadow-sm border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-emerald-50/20 via-white to-slate-50/30 dark:from-slate-850 dark:via-slate-800/60 dark:to-emerald-950/20">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-500/10 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 text-xl font-bold">
+              🪵
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Guia & Seletor de Sabres, Correntes e Limas</h2>
+                <span className="rounded-full bg-emerald-500/10 dark:bg-emerald-950/60 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                  Tabela Oficial Husqvarna
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Consulte o passo, calibre, quantidade de elos (DL), diâmetro de lima e cote sabre e corrente com 1 clique
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={copyChainsawSpec}
+            className="flex items-center gap-1.5 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition shadow-2xs active:scale-95"
+          >
+            <span>📋</span>
+            <span>Copiar Especificação p/ WhatsApp</span>
+          </button>
+        </div>
+
+        {/* Seleção de Motosserra */}
+        <div className="mt-5">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+            1. Selecione o Modelo da Motosserra:
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 cv-scrollbar">
+            {CHAINSAW_GUIDE_MODELS.map(m => {
+              const active = m.id === selectedChainsawId;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => changeChainsawModel(m.id)}
+                  className={`shrink-0 rounded-xl px-3.5 py-2 text-xs font-bold transition flex items-center gap-2 active:scale-95 ${
+                    active
+                      ? 'bg-[#123867] text-white shadow-sm'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <span>🪚</span>
+                  <span>{m.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Seleção de Comprimento de Sabre */}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/80 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800/80 p-3.5">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+              2. Comprimento do Sabre:
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {currentChainsaw.bars.map(b => {
+                const active = b.lengthInches === selectedBarLength;
+                return (
+                  <button
+                    key={b.lengthInches}
+                    type="button"
+                    onClick={() => setSelectedBarLength(b.lengthInches)}
+                    className={`rounded-xl px-3 py-1.5 text-xs font-bold transition flex items-center gap-1.5 active:scale-95 ${
+                      active
+                        ? 'bg-amber-500 text-slate-950 shadow-2xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-amber-400'
+                    }`}
+                  >
+                    <span>{b.lengthInches}&quot; ({b.lengthCm} cm)</span>
+                    {b.isStandard && (
+                      <span className={`rounded-md px-1 py-0.2 text-[9px] font-black uppercase ${
+                        active ? 'bg-slate-950 text-amber-400' : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                      }`}>
+                        Padrão
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+            {currentChainsaw.displacement} · <span className="italic">{currentChainsaw.popularUses}</span>
+          </div>
+        </div>
+
+        {/* Especificações Técnicas e Peças Originais */}
+        <div className="mt-4 grid gap-5 lg:grid-cols-2">
+          {/* Card Esquerdo: Geometria da Corrente e Lima */}
+          <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-850 p-4 shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
+                <span>Geometria da Corrente & Afiação</span>
+                <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">{currentBar.lengthInches}&quot; / {currentBar.lengthCm}cm</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60 p-2.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Passo da Corrente</span>
+                  <span className="text-sm font-black text-slate-800 dark:text-slate-100">{currentBar.pitch}</span>
+                </div>
+                <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60 p-2.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Calibre (Canaleta)</span>
+                  <span className="text-sm font-black text-slate-800 dark:text-slate-100">{currentBar.gauge}</span>
+                </div>
+                <div className="rounded-xl bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/20 p-2.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 block">Elos de Tração (DL)</span>
+                  <span className="text-sm font-black text-emerald-700 dark:text-emerald-300">{currentBar.driveLinks} Elos (DL)</span>
+                </div>
+                <div className="rounded-xl bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/20 p-2.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300 block">Lima Redonda Recomendada</span>
+                  <span className="text-sm font-black text-amber-700 dark:text-amber-300">{currentBar.fileDiameter}</span>
+                </div>
+              </div>
+
+              <div className="mt-3 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50/80 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700/50">
+                <strong>Modelo da Corrente:</strong> {currentBar.chainModel} · Sabre com montagem para flange da série {currentChainsaw.name.split(' ')[0]}.
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <span className="text-[11px] text-slate-400">Pronto para atendimento no balcão</span>
+              <button
+                type="button"
+                onClick={copyChainsawSpec}
+                className="text-xs font-bold text-[#1d4f91] dark:text-blue-300 hover:underline inline-flex items-center gap-1"
+              >
+                <span>📋 Copiar mensagem formatada</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Card Direito: Códigos Oficiais e Ações de Orçamento */}
+          <div className="space-y-3">
+            {/* Sabre */}
+            {(() => {
+              const barInCart = quoteCart.items.find(i => i.partNumber.replace(/\s+/g, '') === currentBar.barPartNumber.replace(/\s+/g, ''));
+              return (
+                <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-850 p-4 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="rounded-md bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase">
+                        Sabre Oficial Husqvarna
+                      </span>
+                      <div className="mt-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+                        {currentBar.barModel} ({currentBar.lengthInches}&quot; - {currentBar.lengthCm} cm)
+                      </div>
+                      <div className="mt-0.5 font-mono text-sm font-black text-[#1d4f91] dark:text-blue-300">
+                        {currentBar.barPartNumber}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        quoteCart.addItem({
+                          partNumber: currentBar.barPartNumber,
+                          name: `Sabre ${currentBar.lengthInches}" (${currentBar.lengthCm}cm) ${currentBar.barModel}`,
+                          model: `Husqvarna ${currentChainsaw.name}`,
+                        });
+                        toast.success(`Sabre ${currentBar.lengthInches}" adicionado ao orçamento!`);
+                      }}
+                      className={`flex-1 rounded-xl px-3 py-2 text-xs font-bold transition flex items-center justify-center gap-1.5 active:scale-95 ${
+                        barInCart
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                          : 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 text-slate-950 shadow-2xs'
+                      }`}
+                    >
+                      <span>{barInCart ? '✓' : '+'}</span>
+                      <span>{barInCart ? `Sabre no Orçamento (${barInCart.quantity}x)` : '+ Orçar Sabre'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSearch(currentBar.barPartNumber)}
+                      className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                    >
+                      🔍 Buscar
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Corrente */}
+            {(() => {
+              const chainInCart = quoteCart.items.find(i => i.partNumber.replace(/\s+/g, '') === currentBar.chainPartNumber.replace(/\s+/g, ''));
+              return (
+                <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-850 p-4 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="rounded-md bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase">
+                        Corrente Oficial Husqvarna
+                      </span>
+                      <div className="mt-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+                        Corrente {currentBar.chainModel} ({currentBar.driveLinks} DL · {currentBar.pitch})
+                      </div>
+                      <div className="mt-0.5 font-mono text-sm font-black text-[#1d4f91] dark:text-blue-300">
+                        {currentBar.chainPartNumber}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        quoteCart.addItem({
+                          partNumber: currentBar.chainPartNumber,
+                          name: `Corrente ${currentBar.lengthInches}" (${currentBar.driveLinks}DL - ${currentBar.pitch}) ${currentBar.chainModel}`,
+                          model: `Husqvarna ${currentChainsaw.name}`,
+                        });
+                        toast.success(`Corrente ${currentBar.driveLinks}DL adicionada ao orçamento!`);
+                      }}
+                      className={`flex-1 rounded-xl px-3 py-2 text-xs font-bold transition flex items-center justify-center gap-1.5 active:scale-95 ${
+                        chainInCart
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                          : 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 text-slate-950 shadow-2xs'
+                      }`}
+                    >
+                      <span>{chainInCart ? '✓' : '+'}</span>
+                      <span>{chainInCart ? `Corrente no Orçamento (${chainInCart.quantity}x)` : '+ Orçar Corrente'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSearch(currentBar.chainPartNumber)}
+                      className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                    >
+                      🔍 Buscar
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>

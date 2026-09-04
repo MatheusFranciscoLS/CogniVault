@@ -5,6 +5,7 @@ import { apiJson, fmtDate } from '../lib';
 import type { NotificationItem, Section, SessionUser } from '../types';
 import { useTheme } from './ThemeProvider';
 import { useQuoteCart } from '../context/QuoteCartContext';
+import { isSoundEnabled, toggleSound, playCartSound } from '../lib/sound';
 
 type Props = {
   user: SessionUser;
@@ -67,6 +68,26 @@ function ThemeToggle() {
       ) : (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
       )}
+    </button>
+  );
+}
+
+function SoundToggle() {
+  const [enabled, setEnabled] = useState(() => isSoundEnabled());
+  const toggle = () => {
+    const next = toggleSound();
+    setEnabled(next);
+    if (next) playCartSound();
+  };
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={enabled ? 'Silenciar feedback sonoro do balcão' : 'Ativar feedback sonoro de balcão'}
+      title={enabled ? 'Sons do balcão ativados (Clique para silenciar)' : 'Sons do balcão desativados (Clique para ativar)'}
+      className={`cv-icon-button transition ${enabled ? 'text-amber-500 dark:text-amber-400' : 'text-slate-400 dark:text-slate-500 opacity-60 hover:opacity-100'}`}
+    >
+      <span className="text-sm" aria-hidden="true">{enabled ? '🔔' : '🔕'}</span>
     </button>
   );
 }
@@ -258,6 +279,8 @@ export default function Shell({ user, section, onSection, onLogout, onSearch, ch
                 )}
               </button>
 
+              <SoundToggle />
+
               <ThemeToggle />
 
               <button
@@ -411,6 +434,10 @@ export default function Shell({ user, section, onSection, onLogout, onSearch, ch
                     <div className="flex items-start gap-2">
                       <span className="text-blue-500 text-sm leading-none">🔄</span>
                       <span><strong>Substituição Oficial:</strong> Códigos atualizados pela montadora contam com redirecionamento e selo explicativo.</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-amber-500 text-sm leading-none">🔔</span>
+                      <span><strong>Sons de Balcão:</strong> Feedback sonoro sutil sintetizado ao orçar ou copiar peças (pode ser silenciado no ícone 🔔 no topo).</span>
                     </div>
                   </div>
                 </div>
