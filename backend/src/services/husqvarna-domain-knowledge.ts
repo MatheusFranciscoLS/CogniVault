@@ -690,6 +690,15 @@ export function findEngineApplications(machineModel: string, pnc?: string): Engi
   return apps;
 }
 
+export function findMachinesForEngine(engineModel: string): EngineApplication[] {
+  if (!engineModel) return [];
+  const normEngine = normalizeIdentifier(engineModel).replace(/V$/, '');
+  return ENGINE_APPLICATIONS.filter(a => {
+    const norm = normalizeIdentifier(a.engineModel).replace(/V$/, '');
+    return norm === normEngine;
+  });
+}
+
 export function isMachineEngineInquiry(question: string): boolean {
   const norm = normalizeText(question);
   return (

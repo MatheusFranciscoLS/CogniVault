@@ -9,7 +9,7 @@ import { buildSearchGroups, scorePartText } from '../services/part-vocabulary';
 import { allRelatedPartNumbers, preferCurrentPartNumbers } from '../services/part-supersession';
 import { filterCandidatesByMarket } from '../services/catalog-market';
 import { invalidatePartSearchCaches } from '../services/part-search.service';
-import { resolveEngineCatalogRoute } from '../services/husqvarna-domain-knowledge';
+import { resolveEngineCatalogRoute, findMachinesForEngine, findEngineApplications } from '../services/husqvarna-domain-knowledge';
 
 const homeCountsCache = new LRUCache<string, { parts: number; documents: number }>({
     max: 200,
@@ -183,7 +183,7 @@ export class OperationalController {
             })
             .sort((a, b) => b.score - a.score || a.part.name.localeCompare(b.part.name, 'pt-BR'))
             .filter(({ part }) => {
-                const identity = `${part.normalizedPartNumber}|${part.normalizedModel}|${part.universalAcrossPnc ? '*' : (part.normalizedPnc || '')}`;
+                const identity = `${part.normalizedPartNumber}|${part.normalizedModel}|${part.universalAcrossPnc ? '*' : (part.normalizedPnc || '')}|${normalizeText(part.section || '')}|${normalizeText(part.position || '')}`;
                 if (seen.has(identity)) return false;
                 seen.add(identity);
                 return true;
@@ -246,12 +246,34 @@ export class OperationalController {
 
             const [resolvedPart] = preferCurrentPartNumbers([part]);
 
+            // Enriquecimento de compatibilidade cruzada Máquina <-> Motor (ex: Kawasaki FR691V -> Giro Zero Z248F / Z254F)
+            const extraCompatibility: { model: string; pnc: string }[] = [];
+            const engineMachines = findMachinesForEngine(part.normalizedModel);
+            for (const app of engineMachines) {
+                extraCompatibility.push({
+                    model: `${app.machineModel} (Giro Zero / Trator c/ motor ${part.model})`,
+                    pnc: app.machinePnc || 'Chassi',
+                });
+            }
+            const machineEngines = findEngineApplications(part.normalizedModel);
+            for (const app of machineEngines) {
+                extraCompatibility.push({
+                    model: `Motor ${app.engineModel} (Equipamento original)`,
+                    pnc: app.engineArticle ? `Artigo ${app.engineArticle}` : 'Motor',
+                });
+            }
+
+            const mergedCompatibility = [
+                ...compatibility.map((item) => ({ model: item.model, pnc: item.universalAcrossPnc ? 'Qualquer um' : item.pnc })),
+                ...extraCompatibility,
+            ];
+
             res.json({
                 part: {
                     ...resolvedPart,
                     pnc: resolvedPart.universalAcrossPnc ? 'Qualquer um' : resolvedPart.pnc,
                     related,
-                    compatibility: compatibility.map((item) => ({ model: item.model, pnc: item.universalAcrossPnc ? 'Qualquer um' : item.pnc })),
+                    compatibility: mergedCompatibility,
                     favoriteId: favorite?.id || null,
                 },
             });

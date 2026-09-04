@@ -6,6 +6,7 @@ import {
   inferEquipmentFamily,
   resolveEngineCatalogRoute,
   findEngineApplications,
+  findMachinesForEngine,
   isMachineEngineInquiry,
 } from './husqvarna-domain-knowledge';
 import { buildSearchGroups, inferredSearchAliases, scorePartText } from './part-vocabulary';
@@ -191,3 +192,13 @@ test('pulverizador manual aprende bomba, lança e bico sem herdar motor 2T', () 
   assert.ok(pump.some(group => group.key === 'domain:manual-sprayer-pump'));
   assert.ok(lance.some(group => group.key === 'domain:spray-lance'));
 });
+
+test('encontra máquinas que utilizam um motor específico (ex: FR691V -> Z248F, Z254F)', () => {
+  const machines = findMachinesForEngine('FR691V');
+  assert.ok(machines.some(m => m.machineModel === 'Z248F'));
+  assert.ok(machines.some(m => m.machineModel === 'Z254F'));
+
+  const fxMachines = findMachinesForEngine('FX921V');
+  assert.ok(fxMachines.some(m => m.machineModel === 'Z560X'));
+});
+
