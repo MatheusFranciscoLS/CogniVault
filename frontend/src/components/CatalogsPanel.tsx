@@ -544,10 +544,27 @@ export default function CatalogsPanel({
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2">
-                      <span className="flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-700/60 px-2.5 py-1 text-[11px] font-medium text-slate-700 dark:text-slate-300">
-                        <span>{icon}</span>
-                        <span className="truncate max-w-[140px]">{document.category}</span>
-                      </span>
+                      {admin ? (
+                        <div className="relative flex items-center">
+                          <span className="pointer-events-none absolute left-2 text-xs">{icon}</span>
+                          <select
+                            aria-label={`Seção de ${document.filename}`}
+                            disabled={busy || document.processingActive}
+                            value={document.category}
+                            onChange={event => void setCategory(document, event.target.value)}
+                            className="rounded-full border border-slate-200 dark:border-slate-700 bg-slate-100/90 dark:bg-slate-700/60 pl-6 pr-4 py-1 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[160px] truncate cursor-pointer transition disabled:opacity-50"
+                          >
+                            {categories.map(cat => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <span className="flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-700/60 px-2.5 py-1 text-[11px] font-medium text-slate-700 dark:text-slate-300">
+                          <span>{icon}</span>
+                          <span className="truncate max-w-[140px]">{document.category}</span>
+                        </span>
+                      )}
                       <button
                         type="button"
                         title={isFav ? 'Remover dos favoritos' : 'Favoritar catálogo'}

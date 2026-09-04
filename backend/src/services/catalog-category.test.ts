@@ -41,6 +41,21 @@ test('uses mechanical architecture when filename is generic', () => {
     }), 'Pulverizadores');
 });
 
+test('classifies Kawasaki and zero turn engines as Motores regardless of variation', () => {
+    // Caso exato do usuário:
+    assert.equal(inferCatalogCategory({ filename: 'Motor Kawasaki FX921.pdf', model: 'FX921V-ES06' }), 'Motores');
+    // Apenas pelo nome do arquivo com a palavra motor:
+    assert.equal(inferCatalogCategory({ filename: 'Motor Kawasaki FX921.pdf' }), 'Motores');
+    // Com modelo completo de motor Kawasaki:
+    assert.equal(inferCatalogCategory({ filename: 'FX921V-ES06.pdf', model: 'FX921V-ES06' }), 'Motores');
+    assert.equal(inferCatalogCategory({ filename: 'Motor Kawasaki FR691.pdf', model: 'FR691V-AS04' }), 'Motores');
+    assert.equal(inferCatalogCategory({ filename: 'Motor_Kawasaki_FS730V.pdf', model: 'FS730V' }), 'Motores');
+    // Motores Kohler e Briggs:
+    assert.equal(inferCatalogCategory({ filename: 'Motor Kohler KT745.pdf', model: 'KT745' }), 'Motores');
+    assert.equal(inferCatalogCategory({ filename: 'Motor Briggs & Stratton Vanguard.pdf' }), 'Motores');
+});
+
 test('keeps unknown catalogs in a safe fallback section', () => {
     assert.equal(inferCatalogCategory({ filename: 'catalogo.pdf', model: 'ABC123', parts: [] }), 'Outros / Não identificado');
 });
+

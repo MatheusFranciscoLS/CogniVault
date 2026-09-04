@@ -6,6 +6,7 @@ import { prisma } from '../config/prisma';
 import { DocumentProducer } from '../queues/producer';
 import { repairMultipartText } from '../utils/text-encoding';
 import { CATALOG_CATEGORY_NAMES, inferCatalogCategory, isCatalogCategoryName } from './catalog-category';
+import { ensureCatalogCategory } from './catalog-category-assignment';
 import { inferCatalogModelFromFilename, isLikelyHusqvarnaPnc, isPlausibleCatalogModel, normalizeHusqvarnaPnc } from './catalog-extractor';
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -109,7 +110,12 @@ function toDocumentListItem(document: DocumentListRecord, partPncs: string[] = [
         pncs,
         suggestedModel,
         modelNeedsReview,
-        category: document.category?.name || inferCatalogCategory({ filename, model: document.model }),
+        category: (() => {
+            const stored = document.category?.name;
+            if (stored && stored !== 'Outros / Não identificado') return stored;
+            const inferred = inferCatalogCategory({ filename, model: document.model });
+            return inferred !== 'Outros / Não identificado' ? inferred : (stored || 'Outros / Não identificado');
+        })(),
         createdAt: document.createdAt,
         partCount: document._count.parts,
         archivedAt: document.archivedAt,
@@ -144,6 +150,16 @@ async function documentListItems(tenantId: string, documents: DocumentListRecord
         values.push(row.pnc);
         pncsByDocument.set(row.documentId, values);
     }
+
+    // Auto-cura catálogos antigos que ficaram como 'Outros / Não identificado' ou sem categoria no banco:
+    for (const doc of documents) {
+        if (!doc.category?.name || doc.category.name === 'Outros / Não identificado') {
+            ensureCatalogCategory(doc.id, tenantId).catch(err => {
+                console.error(`[CatalogCategory] Erro na autocura do documento ${doc.id}:`, err);
+            });
+        }
+    }
+
     return documents.map(document => toDocumentListItem(document, pncsByDocument.get(document.id)));
 }
 

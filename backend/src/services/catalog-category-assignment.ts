@@ -4,7 +4,8 @@ import { reconciledCatalogModel } from './catalog-metadata-reconciliation';
 
 /**
  * Reconcilia metadados técnicos não revisados e persiste a família apenas quando
- * ela ainda não foi definida. Uma correção manual do administrador sempre vence.
+ * ela ainda não foi definida ou se estava temporariamente como 'Outros / Não identificado'.
+ * Uma correção manual do administrador (metadataReviewedAt) sempre vence.
  */
 export async function ensureCatalogCategory(documentId: string, tenantId: string): Promise<string | null> {
     const document = await prisma.document.findFirst({
@@ -38,21 +39,32 @@ export async function ensureCatalogCategory(documentId: string, tenantId: string
         });
     }
 
-    if (document.categoryId && document.category) return document.category.name;
+    // Se a categoria foi REVISADA manualmente por um administrador, preserva a decisão:
+    if (document.metadataReviewedAt && document.categoryId && document.category) {
+        return document.category.name;
+    }
 
+    // Se já tem categoria e NÃO é 'Outros / Não identificado', já está devidamente classificado:
+    if (document.categoryId && document.category && document.category.name !== 'Outros / Não identificado') {
+        return document.category.name;
+    }
+
+    // Se não tem categoria OU a categoria atual é 'Outros / Não identificado',
+    // re-infere agora com todas as evidências (modelo reconciliado, filename, peças):
     const categoryName = inferCatalogCategory({
         filename: document.filename,
-        model: resolvedModel,
+        model: resolvedModel || document.model,
         parts: document.parts,
     });
+
     const category = await prisma.category.upsert({
         where: { name_tenantId: { name: categoryName, tenantId } },
         update: {},
         create: { name: categoryName, tenantId },
     });
 
-    await prisma.document.updateMany({
-        where: { id: document.id, tenantId, categoryId: null },
+    await prisma.document.update({
+        where: { id: document.id },
         data: { categoryId: category.id },
     });
 

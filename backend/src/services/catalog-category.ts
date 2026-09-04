@@ -33,7 +33,9 @@ type CatalogCategoryInput = {
 };
 
 function normalized(value: string | null | undefined): string {
-    return normalizeText(value || '');
+    return normalizeText(value || '')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
 }
 
 function scoreText(text: string, terms: string[], weight: number): number {
@@ -55,6 +57,13 @@ export function inferCatalogCategory(input: CatalogCategoryInput): CatalogCatego
     const models = [input.model, ...(input.models || [])]
         .map((model) => (model || '').trim())
         .filter(Boolean);
+
+    // Se nenhum modelo veio explicitamente, tenta extrair modelo conhecido do nome do arquivo
+    if (!models.length && input.filename) {
+        const fromFilename = input.filename.match(/\b(HS\d+|HV\d+|FR\d+|FX\d+|FS\d+|MZ\d+|Z\d{3}|V\d{3}|TS\d+|\d{3}R|\d{3}XP|\d{3}Mark|\d{3}BT)\b/i)?.[0];
+        if (fromFilename) models.push(fromFilename);
+    }
+
     const modelText = normalized(models.join(' '));
     const partsText = normalized((input.parts || [])
         .slice(0, 500)
@@ -73,9 +82,9 @@ export function inferCatalogCategory(input: CatalogCategoryInput): CatalogCatego
     add('Motosserras', scoreText(filename, ['motosserra', 'chainsaw'], 8));
     add('Tratores', scoreText(filename, ['trator', 'tractor'], 8));
     add('Cortadores de grama', scoreText(filename, ['cortador de grama', 'lawn mower', 'lawnmower'], 8));
-    add('Giro zero', scoreText(filename, ['giro zero', 'zero turn', 'zero-turn'], 10));
+    add('Giro zero', scoreText(filename, ['giro zero', 'zero turn', 'zero-turn', 'zeroturn'], 10));
     add('Sopradores', scoreText(filename, ['soprador', 'blower'], 8));
-    add('Motores', scoreText(filename, ['motor husqvarna', 'motor kawasaki', 'motor kohler', 'motor briggs', 'engine'], 8));
+    add('Motores', scoreText(filename, ['motor', 'motores', 'engine', 'engines', 'motor husqvarna', 'motor kawasaki', 'motor kohler', 'motor briggs', 'kawasaki'], 8));
     add('Pulverizadores', scoreText(filename, ['pulverizador', 'sprayer'], 8));
     add('Podadores', scoreText(filename, ['podador', 'pole saw', 'polesaw'], 10));
     add('Multifuncionais', scoreText(filename, ['multifuncional', 'combi', 'engine unit'], 10));
