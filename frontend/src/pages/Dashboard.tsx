@@ -29,18 +29,46 @@ function PanelLoading() {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [initialParams] = useState(() => new URLSearchParams(window.location.search));
+  const initialSectionParam = initialParams.get('tab') as Section | null;
+  const initialQueryParam = initialParams.get('code') || initialParams.get('part') || initialParams.get('q') || '';
+  const initialCatalogParam = initialParams.get('catalog') || '';
+
   const [user, setUser] = useState<SessionUser | null>(null);
-  const [section, setSection] = useState<Section>('home');
-  const [globalQuery, setGlobalQuery] = useState('');
+  const [section, setSection] = useState<Section>(() => {
+    if (initialQueryParam) return 'parts';
+    if (initialCatalogParam) return 'catalogs';
+    if (initialSectionParam) return initialSectionParam;
+    return 'home';
+  });
+  const [globalQuery, setGlobalQuery] = useState(initialQueryParam);
   const [searchVersion, setSearchVersion] = useState(0);
-  const [catalogFilter, setCatalogFilter] = useState('');
+  const [catalogFilter, setCatalogFilter] = useState(initialCatalogParam);
   const [error, setError] = useState('');
+
+  const updateUrl = (newTab: string, queryParam?: string, catalogParam?: string) => {
+    try {
+      const params = new URLSearchParams();
+      if (newTab !== 'home') params.set('tab', newTab);
+      if (queryParam) params.set('q', queryParam);
+      if (catalogParam) params.set('catalog', catalogParam);
+      const str = params.toString();
+      const newUrl = str ? `${window.location.pathname}?${str}` : window.location.pathname;
+      window.history.replaceState(null, '', newUrl);
+    } catch {
+      // Navegador restrito ou teste
+    }
+  };
 
   useEffect(() => {
     let active = true;
     if (!getToken()) { navigate('/login', { replace: true }); return; }
     void apiJson<{ user: SessionUser }>('/api/me')
-      .then(data => { if (active) { setUser(data.user); setSection('home'); } })
+      .then(data => {
+        if (active) {
+          setUser(data.user);
+        }
+      })
       .catch(e => { if (active) { setError(e instanceof Error ? e.message : 'Sessão inválida'); clearSession(); navigate('/login', { replace: true }); } });
     return () => { active = false; };
   }, [navigate]);
@@ -56,16 +84,20 @@ export default function Dashboard() {
     setGlobalQuery(query);
     setSearchVersion(version => version + 1);
     setSection('parts');
+    updateUrl('parts', query);
   };
 
   const openCatalogs = (filter?: string) => {
     setCatalogFilter(filter || '');
     setSection('catalogs');
+    updateUrl('catalogs', undefined, filter);
   };
 
   const handleSectionChange = (next: Section) => {
     if (next !== 'catalogs') setCatalogFilter('');
-    setSection(next === 'assistant' ? 'parts' : next);
+    const targetSection = next === 'assistant' ? 'parts' : next;
+    setSection(targetSection);
+    updateUrl(targetSection);
   };
 
   if (error) {

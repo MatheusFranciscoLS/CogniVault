@@ -146,6 +146,61 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
     { label: '🔄 Substituição Oficial', query: '587106701' },
   ], []);
 
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('cognivault_recent_searches');
+      return stored ? (JSON.parse(stored) as string[]) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const saveRecentSearch = useCallback((term: string) => {
+    const clean = term.trim();
+    if (!clean || clean.length < 2) return;
+    setRecentSearches(prev => {
+      const next = [clean, ...prev.filter(t => t.toLowerCase() !== clean.toLowerCase())].slice(0, 8);
+      try {
+        localStorage.setItem('cognivault_recent_searches', JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, []);
+
+  const clearRecentSearches = useCallback(() => {
+    try {
+      localStorage.removeItem('cognivault_recent_searches');
+    } catch {
+      // ignore
+    }
+    setRecentSearches([]);
+    toast.success('Histórico de pesquisas recentes limpo.');
+  }, []);
+
+  const copyPartDirectLink = useCallback(async (partCode: string) => {
+    const shareUrl = `${window.location.origin}${window.location.pathname}?tab=parts&code=${encodeURIComponent(partCode)}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success('Link direto da peça copiado com sucesso!');
+    } catch {
+      toast.info(`Link direto: ${shareUrl}`);
+    }
+  }, []);
+
+  const sendPartWhatsApp = useCallback((partDetail: PartDetail, codeToUse: string) => {
+    const shareUrl = `${window.location.origin}${window.location.pathname}?tab=parts&code=${encodeURIComponent(codeToUse)}`;
+    const formatted = formatHusqvarnaPartNumber(codeToUse);
+    const text = `*Peça Husqvarna — Vardão Máquinas*\n\n` +
+      `🔧 *Peça:* ${partDetail.name}\n` +
+      `🔢 *Código:* ${formatted}${codeToUse !== partDetail.partNumber ? ` (Substitui: ${formatHusqvarnaPartNumber(partDetail.partNumber)})` : ''}\n` +
+      `🚜 *Aplicação:* ${partDetail.model}${partDetail.pnc ? ` · PNC ${partDetail.pnc}` : ''}\n` +
+      (partDetail.position ? `📍 *Posição:* ${partDetail.position}${partDetail.page ? ` (Pág. ${partDetail.page})` : ''}\n` : '') +
+      `\n🔗 *Consulte no catálogo:* ${shareUrl}`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank', 'noreferrer');
+  }, []);
+
   const openAiAssistant = useCallback((prompt?: string) => {
     setAiInitialPrompt(prompt || (query.trim() ? `Tenho uma dúvida sobre a pesquisa "${query.trim()}". Pode me ajudar?` : ''));
     setAiDrawerOpen(true);
@@ -216,6 +271,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
     setSelectedIndex(-1);
     setVerifications({});
     setReplacementVerification(null);
+    saveRecentSearch(value);
 
     try {
       const resolved = await resolveSearchCode(value);
@@ -237,7 +293,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, [loadVerifications, resolveSearchCode]);
+  }, [loadVerifications, resolveSearchCode, saveRecentSearch]);
 
   useEffect(() => {
     if (normalizedInitialQuery.length < 2) return;
@@ -403,9 +459,11 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
       return;
     }
     if (value !== normalizedInitialQuery) {
+      saveRecentSearch(value);
       onQueryChange(value);
       return;
     }
+    saveRecentSearch(value);
     void runSearch(value);
   };
 
@@ -517,6 +575,37 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
           </button>
         ))}
       </div>
+
+      {/* Buscas Recentes */}
+      {recentSearches.length > 0 && (
+        <div className="mt-2.5 flex items-center gap-2 overflow-x-auto pb-1 cv-scrollbar">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 shrink-0">
+            Recentes:
+          </span>
+          {recentSearches.map(term => (
+            <button
+              key={term}
+              type="button"
+              onClick={() => {
+                setQuery(term);
+                onQueryChange(term);
+                void runSearch(term);
+              }}
+              className="shrink-0 rounded-full border border-blue-200 dark:border-blue-700/60 bg-blue-50/70 dark:bg-blue-900/30 px-2.5 py-1 text-xs font-medium text-[#1d4f91] dark:text-blue-300 shadow-2xs transition hover:bg-blue-100 dark:hover:bg-blue-900/50 active:scale-95 flex items-center gap-1"
+            >
+              <span className="text-[10px] text-blue-400">🕒</span>
+              <span>{term}</span>
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={clearRecentSearches}
+            className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+          >
+            Limpar
+          </button>
+        </div>
+      )}
 
       {replacementVerification && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] p-3 text-sm text-blue-800 dark:text-blue-300">
@@ -832,6 +921,24 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
 
                     <button
                       type="button"
+                      onClick={() => void copyPartDirectLink(detailCode)}
+                      className="rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 px-3.5 py-2.5 text-xs font-semibold text-white transition active:scale-95 flex items-center gap-1.5"
+                    >
+                      <span>🔗</span>
+                      <span>Copiar link</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => sendPartWhatsApp(detail, detailCode)}
+                      className="rounded-xl border border-emerald-400/50 bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2.5 text-xs font-bold text-white transition active:scale-95 flex items-center gap-1.5 shadow-sm"
+                    >
+                      <span>📱</span>
+                      <span>Enviar no WhatsApp</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => {
                         const targetName = detail.name;
                         const targetCode = detailCode;
@@ -955,15 +1062,30 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
 
       {pdf && (
         <div onMouseDown={closePdfFromBackdrop} className="fixed inset-0 z-[90] bg-slate-950/90 p-3 md:p-6">
-          <div role="dialog" aria-modal="true" aria-labelledby="pdf-preview-title" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white dark:bg-slate-800">
+          <div id="pdf-modal-container" role="dialog" aria-modal="true" aria-labelledby="pdf-preview-title" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white dark:bg-slate-800">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 px-4 py-3">
               <div>
                 <div id="pdf-preview-title" className="text-sm font-semibold">{pdf.title}</div>
                 <div className="text-xs text-slate-400">{pdf.page ? `Abrindo na página ${pdf.page}` : 'Visualização do catálogo'}</div>
               </div>
               <div className="flex items-center gap-2">
-                <a href={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-[#1d4f91] dark:text-blue-300">Nova aba</a>
-                <button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const el = document.getElementById('pdf-modal-container');
+                    if (document.fullscreenElement) {
+                      void document.exitFullscreen();
+                    } else if (el) {
+                      void el.requestFullscreen();
+                    }
+                  }}
+                  className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                  title="Alternar tela cheia"
+                >
+                  ⛶ Tela cheia
+                </button>
+                <a href={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-[#1d4f91] dark:text-blue-300">Nova aba ↗</a>
+                <button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button>
               </div>
             </div>
             <iframe title={pdf.title} src={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} className="h-full w-full border-0" />

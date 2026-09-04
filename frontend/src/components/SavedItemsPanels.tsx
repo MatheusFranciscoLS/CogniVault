@@ -299,6 +299,32 @@ export function HistoryPanel({ onSearch }: { onSearch: (query: string) => void }
   );
 }
 
+function exportFavoritesCsv(itemsToExport: FavoriteItem[]) {
+  const header = ['Tipo', 'Etiqueta / Nome', 'Código Oficial', 'Código Formatado', 'Modelo', 'PNC', 'Catálogo', 'Seção', 'Posição'];
+  const rows = itemsToExport.map(item => [
+    item.kind === 'PART' ? 'Peça' : 'Catálogo',
+    `"${(item.label || '').replace(/"/g, '""')}"`,
+    item.reference || '',
+    item.reference ? formatHusqvarnaPartNumber(item.reference) : '',
+    `"${(item.model || '').replace(/"/g, '""')}"`,
+    `"${(item.pnc || '').replace(/"/g, '""')}"`,
+    `"${(item.sourceFilename || '').replace(/"/g, '""')}"`,
+    `"${(item.section || '').replace(/"/g, '""')}"`,
+    `"${(item.position || '').replace(/"/g, '""')}"`,
+  ]);
+  const csvContent = '\uFEFF' + [header.join(';'), ...rows.map(r => r.join(';'))].join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `cognivault_favoritos_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  toast.success('Lista de favoritos exportada em CSV com sucesso!');
+}
+
 type FavoriteKindFilter = 'ALL' | FavoriteItem['kind'];
 
 export function FavoritesPanel({ onSearch }: { onSearch: (query: string) => void }) {
@@ -378,6 +404,25 @@ export function FavoritesPanel({ onSearch }: { onSearch: (query: string) => void
   const partCount = items.filter(item => item.kind === 'PART').length;
   const documentCount = items.length - partCount;
 
+  const addAllPartsToCart = () => {
+    const partsToCart = filteredItems.filter(i => i.kind === 'PART' && i.reference);
+    if (!partsToCart.length) {
+      toast.info('Nenhuma peça com código para adicionar ao orçamento.');
+      return;
+    }
+    for (const item of partsToCart) {
+      quoteCart.addItem({
+        partNumber: item.reference!,
+        name: item.label,
+        model: item.model || 'Husqvarna',
+        pnc: item.pnc || undefined,
+        section: item.section || undefined,
+        position: item.position || undefined,
+      });
+    }
+    toast.success(`${partsToCart.length} ${partsToCart.length === 1 ? 'peça adicionada' : 'peças adicionadas'} ao orçamento!`);
+  };
+
   return (
     <section>
       <p className="cv-kicker">Atalhos pessoais</p>
@@ -411,17 +456,44 @@ export function FavoritesPanel({ onSearch }: { onSearch: (query: string) => void
             </button>
           )}
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {([['ALL', `Todos · ${items.length}`], ['PART', `Peças · ${partCount}`], ['DOCUMENT', `Catálogos · ${documentCount}`]] as Array<[FavoriteKindFilter, string]>).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setKindFilter(value)}
-              className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${kindFilter === value ? 'border-slate-800 bg-slate-900 text-white' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:border-slate-600'}`}
-            >
-              {label}
-            </button>
-          ))}
+
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800 pt-3">
+          <div className="flex flex-wrap gap-2">
+            {([['ALL', `Todos · ${items.length}`], ['PART', `Peças · ${partCount}`], ['DOCUMENT', `Catálogos · ${documentCount}`]] as Array<[FavoriteKindFilter, string]>).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setKindFilter(value)}
+                className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${kindFilter === value ? 'border-slate-800 bg-slate-900 text-white' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:border-slate-600'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {partCount > 0 && (
+              <button
+                type="button"
+                onClick={addAllPartsToCart}
+                className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 px-3.5 py-1.5 text-xs font-bold shadow-sm transition active:scale-95"
+              >
+                <span>🛒</span>
+                <span>Adicionar Peças ao Orçamento</span>
+              </button>
+            )}
+            {filteredItems.length > 0 && (
+              <button
+                type="button"
+                onClick={() => exportFavoritesCsv(filteredItems)}
+                className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-400 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 shadow-2xs transition active:scale-95"
+                title="Exportar lista filtrada para planilha Excel / CSV"
+              >
+                <span>📊</span>
+                <span>Exportar CSV</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

@@ -92,12 +92,103 @@ const JARGÕES_BALCAO = [
   { slang: 'Pinhão da corrente', tech: 'Tambor de embreagem', q: 'tambor embreagem' },
 ];
 
+const DIAGNOSTIC_SYMPTOMS = [
+  {
+    id: 'sem-partida',
+    title: '🚫 Motor não dá partida / Sem faísca',
+    shortLabel: 'Sem partida / faísca',
+    symptom: 'Ao puxar a cordinha de arranque, o motor gira livremente mas não dá sinal de combustão nem fumaça.',
+    checks: [
+      'Chave liga/desliga: verificar se o botão de parada não está em curto com a carcaça ou fio terra rompido.',
+      'Centelha da vela: retirar a vela, encostar a rosca na carcaça e puxar o arranque (verificar centelha azul forte).',
+      'Entreferro da bobina: regular a folga do módulo de ignição em 0,3 mm (espessura de cartão padrão).',
+      'Motor afogado: se a vela estiver encharcada de gasolina, retire-a e puxe o arranque 10x com o afogador aberto.',
+    ],
+    recommendedParts: [
+      { name: 'Vela de Ignição Husqvarna (RCJ7Y / CMR7H)', code: '503235111', query: 'vela ignicao' },
+      { name: 'Módulo / Bobina de Ignição Eletrônica', code: '544127001', query: 'modulo ignicao' },
+      { name: 'Cachimbo e Mola Terminal de Vela', code: '501485402', query: 'terminal vela' },
+    ],
+  },
+  {
+    id: 'afoga-alta',
+    title: '⛽ Falta combustível ou engasga na aceleração',
+    shortLabel: 'Engasga na aceleração',
+    symptom: 'O motor dá a partida normalmente na marcha lenta, mas morre, engasga ou perde força ao acelerar.',
+    checks: [
+      'Filtro de combustível (pescador): puxar com um arame pelo bocal do tanque e checar se o feltro está escurecido ou entupido.',
+      'Mangueiras de combustível: examinar se há ressecamento, furos ou dobras impedindo a passagem da gasolina.',
+      'Diafragma / membranas do carburador: gasolina velha endurece as membranas, travando a agulha de admissão.',
+      'Respirador do tanque: se o tanque criar vácuo após alguns minutos de funcionamento, desobstrua o respirador.',
+    ],
+    recommendedParts: [
+      { name: 'Filtro de Combustível Feltro Poroso', code: '503443201', query: '503443201' },
+      { name: 'Kit de Membranas e Reparo do Carburador', code: '531004561', query: 'reparo carburador' },
+      { name: 'Mangueira de Combustível Tygon Original', code: '581756202', query: 'mangueira combustivel' },
+    ],
+  },
+  {
+    id: 'dispara-lenta',
+    title: '🌪️ Marcha lenta irregular ou disparando',
+    shortLabel: 'Disparando na lenta',
+    symptom: 'A máquina fica acelerada sozinha, gira a lâmina/corrente na lenta e não aceita regulagem pelo parafuso T.',
+    checks: [
+      'Entrada falsa de ar: retentores de virabrequim com vazamento de ar desregulam a mistura ar/combustível.',
+      'Flange de admissão / baquelite: checar se há trincas ou folga nos parafusos de fixação ao cilindro.',
+      'Mangueira de vácuo / pulso: se solta ou ressecada, a bomba do carburador não pulsa corretamente.',
+      'Parafuso L muito fechado: abra 1 volta completa a partir do encosto suave para estabilizar a marcha lenta.',
+    ],
+    recommendedParts: [
+      { name: 'Jogo de Retentores do Virabrequim', code: '503260204', query: 'retentor virabrequim' },
+      { name: 'Flange / Coletor de Admissão', code: '503496901', query: 'flange admissao' },
+      { name: 'Kit Juntas de Vedação do Cilindro e Cárter', code: '503946001', query: 'jogo junta' },
+    ],
+  },
+  {
+    id: 'corrente-seca',
+    title: '🪚 Corrente da motosserra seca (sem óleo)',
+    shortLabel: 'Corrente sem óleo',
+    symptom: 'Sabre e corrente esquentam, saem fumaça e esticam excessivamente. O tanque de óleo não baixa.',
+    checks: [
+      'Canaleta do sabre: usar raspador para limpar pó de serra compactado na canaleta e no orifício de entrada.',
+      'Rosca sem-fim da bomba de óleo: engrenagem de acoplamento com dentes gastos não gira o pistão injetor.',
+      'Filtro pescador de óleo: verificar se o filtro interno do tanque está colmatado por óleo grosso ou resíduos.',
+      'Qualidade do óleo de corrente: nunca utilizar óleo queimado ou óleo de motor 2T no reservatório de corrente.',
+    ],
+    recommendedParts: [
+      { name: 'Engrenagem Sem-Fim da Bomba de Óleo', code: '537110501', query: 'engrenagem sem fim' },
+      { name: 'Conjunto Pistão / Bomba de Lubrificação', code: '544180104', query: 'bomba de oleo' },
+      { name: 'Filtro Pescador de Óleo de Sabre', code: '503507001', query: 'filtro oleo' },
+    ],
+  },
+  {
+    id: 'arranque-travado',
+    title: '⚡ Corda de arranque pesada ou que não recolhe',
+    shortLabel: 'Arranque não recolhe',
+    symptom: 'A corda de partida fica solta para fora, o carretel emperra ou o conjunto trava ao puxar.',
+    checks: [
+      'Mola espiral de partida: mola partida ou desenganchada da carcaça plástica impede o recuo da corda.',
+      'Corda desgastada / mordida: se a corda tiver nós ou diâmetro incorreto, ela se sobrepõe no carretel.',
+      'Garras plásticas de partida: trincas ou desgaste nas aletas que engatam no volante magnético.',
+      'Cuidado: se o motor não girar nem sem a vela de ignição, há risco de travamento de pistão ou biela.',
+    ],
+    recommendedParts: [
+      { name: 'Mola de Partida / Retorno Espiral', code: '503859901', query: 'mola partida' },
+      { name: 'Corda de Arranque Husqvarna 3,5mm', code: '505305125', query: 'corda arranque' },
+      { name: 'Garras / Travas de Partida do Volante', code: '503873305', query: 'trava partida' },
+    ],
+  },
+];
+
 export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: string) => void; onCatalogs: (filter?: string) => void }) {
   const [query, setQuery] = useState('');
   const quoteCart = useQuoteCart();
   const [fuelLiters, setFuelLiters] = useState<number>(5);
   const [fuelRatio, setFuelRatio] = useState<50 | 33 | 25>(50);
+  const [activeSymptom, setActiveSymptom] = useState<string>('sem-partida');
   const oilMl = Math.round((fuelLiters * 1000) / fuelRatio);
+
+  const currentSymptom = DIAGNOSTIC_SYMPTOMS.find(s => s.id === activeSymptom) || DIAGNOSTIC_SYMPTOMS[0];
 
   const copyFuelInstruction = () => {
     const text = `*Recomendação de Mistura 2T Husqvarna - Vardão Máquinas*\n\n` +
@@ -472,6 +563,123 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Ajuste H & L Carburador</span>
               <strong className="text-slate-800 dark:text-slate-200 text-sm">1 volta aberta</strong>
               <span className="block text-[10px] text-slate-400 mt-0.5">Ponto de partida do encosto suave</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Diagnóstico Rápido de Falhas 2 Tempos */}
+      <div className="cv-surface rounded-[26px] p-6 shadow-sm border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-800/50">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-rose-500/10 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 text-xl font-bold">
+              🩺
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Guia de Diagnóstico & Sintomas da Oficina</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Identifique o defeito relatado pelo cliente e cote as peças corretas no balcão</p>
+            </div>
+          </div>
+          <span className="rounded-full bg-rose-100 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 px-3 py-1 text-[11px] font-bold text-rose-800 dark:text-rose-300">
+            Motores 2T Husqvarna
+          </span>
+        </div>
+
+        {/* Sintomas Selecionáveis */}
+        <div className="mt-5 flex items-center gap-2 overflow-x-auto pb-1 cv-scrollbar">
+          {DIAGNOSTIC_SYMPTOMS.map(s => {
+            const active = s.id === activeSymptom;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setActiveSymptom(s.id)}
+                className={`shrink-0 rounded-xl px-3.5 py-2 text-xs font-bold transition flex items-center gap-2 active:scale-95 ${
+                  active
+                    ? 'bg-[#123867] text-white shadow-sm'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                <span>{s.shortLabel}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Detalhe do Sintoma e Peças */}
+        <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] rounded-2xl bg-slate-50/80 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800/80 p-5">
+          <div>
+            <div className="text-sm font-bold text-slate-800 dark:text-slate-200">{currentSymptom.title}</div>
+            <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed italic bg-white dark:bg-slate-800/80 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+              “{currentSymptom.symptom}”
+            </p>
+
+            <div className="mt-4">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Checklist de Verificação Técnica na Bancada:</span>
+              <ul className="space-y-2 text-xs text-slate-700 dark:text-slate-300">
+                {currentSymptom.checks.map((check, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold shrink-0">✓</span>
+                    <span>{check}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2.5">
+              Peças Mais Prováveis para Substituição:
+            </span>
+            <div className="space-y-2.5">
+              {currentSymptom.recommendedParts.map(part => {
+                const inCart = quoteCart.items.find(i => i.partNumber === part.code);
+                return (
+                  <div
+                    key={part.code}
+                    className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-2xs flex flex-col justify-between gap-2"
+                  >
+                    <div>
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-snug">
+                        {part.name}
+                      </div>
+                      <div className="mt-1 flex items-baseline gap-2 font-mono text-xs font-bold text-[#1d4f91] dark:text-blue-300">
+                        <span>{part.code}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-700/60">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          quoteCart.addItem({
+                            partNumber: part.code,
+                            name: part.name,
+                            model: 'Husqvarna 2T',
+                          });
+                          toast.success(`${part.name} adicionada ao orçamento!`);
+                        }}
+                        className={`flex-1 rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition flex items-center justify-center gap-1 active:scale-95 ${
+                          inCart
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                            : 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 text-slate-950 shadow-2xs'
+                        }`}
+                      >
+                        <span>{inCart ? '✓' : '+'}</span>
+                        <span>{inCart ? `No Orçamento (${inCart.quantity}x)` : 'Orçamento'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => onSearch(part.query)}
+                        className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-700 px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300 transition"
+                      >
+                        🔍 Buscar
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

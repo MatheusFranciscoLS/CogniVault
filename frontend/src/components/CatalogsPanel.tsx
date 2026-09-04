@@ -866,15 +866,40 @@ export default function CatalogsPanel({
 
       {pdf && (
         <div onMouseDown={e => { if (e.target === e.currentTarget) setPdf(null); }} className="fixed inset-0 z-[90] bg-slate-950/90 p-3 md:p-6">
-          <div className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white dark:bg-slate-800">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 px-4 py-3">
+          <div id="catalog-pdf-modal-container" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white dark:bg-slate-800">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 px-4 py-3">
               <div>
                 <div className="text-sm font-semibold">{pdf.title}</div>
                 <div className="text-xs text-slate-400">Visualizador técnico de catálogo</div>
               </div>
-              <button type="button" onClick={() => setPdf(null)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm">
-                Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const el = document.getElementById('catalog-pdf-modal-container');
+                    if (document.fullscreenElement) {
+                      void document.exitFullscreen();
+                    } else if (el) {
+                      void el.requestFullscreen();
+                    }
+                  }}
+                  className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                  title="Alternar tela cheia"
+                >
+                  ⛶ Tela cheia
+                </button>
+                <a
+                  href={pdf.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-[#1d4f91] dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-slate-700 transition"
+                >
+                  Nova aba ↗
+                </a>
+                <button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold">
+                  Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span>
+                </button>
+              </div>
             </div>
             <iframe title={pdf.title} src={pdf.url} className="h-full w-full border-0" />
           </div>
