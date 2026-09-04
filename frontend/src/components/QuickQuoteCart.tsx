@@ -193,6 +193,15 @@ export default function QuickQuoteCart() {
                   <span>Abrir no WhatsApp Web</span>
                 </button>
 
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-200 font-semibold py-2.5 px-4 text-xs shadow-2xs transition active:scale-98"
+                >
+                  <span>🖨️</span>
+                  <span>Imprimir Ficha de Balcão / Separação</span>
+                </button>
+
                 <div className="flex items-center justify-between pt-1">
                   <button
                     type="button"
@@ -210,6 +219,66 @@ export default function QuickQuoteCart() {
           </aside>
         </div>
       )}
+
+      {/* Ficha de Separação de Balcão - Exclusiva para Impressão */}
+      <div className="hidden print:block fixed inset-0 bg-white p-8 text-slate-900 z-[9999]">
+        <div className="border-b-2 border-slate-900 pb-4 mb-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-xl font-black uppercase tracking-wider text-slate-950">VARDÃO MÁQUINAS</h1>
+              <p className="text-xs font-bold text-slate-800">Concessionária & Peças Originais Husqvarna</p>
+              <p className="text-[11px] text-slate-600">CogniVault · Ficha de Separação / Orçamento de Balcão</p>
+            </div>
+            <div className="text-right text-xs">
+              <p><strong>Data:</strong> {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+              {customerInfo && <p className="mt-1 font-semibold text-slate-800"><strong>Cliente / Ref:</strong> {customerInfo}</p>}
+              <p className="mt-0.5 text-slate-500">Total de itens: {totalItems}</p>
+            </div>
+          </div>
+        </div>
+
+        <table className="w-full text-left border-collapse mb-8 text-xs">
+          <thead>
+            <tr className="border-b-2 border-slate-800 text-slate-900">
+              <th className="py-2.5 w-12 font-extrabold text-center">Conf.</th>
+              <th className="py-2.5 w-16 font-extrabold text-center">Qtd.</th>
+              <th className="py-2.5 w-36 font-extrabold">Código Oficial</th>
+              <th className="py-2.5 font-extrabold">Descrição da Peça</th>
+              <th className="py-2.5 w-48 font-extrabold">Modelo / Aplicação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map(item => (
+              <tr key={item.id} className="border-b border-slate-300">
+                <td className="py-2.5 text-center">
+                  <span className="inline-block w-4 h-4 border border-slate-900 rounded-xs"></span>
+                </td>
+                <td className="py-2.5 text-center font-bold text-slate-950">{item.quantity}x</td>
+                <td className="py-2.5 font-mono font-bold text-slate-900">
+                  {formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)}
+                </td>
+                <td className="py-2.5 font-medium text-slate-900">
+                  {item.name} {item.isSuperseded ? '★ (Substituição Oficial)' : ''}
+                </td>
+                <td className="py-2.5 text-slate-700">
+                  {item.model} {item.pnc ? `· PNC ${item.pnc}` : ''} {item.position ? `· Pos. ${item.position}` : ''}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div className="grid grid-cols-2 gap-8 pt-6 border-t border-slate-400 text-xs">
+          <div>
+            <p className="font-bold text-slate-800">Observações da Oficina / Balcão:</p>
+            <div className="mt-2 h-20 border border-dashed border-slate-400 rounded-lg"></div>
+          </div>
+          <div className="flex flex-col justify-end text-center">
+            <div className="border-t border-slate-800 pt-1 font-semibold text-slate-800">Assinatura do Atendente / Mecânico</div>
+            <div className="text-[10px] text-slate-500 mt-1">Conferência de retirada de peças no estoque</div>
+          </div>
+        </div>
+      </div>
     </>
   );
 }

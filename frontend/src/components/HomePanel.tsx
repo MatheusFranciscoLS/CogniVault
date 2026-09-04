@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiJson } from '../lib';
 import type { HomeData } from '../types';
 import { useQuoteCart } from '../context/QuoteCartContext';
+import { toast } from 'sonner';
 
 function Empty({ title, description }: { title: string; description: string }) {
   return (
@@ -94,6 +95,21 @@ const JARGÕES_BALCAO = [
 export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: string) => void; onCatalogs: (filter?: string) => void }) {
   const [query, setQuery] = useState('');
   const quoteCart = useQuoteCart();
+  const [fuelLiters, setFuelLiters] = useState<number>(5);
+  const [fuelRatio, setFuelRatio] = useState<50 | 33 | 25>(50);
+  const oilMl = Math.round((fuelLiters * 1000) / fuelRatio);
+
+  const copyFuelInstruction = () => {
+    const text = `*Recomendação de Mistura 2T Husqvarna - Vardão Máquinas*\n\n` +
+      `⛽ *Gasolina:* ${fuelLiters} Litro(s) de gasolina comum limpa\n` +
+      `🧴 *Óleo 2T:* Adicionar exatamente *${oilMl} ml* de Óleo 2T Husqvarna PRO (Proporção ${fuelRatio}:1)\n\n` +
+      `⚠️ *Cuidados Essenciais:*\n` +
+      `• Agite bem o galão antes de abastecer o tanque da máquina.\n` +
+      `• Não utilize mistura parada com mais de 15 dias no galão ou tanque.\n` +
+      `• Nunca use óleo de motor 4T ou óleo náutico TC-W3. Use sempre padrão JASO FD / ISO-L-EGD.`;
+    void navigator.clipboard.writeText(text);
+    toast.success('Instrução de mistura 2T copiada para a área de transferência!');
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ['home'],
@@ -330,6 +346,134 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
               <span className="text-xs text-slate-300 group-hover:text-blue-500 transition">⌕</span>
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Ferramentas de Oficina & Balcão */}
+      <div className="grid gap-5 xl:grid-cols-2">
+        {/* Calculadora de Mistura 2T */}
+        <div className="cv-surface rounded-[24px] p-6 shadow-sm border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-amber-50/40 via-white to-amber-50/10 dark:from-slate-800/60 dark:via-slate-800/40 dark:to-amber-950/20">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <span className="text-2xl">🧴</span>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Calculadora de Mistura 2 Tempos</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Dosagem oficial recomendada Husqvarna</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 bg-amber-500/10 dark:bg-amber-950/60 border border-amber-500/20 rounded-xl p-1">
+              {([50, 33, 25] as const).map(ratio => (
+                <button
+                  key={ratio}
+                  type="button"
+                  onClick={() => setFuelRatio(ratio)}
+                  className={`rounded-lg px-2 py-0.5 text-[10px] font-bold transition ${
+                    fuelRatio === ratio
+                      ? 'bg-amber-500 text-slate-950 shadow-2xs'
+                      : 'text-amber-800 dark:text-amber-300 hover:bg-amber-500/20'
+                  }`}
+                >
+                  {ratio}:1
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5">
+                Gasolina Comum Limpa
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0.5}
+                  max={100}
+                  step={0.5}
+                  value={fuelLiters}
+                  onChange={e => setFuelLiters(Math.max(0.1, Number(e.target.value)))}
+                  className="w-24 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm font-bold text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-amber-500/30"
+                />
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Litros</span>
+              </div>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {[1, 2, 5, 10, 20].map(val => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setFuelLiters(val)}
+                    className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition active:scale-95 ${
+                      fuelLiters === val
+                        ? 'bg-amber-500 text-slate-950 shadow-2xs'
+                        : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                    }`}
+                  >
+                    {val}L
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col justify-between rounded-2xl bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/20 p-4">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                  Óleo 2T Husqvarna ({fuelRatio}:1):
+                </span>
+                <div className="mt-1 flex items-baseline gap-1.5">
+                  <span className="text-3xl font-black text-amber-600 dark:text-amber-400">{oilMl}</span>
+                  <span className="text-xs font-bold text-amber-800 dark:text-amber-300">ml de óleo</span>
+                </div>
+                <div className="text-[10px] text-amber-700/80 dark:text-amber-300/70 mt-1">
+                  {fuelRatio === 50 ? 'Padrão Husqvarna PRO (20ml / Litro)' : fuelRatio === 33 ? 'Amaciamento / 3% (30ml / Litro)' : 'Motores antigos / 4% (40ml / Litro)'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={copyFuelInstruction}
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:text-amber-100 transition active:scale-95"
+              >
+                <span>📋</span>
+                <span className="underline">Copiar instrução p/ WhatsApp</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabela de Especificações da Oficina */}
+        <div className="cv-surface rounded-[24px] p-6 shadow-sm border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-800/40">
+          <div className="flex items-center gap-2.5 mb-4">
+            <span className="text-2xl">🔧</span>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Guia Rápido da Oficina Husqvarna</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">Folgas, torques e regulagens recomendadas</p>
+            </div>
+          </div>
+
+          <div className="grid gap-2.5 sm:grid-cols-2 text-xs">
+            <div className="rounded-xl border border-slate-100 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 p-3">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Folga do Eletrodo da Vela</span>
+              <strong className="text-slate-800 dark:text-slate-200 text-sm">0,5 mm</strong>
+              <span className="block text-[10px] text-slate-400 mt-0.5">Vela Champion RCJ7Y / NGK CMR7H</span>
+            </div>
+
+            <div className="rounded-xl border border-slate-100 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 p-3">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Entreferro da Bobina</span>
+              <strong className="text-slate-800 dark:text-slate-200 text-sm">0,3 mm</strong>
+              <span className="block text-[10px] text-slate-400 mt-0.5">Espessura de cartão de visita padrão</span>
+            </div>
+
+            <div className="rounded-xl border border-slate-100 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 p-3">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Marcha Lenta Padrão</span>
+              <strong className="text-slate-800 dark:text-slate-200 text-sm">2.700 – 3.000 RPM</strong>
+              <span className="block text-[10px] text-slate-400 mt-0.5">Sem engate da embreagem / lâmina</span>
+            </div>
+
+            <div className="rounded-xl border border-slate-100 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 p-3">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Ajuste H & L Carburador</span>
+              <strong className="text-slate-800 dark:text-slate-200 text-sm">1 volta aberta</strong>
+              <span className="block text-[10px] text-slate-400 mt-0.5">Ponto de partida do encosto suave</span>
+            </div>
+          </div>
         </div>
       </div>
 

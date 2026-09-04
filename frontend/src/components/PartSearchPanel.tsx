@@ -86,6 +86,32 @@ function SearchSkeleton() {
   );
 }
 
+function exportPartsCsv(partsToExport: SearchPart[], searchQuery: string) {
+  const header = ['Código Oficial', 'Código Formatado', 'Descrição da Peça', 'Modelo', 'PNC', 'Posição', 'Catálogo', 'Observações'];
+  const rows = partsToExport.map(p => [
+    p.partNumber,
+    formatHusqvarnaPartNumber(p.partNumber),
+    `"${(p.name || '').replace(/"/g, '""')}"`,
+    `"${(p.model || '').replace(/"/g, '""')}"`,
+    `"${(p.pnc || '').replace(/"/g, '""')}"`,
+    `"${(p.position || '').replace(/"/g, '""')}"`,
+    `"${(p.filename || '').replace(/"/g, '""')}"`,
+    `"${(p.notes || '').replace(/"/g, '""')}"`,
+  ]);
+  const csvContent = '\uFEFF' + [header.join(';'), ...rows.map(r => r.join(';'))].join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  const cleanName = searchQuery.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'pecas';
+  link.setAttribute('download', `cognivault_${cleanName}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  toast.success('Planilha CSV de peças exportada com sucesso!');
+}
+
 export default function PartSearchPanel({ initialQuery, onQueryChange, admin = false, storageScope }: Props) {
   const normalizedInitialQuery = initialQuery.trim();
   const [query, setQuery] = useState(initialQuery);
@@ -518,7 +544,20 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
               <div role="status" aria-live="polite" className="mt-0.5 text-xs text-slate-400">{resultSummary}</div>
             </div>
             <div className="flex items-center gap-2">
-              {parts.length > 0 && <span className="cv-soft-badge hidden sm:inline-flex">Selecione para ver compatibilidade</span>}
+              {parts.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => exportPartsCsv(parts, query)}
+                    title="Exportar resultados para planilha Excel / CSV"
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:border-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-400 transition shadow-2xs active:scale-95"
+                  >
+                    <span>📊</span>
+                    <span className="hidden sm:inline">Exportar CSV</span>
+                  </button>
+                  <span className="cv-soft-badge hidden sm:inline-flex">Selecione para ver compatibilidade</span>
+                </>
+              )}
               <button
                 type="button"
                 onClick={() => openAiAssistant(query.trim() ? `Tenho uma dúvida sobre a pesquisa "${query.trim()}". Pode me ajudar?` : undefined)}
