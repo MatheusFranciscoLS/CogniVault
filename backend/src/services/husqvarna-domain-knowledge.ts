@@ -251,7 +251,10 @@ export const DOMAIN_RULES: DomainRule[] = [
   { key: 'voltage-rectifier', families: ['ENGINE', 'GARDEN_TRACTOR', 'ZERO_TURN'], triggers: ['retificador', 'regulador de tensao', 'regulador de voltagem', 'voltage rectifier'], technicalTerms: ['voltage rectifier', 'rectifier kit', 'rectifier support'] },
   
   // Nomes genéricos comuns e gírias em todas as máquinas a combustão 
-  { key: 'starter-cord', families: ['CHAINSAW', 'BRUSHCUTTER', 'BLOWER', 'POWER_CUTTER', 'EARTH_AUGER'], triggers: ['cordinha', 'corda', 'corda de partida', 'cordinha da partida', 'starter cord', 'rope'], technicalTerms: ['starter cord', 'corda de arranque', 'rope', 'starter rope'] },
+  { key: 'starter-cord', families: ['CHAINSAW', 'BRUSHCUTTER', 'BLOWER', 'POWER_CUTTER', 'EARTH_AUGER', 'TRIMMER', 'POWER_SPRAYER'], triggers: ['cordinha', 'corda', 'cordinha de puxar', 'corda de puxar', 'corda de partida', 'cordinha da partida', 'cordinha de arranque', 'corda de arranque', 'starter cord', 'rope'], technicalTerms: ['starter cord', 'corda de arranque', 'rope', 'starter rope'] },
+  { key: 'starter-housing-counter', families: ['BRUSHCUTTER', 'CHAINSAW', 'BLOWER', 'POWER_CUTTER', 'EARTH_AUGER', 'TRIMMER', 'POWER_SPRAYER'], triggers: ['tampa da cordinha', 'tampa do arranque', 'tampa de partida', 'conjunto da cordinha', 'conjunto de partida'], technicalTerms: ['starter assy', 'starter assembly', 'recoil starter', 'starter complete', 'conjunto de partida', 'tampa de partida'], suppressKeys: ['cover', 'starter-rope', 'starter-cord'] },
+  { key: 'air-purge-counter', families: ['BRUSHCUTTER', 'CHAINSAW', 'BLOWER', 'POWER_SPRAYER', 'TRIMMER', 'POLE_PRUNER', 'HEDGE_TRIMMER'], triggers: ['cebolinha', 'pera injetora', 'pêra injetora', 'pera de combustivel', 'chupeta', 'bulbo primer', 'primer', 'air purge'], technicalTerms: ['air purge', 'purge bulb', 'bomba de purga', 'primer bulb', 'primer', 'purge pump'] },
+  { key: 'spark-plug-cap-counter', families: ['BRUSHCUTTER', 'CHAINSAW', 'BLOWER', 'POWER_SPRAYER', 'TRIMMER', 'POLE_PRUNER', 'HEDGE_TRIMMER', 'POWER_CUTTER', 'EARTH_AUGER'], triggers: ['caximbo', 'caximbo da vela', 'cachimbo da vela', 'terminal da vela', 'pito da vela', 'capa da vela'], technicalTerms: ['spark plug cap', 'plug cap', 'terminal da vela', 'capuz da vela', 'spark plug connector'] },
   { key: 'starter-handle', families: ['CHAINSAW', 'BRUSHCUTTER', 'BLOWER', 'POWER_CUTTER'], triggers: ['puxador', 'pegador', 'manopla da partida', 'starter handle'], technicalTerms: ['starter handle', 'handle', 'manipulo'] },
   { key: 'fuel-hose', families: ['CHAINSAW', 'BRUSHCUTTER', 'BLOWER', 'POWER_CUTTER', 'EARTH_AUGER'], triggers: ['macarrao', 'mangueirinha', 'mangueira de combustivel', 'fuel hose'], technicalTerms: ['fuel hose', 'mangueira do combustivel', 'hose', 'pipe', 'fuel pipe'] },
   { key: 'carburetor', families: ['CHAINSAW', 'BRUSHCUTTER', 'BLOWER', 'POWER_CUTTER'], triggers: ['carburador', 'carburadorzinho', 'bura', 'carburettor', 'carburetor'], technicalTerms: ['carburetor', 'carburettor', 'carburador'] },
@@ -420,7 +423,9 @@ export function inferEquipmentFamily(question: string, modelHint = ''): Equipmen
 function matchingRules(question: string, modelHint = ''): DomainRule[] {
   const family = inferEquipmentFamily(question, modelHint);
   if (!family) return [];
-  return DOMAIN_RULES.filter(rule => rule.families.includes(family) && containsAny(question, rule.triggers));
+  const rawRules = DOMAIN_RULES.filter(rule => rule.families.includes(family) && containsAny(question, rule.triggers));
+  const suppressed = new Set(rawRules.flatMap(rule => rule.suppressKeys || []));
+  return rawRules.filter(rule => !suppressed.has(rule.key) && !suppressed.has(`domain:${rule.key}`));
 }
 
 export function hasDomainKnowledge(question: string, modelHint = ''): boolean {

@@ -57,8 +57,8 @@ const VOCABULARY: VocabularyEntry[] = [
   { key: 'fuel-tank', terms: ['tanque de combustivel', 'tanque de combustível', 'tanque combustivel', 'tanque de gasolina', 'deposito de combustivel', 'depósito de combustível', 'fuel tank', 'tanque de combustible'] },
   { key: 'fuel-hose', terms: ['mangueira de combustivel', 'mangueira de combustível', 'mangueira combustivel', 'mangueira de gasolina', 'tubo de combustivel', 'tubo de combustível', 'fuel hose', 'fuel pipe', 'fuel line', 'manguera de combustible', 'manguerita de gasolina'] },
   { key: 'fuel-cap', terms: ['tampa do tanque', 'tampa tanque', 'tampa de combustivel', 'tampa de combustível', 'tampa do deposito', 'tampa do depósito', 'fuel cap', 'tank cap', 'tapa de combustible', 'tapon de gasolina'] },
-  { key: 'air-purge', terms: ['bulbo primer', 'bulbo de combustivel', 'bulbo de combustível', 'bombinha primer', 'primer', 'air purge', 'purge bulb', 'bomba de purga', 'bombita', 'bolha de purga'] },
-  { key: 'diaphragm', terms: ['diafragma', 'membrana', 'diaphragm', 'junta de membrana', 'kit membrana', 'kit de reparo do carburador'] },
+  { key: 'air-purge', terms: ['bulbo primer', 'bulbo de combustivel', 'bulbo de combustível', 'bombinha primer', 'primer', 'air purge', 'purge bulb', 'purge pump', 'purge pump assy', 'air purge assy', 'bomba de purga', 'bombita', 'bolha de purga', 'cebolinha', 'cebolinha do carburador', 'cebolinha da gasolina', 'cebolinha primer', 'pera injetora', 'pêra injetora', 'pera de combustivel', 'pêra de combustível', 'pera de gasolina', 'chupeta', 'chupetinha', 'bolhinha do primer', 'bombinha de purga', 'pera primer'] },
+  { key: 'diaphragm', terms: ['diafragma', 'membrana', 'diaphragm', 'junta de membrana', 'kit membrana', 'kit de reparo do carburador', 'reparo de carburador', 'reparo do carburador', 'kit de reparo', 'kit reparo carburador', 'kit reparo do carburador', 'jogo de juntas do carburador', 'diafragma e agulha', 'membrana e junta', 'reparo carburador', 'kit diafragma'] },
   { key: 'choke', terms: ['afogador', 'choke', 'estrangulador'] },
   { key: 'throttle-cable', terms: ['cabo do acelerador', 'cabo acelerador', 'cabo de acelerador', 'throttle cable', 'cable del acelerador', 'espia do acelerador'] },
   { key: 'throttle', terms: ['acelerador', 'gatilho do acelerador', 'gatilho', 'throttle', 'trigger', 'gatillo'] },
@@ -72,13 +72,13 @@ const VOCABULARY: VocabularyEntry[] = [
 
   // Ignição e partida
   { key: 'spark-plug', terms: ['vela de ignicao', 'vela de ignição', 'vela ignicao', 'vela', 'spark plug', 'sparkplug', 'bujia', 'bujía'] },
-  { key: 'spark-plug-cap', terms: ['cachimbo da vela', 'cachimbo vela', 'terminal da vela', 'capuz da vela', 'spark plug cap', 'plug cap', 'capuchon de bujia'] },
+  { key: 'spark-plug-cap', terms: ['cachimbo da vela', 'cachimbo vela', 'terminal da vela', 'terminal de vela', 'capuz da vela', 'capuz de vela', 'spark plug cap', 'plug cap', 'capuchon de bujia', 'caximbo', 'caximbo da vela', 'caximbo vela', 'caximbo de vela', 'cachimbo', 'pito da vela', 'capa da vela', 'borracha da vela', 'coifa da vela'] },
   { key: 'ignition', terms: ['bobina de ignicao', 'bobina de ignição', 'bobina ignicao', 'bobine de ignicao', 'bobine de ignição', 'modulo de ignicao', 'módulo de ignição', 'magneto de ignicao', 'ignition coil', 'ignition module', 'ignition', 'bobina de encendido'] },
   { key: 'flywheel', terms: ['volante magnetico', 'volante magnético', 'volante do motor', 'magneto', 'flywheel', 'volante'] },
-  { key: 'starter', terms: ['partida retratil', 'partida retrátil', 'arranque', 'retratil', 'retrátil', 'recoil starter', 'starter housing', 'starter', 'arranque completo', 'tampa de partida'] },
-  { key: 'starter-rope', terms: ['corda de partida', 'corda partida', 'cordao de partida', 'cordão de partida', 'corda de arranque', 'starter rope', 'recoil rope', 'rope', 'cordinha de partida', 'cordinha', 'cordinha do retratil', 'cuerda de arranque'] },
+  { key: 'starter', terms: ['partida retratil', 'partida retrátil', 'arranque', 'retratil', 'retrátil', 'recoil starter', 'starter housing', 'starter', 'arranque completo', 'tampa de partida', 'tampa da cordinha', 'tampa da corda', 'tampa do arranque', 'tampa de arranque', 'conjunto da cordinha', 'tampa puxador', 'conjunto de partida completo', 'carcaça do arranque', 'carcaca do arranque', 'tampa do retratil', 'starter assembly', 'conjunto de partida'] },
+  { key: 'starter-rope', terms: ['corda de partida', 'corda partida', 'cordao de partida', 'cordão de partida', 'corda de arranque', 'starter rope', 'recoil rope', 'rope', 'cordinha de partida', 'cordinha', 'cordinha do retratil', 'cuerda de arranque', 'cordinha de puxar', 'corda de puxar', 'cordinha de arranque', 'corda do arranque', 'fio de puxar', 'cabo de partida', 'fio de arranque'] },
   { key: 'starter-pulley', terms: ['polia de partida', 'polia do arranque', 'carretel de partida', 'carretel do arranque', 'starter pulley', 'recoil pulley', 'polea de arranque'] },
-  { key: 'recoil-spring', terms: ['mola de partida', 'mola do arranque', 'mola de recuo', 'mola retratil', 'mola retrátil', 'recoil spring', 'starter spring', 'mola espiral', 'resorte de arranque'] },
+  { key: 'recoil-spring', terms: ['mola de partida', 'mola do arranque', 'mola de recuo', 'mola retratil', 'mola retrátil', 'recoil spring', 'starter spring', 'mola espiral', 'resorte de arranque', 'mola da cordinha', 'mola do puxador', 'mola de partida retratil'] },
   { key: 'starter-motor', terms: ['motor de partida', 'motor de arranque', 'motor partida', 'starter motor', 'electric starter', 'arranque eletrico', 'motor de arranque electrico'] },
 
   // Embreagem e transmissão
@@ -110,8 +110,8 @@ const VOCABULARY: VocabularyEntry[] = [
   { key: 'blade', terms: ['lamina', 'lâmina', 'faca', 'navalha', 'blade', 'knife', 'cuchilla'] },
   { key: 'blade-set', terms: ['jogo de laminas', 'jogo de lâminas', 'kit de laminas', 'kit de lâminas', 'blade set', 'blade kit', 'kit faca', 'conjunto de facas'] },
   { key: 'blade-adapter', terms: ['adaptador da lamina', 'adaptador da lâmina', 'suporte da lamina', 'suporte da lâmina', 'blade adapter', 'suporte da faca'] },
-  { key: 'blade-flange', terms: ['flange da lamina', 'flange da lâmina', 'arruela de apoio da lamina', 'arruela de apoio da lâmina', 'acionador da lamina', 'acionador da lâmina', 'drive disc', 'support flange', 'blade flange', 'prato giratorio'] },
-  { key: 'blade-cup', terms: ['copo da lamina', 'copo da lâmina', 'copinho da lamina', 'copinho da lâmina', 'prato da lamina', 'prato da lâmina', 'support cup', 'blade cup', 'copo de apoio'] },
+  { key: 'blade-flange', terms: ['flange da lamina', 'flange da lâmina', 'arruela de apoio da lamina', 'arruela de apoio da lâmina', 'acionador da lamina', 'acionador da lâmina', 'drive disc', 'support flange', 'blade flange', 'prato giratorio', 'flange dentada', 'flange fixa', 'arruela dentada', 'acionador dentado'] },
+  { key: 'blade-cup', terms: ['copo da lamina', 'copo da lâmina', 'copinho da lamina', 'copinho da lâmina', 'prato da lamina', 'prato da lâmina', 'support cup', 'blade cup', 'copo de apoio', 'copinho', 'copinho de protecao', 'copinho de proteção', 'prato giratorio de apoio', 'copo protetor', 'copinho da faca'] },
   { key: 'cutting-deck', terms: ['deck', 'plataforma de corte', 'unidade de corte', 'carcaca do deck', 'carcaça do deck', 'cutter deck', 'cutting deck', 'mower deck', 'base de corte'] },
   { key: 'cutting-disc', terms: ['disco cortador', 'disco de corte', 'disco de laminas', 'disco de lâminas', 'cutting disc', 'blade disc', 'disco prato'] },
   { key: 'skid-plate', terms: ['placa de deslize', 'placa deslizante', 'placa derrapante', 'skid plate', 'sliding plate'] },
@@ -135,17 +135,18 @@ const VOCABULARY: VocabularyEntry[] = [
 
   // Motosserras
   { key: 'chain', terms: ['corrente', 'corrente de corte', 'saw chain', 'chain', 'cadena'] },
-  { key: 'guide-bar', terms: ['sabre', 'barra guia', 'barra-guia', 'barra da motosserra', 'guia da corrente', 'guide bar', 'bar', 'espada'] },
+  { key: 'guide-bar', terms: ['sabre', 'barra guia', 'barra-guia', 'barra da motosserra', 'guia da corrente', 'guide bar', 'bar', 'espada', 'espada da motosserra', 'espada da serra', 'barra de corte'] },
   { key: 'bar-nut', terms: ['porca do sabre', 'porca da barra', 'porca da tampa da embreagem', 'bar nut', 'guide bar nut'] },
-  { key: 'sprocket', terms: ['pinhao', 'pinhão', 'pinhao da corrente', 'pinhão da corrente', 'coroa', 'sprocket', 'rim sprocket', 'drive sprocket', 'piñon'] },
+  { key: 'sprocket', terms: ['pinhao', 'pinhão', 'pinhao da corrente', 'pinhão da corrente', 'coroa', 'sprocket', 'rim sprocket', 'drive sprocket', 'piñon', 'pinhao rim', 'pinhão rim', 'pinhao spur', 'pinhão spur', 'coroa da corrente', 'tambor com pinhao'] },
   { key: 'oil-pump', terms: ['bomba de oleo', 'bomba de óleo', 'bomba lubrificacao', 'bomba de lubrificação', 'oil pump', 'bomba de aceite'] },
   { key: 'chain-brake', terms: ['freio da corrente', 'travao da corrente', 'travão da corrente', 'chain brake', 'freno de cadena', 'alavanca do freio'] },
   { key: 'chain-catcher', terms: ['pega corrente', 'captor de corrente', 'pino pega corrente', 'chain catcher', 'apanhador de corrente'] },
-  { key: 'chain-tensioner', terms: ['tensor da corrente', 'esticador da corrente', 'tensionador da corrente', 'parafuso esticador da corrente', 'chain tensioner', 'chain adjuster', 'esticador', 'tensor'] },
+  { key: 'chain-tensioner', terms: ['tensor da corrente', 'esticador da corrente', 'tensionador da corrente', 'parafuso esticador da corrente', 'chain tensioner', 'chain adjuster', 'esticador', 'tensor', 'esticador do sabre', 'esticador da serra', 'parafuso esticador'] },
   { key: 'chain-cover', terms: ['tampa da corrente', 'tampa lateral', 'tampa do pinhao', 'tampa do pinhão', 'cobertura da embreagem', 'clutch cover', 'chain cover', 'sprocket cover', 'tapa de cadena'] },
   { key: 'spike-bumper', terms: ['garra', 'garra de apoio', 'garra de abate', 'batente de garra', 'spike bumper', 'bucking spike', 'felling spike', 'garra de encosto'] },
 
   // Sopradores e ventilação
+  { key: 'blower-volute', terms: ['caracol', 'caracol do soprador', 'voluta', 'voluta do soprador', 'scroll', 'outer scroll', 'inner scroll', 'carcaca da turbina', 'carcaça da turbina', 'carcaca da ventoinha', 'carcaça da ventoinha', 'blower housing', 'fan housing', 'carcaca do caracol', 'carcaça do caracol'] },
   { key: 'fan', terms: ['ventoinha', 'ventilador', 'turbina', 'rotor do soprador', 'impeller', 'fan', 'hélice'] },
   { key: 'blower-tube', terms: ['tubo do soprador', 'tubo soprador', 'blower tube', 'tubo intermedio'] },
   { key: 'nozzle', terms: ['bico', 'bocal', 'ponteira do soprador', 'nozzle', 'ponteira plana'] },
@@ -258,7 +259,52 @@ function normalizedVariants(entry: VocabularyEntry): string[] {
   return [...new Set(variants.filter(Boolean))];
 }
 
+function conceptOccurrences(value: string): Array<{ group: SearchGroup; index: number; end: number; length: number }> {
+  const query = searchable(value);
+  const queryWords = query.split(' ');
+  const matches: Array<{ group: SearchGroup; index: number; end: number; length: number }> = [];
+
+  for (const entry of VOCABULARY) {
+    let best: { index: number; end: number; length: number } | null = null;
+    for (const term of normalizedVariants(entry)) {
+      const needle = searchable(term);
+      if (!needle) continue;
+      const needleWords = needle.split(' ');
+      for (let wordIndex = 0; wordIndex <= queryWords.length - needleWords.length; wordIndex += 1) {
+        const window = queryWords.slice(wordIndex, wordIndex + needleWords.length).join(' ');
+        if (window !== needle) continue;
+        const prefix = queryWords.slice(0, wordIndex).join(' ');
+        const index = prefix ? prefix.length + 1 : 0;
+        const candidate = { index, end: index + needle.length, length: needle.length };
+        if (!best || index < best.index || (index === best.index && needle.length > best.length)) best = candidate;
+        break;
+      }
+    }
+    if (best) matches.push({ group: { key: entry.key, variants: normalizedVariants(entry) }, ...best });
+  }
+
+  // Descarta correspondências de sub-termos que estão estritamente contidas em uma expressão composta maior
+  // (ex: ao buscar "tampa da cordinha", mantém 'starter' e elimina sub-matches como 'cover' e 'starter-rope').
+  const nonOverlapping = matches.filter(m =>
+    !matches.some(longer => longer !== m && longer.index <= m.index && longer.end >= m.end && longer.length > m.length)
+  );
+
+  return nonOverlapping.sort((a, b) => a.index - b.index || b.length - a.length);
+}
+
 export function findPartConcepts(value: string): SearchGroup[] {
+  const occurrences = conceptOccurrences(value);
+  if (occurrences.length) {
+    const seen = new Set<string>();
+    const groups: SearchGroup[] = [];
+    for (const occ of occurrences) {
+      if (!seen.has(occ.group.key)) {
+        seen.add(occ.group.key);
+        groups.push(occ.group);
+      }
+    }
+    return groups;
+  }
   const query = ` ${searchable(value)} `;
   const queryWords = words(value);
   return VOCABULARY
@@ -290,33 +336,6 @@ export function buildSearchGroups(value: string, ignoredValues: string[] = []): 
     .filter(term => ![...coveredWords].some(covered => fuzzyEqual(term, covered)))
     .map(term => ({ key: `literal:${term}`, variants: [term] }));
   return applyDomainSearchKnowledge([...concepts, ...literals], value, ignoredValues.join(' ')) as SearchGroup[];
-}
-
-function conceptOccurrences(value: string): Array<{ group: SearchGroup; index: number; end: number; length: number }> {
-  const query = searchable(value);
-  const queryWords = query.split(' ');
-  const matches: Array<{ group: SearchGroup; index: number; end: number; length: number }> = [];
-
-  for (const entry of VOCABULARY) {
-    let best: { index: number; end: number; length: number } | null = null;
-    for (const term of normalizedVariants(entry)) {
-      const needle = searchable(term);
-      if (!needle) continue;
-      const needleWords = needle.split(' ');
-      for (let wordIndex = 0; wordIndex <= queryWords.length - needleWords.length; wordIndex += 1) {
-        const window = queryWords.slice(wordIndex, wordIndex + needleWords.length).join(' ');
-        if (window !== needle) continue;
-        const prefix = queryWords.slice(0, wordIndex).join(' ');
-        const index = prefix ? prefix.length + 1 : 0;
-        const candidate = { index, end: index + needle.length, length: needle.length };
-        if (!best || index < best.index || (index === best.index && needle.length > best.length)) best = candidate;
-        break;
-      }
-    }
-    if (best) matches.push({ group: { key: entry.key, variants: normalizedVariants(entry) }, ...best });
-  }
-
-  return matches.sort((a, b) => a.index - b.index || b.length - a.length);
 }
 
 export function inferPartQueryRelation(value: string): PartQueryRelation | null {

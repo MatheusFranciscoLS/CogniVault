@@ -91,19 +91,114 @@ export class AdminFeedbackController {
             const tenantId = req.user.tenantId;
             const userId = req.user.id;
 
-            const categories = [
-                { keywords: ['carburador', 'carburettor', 'carburetor'], template: 'qual o código do carburador da {model}' },
-                { keywords: ['filtro de ar', 'filtro ar', 'air filter'], template: 'filtro de ar da {model}' },
-                { keywords: ['vela', 'spark plug', 'ignicao', 'ignição'], template: 'vela de ignição {model}' },
-                { keywords: ['filtro de combustivel', 'filtro combustivel', 'fuel filter'], template: 'filtro de combustível da {model}' },
-                { keywords: ['pistao', 'pistão', 'piston'], template: 'pistão da {model}' },
-                { keywords: ['anel de segmento', 'piston ring'], template: 'anel de segmento {model}' },
-                { keywords: ['sabre', 'barra', 'bar'], template: 'sabre da {model}' },
-                { keywords: ['corrente', 'chain'], template: 'corrente da {model}' },
-                { keywords: ['lamina', 'lâmina', 'blade'], template: 'lâmina de corte {model}' },
-                { keywords: ['correia', 'belt'], template: 'correia de corte da {model}' },
-                { keywords: ['partida', 'starter', 'arranque', 'corda'], template: 'mola de partida {model}' },
-                { keywords: ['embreagem', 'clutch'], template: 'embreagem da {model}' },
+            const categories: Array<{
+                keywords: string[];
+                excludeKeywords?: string[];
+                templates: string[];
+            }> = [
+                {
+                    keywords: ['filtro de ar', 'filtro ar', 'air filter', 'airfilter', 'elemento filtrante'],
+                    templates: ['filtro de ar da {model}', 'qual o código do filtro de ar da {model}', 'elemento filtrante {model}'],
+                },
+                {
+                    keywords: ['filtro de combustivel', 'filtro combustível', 'filtro combustivel', 'fuel filter', 'pescador de combustivel', 'pescador'],
+                    templates: ['filtro de combustível da {model}', 'qual o filtro de combustivel da {model}', 'pescador de combustível {model}'],
+                },
+                {
+                    keywords: ['vela de ignicao', 'vela de ignição', 'vela ignicao', 'spark plug', 'bujia', 'bujía'],
+                    templates: ['vela de ignição da {model}', 'qual a vela da {model}', 'vela de ignição {model}'],
+                },
+                {
+                    keywords: ['cachimbo da vela', 'caximbo da vela', 'cachimbo', 'caximbo', 'spark plug cap', 'terminal da vela'],
+                    templates: ['caximbo da vela {model}', 'cachimbo da vela da {model}', 'terminal da vela {model}'],
+                },
+                {
+                    keywords: ['carburador', 'carburettor', 'carburetor'],
+                    excludeKeywords: ['reparo', 'kit', 'membrana', 'diafragma', 'junta'],
+                    templates: ['qual o código do carburador da {model}', 'carburador completo da {model}', 'carburador {model}'],
+                },
+                {
+                    keywords: ['kit membrana', 'kit de reparo', 'diafragma', 'diaphragm', 'reparo do carburador', 'reparo carburador', 'membrana'],
+                    templates: ['kit de reparo do carburador {model}', 'membrana do carburador {model}', 'kit reparo carburador da {model}'],
+                },
+                {
+                    keywords: ['purge', 'primer', 'purga', 'bulbo', 'cebolinha', 'pera injetora'],
+                    templates: ['cebolinha da {model}', 'pera injetora {model}', 'bulbo primer da {model}'],
+                },
+                {
+                    keywords: ['cilindro', 'cylinder'],
+                    excludeKeywords: ['parafuso', 'screw', 'junta', 'gasket'],
+                    templates: ['cilindro da {model}', 'kit cilindro {model}', 'qual o cilindro da {model}'],
+                },
+                {
+                    keywords: ['pistao', 'pistão', 'piston'],
+                    excludeKeywords: ['anel', 'ring', 'segmento'],
+                    templates: ['pistão da {model}', 'qual o código do pistão da {model}', 'conjunto do pistão {model}'],
+                },
+                {
+                    keywords: ['anel de segmento', 'piston ring', 'anel do pistao', 'anel do pistão', 'segmento do pistao'],
+                    templates: ['anel de segmento {model}', 'anel do pistão da {model}'],
+                },
+                {
+                    keywords: ['sabre', 'guide bar', 'barra guia', 'barra-guia', 'espada'],
+                    templates: ['sabre da {model}', 'qual o sabre da {model}', 'espada da {model}'],
+                },
+                {
+                    keywords: ['corrente', 'chain', 'saw chain'],
+                    excludeKeywords: ['tampa', 'cover', 'freio', 'brake', 'tensor', 'guia'],
+                    templates: ['corrente da {model}', 'corrente de corte {model}', 'qual a corrente da {model}'],
+                },
+                {
+                    keywords: ['pinhao', 'pinhão', 'sprocket', 'rim'],
+                    templates: ['pinhão da {model}', 'pinhão rim da {model}', 'pinhao spur da {model}'],
+                },
+                {
+                    keywords: ['carretel', 'cabeçote de nylon', 'cabecote de nylon', 'trimmer head', 'cabecote de corte', 'cabeçote de corte'],
+                    templates: ['carretel de nylon {model}', 'cabeçote de corte da {model}', 'carretel da {model}'],
+                },
+                {
+                    keywords: ['lamina', 'lâmina', 'blade', 'faca'],
+                    excludeKeywords: ['suporte', 'adaptador', 'parafuso', 'flange', 'copo'],
+                    templates: ['lâmina de corte {model}', 'faca de corte da {model}'],
+                },
+                {
+                    keywords: ['copo', 'copinho', 'blade cup', 'support cup', 'prato de apoio'],
+                    templates: ['copinho da lâmina {model}', 'copo de proteção da lâmina {model}', 'copinho {model}'],
+                },
+                {
+                    keywords: ['flange', 'drive disc', 'support flange', 'acionador'],
+                    templates: ['flange da lâmina {model}', 'flange dentada {model}'],
+                },
+                {
+                    keywords: ['corda', 'rope', 'starter cord', 'cordinha'],
+                    excludeKeywords: ['mola', 'spring', 'polia', 'pulley', 'tampa'],
+                    templates: ['cordinha de puxar {model}', 'corda de arranque da {model}', 'cordinha da partida {model}'],
+                },
+                {
+                    keywords: ['starter assy', 'starter assembly', 'recoil starter', 'partida retratil', 'partida retrátil', 'arranque completo', 'tampa de partida'],
+                    templates: ['tampa da cordinha {model}', 'conjunto de partida {model}', 'arranque completo da {model}'],
+                },
+                {
+                    keywords: ['mola de partida', 'recoil spring', 'mola do arranque', 'starter spring', 'mola retratil'],
+                    templates: ['mola de partida {model}', 'mola de recuo da {model}'],
+                },
+                {
+                    keywords: ['embreagem', 'clutch', 'embraiagem'],
+                    excludeKeywords: ['mola', 'spring', 'parafuso', 'screw', 'tambor', 'drum'],
+                    templates: ['embreagem da {model}', 'conjunto da embreagem {model}', 'patim de embreagem {model}'],
+                },
+                {
+                    keywords: ['correia', 'belt', 'drive belt', 'deck belt'],
+                    templates: ['correia de corte da {model}', 'correia do deck {model}'],
+                },
+                {
+                    keywords: ['volute', 'scroll', 'caracol', 'voluta', 'blower housing'],
+                    templates: ['caracol do {model}', 'voluta do soprador {model}'],
+                },
+                {
+                    keywords: ['chain tensioner', 'chain adjuster', 'esticador da corrente', 'tensor da corrente', 'parafuso esticador'],
+                    templates: ['esticador da corrente {model}', 'tensor de corrente da {model}'],
+                },
             ];
 
             const parts = await prisma.part.findMany({
@@ -121,7 +216,7 @@ export class AdminFeedbackController {
                     pnc: true,
                     normalizedPnc: true,
                 },
-                take: 2500,
+                take: 50000,
             });
 
             if (!parts.length) {
@@ -150,34 +245,41 @@ export class AdminFeedbackController {
                 for (const cat of categories) {
                     const matchedPart = modelParts.find((p) => {
                         const norm = (p.normalizedName || p.name || '').toLowerCase();
-                        return cat.keywords.some((kw) => norm.includes(kw));
+                        const matchesKeyword = cat.keywords.some((kw) => norm.includes(kw));
+                        if (!matchesKeyword) return false;
+                        if (cat.excludeKeywords && cat.excludeKeywords.some((ex) => norm.includes(ex))) {
+                            return false;
+                        }
+                        return true;
                     });
 
                     if (!matchedPart) continue;
 
-                    const queryText = cat.template.replace('{model}', displayModel);
-                    const normQ = normalizeText(queryText);
-                    const key = `${normQ}|${matchedPart.id}`;
+                    for (const template of cat.templates) {
+                        const queryText = template.replace('{model}', displayModel);
+                        const normQ = normalizeText(queryText);
+                        const key = `${normQ}|${matchedPart.id}`;
 
-                    if (existingSet.has(key)) continue;
+                        if (existingSet.has(key)) continue;
 
-                    await prisma.searchFeedback.create({
-                        data: {
-                            tenantId,
-                            userId,
-                            query: queryText,
-                            normalizedQuery: normQ,
-                            model: matchedPart.model,
-                            normalizedModel: matchedPart.normalizedModel,
-                            pnc: matchedPart.pnc,
-                            normalizedPnc: matchedPart.normalizedPnc,
-                            resultPartId: matchedPart.id,
-                            correct: true,
-                            reason: 'TREINAMENTO_INICIAL',
-                        },
-                    });
-                    existingSet.add(key);
-                    createdCount += 1;
+                        await prisma.searchFeedback.create({
+                            data: {
+                                tenantId,
+                                userId,
+                                query: queryText,
+                                normalizedQuery: normQ,
+                                model: matchedPart.model,
+                                normalizedModel: matchedPart.normalizedModel,
+                                pnc: matchedPart.pnc,
+                                normalizedPnc: matchedPart.normalizedPnc,
+                                resultPartId: matchedPart.id,
+                                correct: true,
+                                reason: 'TREINAMENTO_INICIAL',
+                            },
+                        });
+                        existingSet.add(key);
+                        createdCount += 1;
+                    }
                 }
             }
 
