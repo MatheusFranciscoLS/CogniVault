@@ -6,9 +6,11 @@ export default function QuickQuoteCart() {
   const {
     items,
     totalItems,
+    totalPrice,
     isOpen,
     setIsOpen,
     updateQuantity,
+    updateUnitPrice,
     removeItem,
     clearCart,
     copyQuoteToClipboard,
@@ -39,7 +41,9 @@ export default function QuickQuoteCart() {
           </div>
           <div className="text-left">
             <div className="text-xs font-extrabold uppercase tracking-wider text-amber-200">Orçamento de Balcão</div>
-            <div className="text-sm font-semibold">{totalItems} {totalItems === 1 ? 'peça selecionada' : 'peças selecionadas'}</div>
+            <div className="text-sm font-semibold">
+              {totalItems} {totalItems === 1 ? 'peça' : 'peças'} {totalPrice > 0 ? `· R$ ${totalPrice.toFixed(2).replace('.', ',')}` : ''}
+            </div>
           </div>
         </button>
       )}
@@ -166,6 +170,34 @@ export default function QuickQuoteCart() {
                           </button>
                         </div>
                       </div>
+
+                      {/* Preço Unitário Opcional */}
+                      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800 pt-2 text-xs">
+                        <label htmlFor={`price-${item.id}`} className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                          Preço Unit. (R$):
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-slate-400 font-semibold">R$</span>
+                          <input
+                            id={`price-${item.id}`}
+                            type="number"
+                            min={0}
+                            step={0.5}
+                            placeholder="0,00"
+                            value={item.unitPrice ?? ''}
+                            onChange={e => {
+                              const val = e.target.value === '' ? undefined : Number(e.target.value);
+                              updateUnitPrice(item.id, val);
+                            }}
+                            className="w-20 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 px-2 py-1 text-right text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-amber-400 focus:bg-white dark:focus:bg-slate-800"
+                          />
+                          {item.unitPrice && item.unitPrice > 0 ? (
+                            <span className="min-w-16 text-right text-xs font-black text-emerald-600 dark:text-emerald-400">
+                              = R$ {(item.quantity * item.unitPrice).toFixed(2).replace('.', ',')}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
                   );
                 })
@@ -175,6 +207,17 @@ export default function QuickQuoteCart() {
             {/* Rodapé com Ações de Exportação */}
             {items.length > 0 && (
               <div className="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/90 p-4 space-y-2.5">
+                {totalPrice > 0 && (
+                  <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/20 px-3.5 py-2.5">
+                    <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+                      Valor Total Estimado:
+                    </span>
+                    <span className="text-base font-black text-emerald-700 dark:text-emerald-400">
+                      R$ {totalPrice.toFixed(2).replace('.', ',')}
+                    </span>
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={() => void copyQuoteToClipboard(customerInfo)}
@@ -233,6 +276,11 @@ export default function QuickQuoteCart() {
               <p><strong>Data:</strong> {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
               {customerInfo && <p className="mt-1 font-semibold text-slate-800"><strong>Cliente / Ref:</strong> {customerInfo}</p>}
               <p className="mt-0.5 text-slate-500">Total de itens: {totalItems}</p>
+              {totalPrice > 0 && (
+                <p className="mt-1 font-bold text-sm text-slate-950">
+                  Total Geral: R$ {totalPrice.toFixed(2).replace('.', ',')}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -244,7 +292,9 @@ export default function QuickQuoteCart() {
               <th className="py-2.5 w-16 font-extrabold text-center">Qtd.</th>
               <th className="py-2.5 w-36 font-extrabold">Código Oficial</th>
               <th className="py-2.5 font-extrabold">Descrição da Peça</th>
-              <th className="py-2.5 w-48 font-extrabold">Modelo / Aplicação</th>
+              <th className="py-2.5 w-44 font-extrabold">Modelo / Aplicação</th>
+              {totalPrice > 0 && <th className="py-2.5 w-24 font-extrabold text-right">Preço Un.</th>}
+              {totalPrice > 0 && <th className="py-2.5 w-24 font-extrabold text-right">Subtotal</th>}
             </tr>
           </thead>
           <tbody>
@@ -263,9 +313,31 @@ export default function QuickQuoteCart() {
                 <td className="py-2.5 text-slate-700">
                   {item.model} {item.pnc ? `· PNC ${item.pnc}` : ''} {item.position ? `· Pos. ${item.position}` : ''}
                 </td>
+                {totalPrice > 0 && (
+                  <td className="py-2.5 text-right font-mono text-slate-700">
+                    {item.unitPrice ? `R$ ${item.unitPrice.toFixed(2).replace('.', ',')}` : '—'}
+                  </td>
+                )}
+                {totalPrice > 0 && (
+                  <td className="py-2.5 text-right font-mono font-bold text-slate-950">
+                    {item.unitPrice ? `R$ ${(item.quantity * item.unitPrice).toFixed(2).replace('.', ',')}` : '—'}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
+          {totalPrice > 0 && (
+            <tfoot>
+              <tr className="border-t-2 border-slate-900 font-bold">
+                <td colSpan={5} className="py-3 text-right uppercase tracking-wider text-xs">
+                  Total Geral do Orçamento:
+                </td>
+                <td colSpan={2} className="py-3 text-right font-black text-sm text-slate-950 font-mono">
+                  R$ {totalPrice.toFixed(2).replace('.', ',')}
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
 
         <div className="grid grid-cols-2 gap-8 pt-6 border-t border-slate-400 text-xs">

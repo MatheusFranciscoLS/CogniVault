@@ -15,6 +15,7 @@ export interface QuoteCartItem {
   originalCode?: string;
   notes?: string | null;
   quantity: number;
+  unitPrice?: number;
 }
 
 interface QuoteCartContextType {
@@ -22,10 +23,12 @@ interface QuoteCartContextType {
   addItem: (item: Omit<QuoteCartItem, 'quantity' | 'id'> & { quantity?: number }) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, delta: number) => void;
+  updateUnitPrice: (id: string, price: number | undefined) => void;
   clearCart: () => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   totalItems: number;
+  totalPrice: number;
   generateWhatsAppText: (machineModel?: string) => string;
   copyQuoteToClipboard: (machineModel?: string) => Promise<void>;
   openWhatsApp: (machineModel?: string) => void;
@@ -98,6 +101,17 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const updateUnitPrice = (id: string, price: number | undefined) => {
+    setItems(current =>
+      current.map(item => {
+        if (item.id === id) {
+          return { ...item, unitPrice: price !== undefined && price >= 0 ? price : undefined };
+        }
+        return item;
+      }),
+    );
+  };
+
   const clearCart = () => {
     setItems([]);
   };
@@ -106,12 +120,17 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     return items.reduce((acc, item) => acc + item.quantity, 0);
   }, [items]);
 
+  const totalPrice = useMemo(() => {
+    return items.reduce((acc, item) => acc + item.quantity * (item.unitPrice || 0), 0);
+  }, [items]);
+
   const generateWhatsAppText = (machineModel?: string) => {
     if (!items.length) return '';
 
     const now = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date());
     const modelsFound = [...new Set(items.map(i => i.model).filter(Boolean))];
     const headerModel = machineModel || (modelsFound.length === 1 ? modelsFound[0] : modelsFound.join(' / '));
+    const hasAnyPrice = items.some(i => (i.unitPrice || 0) > 0);
 
     let text = `🛠️ *ORÇAMENTO DE PEÇAS — VARDÃO MÁQUINAS*\n`;
     text += `📅 Data: ${now}\n`;
@@ -124,6 +143,10 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       const formattedCode = formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber);
       text += `\n${index + 1}. *${item.name}* (Qtd: ${item.quantity}x)\n`;
       text += `   • Código: \`${formattedCode}\`\n`;
+      if (item.unitPrice && item.unitPrice > 0) {
+        const itemTotal = item.quantity * item.unitPrice;
+        text += `   • Preço: R$ ${item.unitPrice.toFixed(2).replace('.', ',')} un. (Subtotal: R$ ${itemTotal.toFixed(2).replace('.', ',')})\n`;
+      }
       if (item.isSuperseded && item.originalCode) {
         text += `   • Substituição oficial de: \`${formatHusqvarnaPartNumber(item.originalCode)}\`\n`;
       }
@@ -134,6 +157,10 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
         text += `   • Máquina: ${item.model}${item.pnc ? ` (PNC ${item.pnc})` : ''}\n`;
       }
     });
+
+    if (hasAnyPrice && totalPrice > 0) {
+      text += `\n💰 *VALOR TOTAL ESTIMADO: R$ ${totalPrice.toFixed(2).replace('.', ',')}*\n`;
+    }
 
     text += `\n━━━━━━━━━━━━━━━━━━━━\n`;
     text += `✅ *Peças 100% Originais Husqvarna*\n`;
@@ -171,10 +198,12 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
         addItem,
         removeItem,
         updateQuantity,
+        updateUnitPrice,
         clearCart,
         isOpen,
         setIsOpen,
         totalItems,
+        totalPrice,
         generateWhatsAppText,
         copyQuoteToClipboard,
         openWhatsApp,
