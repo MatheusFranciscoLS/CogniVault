@@ -144,9 +144,10 @@ Instruções:
 1. Analise cuidadosamente a pergunta do usuário e os candidatos.
 2. Priorize estritamente opções para o mercado regional (Brasil / América Latina / South America). Se houver indicação de substituição oficial vigente, preserve o código atualizado.
 3. Identifique qual é a peça exata que o usuário deseja com base em modelo, seção, posição e descrição técnica.
-4. Se houver uma peça claramente correta no mercado regional, escolha-a.
-5. Se não houver uma peça claramente correta, retorne ambiguous = true.
-6. Explique seu raciocínio técnico.
+4. Para cortadores Giro Zero (ex: Z248F, Z254F, Z448, Z454, Z460, Z560X) e seus motores acoplados (Kawasaki FR691V, FX730V, FX921V, Husqvarna HV764, etc.), correlacione peças internas de motor com o motor correspondente e peças de deck/chassi com a máquina.
+5. Se houver uma peça claramente correta no mercado regional, escolha-a.
+6. Se não houver uma peça claramente correta, retorne ambiguous = true.
+7. Explique seu raciocínio técnico.
 
 Retorne um JSON com:
 - chosenId: O ID da peça escolhida (ou null se ambíguo/não encontrado)
@@ -172,7 +173,20 @@ Retorne um JSON com:
         },
       });
 
-      const decision = JSON.parse((decisionResponse as any).output_text || '{}');
+      const rawText = String((decisionResponse as any).output_text || '').trim();
+      const cleanedText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      let decision: { chosenId?: string | null; explanation?: string; ambiguous?: boolean } = {};
+      try {
+        decision = JSON.parse(cleanedText || '{}');
+      } catch (parseError) {
+        console.warn('[ReActAgent] Resposta não-JSON do Gemini:', parseError, rawText);
+        return {
+          status: 'AMBIGUOUS',
+          explanation: 'Identifiquei múltiplos candidatos no catálogo e recomendo conferência manual.',
+          candidates,
+        };
+      }
+
       if (decision.ambiguous || !decision.chosenId) {
         return {
           status: 'AMBIGUOUS',

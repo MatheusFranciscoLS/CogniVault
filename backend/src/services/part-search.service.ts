@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
-import { getGeminiClient } from '../config/gemini';
+import { GEMINI_EMBEDDING_MODEL, getGeminiClient } from '../config/gemini';
 import { normalizeIdentifier } from '../utils/normalize';
 import type { SearchIntent } from './chat-intent.service';
 import {
@@ -406,7 +406,7 @@ export class PartSearchService {
     const queryText = [expanded, intent.section, intent.position].filter(Boolean).join(' | ');
     const ai = await getGeminiClient();
     const embed = await ai.models.embedContent({
-      model: process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001',
+      model: GEMINI_EMBEDDING_MODEL,
       contents: queryText,
       config: { outputDimensionality: 768, taskType: 'RETRIEVAL_QUERY' },
     });

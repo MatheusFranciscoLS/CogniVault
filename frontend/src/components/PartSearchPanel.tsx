@@ -115,6 +115,7 @@ function exportPartsCsv(partsToExport: SearchPart[], searchQuery: string) {
 
 const SYSTEM_FILTERS = [
   { key: 'ALL', label: 'Todos', icon: '🔍', regex: /.*/ },
+  { key: 'DECK_CORREIAS', label: 'Decks, Correias & Polias', icon: '🚜', regex: /correia|deck|polia|fuso|mancal|rolamento|suspens[aã]o|regulagem deck|suporte da l[aâ]mina|cubo|flange|eixo fuso|tensionador/i },
   { key: 'MOTOR', label: 'Motor & Pistão', icon: '⚙️', regex: /pist[aã]o|cilindr|anel|virabrequim|biela|c[aá]rter|bloco|virabr|retentor/i },
   { key: 'CARBURADOR', label: 'Carburador & Combustível', icon: '⛽', regex: /carburad|diafrag|junta carb|combust|tanque|pescador|mangueira|purga|primer|afogad|gicl/i },
   { key: 'PARTIDA', label: 'Partida & Ignição', icon: '⚡', regex: /arranque|partida|corda|recolh|mola part|bobina|vela|volante|igni[cç]|cabo vela/i },

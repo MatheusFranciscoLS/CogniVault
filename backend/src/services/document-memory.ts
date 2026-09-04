@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
-import { getGeminiClient } from '../config/gemini';
+import { GEMINI_EMBEDDING_MODEL, getGeminiClient } from '../config/gemini';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { withTransientAIRetry } from '../utils/ai-retry';
 import {
@@ -153,7 +153,7 @@ export async function rebuildDocumentMemory(
       const batch = rows.slice(offset, offset + batchSize);
       const result = await withTransientAIRetry(
         () => ai.models.embedContent({
-          model: process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001',
+          model: GEMINI_EMBEDDING_MODEL,
           contents: batch.map(row => row.searchText),
           config: { outputDimensionality: 768, taskType: 'RETRIEVAL_DOCUMENT' },
         }),
@@ -254,7 +254,7 @@ export async function retrieveTechnicalContext(
     const ai = await getGeminiClient();
     const result = await withTransientAIRetry(
       () => ai.models.embedContent({
-        model: process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001',
+        model: GEMINI_EMBEDDING_MODEL,
         contents: query,
         config: { outputDimensionality: 768, taskType: 'RETRIEVAL_QUERY' },
       }),

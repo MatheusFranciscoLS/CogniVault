@@ -80,6 +80,20 @@ const FAST_MODELS = [
     ],
   },
   {
+    model: 'FX921V',
+    name: 'Giro Zero Z560X / FX921V',
+    tag: 'Kawasaki Pro',
+    badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+    chips: [
+      { label: 'Filtro óleo FX921', q: 'filtro oleo fx921' },
+      { label: 'Filtro ar FX921', q: 'filtro ar fx921' },
+      { label: 'Vela de ignição', q: 'vela fx921' },
+      { label: 'Virabrequim', q: 'virabrequim fx921' },
+      { label: 'Lâmina 60"', q: 'lamina z560x' },
+      { label: 'Correia deck', q: 'correia deck z560x' },
+    ],
+  },
+  {
     model: '125B',
     name: 'Soprador 125B',
     tag: 'Jardim',
@@ -110,7 +124,7 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
   const quickExamples = [
     'carburador 143RII',
     'sabre 120 mark',
-    'filtro oleo Z248F',
+    'filtro oleo FX921',
     '587 10 67-01',
     'virabrequim FR691V',
     'correia Z248F',

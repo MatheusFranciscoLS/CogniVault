@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
-import { getGeminiClient } from '../config/gemini';
+import { GEMINI_EMBEDDING_MODEL, getGeminiClient } from '../config/gemini';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { invalidateSearchFeedbackCache } from './part-search.service';
 
@@ -148,7 +148,7 @@ export class FeedbackService {
     private static async attachOptionalEmbedding(feedbackId: string, query: string): Promise<void> {
         const ai = await getGeminiClient();
         const embeddingResult = await ai.models.embedContent({
-            model: process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001',
+            model: GEMINI_EMBEDDING_MODEL,
             contents: query,
             config: { outputDimensionality: 768, taskType: 'RETRIEVAL_QUERY' },
         });

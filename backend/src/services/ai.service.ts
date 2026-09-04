@@ -4,7 +4,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { access, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { prisma } from '../config/prisma';
-import { GEMINI_GENERATIVE_MODEL, getGeminiClient } from '../config/gemini';
+import { GEMINI_EMBEDDING_MODEL, GEMINI_GENERATIVE_MODEL, getGeminiClient } from '../config/gemini';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { countDistinctPartOccurrences, hasSafeExtractionCoverage, matchExistingPartIds } from '../utils/part-identity';
 import { shouldForceCatalogReextraction } from '../utils/document-processing-intent';
@@ -566,7 +566,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     const batch = pendingIndexes.slice(offset, offset + batchSize);
                     const embedResult = await withTransientAIRetry(
                         () => embeddingAi.models.embedContent({
-                            model: process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001',
+                            model: GEMINI_EMBEDDING_MODEL,
                             contents: batch.map(({ index }) => preparedParts[index].data.searchText),
                             config: { outputDimensionality: 768, taskType: 'RETRIEVAL_DOCUMENT' },
                         }),

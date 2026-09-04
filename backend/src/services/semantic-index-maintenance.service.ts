@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { getGeminiClient } from '../config/gemini';
+import { GEMINI_EMBEDDING_MODEL, getGeminiClient } from '../config/gemini';
 import { prisma } from '../config/prisma';
 import { withTransientAIRetry } from '../utils/ai-retry';
 import {
@@ -66,7 +66,7 @@ async function embedRows(rows: PendingSemanticRow[], table: 'Part' | 'DocumentCh
     const batch = rows.slice(offset, offset + batchSize);
     const response = await withTransientAIRetry(
       () => ai.models.embedContent({
-        model: process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001',
+        model: GEMINI_EMBEDDING_MODEL,
         contents: batch.map(row => row.searchText),
         config: { outputDimensionality: 768, taskType: 'RETRIEVAL_DOCUMENT' },
       }),

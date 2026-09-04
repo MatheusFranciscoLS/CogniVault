@@ -94,6 +94,10 @@ export class OperationalController {
                 }
             }
         }
+        if (normalizedModel && /^(fx|fr|fs|hv|hs)\d+/i.test(normalizedModel)) {
+            const base = normalizedModel.replace(/v$/i, '');
+            if (base && !modelFilters.includes(base)) modelFilters.push(base);
+        }
 
         const groups = intent.partNumber ? [] : buildSearchGroups(q, [intent.manufacturer, intent.model, intent.pnc]);
 
