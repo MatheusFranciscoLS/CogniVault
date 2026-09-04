@@ -113,7 +113,7 @@ export class OperationalController {
             prisma.part.findMany({
                 where: partWhere,
                 orderBy: [{ model: 'asc' }, { name: 'asc' }],
-                take: 80,
+                take: 200,
                 select: {
                     id: true, name: true, partNumber: true, manufacturer: true, model: true, pnc: true,
                     universalAcrossPnc: true, section: true, position: true, page: true, documentId: true,
@@ -147,7 +147,7 @@ export class OperationalController {
         const seen = new Set<string>();
         const rankedParts = resolvedParts
             .map(part => {
-                let score = groups.length ? scorePartText(q, { name: part.name, section: part.section, aliases: part.alternativeNames }) : 0;
+                let score = groups.length ? scorePartText(q, { name: part.name, section: part.section, aliases: part.alternativeNames, notes: part.notes }) : 0;
                 if (identifier && part.normalizedPartNumber === identifier) score += 1000;
                 else if (relatedCodes.length && relatedCodes.includes(part.normalizedPartNumber)) score += 800;
                 if (normalizedModel && part.normalizedModel === normalizedModel) score += 200;

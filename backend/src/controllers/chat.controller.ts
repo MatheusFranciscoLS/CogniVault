@@ -229,21 +229,25 @@ export class ChatController {
                 );
             }
 
-            await prisma.searchHistory.create({
-                data: {
-                    tenantId: req.user.tenantId,
-                    userId: req.user.id,
-                    query: cleanQuestion,
-                    pnc: cleanPnc || undefined,
-                    status: result.serialRequired ? 'SERIAL_REQUIRED' : result.status,
-                    resultPartId: result.part?.id,
-                    resultLabel: result.part?.name,
-                    resultCode: result.part?.partNumber,
-                    resultModel: result.part?.model,
-                    resultPnc: result.part?.pnc,
-                    sourceFilename: result.part?.filename,
-                },
-            });
+            try {
+                await prisma.searchHistory.create({
+                    data: {
+                        tenantId: req.user.tenantId,
+                        userId: req.user.id,
+                        query: cleanQuestion,
+                        pnc: cleanPnc || undefined,
+                        status: result.serialRequired ? 'SERIAL_REQUIRED' : result.status,
+                        resultPartId: result.part?.id,
+                        resultLabel: result.part?.name,
+                        resultCode: result.part?.partNumber,
+                        resultModel: result.part?.model,
+                        resultPnc: result.part?.pnc,
+                        sourceFilename: result.part?.filename,
+                    },
+                });
+            } catch (historyError) {
+                console.warn('⚠️ Falha ao salvar histórico de busca no chat:', historyError instanceof Error ? historyError.message : historyError);
+            }
 
             res.status(200).json(result);
         } catch (error) {

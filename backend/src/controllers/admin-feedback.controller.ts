@@ -244,7 +244,20 @@ export class AdminFeedbackController {
             });
             const existingSet = new Set(existingFeedbacks.map((f) => `${f.normalizedQuery}|${f.resultPartId}`));
 
-            let createdCount = 0;
+            const toCreate: Array<{
+                tenantId: string;
+                userId: string;
+                query: string;
+                normalizedQuery: string;
+                model: string;
+                normalizedModel: string;
+                pnc: string | null;
+                normalizedPnc: string | null;
+                resultPartId: string;
+                correct: boolean;
+                reason: string;
+            }> = [];
+
             for (const [modelNorm, modelParts] of partsByModel.entries()) {
                 const displayModel = modelParts[0].model || modelNorm.toUpperCase();
 
@@ -268,24 +281,34 @@ export class AdminFeedbackController {
 
                         if (existingSet.has(key)) continue;
 
-                        await prisma.searchFeedback.create({
-                            data: {
-                                tenantId,
-                                userId,
-                                query: queryText,
-                                normalizedQuery: normQ,
-                                model: matchedPart.model,
-                                normalizedModel: matchedPart.normalizedModel,
-                                pnc: matchedPart.pnc,
-                                normalizedPnc: matchedPart.normalizedPnc,
-                                resultPartId: matchedPart.id,
-                                correct: true,
-                                reason: 'TREINAMENTO_INICIAL',
-                            },
+                        toCreate.push({
+                            tenantId,
+                            userId,
+                            query: queryText,
+                            normalizedQuery: normQ,
+                            model: matchedPart.model,
+                            normalizedModel: matchedPart.normalizedModel,
+                            pnc: matchedPart.pnc,
+                            normalizedPnc: matchedPart.normalizedPnc,
+                            resultPartId: matchedPart.id,
+                            correct: true,
+                            reason: 'TREINAMENTO_INICIAL',
                         });
                         existingSet.add(key);
-                        createdCount += 1;
                     }
+                }
+            }
+
+            let createdCount = 0;
+            if (toCreate.length > 0) {
+                const batchSize = 200;
+                for (let i = 0; i < toCreate.length; i += batchSize) {
+                    const chunk = toCreate.slice(i, i + batchSize);
+                    const res = await prisma.searchFeedback.createMany({
+                        data: chunk,
+                        skipDuplicates: true,
+                    });
+                    createdCount += res.count;
                 }
             }
 
