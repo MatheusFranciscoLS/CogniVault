@@ -17,21 +17,45 @@ function isPncContext(question: string, index: number) {
 }
 
 export function extractLikelyPartNumber(question: string): string {
-  const candidates: Array<{ value: string; index: number }> = [];
   const explicitSerial = normalizeIdentifier(extractExplicitSerialNumber(question));
-  const grouped = /\b(?:[A-Z0-9]*\d[A-Z0-9]*)(?:[\s./-]+(?:[A-Z0-9]*\d[A-Z0-9]*)){1,}\b/gi;
-  const compact = /\b(?:[A-Z]{1,3})?\d{6,}\b/gi;
-  for (const pattern of [grouped, compact]) {
+
+  // 1. Husqvarna padrão espaçado ou hifenizado: 587 10 67-01, 532 19 33-50, 503 28 15-04, 537 04 19-01
+  const husqvarnaPattern = /\b\d{2,3}(?:[\s.-]\d{2}){2}[-\s]\d{2}\b/g;
+
+  // 2. Kawasaki formato padrão: 49065-7007, 11013-7049, 99999-0384
+  const kawasakiPattern = /\b\d{5}-\d{4}\b/g;
+
+  // 3. Stihl formato padrão: 1123-120-0605
+  const stihlPattern = /\b\d{4}[-\s]\d{3}[-\s]\d{4}\b/g;
+
+  // 4. Numérico contínuo de 8 a 11 dígitos: 587106701, 532193350, 545081885, 490657007
+  const compactDigits = /\b\d{8,11}\b/g;
+
+  // 5. Código com prefixo alfanumérico: HUS587106701
+  const prefixedCode = /\b[A-Z]{1,3}\d{7,10}\b/gi;
+
+  const patterns = [husqvarnaPattern, kawasakiPattern, stihlPattern, compactDigits, prefixedCode];
+
+  for (const pattern of patterns) {
     for (const match of question.matchAll(pattern)) {
       if (match.index === undefined || isPncContext(question, match.index)) continue;
       const value = match[0].trim();
       const normalized = normalizeIdentifier(value);
       if (explicitSerial && normalized === explicitSerial) continue;
-      const digits = normalized.replace(/\D/g, '').length;
-      if (normalized.length >= 6 && digits >= 5) candidates.push({ value, index: match.index });
+      return value;
     }
   }
-  return candidates.sort((a, b) => normalizeIdentifier(b.value).length - normalizeIdentifier(a.value).length)[0]?.value || '';
+
+  // 6. Fallback amplo para código de 6 a 7 dígitos isolados (apenas dígitos numéricos puros)
+  const compactShort = /\b\d{6,7}\b/g;
+  for (const match of question.matchAll(compactShort)) {
+    if (match.index === undefined || isPncContext(question, match.index)) continue;
+    const value = match[0].trim();
+    if (explicitSerial && normalizeIdentifier(value) === explicitSerial) continue;
+    return value;
+  }
+
+  return '';
 }
 
 export function extractLikelyPnc(question: string): string {

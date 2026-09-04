@@ -303,9 +303,11 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     }),
                         { label: `extração do catálogo ${documentId}` },
                     );
-                    if (!(response as any).output_text?.trim()) throw new Error('Gemini não conseguiu extrair informações do PDF.');
+                    const rawOutput = String((response as any).output_text || '').trim();
+                    if (!rawOutput) throw new Error('Gemini não conseguiu extrair informações do PDF.');
+                    const cleanedOutput = rawOutput.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
                     try {
-                        extraction = JSON.parse((response as any).output_text) as CatalogExtraction;
+                        extraction = JSON.parse(cleanedOutput) as CatalogExtraction;
                     } catch {
                         throw new Error('Gemini retornou JSON inválido durante a extração do catálogo.');
                     }

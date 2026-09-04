@@ -114,8 +114,13 @@ export class ChatService {
       if (explicitPnc?.trim()) localIntent.pnc = explicitPnc.trim();
       const direct = await PartSearchService.directByCode(tenantId, likelyCode);
       if (direct.length >= 1) {
+        const normModel = normalizeIdentifier(localIntent.model);
+        const matchingModel = normModel
+          ? direct.find(d => normalizeIdentifier(d.model).includes(normModel) || normModel.includes(normalizeIdentifier(d.model)))
+          : undefined;
+        const chosen = matchingModel || direct[0];
         const directResult = this.withSupersessionNotice(
-          this.found(direct[0], 1, direct[0].universalAcrossPnc ? 'Qualquer um' : (direct[0].pnc || (direct.length > 1 ? 'Várias aplicações' : 'Não informado')), direct),
+          this.found(chosen, 1, chosen.universalAcrossPnc ? 'Qualquer um' : (chosen.pnc || (direct.length > 1 ? 'Várias aplicações' : 'Não informado')), direct),
           likelyCode,
         );
         return this.withContext(directResult, localIntent);
@@ -130,8 +135,13 @@ export class ChatService {
     if (intent.partNumber) {
       const direct = await PartSearchService.directByCode(tenantId, intent.partNumber);
       if (direct.length >= 1) {
+        const normModel = normalizeIdentifier(intent.model);
+        const matchingModel = normModel
+          ? direct.find(d => normalizeIdentifier(d.model).includes(normModel) || normModel.includes(normalizeIdentifier(d.model)))
+          : undefined;
+        const chosen = matchingModel || direct[0];
         return this.withContext(this.withSupersessionNotice(
-          this.found(direct[0], 1, direct[0].universalAcrossPnc ? 'Qualquer um' : (direct[0].pnc || (direct.length > 1 ? 'Várias aplicações' : 'Não informado')), direct),
+          this.found(chosen, 1, chosen.universalAcrossPnc ? 'Qualquer um' : (chosen.pnc || (direct.length > 1 ? 'Várias aplicações' : 'Não informado')), direct),
           intent.partNumber,
         ), intent);
       }

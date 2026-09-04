@@ -72,10 +72,13 @@ export class OperationalController {
         try {
 
         const normalized = normalizeText(q);
-        const identifier = normalizeIdentifier(q);
-        const relatedCodes = identifier ? allRelatedPartNumbers(identifier).map(normalizeIdentifier).filter(Boolean) : [];
-        const tenantId = req.user.tenantId;
         const intent = buildFallbackIntent(q);
+        const detectedCode = intent.partNumber || '';
+        const codeIdentifier = normalizeIdentifier(detectedCode);
+        const fullIdentifier = normalizeIdentifier(q);
+        const targetCode = codeIdentifier || fullIdentifier;
+        const relatedCodes = targetCode ? allRelatedPartNumbers(targetCode).map(normalizeIdentifier).filter(Boolean) : [];
+        const tenantId = req.user.tenantId;
         const normalizedModel = normalizeIdentifier(intent.model);
         const normalizedManufacturer = normalizeIdentifier(intent.manufacturer);
         const normalizedPnc = normalizeIdentifier(intent.pnc);
@@ -99,7 +102,15 @@ export class OperationalController {
             if (base && !modelFilters.includes(base)) modelFilters.push(base);
         }
 
-        const groups = intent.partNumber ? [] : buildSearchGroups(q, [intent.manufacturer, intent.model, intent.pnc]);
+        // Isola texto descritivo removendo código e modelo identificados
+        let descriptiveText = q;
+        if (detectedCode) descriptiveText = descriptiveText.replace(detectedCode, ' ');
+        if (intent.model) descriptiveText = descriptiveText.replace(intent.model, ' ');
+        descriptiveText = descriptiveText.trim();
+
+        const groups = descriptiveText.length >= 2
+            ? buildSearchGroups(descriptiveText, [intent.manufacturer, intent.model, intent.pnc])
+            : (intent.partNumber ? [] : buildSearchGroups(q, [intent.manufacturer, intent.model, intent.pnc]));
 
         const descriptiveFilters: Prisma.PartWhereInput[] = groups.map(group => ({
             OR: group.variants.flatMap(variant => [
@@ -114,26 +125,41 @@ export class OperationalController {
             ? { normalizedModel: { in: modelFilters } }
             : (modelFilters.length === 1 ? { normalizedModel: modelFilters[0] } : {});
 
-        const partWhere: Prisma.PartWhereInput = {
-            active: true,
-            document: { tenantId, archivedAt: null, status: 'COMPLETED' },
-            ...(groups.length ? {
+        const searchClauses: Prisma.PartWhereInput[] = [];
+
+        // Cláusulas de código de peça (código direto ou substituições oficiais)
+        if (relatedCodes.length) {
+            searchClauses.push({ normalizedPartNumber: { in: relatedCodes } });
+        } else if (targetCode && targetCode.length >= 5) {
+            searchClauses.push({ normalizedPartNumber: { contains: targetCode } });
+        }
+
+        // Cláusulas de busca descritiva / modelo
+        if (groups.length) {
+            searchClauses.push({
                 ...modelCondition,
                 AND: descriptiveFilters,
-            } : {
+            });
+        }
+
+        // Fallback amplo se nem código claro nem grupos descritivos foram isolados
+        if (!searchClauses.length) {
+            searchClauses.push({
                 OR: [
                     { partNumber: { contains: q, mode: 'insensitive' } },
                     ...(normalized ? [{ normalizedName: { contains: normalized } }] : []),
-                    ...(relatedCodes.length ? [{ normalizedPartNumber: { in: relatedCodes } }] : (identifier ? [{ normalizedPartNumber: { contains: identifier } }] : [])),
-                    ...(identifier ? [
-                        { normalizedModel: { contains: identifier } },
-                        { normalizedPnc: { contains: identifier } },
-                    ] : []),
+                    ...(targetCode ? [{ normalizedPartNumber: { contains: targetCode } }] : []),
                     ...(modelFilters.length ? [{ normalizedModel: { in: modelFilters } }] : []),
                     ...(normalizedManufacturer ? [{ normalizedManufacturer: { contains: normalizedManufacturer } }] : []),
                     ...(normalizedPnc ? [{ normalizedPnc: { contains: normalizedPnc } }] : []),
                 ],
-            }),
+            });
+        }
+
+        const partWhere: Prisma.PartWhereInput = {
+            active: true,
+            document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+            OR: searchClauses,
         };
 
         const [parts, documents] = await Promise.all([
@@ -160,6 +186,7 @@ export class OperationalController {
                         ...(intent.manufacturer ? [{ manufacturer: { contains: intent.manufacturer, mode: 'insensitive' as const } }] : []),
                         ...(intent.model ? [{ model: { contains: intent.model, mode: 'insensitive' as const } }] : []),
                         ...(intent.pnc ? [{ pnc: { contains: intent.pnc, mode: 'insensitive' as const } }] : []),
+                        ...(descriptiveText ? [{ model: { contains: descriptiveText, mode: 'insensitive' as const } }] : []),
                     ],
                 },
                 orderBy: { createdAt: 'desc' },
@@ -175,8 +202,9 @@ export class OperationalController {
         const rankedParts = resolvedParts
             .map(part => {
                 let score = groups.length ? scorePartText(q, { name: part.name, section: part.section, aliases: part.alternativeNames, notes: part.notes }) : 0;
-                if (identifier && part.normalizedPartNumber === identifier) score += 1000;
+                if (targetCode && part.normalizedPartNumber === targetCode) score += 1000;
                 else if (relatedCodes.length && relatedCodes.includes(part.normalizedPartNumber)) score += 800;
+                else if (targetCode && targetCode.length >= 5 && part.normalizedPartNumber.includes(targetCode)) score += 600;
                 if (modelFilters.length && modelFilters.includes(part.normalizedModel)) score += 200;
                 if (normalizedPnc && part.normalizedPnc === normalizedPnc) score += 150;
                 return { part, score };

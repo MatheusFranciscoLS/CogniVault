@@ -99,7 +99,9 @@ export class ChatIntentService {
           },
         },
       });
-      const parsed = JSON.parse((response as any).output_text || '{}') as Partial<SearchIntent>;
+      const rawText = String((response as any).output_text || '').trim();
+      const cleanedText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      const parsed = JSON.parse(cleanedText || '{}') as Partial<SearchIntent>;
       intentCache.set(cacheKey, parsed);
       const clean = (value: unknown) => typeof value === 'string' ? value.trim() : '';
       return {
@@ -142,7 +144,9 @@ export class ChatIntentService {
           },
         },
       });
-      const parsed = JSON.parse((response as any).output_text || '{}') as { id?: unknown; confidence?: unknown; ambiguous?: unknown };
+      const rawText = String((response as any).output_text || '').trim();
+      const cleanedText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      const parsed = JSON.parse(cleanedText || '{}') as { id?: unknown; confidence?: unknown; ambiguous?: unknown };
       const id = typeof parsed.id === 'string' && candidates.some(candidate => candidate.id === parsed.id) ? parsed.id : null;
       const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0));
       return { id, confidence, ambiguous: Boolean(parsed.ambiguous) || !id };

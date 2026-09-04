@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import type { FormEvent } from 'react';
 import { useQuoteCart } from '../context/QuoteCartContext';
 import { formatHusqvarnaPartNumber } from '../lib';
+import { toast } from 'sonner';
 
 export default function QuickQuoteCart() {
   const {
@@ -20,6 +22,7 @@ export default function QuickQuoteCart() {
     restoreQuote,
     deleteSavedQuote,
     clearSavedQuotes,
+    addItem,
   } = useQuoteCart();
 
   const [activeTab, setActiveTab] = useState<'cart' | 'history'>('cart');
@@ -27,6 +30,33 @@ export default function QuickQuoteCart() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('A Combinar no Balcão');
   const [discountPercentage, setDiscountPercentage] = useState<number>(0);
+
+  const [showCustomItemForm, setShowCustomItemForm] = useState(false);
+  const [customItemName, setCustomItemName] = useState('');
+  const [customItemPrice, setCustomItemPrice] = useState('');
+  const [customItemQty, setCustomItemQty] = useState(1);
+
+  const handleAddCustomItem = (e: FormEvent) => {
+    e.preventDefault();
+    const cleanName = customItemName.trim();
+    if (!cleanName) return;
+    const priceNum = customItemPrice ? parseFloat(customItemPrice.replace(',', '.')) : undefined;
+    const qty = Math.max(1, customItemQty || 1);
+
+    addItem({
+      partNumber: `SRV-${Date.now().toString().slice(-4)}`,
+      name: cleanName,
+      model: customerName.trim() || 'Serviço / Balcão',
+      unitPrice: priceNum !== undefined && !isNaN(priceNum) && priceNum >= 0 ? priceNum : undefined,
+      quantity: qty,
+    });
+
+    setCustomItemName('');
+    setCustomItemPrice('');
+    setCustomItemQty(1);
+    setShowCustomItemForm(false);
+    toast.success(`"${cleanName}" adicionado ao orçamento.`);
+  };
 
   const discountAmount = totalPrice > 0 && discountPercentage > 0 ? (totalPrice * discountPercentage) / 100 : 0;
   const netTotalPrice = totalPrice - discountAmount;
@@ -320,6 +350,107 @@ export default function QuickQuoteCart() {
                   </div>
                 </div>
 
+                {/* Ação Rápida: Adicionar Serviço / Item Avulso de Oficina */}
+                <div className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 px-3.5 py-2.5">
+                  {!showCustomItemForm ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomItemForm(true)}
+                      className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-300 dark:border-blue-700/80 bg-blue-50/50 dark:bg-blue-950/30 py-2 text-xs font-bold text-[#1d4f91] dark:text-blue-300 transition hover:bg-blue-50 dark:hover:bg-blue-900/40 active:scale-98"
+                    >
+                      <span>🛠️</span>
+                      <span>+ Adicionar Serviço ou Item Avulso</span>
+                    </button>
+                  ) : (
+                    <form onSubmit={handleAddCustomItem} className="space-y-2 rounded-xl border border-blue-200 dark:border-blue-800/80 bg-blue-50/40 dark:bg-slate-800 p-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1">
+                          <span>🛠️</span>
+                          <span>Serviço / Item Avulso de Balcão</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowCustomItemForm(false)}
+                          className="text-xs text-slate-400 hover:text-slate-600 p-0.5"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {/* Presets Rápidos */}
+                      <div className="flex flex-wrap gap-1">
+                        {[
+                          'Mão de obra / Revisão',
+                          'Limpeza e regulagem',
+                          'Óleo 2T Pro 1L',
+                          'Graxa de transmissão',
+                        ].map(preset => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setCustomItemName(preset)}
+                            className="rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/50"
+                          >
+                            {preset}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2">
+                        <input
+                          type="text"
+                          required
+                          value={customItemName}
+                          onChange={e => setCustomItemName(e.target.value)}
+                          placeholder="Descrição do serviço ou item..."
+                          className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-750 px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#1d4f91]"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-400">Preço (R$):</label>
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            value={customItemPrice}
+                            onChange={e => setCustomItemPrice(e.target.value)}
+                            placeholder="0,00"
+                            className="mt-0.5 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-750 px-2 py-1 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-[#1d4f91]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-400">Quantidade:</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={customItemQty}
+                            onChange={e => setCustomItemQty(parseInt(e.target.value, 10) || 1)}
+                            className="mt-0.5 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-750 px-2 py-1 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-[#1d4f91]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="submit"
+                          className="flex-1 rounded-lg bg-[#1d4f91] hover:bg-[#153e75] py-1.5 text-xs font-bold text-white transition shadow-2xs"
+                        >
+                          Confirmar Item
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowCustomItemForm(false)}
+                          className="rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+
                 {/* Lista de Peças */}
                 <div className="cv-scrollbar flex-1 overflow-y-auto p-4 space-y-3">
                   {items.length === 0 ? (
@@ -332,7 +463,8 @@ export default function QuickQuoteCart() {
                     </div>
                   ) : (
                     items.map(item => {
-                      const formattedCode = formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber);
+                      const isServiceItem = item.partNumber.startsWith('SRV-');
+                      const formattedCode = isServiceItem ? 'SERVIÇO / AVULSO' : formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber);
                       return (
                         <div
                           key={item.id}
@@ -344,9 +476,15 @@ export default function QuickQuoteCart() {
                                 {item.name}
                               </h3>
                               <div className="mt-1 flex items-baseline gap-2">
-                                <span className="font-mono text-xs font-bold text-[#1d4f91] dark:text-blue-300">
-                                  {formattedCode}
-                                </span>
+                                {isServiceItem ? (
+                                  <span className="rounded-md bg-blue-50 dark:bg-blue-900/40 px-1.5 py-0.5 text-[10px] font-bold text-[#1d4f91] dark:text-blue-300">
+                                    🛠️ SERVIÇO / BALCÃO
+                                  </span>
+                                ) : (
+                                  <span className="font-mono text-xs font-bold text-[#1d4f91] dark:text-blue-300">
+                                    {formattedCode}
+                                  </span>
+                                )}
                                 {item.isSuperseded && (
                                   <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
                                     (Substituição)
@@ -354,7 +492,9 @@ export default function QuickQuoteCart() {
                                 )}
                               </div>
                               <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                                {item.model} {item.pnc ? `· PNC ${item.pnc}` : ''} {item.position ? `· Pos. ${item.position}` : ''}
+                                {isServiceItem
+                                  ? (item.model || 'Oficina / Balcão')
+                                  : `${item.model} ${item.pnc ? `· PNC ${item.pnc}` : ''} ${item.position ? `· Pos. ${item.position}` : ''}`}
                               </div>
                             </div>
                             <button

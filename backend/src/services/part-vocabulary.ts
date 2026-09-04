@@ -101,7 +101,10 @@ const VOCABULARY: VocabularyEntry[] = [
   { key: 'drive-belt', terms: ['correia', 'correia de transmissao', 'correia de transmissão', 'correia do deck', 'correia da plataforma', 'drive belt', 'deck belt', 'belt', 'correa', 'correia v'] },
   { key: 'pulley', terms: ['polia', 'roldana', 'pulley', 'polea'] },
   { key: 'idler-pulley', terms: ['polia tensora', 'polia tensionadora', 'polia guia', 'polia de retorno', 'esticador da correia', 'tensor da correia', 'idler pulley', 'tension pulley', 'belt idler', 'polia louca'] },
-  { key: 'spindle', terms: ['mandril da lamina', 'mandril da lâmina', 'eixo da lamina', 'eixo da lâmina', 'mancal da lamina', 'mancal da lâmina', 'spindle', 'blade spindle', 'mancal completo', 'torre da lamina'] },
+  { key: 'spindle', terms: ['mandril da lamina', 'mandril da lâmina', 'eixo da lamina', 'eixo da lâmina', 'mancal da lamina', 'mancal da lâmina', 'spindle', 'blade spindle', 'mancal completo', 'torre da lamina', 'fuso', 'fuso do deck', 'fuso da plataforma', 'torre da navalha', 'mandril'] },
+  { key: 'dipstick', terms: ['vareta de oleo', 'vareta de óleo', 'vareta medidora de oleo', 'vareta do carter', 'dipstick', 'oil gauge', 'varilla de aceite', 'vareta do nivel de oleo'] },
+  { key: 'starter-solenoid', terms: ['solenoide', 'solenoide de partida', 'rele de partida', 'relé de partida', 'starter solenoid', 'solenoid', 'rele solenoide', 'solenoide do motor'] },
+  { key: 'ignition-key', terms: ['chave de ignicao', 'chave de ignição', 'chave de partida', 'chave do trator', 'ignition key', 'key', 'llave de contacto', 'chave de contato'] },
   { key: 'axle', terms: ['eixo da roda', 'eixo traseiro', 'eixo dianteiro', 'axle', 'eje'] },
 
   // Corte: roçadeiras, cortadores, tratores e Automower

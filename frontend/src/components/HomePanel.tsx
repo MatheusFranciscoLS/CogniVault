@@ -1,9 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiJson } from '../lib';
 import type { HomeData } from '../types';
 import { useQuoteCart } from '../context/QuoteCartContext';
+
+function isTextEditingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return target instanceof HTMLInputElement
+    || target instanceof HTMLTextAreaElement
+    || target instanceof HTMLSelectElement
+    || target.isContentEditable;
+}
 
 function Empty({ title, description }: { title: string; description: string }) {
   return (
@@ -111,6 +119,21 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
   const [query, setQuery] = useState('');
   const quoteCart = useQuoteCart();
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '/' && !isTextEditingTarget(e.target)) {
+        e.preventDefault();
+        const input = document.getElementById('home-search');
+        if (input instanceof HTMLInputElement) {
+          input.focus();
+          input.select();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const { data, isLoading } = useQuery({
     queryKey: ['home'],
     queryFn: () => apiJson<{ home: HomeData }>('/api/home').then(res => res.home),
@@ -193,8 +216,9 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
                   {example}
                 </button>
               ))}
-              <span className="ml-auto hidden items-center gap-1.5 text-slate-400 sm:flex">
-                <kbd className="rounded border border-white/15 bg-white/[.08] px-1.5 py-0.5 text-[10px] font-mono text-slate-200">Enter</kbd> para buscar
+              <span className="ml-auto hidden items-center gap-2.5 text-slate-400 sm:flex">
+                <span><kbd className="rounded border border-white/15 bg-white/[.08] px-1.5 py-0.5 text-[10px] font-mono text-slate-200">/</kbd> focar busca</span>
+                <span><kbd className="rounded border border-white/15 bg-white/[.08] px-1.5 py-0.5 text-[10px] font-mono text-slate-200">Enter</kbd> buscar</span>
               </span>
             </div>
           </div>
