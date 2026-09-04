@@ -4,6 +4,7 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import { apiJson, fmtDate } from '../lib';
 import type { NotificationItem, Section, SessionUser } from '../types';
 import { useTheme } from './ThemeProvider';
+import { useQuoteCart } from '../context/QuoteCartContext';
 
 type Props = {
   user: SessionUser;
@@ -79,6 +80,7 @@ export default function Shell({ user, section, onSection, onLogout, onSearch, ch
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const currentLabel = sectionLabels.get(section) || 'CogniVault';
   const initials = user.email.slice(0, 2).toUpperCase();
+  const quoteCart = useQuoteCart();
 
   const refreshNotifications = () => { void fetchNotifications().then(data => setNotifications(data.notifications)).catch(() => setNotifications([])); };
   useEffect(() => {
@@ -108,18 +110,200 @@ export default function Shell({ user, section, onSection, onLogout, onSearch, ch
     return <button type="button" key={id} onClick={() => select(id)} aria-current={active ? 'page' : undefined} className={`group flex w-full items-center gap-3 rounded-[13px] px-3 py-2.5 text-left text-sm transition ${active ? 'bg-white dark:bg-slate-800 font-semibold text-[#123867] dark:text-blue-200 shadow-[0_8px_24px_rgba(0,0,0,.16)]' : 'font-medium text-slate-300 hover:bg-white/10 hover:text-white'}`}><span className={`grid h-7 w-7 place-items-center rounded-lg transition ${active ? 'bg-[#eaf2fc] text-[#1d4f91] dark:text-blue-300' : 'text-slate-400 group-hover:text-white'}`}><NavIcon section={id}/></span><span>{label}</span></button>;
   });
 
-  const sidebar = <aside className="flex h-full flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#0b1d3a_0%,#102b52_100%)] text-white shadow-[18px_0_60px_rgba(15,35,72,.12)]">
-    <div className="px-5 pb-4 pt-6"><img src="/vardao-logo-transparent.png" alt="Vardão Máquinas" className="h-auto w-[154px] brightness-0 invert"/><div className="mt-5 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[.07] p-3"><img src="/favicon.png" alt="" className="h-9 w-9 rounded-xl object-cover shadow-sm"/><div className="min-w-0"><div className="text-sm font-semibold tracking-tight text-white">CogniVault</div><div className="mt-0.5 text-[9px] font-bold uppercase tracking-[.16em] text-blue-200/60">Inteligência de peças</div></div></div></div>
-    <nav aria-label="Navegação principal" className="cv-scrollbar min-h-0 flex-1 overflow-y-auto px-3 pb-4"><div className="px-3 pb-2 pt-2 text-[10px] font-bold uppercase tracking-[.14em] text-blue-200/45">Operação</div><div className="grid gap-1">{renderNav(operationNav)}</div>{user.role === 'ADMIN' && <><div className="mx-3 my-4 h-px bg-white/10"/><div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[.14em] text-blue-200/45">Administração</div><div className="grid gap-1">{renderNav(adminNav)}</div></>}</nav>
-    <div className="border-t border-white/10 p-4"><div className="mb-3 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[.06] p-2.5"><img src="/husqvarna-logo.webp" alt="Husqvarna" className="h-8 w-8 rounded-lg object-cover shadow-sm"/><div><div className="text-[11px] font-semibold text-white">Representante Husqvarna</div><div className="mt-0.5 text-[9px] text-blue-100/55">Assistência e peças</div></div></div><div className="flex items-center gap-3"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white dark:bg-slate-800 text-[10px] font-bold text-[#0d2348]">{initials}</div><div className="min-w-0 flex-1"><div className="truncate text-xs font-semibold text-slate-100">{user.email}</div><div className="mt-0.5 text-[9px] uppercase tracking-[.1em] text-blue-100/50">{user.role === 'ADMIN' ? 'Administrador' : 'Balcão'}</div></div><button type="button" onClick={onLogout} className="rounded-lg px-2 py-1.5 text-[11px] font-semibold text-slate-400 transition hover:bg-white/10 hover:text-white">Sair</button></div></div>
-  </aside>;
+  const sidebar = (
+    <aside className="flex h-full flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#0b1d3a_0%,#102b52_100%)] text-white shadow-[18px_0_60px_rgba(15,35,72,.12)]">
+      <div className="px-5 pb-4 pt-6">
+        <img src="/vardao-logo-transparent.png" alt="Vardão Máquinas" className="h-auto w-[154px] brightness-0 invert" />
+        <div className="mt-5 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[.07] p-3">
+          <img src="/favicon.png" alt="" className="h-9 w-9 rounded-xl object-cover shadow-sm" />
+          <div className="min-w-0">
+            <div className="text-sm font-semibold tracking-tight text-white">CogniVault</div>
+            <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[.16em] text-blue-200/60">Inteligência de peças</div>
+          </div>
+        </div>
+      </div>
 
-  return <div className="cv-app-shell min-h-screen lg:grid lg:grid-cols-[276px_1fr]">
-    <div className="hidden h-screen lg:sticky lg:top-0 lg:block">{sidebar}</div>
-    {menuOpen && <div className="fixed inset-0 z-50 lg:hidden"><button type="button" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} className="absolute inset-0 bg-slate-950/35 backdrop-blur-[2px]"/><div className="relative h-full w-[292px] max-w-[86vw] shadow-2xl">{sidebar}</div></div>}
-    <main className="min-w-0"><header className="sticky top-0 z-40 border-b border-slate-200 dark:border-slate-700/70 bg-[#f8fbff]/90 dark:bg-slate-900/90 backdrop-blur-xl"><div className="flex min-h-[70px] items-center gap-3 px-4 sm:px-6 md:px-8"><button type="button" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} className="cv-icon-button lg:hidden"><span aria-hidden="true" className="text-lg leading-none">☰</span></button><div className="hidden min-w-[140px] xl:block"><div className="text-[10px] font-bold uppercase tracking-[.15em] text-[#1d4f91] dark:text-blue-300">Área atual</div><div className="mt-0.5 text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">{currentLabel}</div></div>
-      <form role="search" onSubmit={submit} className="relative min-w-0 flex-1 xl:max-w-2xl"><svg aria-hidden="true" viewBox="0 0 24 24" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><label htmlFor="cv-global-search" className="sr-only">Buscar peça, código, modelo ou PNC</label><input id="cv-global-search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar peça, código, modelo ou PNC…" minLength={2} required aria-keyshortcuts="Control+K Meta+K" className="w-full rounded-[14px] border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800 py-2.5 pl-10 pr-20 text-sm outline-none transition focus:border-[#1d4f91] focus:bg-white dark:bg-slate-800 focus:ring-4 focus:ring-blue-500/10"/>{search ? <button type="button" onClick={()=>setSearch('')} aria-label="Limpar busca" className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 transition hover:bg-slate-100 dark:bg-slate-700 hover:text-slate-700 dark:text-slate-300">Limpar</button> : <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-1.5 py-0.5 text-[9px] font-medium text-slate-400 sm:block">Ctrl K</span>}</form>
-      <div className="ml-auto flex items-center gap-2"><ThemeToggle /><div className="relative"><button type="button" onClick={() => { setNotificationsOpen(value => !value); refreshNotifications(); }} aria-label="Notificações" aria-expanded={notificationsOpen} className="cv-icon-button relative"><BellIcon/>{notifications.length > 0 && <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-[#1d4f91] dark:bg-[#1d4f91]/80 px-1 text-[9px] font-bold leading-4 text-white">{Math.min(notifications.length, 9)}</span>}</button>{notificationsOpen && <><div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)} aria-hidden="true" /><div className="absolute right-0 top-12 z-50 w-[360px] max-w-[88vw] overflow-hidden rounded-[20px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl"><div className="border-b border-slate-100 dark:border-slate-800 px-4 py-3"><div className="text-sm font-semibold">Notificações</div><div className="mt-0.5 text-xs text-slate-400">Atualizações operacionais do CogniVault</div></div><div className="cv-scrollbar max-h-[420px] overflow-auto">{notifications.map(item => <div key={item.id} className="border-b border-slate-100 dark:border-slate-800 p-4 last:border-0"><div className={`text-xs font-semibold ${item.type === 'error' ? 'text-rose-700 dark:text-rose-300' : item.type === 'warning' ? 'text-amber-600 dark:text-amber-400 font-bold' : item.type === 'processing' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'}`}>{item.title}</div><div className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{item.description}</div><div className="mt-1.5 text-[10px] text-slate-400">{fmtDate(item.createdAt)}</div></div>)}{!notifications.length && <div className="p-8 text-center"><div className="text-sm font-semibold text-slate-600 dark:text-slate-400">Tudo em dia</div><div className="mt-1 text-xs text-slate-400">Nenhuma atualização importante agora.</div></div>}</div></div></>}</div><div className="hidden items-center gap-2 rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2 sm:flex"><span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,.5)]"/><div><div className="max-w-[150px] truncate text-[11px] font-semibold text-slate-700 dark:text-slate-300">{user.tenant.name}</div><div className="text-[9px] text-slate-400">{user.role === 'ADMIN' ? 'Administrador' : 'Balcão'}</div></div></div></div>
-    </div></header><div className="mx-auto max-w-[1540px] p-4 sm:p-6 md:p-8 lg:p-10">{children}</div></main>
-  </div>;
+      <nav aria-label="Navegação principal" className="cv-scrollbar min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+        {quoteCart.totalItems > 0 && (
+          <div className="px-1 pb-3">
+            <button
+              type="button"
+              onClick={() => { setMenuOpen(false); quoteCart.setIsOpen(true); }}
+              className="flex w-full items-center justify-between rounded-2xl bg-gradient-to-r from-amber-500/20 to-amber-600/30 hover:from-amber-500/30 hover:to-amber-600/40 border border-amber-400/40 p-3 text-left transition shadow-xs group"
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="text-lg">🛒</span>
+                <div>
+                  <div className="text-xs font-bold text-amber-300">Orçamento de Balcão</div>
+                  <div className="text-[10px] text-amber-200/70">Exportar WhatsApp</div>
+                </div>
+              </div>
+              <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-slate-950 shadow-sm">
+                {quoteCart.totalItems}
+              </span>
+            </button>
+          </div>
+        )}
+
+        <div className="px-3 pb-2 pt-2 text-[10px] font-bold uppercase tracking-[.14em] text-blue-200/45">Operação</div>
+        <div className="grid gap-1">{renderNav(operationNav)}</div>
+        {user.role === 'ADMIN' && (
+          <>
+            <div className="mx-3 my-4 h-px bg-white/10" />
+            <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[.14em] text-blue-200/45">Administração</div>
+            <div className="grid gap-1">{renderNav(adminNav)}</div>
+          </>
+        )}
+      </nav>
+
+      <div className="border-t border-white/10 p-4">
+        <div className="mb-3 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[.06] p-2.5">
+          <img src="/husqvarna-logo.webp" alt="Husqvarna" className="h-8 w-8 rounded-lg object-cover shadow-sm" />
+          <div>
+            <div className="text-[11px] font-semibold text-white">Representante Husqvarna</div>
+            <div className="mt-0.5 text-[9px] text-blue-100/55">Assistência e peças</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white dark:bg-slate-800 text-[10px] font-bold text-[#0d2348]">{initials}</div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-xs font-semibold text-slate-100">{user.email}</div>
+            <div className="mt-0.5 text-[9px] uppercase tracking-[.1em] text-blue-100/50">{user.role === 'ADMIN' ? 'Administrador' : 'Balcão'}</div>
+          </div>
+          <button type="button" onClick={onLogout} className="rounded-lg px-2 py-1.5 text-[11px] font-semibold text-slate-400 transition hover:bg-white/10 hover:text-white">Sair</button>
+        </div>
+      </div>
+    </aside>
+  );
+
+  return (
+    <div className="cv-app-shell min-h-screen lg:grid lg:grid-cols-[276px_1fr]">
+      <div className="hidden h-screen lg:sticky lg:top-0 lg:block">{sidebar}</div>
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button type="button" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} className="absolute inset-0 bg-slate-950/35 backdrop-blur-[2px]" />
+          <div className="relative h-full w-[292px] max-w-[86vw] shadow-2xl">{sidebar}</div>
+        </div>
+      )}
+      <main className="min-w-0">
+        <header className="sticky top-0 z-40 border-b border-slate-200 dark:border-slate-700/70 bg-[#f8fbff]/90 dark:bg-slate-900/90 backdrop-blur-xl">
+          <div className="flex min-h-[70px] items-center gap-3 px-4 sm:px-6 md:px-8">
+            <button type="button" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} className="cv-icon-button lg:hidden">
+              <span aria-hidden="true" className="text-lg leading-none">☰</span>
+            </button>
+            <div className="hidden min-w-[140px] xl:block">
+              <div className="text-[10px] font-bold uppercase tracking-[.15em] text-[#1d4f91] dark:text-blue-300">Área atual</div>
+              <div className="mt-0.5 text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">{currentLabel}</div>
+            </div>
+
+            <form role="search" onSubmit={submit} className="relative min-w-0 flex-1 xl:max-w-2xl">
+              <svg aria-hidden="true" viewBox="0 0 24 24" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-4-4" />
+              </svg>
+              <label htmlFor="cv-global-search" className="sr-only">Buscar peça, código, modelo ou PNC</label>
+              <input
+                id="cv-global-search"
+                value={search}
+                onChange={event => setSearch(event.target.value)}
+                placeholder="Buscar peça, código, modelo ou PNC…"
+                minLength={2}
+                required
+                aria-keyshortcuts="Control+K Meta+K"
+                className="w-full rounded-[14px] border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800 py-2.5 pl-10 pr-20 text-sm outline-none transition focus:border-[#1d4f91] focus:bg-white dark:bg-slate-800 focus:ring-4 focus:ring-blue-500/10"
+              />
+              {search ? (
+                <button type="button" onClick={() => setSearch('')} aria-label="Limpar busca" className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:text-slate-300">
+                  Limpar
+                </button>
+              ) : (
+                <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-1.5 py-0.5 text-[9px] font-medium text-slate-400 sm:block">
+                  Ctrl K
+                </span>
+              )}
+            </form>
+
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => quoteCart.setIsOpen(true)}
+                aria-label="Abrir Cesta de Orçamento"
+                title="Cesta de orçamento de balcão"
+                className={`flex items-center gap-1.5 rounded-xl px-2.5 sm:px-3 py-1.5 text-xs font-bold transition shadow-xs active:scale-95 ${
+                  quoteCart.totalItems > 0
+                    ? 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 shadow-amber-500/20'
+                    : 'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                }`}
+              >
+                <span className="text-sm" aria-hidden="true">🛒</span>
+                <span className="hidden sm:inline">Orçamento</span>
+                {quoteCart.totalItems > 0 && (
+                  <span className="rounded-full bg-slate-950 px-1.5 py-0.2 text-[10px] font-black text-amber-400">
+                    {quoteCart.totalItems}
+                  </span>
+                )}
+              </button>
+
+              <ThemeToggle />
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => { setNotificationsOpen(value => !value); refreshNotifications(); }}
+                  aria-label="Notificações"
+                  aria-expanded={notificationsOpen}
+                  className="cv-icon-button relative"
+                >
+                  <BellIcon />
+                  {notifications.length > 0 && (
+                    <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-[#1d4f91] dark:bg-[#1d4f91]/80 px-1 text-[9px] font-bold leading-4 text-white">
+                      {Math.min(notifications.length, 9)}
+                    </span>
+                  )}
+                </button>
+                {notificationsOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)} aria-hidden="true" />
+                    <div className="absolute right-0 top-12 z-50 w-[360px] max-w-[88vw] overflow-hidden rounded-[20px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl">
+                      <div className="border-b border-slate-100 dark:border-slate-800 px-4 py-3">
+                        <div className="text-sm font-semibold">Notificações</div>
+                        <div className="mt-0.5 text-xs text-slate-400">Atualizações operacionais do CogniVault</div>
+                      </div>
+                      <div className="cv-scrollbar max-h-[420px] overflow-auto">
+                        {notifications.map(item => (
+                          <div key={item.id} className="border-b border-slate-100 dark:border-slate-800 p-4 last:border-0">
+                            <div className={`text-xs font-semibold ${item.type === 'error' ? 'text-rose-700 dark:text-rose-300' : item.type === 'warning' ? 'text-amber-600 dark:text-amber-400 font-bold' : item.type === 'processing' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                              {item.title}
+                            </div>
+                            <div className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{item.description}</div>
+                            <div className="mt-1.5 text-[10px] text-slate-400">{fmtDate(item.createdAt)}</div>
+                          </div>
+                        ))}
+                        {!notifications.length && (
+                          <div className="p-8 text-center">
+                            <div className="text-sm font-semibold text-slate-600 dark:text-slate-400">Tudo em dia</div>
+                            <div className="mt-1 text-xs text-slate-400">Nenhuma atualização importante agora.</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="hidden items-center gap-2 rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2 sm:flex">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,.5)]" />
+                <div>
+                  <div className="max-w-[150px] truncate text-[11px] font-semibold text-slate-700 dark:text-slate-300">{user.tenant.name}</div>
+                  <div className="text-[9px] text-slate-400">{user.role === 'ADMIN' ? 'Administrador' : 'Balcão'}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="mx-auto max-w-[1540px] p-4 sm:p-6 md:p-8 lg:p-10">{children}</div>
+      </main>
+    </div>
+  );
 }

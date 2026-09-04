@@ -111,6 +111,7 @@ export default function Dashboard() {
           initialSearch={catalogFilter}
           admin={user.role === 'ADMIN'}
           onQuality={user.role === 'ADMIN' ? () => setSection('quality') : undefined}
+          onSearch={search}
         />
       )}
       <Suspense fallback={<PanelLoading />}>
