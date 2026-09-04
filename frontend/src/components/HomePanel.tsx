@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { apiJson } from '../lib';
+import { apiJson, formatHusqvarnaPartNumber } from '../lib';
 import type { HomeData } from '../types';
 import { useQuoteCart } from '../context/QuoteCartContext';
 import { toast } from 'sonner';
@@ -91,6 +91,98 @@ const JARGÕES_BALCAO = [
   { slang: 'Membrana do carburador', tech: 'Kit reparo / Diafragma', q: 'reparo carburador' },
   { slang: 'Retentor e junta', tech: 'Kit vedação de cárter', q: 'vedacao retentor' },
   { slang: 'Pinhão da corrente', tech: 'Tambor de embreagem', q: 'tambor embreagem' },
+];
+
+interface WorkshopKitPart {
+  name: string;
+  partNumber: string;
+  quantity: number;
+  section?: string;
+  notes?: string;
+}
+
+interface WorkshopKit {
+  id: string;
+  title: string;
+  model: string;
+  badge: string;
+  badgeClass: string;
+  icon: string;
+  intervalHours: string;
+  description: string;
+  parts: WorkshopKitPart[];
+}
+
+const WORKSHOP_REPAIR_KITS: WorkshopKit[] = [
+  {
+    id: 'kit-revisao-143rii',
+    title: 'Revisão Preventiva 50h/100h — Roçadeira 143R-II',
+    model: 'Roçadeira 143R-II / 236R / 553RS',
+    badge: 'Preventiva 50h',
+    badgeClass: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
+    icon: '🌿',
+    intervalHours: 'A cada 50h a 100h de trabalho',
+    description: 'Substituição completa de filtros, vela de ignição e lubrificação da ponteira cônica. Mantém o motor frio e protegido contra poeira abrasiva de pasto.',
+    parts: [
+      { name: 'Filtro de Ar de Espuma & Feltro Duplo', partNumber: '505309201', quantity: 1, section: 'Filtro de Ar', notes: 'Lavável com água morna e sabão neutro' },
+      { name: 'Vela de Ignição NGK CMR7H', partNumber: '503235111', quantity: 1, section: 'Ignição', notes: 'Folga do eletrodo 0,5 mm' },
+      { name: 'Filtro de Combustível Pescador com Feltro', partNumber: '503443201', quantity: 1, section: 'Tanque & Combustível', notes: 'Evita entupimento do giclê do carburador' },
+      { name: 'Tubo de Graxa para Engrenagem Cônica 225g', partNumber: '502512701', quantity: 1, section: 'Transmissão', notes: 'Completar 3/4 da carcaça a cada 25h' },
+      { name: 'Óleo Husqvarna 2T PRO Semi-Sintético 500ml', partNumber: '587808501', quantity: 1, section: 'Lubrificação', notes: 'Proporção 1:50 (20ml por litro de gasolina)' },
+    ],
+  },
+  {
+    id: 'kit-topend-143rii',
+    title: 'Kit Top-End (Cilindro & Pistão) — Roçadeira 143R-II',
+    model: 'Roçadeira 143R-II / 236R',
+    badge: 'Reforma de Motor',
+    badgeClass: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
+    icon: '⚙️',
+    intervalHours: 'Após superaquecimento ou perda de compressão',
+    description: 'Conjunto completo de força superior para retífica de motor travado ou riscado por combustível adulterado ou falta de óleo 2T.',
+    parts: [
+      { name: 'Conjunto Cilindro & Pistão 41.5mm Completo', partNumber: '545001001', quantity: 1, section: 'Cilindro & Pistão', notes: 'Acompanha pistão, anéis, pino e travas' },
+      { name: 'Jogo de Juntas do Motor (Base, Escape e Carburador)', partNumber: '505308901', quantity: 1, section: 'Vedações', notes: 'Juntas originais com vedação térmica' },
+      { name: 'Rolamento Gaiola de Agulhas do Pino do Pistão', partNumber: '503733901', quantity: 1, section: 'Virabrequim & Biela', notes: 'Substituição obrigatória na troca do pistão' },
+      { name: 'Par de Retentores do Virabrequim', partNumber: '505309001', quantity: 1, section: 'Cárter & Retentores', notes: 'Garante estanqueidade de vácuo e pressão' },
+      { name: 'Vela de Ignição NGK CMR7H', partNumber: '503235111', quantity: 1, section: 'Ignição', notes: 'Vela nova essencial para amaciamento correto' },
+    ],
+  },
+  {
+    id: 'kit-revisao-120m2',
+    title: 'Revisão Preventiva & Corte — Motosserra 120 Mark II',
+    model: 'Motosserra 120 Mark II / 236 / 135',
+    badge: 'Preventiva & Afiação',
+    badgeClass: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
+    icon: '🌲',
+    intervalHours: 'A cada 50h de corte',
+    description: 'Manutenção periódica para motosserras residenciais e rurais. Garante partida rápida sem afogar e corte suave com corrente nova.',
+    parts: [
+      { name: 'Filtro de Ar Lavável 120 Mark II', partNumber: '585404001', quantity: 1, section: 'Filtro de Ar', notes: 'Limpeza a seco ou água morna' },
+      { name: 'Vela de Ignição Champion RCJ7Y', partNumber: '503235108', quantity: 1, section: 'Ignição', notes: 'Torque de 20-25 Nm no cabeçote' },
+      { name: 'Filtro de Combustível Pescador', partNumber: '503443201', quantity: 1, section: 'Alimentação', notes: 'Trocar anualmente ou a cada 100h' },
+      { name: 'Corrente 3/8" LP 16" 56 Elos (S93G)', partNumber: '585422156', quantity: 1, section: 'Corte', notes: 'Corrente original de perfil baixo e baixa vibração' },
+      { name: 'Óleo Husqvarna 2T PRO Semi-Sintético 500ml', partNumber: '587808501', quantity: 1, section: 'Lubrificação', notes: '1:50 oficial Husqvarna' },
+    ],
+  },
+  {
+    id: 'kit-retifica-272xp',
+    title: 'Kit Descarbonização & Vedação — Motosserra 272XP',
+    model: 'Motosserra 272XP / 61 / 268',
+    badge: 'Pesado Florestal',
+    badgeClass: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20',
+    icon: '🔥',
+    intervalHours: 'Reforma geral / Perda de vedação',
+    description: 'Pacote de reposição pesada para motosserras de reflorestamento e carvoaria. Elimina entrada falsa de ar e restaura estanqueidade.',
+    parts: [
+      { name: 'Jogo de Anéis de Pistão 52mm', partNumber: '503289050', quantity: 1, section: 'Pistão', notes: 'Restaura taxa de compressão original de fábrica' },
+      { name: 'Jogo de Juntas do Motor Completo (Cárter e Cilindro)', partNumber: '501522604', quantity: 1, section: 'Juntas', notes: 'Aperto cruzado nos parafusos M5/M6' },
+      { name: 'Kit de Diafragmas e Reparo Carburador Tillotson', partNumber: '501668401', quantity: 1, section: 'Carburador', notes: 'Substitui membranas endurecidas por etanol' },
+      { name: 'Retentores do Virabrequim (Lado Volante e Embreagem)', partNumber: '505275719', quantity: 1, section: 'Cárter', notes: 'Resistentes a alta rotação e gasolina' },
+      { name: 'Filtro de Combustível Feltro Grande Florestal', partNumber: '503443201', quantity: 1, section: 'Alimentação', notes: 'Vazão ideal para motor de 72cc' },
+      { name: 'Vela de Ignição NGK BPMR7A / Champion RCJ7Y', partNumber: '503235111', quantity: 1, section: 'Ignição', notes: 'Folga 0,5 mm' },
+    ],
+  },
 ];
 
 const DIAGNOSTIC_SYMPTOMS = [
@@ -702,11 +794,13 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
   const [selectedBarLength, setSelectedBarLength] = useState<number>(18);
   const [selectedTrimmerId, setSelectedTrimmerId] = useState<string>('143rii');
   const [trimmerCuttingMode, setTrimmerCuttingMode] = useState<'nylon' | 'blade'>('nylon');
+  const [selectedKitId, setSelectedKitId] = useState<string>('kit-revisao-143rii');
   const oilMl = Math.round((fuelLiters * 1000) / fuelRatio);
 
   const currentChainsaw = CHAINSAW_GUIDE_MODELS.find(m => m.id === selectedChainsawId) || CHAINSAW_GUIDE_MODELS[0];
   const currentBar = currentChainsaw.bars.find(b => b.lengthInches === selectedBarLength) || currentChainsaw.bars[0];
   const currentTrimmer = TRIMMER_GUIDE_MODELS.find(m => m.id === selectedTrimmerId) || TRIMMER_GUIDE_MODELS[0];
+  const currentKit = WORKSHOP_REPAIR_KITS.find(k => k.id === selectedKitId) || WORKSHOP_REPAIR_KITS[0];
 
   const changeChainsawModel = (newId: string) => {
     setSelectedChainsawId(newId);
@@ -800,6 +894,36 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
     void navigator.clipboard.writeText(text);
     playCopySound();
     toast.success('Regulagens da oficina copiadas para o WhatsApp!');
+  };
+
+  const addKitToQuote = (kit: WorkshopKit) => {
+    let addedCount = 0;
+    for (const part of kit.parts) {
+      quoteCart.addItem({
+        partNumber: part.partNumber,
+        effectiveCode: formatHusqvarnaPartNumber(part.partNumber),
+        name: part.name,
+        model: kit.model,
+        section: part.section,
+      });
+      addedCount++;
+    }
+    toast.success(`Kit "${kit.title.split('—')[0].trim()}" adicionado ao orçamento (${addedCount} itens)!`);
+  };
+
+  const copyKitWhatsApp = (kit: WorkshopKit) => {
+    const text = `*${kit.title} — Vardão Máquinas / Husqvarna*\n\n` +
+      `🛠️ *Aplicação:* ${kit.model}\n` +
+      `⏱️ *Intervalo Recomendado:* ${kit.intervalHours}\n` +
+      `ℹ️ *Descrição:* ${kit.description}\n\n` +
+      `📦 *Peças Originais Inclusas no Kit:*\n` +
+      kit.parts.map((p, idx) => `${idx + 1}. *${p.name}* (${p.quantity}x)\n   ↳ Cód: ${formatHusqvarnaPartNumber(p.partNumber)}${p.notes ? ` — ${p.notes}` : ''}`).join('\n') +
+      `\n\n💬 *Peças genuínas Husqvarna com garantia e procedência.*\n` +
+      `_Vardão Máquinas · Concessionária Husqvarna & Oficina Especializada_`;
+
+    void navigator.clipboard.writeText(text);
+    playCopySound();
+    toast.success('Kit da oficina copiado para o WhatsApp!');
   };
 
   const { data, isLoading } = useQuery({
@@ -1317,6 +1441,189 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
                 );
               })}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Kits de Revisão & Reparo Rápido da Oficina */}
+      <div className="cv-surface rounded-[26px] p-6 shadow-sm border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-amber-50/20 via-white to-slate-50/30 dark:from-slate-850 dark:via-slate-800/60 dark:to-amber-950/20">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-amber-500/10 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 text-xl font-bold">
+              🛠️
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Kits de Revisão & Reparo Rápido da Oficina</h2>
+                <span className="rounded-full bg-amber-500/10 dark:bg-amber-950/60 border border-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                  Orçamento em 1 Clique
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Combos de peças mais requisitados para revisões periódicas e reformas com adição instantânea ao carrinho de orçamento
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => addKitToQuote(currentKit)}
+              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white px-3.5 py-1.5 text-xs font-bold transition shadow-sm active:scale-95"
+            >
+              <span>⚡</span>
+              <span>Orçar Kit Completo ({currentKit.parts.length} peças)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => copyKitWhatsApp(currentKit)}
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-[#1d4f91] dark:text-blue-300 hover:bg-slate-100 dark:hover:bg-slate-750 transition shadow-2xs active:scale-95"
+            >
+              <span>📋</span>
+              <span>Copiar WhatsApp</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Seletor dos 4 Kits */}
+        <div className="mt-5">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+            Selecione o Pacote de Serviço / Aplicação:
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {WORKSHOP_REPAIR_KITS.map(k => {
+              const active = k.id === selectedKitId;
+              return (
+                <button
+                  key={k.id}
+                  type="button"
+                  onClick={() => setSelectedKitId(k.id)}
+                  className={`flex flex-col text-left rounded-2xl p-3 border transition ${
+                    active
+                      ? 'border-[#1d4f91] dark:border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 shadow-sm ring-2 ring-[#1d4f91]/20'
+                      : 'border-slate-200 dark:border-slate-700/80 bg-white/80 dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-750'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1 mb-1.5">
+                    <span className="text-lg">{k.icon}</span>
+                    <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold ${k.badgeClass}`}>
+                      {k.badge}
+                    </span>
+                  </div>
+                  <div className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-snug line-clamp-1">
+                    {k.title.split('—')[0].trim()}
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                    {k.model}
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400 pt-1.5 border-t border-slate-100 dark:border-slate-700/50">
+                    <span>{k.parts.length} peças</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">Pronto p/ orçar →</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Detalhes do Kit Ativo */}
+        <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/40 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-2 pb-3 border-b border-slate-200/80 dark:border-slate-700/60">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl">{currentKit.icon}</span>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{currentKit.title}</h3>
+                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${currentKit.badgeClass}`}>
+                  {currentKit.badge}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {currentKit.description}
+              </p>
+            </div>
+            <div className="text-right">
+              <span className="inline-block rounded-lg bg-slate-100 dark:bg-slate-700/80 px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                ⏱️ {currentKit.intervalHours}
+              </span>
+            </div>
+          </div>
+
+          {/* Lista de Peças do Kit */}
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {currentKit.parts.map((part, idx) => {
+              const formatted = formatHusqvarnaPartNumber(part.partNumber);
+              const inCart = quoteCart.items.find(i => i.partNumber === part.partNumber);
+              return (
+                <div
+                  key={`${part.partNumber}-${idx}`}
+                  className="flex flex-col justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-2xs hover:border-slate-300 dark:hover:border-slate-600 transition"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                        {part.name}
+                      </div>
+                      <span className="rounded-md bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-300 shrink-0">
+                        {part.quantity}x
+                      </span>
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between">
+                      <span className="font-mono text-xs font-bold text-[#1d4f91] dark:text-blue-300">
+                        {formatted}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(formatted);
+                          playCopySound();
+                          toast.success(`Código ${formatted} copiado!`);
+                        }}
+                        className="rounded p-1 text-slate-400 hover:text-[#1d4f91] dark:hover:text-blue-300 transition text-[11px]"
+                        title="Copiar código"
+                      >
+                        📋
+                      </button>
+                    </div>
+                    {part.notes && (
+                      <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
+                        {part.notes}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-700/60">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        quoteCart.addItem({
+                          partNumber: part.partNumber,
+                          effectiveCode: formatted,
+                          name: part.name,
+                          model: currentKit.model,
+                          section: part.section,
+                        });
+                        toast.success(`${part.name} adicionada ao orçamento!`);
+                      }}
+                      className={`flex-1 rounded-lg px-2 py-1.5 text-[10px] font-bold transition flex items-center justify-center gap-1 active:scale-95 ${
+                        inCart
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                          : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xs'
+                      }`}
+                    >
+                      <span>{inCart ? '✓' : '+'}</span>
+                      <span>{inCart ? `No Orçamento (${inCart.quantity}x)` : 'Orçar'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSearch(part.partNumber)}
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-700 px-2 py-1.5 text-[10px] font-semibold text-slate-700 dark:text-slate-300 transition"
+                      title="Pesquisar catálogo da peça"
+                    >
+                      🔍
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

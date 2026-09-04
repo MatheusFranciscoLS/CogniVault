@@ -1261,17 +1261,82 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                   <div className="mt-1 text-xs text-slate-400">{detail.document.manufacturer || '—'} · {detail.document.model || '—'}</div>
                 </div>
                 <div className="mt-4 rounded-[22px] border border-slate-200 dark:border-slate-700 p-4">
-                  <div className="font-semibold">Peças relacionadas</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-semibold">Peças relacionadas</div>
+                    {detail.related.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          let addedCount = 0;
+                          for (const item of detail.related) {
+                            quoteCart.addItem({
+                              partNumber: item.partNumber,
+                              effectiveCode: formatHusqvarnaPartNumber(item.partNumber),
+                              name: item.name,
+                              model: item.model || detail.document.model || '',
+                              pnc: item.pnc || detail.document.pnc || null,
+                              section: item.section || null,
+                              position: item.position || null,
+                              filename: detail.filename,
+                              page: item.page || detail.page || null,
+                            });
+                            addedCount++;
+                          }
+                          toast.success(`${addedCount} peças relacionadas adicionadas ao orçamento!`);
+                        }}
+                        className="rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 text-[11px] font-bold transition shadow-sm"
+                      >
+                        + Orçar Todas ({detail.related.length})
+                      </button>
+                    )}
+                  </div>
                   <div className="mt-3 grid gap-2">
-                    {detail.related.map(item => (
-                      <div key={item.id} className="flex items-center gap-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2">
-                        <button type="button" onClick={() => void openPart(item.id)} className="min-w-0 flex-1 p-1 text-left">
-                          <div className="text-xs font-semibold">{item.name}</div>
-                          <div className="mt-1 text-xs text-slate-400">{item.partNumber} · posição {item.position || '—'}</div>
-                        </button>
-                        <button type="button" onClick={() => void copyCode(item.partNumber)} aria-label={`Copiar código ${item.partNumber}`} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5 text-[10px] font-semibold text-[#1d4f91] dark:text-blue-300">Copiar</button>
-                      </div>
-                    ))}
+                    {detail.related.map(item => {
+                      const inCart = quoteCart.items.find(i => i.partNumber === item.partNumber);
+                      return (
+                        <div key={item.id} className="flex items-center gap-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-2">
+                          <button type="button" onClick={() => void openPart(item.id)} className="min-w-0 flex-1 p-1 text-left">
+                            <div className="text-xs font-semibold">{item.name}</div>
+                            <div className="mt-1 text-xs text-slate-400">{formatHusqvarnaPartNumber(item.partNumber)} · posição {item.position || '—'}</div>
+                          </button>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                quoteCart.addItem({
+                                  partNumber: item.partNumber,
+                                  effectiveCode: formatHusqvarnaPartNumber(item.partNumber),
+                                  name: item.name,
+                                  model: item.model || detail.document.model || '',
+                                  pnc: item.pnc || detail.document.pnc || null,
+                                  section: item.section || null,
+                                  position: item.position || null,
+                                  filename: detail.filename,
+                                  page: item.page || detail.page || null,
+                                });
+                                toast.success(`${item.name} adicionada ao orçamento!`);
+                              }}
+                              className={`rounded-lg px-2 py-1.5 text-[10px] font-semibold transition ${
+                                inCart
+                                  ? 'bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300'
+                                  : 'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
+                              }`}
+                              title="Adicionar ao carrinho de orçamento rápido"
+                            >
+                              {inCart ? `✓ No Orçamento (${inCart.quantity})` : '+ Orçar'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void copyCode(item.partNumber)}
+                              aria-label={`Copiar código ${item.partNumber}`}
+                              className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5 text-[10px] font-semibold text-[#1d4f91] dark:text-blue-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                            >
+                              Copiar
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                     {!detail.related.length && <span className="text-xs text-slate-400">Nenhuma peça relacionada encontrada.</span>}
                   </div>
                 </div>

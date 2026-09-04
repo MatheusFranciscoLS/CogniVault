@@ -26,6 +26,10 @@ export default function QuickQuoteCart() {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('A Combinar no Balcão');
+  const [discountPercentage, setDiscountPercentage] = useState<number>(0);
+
+  const discountAmount = totalPrice > 0 && discountPercentage > 0 ? (totalPrice * discountPercentage) / 100 : 0;
+  const netTotalPrice = totalPrice - discountAmount;
 
   if (totalItems === 0 && savedQuotes.length === 0 && !isOpen) {
     return null;
@@ -217,6 +221,7 @@ export default function QuickQuoteCart() {
                                 if (q.customerName) setCustomerName(q.customerName);
                                 if (q.customerPhone) setCustomerPhone(q.customerPhone);
                                 if (q.paymentMethod) setPaymentMethod(q.paymentMethod);
+                                setDiscountPercentage(q.discountPercentage || 0);
                                 setActiveTab('cart');
                               }}
                               className="flex-1 rounded-xl bg-[#1d4f91] hover:bg-[#153e75] text-white py-1.5 px-2.5 text-xs font-bold transition shadow-2xs"
@@ -232,6 +237,7 @@ export default function QuickQuoteCart() {
                                   customerName: q.customerName,
                                   customerPhone: q.customerPhone,
                                   paymentMethod: q.paymentMethod,
+                                  discountPercentage: q.discountPercentage,
                                 });
                               }}
                               className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 py-1.5 px-2.5 text-xs font-semibold transition"
@@ -421,20 +427,76 @@ export default function QuickQuoteCart() {
                 {/* Rodapé com Ações de Exportação */}
                 {items.length > 0 && (
                   <div className="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/90 p-4 space-y-2.5">
+                    {/* Seletor de Desconto Comercial */}
                     {totalPrice > 0 && (
-                      <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/20 px-3.5 py-2.5">
-                        <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
-                          Valor Total Estimado:
-                        </span>
-                        <span className="text-base font-black text-emerald-700 dark:text-emerald-400">
-                          R$ {totalPrice.toFixed(2).replace('.', ',')}
-                        </span>
+                      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 p-2.5 shadow-2xs">
+                        <div className="flex items-center justify-between text-xs mb-1.5">
+                          <span className="font-bold text-slate-700 dark:text-slate-300">Desconto Comercial:</span>
+                          <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                            {discountPercentage > 0 ? `-${discountPercentage}% aplicado` : 'Sem desconto'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {[
+                            { label: '0%', value: 0 },
+                            { label: '5% PIX', value: 5 },
+                            { label: '10% Balcão', value: 10 },
+                            { label: '15% Especial', value: 15 },
+                          ].map(disc => (
+                            <button
+                              key={disc.value}
+                              type="button"
+                              onClick={() => setDiscountPercentage(disc.value)}
+                              className={`rounded-lg py-1 px-1.5 text-[11px] font-bold transition text-center active:scale-95 ${
+                                discountPercentage === disc.value
+                                  ? 'bg-amber-400 text-slate-950 shadow-2xs font-extrabold'
+                                  : 'bg-slate-100 dark:bg-slate-750 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                              }`}
+                            >
+                              {disc.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {totalPrice > 0 && (
+                      <div className="rounded-xl bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/20 px-3.5 py-2.5 space-y-1">
+                        {discountPercentage > 0 ? (
+                          <>
+                            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                              <span>Subtotal bruto:</span>
+                              <span className="font-mono">R$ {totalPrice.toFixed(2).replace('.', ',')}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-amber-700 dark:text-amber-300 font-semibold">
+                              <span>Desconto ({discountPercentage}%):</span>
+                              <span className="font-mono">-R$ {discountAmount.toFixed(2).replace('.', ',')}</span>
+                            </div>
+                            <div className="flex items-center justify-between pt-1 border-t border-emerald-500/20">
+                              <span className="text-xs font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+                                Total Líquido Estimado:
+                              </span>
+                              <span className="text-base font-black text-emerald-700 dark:text-emerald-400 font-mono">
+                                R$ {netTotalPrice.toFixed(2).replace('.', ',')}
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+                              Valor Total Estimado:
+                            </span>
+                            <span className="text-base font-black text-emerald-700 dark:text-emerald-400 font-mono">
+                              R$ {totalPrice.toFixed(2).replace('.', ',')}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
 
                     <button
                       type="button"
-                      onClick={() => void copyQuoteToClipboard({ customerName, customerPhone, paymentMethod })}
+                      onClick={() => void copyQuoteToClipboard({ customerName, customerPhone, paymentMethod, discountPercentage })}
                       className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white py-3 px-4 text-xs font-bold shadow-md transition hover:shadow-lg active:scale-98"
                     >
                       <span>📋</span>
@@ -443,7 +505,7 @@ export default function QuickQuoteCart() {
 
                     <button
                       type="button"
-                      onClick={() => openWhatsApp({ customerName, customerPhone, paymentMethod })}
+                      onClick={() => openWhatsApp({ customerName, customerPhone, paymentMethod, discountPercentage })}
                       className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 font-extrabold py-2.5 px-4 text-xs shadow-sm transition active:scale-98"
                     >
                       <span>💬</span>
@@ -463,7 +525,7 @@ export default function QuickQuoteCart() {
                       <button
                         type="button"
                         onClick={() => {
-                          saveCurrentQuote({ customerName, customerPhone, paymentMethod });
+                          saveCurrentQuote({ customerName, customerPhone, paymentMethod, discountPercentage });
                         }}
                         className="flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-[#1d4f91] dark:text-blue-300 font-semibold py-2 px-3 text-xs transition active:scale-98"
                       >
@@ -559,12 +621,32 @@ export default function QuickQuoteCart() {
           </tbody>
           {totalPrice > 0 && (
             <tfoot>
+              {discountPercentage > 0 && (
+                <>
+                  <tr className="border-t-2 border-slate-700 text-slate-700">
+                    <td colSpan={5} className="py-1.5 text-right uppercase tracking-wider text-xs">
+                      Subtotal Bruto:
+                    </td>
+                    <td colSpan={2} className="py-1.5 text-right font-semibold text-xs font-mono">
+                      R$ {totalPrice.toFixed(2).replace('.', ',')}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-slate-700 text-slate-700">
+                    <td colSpan={5} className="py-1.5 text-right uppercase tracking-wider text-xs">
+                      Desconto Comercial ({discountPercentage}%):
+                    </td>
+                    <td colSpan={2} className="py-1.5 text-right font-semibold text-xs font-mono">
+                      -R$ {discountAmount.toFixed(2).replace('.', ',')}
+                    </td>
+                  </tr>
+                </>
+              )}
               <tr className="border-t-2 border-slate-900 font-bold">
                 <td colSpan={5} className="py-3 text-right uppercase tracking-wider text-xs">
-                  Total Geral do Orçamento:
+                  {discountPercentage > 0 ? 'Total Líquido do Orçamento:' : 'Total Geral do Orçamento:'}
                 </td>
                 <td colSpan={2} className="py-3 text-right font-black text-sm text-slate-950 font-mono">
-                  R$ {totalPrice.toFixed(2).replace('.', ',')}
+                  R$ {netTotalPrice.toFixed(2).replace('.', ',')}
                 </td>
               </tr>
             </tfoot>

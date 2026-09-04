@@ -12,6 +12,8 @@ export interface QuoteCartItem {
   pnc?: string | null;
   section?: string | null;
   position?: string | null;
+  filename?: string | null;
+  page?: number | null;
   isSuperseded?: boolean;
   originalCode?: string;
   notes?: string | null;
@@ -24,6 +26,7 @@ export interface QuoteTextOptions {
   customerName?: string;
   customerPhone?: string;
   paymentMethod?: string;
+  discountPercentage?: number;
 }
 
 export interface SavedQuote {
@@ -32,6 +35,7 @@ export interface SavedQuote {
   customerName?: string;
   customerPhone?: string;
   paymentMethod?: string;
+  discountPercentage?: number;
   items: QuoteCartItem[];
   totalPrice: number;
   totalItems: number;
@@ -116,6 +120,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       customerName: options?.customerName?.trim() || undefined,
       customerPhone: options?.customerPhone?.trim() || undefined,
       paymentMethod: options?.paymentMethod || undefined,
+      discountPercentage: options?.discountPercentage || undefined,
       items: [...items],
       totalPrice,
       totalItems,
@@ -254,7 +259,15 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     });
 
     if (hasAnyPrice && totalPrice > 0) {
-      text += `\n💰 *VALOR TOTAL ESTIMADO: R$ ${totalPrice.toFixed(2).replace('.', ',')}*\n`;
+      if (opts.discountPercentage && opts.discountPercentage > 0) {
+        const discountAmount = (totalPrice * opts.discountPercentage) / 100;
+        const netTotal = totalPrice - discountAmount;
+        text += `\nSubtotal: R$ ${totalPrice.toFixed(2).replace('.', ',')}\n`;
+        text += `🎁 Desconto Comercial (${opts.discountPercentage}%): -R$ ${discountAmount.toFixed(2).replace('.', ',')}\n`;
+        text += `💰 *VALOR FINAL COM DESCONTO: R$ ${netTotal.toFixed(2).replace('.', ',')}*\n`;
+      } else {
+        text += `\n💰 *VALOR TOTAL ESTIMADO: R$ ${totalPrice.toFixed(2).replace('.', ',')}*\n`;
+      }
     }
 
     if (opts.paymentMethod && opts.paymentMethod !== 'A Combinar no Balcão') {
