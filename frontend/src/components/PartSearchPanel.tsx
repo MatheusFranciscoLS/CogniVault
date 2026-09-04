@@ -113,6 +113,16 @@ function exportPartsCsv(partsToExport: SearchPart[], searchQuery: string) {
   toast.success('Planilha CSV de peças exportada com sucesso!');
 }
 
+const SYSTEM_FILTERS = [
+  { key: 'ALL', label: 'Todos', icon: '🔍', regex: /.*/ },
+  { key: 'MOTOR', label: 'Motor & Pistão', icon: '⚙️', regex: /pist[aã]o|cilindr|anel|virabrequim|biela|c[aá]rter|bloco|virabr|retentor/i },
+  { key: 'CARBURADOR', label: 'Carburador & Combustível', icon: '⛽', regex: /carburad|diafrag|junta carb|combust|tanque|pescador|mangueira|purga|primer|afogad|gicl/i },
+  { key: 'PARTIDA', label: 'Partida & Ignição', icon: '⚡', regex: /arranque|partida|corda|recolh|mola part|bobina|vela|volante|igni[cç]|cabo vela/i },
+  { key: 'CORTE', label: 'Corte, Lâmina & Sabre', icon: '🪚', regex: /sabre|corrente|l[aâ]mina|faca|cabe[cç]ote|carretel|nylon|skid|flange|prato|prote[cç][aã]o/i },
+  { key: 'TRANSMISSAO', label: 'Embreagem & Transmissão', icon: '🔄', regex: /embreag|tambor|pinh[aã]o|sapata|mola emb|eixo|tubo|engrenag|redutor/i },
+  { key: 'FILTRO_ESCAPE', label: 'Filtros & Escape', icon: '💨', regex: /filtro|ar|espuma|silencios|escapamento|abafador|tampa filtro/i },
+] as const;
+
 export default function PartSearchPanel({ initialQuery, onQueryChange, admin = false, storageScope }: Props) {
   const normalizedInitialQuery = initialQuery.trim();
   const [query, setQuery] = useState(initialQuery);
@@ -132,9 +142,25 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
   const [verificationTarget, setVerificationTarget] = useState<VerificationTarget | null>(null);
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
   const [aiInitialPrompt, setAiInitialPrompt] = useState('');
+  const [activeSystemFilter, setActiveSystemFilter] = useState<string>('ALL');
   const inputRef = useRef<HTMLInputElement>(null);
   const resultRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const quoteCart = useQuoteCart();
+
+  const availableSystemFilters = useMemo(() => {
+    if (parts.length < 3) return [];
+    return SYSTEM_FILTERS.filter(filter => {
+      if (filter.key === 'ALL') return true;
+      return parts.some(p => filter.regex.test(p.name) || filter.regex.test(p.section || ''));
+    });
+  }, [parts]);
+
+  const displayedParts = useMemo(() => {
+    if (activeSystemFilter === 'ALL') return parts;
+    const target = SYSTEM_FILTERS.find(f => f.key === activeSystemFilter);
+    if (!target) return parts;
+    return parts.filter(p => target.regex.test(p.name) || target.regex.test(p.section || ''));
+  }, [parts, activeSystemFilter]);
 
   const quickFilters = useMemo(() => [
     { label: '🌿 143RII', query: '143RII' },
@@ -273,6 +299,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
     setSelectedIndex(-1);
     setVerifications({});
     setReplacementVerification(null);
+    setActiveSystemFilter('ALL');
     saveRecentSearch(value);
 
     try {
@@ -671,7 +698,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                 <>
                   <button
                     type="button"
-                    onClick={() => exportPartsCsv(parts, query)}
+                    onClick={() => exportPartsCsv(displayedParts, activeSystemFilter !== 'ALL' ? `${query}_${activeSystemFilter}` : query)}
                     title="Exportar resultados para planilha Excel / CSV"
                     className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:border-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-400 transition shadow-2xs active:scale-95"
                   >
@@ -692,9 +719,46 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
             </div>
           </div>
 
+          {/* Filtro por Sistema / Categoria */}
+          {availableSystemFilters.length > 1 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 px-4 py-2 cv-scrollbar">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0 mr-1">
+                Filtrar:
+              </span>
+              {availableSystemFilters.map(filter => {
+                const count = filter.key === 'ALL'
+                  ? parts.length
+                  : parts.filter(p => filter.regex.test(p.name) || filter.regex.test(p.section || '')).length;
+                const active = activeSystemFilter === filter.key;
+                return (
+                  <button
+                    key={filter.key}
+                    type="button"
+                    onClick={() => setActiveSystemFilter(filter.key)}
+                    className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold transition flex items-center gap-1.5 active:scale-95 ${
+                      active
+                        ? 'bg-[#123867] text-white shadow-2xs font-bold'
+                        : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <span>{filter.icon}</span>
+                    <span>{filter.label}</span>
+                    <span className={`rounded-full px-1.5 py-0.2 text-[9px] font-bold ${
+                      active
+                        ? 'bg-white/20 text-white'
+                        : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {loading ? <SearchSkeleton /> : (
             <div className="divide-y divide-slate-100">
-              {parts.map((part, index) => {
+              {displayedParts.map((part, index) => {
                 const selected = selectedIndex === index;
                 const opening = detailLoadingId === part.id;
                 const verification = verifications[normalizePartCode(part.partNumber)];
@@ -831,6 +895,19 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                   </article>
                 );
               })}
+
+              {parts.length > 0 && displayedParts.length === 0 && (
+                <div className="p-8 text-center text-xs text-slate-500 dark:text-slate-400">
+                  <span>Nenhuma peça encontrada no filtro selecionado.</span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSystemFilter('ALL')}
+                    className="ml-2 font-bold text-[#1d4f91] dark:text-blue-300 hover:underline"
+                  >
+                    Ver todas as {parts.length} peças
+                  </button>
+                </div>
+              )}
 
               {!parts.length && (
                 <div className="p-6 text-center">

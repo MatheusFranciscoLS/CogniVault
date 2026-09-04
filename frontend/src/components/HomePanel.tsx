@@ -419,6 +419,215 @@ const CHAINSAW_GUIDE_MODELS: ChainsawGuideModel[] = [
   },
 ];
 
+interface TrimmerBladeSpec {
+  type: string;
+  name: string;
+  diameter: string;
+  hole: string;
+  idealFor: string;
+  partNumber: string;
+  isRecommended?: boolean;
+}
+
+interface TrimmerGuideModel {
+  id: string;
+  name: string;
+  power: string;
+  thread: string;
+  popularUses: string;
+  headModel: string;
+  headPartNumber: string;
+  headCordRange: string;
+  headFeatures: string;
+  recommendedCord: {
+    name: string;
+    spec: string;
+    partNumber: string;
+  };
+  blades: TrimmerBladeSpec[];
+  fixingKit: {
+    nut: string;
+    nutPartNumber: string;
+    skidCup: string;
+    skidCupPartNumber: string;
+  };
+}
+
+const TRIMMER_GUIDE_MODELS: TrimmerGuideModel[] = [
+  {
+    id: '143rii',
+    name: '143R-II / 236R / 553RS',
+    power: '41.5 cc · 1.5 kW',
+    thread: 'M12 x 1.75 Esquerda (Fêmea)',
+    popularUses: 'Manutenção de pastagens, capim alto, rodovias e sítios',
+    headModel: 'Cabeçote T35 M12 Semi-Automático',
+    headPartNumber: '578 44 64-01',
+    headCordRange: '2.4 mm a 2.7 mm (até 8.5 m)',
+    headFeatures: 'Sistema Tap\'n Go para liberação do fio no solo sem desmontar',
+    recommendedCord: {
+      name: 'Fio Whisper X Bicolor 2.7 mm (70m)',
+      spec: 'Perfil aerodinâmico silencioso, alta durabilidade',
+      partNumber: '597 66 91-21',
+    },
+    blades: [
+      {
+        type: '3 Pontas',
+        name: 'Lâmina Multi 300-3 (3 Pontas)',
+        diameter: '300 mm (12")',
+        hole: '25.4 mm (1")',
+        idealFor: 'Capim denso, braquiária alta e capoeira fina sem embuchar',
+        partNumber: '578 44 49-01',
+        isRecommended: true,
+      },
+      {
+        type: '2 Pontas',
+        name: 'Lâmina Grass 300-2 (Faca Dupla)',
+        diameter: '300 mm (12")',
+        hole: '25.4 mm (1")',
+        idealFor: 'Capim fibroso e roçadas rápidas de pasto limpo',
+        partNumber: '578 44 37-01',
+      },
+      {
+        type: '4 Pontas',
+        name: 'Lâmina Grass 255-4 (Gramados Densos)',
+        diameter: '255 mm (10")',
+        hole: '25.4 mm (1")',
+        idealFor: 'Gramados resistentes, margens de lago e juncos',
+        partNumber: '578 44 38-01',
+      },
+    ],
+    fixingKit: {
+      nut: 'Porca Flangeada M12 Rosca Esquerda',
+      nutPartNumber: '503 89 01-01',
+      skidCup: 'Prato Giratório com Rolamento (Copo Deslizante)',
+      skidCupPartNumber: '503 89 01-02',
+    },
+  },
+  {
+    id: '345fr',
+    name: '345FR / 545FR (Florestal)',
+    power: '45.7 cc · 2.1 kW',
+    thread: 'M12 x 1.75 Esquerda (Fêmea)',
+    popularUses: 'Desbaste florestal pesado, corte de cana e mato grosso',
+    headModel: 'Cabeçote T45X M12 com Rolamento de Esferas',
+    headPartNumber: '578 44 68-01',
+    headCordRange: '2.7 mm a 3.3 mm (reforçado)',
+    headFeatures: 'Botão com rolamento de esferas de aço que reduz atrito e desgaste no solo',
+    recommendedCord: {
+      name: 'Fio Whisper X Bicolor 3.0 mm (56m)',
+      spec: 'Resistência extrema contra quebras e soldagem interna',
+      partNumber: '597 66 91-31',
+    },
+    blades: [
+      {
+        type: 'Serra Circular',
+        name: 'Lâmina Serra Maxi 200-26 (Dentes Travados)',
+        diameter: '200 mm (8")',
+        hole: '25.4 mm (1")',
+        idealFor: 'Troncos lenhosos e eucaliptos finos de até 6 a 8 cm de diâmetro',
+        partNumber: '578 44 27-01',
+        isRecommended: true,
+      },
+      {
+        type: '3 Pontas',
+        name: 'Lâmina Multi 300-3 (3 Pontas Florestal)',
+        diameter: '300 mm (12")',
+        hole: '25.4 mm (1")',
+        idealFor: 'Mato pesado entrelaçado e capoeira grossa',
+        partNumber: '578 44 49-01',
+      },
+    ],
+    fixingKit: {
+      nut: 'Porca M12 Rosca Esquerda de Alta Pressão',
+      nutPartNumber: '503 89 01-01',
+      skidCup: 'Prato de Proteção Reforçado',
+      skidCupPartNumber: '503 89 01-02',
+    },
+  },
+  {
+    id: '128r',
+    name: '128R / 129R / 525RJX (Jardim)',
+    power: '28.0 cc · 0.8 kW',
+    thread: 'M10 x 1.25 Esquerda (Fêmea)',
+    popularUses: 'Gramados residenciais, acabamentos em muros e canteiros',
+    headModel: 'Cabeçote T25 M10 Tap\'n Go',
+    headPartNumber: '578 44 61-01',
+    headCordRange: '2.0 mm a 2.4 mm (até 6.5 m)',
+    headFeatures: 'Perfil compacto leve para não sobrecarregar a embreagem do motor leve',
+    recommendedCord: {
+      name: 'Fio Opti Round 2.4 mm (15m)',
+      spec: 'Polímero flexível ideal para roçadeiras menores',
+      partNumber: '597 66 88-01',
+    },
+    blades: [
+      {
+        type: '4 Pontas',
+        name: 'Lâmina Grass 255-4 (4 Pontas Leve)',
+        diameter: '255 mm (10")',
+        hole: '25.4 mm (1")',
+        idealFor: 'Gramas altas e talos sem sobrecarregar o motor',
+        partNumber: '578 44 38-01',
+        isRecommended: true,
+      },
+      {
+        type: '3 Pontas',
+        name: 'Lâmina Multi 255-3 (3 Pontas Compacta)',
+        diameter: '255 mm (10")',
+        hole: '25.4 mm (1")',
+        idealFor: 'Mato rasteiro em quintais e sítios',
+        partNumber: '578 44 45-01',
+      },
+    ],
+    fixingKit: {
+      nut: 'Porca Flangeada M10 Rosca Esquerda',
+      nutPartNumber: '503 85 80-01',
+      skidCup: 'Prato Deslizante 128R',
+      skidCupPartNumber: '503 85 80-02',
+    },
+  },
+  {
+    id: '535rxt',
+    name: '535RXT / 535FBX (Costal)',
+    power: '34.6 cc · 1.6 kW',
+    thread: 'M12 x 1.75 Esquerda (Fêmea)',
+    popularUses: 'Terrenos íngremes, cafezais, encostas e pastagens onduladas',
+    headModel: 'Cabeçote T35X M12 com Rolamento',
+    headPartNumber: '578 44 66-01',
+    headCordRange: '2.4 mm a 2.7 mm',
+    headFeatures: 'Equilíbrio perfeito de peso e durabilidade para roçadeiras costais e ergonômicas',
+    recommendedCord: {
+      name: 'Fio Whisper X Bicolor 2.7 mm (70m)',
+      spec: 'Menor vibração para operação prolongada',
+      partNumber: '597 66 91-21',
+    },
+    blades: [
+      {
+        type: '3 Pontas',
+        name: 'Lâmina Multi 300-3 (3 Pontas)',
+        diameter: '300 mm (12")',
+        hole: '25.4 mm (1")',
+        idealFor: 'Roçadas entre ruas de cafezais e pastos',
+        partNumber: '578 44 49-01',
+        isRecommended: true,
+      },
+      {
+        type: '2 Pontas',
+        name: 'Lâmina Grass 300-2 (Faca Dupla)',
+        diameter: '300 mm (12")',
+        hole: '25.4 mm (1")',
+        idealFor: 'Gramas e capins eretos',
+        partNumber: '578 44 37-01',
+      },
+    ],
+    fixingKit: {
+      nut: 'Porca M12 Rosca Esquerda',
+      nutPartNumber: '503 89 01-01',
+      skidCup: 'Prato Giratório com Rolamento',
+      skidCupPartNumber: '503 89 01-02',
+    },
+  },
+];
+
 export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: string) => void; onCatalogs: (filter?: string) => void }) {
   const [query, setQuery] = useState('');
   const quoteCart = useQuoteCart();
@@ -427,10 +636,13 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
   const [activeSymptom, setActiveSymptom] = useState<string>('sem-partida');
   const [selectedChainsawId, setSelectedChainsawId] = useState<string>('272xp');
   const [selectedBarLength, setSelectedBarLength] = useState<number>(18);
+  const [selectedTrimmerId, setSelectedTrimmerId] = useState<string>('143rii');
+  const [trimmerCuttingMode, setTrimmerCuttingMode] = useState<'nylon' | 'blade'>('nylon');
   const oilMl = Math.round((fuelLiters * 1000) / fuelRatio);
 
   const currentChainsaw = CHAINSAW_GUIDE_MODELS.find(m => m.id === selectedChainsawId) || CHAINSAW_GUIDE_MODELS[0];
   const currentBar = currentChainsaw.bars.find(b => b.lengthInches === selectedBarLength) || currentChainsaw.bars[0];
+  const currentTrimmer = TRIMMER_GUIDE_MODELS.find(m => m.id === selectedTrimmerId) || TRIMMER_GUIDE_MODELS[0];
 
   const changeChainsawModel = (newId: string) => {
     setSelectedChainsawId(newId);
@@ -457,6 +669,24 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
     void navigator.clipboard.writeText(text);
     playCopySound();
     toast.success('Especificação do sabre e corrente copiada para WhatsApp!');
+  };
+
+  const copyTrimmerSpec = () => {
+    const text = `*Especificação de Cabeçote e Lâminas Husqvarna - Vardão Máquinas*\n\n` +
+      `🌿 *Roçadeira:* Husqvarna ${currentTrimmer.name}\n` +
+      `🔩 *Rosca do Eixo:* ${currentTrimmer.thread}\n` +
+      `📦 *Cabeçote de Fio:* ${currentTrimmer.headModel} (Cód: ${currentTrimmer.headPartNumber})\n` +
+      `🧵 *Capacidade de Fio:* ${currentTrimmer.headCordRange}\n` +
+      `⭐ *Fio Recomendado:* ${currentTrimmer.recommendedCord.name} (Cód: ${currentTrimmer.recommendedCord.partNumber})\n\n` +
+      `🗡️ *Lâminas Oficiais (Furo 1" / 25.4mm):*\n` +
+      currentTrimmer.blades.map(b => `• ${b.name}: ${b.partNumber} (${b.idealFor})`).join('\n') +
+      `\n\n🔩 *Kit de Fixação da Lâmina:*\n` +
+      `• Porca: ${currentTrimmer.fixingKit.nut} (Cód: ${currentTrimmer.fixingKit.nutPartNumber})\n` +
+      `• Prato Giratório: ${currentTrimmer.fixingKit.skidCup} (Cód: ${currentTrimmer.fixingKit.skidCupPartNumber})\n\n` +
+      `_Atendimento Técnico Vardão Máquinas_`;
+    void navigator.clipboard.writeText(text);
+    playCopySound();
+    toast.success('Especificação da roçadeira copiada para WhatsApp!');
   };
 
   const currentSymptom = DIAGNOSTIC_SYMPTOMS.find(s => s.id === activeSymptom) || DIAGNOSTIC_SYMPTOMS[0];
@@ -1200,6 +1430,379 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
               );
             })()}
           </div>
+        </div>
+      </div>
+
+      {/* Guia & Seletor de Cabeçotes de Fio, Lâminas e Roçadeiras Husqvarna */}
+      <div className="cv-surface rounded-[26px] p-6 shadow-sm border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-lime-50/30 via-white to-slate-50/30 dark:from-slate-850 dark:via-slate-800/60 dark:to-lime-950/20">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-500/10 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 text-xl font-bold">
+              🌿
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Guia de Cabeçotes de Fio, Lâminas e Roçadeiras</h2>
+                <span className="rounded-full bg-emerald-500/10 dark:bg-emerald-950/60 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                  Roçadeiras Husqvarna
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Consulte a rosca do eixo, cabeçotes Tap&apos;n Go compatíveis, lâminas 2, 3 e 4 pontas e kits de fixação
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={copyTrimmerSpec}
+            className="flex items-center gap-1.5 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition shadow-2xs active:scale-95"
+          >
+            <span>📋</span>
+            <span>Copiar Especificação p/ WhatsApp</span>
+          </button>
+        </div>
+
+        {/* Seleção de Roçadeira */}
+        <div className="mt-5">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+            1. Selecione o Modelo da Roçadeira:
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 cv-scrollbar">
+            {TRIMMER_GUIDE_MODELS.map(m => {
+              const active = m.id === selectedTrimmerId;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setSelectedTrimmerId(m.id)}
+                  className={`shrink-0 rounded-xl px-3.5 py-2 text-xs font-bold transition flex items-center gap-2 active:scale-95 ${
+                    active
+                      ? 'bg-[#123867] text-white shadow-sm'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <span>🌿</span>
+                  <span>{m.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Barra de Especificação do Eixo & Modo de Corte */}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/80 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800/80 p-3.5">
+          <div className="flex items-center gap-3">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Rosca do Eixo da Transmissão</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-100 font-mono">
+                🔩 {currentTrimmer.thread}
+              </span>
+            </div>
+            <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
+            <div className="flex items-center rounded-xl bg-white dark:bg-slate-800 p-1 border border-slate-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setTrimmerCuttingMode('nylon')}
+                className={`rounded-lg px-2.5 py-1 text-xs font-bold transition flex items-center gap-1.5 ${
+                  trimmerCuttingMode === 'nylon'
+                    ? 'bg-amber-500 text-slate-950 shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                }`}
+              >
+                <span>🧵</span>
+                <span>Cabeçote & Fio</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTrimmerCuttingMode('blade')}
+                className={`rounded-lg px-2.5 py-1 text-xs font-bold transition flex items-center gap-1.5 ${
+                  trimmerCuttingMode === 'blade'
+                    ? 'bg-amber-500 text-slate-950 shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                }`}
+              >
+                <span>🗡️</span>
+                <span>Lâminas Metálicas</span>
+              </button>
+            </div>
+          </div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+            {currentTrimmer.power} · <span className="italic">{currentTrimmer.popularUses}</span>
+          </div>
+        </div>
+
+        {/* Detalhes Técnicos & Peças Originais */}
+        <div className="mt-4 grid gap-5 lg:grid-cols-2">
+          {trimmerCuttingMode === 'nylon' ? (
+            <>
+              {/* Card Esquerdo: Cabeçote de Fio */}
+              {(() => {
+                const headInCart = quoteCart.items.find(i => i.partNumber.replace(/\s+/g, '') === currentTrimmer.headPartNumber.replace(/\s+/g, ''));
+                return (
+                  <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-850 p-4 shadow-2xs flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="rounded-md bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase">
+                          Cabeçote de Nylon Oficial
+                        </span>
+                        <span className="text-[11px] font-mono text-slate-400">{currentTrimmer.thread.split(' ')[0]}</span>
+                      </div>
+                      <div className="mt-2 text-sm font-bold text-slate-800 dark:text-slate-100">
+                        {currentTrimmer.headModel}
+                      </div>
+                      <div className="mt-0.5 font-mono text-base font-black text-[#1d4f91] dark:text-blue-300">
+                        {currentTrimmer.headPartNumber}
+                      </div>
+
+                      <div className="mt-3 space-y-1.5 text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-100 dark:border-slate-700/60">
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400">Espessura do fio:</span>
+                          <strong className="text-slate-800 dark:text-slate-200">{currentTrimmer.headCordRange}</strong>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400">Sistema:</span>
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">Tap&apos;n Go (Alimentação por impacto)</span>
+                        </div>
+                        <div className="pt-1 text-[11px] text-slate-400 border-t border-slate-200/60 dark:border-slate-700/60">
+                          {currentTrimmer.headFeatures}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          quoteCart.addItem({
+                            partNumber: currentTrimmer.headPartNumber,
+                            name: currentTrimmer.headModel,
+                            model: `Husqvarna ${currentTrimmer.name}`,
+                          });
+                          toast.success(`${currentTrimmer.headModel} adicionado ao orçamento!`);
+                        }}
+                        className={`flex-1 rounded-xl px-3 py-2 text-xs font-bold transition flex items-center justify-center gap-1.5 active:scale-95 ${
+                          headInCart
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                            : 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 text-slate-950 shadow-2xs'
+                        }`}
+                      >
+                        <span>{headInCart ? '✓' : '+'}</span>
+                        <span>{headInCart ? `Cabeçote no Orçamento (${headInCart.quantity}x)` : '+ Orçar Cabeçote'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onSearch(currentTrimmer.headPartNumber)}
+                        className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                      >
+                        🔍 Buscar
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Card Direito: Fio de Nylon Recomendado */}
+              {(() => {
+                const cordInCart = quoteCart.items.find(i => i.partNumber.replace(/\s+/g, '') === currentTrimmer.recommendedCord.partNumber.replace(/\s+/g, ''));
+                return (
+                  <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-850 p-4 shadow-2xs flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="rounded-md bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300 uppercase">
+                          Fio de Nylon Oficial Husqvarna
+                        </span>
+                        <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">Linha Whisper X / Opti</span>
+                      </div>
+                      <div className="mt-2 text-sm font-bold text-slate-800 dark:text-slate-100">
+                        {currentTrimmer.recommendedCord.name}
+                      </div>
+                      <div className="mt-0.5 font-mono text-base font-black text-[#1d4f91] dark:text-blue-300">
+                        {currentTrimmer.recommendedCord.partNumber}
+                      </div>
+
+                      <div className="mt-3 space-y-1.5 text-xs text-slate-600 dark:text-slate-300 bg-amber-50/40 dark:bg-amber-950/30 p-3 rounded-xl border border-amber-200/40 dark:border-amber-800/40">
+                        <div>
+                          <strong>Características de Trabalho:</strong>
+                          <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                            {currentTrimmer.recommendedCord.spec}. O núcleo tenaz evita que o fio se solde dentro do cabeçote sob altas rotações.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          quoteCart.addItem({
+                            partNumber: currentTrimmer.recommendedCord.partNumber,
+                            name: currentTrimmer.recommendedCord.name,
+                            model: `Husqvarna ${currentTrimmer.name}`,
+                          });
+                          toast.success(`${currentTrimmer.recommendedCord.name} adicionado ao orçamento!`);
+                        }}
+                        className={`flex-1 rounded-xl px-3 py-2 text-xs font-bold transition flex items-center justify-center gap-1.5 active:scale-95 ${
+                          cordInCart
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                            : 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 text-slate-950 shadow-2xs'
+                        }`}
+                      >
+                        <span>{cordInCart ? '✓' : '+'}</span>
+                        <span>{cordInCart ? `Fio no Orçamento (${cordInCart.quantity}x)` : '+ Orçar Rolo de Fio'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onSearch(currentTrimmer.recommendedCord.partNumber)}
+                        className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                      >
+                        🔍 Buscar
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
+          ) : (
+            <>
+              {/* Card Esquerdo: Lista de Lâminas */}
+              <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-850 p-4 shadow-2xs">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2.5">
+                  Lâminas Compatíveis (Furo de Fixação 1&quot; / 25.4 mm):
+                </span>
+                <div className="space-y-2.5">
+                  {currentTrimmer.blades.map(blade => {
+                    const bladeInCart = quoteCart.items.find(i => i.partNumber.replace(/\s+/g, '') === blade.partNumber.replace(/\s+/g, ''));
+                    return (
+                      <div
+                        key={blade.partNumber}
+                        className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/70 p-3 flex flex-col justify-between gap-2"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                              {blade.name}
+                            </div>
+                            <div className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                              Ø {blade.diameter} · Furo {blade.hole} · <span className="italic">{blade.idealFor}</span>
+                            </div>
+                            <div className="mt-1 font-mono text-xs font-bold text-[#1d4f91] dark:text-blue-300">
+                              {blade.partNumber}
+                            </div>
+                          </div>
+                          {blade.isRecommended && (
+                            <span className="shrink-0 rounded-md bg-emerald-500/10 dark:bg-emerald-950/60 border border-emerald-500/20 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-300 uppercase">
+                              Mais Vendida
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              quoteCart.addItem({
+                                partNumber: blade.partNumber,
+                                name: blade.name,
+                                model: `Husqvarna ${currentTrimmer.name}`,
+                              });
+                              toast.success(`${blade.name} adicionada ao orçamento!`);
+                            }}
+                            className={`flex-1 rounded-lg px-2 py-1 text-[11px] font-bold transition flex items-center justify-center gap-1 active:scale-95 ${
+                              bladeInCart
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                                : 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 text-slate-950 shadow-2xs'
+                            }`}
+                          >
+                            <span>{bladeInCart ? '✓' : '+'}</span>
+                            <span>{bladeInCart ? `No Orçamento (${bladeInCart.quantity}x)` : '+ Orçar Lâmina'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onSearch(blade.partNumber)}
+                            className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                          >
+                            🔍 Buscar
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Card Direito: Kit de Fixação da Lâmina */}
+              <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-850 p-4 shadow-2xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="rounded-md bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase">
+                      Itens de Fixação da Lâmina
+                    </span>
+                    <span className="text-[11px] text-slate-400">Reposição frequente</span>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Ao trocar o cabeçote de nylon pela lâmina metálica, é obrigatório utilizar o prato de proteção e porca com rosca esquerda.
+                  </p>
+
+                  <div className="mt-3 space-y-2.5">
+                    {/* Porca */}
+                    <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60 p-2.5 flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-xs font-bold text-slate-800 dark:text-slate-200">{currentTrimmer.fixingKit.nut}</div>
+                        <div className="font-mono text-xs font-bold text-[#1d4f91] dark:text-blue-300">{currentTrimmer.fixingKit.nutPartNumber}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          quoteCart.addItem({
+                            partNumber: currentTrimmer.fixingKit.nutPartNumber,
+                            name: currentTrimmer.fixingKit.nut,
+                            model: `Husqvarna ${currentTrimmer.name}`,
+                          });
+                          toast.success('Porca de fixação adicionada ao orçamento!');
+                        }}
+                        className="rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 px-2.5 py-1 text-[11px] font-bold transition shadow-2xs"
+                      >
+                        + Orçar
+                      </button>
+                    </div>
+
+                    {/* Prato Giratório */}
+                    <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60 p-2.5 flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-xs font-bold text-slate-800 dark:text-slate-200">{currentTrimmer.fixingKit.skidCup}</div>
+                        <div className="font-mono text-xs font-bold text-[#1d4f91] dark:text-blue-300">{currentTrimmer.fixingKit.skidCupPartNumber}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          quoteCart.addItem({
+                            partNumber: currentTrimmer.fixingKit.skidCupPartNumber,
+                            name: currentTrimmer.fixingKit.skidCup,
+                            model: `Husqvarna ${currentTrimmer.name}`,
+                          });
+                          toast.success('Prato giratório adicionado ao orçamento!');
+                        }}
+                        className="rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 px-2.5 py-1 text-[11px] font-bold transition shadow-2xs"
+                      >
+                        + Orçar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <span className="text-[11px] text-slate-400">Atendimento Vardão Máquinas</span>
+                  <button
+                    type="button"
+                    onClick={copyTrimmerSpec}
+                    className="text-xs font-bold text-[#1d4f91] dark:text-blue-300 hover:underline inline-flex items-center gap-1"
+                  >
+                    <span>📋 Copiar mensagem p/ WhatsApp</span>
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
