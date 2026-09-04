@@ -27,6 +27,7 @@ type CategoryPart = {
 
 type CatalogCategoryInput = {
     filename?: string | null;
+    manufacturer?: string | null;
     model?: string | null;
     models?: Array<string | null | undefined>;
     parts?: CategoryPart[];
@@ -47,13 +48,14 @@ function modelScore(models: string[], pattern: RegExp, weight: number): number {
 }
 
 /**
- * Classifica a família técnica do catálogo usando somente evidências do próprio
- * documento (nome do arquivo, modelo e nomenclatura extraída). A classificação
+ * Classifica a família técnica do catálogo usando evidências do próprio
+ * documento (fabricante, nome do arquivo, modelo e nomenclatura extraída). A classificação
  * organiza a biblioteca; ela nunca cria aplicação de peça nem interfere no
  * modelo/PNC usados pela busca técnica.
  */
 export function inferCatalogCategory(input: CatalogCategoryInput): CatalogCategoryName {
     const filename = normalized(input.filename);
+    const manufacturer = normalized(input.manufacturer);
     const models = [input.model, ...(input.models || [])]
         .map((model) => (model || '').trim())
         .filter(Boolean);
@@ -69,12 +71,26 @@ export function inferCatalogCategory(input: CatalogCategoryInput): CatalogCatego
         .slice(0, 500)
         .map((part) => [part.section, part.name, part.notes].filter(Boolean).join(' '))
         .join(' '));
-    const text = `${filename} ${modelText} ${partsText}`;
+    const text = `${filename} ${manufacturer} ${modelText} ${partsText}`;
 
     const scores = new Map<CatalogCategoryName, number>();
     const add = (category: CatalogCategoryName, value: number) => {
         scores.set(category, (scores.get(category) || 0) + value);
     };
+
+    // Fabricantes dedicados exclusivamente a motores estacionários/4T em equipamentos Husqvarna
+    if (manufacturer) {
+        if (/kawasaki|kohler|briggs|stratton|honda/i.test(manufacturer)) {
+            add('Motores', 15);
+        }
+    }
+
+    // Se o título ou filename indica explicitamente que o documento é um MOTOR
+    // (mesmo que cite giro zero ou trator como máquina de aplicação), a família técnica é Motores.
+    const hasMotorInTitleOrFile = /\b(?:motor|motores|engine|engines)\b/i.test(`${input.filename || ''} ${input.model || ''}`);
+    if (hasMotorInTitleOrFile) {
+        add('Motores', 16);
+    }
 
     // Nome do arquivo costuma vir diretamente do título do Portal/IPL e por isso
     // recebe peso alto. Os termos técnicos abaixo servem como fallback.
@@ -84,7 +100,7 @@ export function inferCatalogCategory(input: CatalogCategoryInput): CatalogCatego
     add('Cortadores de grama', scoreText(filename, ['cortador de grama', 'lawn mower', 'lawnmower'], 8));
     add('Giro zero', scoreText(filename, ['giro zero', 'zero turn', 'zero-turn', 'zeroturn'], 10));
     add('Sopradores', scoreText(filename, ['soprador', 'blower'], 8));
-    add('Motores', scoreText(filename, ['motor', 'motores', 'engine', 'engines', 'motor husqvarna', 'motor kawasaki', 'motor kohler', 'motor briggs', 'kawasaki'], 8));
+    add('Motores', scoreText(filename, ['motor', 'motores', 'engine', 'engines', 'motor husqvarna', 'motor kawasaki', 'motor kohler', 'motor briggs', 'kawasaki'], 10));
     add('Pulverizadores', scoreText(filename, ['pulverizador', 'sprayer'], 8));
     add('Podadores', scoreText(filename, ['podador', 'pole saw', 'polesaw'], 10));
     add('Multifuncionais', scoreText(filename, ['multifuncional', 'combi', 'engine unit'], 10));
@@ -92,17 +108,18 @@ export function inferCatalogCategory(input: CatalogCategoryInput): CatalogCatego
     add('Rider / cortadores frontais', scoreText(filename, ['rider', 'cortador frontal', 'front mower'], 10));
     add('Automower', scoreText(filename, ['automower', 'robotic mower'], 10));
 
-    const compactModels = models.map((model) => model.replace(/[^A-Za-z0-9]/g, '').toUpperCase());
-    add('Tratores', modelScore(compactModels, /^TS\d/, 7));
-    add('Giro zero', modelScore(compactModels, /^(MZ\d|Z\d{3}|V\d{3})/, 7));
-    add('Motores', modelScore(compactModels, /^(HS|HV|FR|FX|FS)\d/, 9));
-    add('Podadores', modelScore(compactModels, /^525P/, 10));
-    add('Multifuncionais', modelScore(compactModels, /^525LK/, 10));
-    add('Aparadores de cerca-viva', modelScore(compactModels, /^\d{3}HD/, 9));
-    add('Rider / cortadores frontais', modelScore(compactModels, /^R\d{3}T/, 9));
-    add('Cortadores de grama', modelScore(compactModels, /^(LC\d|LB\d|HU\d|J55|GX560)/, 6));
-    add('Sopradores', modelScore(compactModels, /^(125B|\d{3}(BT|BTF|BF))$/, 8));
-    add('Roçadeiras', modelScore(compactModels, /^\d{3}(R|RII|RS)/, 8));
+    // Descasca prefixos de marca/tipo para testar o código do modelo isoladamente
+    const cleanModels = models.map(m => m.replace(/^(?:MOTOR|KAWASAKI|HUSQVARNA|KOHLER|BRIGGS)\s+/i, '').replace(/[^A-Za-z0-9]/g, '').toUpperCase());
+    add('Tratores', modelScore(cleanModels, /^TS\d/, 7));
+    add('Giro zero', modelScore(cleanModels, /^(MZ\d|Z\d{3}|V\d{3})/, 7));
+    add('Motores', modelScore(cleanModels, /^(HS|HV|FR|FX|FS|FH|FD|KT|ZT)\d/, 12));
+    add('Podadores', modelScore(cleanModels, /^525P/, 10));
+    add('Multifuncionais', modelScore(cleanModels, /^525LK/, 10));
+    add('Aparadores de cerca-viva', modelScore(cleanModels, /^\d{3}HD/, 9));
+    add('Rider / cortadores frontais', modelScore(cleanModels, /^R\d{3}T/, 9));
+    add('Cortadores de grama', modelScore(cleanModels, /^(LC\d|LB\d|HU\d|J55|GX560)/, 6));
+    add('Sopradores', modelScore(cleanModels, /^(125B|\d{3}(BT|BTF|BF))$/, 8));
+    add('Roçadeiras', modelScore(cleanModels, /^\d{3}(R|RII|RS)/, 8));
 
     // Arquitetura mecânica observada nos IPLs analisados. Combinações recebem
     // pontos em vez de um único termo genérico para evitar falsos positivos.
@@ -118,7 +135,20 @@ export function inferCatalogCategory(input: CatalogCategoryInput): CatalogCatego
     if ((has('drive shaft') || has('eixo motriz')) && (has('bevel gear') || has('engrenagem cônica'))) add('Roçadeiras', 5);
     if ((has('cutting head') || has('cabeça de corte')) && (has('guide bar') || has('sabre')) && has('drive shaft')) add('Podadores', 8);
     if (has('connecting rod') && has('gear wheel') && has('cutting equipment')) add('Aparadores de cerca-viva', 6);
-    if (has('governor') && has('crankshaft') && has('rocker arm') && !has('deck') && !has('guide bar')) add('Motores', 5);
+
+    // Componentes internos de motor (inglês e português de oficina)
+    if (
+        (has('crankshaft') || has('virabrequim') || has('eixo de manivelas') || has('camshaft') || has('comando de valvulas')) &&
+        (has('piston') || has('pistao') || has('connecting rod') || has('biela') || has('cylinder') || has('cilindro') || has('carburetor') || has('carburador') || has('rocker arm') || has('balancim'))
+    ) {
+        add('Motores', 10);
+    }
+    if ((has('governor') || has('regulador de rotacao')) && (has('oil filter') || has('filtro de oleo') || has('oil pump') || has('bomba de oleo'))) {
+        add('Motores', 8);
+    }
+    if (has('governor') && has('crankshaft') && has('rocker arm') && !has('deck') && !has('guide bar')) {
+        add('Motores', 6);
+    }
 
     let winner: CatalogCategoryName = 'Outros / Não identificado';
     let bestScore = 0;

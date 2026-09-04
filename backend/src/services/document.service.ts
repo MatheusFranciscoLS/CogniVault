@@ -8,6 +8,7 @@ import { repairMultipartText } from '../utils/text-encoding';
 import { CATALOG_CATEGORY_NAMES, inferCatalogCategory, isCatalogCategoryName } from './catalog-category';
 import { ensureCatalogCategory } from './catalog-category-assignment';
 import { inferCatalogModelFromFilename, isLikelyHusqvarnaPnc, isPlausibleCatalogModel, normalizeHusqvarnaPnc } from './catalog-extractor';
+import { findMachinesForEngine, findEngineApplications } from './husqvarna-domain-knowledge';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
@@ -48,6 +49,23 @@ function snapshotPncs(value: Prisma.JsonValue | null): string[] {
         .filter(Boolean);
 }
 
+function snapshotMetadata(value: Prisma.JsonValue | null): {
+    manufacturer?: string;
+    models: string[];
+    parts: Array<{ name?: string; section?: string; notes?: string }>;
+} {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return { models: [], parts: [] };
+    const obj = value as Record<string, unknown>;
+    const manufacturer = typeof obj.manufacturer === 'string' ? obj.manufacturer : undefined;
+    const models = Array.isArray(obj.models) ? obj.models.filter((m): m is string => typeof m === 'string') : [];
+    const parts = Array.isArray(obj.parts) ? (obj.parts as any[]).slice(0, 50).map((p: any) => ({
+        name: typeof p?.name === 'string' ? p.name : undefined,
+        section: typeof p?.section === 'string' ? p.section : undefined,
+        notes: typeof p?.notes === 'string' ? p.notes : undefined,
+    })) : [];
+    return { manufacturer, models, parts };
+}
+
 function hasPdfSignature(buffer: Buffer): boolean {
     return buffer.subarray(0, Math.min(buffer.length, 1024)).includes(Buffer.from('%PDF-'));
 }
@@ -58,14 +76,17 @@ function hasPdfSignature(buffer: Buffer): boolean {
  * não representam um catálogo técnico utilizável e não devem poluir a biblioteca.
  */
 const legacyEmptyFilter = {
-    status: 'COMPLETED',
-    processingStage: 'IDLE',
-    extractionMethod: null,
-    manufacturer: null,
-    model: null,
-    pnc: null,
-    parts: { none: { active: true } },
-} as const;
+    NOT: {
+        AND: [
+            { status: 'COMPLETED' },
+            { processingStage: 'IDLE' },
+            { model: null },
+            { pnc: null },
+            { parts: { none: {} } },
+            { chunks: { none: {} } },
+        ],
+    },
+};
 
 const documentListSelect = {
     id: true,
@@ -74,9 +95,9 @@ const documentListSelect = {
     manufacturer: true,
     model: true,
     pnc: true,
-    extractionSnapshot: true,
     createdAt: true,
     archivedAt: true,
+    extractionSnapshot: true,
     processingJobId: true,
     processingStage: true,
     processingCurrent: true,
@@ -95,17 +116,34 @@ type DocumentListRecord = Prisma.DocumentGetPayload<{ select: typeof documentLis
 
 function toDocumentListItem(document: DocumentListRecord, partPncs: string[] = []) {
     const filename = safeFilename(document.filename);
-    const modelNeedsReview = !isPlausibleCatalogModel(document.model);
+    const snapshot = snapshotMetadata(document.extractionSnapshot);
+    const resolvedManufacturer = document.manufacturer || snapshot.manufacturer || null;
+    const resolvedModel = document.model || (snapshot.models.length === 1 ? snapshot.models[0] : null);
+    const modelNeedsReview = !isPlausibleCatalogModel(resolvedModel);
     const suggestedModel = modelNeedsReview ? inferCatalogModelFromFilename(filename) || null : null;
     const pncs = [...new Set([document.pnc || '', ...snapshotPncs(document.extractionSnapshot), ...partPncs]
         .filter(isLikelyHusqvarnaPnc)
         .map(normalizeHusqvarnaPnc))];
+
+    // Cruzamento automático de aplicações Máquina <-> Motor (ex: Motor Kawasaki FR691V equipa Giro Zero Z248F / Z254F)
+    const effectiveModel = resolvedModel || suggestedModel || '';
+    const machineApps = findMachinesForEngine(effectiveModel).map(app => ({
+        machineModel: app.machineModel,
+        machinePnc: app.machinePnc,
+        label: `${app.machineModel} (Giro Zero / Trator)`,
+    }));
+    const engineApps = findEngineApplications(effectiveModel).map(app => ({
+        engineModel: app.engineModel,
+        engineArticle: app.engineArticle,
+        label: `Motor ${app.engineModel}`,
+    }));
+
     return {
         id: document.id,
         filename,
         status: document.status,
-        manufacturer: document.manufacturer,
-        model: document.model,
+        manufacturer: resolvedManufacturer,
+        model: resolvedModel,
         pnc: document.pnc,
         pncs,
         suggestedModel,
@@ -113,9 +151,17 @@ function toDocumentListItem(document: DocumentListRecord, partPncs: string[] = [
         category: (() => {
             const stored = document.category?.name;
             if (stored && stored !== 'Outros / Não identificado') return stored;
-            const inferred = inferCatalogCategory({ filename, model: document.model });
+            const inferred = inferCatalogCategory({
+                filename,
+                manufacturer: resolvedManufacturer,
+                model: effectiveModel,
+                models: snapshot.models,
+                parts: snapshot.parts,
+            });
             return inferred !== 'Outros / Não identificado' ? inferred : (stored || 'Outros / Não identificado');
         })(),
+        applications: machineApps,
+        engineApplications: engineApps,
         createdAt: document.createdAt,
         partCount: document._count.parts,
         archivedAt: document.archivedAt,

@@ -12,6 +12,8 @@ export interface DocumentItem {
   suggestedModel?:string|null; modelNeedsReview?:boolean;
   archivedAt?:string|null; processingActive?:boolean; processingStage?:string; processingCurrent?:number; processingTotal?:number; processingError?:string|null;
   healthScore?:number; reviewStatus?:CatalogReviewStatus; reviewReasons?:string[]; qualityCheckedAt?:string|null; extractionMethod?:string|null;
+  applications?:Array<{ machineModel:string; machinePnc?:string; label:string }>;
+  engineApplications?:Array<{ engineModel:string; engineArticle?:string; label:string }>;
 }
 export interface FeedbackOption { id:string; name:string; partNumber:string; model:string; pnc:string|null; section:string|null; position:string|null; notes?:string|null; }
 export interface OfficialVerification {

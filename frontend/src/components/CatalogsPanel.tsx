@@ -189,11 +189,16 @@ export default function CatalogsPanel({
   const normalizedSearch = search.trim().toLowerCase();
 
   const filtered = useMemo(() => activeDocs.filter(document => {
-    if (!matchesStatusFilter(document, statusFilter) || (effectiveCategoryFilter !== 'ALL' && document.category !== effectiveCategoryFilter)) return false;
+    const matchesCategory = effectiveCategoryFilter === 'ALL'
+      || document.category === effectiveCategoryFilter
+      || (effectiveCategoryFilter === 'Giro zero' && document.applications?.some(a => /giro\s*zero/i.test(a.label || '')));
+    if (!matchesStatusFilter(document, statusFilter) || !matchesCategory) return false;
     if (!normalizedSearch) return true;
     const baseMatch = [document.filename, document.manufacturer, document.model, document.pnc, document.category]
       .some(value => value?.toLowerCase().includes(normalizedSearch));
-    return baseMatch || catalogPncs(document).some(value => value.toLowerCase().includes(normalizedSearch));
+    const appMatch = (document.applications || []).some(a => a.machineModel.toLowerCase().includes(normalizedSearch) || a.label.toLowerCase().includes(normalizedSearch));
+    const engineMatch = (document.engineApplications || []).some(e => e.engineModel.toLowerCase().includes(normalizedSearch) || e.label.toLowerCase().includes(normalizedSearch));
+    return baseMatch || appMatch || engineMatch || catalogPncs(document).some(value => value.toLowerCase().includes(normalizedSearch));
   }), [activeDocs, effectiveCategoryFilter, normalizedSearch, statusFilter]);
 
   const favoritesByDocument = useMemo(() => new Map(favorites.filter(item => item.documentId).map(item => [item.documentId!, item])), [favorites]);
@@ -617,6 +622,32 @@ export default function CatalogsPanel({
                       </div>
                     )}
 
+                    {document.applications && document.applications.length > 0 && (
+                      <div className="mt-2.5">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Aplicação em Máquinas</div>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {document.applications.slice(0, 3).map((app, idx) => (
+                            <span key={idx} className="rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300">
+                              ⚡ {app.label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {document.engineApplications && document.engineApplications.length > 0 && (
+                      <div className="mt-2.5">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Motor Original</div>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {document.engineApplications.slice(0, 2).map((app, idx) => (
+                            <span key={idx} className="rounded-md bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-800 dark:text-blue-300">
+                              ⚙️ {app.label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {recovery && (
                       <div className={`mt-3 rounded-xl border p-2.5 text-[10px] leading-4 ${recovery.tone}`}>
                         <b>{recovery.title}</b>
@@ -752,6 +783,24 @@ export default function CatalogsPanel({
                           {document.model || 'Modelo não confirmado'}
                         </div>
                         {document.suggestedModel && <div className="mt-1 text-[10px] font-semibold text-blue-700 dark:text-blue-300">Sugestão: {document.suggestedModel}</div>}
+                        {document.applications && document.applications.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {document.applications.slice(0, 2).map((app, idx) => (
+                              <span key={idx} className="rounded bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 dark:text-amber-300">
+                                ⚡ {app.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {document.engineApplications && document.engineApplications.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {document.engineApplications.slice(0, 2).map((app, idx) => (
+                              <span key={idx} className="rounded bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-800 dark:text-blue-300">
+                                ⚙️ {app.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         {pncs.length ? (
                           <div className="mt-1.5">
                             <div className="text-[10px] font-semibold uppercase tracking-[.06em] text-slate-400">

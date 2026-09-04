@@ -249,9 +249,10 @@ REGRAS CRÍTICAS:
 - Nomes alternativos devem ser apenas nomes/descrições encontrados no próprio catálogo.
 - Se um dado não existir, retorne string vazia; para página desconhecida use 0.
 - Extraia todas as peças que conseguir identificar com segurança, sem encerrar antes da última tabela.
+- Se o catálogo for de um MOTOR (ex.: Kawasaki FR691V, FX921V, FS730V, Kohler, Briggs & Stratton, Husqvarna HV/HS) utilizado em cortadores giro zero ou tratores, defina o fabricante do motor (ex: Kawasaki) e o código do motor no campo models e nas peças. Não confunda o motor com o chassi da máquina que ele equipa.
 - Para cada peça, informe o modelo e PNC específicos aplicáveis àquela linha.
 
-O campo manufacturer no nível do catálogo deve ser o fabricante principal.
+O campo manufacturer no nível do catálogo deve ser o fabricante principal (ex: Husqvarna, Kawasaki, Kohler).
 models deve listar os modelos encontrados no documento.
 pncs deve listar todos os PNCs explicitamente encontrados no documento.
 `;

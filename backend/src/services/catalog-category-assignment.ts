@@ -13,6 +13,7 @@ export async function ensureCatalogCategory(documentId: string, tenantId: string
         select: {
             id: true,
             filename: true,
+            manufacturer: true,
             model: true,
             metadataReviewedAt: true,
             categoryId: true,
@@ -50,9 +51,10 @@ export async function ensureCatalogCategory(documentId: string, tenantId: string
     }
 
     // Se não tem categoria OU a categoria atual é 'Outros / Não identificado',
-    // re-infere agora com todas as evidências (modelo reconciliado, filename, peças):
+    // re-infere agora com todas as evidências (fabricante, modelo reconciliado, filename, peças):
     const categoryName = inferCatalogCategory({
         filename: document.filename,
+        manufacturer: document.manufacturer,
         model: resolvedModel || document.model,
         parts: document.parts,
     });

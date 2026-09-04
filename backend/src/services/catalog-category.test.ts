@@ -53,6 +53,22 @@ test('classifies Kawasaki and zero turn engines as Motores regardless of variati
     // Motores Kohler e Briggs:
     assert.equal(inferCatalogCategory({ filename: 'Motor Kohler KT745.pdf', model: 'KT745' }), 'Motores');
     assert.equal(inferCatalogCategory({ filename: 'Motor Briggs & Stratton Vanguard.pdf' }), 'Motores');
+
+    // Casos de balcão: Motor de giro zero ou com marca no fabricante/modelo:
+    assert.equal(inferCatalogCategory({ filename: 'Motor do Giro Zero.pdf' }), 'Motores');
+    assert.equal(inferCatalogCategory({ filename: 'Motor Kawasaki FR691V (Giro Zero Z248F).pdf', model: 'Z248F' }), 'Motores');
+    assert.equal(inferCatalogCategory({ filename: 'catalogo.pdf', manufacturer: 'Kawasaki' }), 'Motores');
+    assert.equal(inferCatalogCategory({ filename: '115897626.pdf', model: 'Kawasaki FR691V' }), 'Motores');
+    assert.equal(inferCatalogCategory({ filename: '115897626.pdf', model: 'Motor Z248F' }), 'Motores');
+    assert.equal(inferCatalogCategory({
+        filename: 'IPL-0003.pdf',
+        parts: [
+            { section: 'MOTOR', name: 'Virabrequim' },
+            { section: 'MOTOR', name: 'Pistão' },
+            { section: 'MOTOR', name: 'Biela' },
+            { section: 'CARBURADOR', name: 'Carburador completo' },
+        ],
+    }), 'Motores');
 });
 
 test('keeps unknown catalogs in a safe fallback section', () => {
