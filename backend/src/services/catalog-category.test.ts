@@ -10,6 +10,8 @@ test('classifies known Husqvarna catalog families from filename and model eviden
     assert.equal(inferCatalogCategory({ filename: 'Giro zero Husqvarna Z460.pdf', model: 'Z460' }), 'Giro zero');
     assert.equal(inferCatalogCategory({ filename: 'Soprador Husqvarna 578BTF.pdf', model: '578BTF' }), 'Sopradores');
     assert.equal(inferCatalogCategory({ filename: 'Motor Husqvarna HV764.pdf', model: 'HV764' }), 'Motores');
+    assert.equal(inferCatalogCategory({ filename: 'Motor Kawasaki FR691.pdf', model: 'FR691' }), 'Motores');
+    assert.equal(inferCatalogCategory({ filename: 'Motor Kawasaki FX921.pdf', model: 'FX921' }), 'Motores');
     assert.equal(inferCatalogCategory({ filename: 'Pulverizador Husqvarna 321S25.pdf', model: '321S25' }), 'Pulverizadores');
     assert.equal(inferCatalogCategory({ filename: 'Podador Husqvarna 525P5S.pdf', model: '525P5S' }), 'Podadores');
     assert.equal(inferCatalogCategory({ filename: 'Husqvarna 525LK.pdf', model: '525LK' }), 'Multifuncionais');

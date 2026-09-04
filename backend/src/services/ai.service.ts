@@ -13,6 +13,7 @@ import {
     type CatalogExtraction,
     type ExtractedPart,
     extractCatalogDeterministically,
+    inferCatalogModelFromFilename,
     isPlausibleCatalogModel,
     normalizeHusqvarnaPnc,
 } from './catalog-extractor';
@@ -342,13 +343,14 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 const rawModel = cleanString(rawPart.model);
                 const model = (isPlausibleCatalogModel(rawModel) ? rawModel : '')
                     || trustedDocumentModel
-                    || (models.length === 1 ? models[0] : '');
+                    || (models.length === 1 ? models[0] : '')
+                    || inferCatalogModelFromFilename(document.filename);
                 if (!name || !partNumber || !model) continue;
 
                 const manufacturer = cleanString(rawPart.manufacturer)
                     || document.manufacturer
                     || extractedManufacturer
-                    || '';
+                    || (/\bKawasaki\b/i.test(document.filename) ? 'Kawasaki' : (/\bKohler\b/i.test(document.filename) ? 'Kohler' : (/\bBriggs\b/i.test(document.filename) ? 'Briggs & Stratton' : 'Husqvarna')));
                 const documentPnc = trustedDocumentPnc;
                 const extractedPartPnc = normalizeHusqvarnaPnc(cleanString(rawPart.pnc));
                 let pnc = extractedPartPnc || documentPnc || '';

@@ -172,13 +172,19 @@ const MODEL_FAMILIES: ModelFamilyEntry[] = [
 
   // Giro zero
   { model: 'MZ54', family: 'ZERO_TURN' },
+  { model: 'MZ61', family: 'ZERO_TURN' },
   { model: 'Z242F', family: 'ZERO_TURN' },
+  { model: 'Z246', family: 'ZERO_TURN' },
   { model: 'Z248F', family: 'ZERO_TURN' },
+  { model: 'Z254', family: 'ZERO_TURN' },
   { model: 'Z254F', family: 'ZERO_TURN' },
   { model: 'Z354F', family: 'ZERO_TURN' },
   { model: 'Z448', family: 'ZERO_TURN' },
   { model: 'Z454', family: 'ZERO_TURN' },
+  { model: 'Z454X', family: 'ZERO_TURN' },
   { model: 'Z460', family: 'ZERO_TURN' },
+  { model: 'Z460X', family: 'ZERO_TURN' },
+  { model: 'Z554X', family: 'ZERO_TURN' },
   { model: 'Z560X', family: 'ZERO_TURN' },
   { model: 'V548', family: 'ZERO_TURN' },
   { model: 'V554', family: 'ZERO_TURN' },
@@ -194,6 +200,18 @@ const MODEL_FAMILIES: ModelFamilyEntry[] = [
   { model: 'HS608', family: 'ENGINE' },
   { model: 'HV586AE', family: 'ENGINE' },
   { model: 'HV764', family: 'ENGINE' },
+  { model: 'FR691V', family: 'ENGINE' },
+  { model: 'FR691', family: 'ENGINE' },
+  { model: 'FR730V', family: 'ENGINE' },
+  { model: 'FR730', family: 'ENGINE' },
+  { model: 'FR651V', family: 'ENGINE' },
+  { model: 'FR651', family: 'ENGINE' },
+  { model: 'FX921V', family: 'ENGINE' },
+  { model: 'FX921', family: 'ENGINE' },
+  { model: 'FX730V', family: 'ENGINE' },
+  { model: 'FX751V', family: 'ENGINE' },
+  { model: 'FX850V', family: 'ENGINE' },
+  { model: 'FS730V', family: 'ENGINE' },
 
   // Podadores de Galho
   { model: '525P5S', family: 'POLE_PRUNER' },
@@ -330,22 +348,61 @@ export const DOMAIN_RULES: DomainRule[] = [
 
 // Relações explícitas observadas nos catálogos de máquina enviados. Nunca inferimos
 // um motor por semelhança de nome: a ponte só existe quando o IPL da máquina o cita.
-const ENGINE_APPLICATIONS: EngineApplication[] = [
+export const ENGINE_APPLICATIONS: EngineApplication[] = [
+  // Tratores de jardim
   { machineModel: 'TS148', engineModel: 'HV764', engineArticle: '598632101' },
   { machineModel: 'TS254G', engineModel: 'HV764', engineArticle: '598632103' },
   { machineModel: 'TS142', machinePnc: '96041043000', engineModel: 'HS608', engineArticle: '593230101' },
   { machineModel: 'TS142', machinePnc: '96041044000', engineModel: 'HS608', engineArticle: '598693901' },
   { machineModel: 'TS138', machinePnc: '96041042900', engineModel: 'HS452AE' },
   { machineModel: 'TS138', machinePnc: '96041045600', engineModel: 'HS608', engineArticle: '598693901' },
+
+  // Cortadores Giro Zero (Zero Turn)
+  // Z248F: equipado com motor Kawasaki FR691V (artigo Kawasaki / Husqvarna 548448013)
+  { machineModel: 'Z248F', engineModel: 'FR691V', engineArticle: '548448013' },
+  // Z254F: equipado com motor Kawasaki FR691V (artigo 548448013)
+  { machineModel: 'Z254F', engineModel: 'FR691V', engineArticle: '548448013' },
+  // Z242F: equipado com motor Kawasaki FR651V
+  { machineModel: 'Z242F', engineModel: 'FR651V' },
+  // Z354F: equipado com motor Kawasaki FR730V
+  { machineModel: 'Z354F', engineModel: 'FR730V' },
+  // Z448: equipado com motor Kawasaki FX691V
+  { machineModel: 'Z448', engineModel: 'FX691V' },
+  // Z454: equipado com motor Kawasaki FX730V
+  { machineModel: 'Z454', engineModel: 'FX730V' },
+  // Z460: equipado com motor Kawasaki FX730V (26HP KAW FX651V-730V)
+  { machineModel: 'Z460', engineModel: 'FX730V' },
+  // MZ54: motor varia por PNC (PNC 967696101-00 cita Kawasaki FR730V-FS00-S 24 HP; PNC 967696001 cita Kohler)
+  { machineModel: 'MZ54', machinePnc: '96769610100', engineModel: 'FR730V' },
+  { machineModel: 'MZ54', machinePnc: '967696101', engineModel: 'FR730V' },
+  { machineModel: 'MZ54', machinePnc: '96769600100', engineModel: 'KT740' },
+  { machineModel: 'MZ54', machinePnc: '967696001', engineModel: 'KT740' },
+  // Z560X: motor varia por PNC (PNCs 96766970100/96766970300 citam FX921V artigo 548448033; PNC 96767880100 cita FX751V)
+  { machineModel: 'Z560X', machinePnc: '96766970100', engineModel: 'FX921V', engineArticle: '548448033' },
+  { machineModel: 'Z560X', machinePnc: '96766970300', engineModel: 'FX921V', engineArticle: '548448033' },
+  { machineModel: 'Z560X', machinePnc: '96766970301', engineModel: 'FX921V', engineArticle: '548448033' },
+  { machineModel: 'Z560X', machinePnc: '96767880100', engineModel: 'FX751V' },
+  { machineModel: 'Z560X', machinePnc: '96767880101', engineModel: 'FX751V' },
+  // V548 / V554 (Stand-on)
+  { machineModel: 'V548', engineModel: 'FX730V' },
+  { machineModel: 'V554', engineModel: 'FX850V' },
 ];
 
 const ENGINE_INTERNAL_TERMS = [
-  'virabrequim', 'cambota', 'crankshaft', 'pistao', 'pistão', 'piston', 'anel do pistao',
+  'virabrequim', 'cambota', 'crankshaft', 'pistao', 'pistão', 'piston', 'anel do pistao', 'anel de pistao',
   'cilindro', 'cylinder', 'cabecote', 'cabeçote', 'cylinder head', 'valvula', 'válvula',
   'balancim', 'rocker arm', 'push rod', 'vareta de valvula', 'arvore de cames', 'camshaft',
-  'carburador', 'carburettor', 'bobina de ignicao', 'ignition coil', 'vela de ignicao',
-  'starter motor', 'motor de partida', 'bomba de oleo', 'oil pump', 'governador', 'governor',
+  'carburador', 'carburettor', 'bobina de ignicao', 'bobina', 'ignition coil', 'vela de ignicao', 'vela', 'spark plug',
+  'starter motor', 'motor de partida', 'motor de arranque', 'arranque', 'motor partida', 'bomba de oleo', 'oil pump', 'governador', 'governor',
   'retificador', 'rectifier', 'vareta de oleo', 'dipstick', 'peneira de oleo', 'oil strainer',
+  'filtro de oleo', 'filtro de óleo', 'oil filter',
+  'filtro de ar', 'filtro do ar', 'air filter', 'pre filtro', 'pré-filtro', 'pre-filtro', 'elemento filtrante',
+  'filtro de combustivel', 'filtro de combustível', 'bomba de combustivel', 'bomba de combustível', 'bomba de gasolina', 'fuel pump',
+  'junta do cabecote', 'junta do cabeçote', 'head gasket', 'junta da tampa de valvula', 'junta do carter', 'junta do cárter',
+  'tampa de valvula', 'tampa de válvula', 'valve cover',
+  'biela', 'connecting rod', 'volante do motor', 'volante magnetico', 'flywheel',
+  'carter', 'cárter', 'bloco do motor', 'carcaça do motor', 'crankcase', 'solenoide', 'solenoid',
+  'termostato', 'thermostat', 'respiro', 'breather',
 ];
 
 const DIRECTION_QUALIFIERS = new Set([
@@ -618,4 +675,29 @@ export function resolveEngineCatalogRoute(
     machineModel: applications[0].machineModel,
     knownPncs: [...new Set(applications.map(item => item.machinePnc).filter((value): value is string => Boolean(value)))],
   };
+}
+
+export function findEngineApplications(machineModel: string, pnc?: string): EngineApplication[] {
+  if (!machineModel) return [];
+  const normMachine = normalizeIdentifier(machineModel);
+  const apps = ENGINE_APPLICATIONS.filter(a => normalizeIdentifier(a.machineModel) === normMachine);
+  if (!apps.length) return [];
+  if (pnc) {
+    const normPnc = normalizeIdentifier(pnc);
+    const filtered = apps.filter(a => !a.machinePnc || normalizeIdentifier(a.machinePnc) === normPnc);
+    if (filtered.length) return filtered;
+  }
+  return apps;
+}
+
+export function isMachineEngineInquiry(question: string): boolean {
+  const norm = normalizeText(question);
+  return (
+    /\bqual\s+(?:e\s+o\s+|o\s+)?motor\b/.test(norm) ||
+    /\bqual\s+motor\s+(?:vai|usa|equipa|tem)\b/.test(norm) ||
+    /\bque\s+motor\s+(?:vai|usa|equipa|tem)\b/.test(norm) ||
+    /\bqual\s+o\s+modelo\s+do\s+motor\b/.test(norm) ||
+    /\bqual\s+o\s+motor\s+desse\b/.test(norm) ||
+    /\bqual\s+o\s+motor\s+deste\b/.test(norm)
+  ) && !/\b(?:partida|arranque|eletrico|elétrico|ventilador|tracao|tração|roda|lamina|lâmina|corte)\b/.test(norm);
 }

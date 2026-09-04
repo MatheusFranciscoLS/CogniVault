@@ -5,6 +5,8 @@ import {
   extractKnownHusqvarnaModel,
   inferEquipmentFamily,
   resolveEngineCatalogRoute,
+  findEngineApplications,
+  isMachineEngineInquiry,
 } from './husqvarna-domain-knowledge';
 import { buildSearchGroups, inferredSearchAliases, scorePartText } from './part-vocabulary';
 import { extractLikelyModel } from './chat-reliability';
@@ -104,6 +106,72 @@ test('relações máquina → motor só são ativadas quando comprovadas e respe
   });
 
   assert.equal(resolveEngineCatalogRoute('TS148', '', 'qual o defletor lateral do TS148?'), null);
+
+  // Giro Zero (Zero Turn) -> Motores Kawasaki
+  assert.deepEqual(resolveEngineCatalogRoute('Z248F', '', 'qual o virabrequim do Z248F?'), {
+    status: 'ROUTE', machineModel: 'Z248F', engineModel: 'FR691V', engineArticle: '548448013',
+  });
+  assert.deepEqual(resolveEngineCatalogRoute('Z254F', '', 'qual o filtro de oleo do Z254F?'), {
+    status: 'ROUTE', machineModel: 'Z254F', engineModel: 'FR691V', engineArticle: '548448013',
+  });
+  assert.deepEqual(resolveEngineCatalogRoute('Z242F', '', 'qual o pistao do Z242F?'), {
+    status: 'ROUTE', machineModel: 'Z242F', engineModel: 'FR651V', engineArticle: null,
+  });
+  assert.deepEqual(resolveEngineCatalogRoute('Z354F', '', 'qual o carburador do Z354F?'), {
+    status: 'ROUTE', machineModel: 'Z354F', engineModel: 'FR730V', engineArticle: null,
+  });
+  assert.deepEqual(resolveEngineCatalogRoute('Z448', '', 'qual a bobina do Z448?'), {
+    status: 'ROUTE', machineModel: 'Z448', engineModel: 'FX691V', engineArticle: null,
+  });
+  assert.deepEqual(resolveEngineCatalogRoute('Z454', '', 'qual a vela do Z454?'), {
+    status: 'ROUTE', machineModel: 'Z454', engineModel: 'FX730V', engineArticle: null,
+  });
+  assert.deepEqual(resolveEngineCatalogRoute('Z460', '', 'qual a junta do cabecote do Z460?'), {
+    status: 'ROUTE', machineModel: 'Z460', engineModel: 'FX730V', engineArticle: null,
+  });
+
+  // Z560X depende de PNC para definir o motor (FX921V vs FX751V)
+  const z560xWithoutPnc = resolveEngineCatalogRoute('Z560X', '', 'qual o virabrequim do Z560X?');
+  assert.equal(z560xWithoutPnc?.status, 'PNC_REQUIRED');
+  assert.deepEqual(resolveEngineCatalogRoute('Z560X', '96766970100', 'qual o virabrequim do Z560X?'), {
+    status: 'ROUTE', machineModel: 'Z560X', engineModel: 'FX921V', engineArticle: '548448033',
+  });
+  assert.deepEqual(resolveEngineCatalogRoute('Z560X', '96767880100', 'qual o virabrequim do Z560X?'), {
+    status: 'ROUTE', machineModel: 'Z560X', engineModel: 'FX751V', engineArticle: null,
+  });
+
+  // MZ54 depende de PNC (FR730V vs Kohler)
+  const mz54WithoutPnc = resolveEngineCatalogRoute('MZ54', '', 'qual a vela do MZ54?');
+  assert.equal(mz54WithoutPnc?.status, 'PNC_REQUIRED');
+  assert.deepEqual(resolveEngineCatalogRoute('MZ54', '96769610100', 'qual a vela do MZ54?'), {
+    status: 'ROUTE', machineModel: 'MZ54', engineModel: 'FR730V', engineArticle: null,
+  });
+
+  // Consultas sobre componentes do chassi não ativam rota para o motor
+  assert.equal(resolveEngineCatalogRoute('Z248F', '', 'qual a lamina do Z248F?'), null);
+  assert.equal(resolveEngineCatalogRoute('Z248F', '', 'qual a correia do deck do Z248F?'), null);
+});
+
+test('reconhece perguntas diretas sobre qual motor equipa a máquina', () => {
+  assert.ok(isMachineEngineInquiry('qual o motor do Z248F?'));
+  assert.ok(isMachineEngineInquiry('qual motor vai no giro zero z248f?'));
+  assert.ok(isMachineEngineInquiry('qual o motor do Z560X?'));
+  assert.ok(isMachineEngineInquiry('qual o modelo do motor desse cortador?'));
+
+  // Motor de partida não é consulta de qual motor equipa o chassi
+  assert.equal(isMachineEngineInquiry('qual o motor de partida do Z248F?'), false);
+  assert.equal(isMachineEngineInquiry('qual o motor de arranque do TS148?'), false);
+
+  const appsZ248F = findEngineApplications('Z248F');
+  assert.equal(appsZ248F.length, 1);
+  assert.equal(appsZ248F[0].engineModel, 'FR691V');
+  assert.equal(appsZ248F[0].engineArticle, '548448013');
+
+  const appsZ560X = findEngineApplications('Z560X');
+  assert.ok(appsZ560X.length >= 2);
+  const fx921 = appsZ560X.find(a => a.engineModel === 'FX921V');
+  assert.ok(fx921);
+  assert.equal(fx921?.engineArticle, '548448033');
 });
 
 test('aliases de indexação preservam nome oficial e acrescentam linguagem de balcão por família', () => {

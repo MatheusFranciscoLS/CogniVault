@@ -7,7 +7,7 @@ import type { SearchIntent } from './chat-intent.service';
 import { ReActAgentService } from './react-agent.service';
 import { buildSearchGroups, focusCandidatesByDescription } from './part-vocabulary';
 import { filterCandidatesByMarket } from './catalog-market';
-import { resolveEngineCatalogRoute } from './husqvarna-domain-knowledge';
+import { resolveEngineCatalogRoute, findEngineApplications, isMachineEngineInquiry } from './husqvarna-domain-knowledge';
 import { getVerifiedSupersession, preferCurrentPartNumbers } from './part-supersession';
 import { evaluateAnswerConfidence, type CatalogConfidenceContext, type ConfidenceDecision } from './confidence-gate';
 import { retrieveTechnicalContext } from './document-memory';
@@ -137,6 +137,28 @@ export class ChatService {
       }
     }
 
+    if (intent.model && isMachineEngineInquiry(question)) {
+      const applications = findEngineApplications(intent.model, intent.pnc);
+      if (applications.length) {
+        if (applications.length === 1 || (intent.pnc && applications.some(a => a.machinePnc))) {
+          const app = applications.find(a => !intent.pnc || !a.machinePnc || normalizeIdentifier(a.machinePnc) === normalizeIdentifier(intent.pnc)) || applications[0];
+          const articleInfo = app.engineArticle ? ` (artigo oficial ${app.engineArticle})` : '';
+          return this.withContext({
+            status: 'FOUND',
+            answer: `O equipamento Husqvarna ${app.machineModel} utiliza o motor ${app.engineModel}${articleInfo}. Esse motor está vinculado tecnicamente ao equipamento no sistema para consulta de todas as suas peças internas (filtros, velas, juntas, carburador, virabrequim, etc.).`,
+          }, intent);
+        } else {
+          const summary = applications.map(a => `${a.machinePnc ? `PNC ${a.machinePnc}: ` : ''}${a.engineModel}${a.engineArticle ? ` (${a.engineArticle})` : ''}`).join(' | ');
+          return this.withContext({
+            status: 'PNC_REQUIRED',
+            requiresPnc: true,
+            pncOptions: [...new Set(applications.map(a => a.machinePnc).filter((p): p is string => Boolean(p)))],
+            answer: `O catálogo do ${intent.model} indica motores diferentes conforme a versão/PNC: ${summary}. Informe o PNC da sua máquina para visualizar o catálogo do motor exato.`,
+          }, intent);
+        }
+      }
+    }
+
     const partGroups = buildSearchGroups(intent.partDescription || question, [intent.manufacturer, intent.model, intent.pnc]);
     if (!partGroups.length) {
       return this.withContext({
@@ -151,6 +173,9 @@ export class ChatService {
     if (normalizedModel) {
       const exactCount = await prisma.part.count({ where: { normalizedModel, active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } } });
       if (!exactCount) {
+        const engineFallback = await this.tryEngineCatalogFallback(tenantId, question, intent);
+        if (engineFallback) return this.withContext(engineFallback, intent);
+
         const options = await PartSearchService.similarModels(tenantId, normalizedModel);
         return this.withContext({
           status: options.length ? 'MODEL_REQUIRED' : 'NOT_FOUND',
@@ -211,19 +236,34 @@ export class ChatService {
       };
     }
 
-    const engineCount = await prisma.part.count({
-      where: { normalizedModel: normalizeIdentifier(route.engineModel), active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } },
+    const targetModel = normalizeIdentifier(route.engineModel);
+    const baseModel = targetModel.replace(/V$/i, '');
+    const enginePart = await prisma.part.findFirst({
+      where: {
+        active: true,
+        document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+        OR: [
+          { normalizedModel: targetModel },
+          { normalizedModel: { startsWith: targetModel } },
+          { normalizedModel: baseModel },
+          { normalizedModel: { startsWith: baseModel } },
+          { model: { contains: route.engineModel, mode: 'insensitive' } },
+          { model: { contains: baseModel, mode: 'insensitive' } },
+        ],
+      },
+      select: { model: true, normalizedModel: true },
     });
-    if (!engineCount) {
+    if (!enginePart) {
       return { status: 'NOT_FOUND', answer: `O catálogo do ${route.machineModel} referencia o motor ${route.engineModel}, mas o IPL desse motor ainda não está processado neste tenant. Não vou inventar a peça interna sem esse catálogo.` };
     }
 
+    const effectiveEngineModel = enginePart.model;
     const withoutMachineModel = intent.model
       ? (intent.partDescription || question).replace(new RegExp(escapeRegExp(intent.model), 'ig'), ' ')
       : (intent.partDescription || question);
     const bridgeDescription = [withoutMachineModel.trim(), route.engineArticle || ''].filter(Boolean).join(' ');
-    const engineIntent: SearchIntent = { ...intent, model: route.engineModel, pnc: '', partNumber: '', partDescription: bridgeDescription };
-    const engineQuestion = `${bridgeDescription} ${route.engineModel}`.trim();
+    const engineIntent: SearchIntent = { ...intent, model: effectiveEngineModel, pnc: '', partNumber: '', partDescription: bridgeDescription };
+    const engineQuestion = `${bridgeDescription} ${effectiveEngineModel}`.trim();
     const engineCandidates = await PartSearchService.semantic(tenantId, engineQuestion, engineIntent);
     if (!engineCandidates.length) {
       return { status: 'NOT_FOUND', answer: `O ${route.machineModel} referencia o motor ${route.engineModel}, mas não encontrei essa peça interna com evidência suficiente no IPL do motor.` };

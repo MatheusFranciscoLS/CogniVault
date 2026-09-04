@@ -26,8 +26,23 @@ function clean(v:unknown){return typeof v==='string'?v.trim():'';}
 function compactModel(v:string){return v.replace(/\s+/g,'');}
 function normalizedLine(v:string){return v.replace(/\u00a0/g,' ').replace(/[\u00ad\ufffe\ufffd]/g,'-').replace(/[ \t]+/g,' ').trim();}
 function comparable(v:string){return normalizedLine(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
-function isPartsHeader(v:string){const l=normalizedLine(v).toLowerCase();return (/\bpos(?:ition)?\.?\b/.test(l)||/\bkey\s+part\b/.test(l))&&(/\bpart\s*(?:nr|no|number)\.?\b/.test(l)||/\bn[uú]mero\s+do\s+artigo\b/.test(l));}
-function hasCatalogSignature(t:string){return /\bIPL,\s*/i.test(t)||/ILLUSTRATED\s+PARTS\s+LIST/i.test(t)||/HUSQVARNA\s+PORTAL/i.test(t)||/HUSQVARNA.+MODEL\s+NUMBER/i.test(t);}
+function isPartsHeader(v:string){
+  const l=normalizedLine(v).toLowerCase();
+  const hasRefOrPos=/\b(?:refer[eê]ncia|pos(?:ition)?\.?|key\s+part|item)\b/i.test(l);
+  const hasPartCol=/\b(?:part\s*(?:nr|no|number)\.?|n[uú]mero\s+do\s+artigo|c[oó]digo)\b/i.test(l);
+  const hasDescCol=/\b(?:description|descri[cç][aã]o|nome(?:\s+do\s+artigo)?|bezeichnung)\b/i.test(l);
+  return (hasRefOrPos && hasPartCol) || (hasPartCol && hasDescCol) || (hasRefOrPos && hasDescCol);
+}
+function hasCatalogSignature(t:string,hints:CatalogHints={}){
+  if(/Husqvarna\s+Portal\b/i.test(t))return true;
+  if(/portal\.husqvarnagroup\.com/i.test(t))return true;
+  if(/printipl=true/i.test(t))return true;
+  if(/\b(?:IPL|SPARE\s+PARTS(?:\s+LIST)?|PARTS\s+LIST|ILLUSTRATED\s+PARTS|LISTA\s+DE\s+PE[CÇ]AS|CAT[AÁ]LOGO\s+DE\s+PE[CÇ]AS)\b/i.test(t))return true;
+  if(/\b(?:REF\.\s+PART\s+NO|KEY\s+PART|PART\s+NO\.\s+DESCRIPTION|N[uú]mero\s+do\s+artigo)\b/i.test(t))return true;
+  if(/Kawasaki\s+Engine/i.test(t))return true;
+  if(hints.filename && /\b(?:Husqvarna|Kawasaki|Kohler|Briggs|Honda|Roçadeira|Motosserra|Trator|Motor|Giro\s*Zero)\b/i.test(hints.filename))return true;
+  return false;
+}
 function cleanPartNumber(v:string){return normalizedLine(v);}
 function unique(values:string[]){return [...new Set(values.map(clean).filter(Boolean))];}
 
@@ -35,25 +50,53 @@ function legacyTextPages(text:string){const pages:Array<{page:number;text:string
 function portalTextPages(text:string){const pages:Array<{page:number;text:string}>=[];let cursor=0,m:RegExpExecArray|null;PORTAL_PAGE_MARKER.lastIndex=0;while((m=PORTAL_PAGE_MARKER.exec(text))!==null){pages.push({page:Number(m[1]),text:text.slice(cursor,m.index).trim()});cursor=PORTAL_PAGE_MARKER.lastIndex;}return pages.filter(p=>Number.isInteger(p.page)&&p.page>0);}
 function textPages(text:string){const p=portalTextPages(text);if(p.length)return p;const l=legacyTextPages(text);return l.length?l:[{page:1,text:text.trim()}];}
 
-function isNoiseLine(v:string){const l=normalizedLine(v);if(!l||/^https?:\/\//i.test(l)||/Husqvarna\s+Portal\s+BR/i.test(l)||/^\d{1,2}\/\d{1,2}\/\d{4},?\s+\d{1,2}:\d{2}/.test(l))return true;if(/^(?:Refer[eê]|ncia$|N[uú]mero do$|artigo$|Nome do artigo|Quanti$|dade$|Coment[aá]rio$)/i.test(l))return true;if(/^(?:KEY\s+PART|NO\.\s+NO\.\s+DESCRIPTION)/i.test(l))return true;return isPartsHeader(l);}
+function isNoiseLine(v:string){
+  const l=normalizedLine(v);
+  if(!l||/^https?:\/\//i.test(l)||/Husqvarna\s+Portal\s+BR/i.test(l)||/^\d{1,2}\/\d{1,2}\/\d{2,4},?\s+\d{1,2}:\d{2}/.test(l))return true;
+  if(/^(?:Refer[eê]ncia|N[uú]mero do artigo|Nome do artigo|Quanti\s*dade|Coment[aá]rio)$/i.test(l))return true;
+  if(/^(?:Refer[eê]|ncia|N[uú]mero do|artigo|Nome do|Quanti|dade|Coment[aá]rio)$/i.test(l))return true;
+  if(/^(?:KEY\s+PART|NO\.\s+NO\.\s+DESCRIPTION)/i.test(l))return true;
+  if(/^\d{3}\s*\d{2}\s*\d{2}-$/.test(l))return true;
+  return isPartsHeader(l);
+}
 function sectionFromLines(lines:string[],last:number,fallback:string){for(let i=lines.length-1;i>last;i--){const c=clean(lines[i]);if(c&&!isPartsHeader(c)&&!isNoiseLine(c))return c;}return fallback;}
-function hasQuantityColumn(lines:string[]){return /\bqty\b|\bquantity\b|quanti\s*dade/.test(lines.join(' ').toLowerCase());}
+function hasQuantityColumn(lines:string[]){return /\bqty\b|\bquantity\b|quanti\s*dade|\bquant\b/i.test(lines.join(' '));}
 export function looksLikePartRowModel(v:string|null|undefined){const n=normalizedLine(clean(v).replace(/[\r\n]+/g,' '));return /^\d{1,3}\s+(?:\d{8,12}|\d{3}\s+\d{2}\s+\d{2}-\d{2})\s+\S+/i.test(n);}
 export function looksLikeDescriptionModel(v:string|null|undefined){const n=comparable(clean(v).replace(/[\r\n]+/g,' '));if(!n)return false;if(/^(?:assy|assembly|kit|set|service\s+kit|conj(?:unto)?)\b/.test(n))return true;const words=n.split(/\s+/).filter(Boolean);return words.length>=3&&/\b(?:clutch|embreagem|muffler|silenciador|piston|pistao|cylinder|cilindro|gasket|junta|filter|filtro|carburettor|carburetor|carburador|housing|cobertura|sprayer)\b/.test(n);}
-export function isPlausibleCatalogModel(value:string|null|undefined){const candidate=normalizedLine(clean(value).replace(/[\r\n]+/g,' '));if(!candidate||candidate.length>40)return false;if(!/^[A-Z0-9][A-Z0-9 .®_+/-]*$/i.test(candidate))return false;if(!/\d/.test(candidate)&&!/\s/.test(candidate))return false;if(MODEL_NOISE.test(candidate)||looksLikePartRowModel(candidate)||looksLikeDescriptionModel(candidate))return false;const digits=candidate.replace(/\D/g,'');if(/^\d{9}$|^\d{11}$/.test(digits)&&!/[A-Z]/i.test(candidate))return false;return true;}
+export function isPlausibleCatalogModel(value:string|null|undefined){
+  const candidate=normalizedLine(clean(value).replace(/[\r\n]+/g,' '));
+  if(!candidate||candidate.length>40)return false;
+  if(!/^[A-Z0-9][A-Z0-9 .®_+/()-]*$/i.test(candidate))return false;
+  if(!/\d/.test(candidate)&&!/\s/.test(candidate))return false;
+  if(MODEL_NOISE.test(candidate)||looksLikePartRowModel(candidate)||looksLikeDescriptionModel(candidate))return false;
+  const digits=candidate.replace(/\D/g,'');
+  if(/^\d{9}$|^\d{11}$/.test(digits)&&!/[A-Z]/i.test(candidate))return false;
+  return true;
+}
 export function normalizeHusqvarnaPnc(value:string|null|undefined){const digits=clean(value).replace(/\D/g,'');return /^9\d{8}(?:\d{2})?$/.test(digits)?digits:'';}
 export function isLikelyHusqvarnaPnc(value:string|null|undefined){return Boolean(normalizeHusqvarnaPnc(value));}
-export function inferCatalogModelFromFilename(filename:string){const base=filename.replace(/\.pdf$/i,'').replace(/[\u00a0\u202f]/g,' ').replace(/\s+/g,' ').trim();const candidate=clean(base.match(/Husqvarna\s+(.+)$/i)?.[1]||'');if(isPlausibleCatalogModel(candidate))return canonicalCatalogModel(candidate);const known=extractKnownHusqvarnaModel(candidate||base);return known&&/[A-Z]/i.test(known)&&isPlausibleCatalogModel(known)?known:'';}
+export function inferCatalogModelFromFilename(filename:string){
+  const base=filename.replace(/\.pdf$/i,'').replace(/[\u00a0\u202f]/g,' ').replace(/\s+/g,' ').trim();
+  const candidate=clean(base.match(/Husqvarna\s+(.+)$/i)?.[1]||'');
+  if(isPlausibleCatalogModel(candidate))return canonicalCatalogModel(candidate);
+
+  let stripped=base.replace(/^(?:Cortador\s+de\s+grama(?:\s+giro\s+zero)?|Motor|Roçadeira|Motosserra|Trator(?:\s+cortador\s+de\s+grama)?|Soprador(?:\s+de\s+folhas(?:\s+costal)?)?|Aparador(?:\s+de\s+grama(?:\s+multifuncional)?|\s+de\s+cerca\s+viva)?|Podador(?:\s+de\s+galhos)?|Pulverizador|Perfurador|Cortadora(?:\s+de\s+disco)?|Engine|Chainsaw|Trimmer|Blower|Lawn\s*Mower)\s+/i,'');
+  stripped=stripped.replace(/^(?:Husqvarna|Kawasaki|Kohler|Briggs\s*(?:&|and)\s*Stratton|Honda)\s+/i,'').trim();
+  if(isPlausibleCatalogModel(stripped))return canonicalCatalogModel(stripped);
+
+  const known=extractKnownHusqvarnaModel(candidate||base);
+  return known&&/[A-Z]/i.test(known)&&isPlausibleCatalogModel(known)?known:'';
+}
 function canonicalCatalogModel(v:string){const n=clean(v);return /^\d{2,4}(?:\s+[A-Z0-9®.-]+)+$/i.test(n)?compactModel(n):n;}
 function portalModel(text:string){
-  const header=text.match(/Husqvarna\s+([A-Z0-9][A-Z0-9 .®_-]{0,50}?)\s+Husqvarna\s*\|\s*Husqvarna\s+Portal\s+BR/i)?.[1];
-  if(header)return canonicalCatalogModel(header);
-  const slug=text.match(/https?:\/\/portal\.husqvarnagroup\.com\/br\/[^\s?]+\/[^\s/?]*husqvarna-([a-z0-9-]+)\/?\?printipl=true/i)?.[1];
+  const husqHeader=text.match(/Husqvarna\s+([A-Z0-9][A-Z0-9 .®_-]{0,50}?)\s+Husqvarna\s*\|\s*Husqvarna\s+Portal\s+BR/i)?.[1];
+  if(husqHeader)return canonicalCatalogModel(husqHeader);
+  const kawHeader=text.match(/Kawasaki\s+Engine(?:\s+\([^)]+\))?\s+([A-Z0-9][A-Z0-9 .®_-]{0,50}?)\s*\|\s*Husqvarna\s+Portal\s+BR/i)?.[1];
+  if(kawHeader)return canonicalCatalogModel(kawHeader);
+  const slug=text.match(/https?:\/\/portal\.husqvarnagroup\.com\/br\/[^\s?]+\/[^\s/?]*(?:husqvarna|kawasaki-engine-(?:for-[a-z]+-)?)([a-z0-9-]+)\/?\?printipl=true/i)?.[1];
   return slug?canonicalCatalogModel(slug.replace(/-/g,' ').toUpperCase()):'';
 }
 function detectModel(text:string,hints:CatalogHints){
-  // O produto publicado no Portal é autoridade superior a comentários de linhas,
-  // que podem citar aplicações compartilhadas (ex. "assy 321S sprayer").
   const portal=portalModel(text);if(isPlausibleCatalogModel(portal))return portal;
   const ipl=text.match(/IPL,\s*([^,\n]+),\s*\d{4}-\d{2}/i)?.[1];if(isPlausibleCatalogModel(ipl))return canonicalCatalogModel(clean(ipl));
   const model=text.match(/MODEL\s+NUMBER\s*:?\s*([A-Z0-9][A-Z0-9 .®_-]*?)(?=\s*\(|\s+MFG\.|\r?\n|$)/i)?.[1];if(isPlausibleCatalogModel(model))return canonicalCatalogModel(clean(model));
@@ -61,11 +104,20 @@ function detectModel(text:string,hints:CatalogHints){
   const hinted=clean(hints.model);if(isPlausibleCatalogModel(hinted))return canonicalCatalogModel(hinted);
   return inferCatalogModelFromFilename(clean(hints.filename));
 }
-function detectManufacturer(_text:string,hints:CatalogHints){return clean(hints.manufacturer)||'Husqvarna';}
+function detectManufacturer(text:string,hints:CatalogHints){
+  if(hints.manufacturer&&clean(hints.manufacturer))return clean(hints.manufacturer);
+  const combined=`${hints.filename||''} ${text.slice(0,4000)}`;
+  if(/\bKawasaki\b/i.test(combined))return 'Kawasaki';
+  if(/\bKohler\b/i.test(combined))return 'Kohler';
+  if(/\bBriggs\s*(?:&|and)\s*Stratton\b/i.test(combined))return 'Briggs & Stratton';
+  if(/\bHonda\b/i.test(combined))return 'Honda';
+  return 'Husqvarna';
+}
 function collectPncs(text:string,hints:CatalogHints){const v:string[]=[];const hinted=normalizeHusqvarnaPnc(hints.pnc);if(hinted)v.push(hinted);for(const m of text.matchAll(/MFG\.\s*ID\.\s*NUMBER\s*:?\s*(\d{11}|\d{9})\b/gi))v.push(m[1]);for(const m of text.matchAll(/(?:PNC|PRODUCT\s+(?:NO|NUMBER|NUMBER\s+CODE))\s*:?\s*(\d{11}|\d{9})\b/gi))v.push(m[1]);for(const m of text.matchAll(/\bFor(?:\s+all+\s+EXCEPT)?\s+([^\n.]+)/gi))v.push(...(m[1].match(PNC_PATTERN)||[]));return unique(v.map(normalizeHusqvarnaPnc).filter(Boolean));}
 function applicationForBlock(block:string,known:string[],hinted:string){const ex=block.match(/\bFor\s+all+\s+EXCEPT\s+([^\n.]+)/i);if(ex){const excluded=new Set((ex[1].match(PNC_PATTERN)||[]).map(normalizeHusqvarnaPnc).filter(Boolean));return{pncs:unique(known.filter(p=>!excluded.has(p))),universal:false};}const direct=block.match(/\bFor\s+([^\n.]+)/i);if(direct){const p=unique((direct[1].match(PNC_PATTERN)||[]).map(normalizeHusqvarnaPnc).filter(Boolean));if(p.length)return{pncs:p,universal:false};}if(hinted)return{pncs:[hinted],universal:false};return{pncs:[],universal:true};}
 function applicationClause(v:string){const ex=v.match(/\bFor\s+all+\s+EXCEPT\s+([^\n.]+)/i);if(ex&&(ex[1].match(PNC_PATTERN)||[]).length)return`For all EXCEPT ${ex[1].trim()}`;const d=v.match(/\bFor\s+([^\n.]+)/i);return d&&(d[1].match(PNC_PATTERN)||[]).length?`For ${d[1].trim()}`:'';}
 function displayNameWithoutApplication(v:string){const n=normalizedLine(v);return clean(n.match(/^(.*?)(?:\s+\d{1,3})?\s+For(?:\s+all+\s+EXCEPT)?\s+[^\n.]*\b(?:\d{11}|\d{9})\b[^\n.]*$/i)?.[1]||n);}
+
 function splitInlineQuantity(v:string){const m=normalizedLine(v).match(/^(.*\S)\s+(\d{1,3})(?:\s+(.+))?$/);return m?{description:clean(m[1]),quantity:m[2],trailing:clean(m[3])}:null;}
 function parseFlexibleBlock(lines:string[],expects:boolean){if(!expects)return{name:normalizedLine(lines.filter(l=>!isNoiseLine(l)).join(' ')),quantity:'',comments:''};const description:string[]=[],comments:string[]=[];let quantity='',after=false;for(const raw of lines){const line=normalizedLine(raw);if(!line||isNoiseLine(line))continue;if(after){comments.push(line);continue;}const q=line.match(/^(\d{1,3})(?:\s+(.+))?$/);if(q){quantity=q[1];if(q[2])comments.push(q[2]);after=true;continue;}const inline=splitInlineQuantity(line);if(inline){if(inline.description)description.push(inline.description);quantity=inline.quantity;if(inline.trailing)comments.push(inline.trailing);after=true;continue;}description.push(line);}return{name:normalizedLine(description.join(' ')),quantity,comments:normalizedLine(comments.join(' '))};}
 
@@ -79,7 +131,7 @@ function isGenericSection(v:string){return GENERIC_SECTIONS.has(comparable(v));}
 function technicalSectionFromPage(text:string){for(const line of text.split(/\r?\n/).map(normalizedLine).filter(Boolean)){if(isNoiseLine(line)||!TECHNICAL_SECTION_PATTERN.test(line)||FLEXIBLE_ROW_START.test(line)||line.length>90)continue;const letters=line.replace(/[^A-Za-z]/g,'');if(!letters)continue;const upper=letters.replace(/[^A-Z]/g,'');if(upper.length/letters.length>=.8)return line;}return'';}
 
 export function parseHusqvarnaIplText(text:string,hints:CatalogHints={}):CatalogExtraction|null{
-  if(!hasCatalogSignature(text))return null;const model=detectModel(text,hints),manufacturer=detectManufacturer(text,hints);if(!model||!manufacturer)return null;
+  if(!hasCatalogSignature(text,hints))return null;const model=detectModel(text,hints),manufacturer=detectManufacturer(text,hints);if(!model||!manufacturer)return null;
   const hintedPnc=normalizeHusqvarnaPnc(hints.pnc),knownPncs=collectPncs(text,hints),parts:ExtractedPart[]=[];const pages=textPages(text),sectionHints=pages.map(p=>technicalSectionFromPage(p.text));
   for(let pageIndex=0;pageIndex<pages.length;pageIndex++){
     const page=pages[pageIndex],lines=page.text.split(/\r?\n/).map(normalizedLine).filter(Boolean),parsed=parseLegacyPage(lines)||parseFlexiblePage(lines);if(!parsed)continue;

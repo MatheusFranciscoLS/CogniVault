@@ -75,7 +75,7 @@ export function inferCatalogCategory(input: CatalogCategoryInput): CatalogCatego
     add('Cortadores de grama', scoreText(filename, ['cortador de grama', 'lawn mower', 'lawnmower'], 8));
     add('Giro zero', scoreText(filename, ['giro zero', 'zero turn', 'zero-turn'], 10));
     add('Sopradores', scoreText(filename, ['soprador', 'blower'], 8));
-    add('Motores', scoreText(filename, ['motor husqvarna', 'engine'], 8));
+    add('Motores', scoreText(filename, ['motor husqvarna', 'motor kawasaki', 'motor kohler', 'motor briggs', 'engine'], 8));
     add('Pulverizadores', scoreText(filename, ['pulverizador', 'sprayer'], 8));
     add('Podadores', scoreText(filename, ['podador', 'pole saw', 'polesaw'], 10));
     add('Multifuncionais', scoreText(filename, ['multifuncional', 'combi', 'engine unit'], 10));
@@ -85,8 +85,8 @@ export function inferCatalogCategory(input: CatalogCategoryInput): CatalogCatego
 
     const compactModels = models.map((model) => model.replace(/[^A-Za-z0-9]/g, '').toUpperCase());
     add('Tratores', modelScore(compactModels, /^TS\d/, 7));
-    add('Giro zero', modelScore(compactModels, /^(MZ\d|Z\d{3})/, 7));
-    add('Motores', modelScore(compactModels, /^(HS|HV)\d/, 9));
+    add('Giro zero', modelScore(compactModels, /^(MZ\d|Z\d{3}|V\d{3})/, 7));
+    add('Motores', modelScore(compactModels, /^(HS|HV|FR|FX|FS)\d/, 9));
     add('Podadores', modelScore(compactModels, /^525P/, 10));
     add('Multifuncionais', modelScore(compactModels, /^525LK/, 10));
     add('Aparadores de cerca-viva', modelScore(compactModels, /^\d{3}HD/, 9));
