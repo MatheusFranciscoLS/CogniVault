@@ -78,6 +78,7 @@ export default function Shell({ user, section, onSection, onLogout, onSearch, ch
   const [search, setSearch] = useState('');
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const currentLabel = sectionLabels.get(section) || 'CogniVault';
   const initials = user.email.slice(0, 2).toUpperCase();
   const quoteCart = useQuoteCart();
@@ -98,9 +99,22 @@ export default function Shell({ user, section, onSection, onLogout, onSearch, ch
     searchField?.select();
   }, { enableOnFormTags: true });
 
+  useHotkeys('ctrl+b, meta+b, alt+o', (event) => {
+    event.preventDefault();
+    quoteCart.setIsOpen(!quoteCart.isOpen);
+  }, { enableOnFormTags: true });
+
+  useHotkeys('shift+?, ?', (event) => {
+    const target = event.target as HTMLElement | null;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+    event.preventDefault();
+    setShortcutsOpen(prev => !prev);
+  });
+
   useHotkeys('escape', () => {
     setNotificationsOpen(false);
     setMenuOpen(false);
+    setShortcutsOpen(false);
   }, { enableOnFormTags: true });
 
   const select = (next: Section) => { onSection(next); setMenuOpen(false); };
@@ -246,6 +260,16 @@ export default function Shell({ user, section, onSection, onLogout, onSearch, ch
 
               <ThemeToggle />
 
+              <button
+                type="button"
+                onClick={() => setShortcutsOpen(true)}
+                aria-label="Atalhos e Dicas de Balcão"
+                title="Atalhos de teclado e dicas (Pressione ?)"
+                className="cv-icon-button text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+              >
+                ?
+              </button>
+
               <div className="relative">
                 <button
                   type="button"
@@ -303,6 +327,107 @@ export default function Shell({ user, section, onSection, onLogout, onSearch, ch
         </header>
 
         <div className="mx-auto max-w-[1540px] p-4 sm:p-6 md:p-8 lg:p-10">{children}</div>
+
+        {shortcutsOpen && (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xs"
+            onClick={() => setShortcutsOpen(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="shortcuts-dialog-title"
+          >
+            <div
+              className="w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 shadow-2xl transition-all"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-blue-100 dark:bg-blue-900/40 text-[#1d4f91] dark:text-blue-300 font-bold text-sm">
+                    ⌨
+                  </div>
+                  <div>
+                    <h3 id="shortcuts-dialog-title" className="text-base font-bold text-slate-900 dark:text-white">
+                      Atalhos & Dicas de Produtividade
+                    </h3>
+                    <p className="text-xs text-slate-400">Otimizado para atendimento rápido de balcão</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShortcutsOpen(false)}
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
+                  aria-label="Fechar"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+                    Teclas de Atalho
+                  </div>
+                  <div className="grid gap-2">
+                    <div className="flex items-center justify-between rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-xs">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">Buscar peça, modelo ou código</span>
+                      <kbd className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300 shadow-2xs">
+                        Ctrl + K
+                      </kbd>
+                    </div>
+                    <div className="flex items-center justify-between rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-xs">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">Abrir Cesta de Orçamento</span>
+                      <kbd className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300 shadow-2xs">
+                        Ctrl + B / Alt + O
+                      </kbd>
+                    </div>
+                    <div className="flex items-center justify-between rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-xs">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">Fechar gavetas e modais</span>
+                      <kbd className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300 shadow-2xs">
+                        Esc
+                      </kbd>
+                    </div>
+                    <div className="flex items-center justify-between rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-xs">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">Abrir esta ajuda de atalhos</span>
+                      <kbd className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300 shadow-2xs">
+                        ?
+                      </kbd>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+                    Recursos Especiais de Balcão
+                  </div>
+                  <div className="space-y-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                    <div className="flex items-start gap-2">
+                      <span className="text-amber-500 text-sm leading-none">★</span>
+                      <span><strong>Padrão Husqvarna:</strong> Códigos de 9 dígitos são formatados automaticamente (ex: <code>587106701</code> vira <code>587 10 67-01</code>).</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-emerald-500 text-sm leading-none">📱</span>
+                      <span><strong>Orçamento WhatsApp:</strong> Monte a lista e envie em 1 clique uma mensagem formatada com os dados oficiais para o cliente.</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-blue-500 text-sm leading-none">🔄</span>
+                      <span><strong>Substituição Oficial:</strong> Códigos atualizados pela montadora contam com redirecionamento e selo explicativo.</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end border-t border-slate-100 dark:border-slate-800 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShortcutsOpen(false)}
+                  className="rounded-xl bg-[#1d4f91] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#153e73] transition"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

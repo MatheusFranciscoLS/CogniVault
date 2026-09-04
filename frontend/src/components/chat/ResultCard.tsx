@@ -1,6 +1,9 @@
 import type { ChatResponse } from '../../types';
 import ReliabilityDetails from './ReliabilityDetails';
 import { husqvarnaPortalUrl } from '../PartVerificationDialog';
+import { formatHusqvarnaPartNumber } from '../../lib';
+import { useQuoteCart } from '../../context/QuoteCartContext';
+import { toast } from 'sonner';
 
 function confidencePresentation(response: ChatResponse) {
   if (!response.match) return null;
@@ -29,9 +32,12 @@ export default function ResultCard({
   onCopySummary: () => void;
   onAccess: (mode: 'view' | 'download') => void;
 }) {
+  const quoteCart = useQuoteCart();
   if (!response.part) return null;
   const part = response.part;
   const confidence = confidencePresentation(response);
+  const formattedCode = formatHusqvarnaPartNumber(part.partNumber);
+  const inCart = quoteCart.items.find(i => i.partNumber === part.partNumber);
 
   return (
     <div className="mt-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-slate-800 dark:text-slate-200 shadow-sm transition hover:shadow-md">
@@ -39,7 +45,12 @@ export default function ResultCard({
         <div className="min-w-0">
           <div className="text-[10px] font-bold uppercase tracking-[.15em] text-[#1d4f91] dark:text-blue-300">Resultado técnico</div>
           <div className="mt-1 font-semibold">{part.name}</div>
-          <div className="mt-2 break-all text-2xl font-bold text-[#1d4f91] dark:text-blue-300">{part.partNumber}</div>
+          <div className="mt-2 flex flex-wrap items-baseline gap-2">
+            <span className="break-all font-mono text-2xl font-bold text-[#1d4f91] dark:text-blue-300">{formattedCode}</span>
+            {formattedCode !== part.partNumber && (
+              <span className="text-xs font-mono text-slate-400">({part.partNumber})</span>
+            )}
+          </div>
         </div>
         {confidence ? <span className={`h-fit rounded-full px-3 py-1 text-xs font-semibold ring-1 ${confidence.style}`}>{confidence.label}</span> : null}
       </div>
@@ -97,7 +108,30 @@ export default function ResultCard({
         </div>
       )}
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            quoteCart.addItem({
+              partNumber: part.partNumber,
+              name: part.name,
+              model: part.model,
+              pnc: part.pnc,
+              section: part.section,
+              position: part.position,
+              notes: part.notes,
+            });
+            toast.success(`Peça adicionada ao orçamento de balcão!`);
+          }}
+          className={`rounded-xl px-3.5 py-2 text-xs font-bold transition flex items-center gap-1.5 shadow-xs active:scale-95 ${
+            inCart
+              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+              : 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 shadow-amber-500/20'
+          }`}
+        >
+          <span>{inCart ? '✓' : '+'}</span>
+          <span>{inCart ? `No Orçamento (${inCart.quantity}x)` : 'Adicionar ao Orçamento'}</span>
+        </button>
         <button type="button" disabled={favoritePending} onClick={onToggleFavorite} className={`rounded-xl border px-3 py-2 text-xs font-semibold transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50 ${favorite?'border-amber-300 bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300':'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300'}`}>{favorite?'★ Favoritada':'☆ Favoritar peça'}</button>
         <button type="button" onClick={onCopyCode} className="rounded-xl bg-[#1d4f91] dark:bg-[#1d4f91]/80 px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90">Copiar código</button>
         <button type="button" onClick={onCopySummary} className="rounded-xl border border-slate-300 dark:border-slate-600 px-3 py-2 text-xs font-semibold transition hover:bg-slate-50 dark:bg-slate-800/50">Copiar ficha</button>

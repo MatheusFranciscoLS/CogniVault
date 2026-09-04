@@ -32,7 +32,30 @@ type Recent = { id: string; query: string; pnc: string; serial?: string };
 
 const EQUIPMENT_KEY = 'cognivault_saved_equipment';
 const RECENT_KEY = 'cognivault_recent_searches';
-const quickPrompts = ['Filtro de ar', 'Carburador', 'Correia', 'Vela de ignição'];
+type QuickPromptItem = { label: string; query: string; icon?: string };
+
+const quickPromptCategories: { title: string; items: QuickPromptItem[] }[] = [
+  {
+    title: 'Peças de Alto Giro',
+    items: [
+      { label: 'Filtro de ar', query: 'Filtro de ar', icon: '💨' },
+      { label: 'Carburador', query: 'Carburador', icon: '⚙️' },
+      { label: 'Vela de ignição', query: 'Vela de ignição', icon: '⚡' },
+      { label: 'Mola de partida', query: 'Mola de partida retrátil', icon: '🔄' },
+      { label: 'Sabre / Corrente', query: 'Sabre e corrente', icon: '🪚' },
+      { label: 'Correia de tração', query: 'Correia de tração', icon: '🚜' },
+    ],
+  },
+  {
+    title: 'Dúvidas Técnicas da Oficina',
+    items: [
+      { label: 'Mistura Óleo 2T 50:1', query: 'Qual a proporção de mistura óleo 2 tempos 50:1 e recomendação?', icon: '🧴' },
+      { label: 'Folga da Vela', query: 'Qual a folga padrão do eletrodo da vela de ignição?', icon: '📏' },
+      { label: 'Regulagem H e L', query: 'Como é o ajuste padrão dos parafusos L e H do carburador?', icon: '🔧' },
+      { label: 'Passo e calibre sabre', query: 'Como verificar o passo e calibre da corrente para o sabre?', icon: '🌲' },
+    ],
+  },
+];
 const reasons: Array<[FeedbackReason, string]> = [
   ['WRONG_CODE', 'Código incorreto'],
   ['WRONG_PNC', 'PNC incorreto'],
@@ -435,13 +458,38 @@ export default function ChatPanel({
   const messagesContent = (
     <>
       {!messages.length ? (
-        <div className="grid h-[320px] place-items-center text-center">
-          <div className="max-w-md">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-xl text-[#1d4f91] dark:text-blue-400">✦</div>
-            <h2 className="mt-3 font-semibold text-slate-900 dark:text-white">Dúvida sobre uma peça?</h2>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Informe uma descrição ou código para tirar dúvidas técnicas sobre compatibilidade e aplicação.</p>
-            <div className="mt-3 flex flex-wrap justify-center gap-1.5">
-              {quickPrompts.map(prompt => <button type="button" key={prompt} onClick={() => { setQuestion(prompt); questionRef.current?.focus(); }} className="rounded-full border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/60 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 transition hover:border-blue-200 dark:hover:border-blue-500/50 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-[#1d4f91] dark:hover:text-blue-300">{prompt}</button>)}
+        <div className="py-6 px-2 text-center">
+          <div className="mx-auto max-w-lg">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-xl text-[#1d4f91] dark:text-blue-400 shadow-xs">✦</div>
+            <h2 className="mt-3 font-semibold text-slate-900 dark:text-white">Dúvida sobre uma peça ou equipamento?</h2>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Digite o código, modelo ou sintoma para consultar os catálogos oficiais da Husqvarna.
+            </p>
+
+            <div className="mt-5 space-y-3 text-left">
+              {quickPromptCategories.map(category => (
+                <div key={category.title} className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+                    {category.title}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {category.items.map(item => (
+                      <button
+                        type="button"
+                        key={item.label}
+                        onClick={() => {
+                          setQuestion(item.query);
+                          questionRef.current?.focus();
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 transition hover:border-[#1d4f91] dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-[#1d4f91] dark:hover:text-blue-300 shadow-2xs active:scale-95"
+                      >
+                        {item.icon && <span>{item.icon}</span>}
+                        <span>{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
