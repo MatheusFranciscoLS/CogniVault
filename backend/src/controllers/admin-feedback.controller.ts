@@ -8,30 +8,36 @@ export class AdminFeedbackController {
     async list(req: AuthenticatedRequest, res: Response): Promise<void> {
         try {
             if (!req.user) return;
+            const tenantId = req.user.tenantId;
 
-            const feedback = await prisma.searchFeedback.findMany({
-                where: { tenantId: req.user.tenantId },
-                orderBy: { createdAt: 'desc' },
-                take: 200,
-                select: {
-                    id: true,
-                    query: true,
-                    normalizedQuery: true,
-                    correct: true,
-                    reason: true,
-                    pnc: true,
-                    resultPartId: true,
-                    correctedPartId: true,
-                    createdAt: true,
-                    user: { select: { id: true, email: true } },
-                    resultPart: { select: { name: true, partNumber: true, model: true } },
-                    correctedPart: { select: { name: true, partNumber: true, model: true } },
-                },
-            });
+            const [feedback, dbTotal, dbPositive, dbCorrected] = await Promise.all([
+                prisma.searchFeedback.findMany({
+                    where: { tenantId },
+                    orderBy: { createdAt: 'desc' },
+                    take: 1000,
+                    select: {
+                        id: true,
+                        query: true,
+                        normalizedQuery: true,
+                        correct: true,
+                        reason: true,
+                        pnc: true,
+                        resultPartId: true,
+                        correctedPartId: true,
+                        createdAt: true,
+                        user: { select: { id: true, email: true } },
+                        resultPart: { select: { name: true, partNumber: true, model: true } },
+                        correctedPart: { select: { name: true, partNumber: true, model: true } },
+                    },
+                }),
+                prisma.searchFeedback.count({ where: { tenantId } }),
+                prisma.searchFeedback.count({ where: { tenantId, correct: true } }),
+                prisma.searchFeedback.count({ where: { tenantId, correct: false, correctedPartId: { not: null } } }),
+            ]);
 
-            const total = feedback.length;
-            const correct = feedback.filter((item) => item.correct).length;
-            const corrected = feedback.filter((item) => !item.correct && item.correctedPartId).length;
+            const total = dbTotal;
+            const correct = dbPositive;
+            const corrected = dbCorrected;
             const uniqueSignals = new Set(feedback.map((item) => [
                 item.user?.id || `legacy:${item.id}`,
                 item.normalizedQuery,

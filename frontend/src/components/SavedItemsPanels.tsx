@@ -108,6 +108,7 @@ export function HistoryPanel({ onSearch }: { onSearch: (query: string) => void }
   )), [history, normalizedFilter, statusFilter]);
 
   const parentRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: filtered.length,
     getScrollElement: () => parentRef.current,
