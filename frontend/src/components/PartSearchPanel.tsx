@@ -229,6 +229,19 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank', 'noreferrer');
   }, []);
 
+  const sendCardPartWhatsApp = useCallback((partItem: SearchPart, codeToUse: string) => {
+    const shareUrl = `${window.location.origin}${window.location.pathname}?tab=parts&code=${encodeURIComponent(codeToUse)}`;
+    const formatted = formatHusqvarnaPartNumber(codeToUse);
+    const text = `*Peça Husqvarna — Vardão Máquinas*\n\n` +
+      `🔧 *Peça:* ${partItem.name}\n` +
+      `🔢 *Código:* ${formatted}${codeToUse !== partItem.partNumber ? ` (Substitui: ${formatHusqvarnaPartNumber(partItem.partNumber)})` : ''}\n` +
+      `🚜 *Aplicação:* ${partItem.model}${partItem.pnc ? ` · PNC ${partItem.pnc}` : ''}\n` +
+      (partItem.position ? `📍 *Posição:* ${partItem.position}${partItem.page ? ` (Pág. ${partItem.page})` : ''}\n` : '') +
+      (partItem.section ? `📂 *Seção:* ${partItem.section}\n` : '') +
+      `\n🔗 *Consulte no catálogo:* ${shareUrl}`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank', 'noreferrer');
+  }, []);
+
   const openAiAssistant = useCallback((prompt?: string) => {
     setAiInitialPrompt(prompt || (query.trim() ? `Tenho uma dúvida sobre a pesquisa "${query.trim()}". Pode me ajudar?` : ''));
     setAiDrawerOpen(true);
@@ -800,6 +813,17 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                                 ({codeToUse})
                               </span>
                             )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void copyCode(formattedCode);
+                              }}
+                              title="Copiar código formatado"
+                              className="ml-1 inline-flex items-center rounded-md p-1 text-slate-400 hover:text-[#1d4f91] dark:hover:text-blue-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                            >
+                              📋
+                            </button>
                           </div>
                           {isCurrentReplacement && <div className="mt-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">Código atual de {verification?.queriedPartNumber}</div>}
                           {part.notes && (
@@ -816,7 +840,10 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                             </div>
                           )}
                         </div>
-                        {part.position && <span className="rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-2.5 py-1 text-[10px] font-bold text-slate-600 dark:text-slate-300">Pos. {part.position}</span>}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {part.position && <span className="rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-2.5 py-1 text-[10px] font-bold text-slate-600 dark:text-slate-300">Pos. {part.position}</span>}
+                          {part.page && <span className="rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 px-2.5 py-1 text-[10px] font-bold text-[#1d4f91] dark:text-blue-300">Pág. {part.page}</span>}
+                        </div>
                       </div>
                       <div className="mt-3 grid gap-x-4 gap-y-2 text-xs sm:grid-cols-3">
                         <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">Modelo</span><strong className="mt-0.5 block text-slate-700 dark:text-slate-200">{part.model}</strong></div>
@@ -872,6 +899,37 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                         ✦ Perguntar à IA
                       </button>
 
+                      {/* Ações Rápidas de Balcão: WhatsApp + Vista Explodida do Catálogo */}
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            sendCardPartWhatsApp(part, codeToUse);
+                          }}
+                          title="Enviar dados da peça no WhatsApp do cliente"
+                          className="flex-1 rounded-xl border border-emerald-300 dark:border-emerald-700/80 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 px-2 py-1.5 text-[11px] font-bold transition flex items-center justify-center gap-1 active:scale-95"
+                        >
+                          <span>💬</span>
+                          <span>WhatsApp</span>
+                        </button>
+                        {part.documentId ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void accessPdf(part.documentId, part.page, `${part.model} — ${part.filename}`);
+                            }}
+                            title={`Abrir vista explodida do catálogo (${part.filename}${part.page ? ` - Pág. ${part.page}` : ''})`}
+                            className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-2 py-1.5 text-[11px] font-semibold transition flex items-center justify-center gap-1 active:scale-95"
+                          >
+                            <span>📄</span>
+                            <span>{part.page ? `Pág. ${part.page}` : 'Catálogo'}</span>
+                          </button>
+                        ) : null}
+                      </div>
+
+                      {/* Detalhes & Link Oficial */}
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"

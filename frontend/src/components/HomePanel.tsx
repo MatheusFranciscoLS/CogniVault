@@ -781,6 +781,27 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
     toast.success('Recomendação de mistura 2T copiada para o WhatsApp!');
   };
 
+  const copyWorkshopSpecs = () => {
+    const text = `*Guia Rápido de Regulagem & Oficina — Vardão Máquinas / Husqvarna*\n\n` +
+      `⚡ *Ignição & Vela:*\n` +
+      `• Folga da vela: 0,5 mm (Champion RCJ7Y / NGK CMR7H / BPMR7A)\n` +
+      `• Torque de aperto da vela: 20 – 25 Nm (Rosca limpa sem óleo)\n` +
+      `• Entreferro da bobina de ignição: 0,3 mm (espessura de cartão padrão)\n\n` +
+      `⚙️ *Carburação & Rotação:*\n` +
+      `• Ponto de partida H e L: 1 a 1-1/4 voltas a partir do encosto suave\n` +
+      `• Marcha lenta: 2.700 – 3.000 RPM (sem girar lâmina/corrente)\n` +
+      `• Rotação máxima sem carga (WOT): 12.500 – 13.500 RPM (tacômetro)\n\n` +
+      `🔧 *Mecânica & Vedação:*\n` +
+      `• Parafusos do cilindro: 9–11 Nm (M5) / 13–15 Nm (M6) em cruz\n` +
+      `• Teste de estanqueidade do cárter: ±0,8 bar (12 psi) vácuo e pressão (manter 30s)\n` +
+      `• Rolamento de agulhas da embreagem: lubrificar com graxa Husqvarna a cada 50h\n\n` +
+      `🏬 *Vardão Máquinas* · Concessionária & Peças Originais Husqvarna`;
+
+    void navigator.clipboard.writeText(text);
+    playCopySound();
+    toast.success('Regulagens da oficina copiadas para o WhatsApp!');
+  };
+
   const { data, isLoading } = useQuery({
     queryKey: ['home'],
     queryFn: () => apiJson<{ home: HomeData }>('/api/home').then(res => res.home),
@@ -1110,38 +1131,74 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
         </div>
 
         {/* Tabela de Especificações da Oficina */}
-        <div className="cv-surface rounded-[24px] p-6 shadow-sm border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-800/40">
-          <div className="flex items-center gap-2.5 mb-4">
-            <span className="text-2xl">🔧</span>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Guia Rápido da Oficina Husqvarna</h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Folgas, torques e regulagens recomendadas</p>
-            </div>
-          </div>
-
-          <div className="grid gap-2.5 sm:grid-cols-2 text-xs">
-            <div className="rounded-xl border border-slate-100 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 p-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Folga do Eletrodo da Vela</span>
-              <strong className="text-slate-800 dark:text-slate-200 text-sm">0,5 mm</strong>
-              <span className="block text-[10px] text-slate-400 mt-0.5">Vela Champion RCJ7Y / NGK CMR7H</span>
-            </div>
-
-            <div className="rounded-xl border border-slate-100 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 p-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Entreferro da Bobina</span>
-              <strong className="text-slate-800 dark:text-slate-200 text-sm">0,3 mm</strong>
-              <span className="block text-[10px] text-slate-400 mt-0.5">Espessura de cartão de visita padrão</span>
+        <div className="cv-surface rounded-[24px] p-6 shadow-sm border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-800/40 flex flex-col justify-between">
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-2.5 mb-4">
+              <div className="flex items-center gap-2.5">
+                <span className="text-2xl">🔧</span>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Guia Rápido da Oficina Husqvarna</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Folgas, torques e regulagens essenciais de bancada</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={copyWorkshopSpecs}
+                className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-[#1d4f91] dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-slate-750 transition shadow-2xs active:scale-95"
+              >
+                <span>📋</span>
+                <span>Copiar Regulagens</span>
+              </button>
             </div>
 
-            <div className="rounded-xl border border-slate-100 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 p-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Marcha Lenta Padrão</span>
-              <strong className="text-slate-800 dark:text-slate-200 text-sm">2.700 – 3.000 RPM</strong>
-              <span className="block text-[10px] text-slate-400 mt-0.5">Sem engate da embreagem / lâmina</span>
-            </div>
+            <div className="grid gap-2.5 sm:grid-cols-2 text-xs">
+              <div className="rounded-xl border border-slate-100 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 p-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Folga do Eletrodo da Vela</span>
+                <strong className="text-slate-800 dark:text-slate-200 text-sm">0,5 mm</strong>
+                <span className="block text-[10px] text-slate-400 mt-0.5">Vela Champion RCJ7Y / NGK CMR7H</span>
+              </div>
 
-            <div className="rounded-xl border border-slate-100 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 p-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Ajuste H & L Carburador</span>
-              <strong className="text-slate-800 dark:text-slate-200 text-sm">1 volta aberta</strong>
-              <span className="block text-[10px] text-slate-400 mt-0.5">Ponto de partida do encosto suave</span>
+              <div className="rounded-xl border border-slate-100 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 p-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Entreferro da Bobina</span>
+                <strong className="text-slate-800 dark:text-slate-200 text-sm">0,3 mm</strong>
+                <span className="block text-[10px] text-slate-400 mt-0.5">Espessura de cartão de visita padrão</span>
+              </div>
+
+              <div className="rounded-xl border border-slate-100 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 p-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Marcha Lenta Padrão</span>
+                <strong className="text-slate-800 dark:text-slate-200 text-sm">2.700 – 3.000 RPM</strong>
+                <span className="block text-[10px] text-slate-400 mt-0.5">Sem engate da embreagem / lâmina</span>
+              </div>
+
+              <div className="rounded-xl border border-slate-100 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 p-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Rotação Máxima (WOT)</span>
+                <strong className="text-slate-800 dark:text-slate-200 text-sm">12.500 – 13.500 RPM</strong>
+                <span className="block text-[10px] text-slate-400 mt-0.5">Sem carga / aferir com tacômetro</span>
+              </div>
+
+              <div className="rounded-xl border border-slate-100 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 p-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Ajuste H & L Carburador</span>
+                <strong className="text-slate-800 dark:text-slate-200 text-sm">1 a 1-1/4 voltas</strong>
+                <span className="block text-[10px] text-slate-400 mt-0.5">Ponto de partida do encosto suave</span>
+              </div>
+
+              <div className="rounded-xl border border-slate-100 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 p-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Torque Parafusos Cilindro</span>
+                <strong className="text-slate-800 dark:text-slate-200 text-sm">9–11 Nm (M5) / 13–15 Nm (M6)</strong>
+                <span className="block text-[10px] text-slate-400 mt-0.5">Aperto cruzado / trava-rosca média</span>
+              </div>
+
+              <div className="rounded-xl border border-slate-100 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 p-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Torque da Vela de Ignição</span>
+                <strong className="text-slate-800 dark:text-slate-200 text-sm">20 – 25 Nm</strong>
+                <span className="block text-[10px] text-slate-400 mt-0.5">Rosca limpa sem óleo nem graxa</span>
+              </div>
+
+              <div className="rounded-xl border border-slate-100 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 p-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Estanqueidade do Cárter</span>
+                <strong className="text-slate-800 dark:text-slate-200 text-sm">±0,8 bar (12 psi)</strong>
+                <span className="block text-[10px] text-slate-400 mt-0.5">Manter 30s de vácuo e pressão</span>
+              </div>
             </div>
           </div>
         </div>
