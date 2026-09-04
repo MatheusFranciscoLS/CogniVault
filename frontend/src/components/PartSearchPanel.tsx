@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, MouseEvent as ReactMouseEvent } from 'react';
-import { api, apiJson, json } from '../lib';
+import { api, apiJson, formatHusqvarnaPartNumber, json } from '../lib';
 import { toast } from 'sonner';
 import type { OfficialVerification, PartDetail, SearchPart } from '../types';
 import OfficialVerificationApprovalPanel from './OfficialVerificationApprovalPanel';
 import ChatPanel from './ChatPanel';
+import { useQuoteCart } from '../context/QuoteCartContext';
 import PartVerificationDialog, {
   effectivePartNumber,
   husqvarnaPortalUrl,
@@ -106,6 +107,18 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
   const [aiInitialPrompt, setAiInitialPrompt] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const resultRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const quoteCart = useQuoteCart();
+
+  const quickFilters = useMemo(() => [
+    { label: '🌿 143RII', query: '143RII' },
+    { label: '🌲 120 Mark II', query: '120 Mark II' },
+    { label: '⚙️ 345FR', query: '345FR' },
+    { label: '🔥 272XP', query: '272XP' },
+    { label: '💨 Soprador 125B', query: '125B' },
+    { label: '⭐ Carburadores', query: 'carburador' },
+    { label: '⚡ Velas & Purga', query: 'vela' },
+    { label: '🔄 Substituição Oficial', query: '587106701' },
+  ], []);
 
   const openAiAssistant = useCallback((prompt?: string) => {
     setAiInitialPrompt(prompt || (query.trim() ? `Tenho uma dúvida sobre a pesquisa "${query.trim()}". Pode me ajudar?` : ''));
@@ -404,6 +417,14 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
   );
   const detailCode = detail ? effectivePartNumber(detail.partNumber, detailVerification) : '';
   const detailWasSuperseded = detail ? isSupersededForCode(detail.partNumber, detailVerification) : false;
+  const detailFormattedCode = useMemo(
+    () => detailCode ? formatHusqvarnaPartNumber(detailCode) : '',
+    [detailCode],
+  );
+  const detailInCart = useMemo(
+    () => detail ? quoteCart.items.find(i => normalizePartCode(i.partNumber) === normalizePartCode(detailCode) || normalizePartCode(i.partNumber) === normalizePartCode(detail.partNumber)) : undefined,
+    [detail, detailCode, quoteCart.items],
+  );
 
   const refreshApprovedVerifications = useCallback(() => {
     if (parts.length) void loadVerifications(parts, true);
@@ -449,6 +470,27 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
           <span><kbd>Esc</kbd> fechar</span>
         </div>
       </form>
+
+      {/* Atalhos Rápidos de Balcão */}
+      <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1 cv-scrollbar">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 shrink-0">
+          Atalhos rápidos:
+        </span>
+        {quickFilters.map(filter => (
+          <button
+            key={filter.query}
+            type="button"
+            onClick={() => {
+              setQuery(filter.query);
+              onQueryChange(filter.query);
+              void runSearch(filter.query);
+            }}
+            className="shrink-0 rounded-full border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/70 px-3 py-1 text-xs font-medium text-slate-700 dark:text-slate-200 shadow-sm transition hover:border-[#1d4f91] hover:bg-blue-50 dark:hover:bg-slate-700 active:scale-95"
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
 
       {replacementVerification && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] p-3 text-sm text-blue-800 dark:text-blue-300">
@@ -500,8 +542,11 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                   && !superseded
                   && normalizePartCode(part.partNumber) === normalizePartCode(verification.currentPartNumber);
 
+                const formattedCode = formatHusqvarnaPartNumber(codeToUse);
+                const inCart = quoteCart.items.find(i => i.partNumber === part.partNumber && i.model === part.model);
+
                 return (
-                  <article key={part.id} className={`grid gap-3 p-3 transition sm:grid-cols-[minmax(0,1fr)_210px] ${selected ? 'bg-blue-50 dark:bg-[#123867]/70 ring-1 ring-inset ring-blue-200' : 'hover:bg-slate-50 dark:bg-slate-800/50'}`}>
+                  <article key={part.id} className={`grid gap-3 p-3.5 rounded-2xl transition sm:grid-cols-[minmax(0,1fr)_220px] ${selected ? 'bg-blue-50/90 dark:bg-[#123867]/80 ring-2 ring-blue-400/50 shadow-md' : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/60 border border-slate-100 dark:border-slate-800/80'}`}>
                     <button
                       type="button"
                       ref={element => { resultRefs.current[index] = element; }}
@@ -514,13 +559,23 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{part.name}</div>
-                          <div className="mt-1 text-xl font-bold tracking-tight text-[#1d4f91] dark:text-blue-300">
-                            {superseded ? (
-                              <><span className="text-slate-400 line-through">{part.partNumber}</span> <span>→ {verification?.currentPartNumber}</span></>
-                            ) : part.partNumber}
+                          <div className="text-sm font-bold text-slate-800 dark:text-slate-100">{part.name}</div>
+                          <div className="mt-1 flex flex-wrap items-baseline gap-2">
+                            <span className="text-xl font-extrabold font-mono tracking-tight text-[#1d4f91] dark:text-blue-300">
+                              {superseded ? (
+                                <>
+                                  <span className="text-slate-400 line-through text-base mr-1">{formatHusqvarnaPartNumber(part.partNumber)}</span>
+                                  <span className="text-emerald-600 dark:text-emerald-400">→ {formattedCode}</span>
+                                </>
+                              ) : formattedCode}
+                            </span>
+                            {formattedCode !== codeToUse && (
+                              <span className="text-[11px] font-mono text-slate-400">
+                                ({codeToUse})
+                              </span>
+                            )}
                           </div>
-                          {isCurrentReplacement && <div className="mt-1 text-[11px] font-medium text-blue-700 dark:text-blue-300">Código atual de {verification?.queriedPartNumber}</div>}
+                          {isCurrentReplacement && <div className="mt-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">Código atual de {verification?.queriedPartNumber}</div>}
                           {part.notes && (
                             <div className="mt-2 flex flex-wrap gap-1.5">
                               {part.notes.includes('Substituição oficial') ? (
@@ -535,35 +590,81 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                             </div>
                           )}
                         </div>
-                        {part.position && <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">Pos. {part.position}</span>}
+                        {part.position && <span className="rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-2.5 py-1 text-[10px] font-bold text-slate-600 dark:text-slate-300">Pos. {part.position}</span>}
                       </div>
                       <div className="mt-3 grid gap-x-4 gap-y-2 text-xs sm:grid-cols-3">
-                        <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">Modelo</span><strong className="mt-0.5 block text-slate-700 dark:text-slate-300">{part.model}</strong></div>
-                        <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">PNC</span><strong className="mt-0.5 block text-slate-700 dark:text-slate-300">{part.pnc || '—'}</strong></div>
-                        <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">Fonte</span><strong className="mt-0.5 block truncate text-slate-700 dark:text-slate-300">{part.filename}</strong></div>
+                        <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">Modelo</span><strong className="mt-0.5 block text-slate-700 dark:text-slate-200">{part.model}</strong></div>
+                        <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">PNC</span><strong className="mt-0.5 block text-slate-700 dark:text-slate-200">{part.pnc || '—'}</strong></div>
+                        <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">Catálogo</span><strong className="mt-0.5 block truncate text-slate-700 dark:text-slate-200">{part.filename}</strong></div>
                       </div>
                     </button>
+
                     <div className="flex flex-wrap items-center gap-2 self-center px-2 pb-2 sm:flex-col sm:items-stretch sm:pb-0">
                       <VerificationBadge verification={verification} loading={verificationLoading} />
+                      
+                      {/* Botão de Adicionar ao Orçamento */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          quoteCart.addItem({
+                            partNumber: part.partNumber,
+                            effectiveCode: codeToUse,
+                            name: part.name,
+                            model: part.model,
+                            pnc: part.pnc,
+                            section: part.section,
+                            position: part.position,
+                            isSuperseded: Boolean(superseded),
+                            originalCode: superseded ? part.partNumber : undefined,
+                            notes: part.notes,
+                          });
+                        }}
+                        className={`rounded-xl px-3 py-2 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm active:scale-95 ${
+                          inCart
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                            : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-amber-500/20'
+                        }`}
+                      >
+                        <span>{inCart ? '✓' : '+'}</span>
+                        <span>{inCart ? `No Orçamento (${inCart.quantity}x)` : 'Adicionar ao Orçamento'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => void copyCode(formattedCode)}
+                        className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-[#1d4f91] dark:text-blue-300 transition hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700"
+                      >
+                        Copiar código
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => openAiAssistant(`Tenho uma dúvida sobre a peça ${part.name} (código ${codeToUse}) do modelo ${part.model}. Pode me ajudar com a aplicação e compatibilidade?`)}
-                        className="rounded-xl border border-indigo-200 dark:border-indigo-800/80 bg-indigo-50/60 dark:bg-indigo-950/40 px-3 py-2 text-center text-xs font-semibold text-indigo-700 dark:text-indigo-300 transition hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
+                        className="rounded-xl border border-indigo-200 dark:border-indigo-800/80 bg-indigo-50/60 dark:bg-indigo-950/40 px-3 py-1.5 text-center text-xs font-semibold text-indigo-700 dark:text-indigo-300 transition hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
                       >
                         ✦ Perguntar à IA
                       </button>
-                      <a href={verification?.officialUrl || husqvarnaPortalUrl(codeToUse)} target="_blank" rel="noreferrer" className="rounded-xl border border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] px-3 py-2 text-center text-xs font-semibold text-[#1d4f91] dark:text-blue-300 transition hover:bg-blue-100">
-                        Verificar no portal Husqvarna
-                      </a>
-                      <button type="button" onClick={() => void copyCode(codeToUse)} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-[#1d4f91] dark:text-blue-300 transition hover:border-blue-200 dark:border-blue-600 hover:bg-blue-50 dark:bg-[#123867]">
-                        Copiar código
-                      </button>
-                      <button type="button" onClick={() => void openPart(part.id)} disabled={opening} className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 transition hover:bg-slate-100 dark:bg-slate-700 hover:text-slate-800 dark:text-slate-200 disabled:opacity-50">
-                        {opening ? 'Abrindo…' : 'Ver detalhes'}
-                      </button>
-                      <button type="button" onClick={() => setVerificationTarget({ partNumber: part.partNumber, name: part.name })} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:bg-slate-800/50">
-                        Registrar conferência
-                      </button>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => void openPart(part.id)}
+                          disabled={opening}
+                          className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
+                        >
+                          {opening ? 'Abrindo…' : 'Detalhes'}
+                        </button>
+                        <a
+                          href={verification?.officialUrl || husqvarnaPortalUrl(codeToUse)}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Verificar no portal oficial Husqvarna"
+                          className="rounded-xl border border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] px-2.5 py-1.5 text-center text-[11px] font-semibold text-[#1d4f91] dark:text-blue-300 transition hover:bg-blue-100 dark:hover:bg-blue-900/60"
+                        >
+                          Husqvarna ↗
+                        </a>
+                      </div>
                     </div>
                   </article>
                 );
@@ -639,13 +740,57 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
 
             <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_320px]">
               <div>
-                <div className="rounded-[22px] bg-[#0d2348] p-6 text-white">
-                  <div className="text-xs text-slate-400">Código da peça</div>
-                  <div className="mt-2 break-all text-3xl font-semibold tracking-[-.04em]">
-                    {detailWasSuperseded ? <><span className="text-slate-400 line-through">{detail.partNumber}</span> → {detailCode}</> : detail.partNumber}
+                <div className="rounded-[22px] bg-gradient-to-br from-[#0a1b38] to-[#122e5a] p-6 text-white shadow-xl relative overflow-hidden">
+                  <div className="text-xs font-semibold tracking-wider uppercase text-blue-200/80">Código da peça</div>
+                  <div className="mt-2 flex flex-wrap items-baseline gap-3">
+                    <div className="break-all text-3xl font-bold tracking-[-.04em]">
+                      {detailWasSuperseded ? (
+                        <>
+                          <span className="text-slate-400 line-through text-2xl mr-2">{formatHusqvarnaPartNumber(detail.partNumber)}</span>
+                          <span className="text-emerald-400 font-extrabold">{detailFormattedCode}</span>
+                        </>
+                      ) : (
+                        <span>{detailFormattedCode}</span>
+                      )}
+                    </div>
+                    {detailCode !== detailFormattedCode && (
+                      <span className="text-xs text-blue-200/70 font-mono">({detailCode})</span>
+                    )}
                   </div>
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    <button type="button" onClick={() => void copyCode(detailCode)} className="rounded-xl bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-[#0d2348]">Copiar código</button>
+
+                  <div className="mt-5 flex flex-wrap items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        quoteCart.addItem({
+                          partNumber: detailCode,
+                          name: detail.name,
+                          model: detail.model,
+                          position: detail.position,
+                          isSuperseded: detailWasSuperseded,
+                          originalCode: detailWasSuperseded ? detail.partNumber : undefined,
+                          notes: detail.notes,
+                        });
+                        toast.success(`Peça adicionada ao orçamento de balcão!`);
+                      }}
+                      className={`rounded-xl px-4 py-2.5 text-xs font-bold transition flex items-center gap-2 shadow-md active:scale-95 ${
+                        detailInCart
+                          ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
+                          : 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 shadow-amber-500/30'
+                      }`}
+                    >
+                      <span className="text-sm font-black">{detailInCart ? '✓' : '+'}</span>
+                      <span>{detailInCart ? `No Orçamento (${detailInCart.quantity}x)` : 'Adicionar ao Orçamento'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => void copyCode(detailFormattedCode)}
+                      className="rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 px-3.5 py-2.5 text-xs font-semibold text-white transition active:scale-95"
+                    >
+                      Copiar código ({detailFormattedCode})
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => {
@@ -655,13 +800,35 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                         setDetail(null);
                         openAiAssistant(`Tenho uma dúvida sobre a peça ${targetName} (código ${targetCode}) do modelo ${targetModel}. Pode me orientar sobre aplicação e compatibilidade?`);
                       }}
-                      className="rounded-xl border border-indigo-300/60 dark:border-indigo-500/60 bg-indigo-600/90 hover:bg-indigo-600 text-white px-3 py-2 text-xs font-semibold shadow-sm transition"
+                      className="rounded-xl border border-indigo-400/50 bg-indigo-600/90 hover:bg-indigo-500 text-white px-3.5 py-2.5 text-xs font-semibold shadow-sm transition"
                     >
                       ✦ Perguntar à IA
                     </button>
-                    <button type="button" onClick={() => void toggleFavorite()} className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold">{detail.favoriteId ? '★ Favoritada' : '☆ Favoritar'}</button>
-                    <button type="button" onClick={() => void accessPdf(detail.documentId, detail.page, detail.filename)} className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold">Abrir no catálogo</button>
-                    <a href={detailVerification?.officialUrl || husqvarnaPortalUrl(detailCode)} target="_blank" rel="noreferrer" className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold">Verificar no portal Husqvarna</a>
+
+                    <button
+                      type="button"
+                      onClick={() => void toggleFavorite()}
+                      className="rounded-xl border border-white/20 bg-white/5 hover:bg-white/15 px-3 py-2.5 text-xs font-semibold text-white transition"
+                    >
+                      {detail.favoriteId ? '★ Favoritada' : '☆ Favoritar'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => void accessPdf(detail.documentId, detail.page, detail.filename)}
+                      className="rounded-xl border border-white/20 bg-white/5 hover:bg-white/15 px-3 py-2.5 text-xs font-semibold text-white transition"
+                    >
+                      Visualizar no catálogo PDF
+                    </button>
+
+                    <a
+                      href={detailVerification?.officialUrl || husqvarnaPortalUrl(detailCode)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-xl border border-blue-400/40 bg-blue-500/20 hover:bg-blue-500/30 px-3 py-2.5 text-xs font-semibold text-blue-200 transition"
+                    >
+                      Portal Husqvarna ↗
+                    </a>
                   </div>
                 </div>
 

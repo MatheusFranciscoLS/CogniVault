@@ -85,3 +85,16 @@ export function fmtDate(value: string) {
   if (Number.isNaN(date.getTime())) return 'Data indisponível';
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(date);
 }
+
+export function formatHusqvarnaPartNumber(code: string): string {
+  if (!code) return '';
+  const digits = code.replace(/\D/g, '');
+  if (digits.length === 9) {
+    return `${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length === 8) {
+    return `${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4, 6)}-${digits.slice(6)}`;
+  }
+  return code;
+}
+
