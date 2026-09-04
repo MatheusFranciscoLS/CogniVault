@@ -39,7 +39,9 @@ const quickPromptCategories: { title: string; items: QuickPromptItem[] }[] = [
     title: 'Giro Zero & Motores Kawasaki',
     items: [
       { label: 'Motor do Giro Zero Z248F', query: 'Qual motor vai no Giro Zero Z248F?', icon: '🚜' },
+      { label: 'Motor do Giro Zero Z560X', query: 'Qual motor vai no Giro Zero Z560X?', icon: '🚜' },
       { label: 'Virabrequim Kawasaki FR691V', query: 'Virabrequim motor Kawasaki FR691V', icon: '⚙️' },
+      { label: 'Filtro óleo Kawasaki FX921', query: 'Filtro de óleo motor Kawasaki FX921', icon: '🛢️' },
       { label: 'Lâminas deck Z248F', query: 'Lâminas de corte deck Giro Zero Z248F', icon: '⚔️' },
       { label: 'Correia do deck Z248F', query: 'Correia do deck Giro Zero Z248F', icon: '🔄' },
       { label: 'Filtro óleo FR691V', query: 'Filtro de óleo motor Kawasaki FR691V', icon: '🛢️' },
