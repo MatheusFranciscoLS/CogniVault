@@ -695,7 +695,7 @@ export default function QuickQuoteCart() {
       )}
 
       {/* Ficha de Separação de Balcão - Exclusiva para Impressão */}
-      <div className="hidden print:block fixed inset-0 bg-white p-8 text-slate-900 z-[9999]">
+      <div id="printable-quote" className="hidden print:block fixed inset-0 bg-white p-8 text-slate-900 z-[9999]">
         <div className="border-b-2 border-slate-900 pb-4 mb-6">
           <div className="flex justify-between items-start">
             <div>

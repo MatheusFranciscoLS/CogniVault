@@ -20,6 +20,39 @@ export function husqvarnaPortalUrl(code: string) {
   return `${HUSQVARNA_PORTAL_BASE}${encodeURIComponent(normalizePartCode(code))}`;
 }
 
+export function officialPortalUrl(code: string, manufacturer?: string | null) {
+  const normMfg = (manufacturer || '').toUpperCase();
+  const normCode = normalizePartCode(code);
+  if (normMfg.includes('KAWASAKI') || /^\d{5}\d{4}$/.test(normCode)) {
+    return `https://www.google.com/search?q=${encodeURIComponent(`Kawasaki Engines OEM part ${code}`)}`;
+  }
+  if (normMfg.includes('STIHL')) {
+    return `https://www.google.com/search?q=${encodeURIComponent(`Stihl OEM part ${code}`)}`;
+  }
+  if (normMfg.includes('KOHLER')) {
+    return `https://www.google.com/search?q=${encodeURIComponent(`Kohler Engines OEM part ${code}`)}`;
+  }
+  if (normMfg.includes('BRIGGS')) {
+    return `https://www.google.com/search?q=${encodeURIComponent(`Briggs and Stratton OEM part ${code}`)}`;
+  }
+  return husqvarnaPortalUrl(code);
+}
+
+export function officialPortalLabel(code: string, manufacturer?: string | null) {
+  const normMfg = (manufacturer || '').toUpperCase();
+  const normCode = normalizePartCode(code);
+  if (normMfg.includes('KAWASAKI') || /^\d{5}\d{4}$/.test(normCode)) {
+    return 'Verificar Kawasaki';
+  }
+  if (normMfg.includes('STIHL')) {
+    return 'Verificar Stihl';
+  }
+  if (normMfg.includes('KOHLER')) {
+    return 'Verificar Kohler';
+  }
+  return 'Verificar oficial Husqvarna';
+}
+
 export function isSupersededForCode(code: string, verification?: OfficialVerification) {
   if (!verification || verification.state !== 'SUPERSEDED' || verification.cacheState === 'STALE') return false;
   return normalizePartCode(code) === normalizePartCode(verification.queriedPartNumber)

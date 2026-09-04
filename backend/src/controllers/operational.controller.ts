@@ -162,6 +162,17 @@ export class OperationalController {
             OR: searchClauses,
         };
 
+        const relatedDocKeywords: string[] = [];
+        const targetModelKey = intent.model || q;
+        const engineApps = findEngineApplications(targetModelKey, intent.pnc);
+        for (const app of engineApps) {
+            if (app.engineModel && !relatedDocKeywords.includes(app.engineModel)) relatedDocKeywords.push(app.engineModel);
+        }
+        const machineApps = findMachinesForEngine(targetModelKey);
+        for (const m of machineApps) {
+            if (m.machineModel && !relatedDocKeywords.includes(m.machineModel)) relatedDocKeywords.push(m.machineModel);
+        }
+
         const [parts, documents] = await Promise.all([
             prisma.part.findMany({
                 where: partWhere,
@@ -187,6 +198,8 @@ export class OperationalController {
                         ...(intent.model ? [{ model: { contains: intent.model, mode: 'insensitive' as const } }] : []),
                         ...(intent.pnc ? [{ pnc: { contains: intent.pnc, mode: 'insensitive' as const } }] : []),
                         ...(descriptiveText ? [{ model: { contains: descriptiveText, mode: 'insensitive' as const } }] : []),
+                        ...(relatedDocKeywords.map(keyword => ({ model: { contains: keyword, mode: 'insensitive' as const } }))),
+                        ...(relatedDocKeywords.map(keyword => ({ filename: { contains: keyword, mode: 'insensitive' as const } }))),
                     ],
                 },
                 orderBy: { createdAt: 'desc' },

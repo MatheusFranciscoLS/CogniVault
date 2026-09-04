@@ -10,6 +10,8 @@ import { playCopySound } from '../lib/sound';
 import PartVerificationDialog, {
   effectivePartNumber,
   husqvarnaPortalUrl,
+  officialPortalUrl,
+  officialPortalLabel,
   isSupersededForCode,
   looksLikePartNumber,
   normalizePartCode,
@@ -942,13 +944,13 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                           {opening ? 'Abrindo…' : 'Detalhes'}
                         </button>
                         <a
-                          href={verification?.officialUrl || husqvarnaPortalUrl(codeToUse)}
+                          href={verification?.officialUrl || officialPortalUrl(codeToUse, part.manufacturer)}
                           target="_blank"
                           rel="noreferrer"
-                          title="Verificar no portal oficial Husqvarna"
+                          title={officialPortalLabel(codeToUse, part.manufacturer)}
                           className="rounded-xl border border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] px-2.5 py-1.5 text-center text-[11px] font-semibold text-[#1d4f91] dark:text-blue-300 transition hover:bg-blue-100 dark:hover:bg-blue-900/60"
                         >
-                          Husqvarna ↗
+                          {((part.manufacturer || '').toUpperCase().includes('KAWASAKI') || /^\d{5}-\d{4}$/.test(codeToUse)) ? 'Kawasaki ↗' : 'Husqvarna ↗'}
                         </a>
                       </div>
                     </div>

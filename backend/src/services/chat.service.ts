@@ -179,21 +179,39 @@ export class ChatService {
       }, intent);
     }
 
-    const normalizedModel = normalizeIdentifier(intent.model);
-    if (normalizedModel) {
-      const exactCount = await prisma.part.count({ where: { normalizedModel, active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } } });
+    let resolvedNormalizedModel = normalizeIdentifier(intent.model);
+    if (resolvedNormalizedModel) {
+      let exactCount = await prisma.part.count({ where: { normalizedModel: resolvedNormalizedModel, active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } } });
+      if (!exactCount) {
+        // Tenta remover prefixos de marca e tipo (ex: HUSQVARNA, KAWASAKI, STIHL, HONDA, KOHLER, MOTOR, ENGINE)
+        const stripped = resolvedNormalizedModel.replace(/^(HUSQVARNA|KAWASAKI|STIHL|HONDA|KOHLER|BRIGGS(?:STRATTON)?|MOTOR|ENGINE|CORTE|TRATOR|SOPRADOR|ROCADEIRA|MOTOSSERRA)/, '');
+        if (stripped && stripped !== resolvedNormalizedModel) {
+          const strippedCount = await prisma.part.count({ where: { normalizedModel: stripped, active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } } });
+          if (strippedCount > 0) {
+            resolvedNormalizedModel = stripped;
+            exactCount = strippedCount;
+            intent.model = stripped;
+          }
+        }
+      }
       if (!exactCount) {
         const engineFallback = await this.tryEngineCatalogFallback(tenantId, question, intent);
         if (engineFallback) return this.withContext(engineFallback, intent);
 
-        const options = await PartSearchService.similarModels(tenantId, normalizedModel);
-        return this.withContext({
-          status: options.length ? 'MODEL_REQUIRED' : 'NOT_FOUND',
-          modelOptions: options,
-          answer: options.length
-            ? `Não encontrei o modelo “${intent.model}” exatamente. Encontrei modelos parecidos: ${options.join(', ')}. Confirme o modelo para eu não misturar peças.`
-            : `Não encontrei o modelo “${intent.model}” nos catálogos processados.`,
-        }, intent);
+        const options = await PartSearchService.similarModels(tenantId, resolvedNormalizedModel);
+        // Se encontrou exatamente 1 modelo parecido e ele corresponde ao modelo pesquisado, adota sem travar o atendimento
+        if (options.length === 1 && (normalizeIdentifier(options[0]).includes(resolvedNormalizedModel) || resolvedNormalizedModel.includes(normalizeIdentifier(options[0])))) {
+          intent.model = options[0];
+          resolvedNormalizedModel = normalizeIdentifier(options[0]);
+        } else {
+          return this.withContext({
+            status: options.length ? 'MODEL_REQUIRED' : 'NOT_FOUND',
+            modelOptions: options,
+            answer: options.length
+              ? `Não encontrei o modelo “${intent.model}” exatamente. Encontrei modelos parecidos: ${options.join(', ')}. Confirme o modelo para eu não misturar peças.`
+              : `Não encontrei o modelo “${intent.model}” nos catálogos processados.`,
+          }, intent);
+        }
       }
     }
 
@@ -226,7 +244,7 @@ export class ChatService {
       return this.withContext({ status: 'NOT_FOUND', answer: 'Não encontrei uma peça com evidência suficiente. Prefiro não sugerir um código sem segurança.' }, intent);
     }
 
-    if (!normalizedModel) {
+    if (!resolvedNormalizedModel) {
       const models = unique(candidates.slice(0, 15).map(candidate => candidate.model));
       if (models.length > 1) {
         return this.withContext({ status: 'MODEL_REQUIRED', modelOptions: models.slice(0, 8), answer: `Encontrei essa descrição em mais de um equipamento (${models.slice(0, 8).join(', ')}). Informe o modelo exato.` }, intent);

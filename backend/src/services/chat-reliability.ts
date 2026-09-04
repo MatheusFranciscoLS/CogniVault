@@ -84,7 +84,7 @@ export function extractLikelyModel(question: string): string {
 }
 
 function extractLikelyManufacturer(question: string): string {
-  const manufacturers = ['Husqvarna', 'Stihl', 'Honda', 'Kawashima', 'Toyama', 'Briggs & Stratton'];
+  const manufacturers = ['Husqvarna', 'Kawasaki', 'Kohler', 'Stihl', 'Honda', 'Kawashima', 'Toyama', 'Briggs & Stratton', 'Briggs'];
   const normalized = normalizeText(question);
   return manufacturers.find(item => normalized.includes(normalizeText(item))) || '';
 }
