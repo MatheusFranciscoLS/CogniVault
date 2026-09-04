@@ -15,20 +15,26 @@ export default function QuickQuoteCart() {
     clearCart,
     copyQuoteToClipboard,
     openWhatsApp,
+    savedQuotes,
+    saveCurrentQuote,
+    restoreQuote,
+    deleteSavedQuote,
+    clearSavedQuotes,
   } = useQuoteCart();
 
+  const [activeTab, setActiveTab] = useState<'cart' | 'history'>('cart');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('A Combinar no Balcão');
 
-  if (totalItems === 0 && !isOpen) {
+  if (totalItems === 0 && savedQuotes.length === 0 && !isOpen) {
     return null;
   }
 
   return (
     <>
       {/* Botão Flutuante de Orçamento */}
-      {!isOpen && totalItems > 0 && (
+      {!isOpen && (totalItems > 0 || savedQuotes.length > 0) && (
         <button
           type="button"
           onClick={() => setIsOpen(true)}
@@ -37,14 +43,18 @@ export default function QuickQuoteCart() {
         >
           <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-lg">
             🛒
-            <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1 text-[11px] font-extrabold text-slate-900 shadow-md">
-              {totalItems}
-            </span>
+            {totalItems > 0 && (
+              <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1 text-[11px] font-extrabold text-slate-900 shadow-md">
+                {totalItems}
+              </span>
+            )}
           </div>
           <div className="text-left">
             <div className="text-xs font-extrabold uppercase tracking-wider text-amber-200">Orçamento de Balcão</div>
             <div className="text-sm font-semibold">
-              {totalItems} {totalItems === 1 ? 'peça' : 'peças'} {totalPrice > 0 ? `· R$ ${totalPrice.toFixed(2).replace('.', ',')}` : ''}
+              {totalItems > 0
+                ? `${totalItems} ${totalItems === 1 ? 'peça' : 'peças'} ${totalPrice > 0 ? `· R$ ${totalPrice.toFixed(2).replace('.', ',')}` : ''}`
+                : `${savedQuotes.length} no histórico`}
             </div>
           </div>
         </button>
@@ -65,236 +75,418 @@ export default function QuickQuoteCart() {
             className="relative flex h-full w-full max-w-md flex-col border-l border-white/20 bg-white dark:bg-slate-900 shadow-2xl transition-all duration-300"
           >
             {/* Cabeçalho */}
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-[#0b1d3a] px-6 py-5 text-white">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-xl">
-                  📋
+            <div className="border-b border-slate-200 dark:border-slate-800 bg-[#0b1d3a] px-6 pt-5 pb-4 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-xl">
+                    📋
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold tracking-tight text-white">Cesta & Balcão</h2>
+                    <p className="text-xs text-blue-200/70">
+                      Vardão Máquinas · Gestão de Orçamentos
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-base font-bold tracking-tight text-white">Cesta de Orçamento</h2>
-                  <p className="text-xs text-blue-200/70">
-                    {totalItems} {totalItems === 1 ? 'item pronto' : 'itens prontos'} para envio rápido
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="rounded-xl border border-white/15 bg-white/10 p-2 text-slate-300 transition hover:bg-white/20 hover:text-white"
-                aria-label="Fechar cesta"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Campo de Identificação do Cliente, Telefone e Pagamento */}
-            <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-3.5 space-y-2.5">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label htmlFor="quote-customer-name" className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    Cliente / Máquina:
-                  </label>
-                  <input
-                    id="quote-customer-name"
-                    type="text"
-                    value={customerName}
-                    onChange={e => setCustomerName(e.target.value)}
-                    placeholder="Ex.: Sr. Carlos (143RII)"
-                    className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#1d4f91] focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="quote-customer-phone" className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    WhatsApp (Opcional):
-                  </label>
-                  <input
-                    id="quote-customer-phone"
-                    type="text"
-                    value={customerPhone}
-                    onChange={e => setCustomerPhone(e.target.value)}
-                    placeholder="(44) 99999-9999"
-                    className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#1d4f91] focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="quote-payment-method" className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Condição de Pagamento:
-                </label>
-                <select
-                  id="quote-payment-method"
-                  value={paymentMethod}
-                  onChange={e => setPaymentMethod(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-[#1d4f91]"
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="rounded-xl border border-white/15 bg-white/10 p-2 text-slate-300 transition hover:bg-white/20 hover:text-white"
+                  aria-label="Fechar cesta"
                 >
-                  <option value="A Combinar no Balcão">A Combinar no Balcão</option>
-                  <option value="À Vista / PIX (5% desc.)">À Vista / PIX (5% desc.)</option>
-                  <option value="Cartão de Débito">Cartão de Débito</option>
-                  <option value="Cartão de Crédito (até 3x)">Cartão de Crédito (até 3x)</option>
-                  <option value="Boleto Faturado (14/28 dias)">Boleto Faturado (14/28 dias)</option>
-                </select>
+                  ✕
+                </button>
+              </div>
+
+              {/* Seletor de Abas (Cesta Atual vs Histórico) */}
+              <div className="mt-4 flex rounded-xl bg-white/10 p-1 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('cart')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg transition ${
+                    activeTab === 'cart'
+                      ? 'bg-amber-400 text-slate-950 shadow-xs'
+                      : 'text-blue-200 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <span>🛒 Cesta Atual</span>
+                  {totalItems > 0 && (
+                    <span className="rounded-full bg-slate-900/20 px-1.5 py-0.2 text-[10px] font-black">
+                      {totalItems}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('history')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg transition ${
+                    activeTab === 'history'
+                      ? 'bg-amber-400 text-slate-950 shadow-xs'
+                      : 'text-blue-200 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <span>🕒 Histórico</span>
+                  {savedQuotes.length > 0 && (
+                    <span className="rounded-full bg-slate-900/20 px-1.5 py-0.2 text-[10px] font-black">
+                      {savedQuotes.length}
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
 
-            {/* Lista de Peças */}
-            <div className="cv-scrollbar flex-1 overflow-y-auto p-4 space-y-3">
-              {items.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
-                  <span className="text-4xl">🛒</span>
-                  <div className="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Sua cesta está vazia</div>
-                  <p className="mt-1 max-w-[220px] text-xs">
-                    Clique em &quot;+ Orçamento&quot; em qualquer peça na busca para montar uma lista rápida.
-                  </p>
-                </div>
-              ) : (
-                items.map(item => {
-                  const formattedCode = formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber);
-                  return (
-                    <div
-                      key={item.id}
-                      className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 p-3.5 shadow-sm transition hover:border-blue-300 dark:hover:border-blue-700"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate" title={item.name}>
-                            {item.name}
-                          </h3>
-                          <div className="mt-1 flex items-baseline gap-2">
-                            <span className="font-mono text-xs font-bold text-[#1d4f91] dark:text-blue-300">
-                              {formattedCode}
-                            </span>
-                            {item.isSuperseded && (
-                              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                                (Substituição)
-                              </span>
+            {activeTab === 'history' ? (
+              /* Aba de Histórico de Orçamentos */
+              <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-900">
+                <div className="cv-scrollbar flex-1 overflow-y-auto p-4 space-y-3">
+                  {savedQuotes.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
+                      <span className="text-4xl">🕒</span>
+                      <div className="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Nenhum orçamento salvo</div>
+                      <p className="mt-1 max-w-[240px] text-xs">
+                        Ao copiar para WhatsApp ou imprimir uma ficha de balcão, o orçamento é arquivado aqui para consulta rápida.
+                      </p>
+                    </div>
+                  ) : (
+                    savedQuotes.map(q => {
+                      const dateFormatted = new Intl.DateTimeFormat('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      }).format(new Date(q.createdAt));
+
+                      return (
+                        <div
+                          key={q.id}
+                          className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 p-3.5 shadow-sm transition hover:border-blue-300 dark:hover:border-blue-700"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                                  {q.customerName || 'Cliente Balcão'}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  {dateFormatted}
+                                </span>
+                              </div>
+                              {q.customerPhone && (
+                                <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                                  📱 {q.customerPhone}
+                                </div>
+                              )}
+                              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                {q.totalItems} {q.totalItems === 1 ? 'peça' : 'peças'}
+                                {q.totalPrice > 0 ? ` · R$ ${q.totalPrice.toFixed(2).replace('.', ',')}` : ''}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => deleteSavedQuote(q.id)}
+                              aria-label="Excluir este orçamento do histórico"
+                              className="text-slate-400 hover:text-rose-500 p-1 transition"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+
+                          {/* Mini lista de peças */}
+                          <div className="mt-2.5 space-y-1 rounded-xl bg-slate-50 dark:bg-slate-900/60 p-2 text-[11px]">
+                            {q.items.slice(0, 3).map((item, idx) => (
+                              <div key={idx} className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                                <span className="truncate max-w-[200px]">{item.quantity}x {item.name}</span>
+                                <span className="font-mono font-bold text-[#1d4f91] dark:text-blue-300">
+                                  {formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)}
+                                </span>
+                              </div>
+                            ))}
+                            {q.items.length > 3 && (
+                              <div className="text-[10px] text-slate-400 italic pt-0.5">
+                                + {q.items.length - 3} outra(s) peça(s)...
+                              </div>
                             )}
                           </div>
-                          <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                            {item.model} {item.pnc ? `· PNC ${item.pnc}` : ''} {item.position ? `· Pos. ${item.position}` : ''}
+
+                          {/* Botões de Ação Rápida */}
+                          <div className="mt-3 flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                restoreQuote(q);
+                                if (q.customerName) setCustomerName(q.customerName);
+                                if (q.customerPhone) setCustomerPhone(q.customerPhone);
+                                if (q.paymentMethod) setPaymentMethod(q.paymentMethod);
+                                setActiveTab('cart');
+                              }}
+                              className="flex-1 rounded-xl bg-[#1d4f91] hover:bg-[#153e75] text-white py-1.5 px-2.5 text-xs font-bold transition shadow-2xs"
+                            >
+                              Restaurar na Cesta
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                restoreQuote(q);
+                                setActiveTab('cart');
+                                void copyQuoteToClipboard({
+                                  customerName: q.customerName,
+                                  customerPhone: q.customerPhone,
+                                  paymentMethod: q.paymentMethod,
+                                });
+                              }}
+                              className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 py-1.5 px-2.5 text-xs font-semibold transition"
+                              title="Copiar WhatsApp"
+                            >
+                              📋
+                            </button>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeItem(item.id)}
-                          aria-label={`Remover ${item.name}`}
-                          className="text-slate-400 transition hover:text-rose-500 p-1"
-                        >
-                          🗑️
-                        </button>
-                      </div>
+                      );
+                    })
+                  )}
+                </div>
 
-                      {/* Controle de Quantidade */}
-                      <div className="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-2.5">
-                        <span className="text-[11px] font-medium text-slate-400">Quantidade:</span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(item.id, -1)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-600 active:scale-95"
-                          >
-                            -
-                          </button>
-                          <span className="min-w-6 text-center text-xs font-bold text-slate-800 dark:text-slate-200">
-                            {item.quantity}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(item.id, 1)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-600 active:scale-95"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Preço Unitário Opcional */}
-                      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800 pt-2 text-xs">
-                        <label htmlFor={`price-${item.id}`} className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                          Preço Unit. (R$):
-                        </label>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-slate-400 font-semibold">R$</span>
-                          <input
-                            id={`price-${item.id}`}
-                            type="number"
-                            min={0}
-                            step={0.5}
-                            placeholder="0,00"
-                            value={item.unitPrice ?? ''}
-                            onChange={e => {
-                              const val = e.target.value === '' ? undefined : Number(e.target.value);
-                              updateUnitPrice(item.id, val);
-                            }}
-                            className="w-20 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 px-2 py-1 text-right text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-amber-400 focus:bg-white dark:focus:bg-slate-800"
-                          />
-                          {item.unitPrice && item.unitPrice > 0 ? (
-                            <span className="min-w-16 text-right text-xs font-black text-emerald-600 dark:text-emerald-400">
-                              = R$ {(item.quantity * item.unitPrice).toFixed(2).replace('.', ',')}
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Rodapé com Ações de Exportação */}
-            {items.length > 0 && (
-              <div className="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/90 p-4 space-y-2.5">
-                {totalPrice > 0 && (
-                  <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/20 px-3.5 py-2.5">
-                    <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
-                      Valor Total Estimado:
-                    </span>
-                    <span className="text-base font-black text-emerald-700 dark:text-emerald-400">
-                      R$ {totalPrice.toFixed(2).replace('.', ',')}
+                {savedQuotes.length > 0 && (
+                  <div className="border-t border-slate-200 dark:border-slate-800 p-3 bg-white dark:bg-slate-900 flex justify-between items-center">
+                    <button
+                      type="button"
+                      onClick={clearSavedQuotes}
+                      className="text-xs text-rose-600 dark:text-rose-400 hover:underline font-semibold"
+                    >
+                      Limpar todo o histórico
+                    </button>
+                    <span className="text-[11px] text-slate-400">
+                      {savedQuotes.length} orçamentos arquivados
                     </span>
                   </div>
                 )}
-
-                <button
-                  type="button"
-                  onClick={() => void copyQuoteToClipboard({ customerName, customerPhone, paymentMethod })}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white py-3 px-4 text-xs font-bold shadow-md transition hover:shadow-lg active:scale-98"
-                >
-                  <span>📋</span>
-                  <span>Copiar para WhatsApp (Texto Formatado)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => openWhatsApp({ customerName, customerPhone, paymentMethod })}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 font-extrabold py-2.5 px-4 text-xs shadow-sm transition active:scale-98"
-                >
-                  <span>💬</span>
-                  <span>{customerPhone ? `Abrir WhatsApp do Cliente (${customerPhone})` : 'Abrir no WhatsApp Web'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-200 font-semibold py-2.5 px-4 text-xs shadow-2xs transition active:scale-98"
-                >
-                  <span>🖨️</span>
-                  <span>Imprimir Ficha de Balcão / Separação</span>
-                </button>
-
-                <div className="flex items-center justify-between pt-1">
-                  <button
-                    type="button"
-                    onClick={clearCart}
-                    className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:underline"
-                  >
-                    Esvaziar cesta
-                  </button>
-                  <span className="text-[10px] text-slate-400">
-                    Vardão Máquinas · CogniVault
-                  </span>
-                </div>
               </div>
+            ) : (
+              /* Aba da Cesta Atual */
+              <>
+                {/* Campo de Identificação do Cliente, Telefone e Pagamento */}
+                <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-3.5 space-y-2.5">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label htmlFor="quote-customer-name" className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Cliente / Máquina:
+                      </label>
+                      <input
+                        id="quote-customer-name"
+                        type="text"
+                        value={customerName}
+                        onChange={e => setCustomerName(e.target.value)}
+                        placeholder="Ex.: Sr. Carlos (143RII)"
+                        className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#1d4f91] focus:ring-2 focus:ring-blue-500/20"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="quote-customer-phone" className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        WhatsApp (Opcional):
+                      </label>
+                      <input
+                        id="quote-customer-phone"
+                        type="text"
+                        value={customerPhone}
+                        onChange={e => setCustomerPhone(e.target.value)}
+                        placeholder="(44) 99999-9999"
+                        className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#1d4f91] focus:ring-2 focus:ring-blue-500/20"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="quote-payment-method" className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Condição de Pagamento:
+                    </label>
+                    <select
+                      id="quote-payment-method"
+                      value={paymentMethod}
+                      onChange={e => setPaymentMethod(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-[#1d4f91]"
+                    >
+                      <option value="A Combinar no Balcão">A Combinar no Balcão</option>
+                      <option value="À Vista / PIX (5% desc.)">À Vista / PIX (5% desc.)</option>
+                      <option value="Cartão de Débito">Cartão de Débito</option>
+                      <option value="Cartão de Crédito (até 3x)">Cartão de Crédito (até 3x)</option>
+                      <option value="Boleto Faturado (14/28 dias)">Boleto Faturado (14/28 dias)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Lista de Peças */}
+                <div className="cv-scrollbar flex-1 overflow-y-auto p-4 space-y-3">
+                  {items.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
+                      <span className="text-4xl">🛒</span>
+                      <div className="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Sua cesta está vazia</div>
+                      <p className="mt-1 max-w-[220px] text-xs">
+                        Clique em &quot;+ Orçamento&quot; em qualquer peça na busca para montar uma lista rápida.
+                      </p>
+                    </div>
+                  ) : (
+                    items.map(item => {
+                      const formattedCode = formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber);
+                      return (
+                        <div
+                          key={item.id}
+                          className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 p-3.5 shadow-sm transition hover:border-blue-300 dark:hover:border-blue-700"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate" title={item.name}>
+                                {item.name}
+                              </h3>
+                              <div className="mt-1 flex items-baseline gap-2">
+                                <span className="font-mono text-xs font-bold text-[#1d4f91] dark:text-blue-300">
+                                  {formattedCode}
+                                </span>
+                                {item.isSuperseded && (
+                                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                                    (Substituição)
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                {item.model} {item.pnc ? `· PNC ${item.pnc}` : ''} {item.position ? `· Pos. ${item.position}` : ''}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeItem(item.id)}
+                              aria-label={`Remover ${item.name}`}
+                              className="text-slate-400 transition hover:text-rose-500 p-1"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+
+                          {/* Controle de Quantidade */}
+                          <div className="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-2.5">
+                            <span className="text-[11px] font-medium text-slate-400">Quantidade:</span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(item.id, -1)}
+                                className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-600 active:scale-95"
+                              >
+                                -
+                              </button>
+                              <span className="min-w-6 text-center text-xs font-bold text-slate-800 dark:text-slate-200">
+                                {item.quantity}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(item.id, 1)}
+                                className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-600 active:scale-95"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Preço Unitário Opcional */}
+                          <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800 pt-2 text-xs">
+                            <label htmlFor={`price-${item.id}`} className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                              Preço Unit. (R$):
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-slate-400 font-semibold">R$</span>
+                              <input
+                                id={`price-${item.id}`}
+                                type="number"
+                                min={0}
+                                step={0.5}
+                                placeholder="0,00"
+                                value={item.unitPrice ?? ''}
+                                onChange={e => {
+                                  const val = e.target.value === '' ? undefined : Number(e.target.value);
+                                  updateUnitPrice(item.id, val);
+                                }}
+                                className="w-20 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 px-2 py-1 text-right text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-amber-400 focus:bg-white dark:focus:bg-slate-800"
+                              />
+                              {item.unitPrice && item.unitPrice > 0 ? (
+                                <span className="min-w-16 text-right text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                  = R$ {(item.quantity * item.unitPrice).toFixed(2).replace('.', ',')}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Rodapé com Ações de Exportação */}
+                {items.length > 0 && (
+                  <div className="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/90 p-4 space-y-2.5">
+                    {totalPrice > 0 && (
+                      <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/20 px-3.5 py-2.5">
+                        <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+                          Valor Total Estimado:
+                        </span>
+                        <span className="text-base font-black text-emerald-700 dark:text-emerald-400">
+                          R$ {totalPrice.toFixed(2).replace('.', ',')}
+                        </span>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => void copyQuoteToClipboard({ customerName, customerPhone, paymentMethod })}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white py-3 px-4 text-xs font-bold shadow-md transition hover:shadow-lg active:scale-98"
+                    >
+                      <span>📋</span>
+                      <span>Copiar para WhatsApp (Texto Formatado)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => openWhatsApp({ customerName, customerPhone, paymentMethod })}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 font-extrabold py-2.5 px-4 text-xs shadow-sm transition active:scale-98"
+                    >
+                      <span>💬</span>
+                      <span>{customerPhone ? `Abrir WhatsApp do Cliente (${customerPhone})` : 'Abrir no WhatsApp Web'}</span>
+                    </button>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => window.print()}
+                        className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-200 font-semibold py-2 px-3 text-xs shadow-2xs transition active:scale-98"
+                      >
+                        <span>🖨️</span>
+                        <span>Imprimir Ficha</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          saveCurrentQuote({ customerName, customerPhone, paymentMethod });
+                        }}
+                        className="flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-[#1d4f91] dark:text-blue-300 font-semibold py-2 px-3 text-xs transition active:scale-98"
+                      >
+                        <span>💾</span>
+                        <span>Salvar Cotação</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <button
+                        type="button"
+                        onClick={clearCart}
+                        className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:underline"
+                      >
+                        Esvaziar cesta
+                      </button>
+                      <span className="text-[10px] text-slate-400">
+                        Vardão Máquinas · CogniVault
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </aside>
         </div>

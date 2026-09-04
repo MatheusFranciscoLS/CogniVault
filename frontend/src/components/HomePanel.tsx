@@ -628,11 +628,75 @@ const TRIMMER_GUIDE_MODELS: TrimmerGuideModel[] = [
   },
 ];
 
+interface OfficialLubricant {
+  name: string;
+  code: string;
+  category: string;
+  volume: string;
+  usage: string;
+  description: string;
+  badge?: string;
+}
+
+const OFFICIAL_LUBRICANTS: OfficialLubricant[] = [
+  {
+    name: 'Óleo Husqvarna 2T PRO Semi-Sintético 500ml',
+    code: '587 80 85-01',
+    category: 'Motor 2 Tempos',
+    volume: '500 ml (Rende até 25 Litros de mistura)',
+    usage: 'Mistura 1:50 em gasolina comum limpa',
+    description: 'Fórmula de baixa emissão de fumaça. Previne travamento e carbonização na câmara e escape.',
+    badge: 'Mais Vendido',
+  },
+  {
+    name: 'Óleo Husqvarna 2T PRO Semi-Sintético 1 Litro',
+    code: '587 80 85-02',
+    category: 'Motor 2 Tempos',
+    volume: '1.000 ml (Rende até 50 Litros de mistura)',
+    usage: 'Mistura 1:50 (20ml por litro)',
+    description: 'Embalagem econômica para frotistas, empreiteiras de corte e produtores rurais.',
+  },
+  {
+    name: 'Frasco Dosador Óleo 2T Husqvarna 100ml',
+    code: '587 80 85-03',
+    category: 'Motor 2 Tempos',
+    volume: '100 ml (Dose exata p/ galão padrão de 5L)',
+    usage: 'Dose única pronta: basta virar no galão de 5 Litros',
+    description: 'Evita erros de dosagem no campo. A medida perfeita para o galão padrão de 5 Litros.',
+    badge: 'Dose Prática 5L',
+  },
+  {
+    name: 'Óleo de Sabre & Corrente Husqvarna Mineral 1L',
+    code: '579 39 60-01',
+    category: 'Conjunto de Corte',
+    volume: '1.000 ml',
+    usage: 'Lubrificação da canaleta do sabre e elos da corrente',
+    description: 'Com aditivo de alta adesividade (não espirra em alta velocidade), reduz desgaste em até 40%.',
+  },
+  {
+    name: 'Graxa Husqvarna p/ Transmissão de Roçadeira 225g',
+    code: '502 51 27-01',
+    category: 'Transmissão & Engrenagem',
+    volume: 'Tubo aplicador 225 g',
+    usage: 'Engrenagem cônica de roçadeiras e podadores',
+    description: 'Resistente a extrema pressão (EP) e alta rotação. Deve ser completada a cada 20-30 horas.',
+    badge: 'Manutenção Preventiva',
+  },
+  {
+    name: 'Óleo Motor 4T SAE 30 / 10W-30 Husqvarna 1L',
+    code: '577 41 92-01',
+    category: 'Motores 4 Tempos',
+    volume: '1.000 ml',
+    usage: 'Cortadores de grama (LC 151, HU700), tratores e geradores',
+    description: 'Óleo de alta estabilidade térmica e proteção anticorrosiva para motores 4T refrigerados a ar.',
+  },
+];
+
 export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: string) => void; onCatalogs: (filter?: string) => void }) {
   const [query, setQuery] = useState('');
   const quoteCart = useQuoteCart();
   const [fuelLiters, setFuelLiters] = useState<number>(5);
-  const [fuelRatio, setFuelRatio] = useState<50 | 33 | 25>(50);
+  const [fuelRatio, setFuelRatio] = useState<50 | 40 | 25>(50);
   const [activeSymptom, setActiveSymptom] = useState<string>('sem-partida');
   const [selectedChainsawId, setSelectedChainsawId] = useState<string>('272xp');
   const [selectedBarLength, setSelectedBarLength] = useState<number>(18);
@@ -692,15 +756,29 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
   const currentSymptom = DIAGNOSTIC_SYMPTOMS.find(s => s.id === activeSymptom) || DIAGNOSTIC_SYMPTOMS[0];
 
   const copyFuelInstruction = () => {
-    const text = `*Recomendação de Mistura 2T Husqvarna - Vardão Máquinas*\n\n` +
-      `⛽ *Gasolina:* ${fuelLiters} Litro(s) de gasolina comum limpa\n` +
-      `🧴 *Óleo 2T:* Adicionar exatamente *${oilMl} ml* de Óleo 2T Husqvarna PRO (Proporção ${fuelRatio}:1)\n\n` +
-      `⚠️ *Cuidados Essenciais:*\n` +
-      `• Agite bem o galão antes de abastecer o tanque da máquina.\n` +
-      `• Não utilize mistura parada com mais de 15 dias no galão ou tanque.\n` +
-      `• Nunca use óleo de motor 4T ou óleo náutico TC-W3. Use sempre padrão JASO FD / ISO-L-EGD.`;
+    const ratioLabel = fuelRatio === 50
+      ? '1:50 (Padrão Oficial Husqvarna XP / PRO)'
+      : fuelRatio === 40
+        ? '1:40 (Intermediário / Serviço Severo)'
+        : '1:25 (Óleo Mineral Comum API-TC)';
+
+    const text = `🛢️ *RECOMENDAÇÃO DE MISTURA 2 TEMPOS — VARDÃO MÁQUINAS*\n\n` +
+      `⛽ *Gasolina:* ${fuelLiters} Litro(s) (Gasolina comum limpa de boa procedência)\n` +
+      `⚖️ *Proporção:* ${ratioLabel}\n` +
+      `🧪 *Quantidade de Óleo 2T:* *${oilMl} ml*\n\n` +
+      `📦 *Óleos Originais Husqvarna Recomendados:*\n` +
+      `• Óleo Husqvarna 2T PRO 500ml: 587 80 85-01\n` +
+      `• Óleo Husqvarna 2T PRO 1 Litro: 587 80 85-02\n` +
+      (fuelLiters === 5 && fuelRatio === 50 ? `• Frasco Dosador 100ml (Dose exata p/ este galão de 5L): 587 80 85-03\n` : '') +
+      `\n⚠️ *Regras de Ouro da Oficina Vardão Máquinas:*\n` +
+      `1. *NUNCA* use gasolina aditivada em motores 2T (os aditivos dispersantes lavam o filme lubrificante).\n` +
+      `2. *CONSUMA EM ATÉ 15-30 DIAS:* mistura velha oxida o combustível e danifica membranas do carburador.\n` +
+      `3. *SEMPRE AGITE O GALÃO* antes de abastecer o tanque da máquina.\n\n` +
+      `🏬 *Vardão Máquinas* · Concessionária & Peças Originais Husqvarna`;
+
     void navigator.clipboard.writeText(text);
-    toast.success('Instrução de mistura 2T copiada para a área de transferência!');
+    playCopySound();
+    toast.success('Recomendação de mistura 2T copiada para o WhatsApp!');
   };
 
   const { data, isLoading } = useQuery({
@@ -954,7 +1032,7 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
               </div>
             </div>
             <div className="flex items-center gap-1 bg-amber-500/10 dark:bg-amber-950/60 border border-amber-500/20 rounded-xl p-1">
-              {([50, 33, 25] as const).map(ratio => (
+              {([50, 40, 25] as const).map(ratio => (
                 <button
                   key={ratio}
                   type="button"
@@ -1016,7 +1094,7 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
                   <span className="text-xs font-bold text-amber-800 dark:text-amber-300">ml de óleo</span>
                 </div>
                 <div className="text-[10px] text-amber-700/80 dark:text-amber-300/70 mt-1">
-                  {fuelRatio === 50 ? 'Padrão Husqvarna PRO (20ml / Litro)' : fuelRatio === 33 ? 'Amaciamento / 3% (30ml / Litro)' : 'Motores antigos / 4% (40ml / Litro)'}
+                  {fuelRatio === 50 ? 'Padrão Husqvarna PRO (20ml / Litro)' : fuelRatio === 40 ? 'Serviço Severo (25ml / Litro)' : 'Óleo Mineral API-TC (40ml / Litro)'}
                 </div>
               </div>
               <button
@@ -1803,6 +1881,281 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
               </div>
             </>
           )}
+        </div>
+      </div>
+
+      {/* Calculadora de Mistura 2T & Lubrificantes Originais Husqvarna */}
+      <div className="cv-surface rounded-[26px] p-6 shadow-sm border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-amber-50/40 via-white to-blue-50/30 dark:from-slate-850 dark:via-slate-800/60 dark:to-amber-950/20">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-amber-500/10 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 text-xl font-bold">
+              🛢️
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Calculadora de Mistura 2T & Lubrificantes Oficiais</h2>
+                <span className="rounded-full bg-amber-500/10 dark:bg-amber-950/60 border border-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                  Padrão Fábrica 1:50
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Calcule a dosagem exata de óleo 2 tempos por volume de gasolina e monte orçamentos de insumos com 1 clique.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={copyFuelInstruction}
+            className="flex items-center gap-1.5 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 text-xs font-bold text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition shadow-2xs"
+          >
+            <span>📋</span>
+            <span>Copiar Instrução de Mistura p/ WhatsApp</span>
+          </button>
+        </div>
+
+        {/* Bloco de Cálculo Interativo */}
+        <div className="mt-5 grid gap-5 lg:grid-cols-12">
+          {/* Coluna Esquerda: Controles de Litros e Proporção */}
+          <div className="lg:col-span-6 space-y-4">
+            {/* Seletor de Litros */}
+            <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-800/80 p-4 shadow-2xs">
+              <label htmlFor="fuel-volume-input" className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                1. Volume de Gasolina Comum:
+              </label>
+              <div className="mt-2.5 flex items-center gap-3">
+                <div className="flex items-center gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3 py-2">
+                  <input
+                    id="fuel-volume-input"
+                    type="number"
+                    min={0.5}
+                    max={100}
+                    step={0.5}
+                    value={fuelLiters}
+                    onChange={e => setFuelLiters(Math.max(0.5, Number(e.target.value) || 1))}
+                    className="w-16 bg-transparent text-center font-mono text-base font-black text-slate-900 dark:text-slate-100 outline-none"
+                  />
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Litro(s)</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 flex-1">
+                  {[1, 2, 5, 10, 20].map(liters => (
+                    <button
+                      key={liters}
+                      type="button"
+                      onClick={() => setFuelLiters(liters)}
+                      className={`rounded-xl px-2.5 py-1.5 text-xs font-bold transition ${
+                        fuelLiters === liters
+                          ? 'bg-[#1d4f91] text-white shadow-2xs'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600'
+                      }`}
+                    >
+                      {liters}L {liters === 5 ? '(Galão)' : liters === 20 ? '(Bombona)' : ''}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Seletor de Proporção de Mistura */}
+            <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-800/80 p-4 shadow-2xs">
+              <span className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                2. Proporção & Tipo de Óleo:
+              </span>
+              <div className="mt-2.5 grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFuelRatio(50)}
+                  className={`rounded-xl p-2.5 text-left transition border ${
+                    fuelRatio === 50
+                      ? 'bg-amber-400/15 border-amber-500 text-amber-950 dark:text-amber-200 shadow-2xs'
+                      : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black">1:50 (20ml/L)</span>
+                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">★ Oficial</span>
+                  </div>
+                  <div className="mt-1 text-[10px] leading-tight text-slate-500 dark:text-slate-400">
+                    Husqvarna XP / PRO Sintético
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFuelRatio(40)}
+                  className={`rounded-xl p-2.5 text-left transition border ${
+                    fuelRatio === 40
+                      ? 'bg-amber-400/15 border-amber-500 text-amber-950 dark:text-amber-200 shadow-2xs'
+                      : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black">1:40 (25ml/L)</span>
+                  </div>
+                  <div className="mt-1 text-[10px] leading-tight text-slate-500 dark:text-slate-400">
+                    Serviço Severo / Calor Extremo
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFuelRatio(25)}
+                  className={`rounded-xl p-2.5 text-left transition border ${
+                    fuelRatio === 25
+                      ? 'bg-amber-400/15 border-amber-500 text-amber-950 dark:text-amber-200 shadow-2xs'
+                      : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black">1:25 (40ml/L)</span>
+                  </div>
+                  <div className="mt-1 text-[10px] leading-tight text-slate-500 dark:text-slate-400">
+                    Óleo Mineral Comum API-TC
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Coluna Direita: Cartão Visual do Resultado da Mistura */}
+          <div className="lg:col-span-6 flex flex-col justify-between rounded-2xl border border-amber-300/80 dark:border-amber-700/80 bg-gradient-to-br from-amber-500/10 via-white to-amber-500/5 dark:from-amber-950/30 dark:via-slate-800/80 dark:to-slate-900 p-5 shadow-sm">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                  Dosagem Calculada para {fuelLiters}L de Gasolina:
+                </span>
+                <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-slate-950">
+                  Proporção {fuelRatio}:1
+                </span>
+              </div>
+
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-4xl font-black tracking-tight text-slate-950 dark:text-amber-300">
+                  {oilMl}
+                </span>
+                <span className="text-xl font-bold text-slate-700 dark:text-slate-300">
+                  ml de Óleo 2T
+                </span>
+              </div>
+
+              {fuelLiters === 5 && fuelRatio === 50 && (
+                <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                  <span>💡</span>
+                  <span>Dose perfeita: equivale exatamente a 1 Frasco Dosador Husqvarna 100ml (Cód. 587 80 85-03)!</span>
+                </div>
+              )}
+
+              {/* Dicas de Ouro da Oficina */}
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                <div className="rounded-xl bg-white/70 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 p-2.5">
+                  <span className="font-bold text-rose-600 dark:text-rose-400 block mb-0.5">🚫 Sem Aditivada</span>
+                  <span className="text-slate-600 dark:text-slate-300 leading-tight">Use apenas gasolina comum limpa. Aditivos detergentes lavam o filme lubrificante.</span>
+                </div>
+                <div className="rounded-xl bg-white/70 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 p-2.5">
+                  <span className="font-bold text-amber-600 dark:text-amber-400 block mb-0.5">⏱️ Validade 15-30d</span>
+                  <span className="text-slate-600 dark:text-slate-300 leading-tight">A gasolina com etanol oxida rapidamente e endurece as membranas do carburador.</span>
+                </div>
+                <div className="rounded-xl bg-white/70 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 p-2.5">
+                  <span className="font-bold text-blue-600 dark:text-blue-400 block mb-0.5">🔄 Sempre Agitar</span>
+                  <span className="text-slate-600 dark:text-slate-300 leading-tight">Homogeneíze o galão chacoalhando antes de cada abastecimento na máquina.</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-amber-200/60 dark:border-amber-900/60 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                1 Frasco de 500ml Husqvarna rende <strong>25 Litros</strong> de mistura.
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  quoteCart.addItem({
+                    partNumber: '587 80 85-01',
+                    name: 'Óleo Husqvarna 2T PRO Semi-Sintético 500ml',
+                    model: 'Husqvarna Insumos & Lubrificantes',
+                  });
+                  toast.success('Óleo 2T PRO 500ml adicionado ao orçamento!');
+                }}
+                className="rounded-xl bg-[#1d4f91] hover:bg-[#153e75] text-white px-3 py-1.5 text-xs font-bold transition shadow-2xs"
+              >
+                + Orçar Óleo 2T 500ml
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Catálogo de Lubrificantes e Insumos Oficiais Husqvarna */}
+        <div className="mt-6 pt-5 border-t border-slate-200 dark:border-slate-800">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Lubrificantes & Consumíveis Originais de Balcão</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Peças genuínas para venda casada e manutenção preventiva com 1 clique.</p>
+            </div>
+            <span className="text-[11px] text-slate-400 font-medium">Vardão Máquinas</span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {OFFICIAL_LUBRICANTS.map(lube => {
+              const inCart = quoteCart.items.find(i => i.partNumber.replace(/\s+/g, '') === lube.code.replace(/\s+/g, ''));
+              return (
+                <div
+                  key={lube.code}
+                  className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-850 p-3.5 shadow-2xs flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        {lube.category}
+                      </span>
+                      {lube.badge && (
+                        <span className="rounded-md bg-amber-400/15 border border-amber-500/30 px-1.5 py-0.2 text-[9px] font-bold text-amber-700 dark:text-amber-300">
+                          {lube.badge}
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="mt-1 text-xs font-bold text-slate-800 dark:text-slate-100 line-clamp-2">
+                      {lube.name}
+                    </h4>
+                    <div className="mt-1 font-mono text-xs font-bold text-[#1d4f91] dark:text-blue-300">
+                      {lube.code}
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2">
+                      {lube.description}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        quoteCart.addItem({
+                          partNumber: lube.code,
+                          name: lube.name,
+                          model: 'Husqvarna Insumos & Lubrificantes',
+                        });
+                        toast.success(`${lube.name} adicionado ao orçamento!`);
+                      }}
+                      className={`flex-1 rounded-xl px-2.5 py-1.5 text-xs font-bold transition flex items-center justify-center gap-1 ${
+                        inCart
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                          : 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 text-slate-950 shadow-2xs'
+                      }`}
+                    >
+                      <span>{inCart ? '✓' : '+'}</span>
+                      <span>{inCart ? `No Orçamento (${inCart.quantity}x)` : '+ Orçar'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSearch(lube.code)}
+                      className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                      title="Buscar no catálogo"
+                    >
+                      🔍
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 

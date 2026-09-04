@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { formatHusqvarnaPartNumber } from '../lib';
 import { playCartSound } from '../lib/sound';
@@ -26,6 +26,17 @@ export interface QuoteTextOptions {
   paymentMethod?: string;
 }
 
+export interface SavedQuote {
+  id: string;
+  createdAt: string;
+  customerName?: string;
+  customerPhone?: string;
+  paymentMethod?: string;
+  items: QuoteCartItem[];
+  totalPrice: number;
+  totalItems: number;
+}
+
 interface QuoteCartContextType {
   items: QuoteCartItem[];
   addItem: (item: Omit<QuoteCartItem, 'quantity' | 'id'> & { quantity?: number }) => void;
@@ -40,11 +51,21 @@ interface QuoteCartContextType {
   generateWhatsAppText: (optionsOrModel?: string | QuoteTextOptions) => string;
   copyQuoteToClipboard: (optionsOrModel?: string | QuoteTextOptions) => Promise<void>;
   openWhatsApp: (optionsOrModel?: string | QuoteTextOptions) => void;
+  savedQuotes: SavedQuote[];
+  saveCurrentQuote: (options?: QuoteTextOptions) => SavedQuote | null;
+  restoreQuote: (savedQuote: SavedQuote) => void;
+  deleteSavedQuote: (id: string) => void;
+  clearSavedQuotes: () => void;
 }
 
 const QuoteCartContext = createContext<QuoteCartContextType | null>(null);
 
 const STORAGE_KEY = 'cognivault_quote_cart';
+const HISTORY_STORAGE_KEY = 'cognivault_quote_history';
+
+function generateQuoteId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
 
 export function QuoteCartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<QuoteCartItem[]>(() => {
@@ -56,7 +77,19 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     }
   });
 
+  const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>(() => {
+    try {
+      const saved = localStorage.getItem(HISTORY_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   const [isOpen, setIsOpen] = useState(false);
+
+  const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
+  const totalPrice = items.reduce((acc, item) => acc + item.quantity * (item.unitPrice || 0), 0);
 
   useEffect(() => {
     try {
@@ -65,6 +98,59 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       // Ignora falha de cota de armazenamento local
     }
   }, [items]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(savedQuotes));
+    } catch {
+      // Ignora falha de cota de armazenamento local
+    }
+  }, [savedQuotes]);
+
+  const saveCurrentQuote = (options?: QuoteTextOptions): SavedQuote | null => {
+    if (!items.length) return null;
+
+    const newQuote: SavedQuote = {
+      id: generateQuoteId(),
+      createdAt: new Date().toISOString(),
+      customerName: options?.customerName?.trim() || undefined,
+      customerPhone: options?.customerPhone?.trim() || undefined,
+      paymentMethod: options?.paymentMethod || undefined,
+      items: [...items],
+      totalPrice,
+      totalItems,
+    };
+
+    setSavedQuotes(prev => {
+      // Previne duplicações consecutivas idênticas se salvou há menos de 10 segundos
+      const filtered = prev.filter(q => {
+        const timeDiff = Date.now() - new Date(q.createdAt).getTime();
+        return !(timeDiff < 10000 && q.customerName === newQuote.customerName && q.totalItems === newQuote.totalItems && q.totalPrice === newQuote.totalPrice);
+      });
+      // Mantém no máximo 25 orçamentos recentes
+      return [newQuote, ...filtered].slice(0, 25);
+    });
+
+    return newQuote;
+  };
+
+  const restoreQuote = (savedQuote: SavedQuote) => {
+    if (!savedQuote.items.length) return;
+    setItems(savedQuote.items);
+    setIsOpen(true);
+    playCartSound();
+    toast.success(`Orçamento com ${savedQuote.totalItems} peças restaurado na cesta!`);
+  };
+
+  const deleteSavedQuote = (id: string) => {
+    setSavedQuotes(prev => prev.filter(q => q.id !== id));
+    toast.info('Orçamento removido do histórico.');
+  };
+
+  const clearSavedQuotes = () => {
+    setSavedQuotes([]);
+    toast.info('Histórico de orçamentos esvaziado.');
+  };
 
   const addItem = (item: Omit<QuoteCartItem, 'quantity' | 'id'> & { quantity?: number }) => {
     const id = `${item.partNumber}|${item.model}|${item.pnc || ''}`;
@@ -125,14 +211,6 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
   const clearCart = () => {
     setItems([]);
   };
-
-  const totalItems = useMemo(() => {
-    return items.reduce((acc, item) => acc + item.quantity, 0);
-  }, [items]);
-
-  const totalPrice = useMemo(() => {
-    return items.reduce((acc, item) => acc + item.quantity * (item.unitPrice || 0), 0);
-  }, [items]);
 
   const generateWhatsAppText = (optionsOrModel?: string | QuoteTextOptions) => {
     if (!items.length) return '';
@@ -198,6 +276,12 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (typeof optionsOrModel === 'object') {
+      saveCurrentQuote(optionsOrModel);
+    } else {
+      saveCurrentQuote();
+    }
+
     try {
       await navigator.clipboard.writeText(text);
       toast.success('Orçamento copiado para o WhatsApp com sucesso!');
@@ -213,6 +297,8 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     const opts: QuoteTextOptions = typeof optionsOrModel === 'string'
       ? { machineModel: optionsOrModel }
       : (optionsOrModel || {});
+
+    saveCurrentQuote(opts);
 
     const cleanPhone = (opts.customerPhone || '').replace(/\D/g, '');
     const fullPhone = cleanPhone
@@ -242,6 +328,11 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
         generateWhatsAppText,
         copyQuoteToClipboard,
         openWhatsApp,
+        savedQuotes,
+        saveCurrentQuote,
+        restoreQuote,
+        deleteSavedQuote,
+        clearSavedQuotes,
       }}
     >
       {children}
