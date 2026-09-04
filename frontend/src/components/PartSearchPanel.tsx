@@ -165,11 +165,12 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
   const quickFilters = useMemo(() => [
     { label: '🌿 143RII', query: '143RII' },
     { label: '🌲 120 Mark II', query: '120 Mark II' },
+    { label: '🚜 Giro Zero Z248F', query: 'Z248F' },
+    { label: '⚡ Kawasaki FR691V', query: 'FR691V' },
+    { label: '🔥 272XP / 61', query: '272XP' },
     { label: '⚙️ 345FR', query: '345FR' },
-    { label: '🔥 272XP', query: '272XP' },
     { label: '💨 Soprador 125B', query: '125B' },
     { label: '⭐ Carburadores', query: 'carburador' },
-    { label: '⚡ Velas & Purga', query: 'vela' },
     { label: '🔄 Substituição Oficial', query: '587106701' },
   ], []);
 

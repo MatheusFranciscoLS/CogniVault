@@ -204,8 +204,12 @@ export class ChatService {
        }
     }
     
-    // Fallback to local logic if ReAct fails or is ambiguous
-    const candidates = await PartSearchService.semantic(tenantId, question, intent);
+    // Fallback to local logic if ReAct fails or is ambiguous.
+    // Reutiliza os candidatos já obtidos pelo ReAct para evitar consulta semântica/banco duplicada.
+    const candidates = reactResult.candidates !== undefined
+      ? reactResult.candidates
+      : await PartSearchService.semantic(tenantId, question, intent);
+
     if (!candidates.length) {
       const engineFallback = await this.tryEngineCatalogFallback(tenantId, question, intent);
       if (engineFallback) return this.withContext(engineFallback, intent);

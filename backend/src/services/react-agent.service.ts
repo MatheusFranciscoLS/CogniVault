@@ -14,6 +14,7 @@ export interface ReActSearchResult {
   explanation: string;
   suggestedModel?: string;
   suggestedPnc?: string;
+  candidates?: PartCandidate[];
 }
 
 export class ReActAgentService {
@@ -50,6 +51,7 @@ export class ReActAgentService {
       return {
         status: 'NOT_FOUND',
         explanation: 'Não encontrei nenhuma peça correspondente no catálogo técnico.',
+        candidates: [],
       };
     }
 
@@ -59,6 +61,7 @@ export class ReActAgentService {
       return {
         status: 'NOT_FOUND',
         explanation: 'Nenhuma peça correspondente foi encontrada para a região de mercado configurada.',
+        candidates: rawCandidates,
       };
     }
 
@@ -70,6 +73,7 @@ export class ReActAgentService {
         status: 'FOUND',
         chosenPartId: single.id,
         explanation: `Peça única identificada com certeza técnica para o modelo ${single.model} (${single.name}, código ${single.partNumber})${supersessionNotice}.`,
+        candidates,
       };
     }
 
@@ -97,6 +101,7 @@ export class ReActAgentService {
           status: 'FOUND',
           chosenPartId: top.id,
           explanation: `Peça identificada com alta certeza técnica e semântica para o modelo ${top.model} (${top.name}, código ${top.partNumber})${supersessionNotice}.`,
+          candidates,
         };
       }
     }
@@ -110,6 +115,7 @@ export class ReActAgentService {
         status: 'FOUND',
         chosenPartId: top.id,
         explanation: `Peça correspondente de alta precisão identificada para o modelo ${top.model} (${top.name}, código ${top.partNumber})${supersessionNotice}.`,
+        candidates,
       };
     }
 
@@ -171,12 +177,13 @@ Retorne um JSON com:
         return {
           status: 'AMBIGUOUS',
           explanation: decision.explanation || 'Encontrei mais de uma peça possível e preciso de mais detalhes.',
+          candidates,
         };
       }
 
       const chosenCandidate = candidates.find(c => c.id === decision.chosenId);
       if (!chosenCandidate) {
-        return { status: 'NOT_FOUND', explanation: 'O candidato escolhido não é válido.' };
+        return { status: 'NOT_FOUND', explanation: 'O candidato escolhido não é válido.', candidates };
       }
 
       let contextEvidence = '';
@@ -196,12 +203,12 @@ Retorne um JSON com:
         status: 'FOUND',
         chosenPartId: chosenCandidate.id,
         explanation: `${decision.explanation}${contextEvidence ? ' (Confirmado no contexto do IPL)' : ''}${supersessionNotice}`,
+        candidates,
       };
 
     } catch (e) {
       console.warn('⚠️ Falha na tomada de decisão do ReAct Agent.', e);
-      return { status: 'AMBIGUOUS', explanation: 'Falha ao analisar os candidatos.' };
+      return { status: 'AMBIGUOUS', explanation: 'Falha ao analisar os candidatos.', candidates };
     }
   }
 }
-

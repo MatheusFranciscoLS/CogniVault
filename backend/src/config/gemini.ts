@@ -1,4 +1,5 @@
 export const GEMINI_GENERATIVE_MODEL = process.env.GEMINI_GENERATIVE_MODEL?.trim() || 'gemini-3.7-flash';
+export const GEMINI_EMBEDDING_MODEL = process.env.GEMINI_EMBEDDING_MODEL?.trim() || 'gemini-embedding-001';
 
 function apiKey(): string {
     const value = process.env.GEMINI_API_KEY?.trim();

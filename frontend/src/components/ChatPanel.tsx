@@ -36,23 +36,24 @@ type QuickPromptItem = { label: string; query: string; icon?: string };
 
 const quickPromptCategories: { title: string; items: QuickPromptItem[] }[] = [
   {
-    title: 'Peças de Alto Giro',
+    title: 'Giro Zero & Motores Kawasaki',
     items: [
-      { label: 'Filtro de ar', query: 'Filtro de ar', icon: '💨' },
-      { label: 'Carburador', query: 'Carburador', icon: '⚙️' },
-      { label: 'Vela de ignição', query: 'Vela de ignição', icon: '⚡' },
-      { label: 'Mola de partida', query: 'Mola de partida retrátil', icon: '🔄' },
-      { label: 'Sabre / Corrente', query: 'Sabre e corrente', icon: '🪚' },
-      { label: 'Correia de tração', query: 'Correia de tração', icon: '🚜' },
+      { label: 'Motor do Giro Zero Z248F', query: 'Qual motor vai no Giro Zero Z248F?', icon: '🚜' },
+      { label: 'Virabrequim Kawasaki FR691V', query: 'Virabrequim motor Kawasaki FR691V', icon: '⚙️' },
+      { label: 'Lâminas deck Z248F', query: 'Lâminas de corte deck Giro Zero Z248F', icon: '⚔️' },
+      { label: 'Correia do deck Z248F', query: 'Correia do deck Giro Zero Z248F', icon: '🔄' },
+      { label: 'Filtro óleo FR691V', query: 'Filtro de óleo motor Kawasaki FR691V', icon: '🛢️' },
     ],
   },
   {
-    title: 'Dúvidas Técnicas da Oficina',
+    title: 'Peças de Alto Giro (Curva A)',
     items: [
-      { label: 'Mistura Óleo 2T 50:1', query: 'Qual a proporção de mistura óleo 2 tempos 50:1 e recomendação?', icon: '🧴' },
-      { label: 'Folga da Vela', query: 'Qual a folga padrão do eletrodo da vela de ignição?', icon: '📏' },
-      { label: 'Regulagem H e L', query: 'Como é o ajuste padrão dos parafusos L e H do carburador?', icon: '🔧' },
-      { label: 'Passo e calibre sabre', query: 'Como verificar o passo e calibre da corrente para o sabre?', icon: '🌲' },
+      { label: 'Carburador 143RII', query: 'Carburador roçadeira 143RII', icon: '⚙️' },
+      { label: 'Filtro de ar 143RII', query: 'Filtro de ar roçadeira 143RII', icon: '💨' },
+      { label: 'Sabre / Corrente 120', query: 'Sabre e corrente motosserra 120 Mark II', icon: '🪚' },
+      { label: 'Cilindro e pistão 372XP', query: 'Cilindro e pistão motosserra 372XP', icon: '🔥' },
+      { label: 'Embreagem 61 / 272', query: 'Embreagem completa motosserra 61', icon: '🔩' },
+      { label: 'Vela de ignição 120', query: 'Vela de ignição motosserra 120 Mark II', icon: '⚡' },
     ],
   },
 ];

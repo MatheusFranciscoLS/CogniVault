@@ -9,6 +9,7 @@ import { buildSearchGroups, scorePartText } from '../services/part-vocabulary';
 import { allRelatedPartNumbers, preferCurrentPartNumbers } from '../services/part-supersession';
 import { filterCandidatesByMarket } from '../services/catalog-market';
 import { invalidatePartSearchCaches } from '../services/part-search.service';
+import { resolveEngineCatalogRoute } from '../services/husqvarna-domain-knowledge';
 
 const homeCountsCache = new LRUCache<string, { parts: number; documents: number }>({
     max: 200,
@@ -78,6 +79,22 @@ export class OperationalController {
         const normalizedModel = normalizeIdentifier(intent.model);
         const normalizedManufacturer = normalizeIdentifier(intent.manufacturer);
         const normalizedPnc = normalizeIdentifier(intent.pnc);
+
+        // Vinculação Giro Zero -> Motor Kawasaki / HS / HV: se for busca de peças internas de motor,
+        // permite que a busca encontre tanto no catálogo da máquina quanto no do motor correspondente.
+        const engineRoute = resolveEngineCatalogRoute(intent.model, intent.pnc, q);
+        const modelFilters = [normalizedModel].filter(Boolean);
+        if (engineRoute?.status === 'ROUTE' && engineRoute.engineModel) {
+            const normEngine = normalizeIdentifier(engineRoute.engineModel);
+            if (normEngine && !modelFilters.includes(normEngine)) {
+                modelFilters.push(normEngine);
+                const baseEngine = normEngine.replace(/v$/i, '');
+                if (baseEngine && !modelFilters.includes(baseEngine)) {
+                    modelFilters.push(baseEngine);
+                }
+            }
+        }
+
         const groups = intent.partNumber ? [] : buildSearchGroups(q, [intent.manufacturer, intent.model, intent.pnc]);
 
         const descriptiveFilters: Prisma.PartWhereInput[] = groups.map(group => ({
@@ -89,11 +106,15 @@ export class OperationalController {
         if (normalizedManufacturer) descriptiveFilters.push({ OR: [{ normalizedManufacturer }, { normalizedManufacturer: null }] });
         if (normalizedPnc) descriptiveFilters.push({ OR: [{ normalizedPnc }, { universalAcrossPnc: true }] });
 
+        const modelCondition: Prisma.PartWhereInput = modelFilters.length > 1
+            ? { normalizedModel: { in: modelFilters } }
+            : (modelFilters.length === 1 ? { normalizedModel: modelFilters[0] } : {});
+
         const partWhere: Prisma.PartWhereInput = {
             active: true,
             document: { tenantId, archivedAt: null, status: 'COMPLETED' },
             ...(groups.length ? {
-                ...(normalizedModel ? { normalizedModel } : {}),
+                ...modelCondition,
                 AND: descriptiveFilters,
             } : {
                 OR: [
@@ -104,7 +125,7 @@ export class OperationalController {
                         { normalizedModel: { contains: identifier } },
                         { normalizedPnc: { contains: identifier } },
                     ] : []),
-                    ...(normalizedModel ? [{ normalizedModel: { contains: normalizedModel } }] : []),
+                    ...(modelFilters.length ? [{ normalizedModel: { in: modelFilters } }] : []),
                     ...(normalizedManufacturer ? [{ normalizedManufacturer: { contains: normalizedManufacturer } }] : []),
                     ...(normalizedPnc ? [{ normalizedPnc: { contains: normalizedPnc } }] : []),
                 ],
@@ -152,7 +173,7 @@ export class OperationalController {
                 let score = groups.length ? scorePartText(q, { name: part.name, section: part.section, aliases: part.alternativeNames, notes: part.notes }) : 0;
                 if (identifier && part.normalizedPartNumber === identifier) score += 1000;
                 else if (relatedCodes.length && relatedCodes.includes(part.normalizedPartNumber)) score += 800;
-                if (normalizedModel && part.normalizedModel === normalizedModel) score += 200;
+                if (modelFilters.length && modelFilters.includes(part.normalizedModel)) score += 200;
                 if (normalizedPnc && part.normalizedPnc === normalizedPnc) score += 150;
                 return { part, score };
             })
