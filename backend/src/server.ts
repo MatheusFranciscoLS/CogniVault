@@ -73,4 +73,12 @@ async function bootstrap() {
     }
 }
 
+process.on('unhandledRejection', (reason) => {
+    console.error('❌ Rejeição de Promise não tratada:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('❌ Exceção não tratada:', error);
+});
+
 bootstrap();

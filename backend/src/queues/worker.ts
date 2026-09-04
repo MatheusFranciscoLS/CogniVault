@@ -60,8 +60,20 @@ async function buildAuxiliaryCatalogKnowledge(documentId: string, tenantId: stri
     }
 }
 
+let reconnectHookRegistered = false;
+
 export class DocumentWorker {
     static async start(): Promise<void> {
+        if (!reconnectHookRegistered) {
+            reconnectHookRegistered = true;
+            rabbitMQ.onReconnect(async () => {
+                console.log('👷 Reiniciando consumo de mensagens no DocumentWorker após reconexão com RabbitMQ...');
+                await DocumentWorker.start().catch((err) => {
+                    console.error('❌ Falha ao reiniciar DocumentWorker após reconexão:', err);
+                });
+            });
+        }
+
         const channel = rabbitMQ.requireChannel();
         await channel.prefetch(1);
         console.log('👷 Worker de IA aguardando documentos na fila...');

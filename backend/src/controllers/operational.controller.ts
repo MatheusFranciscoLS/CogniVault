@@ -8,6 +8,7 @@ import { buildFallbackIntent } from '../services/chat-reliability';
 import { buildSearchGroups, scorePartText } from '../services/part-vocabulary';
 import { allRelatedPartNumbers, preferCurrentPartNumbers } from '../services/part-supersession';
 import { filterCandidatesByMarket } from '../services/catalog-market';
+import { invalidatePartSearchCaches } from '../services/part-search.service';
 
 const homeCountsCache = new LRUCache<string, { parts: number; documents: number }>({
     max: 200,
@@ -20,6 +21,7 @@ export function invalidateHomeCountsCache(tenantId?: string): void {
     } else {
         homeCountsCache.clear();
     }
+    invalidatePartSearchCaches(tenantId);
 }
 
 export class OperationalController {

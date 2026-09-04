@@ -45,6 +45,20 @@ export function invalidateSearchFeedbackCache(tenantId?: string): void {
   }
 }
 
+export function invalidatePartSearchCaches(tenantId?: string): void {
+  if (tenantId) {
+    for (const key of pncsCache.keys()) {
+      if (key.startsWith(`${tenantId}:`)) pncsCache.delete(key);
+    }
+    for (const key of modelsCache.keys()) {
+      if (key.startsWith(`${tenantId}:`)) modelsCache.delete(key);
+    }
+  } else {
+    pncsCache.clear();
+    modelsCache.clear();
+  }
+}
+
 export type RetrievalSource = 'DIRECT_CODE' | 'SEMANTIC' | 'LEXICAL' | 'FULL_TEXT' | 'FUZZY';
 
 export interface PartCandidate {
