@@ -15,6 +15,21 @@ import { applyExplicitOccurrenceConstraints } from './explicit-occurrence-constr
 
 export type SearchStatus = 'FOUND' | 'PNC_REQUIRED' | 'MODEL_REQUIRED' | 'PART_REQUIRED' | 'AMBIGUOUS' | 'NOT_FOUND';
 
+export interface TechnicalReasoningStep {
+  step: number;
+  title: string;
+  detail: string;
+  status: 'SUCCESS' | 'INFO' | 'NOTICE';
+}
+
+export interface DiagramHighlight {
+  documentId: string;
+  filename: string;
+  page: number | null;
+  position: string | null;
+  section: string | null;
+}
+
 export interface ChatSearchResult {
   status: SearchStatus;
   answer: string;
@@ -68,6 +83,8 @@ export interface ChatSearchResult {
     success: boolean;
     message?: string;
   };
+  technicalReasoningSteps?: TechnicalReasoningStep[];
+  diagramHighlight?: DiagramHighlight;
 }
 
 function unique<T>(items: T[]): T[] { return [...new Set(items)]; }
@@ -433,6 +450,64 @@ export class ChatService {
       ? 'Código localizado diretamente na base técnica, sem depender de interpretação semântica.'
       : `Código liberado somente após compatibilidade de modelo/PNC e validação do ranking técnico. Recuperadores: ${sources.join(', ')}.`;
     const feedbackExplanation = candidate.feedbackScore > 0.02 ? ' Correções anteriores do balcão também favoreceram este resultado.' : '';
+    const reasoningSteps: TechnicalReasoningStep[] = [
+      {
+        step: 1,
+        title: 'Identificação da Máquina e Motor',
+        detail: candidate.manufacturer
+          ? `${candidate.manufacturer} · Modelo ${candidate.model} (PNC: ${pncLabel})`
+          : `Equipamento ${candidate.model} (PNC: ${pncLabel})`,
+        status: 'SUCCESS',
+      },
+    ];
+
+    if (candidate.section || candidate.page || candidate.position) {
+      reasoningSteps.push({
+        step: 2,
+        title: 'Localização na Vista Explodida',
+        detail: [
+          candidate.section ? `Seção "${candidate.section}"` : '',
+          candidate.page ? `Página ${candidate.page} do catálogo` : '',
+          candidate.position ? `Posição Nº ${candidate.position}` : '',
+        ].filter(Boolean).join(' · '),
+        status: 'SUCCESS',
+      });
+    }
+
+    const verifiedSupersession = getVerifiedSupersession(candidate.partNumber);
+    if (verifiedSupersession && verifiedSupersession.currentPartNumber !== candidate.partNumber) {
+      reasoningSteps.push({
+        step: 3,
+        title: 'Cruzamento de Substituição Oficial',
+        detail: `Código anterior ${candidate.partNumber} substituído pela fabricante pelo código vigente ${verifiedSupersession.currentPartNumber}.`,
+        status: 'NOTICE',
+      });
+    } else {
+      reasoningSteps.push({
+        step: 3,
+        title: 'Validação do Código Oficial',
+        detail: `Part Number oficial ${candidate.partNumber} verificado para ${candidate.name}.`,
+        status: 'SUCCESS',
+      });
+    }
+
+    reasoningSteps.push({
+      step: 4,
+      title: 'Segurança Técnica e Compatibilidade',
+      detail: decision?.reason || (candidate.searchMethod === 'DIRECT_CODE'
+        ? 'Código direto identificado no catálogo sem ambiguidade.'
+        : `Liberado via ${sources.join(' + ')} com nível ${level}.`),
+      status: 'SUCCESS',
+    });
+
+    const diagramHighlight: DiagramHighlight | undefined = (candidate.documentId && (candidate.page || candidate.position)) ? {
+      documentId: candidate.documentId,
+      filename: candidate.filename,
+      page: candidate.page ?? null,
+      position: candidate.position ?? null,
+      section: candidate.section ?? null,
+    } : undefined;
+
     return {
       status: 'FOUND', confidence,
       match: {
@@ -470,6 +545,8 @@ export class ChatService {
         success: true,
         message: 'Substituição oficial comprovada no portal público Husqvarna Brasil.',
       } : undefined,
+      technicalReasoningSteps: reasoningSteps,
+      diagramHighlight,
       feedbackOptions: this.options(candidates.filter(candidateItem => candidateItem.normalizedModel === candidate.normalizedModel).slice(0, 5)),
     };
   }

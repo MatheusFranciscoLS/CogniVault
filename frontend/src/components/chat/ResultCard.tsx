@@ -1,6 +1,6 @@
 import type { ChatResponse } from '../../types';
 import ReliabilityDetails from './ReliabilityDetails';
-import { husqvarnaPortalUrl } from '../PartVerificationDialog';
+import { officialPortalUrl, officialPortalLabel } from '../PartVerificationDialog';
 import { formatHusqvarnaPartNumber } from '../../lib';
 import { useQuoteCart } from '../../context/QuoteCartContext';
 import { toast } from 'sonner';
@@ -58,6 +58,86 @@ export default function ResultCard({
       {response.match ? <div className="mt-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3 text-xs leading-5 text-slate-500 dark:text-slate-400">{response.match.explanation}</div> : null}
       <ReliabilityDetails response={response}/>
 
+      {/* Destaque Visual da Vista Explodida do Catálogo */}
+      {(part.page || part.position || response.diagramHighlight) && (
+        <div className="mt-3 rounded-2xl border-2 border-blue-200 dark:border-blue-800/80 bg-gradient-to-br from-blue-50/90 via-indigo-50/40 to-slate-50 dark:from-[#0b1d3a]/80 dark:via-slate-800/80 dark:to-slate-900/90 p-3.5 shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="grid h-8 w-8 place-items-center rounded-xl bg-blue-600 text-white text-sm font-black shadow-2xs">
+                📐
+              </span>
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#1d4f91] dark:text-blue-300">
+                  Vista Explodida do Catálogo
+                </span>
+                <div className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                  {part.section || 'Diagrama Técnico Oficial'}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {part.position && (
+                <span className="rounded-lg bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-black text-[#1d4f91] dark:text-blue-300 shadow-2xs border border-blue-200 dark:border-blue-700">
+                  Pos. Nº {part.position}
+                </span>
+              )}
+              {part.page && (
+                <span className="rounded-lg bg-blue-600 text-white px-2.5 py-1 text-xs font-black shadow-2xs">
+                  Pág. {part.page}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between gap-3 border-t border-blue-100 dark:border-blue-900/50 pt-2.5">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate max-w-[240px]">
+              📄 {part.filename}
+            </span>
+            <button
+              type="button"
+              onClick={() => onAccess('view')}
+              className="rounded-xl bg-[#1d4f91] hover:bg-[#153e75] text-white px-3 py-1.5 text-xs font-bold transition flex items-center gap-1.5 shadow-2xs active:scale-95 shrink-0"
+            >
+              <span>👁️</span>
+              <span>Ver Vista Explodida (Pág. {part.page ?? '1'})</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Raciocínio Técnico Passo a Passo da IA */}
+      {response.technicalReasoningSteps && response.technicalReasoningSteps.length > 0 && (
+        <details className="group mt-3 rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-850/60 transition overflow-hidden">
+          <summary className="flex cursor-pointer list-none items-center justify-between p-3 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-[#1d4f91] dark:hover:text-blue-300 transition">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">🧠</span>
+              <span>Raciocínio Técnico Passo a Passo da IA</span>
+              <span className="rounded-full bg-blue-100 dark:bg-blue-900/40 text-[#1d4f91] dark:text-blue-300 px-2 py-0.2 text-[10px] font-black">
+                {response.technicalReasoningSteps.length} etapas
+              </span>
+            </div>
+            <span className="text-slate-400 transition-transform group-open:rotate-180 text-xs">▼</span>
+          </summary>
+          <div className="border-t border-slate-200/80 dark:border-slate-700/60 p-3.5 space-y-2.5 bg-white/70 dark:bg-slate-800/60">
+            {response.technicalReasoningSteps.map(step => (
+              <div key={step.step} className="flex items-start gap-2.5 text-xs">
+                <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${
+                  step.status === 'NOTICE'
+                    ? 'bg-amber-400 text-slate-950 shadow-2xs'
+                    : 'bg-emerald-500 text-white shadow-2xs'
+                }`}>
+                  {step.status === 'NOTICE' ? '★' : '✓'}
+                </span>
+                <div className="min-w-0">
+                  <div className="font-bold text-slate-800 dark:text-slate-200">{step.title}</div>
+                  <div className="mt-0.5 text-slate-600 dark:text-slate-400 leading-relaxed font-medium">{step.detail}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+
       <div className="mt-4 grid gap-2 text-xs sm:grid-cols-2">
         <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3">Modelo<b className="mt-1 block">{part.model}</b></div>
         <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3">PNC<b className="mt-1 block">{part.pnc || 'Não informado'}</b></div>
@@ -70,16 +150,16 @@ export default function ResultCard({
           <div className="mt-3 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50/90 dark:bg-amber-950/40 p-3.5 text-xs text-amber-900 dark:text-amber-200 shadow-sm">
             <div className="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-300">
               <span className="text-base leading-none">★</span>
-              <span>Substituição Oficial Husqvarna</span>
+              <span>Substituição Oficial</span>
             </div>
             <p className="mt-1.5 leading-relaxed font-medium">{part.notes}</p>
             <a
-              href={husqvarnaPortalUrl(part.partNumber)}
+              href={officialPortalUrl(part.partNumber, part.manufacturer)}
               target="_blank"
               rel="noreferrer"
               className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-amber-600 dark:bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700 dark:hover:bg-amber-600"
             >
-              Conferir no portal Husqvarna Brasil ↗
+              {officialPortalLabel(part.partNumber, part.manufacturer)} ↗
             </a>
           </div>
         ) : (
