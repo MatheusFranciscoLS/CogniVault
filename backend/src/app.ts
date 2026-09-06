@@ -53,7 +53,7 @@ const apiLimiter = rateLimit({
   limit: 300, // 300 requisições por IP por minuto (permite múltiplos atendentes na mesma rede sem bloqueio)
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.path.startsWith('/health'), // Probes de orquestrador (Render/Kubernetes) nunca são bloqueadas
+  skip: (req) => req.path.startsWith('/health') || req.path === '/api/cron/keepalive', // Probes e crons nunca são bloqueados
   message: { error: 'Muitas requisições deste IP, tente novamente em um minuto.' },
 });
 
@@ -78,6 +78,25 @@ app.use(cors({
 app.use(compression());
 app.use(express.json({ limit: '2mb' }));
 
+// Liveness probe para Render/Kubernetes (sem dependências externas)
+app.get('/health/live', (_req, res) => {
+  res.status(200).set('Cache-Control', 'no-store').json({
+    status: 'ok',
+    uptimeSeconds: Math.round(process.uptime()),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Endpoint dedicado para crons externos (ex: cron-job.org / UptimeRobot)
+app.get('/api/cron/keepalive', (_req, res) => {
+  res.status(200).set('Cache-Control', 'no-store').json({
+    ok: true,
+    message: 'CogniVault keepalive OK',
+    uptimeSeconds: Math.round(process.uptime()),
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.use('/api', routes);
 
 app.get('/health', async (_req, res) => {
@@ -93,18 +112,22 @@ app.get('/health', async (_req, res) => {
   }
 
   const queue = rabbitMQ.health();
-  const ready = databaseReady && queue.ready;
+  const degraded = !databaseReady || !queue.ready;
 
+  // Se o banco falhar, o serviço está inoperante (503).
+  // Se apenas o RabbitMQ estiver reconectando mas o banco estiver ok, responde 200 (degraded)
+  // para evitar que orquestradores reiniciem desnecessariamente a instância web.
   res
-    .status(ready ? 200 : 503)
+    .status(databaseReady ? 200 : 503)
     .set('Cache-Control', 'no-store')
     .json({
-      status: ready ? 'online' : 'degraded',
+      status: !degraded ? 'online' : 'degraded',
       checks: {
-        database: { ready: databaseReady },
-        queue: { ready: queue.ready },
+        database: { ready: databaseReady, error: databaseError },
+        queue: { ready: queue.ready, lastError: queue.lastError },
       },
       uptimeSeconds: Math.round(process.uptime()),
+      timestamp: new Date().toISOString(),
     });
 });
 

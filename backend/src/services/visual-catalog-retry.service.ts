@@ -113,25 +113,40 @@ export async function retryVisualCatalogsAfterStartup() {
  * recuperação dependa de um novo deploy ou de um clique do administrador.
  */
 export function startVisualCatalogRetryScheduler(): () => void {
-  let running = false;
-  const timer = setInterval(() => {
-    if (running) return;
-    running = true;
-    void retryVisualCatalogsAfterStartup()
-      .then(result => {
+  let stopped = false;
+  let timer: NodeJS.Timeout | null = null;
+
+  const scheduleNext = () => {
+    if (stopped) return;
+    const intervalMs = retryScanMinutes() * 60 * 1000;
+    timer = setTimeout(async () => {
+      try {
+        const result = await retryVisualCatalogsAfterStartup();
         if (result.queued > 0 || result.failures > 0) {
           console.log(
             `👁️ Supervisor de PDFs visuais: ${result.queued} retomado(s)`
             + (result.failures ? ` · ${result.failures} falha(s) ao enfileirar` : ''),
           );
         }
-      })
-      .catch(error => console.warn(
-        '⚠️ Supervisor de PDFs visuais não conseguiu consultar a fila; tentará novamente no próximo ciclo.',
-        error instanceof Error ? error.message : error,
-      ))
-      .finally(() => { running = false; });
-  }, retryScanMinutes() * 60 * 1000);
-  timer.unref();
-  return () => clearInterval(timer);
+      } catch (error) {
+        console.warn(
+          '⚠️ Supervisor de PDFs visuais não conseguiu consultar a fila; tentará novamente no próximo ciclo.',
+          error instanceof Error ? error.message : error,
+        );
+      } finally {
+        scheduleNext();
+      }
+    }, intervalMs);
+    timer.unref();
+  };
+
+  scheduleNext();
+
+  return () => {
+    stopped = true;
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
 }

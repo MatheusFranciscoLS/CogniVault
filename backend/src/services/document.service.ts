@@ -204,7 +204,13 @@ async function documentListItems(tenantId: string, documents: DocumentListRecord
         }
     }
 
-    return documents.map(document => toDocumentListItem(document, pncsByDocument.get(document.id)));
+    const items = documents.map(document => toDocumentListItem(document, pncsByDocument.get(document.id)));
+    items.sort((a, b) => {
+        const keyA = a.model?.trim() || a.filename;
+        const keyB = b.model?.trim() || b.filename;
+        return keyA.localeCompare(keyB, 'pt-BR', { numeric: true, sensitivity: 'base' });
+    });
+    return items;
 }
 
 export class DocumentService {
@@ -311,7 +317,6 @@ export class DocumentService {
                 tenantId,
                 archivedAt: null,
                 processingStage: { not: 'REMOVED' },
-                NOT: legacyEmptyFilter,
             },
             orderBy: { createdAt: 'desc' },
             select: documentListSelect,

@@ -2,7 +2,7 @@ import { DOCUMENT_PROCESSING_QUEUE, rabbitMQ } from './connection';
 
 export class DocumentProducer {
     static async publishToQueue(documentId: string, tenantId: string, jobId: string) {
-        const channel = rabbitMQ.requireChannel();
+        const channel = await rabbitMQ.getOrWaitForChannel(5000);
 
         // Transforma os dados em texto para trafegar na rede
         const message = JSON.stringify({ documentId, tenantId, jobId });

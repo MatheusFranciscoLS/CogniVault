@@ -10,16 +10,31 @@ class RabbitMQConnection {
     private closing = false;
     private reconnectTimer: NodeJS.Timeout | null = null;
     private reconnectListeners: Array<() => void | Promise<void>> = [];
+    private connectingPromise: Promise<void> | null = null;
 
     async connect(retries = 5, delayMs = 2000): Promise<void> {
         if (this.isReady()) return;
+        if (this.connectingPromise) return this.connectingPromise;
 
+        this.connectingPromise = this.performConnect(retries, delayMs);
+        try {
+            await this.connectingPromise;
+        } finally {
+            this.connectingPromise = null;
+        }
+    }
+
+    private async performConnect(retries: number, delayMs: number): Promise<void> {
         const url = process.env.RABBITMQ_URL;
         if (!url) throw new Error('RABBITMQ_URL não definida no .env');
 
         for (let attempt = 1; attempt <= retries; attempt++) {
             try {
-                const connection = await amqp.connect(url);
+                // Heartbeat de 20s impede que firewalls da nuvem (Render, CloudAMQP) matem o socket TCP por inatividade
+                const amqpUrl = url.includes('heartbeat=')
+                    ? url
+                    : (url.includes('?') ? `${url}&heartbeat=20` : `${url}?heartbeat=20`);
+                const connection = await amqp.connect(amqpUrl);
                 const channel = await connection.createConfirmChannel();
 
                 await channel.assertQueue(DOCUMENT_PROCESSING_QUEUE, { durable: true });
@@ -52,12 +67,16 @@ class RabbitMQConnection {
                 channel.on('error', (error: Error) => {
                     this.lastError = error.message;
                     console.error('❌ Erro no canal RabbitMQ:', error);
+                    if (!this.closing) {
+                        this.scheduleReconnect();
+                    }
                 });
                 channel.on('close', () => {
                     this.channel = null;
                     if (!this.closing) {
                         this.lastError = 'Canal do RabbitMQ encerrado inesperadamente.';
-                        console.error('❌ Canal do RabbitMQ encerrado inesperadamente.');
+                        console.error('❌ Canal do RabbitMQ encerrado inesperadamente. Agendando reconexão...');
+                        this.scheduleReconnect();
                     }
                 });
 
@@ -109,6 +128,23 @@ class RabbitMQConnection {
             throw new Error('Canal do RabbitMQ não está pronto.');
         }
         return this.channel;
+    }
+
+    async getOrWaitForChannel(timeoutMs = 5000): Promise<ConfirmChannel> {
+        if (this.channel) return this.channel;
+
+        if (!this.closing && !this.isReady()) {
+            void this.connect(1, 0).catch(() => {});
+        }
+
+        const start = Date.now();
+        while (Date.now() - start < timeoutMs) {
+            if (this.channel) return this.channel;
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+
+        if (this.channel) return this.channel;
+        throw new Error('Canal do RabbitMQ não está pronto após aguardar reconexão.');
     }
 
     isReady(): boolean {

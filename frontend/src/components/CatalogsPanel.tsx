@@ -7,6 +7,30 @@ import BatchCatalogUploader from './BatchCatalogUploader';
 
 type CatalogData = { documents: DocumentItem[]; favorites: FavoriteItem[]; categories: string[] };
 type StatusFilter = 'ALL' | 'FAILED' | 'REVIEW' | 'READY';
+export type CatalogSortMode = 'NAME_ASC' | 'NAME_DESC' | 'NEWEST' | 'PARTS_DESC';
+
+function getCatalogSortKey(document: DocumentItem): string {
+  const model = document.model?.trim();
+  if (model) return model;
+  return document.filename.replace(/\.pdf$/i, '').trim();
+}
+
+function compareCatalogs(a: DocumentItem, b: DocumentItem, sortMode: CatalogSortMode): number {
+  if (sortMode === 'PARTS_DESC') {
+    const diff = (b.partCount || 0) - (a.partCount || 0);
+    if (diff !== 0) return diff;
+  }
+  if (sortMode === 'NEWEST') {
+    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    const diff = dateB - dateA;
+    if (diff !== 0) return diff;
+  }
+  const nameA = getCatalogSortKey(a);
+  const nameB = getCatalogSortKey(b);
+  const cmp = nameA.localeCompare(nameB, 'pt-BR', { numeric: true, sensitivity: 'base' });
+  return sortMode === 'NAME_DESC' ? -cmp : cmp;
+}
 
 type FailureGuidance = {
   title: string;
@@ -152,6 +176,23 @@ export default function CatalogsPanel({
     }
   };
 
+  const [sortMode, setSortMode] = useState<CatalogSortMode>(() => {
+    try {
+      return (localStorage.getItem('cognivault_catalog_sort_mode') as CatalogSortMode) || 'NAME_ASC';
+    } catch {
+      return 'NAME_ASC';
+    }
+  });
+
+  const changeSortMode = (mode: CatalogSortMode) => {
+    setSortMode(mode);
+    try {
+      localStorage.setItem('cognivault_catalog_sort_mode', mode);
+    } catch {
+      // Ignora erro local
+    }
+  };
+
   const { data, refetch, error: loadError } = useQuery({
     queryKey: ['catalogs', admin, archived],
     queryFn: () => fetchCatalogData(admin, archived),
@@ -188,18 +229,21 @@ export default function CatalogsPanel({
   const effectiveCategoryFilter = categoryFilter === 'ALL' || categories.includes(categoryFilter) ? categoryFilter : 'ALL';
   const normalizedSearch = search.trim().toLowerCase();
 
-  const filtered = useMemo(() => activeDocs.filter(document => {
-    const matchesCategory = effectiveCategoryFilter === 'ALL'
-      || document.category === effectiveCategoryFilter
-      || (effectiveCategoryFilter === 'Giro zero' && document.applications?.some(a => /giro\s*zero/i.test(a.label || '')));
-    if (!matchesStatusFilter(document, statusFilter) || !matchesCategory) return false;
-    if (!normalizedSearch) return true;
-    const baseMatch = [document.filename, document.manufacturer, document.model, document.pnc, document.category]
-      .some(value => value?.toLowerCase().includes(normalizedSearch));
-    const appMatch = (document.applications || []).some(a => a.machineModel.toLowerCase().includes(normalizedSearch) || a.label.toLowerCase().includes(normalizedSearch));
-    const engineMatch = (document.engineApplications || []).some(e => e.engineModel.toLowerCase().includes(normalizedSearch) || e.label.toLowerCase().includes(normalizedSearch));
-    return baseMatch || appMatch || engineMatch || catalogPncs(document).some(value => value.toLowerCase().includes(normalizedSearch));
-  }), [activeDocs, effectiveCategoryFilter, normalizedSearch, statusFilter]);
+  const filtered = useMemo(() => {
+    const list = activeDocs.filter(document => {
+      const matchesCategory = effectiveCategoryFilter === 'ALL'
+        || document.category === effectiveCategoryFilter
+        || (effectiveCategoryFilter === 'Giro zero' && document.applications?.some(a => /giro\s*zero/i.test(a.label || '')));
+      if (!matchesStatusFilter(document, statusFilter) || !matchesCategory) return false;
+      if (!normalizedSearch) return true;
+      const baseMatch = [document.filename, document.manufacturer, document.model, document.pnc, document.category]
+        .some(value => value?.toLowerCase().includes(normalizedSearch));
+      const appMatch = (document.applications || []).some(a => a.machineModel.toLowerCase().includes(normalizedSearch) || a.label.toLowerCase().includes(normalizedSearch));
+      const engineMatch = (document.engineApplications || []).some(e => e.engineModel.toLowerCase().includes(normalizedSearch) || e.label.toLowerCase().includes(normalizedSearch));
+      return baseMatch || appMatch || engineMatch || catalogPncs(document).some(value => value.toLowerCase().includes(normalizedSearch));
+    });
+    return list.sort((a, b) => compareCatalogs(a, b, sortMode));
+  }, [activeDocs, effectiveCategoryFilter, normalizedSearch, statusFilter, sortMode]);
 
   const favoritesByDocument = useMemo(() => new Map(favorites.filter(item => item.documentId).map(item => [item.documentId!, item])), [favorites]);
 
@@ -477,6 +521,22 @@ export default function CatalogsPanel({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Sort Selector */}
+            <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs">
+              <span className="text-slate-400 font-medium">Ordem:</span>
+              <select
+                aria-label="Ordenar catálogos"
+                value={sortMode}
+                onChange={e => changeSortMode(e.target.value as CatalogSortMode)}
+                className="bg-transparent font-semibold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+              >
+                <option value="NAME_ASC">Nome / Modelo (A-Z)</option>
+                <option value="NAME_DESC">Nome / Modelo (Z-A)</option>
+                <option value="NEWEST">Mais recentes</option>
+                <option value="PARTS_DESC">Mais peças</option>
+              </select>
+            </div>
+
             {/* View Mode Toggle */}
             <div className="flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1">
               <button
@@ -924,8 +984,72 @@ export default function CatalogsPanel({
         )}
 
         {!filtered.length && (
-          <div className="p-10 text-center text-sm text-slate-400">
-            Nenhum catálogo encontrado com estes filtros.
+          <div className="p-10 text-center">
+            {activeDocs.length === 0 ? (
+              <div className="mx-auto max-w-md rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-8 text-center">
+                <span className="text-4xl">📚</span>
+                <h3 className="mt-3 text-base font-semibold text-slate-800 dark:text-slate-200">
+                  {archived ? 'Nenhum catálogo arquivado' : 'Nenhum catálogo disponível'}
+                </h3>
+                <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  {archived
+                    ? 'Não existem catálogos no arquivo no momento.'
+                    : 'Nenhum catálogo foi encontrado no banco de dados. Se você é administrador, utilize o painel de upload acima para adicionar catálogos Husqvarna.'}
+                </p>
+              </div>
+            ) : (
+              <div className="mx-auto max-w-lg rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/40 p-6 text-center">
+                <span className="text-3xl">🔍</span>
+                <h3 className="mt-2 text-base font-semibold text-slate-800 dark:text-slate-200">
+                  Nenhum catálogo encontrado para os filtros atuais
+                </h3>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Existem <b>{activeDocs.length} catálogo{activeDocs.length === 1 ? '' : 's'}</b> cadastrados no sistema, mas nenhum corresponde à busca ou aos filtros selecionados.
+                </p>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch('')}
+                      className="rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                    >
+                      Limpar busca "{search}"
+                    </button>
+                  )}
+                  {effectiveCategoryFilter !== 'ALL' && (
+                    <button
+                      type="button"
+                      onClick={() => setCategoryFilter('ALL')}
+                      className="rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                    >
+                      Ver todas as seções
+                    </button>
+                  )}
+                  {statusFilter !== 'ALL' && (
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('ALL')}
+                      className="rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                    >
+                      Ver todos os status
+                    </button>
+                  )}
+                  {(search || effectiveCategoryFilter !== 'ALL' || statusFilter !== 'ALL') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch('');
+                        setCategoryFilter('ALL');
+                        setStatusFilter('ALL');
+                      }}
+                      className="rounded-xl bg-blue-700 hover:bg-blue-800 text-white px-3 py-1.5 text-xs font-semibold transition shadow-xs"
+                    >
+                      Redefinir todos os filtros
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
