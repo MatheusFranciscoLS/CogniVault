@@ -5,9 +5,6 @@ import { extractKnownHusqvarnaModel } from './husqvarna-domain-knowledge';
 
 export interface ExtractedPart { manufacturer:string; model:string; pnc:string; universalAcrossPnc:boolean; section:string; position:string; name:string; alternativeNames:string[]; partNumber:string; page:number; notes:string; }
 export interface CatalogExtraction { manufacturer:string; models:string[]; pncs:string[]; parts:ExtractedPart[]; }
-
-export interface ExtractedPart { manufacturer:string; model:string; pnc:string; universalAcrossPnc:boolean; section:string; position:string; name:string; alternativeNames:string[]; partNumber:string; page:number; notes:string; }
-export interface CatalogExtraction { manufacturer:string; models:string[]; pncs:string[]; parts:ExtractedPart[]; }
 export interface CatalogHints { manufacturer?:string|null; model?:string|null; pnc?:string|null; filename?:string|null; }
 export interface DeterministicExtraction { extraction:CatalogExtraction; method:'HUSQVARNA_IPL_TEXT'; }
 
@@ -114,6 +111,10 @@ function detectManufacturer(text:string,hints:CatalogHints){
   if(/\bKohler\b/i.test(combined))return 'Kohler';
   if(/\bBriggs\s*(?:&|and)\s*Stratton\b/i.test(combined))return 'Briggs & Stratton';
   if(/\bHonda\b/i.test(combined))return 'Honda';
+  if(/\bStihl\b/i.test(combined))return 'Stihl';
+  if(/\bToyama\b/i.test(combined))return 'Toyama';
+  if(/\bEcho\b/i.test(combined))return 'Echo';
+  if(/\bShindaiwa\b/i.test(combined))return 'Shindaiwa';
   return 'Husqvarna';
 }
 function collectPncs(text:string,hints:CatalogHints){const v:string[]=[];const hinted=normalizeHusqvarnaPnc(hints.pnc);if(hinted)v.push(hinted);for(const m of text.matchAll(/MFG\.\s*ID\.\s*NUMBER\s*:?\s*(\d{11}|\d{9})\b/gi))v.push(m[1]);for(const m of text.matchAll(/(?:PNC|PRODUCT\s+(?:NO|NUMBER|NUMBER\s+CODE))\s*:?\s*(\d{11}|\d{9})\b/gi))v.push(m[1]);for(const m of text.matchAll(/\bFor(?:\s+all+\s+EXCEPT)?\s+([^\n.]+)/gi))v.push(...(m[1].match(PNC_PATTERN)||[]));return unique(v.map(normalizeHusqvarnaPnc).filter(Boolean));}

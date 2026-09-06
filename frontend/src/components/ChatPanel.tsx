@@ -157,14 +157,6 @@ export default function ChatPanel({
     return () => { active = false; };
   }, []);
 
-  useEffect(() => {
-    if (!pdf) return;
-    const close = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setPdf(null);
-    };
-    window.addEventListener('keydown', close);
-    return () => window.removeEventListener('keydown', close);
-  }, [pdf]);
 
   useEffect(() => () => {
     requestRef.current?.abort();

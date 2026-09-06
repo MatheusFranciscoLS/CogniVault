@@ -326,7 +326,7 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="mt-5 grid gap-3.5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
           {FAST_MODELS.map(card => (
             <div
               key={card.model}

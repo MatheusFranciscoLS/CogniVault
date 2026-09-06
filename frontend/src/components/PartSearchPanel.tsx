@@ -165,6 +165,10 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
     return parts.filter(p => target.regex.test(p.name) || target.regex.test(p.section || ''));
   }, [parts, activeSystemFilter]);
 
+  useEffect(() => {
+    setSelectedIndex(displayedParts.length ? 0 : -1);
+  }, [activeSystemFilter, displayedParts.length]);
+
   const quickFilters = useMemo(() => [
     { label: '🌿 143RII', query: '143RII' },
     { label: '🌲 120 Mark II', query: '120 Mark II' },
@@ -464,7 +468,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
         return;
       }
 
-      if (aiDrawerOpen || detail || pdf || verificationTarget || isEditing || !parts.length) return;
+      if (aiDrawerOpen || detail || pdf || verificationTarget || isEditing || !displayedParts.length) return;
 
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         if (!isSearchInput && !isResultButton && targetElement !== document.body) return;
@@ -472,7 +476,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
         const direction = event.key === 'ArrowDown' ? 1 : -1;
         setSelectedIndex(current => {
           const base = current < 0 ? 0 : current;
-          const next = (base + direction + parts.length) % parts.length;
+          const next = (base + direction + displayedParts.length) % displayedParts.length;
           window.requestAnimationFrame(() => {
             resultRefs.current[next]?.focus({ preventScroll: true });
             resultRefs.current[next]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -482,9 +486,9 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
         return;
       }
 
-      if (event.key.toLowerCase() === 'c' && isResultButton && selectedIndex >= 0) {
+      if (event.key.toLowerCase() === 'c' && isResultButton && selectedIndex >= 0 && selectedIndex < displayedParts.length) {
         event.preventDefault();
-        const selectedPart = parts[selectedIndex];
+        const selectedPart = displayedParts[selectedIndex];
         const verification = verifications[normalizePartCode(selectedPart.partNumber)];
         void copyCode(effectivePartNumber(selectedPart.partNumber, verification));
       }
@@ -492,7 +496,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
 
     window.addEventListener('keydown', handleKeyboard);
     return () => window.removeEventListener('keydown', handleKeyboard);
-  }, [aiDrawerOpen, copyCode, detail, parts, pdf, selectedIndex, verificationTarget, verifications]);
+  }, [aiDrawerOpen, copyCode, detail, displayedParts, pdf, selectedIndex, verificationTarget, verifications]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -950,7 +954,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                           title={officialPortalLabel(codeToUse, part.manufacturer)}
                           className="rounded-xl border border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] px-2.5 py-1.5 text-center text-[11px] font-semibold text-[#1d4f91] dark:text-blue-300 transition hover:bg-blue-100 dark:hover:bg-blue-900/60"
                         >
-                          {((part.manufacturer || '').toUpperCase().includes('KAWASAKI') || /^\d{5}-\d{4}$/.test(codeToUse)) ? 'Kawasaki ↗' : 'Husqvarna ↗'}
+                          {officialPortalLabel(codeToUse, part.manufacturer)} ↗
                         </a>
                       </div>
                     </div>

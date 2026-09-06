@@ -107,7 +107,7 @@ export default function ResultCard({
 
       {/* Raciocínio Técnico Passo a Passo da IA */}
       {response.technicalReasoningSteps && response.technicalReasoningSteps.length > 0 && (
-        <details className="group mt-3 rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-850/60 transition overflow-hidden">
+        <details className="group mt-3 rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 transition overflow-hidden">
           <summary className="flex cursor-pointer list-none items-center justify-between p-3 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-[#1d4f91] dark:hover:text-blue-300 transition">
             <div className="flex items-center gap-2">
               <span className="text-sm">🧠</span>
