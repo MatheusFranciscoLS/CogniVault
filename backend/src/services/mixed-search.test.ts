@@ -45,3 +45,16 @@ test('isola código da Kawasaki em busca mista', () => {
   const model = extractLikelyModel(query);
   assert.equal(model, 'FR691V');
 });
+
+test('extrai código Kohler em busca mista', () => {
+  const query = 'filtro de ar 24 083 03-S motor Kohler';
+  const likelyCode = extractLikelyPartNumber(query);
+  assert.equal(normalizeIdentifier(likelyCode), '2408303S');
+});
+
+test('extrai código Briggs com sufixo de letra em busca mista', () => {
+  const query = 'filtro de oleo 492932S Briggs';
+  const likelyCode = extractLikelyPartNumber(query);
+  assert.equal(normalizeIdentifier(likelyCode), '492932S');
+});
+

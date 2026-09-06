@@ -1209,7 +1209,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                         defaultValue={warehouseNote}
                         id="warehouse-note-input"
                         placeholder="Ex.: Prateleira A4 - Caixa 12"
-                        className="flex-1 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-850 px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#1d4f91]"
+                        className="flex-1 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#1d4f91]"
                         onKeyDown={e => {
                           if (e.key === 'Enter') {
                             saveWarehouseNote((e.target as HTMLInputElement).value);

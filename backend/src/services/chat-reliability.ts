@@ -28,13 +28,19 @@ export function extractLikelyPartNumber(question: string): string {
   // 3. Stihl formato padrão: 1123-120-0605
   const stihlPattern = /\b\d{4}[-\s]\d{3}[-\s]\d{4}\b/g;
 
-  // 4. Numérico contínuo de 8 a 11 dígitos: 587106701, 532193350, 545081885, 490657007
+  // 4. Kohler formato padrão: 24 083 03-S, 12 050 01-S, 24-083-03-S
+  const kohlerPattern = /\b\d{2}[\s.-]\d{3}[\s.-]\d{2}(?:-[A-Za-z0-9]+)?\b/gi;
+
+  // 5. Numérico contínuo de 8 a 11 dígitos: 587106701, 532193350, 545081885, 490657007
   const compactDigits = /\b\d{8,11}\b/g;
 
-  // 5. Código com prefixo alfanumérico: HUS587106701
+  // 6. Código com sufixo de letra (Briggs & Stratton / Kohler): 492932S, 2408303S
+  const suffixedCode = /\b\d{5,7}[A-Z]\b/gi;
+
+  // 7. Código com prefixo alfanumérico: HUS587106701
   const prefixedCode = /\b[A-Z]{1,3}\d{7,10}\b/gi;
 
-  const patterns = [husqvarnaPattern, kawasakiPattern, stihlPattern, compactDigits, prefixedCode];
+  const patterns = [husqvarnaPattern, kawasakiPattern, stihlPattern, kohlerPattern, compactDigits, suffixedCode, prefixedCode];
 
   for (const pattern of patterns) {
     for (const match of question.matchAll(pattern)) {
