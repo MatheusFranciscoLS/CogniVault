@@ -134,6 +134,7 @@ model Document {
   @@index([tenantId, model, pnc])
   @@index([tenantId, status])
   @@index([tenantId, archivedAt])
+  @@index([tenantId, archivedAt, status])
   @@index([tenantId, contentHash])
   @@index([tenantId, reviewStatus])
   @@index([processingJobId])

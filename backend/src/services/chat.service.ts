@@ -1,5 +1,6 @@
 import { prisma } from '../config/prisma';
 import { normalizeIdentifier } from '../utils/normalize';
+import { LRUCache } from 'lru-cache';
 import { ChatIntentService } from './chat-intent.service';
 import { buildFallbackIntent, extractLikelyPartNumber } from './chat-reliability';
 import { PartSearchService, type PartCandidate, type RetrievalSource } from './part-search.service';
@@ -90,6 +91,21 @@ export interface ChatSearchResult {
 function unique<T>(items: T[]): T[] { return [...new Set(items)]; }
 function escapeRegExp(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
+const chatResponseCache = new LRUCache<string, ChatSearchResult>({
+  max: 500,
+  ttl: 2 * 60 * 1000, // 2 minutes
+});
+
+export function invalidateChatResponseCache(tenantId?: string): void {
+  if (tenantId) {
+    for (const key of chatResponseCache.keys()) {
+      if (key.startsWith(`${tenantId}:`)) chatResponseCache.delete(key);
+    }
+  } else {
+    chatResponseCache.clear();
+  }
+}
+
 export class ChatService {
   static async askQuestion(
     tenantId: string,
@@ -98,7 +114,16 @@ export class ChatService {
     selectedPartId?: string,
     fallbackModel?: string,
   ): Promise<ChatSearchResult> {
+    const cacheKey = `${tenantId}:${question.trim().toLowerCase()}:${explicitPnc || ''}:${selectedPartId || ''}:${fallbackModel || ''}`;
+    const cached = chatResponseCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const result = await this.askQuestionInternal(tenantId, question, explicitPnc, selectedPartId, fallbackModel);
+    if (result && (result.status !== 'NOT_FOUND' || result.answer)) {
+      chatResponseCache.set(cacheKey, result);
+    }
     return result;
   }
 

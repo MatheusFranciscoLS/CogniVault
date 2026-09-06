@@ -35,6 +35,11 @@ const feedbackCache = new LRUCache<string, FeedbackLearningSignal[]>({
   ttl: 30 * 1000, // 30 seconds
 });
 
+const directCodeCache = new LRUCache<string, PartCandidate[]>({
+  max: 1000,
+  ttl: 5 * 60 * 1000, // 5 minutes
+});
+
 export function invalidateSearchFeedbackCache(tenantId?: string): void {
   if (tenantId) {
     for (const key of feedbackCache.keys()) {
@@ -53,9 +58,13 @@ export function invalidatePartSearchCaches(tenantId?: string): void {
     for (const key of modelsCache.keys()) {
       if (key.startsWith(`${tenantId}:`)) modelsCache.delete(key);
     }
+    for (const key of directCodeCache.keys()) {
+      if (key.startsWith(`${tenantId}:`)) directCodeCache.delete(key);
+    }
   } else {
     pncsCache.clear();
     modelsCache.clear();
+    directCodeCache.clear();
   }
 }
 
@@ -257,6 +266,10 @@ export class PartSearchService {
   static async directByCode(tenantId: string, partNumber: string): Promise<PartCandidate[]> {
     const raw = normalizeIdentifier(partNumber);
     if (!raw) return [];
+    const cacheKey = `${tenantId}:${raw}`;
+    const cached = directCodeCache.get(cacheKey);
+    if (cached) return cached;
+
     const related = allRelatedPartNumbers(partNumber).map(normalizeIdentifier).filter(Boolean);
     if (!related.length) return [];
     const rows = await prisma.part.findMany({
@@ -267,7 +280,7 @@ export class PartSearchService {
       },
       include: { document: { select: { filename: true, pnc: true } } },
     });
-    return preferCurrentPartNumbers(deduplicatePartCandidates(rows.map(p => ({
+    const candidates = preferCurrentPartNumbers(deduplicatePartCandidates(rows.map(p => ({
       id: p.id, documentId: p.documentId, filename: p.document.filename,
       manufacturer: p.manufacturer, model: p.model, normalizedModel: p.normalizedModel,
       pnc: p.pnc || p.document.pnc,
@@ -278,6 +291,8 @@ export class PartSearchService {
       page: p.page, notes: p.notes, distance: 0, feedbackScore: 0, searchMethod: 'DIRECT_CODE' as const,
       retrievalSources: ['DIRECT_CODE'] as RetrievalSource[], retrievalAgreement: 1,
     }))));
+    directCodeCache.set(cacheKey, candidates);
+    return candidates;
   }
 
   static async availablePncs(tenantId: string, normalizedModel: string): Promise<string[]> {

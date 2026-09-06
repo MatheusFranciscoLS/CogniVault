@@ -9,6 +9,7 @@ import { buildSearchGroups, scorePartText } from '../services/part-vocabulary';
 import { allRelatedPartNumbers, preferCurrentPartNumbers } from '../services/part-supersession';
 import { filterCandidatesByMarket } from '../services/catalog-market';
 import { invalidatePartSearchCaches } from '../services/part-search.service';
+import { invalidateChatResponseCache } from '../services/chat.service';
 import { resolveEngineCatalogRoute, findMachinesForEngine, findEngineApplications } from '../services/husqvarna-domain-knowledge';
 
 const homeCountsCache = new LRUCache<string, { parts: number; documents: number }>({
@@ -16,13 +17,50 @@ const homeCountsCache = new LRUCache<string, { parts: number; documents: number 
     ttl: 30 * 1000, // 30 seconds
 });
 
+const homeRecentDocsCache = new LRUCache<string, any[]>({
+    max: 200,
+    ttl: 30 * 1000, // 30 seconds
+});
+
+interface CachedSearchResult {
+    parts: any[];
+    documents: any[];
+}
+
+const searchResponseCache = new LRUCache<string, CachedSearchResult>({
+    max: 1000,
+    ttl: 60 * 1000, // 60 seconds
+});
+
+interface CachedPartBase {
+    resolvedPart: any;
+    related: any[];
+    compatibility: any[];
+}
+
+const partDetailCache = new LRUCache<string, CachedPartBase>({
+    max: 1000,
+    ttl: 2 * 60 * 1000, // 2 minutes
+});
+
 export function invalidateHomeCountsCache(tenantId?: string): void {
     if (tenantId) {
         homeCountsCache.delete(tenantId);
+        homeRecentDocsCache.delete(tenantId);
+        for (const key of searchResponseCache.keys()) {
+            if (key.startsWith(`${tenantId}:`)) searchResponseCache.delete(key);
+        }
+        for (const key of partDetailCache.keys()) {
+            if (key.startsWith(`${tenantId}:`)) partDetailCache.delete(key);
+        }
     } else {
         homeCountsCache.clear();
+        homeRecentDocsCache.clear();
+        searchResponseCache.clear();
+        partDetailCache.clear();
     }
     invalidatePartSearchCaches(tenantId);
+    invalidateChatResponseCache(tenantId);
 }
 
 export class OperationalController {
@@ -41,10 +79,24 @@ export class OperationalController {
                 homeCountsCache.set(tenantId, counts);
             }
 
-            const [recentSearches, favorites, recentDocuments] = await Promise.all([
+            let recentDocuments = homeRecentDocsCache.get(tenantId);
+            if (!recentDocuments) {
+                const docs = await prisma.document.findMany({
+                    where: { tenantId, archivedAt: null, status: 'COMPLETED' },
+                    orderBy: { createdAt: 'desc' },
+                    take: 5,
+                    select: {
+                        id: true, filename: true, manufacturer: true, model: true, pnc: true, createdAt: true,
+                        _count: { select: { parts: { where: { active: true } } } },
+                    },
+                });
+                recentDocuments = docs.map((item) => ({ ...item, partCount: item._count.parts, _count: undefined }));
+                homeRecentDocsCache.set(tenantId, recentDocuments);
+            }
+
+            const [recentSearches, favorites] = await Promise.all([
                 prisma.searchHistory.findMany({ where: { tenantId, userId }, orderBy: { createdAt: 'desc' }, take: 6 }),
                 prisma.favorite.findMany({ where: { tenantId, userId }, orderBy: { createdAt: 'desc' }, take: 6 }),
-                prisma.document.findMany({ where: { tenantId, archivedAt: null, status: 'COMPLETED' }, orderBy: { createdAt: 'desc' }, take: 5, select: { id: true, filename: true, manufacturer: true, model: true, pnc: true, createdAt: true, _count: { select: { parts: { where: { active: true } } } } } }),
             ]);
 
             res.json({
@@ -52,7 +104,7 @@ export class OperationalController {
                     counts,
                     recentSearches,
                     favorites,
-                    recentDocuments: recentDocuments.map((item) => ({ ...item, partCount: item._count.parts, _count: undefined })),
+                    recentDocuments,
                 },
             });
         } catch (error) {
@@ -69,6 +121,14 @@ export class OperationalController {
             return;
         }
 
+        const tenantId = req.user.tenantId;
+        const searchCacheKey = `${tenantId}:${q.toLowerCase().trim()}`;
+        const cachedSearch = searchResponseCache.get(searchCacheKey);
+        if (cachedSearch) {
+            res.json(cachedSearch);
+            return;
+        }
+
         try {
 
         const normalized = normalizeText(q);
@@ -78,7 +138,6 @@ export class OperationalController {
         const fullIdentifier = normalizeIdentifier(q);
         const targetCode = codeIdentifier || fullIdentifier;
         const relatedCodes = targetCode ? allRelatedPartNumbers(targetCode).map(normalizeIdentifier).filter(Boolean) : [];
-        const tenantId = req.user.tenantId;
         const normalizedModel = normalizeIdentifier(intent.model);
         const normalizedManufacturer = normalizeIdentifier(intent.manufacturer);
         const normalizedPnc = normalizeIdentifier(intent.pnc);
@@ -235,10 +294,12 @@ export class OperationalController {
                 return { ...publicPart, filename: document.filename, pnc: part.universalAcrossPnc ? 'Qualquer um' : part.pnc };
             });
 
-            res.json({
+            const searchResponsePayload = {
                 parts: rankedParts,
                 documents: documents.map((item) => ({ ...item, partCount: item._count.parts, _count: undefined })),
-            });
+            };
+            searchResponseCache.set(searchCacheKey, searchResponsePayload);
+            res.json(searchResponsePayload);
         } catch (error) {
             console.error('❌ Erro na busca operacional:', error);
             res.status(500).json({ error: 'Erro ao processar a busca de peças.', parts: [], documents: [] });
@@ -248,73 +309,89 @@ export class OperationalController {
     async part(req: AuthenticatedRequest, res: Response): Promise<void> {
         if (!req.user) return;
         const id = String(req.params.id);
+        const tenantId = req.user.tenantId;
+        const detailCacheKey = `${tenantId}:${id}`;
 
         try {
-            const part = await prisma.part.findFirst({
-                where: { id, active: true, document: { tenantId: req.user.tenantId, archivedAt: null, status: 'COMPLETED' } },
-                include: { document: { select: { id: true, filename: true, manufacturer: true, model: true, pnc: true } } },
+            let cachedBase = partDetailCache.get(detailCacheKey);
+            if (!cachedBase) {
+                const part = await prisma.part.findFirst({
+                    where: { id, active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } },
+                    include: { document: { select: { id: true, filename: true, manufacturer: true, model: true, pnc: true } } },
+                });
+                if (!part) {
+                    res.status(404).json({ error: 'Peça não encontrada.' });
+                    return;
+                }
+
+                const relatedCodes = allRelatedPartNumbers(part.normalizedPartNumber).map(normalizeIdentifier).filter(Boolean);
+                const compatibilityCodes = relatedCodes.length ? relatedCodes : [part.normalizedPartNumber];
+
+                const [related, compatibility] = await Promise.all([
+                    prisma.part.findMany({
+                        where: {
+                            id: { not: part.id }, normalizedModel: part.normalizedModel, active: true,
+                            document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+                            ...(part.section ? { section: part.section } : {}),
+                        },
+                        take: 8,
+                        select: { id: true, name: true, partNumber: true, model: true, pnc: true, section: true, position: true, page: true },
+                    }),
+                    prisma.part.findMany({
+                        where: {
+                            normalizedPartNumber: { in: compatibilityCodes },
+                            active: true,
+                            document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+                        },
+                        distinct: ['normalizedModel', 'normalizedPnc'],
+                        take: 50,
+                        select: { model: true, pnc: true, universalAcrossPnc: true },
+                    }),
+                ]);
+
+                const [resolvedPart] = preferCurrentPartNumbers([part]);
+
+                // Enriquecimento de compatibilidade cruzada Máquina <-> Motor (ex: Kawasaki FR691V -> Giro Zero Z248F / Z254F)
+                const extraCompatibility: { model: string; pnc: string }[] = [];
+                const engineMachines = findMachinesForEngine(part.normalizedModel);
+                for (const app of engineMachines) {
+                    extraCompatibility.push({
+                        model: `${app.machineModel} (Giro Zero / Trator c/ motor ${part.model})`,
+                        pnc: app.machinePnc || 'Chassi',
+                    });
+                }
+                const machineEngines = findEngineApplications(part.normalizedModel);
+                for (const app of machineEngines) {
+                    extraCompatibility.push({
+                        model: `Motor ${app.engineModel} (Equipamento original)`,
+                        pnc: app.engineArticle ? `Artigo ${app.engineArticle}` : 'Motor',
+                    });
+                }
+
+                const mergedCompatibility = [
+                    ...compatibility.map((item) => ({ model: item.model, pnc: item.universalAcrossPnc ? 'Qualquer um' : item.pnc })),
+                    ...extraCompatibility,
+                ];
+
+                cachedBase = {
+                    resolvedPart,
+                    related,
+                    compatibility: mergedCompatibility,
+                };
+                partDetailCache.set(detailCacheKey, cachedBase);
+            }
+
+            const favorite = await prisma.favorite.findFirst({
+                where: { userId: req.user.id, partId: id },
+                select: { id: true },
             });
-            if (!part) {
-                res.status(404).json({ error: 'Peça não encontrada.' });
-                return;
-            }
-
-            const relatedCodes = allRelatedPartNumbers(part.normalizedPartNumber).map(normalizeIdentifier).filter(Boolean);
-            const compatibilityCodes = relatedCodes.length ? relatedCodes : [part.normalizedPartNumber];
-
-            const [related, compatibility, favorite] = await Promise.all([
-                prisma.part.findMany({
-                    where: {
-                        id: { not: part.id }, normalizedModel: part.normalizedModel, active: true,
-                        document: { tenantId: req.user.tenantId, archivedAt: null, status: 'COMPLETED' },
-                        ...(part.section ? { section: part.section } : {}),
-                    },
-                    take: 8,
-                    select: { id: true, name: true, partNumber: true, model: true, pnc: true, section: true, position: true, page: true },
-                }),
-                prisma.part.findMany({
-                    where: {
-                        normalizedPartNumber: { in: compatibilityCodes },
-                        active: true,
-                        document: { tenantId: req.user.tenantId, archivedAt: null, status: 'COMPLETED' },
-                    },
-                    distinct: ['normalizedModel', 'normalizedPnc'],
-                    take: 50,
-                    select: { model: true, pnc: true, universalAcrossPnc: true },
-                }),
-                prisma.favorite.findFirst({ where: { userId: req.user.id, partId: part.id }, select: { id: true } }),
-            ]);
-
-            const [resolvedPart] = preferCurrentPartNumbers([part]);
-
-            // Enriquecimento de compatibilidade cruzada Máquina <-> Motor (ex: Kawasaki FR691V -> Giro Zero Z248F / Z254F)
-            const extraCompatibility: { model: string; pnc: string }[] = [];
-            const engineMachines = findMachinesForEngine(part.normalizedModel);
-            for (const app of engineMachines) {
-                extraCompatibility.push({
-                    model: `${app.machineModel} (Giro Zero / Trator c/ motor ${part.model})`,
-                    pnc: app.machinePnc || 'Chassi',
-                });
-            }
-            const machineEngines = findEngineApplications(part.normalizedModel);
-            for (const app of machineEngines) {
-                extraCompatibility.push({
-                    model: `Motor ${app.engineModel} (Equipamento original)`,
-                    pnc: app.engineArticle ? `Artigo ${app.engineArticle}` : 'Motor',
-                });
-            }
-
-            const mergedCompatibility = [
-                ...compatibility.map((item) => ({ model: item.model, pnc: item.universalAcrossPnc ? 'Qualquer um' : item.pnc })),
-                ...extraCompatibility,
-            ];
 
             res.json({
                 part: {
-                    ...resolvedPart,
-                    pnc: resolvedPart.universalAcrossPnc ? 'Qualquer um' : resolvedPart.pnc,
-                    related,
-                    compatibility: mergedCompatibility,
+                    ...cachedBase.resolvedPart,
+                    pnc: cachedBase.resolvedPart.universalAcrossPnc ? 'Qualquer um' : cachedBase.resolvedPart.pnc,
+                    related: cachedBase.related,
+                    compatibility: cachedBase.compatibility,
                     favoriteId: favorite?.id || null,
                 },
             });
