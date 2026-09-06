@@ -38,6 +38,15 @@ app.use(helmet({
 }));
 app.disable('x-powered-by');
 
+// Probes de orquestrador e health checks (Render, cron jobs, etc.) respondem imediatamente sem overhead
+app.get('/health/live', (_req, res) => {
+  res.set('Cache-Control', 'no-store').json({ status: 'online' });
+});
+
+app.head('/health/live', (_req, res) => {
+  res.set('Cache-Control', 'no-store').status(200).end();
+});
+
 // Limite de requisições (Rate Limiting) para proteger a infraestrutura e permitir uso fluido em balcão/oficina
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minuto
@@ -62,7 +71,7 @@ app.use(cors({
 
     return callback(new HttpError(403, 'Origem não permitida pelo CORS.'));
   },
-  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
@@ -70,10 +79,6 @@ app.use(compression());
 app.use(express.json({ limit: '2mb' }));
 
 app.use('/api', routes);
-
-app.get('/health/live', (_req, res) => {
-  res.set('Cache-Control', 'no-store').json({ status: 'online' });
-});
 
 app.get('/health', async (_req, res) => {
   let databaseReady = false;

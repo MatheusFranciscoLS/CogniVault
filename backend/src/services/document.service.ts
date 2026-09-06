@@ -76,16 +76,14 @@ function hasPdfSignature(buffer: Buffer): boolean {
  * não representam um catálogo técnico utilizável e não devem poluir a biblioteca.
  */
 const legacyEmptyFilter = {
-    NOT: {
-        AND: [
-            { status: 'COMPLETED' },
-            { processingStage: 'IDLE' },
-            { model: null },
-            { pnc: null },
-            { parts: { none: {} } },
-            { chunks: { none: {} } },
-        ],
-    },
+    AND: [
+        { status: 'COMPLETED' },
+        { processingStage: 'IDLE' },
+        { model: null },
+        { pnc: null },
+        { parts: { none: {} } },
+        { chunks: { none: {} } },
+    ],
 };
 
 const documentListSelect = {
