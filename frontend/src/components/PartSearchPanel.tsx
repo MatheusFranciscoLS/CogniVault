@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, MouseEvent as ReactMouseEvent } from 'react';
-import { api, apiJson, formatHusqvarnaPartNumber, json } from '../lib';
+import { api, apiJson, formatHusqvarnaPartNumber, cleanErpCode, classifyPartKind, json } from '../lib';
 import { toast } from 'sonner';
-import type { OfficialVerification, PartDetail, SearchPart } from '../types';
+import type { OfficialVerification, PartDetail, SearchPart, MaintenanceKitItem } from '../types';
 import OfficialVerificationApprovalPanel from './OfficialVerificationApprovalPanel';
 import ChatPanel from './ChatPanel';
+import CrossReferenceDialog from './CrossReferenceDialog';
 import { useQuoteCart } from '../context/QuoteCartContext';
 import { playCopySound } from '../lib/sound';
 import PartVerificationDialog, {
@@ -146,9 +147,50 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
   const [aiInitialPrompt, setAiInitialPrompt] = useState('');
   const [activeSystemFilter, setActiveSystemFilter] = useState<string>('ALL');
+  const [crossRefTarget, setCrossRefTarget] = useState<{ code: string; name?: string } | null>(null);
+  const [loadingMaintenanceKit, setLoadingMaintenanceKit] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const quoteCart = useQuoteCart();
+
+  const activeModelForKit = useMemo(() => {
+    if (parts.length > 0 && parts[0].model) return parts[0].model;
+    if (documents.length > 0 && documents[0].model) return documents[0].model;
+    return '';
+  }, [parts, documents]);
+
+  const addBasicMaintenanceKit = useCallback(async (modelToUse: string) => {
+    if (!modelToUse) return;
+    setLoadingMaintenanceKit(true);
+    try {
+      const resp = await apiJson<{ model: string; items: MaintenanceKitItem[] }>(`/api/models/${encodeURIComponent(modelToUse)}/maintenance-kit`);
+      if (!resp.items || resp.items.length === 0) {
+        toast.info(`Nenhum kit de revisão padrão encontrado para o modelo ${modelToUse}.`);
+        return;
+      }
+      const partsToAdd = resp.items
+        .filter((i): i is MaintenanceKitItem & { part: NonNullable<MaintenanceKitItem['part']> } => Boolean(i.part))
+        .map(item => ({
+          partNumber: item.part.partNumber,
+          effectiveCode: formatHusqvarnaPartNumber(item.part.partNumber),
+          name: item.part.name,
+          model: item.part.model || modelToUse,
+          section: item.part.section || item.label || 'REVISÃO BÁSICA',
+          position: item.part.position,
+          filename: item.part.filename,
+        }));
+      if (partsToAdd.length === 0) {
+        toast.info(`Nenhum item do kit de revisão disponível no catálogo de ${modelToUse}.`);
+        return;
+      }
+      quoteCart.addItems(partsToAdd);
+      toast.success(`Combo Revisão Básica (${partsToAdd.length} itens: Vela, Filtros, Corda) adicionado ao orçamento!`);
+    } catch (err) {
+      toast.error(`Não foi possível carregar o kit de revisão: ${err instanceof Error ? err.message : 'Erro'}`);
+    } finally {
+      setLoadingMaintenanceKit(false);
+    }
+  }, [quoteCart]);
 
   const availableSystemFilters = useMemo(() => {
     if (parts.length < 3) return [];
@@ -715,6 +757,19 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
               <div role="status" aria-live="polite" className="mt-0.5 text-xs text-slate-400">{resultSummary}</div>
             </div>
             <div className="flex items-center gap-2">
+              {activeModelForKit && (
+                <button
+                  type="button"
+                  disabled={loadingMaintenanceKit}
+                  onClick={() => void addBasicMaintenanceKit(activeModelForKit)}
+                  title={`Adicionar combo de revisão básica (Vela, Filtros, Corda) para ${activeModelForKit}`}
+                  className="flex items-center gap-1.5 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 px-3 py-1.5 text-xs font-bold text-amber-900 dark:text-amber-300 transition shadow-2xs active:scale-95 disabled:opacity-50"
+                >
+                  <span>🧰</span>
+                  <span className="hidden sm:inline">{loadingMaintenanceKit ? 'Carregando Kit…' : `Combo Revisão (${activeModelForKit})`}</span>
+                  <span className="sm:hidden">{loadingMaintenanceKit ? 'Carregando…' : 'Combo Revisão'}</span>
+                </button>
+              )}
               {parts.length > 0 && (
                 <>
                   <button
@@ -796,7 +851,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                   <article key={part.id} className={`grid gap-3 p-3.5 rounded-2xl transition sm:grid-cols-[minmax(0,1fr)_220px] ${selected ? 'bg-blue-50/90 dark:bg-[#123867]/80 ring-2 ring-blue-400/50 shadow-md' : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/60 border border-slate-100 dark:border-slate-800/80'}`}>
                     <button
                       type="button"
-                      ref={element => { resultRefs.current[index] = element; }}
+                      ref={el => { resultRefs.current[index] = el; }}
                       data-part-result="true"
                       onFocus={() => setSelectedIndex(index)}
                       onMouseEnter={() => setSelectedIndex(index)}
@@ -804,55 +859,69 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                       className="min-w-0 rounded-xl p-2 text-left"
                       aria-label={`Abrir ${part.name}, código ${codeToUse}`}
                     >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="text-sm font-bold text-slate-800 dark:text-slate-100">{part.name}</div>
-                          <div className="mt-1 flex flex-wrap items-baseline gap-2">
-                            <span className="text-xl font-extrabold font-mono tracking-tight text-[#1d4f91] dark:text-blue-300">
-                              {superseded ? (
-                                <>
-                                  <span className="text-slate-400 line-through text-base mr-1">{formatHusqvarnaPartNumber(part.partNumber)}</span>
-                                  <span className="text-emerald-600 dark:text-emerald-400">→ {formattedCode}</span>
-                                </>
-                              ) : formattedCode}
-                            </span>
-                            {formattedCode !== codeToUse && (
-                              <span className="text-[11px] font-mono text-slate-400">
-                                ({codeToUse})
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void copyCode(formattedCode);
-                              }}
-                              title="Copiar código formatado"
-                              className="ml-1 inline-flex items-center rounded-md p-1 text-slate-400 hover:text-[#1d4f91] dark:hover:text-blue-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-                            >
-                              📋
-                            </button>
-                          </div>
-                          {isCurrentReplacement && <div className="mt-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">Código atual de {verification?.queriedPartNumber}</div>}
-                          {part.notes && (
-                            <div className="mt-2 flex flex-wrap gap-1.5">
-                              {part.notes.includes('Substituição oficial') ? (
-                                <span className="inline-flex items-center gap-1 rounded-md border border-amber-400/40 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:text-amber-200">
-                                  <span aria-hidden="true" className="text-amber-500">★</span> {part.notes}
+                      {(() => {
+                        const partClassification = part.classification || classifyPartKind(part.name, part.section, part.notes);
+
+                        return (
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="text-sm font-bold text-slate-800 dark:text-slate-100">{part.name}</div>
+                                <span
+                                  title={partClassification.description}
+                                  className={`rounded-full border px-2 py-0.5 text-[9px] font-extrabold tracking-wider ${partClassification.badgeColor}`}
+                                >
+                                  {partClassification.label}
                                 </span>
-                              ) : (
-                                <span className="inline-flex items-center rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:text-slate-300">
-                                  {part.notes}
+                              </div>
+                              <div className="mt-1 flex flex-wrap items-baseline gap-2">
+                                <span className="text-xl font-extrabold font-mono tracking-tight text-[#1d4f91] dark:text-blue-300">
+                                  {superseded ? (
+                                    <>
+                                      <span className="text-slate-400 line-through text-base mr-1">{formatHusqvarnaPartNumber(part.partNumber)}</span>
+                                      <span className="text-emerald-600 dark:text-emerald-400">→ {formattedCode}</span>
+                                    </>
+                                  ) : formattedCode}
                                 </span>
+                                {formattedCode !== codeToUse && (
+                                  <span className="text-[11px] font-mono text-slate-400">
+                                    ({codeToUse})
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void copyCode(formattedCode);
+                                  }}
+                                  title="Copiar código formatado"
+                                  className="ml-1 inline-flex items-center rounded-md p-1 text-slate-400 hover:text-[#1d4f91] dark:hover:text-blue-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                                >
+                                  📋
+                                </button>
+                              </div>
+                              {isCurrentReplacement && <div className="mt-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">Código atual de {verification?.queriedPartNumber}</div>}
+                              {part.notes && (
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  {part.notes.includes('Substituição oficial') ? (
+                                    <span className="inline-flex items-center gap-1 rounded-md border border-amber-400/40 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:text-amber-200">
+                                      <span aria-hidden="true" className="text-amber-500">★</span> {part.notes}
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:text-slate-300">
+                                      {part.notes}
+                                    </span>
+                                  )}
+                                </div>
                               )}
                             </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {part.position && <span className="rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-2.5 py-1 text-[10px] font-bold text-slate-600 dark:text-slate-300">Pos. {part.position}</span>}
-                          {part.page && <span className="rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 px-2.5 py-1 text-[10px] font-bold text-[#1d4f91] dark:text-blue-300">Pág. {part.page}</span>}
-                        </div>
-                      </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {part.position && <span className="rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-2.5 py-1 text-[10px] font-bold text-slate-600 dark:text-slate-300">Pos. {part.position}</span>}
+                              {part.page && <span className="rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:bg-blue-800 px-2.5 py-1 text-[10px] font-bold text-[#1d4f91] dark:text-blue-300">Pág. {part.page}</span>}
+                            </div>
+                          </div>
+                        );
+                      })()}
                       <div className="mt-3 grid gap-x-4 gap-y-2 text-xs sm:grid-cols-3">
                         <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">Modelo</span><strong className="mt-0.5 block text-slate-700 dark:text-slate-200">{part.model}</strong></div>
                         <div><span className="block text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">PNC</span><strong className="mt-0.5 block text-slate-700 dark:text-slate-200">{part.pnc || '—'}</strong></div>
@@ -891,13 +960,42 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                         <span>{inCart ? `No Orçamento (${inCart.quantity}x)` : 'Adicionar ao Orçamento'}</span>
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => void copyCode(formattedCode)}
-                        className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-[#1d4f91] dark:text-blue-300 transition hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700"
-                      >
-                        Copiar código
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => void copyCode(formattedCode)}
+                          className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-[#1d4f91] dark:text-blue-300 transition hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700"
+                        >
+                          Copiar código
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const clean = cleanErpCode(codeToUse);
+                            void navigator.clipboard.writeText(clean);
+                            playCopySound();
+                            toast.success(`Código ERP copiado: ${clean}`);
+                          }}
+                          title="Copiar código puro sem formatação para colar no ERP"
+                          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition flex items-center gap-1"
+                        >
+                          <span>📋</span>
+                          <span>ERP</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCrossRefTarget({ code: codeToUse, name: part.name });
+                          }}
+                          title="Verificar todos os modelos e catálogos que usam esta mesma peça"
+                          className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/70 dark:bg-indigo-950/40 px-2 py-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition flex items-center gap-1"
+                        >
+                          <span>🔁</span>
+                          <span>Onde usa?</span>
+                        </button>
+                      </div>
 
                       <button
                         type="button"
@@ -1037,7 +1135,20 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
           <div role="dialog" aria-modal="true" aria-labelledby="part-detail-title" className="max-h-[92vh] w-full max-w-5xl overflow-auto rounded-t-[28px] bg-white dark:bg-slate-800 shadow-2xl md:rounded-[28px]">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 px-5 py-4 backdrop-blur">
               <div>
-                <div className="text-xs font-bold uppercase tracking-[.12em] text-[#1d4f91] dark:text-blue-300">Detalhe da peça</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-xs font-bold uppercase tracking-[.12em] text-[#1d4f91] dark:text-blue-300">Detalhe da peça</div>
+                  {(() => {
+                    const detailClassification = detail.classification || classifyPartKind(detail.name, detail.section, detail.notes);
+                    return (
+                      <span
+                        title={detailClassification.description}
+                        className={`rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold tracking-wider ${detailClassification.badgeColor}`}
+                      >
+                        {detailClassification.label}
+                      </span>
+                    );
+                  })()}
+                </div>
                 <div id="part-detail-title" className="mt-1 text-lg font-semibold">{detail.name}</div>
               </div>
               <button type="button" autoFocus onClick={() => setDetail(null)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button>
@@ -1098,6 +1209,31 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
 
                     <button
                       type="button"
+                      onClick={() => {
+                        const clean = cleanErpCode(detailCode);
+                        void navigator.clipboard.writeText(clean);
+                        playCopySound();
+                        toast.success(`Código ERP copiado: ${clean}`);
+                      }}
+                      title="Copiar código puro sem formatação para colar no ERP"
+                      className="rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 px-3.5 py-2.5 text-xs font-semibold text-white transition active:scale-95 flex items-center gap-1.5"
+                    >
+                      <span>📋</span>
+                      <span>Copiar ERP (Puro)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCrossRefTarget({ code: detailCode, name: detail.name })}
+                      title="Verificar todos os modelos e catálogos que usam esta mesma peça"
+                      className="rounded-xl border border-indigo-300/40 bg-indigo-500/30 hover:bg-indigo-500/40 px-3.5 py-2.5 text-xs font-semibold text-indigo-100 transition active:scale-95 flex items-center gap-1.5"
+                    >
+                      <span>🔁</span>
+                      <span>Onde mais é usada?</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => void copyPartDirectLink(detailCode)}
                       className="rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 px-3.5 py-2.5 text-xs font-semibold text-white transition active:scale-95 flex items-center gap-1.5"
                     >
@@ -1154,6 +1290,85 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                     </a>
                   </div>
                 </div>
+
+                {/* Venda Sugerida / Peças Recomendadas */}
+                {detail.suggestedAddons && detail.suggestedAddons.items.length > 0 && (
+                  <div className="mt-4 rounded-[18px] border-2 border-amber-300 dark:border-amber-700 bg-gradient-to-br from-amber-50/90 via-orange-50/40 to-yellow-50/30 dark:from-amber-950/40 dark:via-slate-800 dark:to-slate-900 p-4 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-500 text-slate-950 text-sm font-black shadow-2xs">
+                          💡
+                        </span>
+                        <div>
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-900 dark:text-amber-300">
+                            Venda Sugerida / Peças Correlatas de Manutenção
+                          </span>
+                          <div className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                            {detail.suggestedAddons.reason}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          quoteCart.addItems(
+                            detail.suggestedAddons!.items.map(item => ({
+                              partNumber: item.partNumber,
+                              effectiveCode: formatHusqvarnaPartNumber(item.partNumber),
+                              name: item.name,
+                              model: item.model || detail.model,
+                              section: item.section || detail.section,
+                              position: item.position,
+                              filename: detail.filename,
+                            }))
+                          );
+                          toast.success(`${detail.suggestedAddons!.items.length} peças sugeridas adicionadas ao orçamento!`);
+                        }}
+                        className="rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-1.5 text-xs font-bold transition shadow-xs active:scale-95 shrink-0"
+                      >
+                        + Orçar Todas ({detail.suggestedAddons.items.length})
+                      </button>
+                    </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      {detail.suggestedAddons.items.map(addon => {
+                        const addonInCart = quoteCart.items.find(i => i.partNumber === addon.partNumber);
+                        return (
+                          <div key={addon.id} className="flex items-center justify-between gap-2 rounded-xl bg-white/90 dark:bg-slate-800/90 border border-amber-200/80 dark:border-amber-800/80 p-2.5">
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold truncate text-slate-800 dark:text-slate-100">{addon.name}</div>
+                              <div className="text-[11px] font-mono font-semibold text-[#1d4f91] dark:text-blue-300">
+                                {formatHusqvarnaPartNumber(addon.partNumber)}
+                                {addon.position && <span className="text-slate-400 font-sans font-normal ml-1">· Pos. {addon.position}</span>}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                quoteCart.addItem({
+                                  partNumber: addon.partNumber,
+                                  effectiveCode: formatHusqvarnaPartNumber(addon.partNumber),
+                                  name: addon.name,
+                                  model: addon.model || detail.model,
+                                  section: addon.section || detail.section,
+                                  position: addon.position,
+                                  filename: detail.filename,
+                                });
+                                toast.success(`${addon.name} adicionada ao orçamento!`);
+                              }}
+                              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition shrink-0 ${
+                                addonInCart
+                                  ? 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                                  : 'bg-amber-400 hover:bg-amber-300 text-slate-950'
+                              }`}
+                            >
+                              {addonInCart ? '✓ No Orçamento' : '+ Orçar'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 <div className="mt-4 rounded-[18px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1417,6 +1632,14 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
             />
           </div>
         </div>
+      )}
+
+      {crossRefTarget && (
+        <CrossReferenceDialog
+          partCode={crossRefTarget.code}
+          partName={crossRefTarget.name}
+          onClose={() => setCrossRefTarget(null)}
+        />
       )}
     </section>
   );

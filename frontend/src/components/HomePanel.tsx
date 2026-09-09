@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { apiJson } from '../lib';
+import { apiJson, formatEngineOrCatalogModel } from '../lib';
 import type { HomeData } from '../types';
 import { useQuoteCart } from '../context/QuoteCartContext';
 
@@ -466,29 +466,32 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
           </div>
         ) : (
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {data?.recentDocuments.map(document => (
-              <button
-                type="button"
-                onClick={() => onCatalogs(document.model || document.filename)}
-                key={document.id}
-                className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-4 text-left transition hover:-translate-y-0.5 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md group"
-              >
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="rounded-lg bg-blue-50 dark:bg-[#123867] px-2 py-0.5 text-[10px] font-bold text-[#1d4f91] dark:text-blue-300">
-                    {document.manufacturer || 'Husqvarna'}
-                  </span>
-                  <span className="text-[11px] font-semibold text-slate-400">
-                    {formatCount(document.partCount)} peças
-                  </span>
-                </div>
-                <div className="truncate text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-[#1d4f91] dark:group-hover:text-blue-400 transition">
-                  {document.model || document.filename}
-                </div>
-                <div className="mt-1 truncate text-xs text-slate-400">
-                  {document.filename}
-                </div>
-              </button>
-            ))}
+            {data?.recentDocuments.map(document => {
+              const displayTitle = formatEngineOrCatalogModel(document.model, document.manufacturer, document.filename) || document.model || document.filename;
+              return (
+                <button
+                  type="button"
+                  onClick={() => onCatalogs(displayTitle)}
+                  key={document.id}
+                  className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-4 text-left transition hover:-translate-y-0.5 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md group"
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="rounded-lg bg-blue-50 dark:bg-[#123867] px-2 py-0.5 text-[10px] font-bold text-[#1d4f91] dark:text-blue-300">
+                      {document.manufacturer || 'Husqvarna'}
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-400">
+                      {formatCount(document.partCount)} peças
+                    </span>
+                  </div>
+                  <div className="truncate text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-[#1d4f91] dark:group-hover:text-blue-400 transition" title={displayTitle}>
+                    {displayTitle}
+                  </div>
+                  <div className="mt-1 truncate text-xs text-slate-400" title={document.filename}>
+                    {document.filename}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
 

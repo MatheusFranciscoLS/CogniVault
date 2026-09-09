@@ -284,6 +284,21 @@ function isExplicitVariant(parts: CatalogHealthPart[]): boolean {
   return hasMutuallyExclusiveSerialVariants(parts) || hasMutuallyExclusiveMarketVariants(parts);
 }
 
+function areModelsCompatible(docModel: string, partModel: string): boolean {
+  if (!docModel || !partModel) return true;
+  if (docModel === partModel) return true;
+  const strip = (m: string) => m.replace(/^(?:MOTOR|BRIGGS|STRATTON|BRIGGSSTRATTON|HUSQVARNA|KAWASAKI|KOHLER)+/i, '');
+  const cleanDoc = strip(docModel);
+  const cleanPart = strip(partModel);
+  if (!cleanDoc || !cleanPart) return true;
+  if (cleanDoc === cleanPart) return true;
+  if (cleanDoc.includes(cleanPart) || cleanPart.includes(cleanDoc)) return true;
+  const prefixDoc = cleanDoc.slice(0, 4);
+  const prefixPart = cleanPart.slice(0, 4);
+  if (prefixDoc.length >= 4 && prefixDoc === prefixPart) return true;
+  return false;
+}
+
 /**
  * Diagnostica conflitos somente quando a própria estrutura prova que se trata da
  * mesma ocorrência. PNC, página e seção fazem parte da chave. Se a seção é apenas
@@ -318,7 +333,7 @@ export function diagnoseCatalogStructure(
       occurrences.set(occurrence, rows);
     }
     if (explicitPncRuleMismatch(part)) applicationMismatchCount += 1;
-    if (normalizedDocumentModel && part.normalizedModel && part.normalizedModel !== normalizedDocumentModel) {
+    if (normalizedDocumentModel && part.normalizedModel && !areModelsCompatible(normalizedDocumentModel, part.normalizedModel)) {
       modelMismatchCount += 1;
     }
     if (
@@ -332,7 +347,7 @@ export function diagnoseCatalogStructure(
     const code = normalizeIdentifier(part.normalizedPartNumber);
     if (allowedDocumentPncs.has(code)) pncAsPartNumberCount += 1;
     const digitCount = code.replace(/\D/g, '').length;
-    if (code.length < 6 || code.length > 18 || digitCount < 4) malformedPartNumberCount += 1;
+    if (code.length < 4 || code.length > 18 || digitCount < 3) malformedPartNumberCount += 1;
   }
 
   let conflictingOccurrenceCount = 0;
@@ -394,7 +409,9 @@ export function assessCatalogHealth(input: CatalogHealthInput): CatalogHealth {
   const pncAsPartNumberCount = safeCount(input.pncAsPartNumberCount);
   const missingPositionCount = safeCount(input.missingPositionCount);
 
-  if (!text(input.manufacturer)) findings.push({ message: 'Fabricante não confirmado no catálogo.', penalty: 8, review: true });
+  const isBriggsEngineCode = /^(?:12J|104M|21R|31R|44T|40N|33R|3054|25T|19L|15T|12D|12E|12H|11P|09P|08P|093J|122T|126M|121P|[0-9]{2}[A-Z][0-9]{3}|[0-9]{3}[A-Z][0-9]{2}|[0-9]{5,6})[-_ ]/i.test(text(input.model));
+  const resolvedManufacturer = text(input.manufacturer) || (/\bbriggs\b/i.test(text(input.model)) || isBriggsEngineCode ? 'Briggs & Stratton' : '');
+  if (!resolvedManufacturer) findings.push({ message: 'Fabricante não confirmado no catálogo.', penalty: 8, review: true });
   if (!text(input.model)) findings.push({ message: 'Modelo não confirmado no catálogo.', penalty: 30, review: true });
   else if (!isPlausibleCatalogModel(input.model)) findings.push({
     message: `“${text(input.model)}” não parece ser um modelo de equipamento; pode ser um título de peça ou uma descrição de peça/conjunto lida como modelo.`,
@@ -528,6 +545,7 @@ export async function refreshCatalogHealth(documentId: string, tenantId: string)
     where: { id: documentId, tenantId, processingStage: { not: 'REMOVED' } },
     select: {
       id: true,
+      filename: true,
       manufacturer: true,
       model: true,
       pnc: true,
@@ -573,8 +591,12 @@ export async function refreshCatalogHealth(documentId: string, tenantId: string)
 
   const diagnostics = diagnoseCatalogStructure(parts, document.model, document.pnc, extractedPncs);
   const partsWithInformativeSection = parts.filter(part => isInformativeCatalogSection(part.section)).length;
+  const resolvedManufacturer = document.manufacturer
+    || (/\bbriggs\b/i.test(`${document.model || ''} ${document.filename || ''}`) ? 'Briggs & Stratton' : null)
+    || 'Husqvarna';
+
   const health = assessCatalogHealth({
-    manufacturer: document.manufacturer,
+    manufacturer: resolvedManufacturer,
     model: document.model,
     pnc: document.pnc,
     extractedModels,
@@ -597,6 +619,7 @@ export async function refreshCatalogHealth(documentId: string, tenantId: string)
   await prisma.document.update({
     where: { id: document.id },
     data: {
+      manufacturer: resolvedManufacturer,
       healthScore: health.score,
       reviewStatus: health.reviewStatus,
       reviewReasons: [...health.reasons, ...health.warnings],

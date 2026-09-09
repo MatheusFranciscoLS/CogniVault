@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useQuoteCart } from '../context/QuoteCartContext';
-import { formatHusqvarnaPartNumber } from '../lib';
+import { formatHusqvarnaPartNumber, cleanErpCode } from '../lib';
+import { playCopySound } from '../lib/sound';
 import { toast } from 'sonner';
 
 export default function QuickQuoteCart() {
@@ -481,9 +482,25 @@ export default function QuickQuoteCart() {
                                     🛠️ SERVIÇO / BALCÃO
                                   </span>
                                 ) : (
-                                  <span className="font-mono text-xs font-bold text-[#1d4f91] dark:text-blue-300">
-                                    {formattedCode}
-                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono text-xs font-bold text-[#1d4f91] dark:text-blue-300">
+                                      {formattedCode}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const clean = cleanErpCode(item.effectiveCode || item.partNumber);
+                                        void navigator.clipboard.writeText(clean);
+                                        playCopySound();
+                                        toast.success(`Código ERP copiado: ${clean}`);
+                                      }}
+                                      title="Copiar código puro sem formatação para colar no ERP"
+                                      className="rounded px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition flex items-center gap-0.5"
+                                    >
+                                      <span>📋</span>
+                                      <span>ERP</span>
+                                    </button>
+                                  </div>
                                 )}
                                 {item.isSuperseded && (
                                   <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
@@ -633,6 +650,27 @@ export default function QuickQuoteCart() {
                         )}
                       </div>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const erpLines = items
+                          .filter(i => !i.partNumber.startsWith('SRV-'))
+                          .map(i => `${cleanErpCode(i.effectiveCode || i.partNumber)}\t${i.quantity}`)
+                          .join('\n');
+                        if (!erpLines) {
+                          toast.error('Nenhuma peça com código cadastrado para exportar.');
+                          return;
+                        }
+                        void navigator.clipboard.writeText(erpLines);
+                        playCopySound();
+                        toast.success(`${items.length} itens copiados para colar no ERP (Código + Qtd)!`);
+                      }}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-100 font-bold py-2.5 px-4 text-xs shadow-2xs transition active:scale-98"
+                    >
+                      <span>📋</span>
+                      <span>Copiar para ERP (Código Puro + Quantidade)</span>
+                    </button>
 
                     <button
                       type="button"

@@ -1,8 +1,11 @@
-import type { ChatResponse } from '../../types';
+import { useState } from 'react';
+import type { ChatResponse, SuggestedAddon } from '../../types';
 import ReliabilityDetails from './ReliabilityDetails';
 import { officialPortalUrl, officialPortalLabel } from '../PartVerificationDialog';
-import { formatHusqvarnaPartNumber } from '../../lib';
+import { formatHusqvarnaPartNumber, cleanErpCode, classifyPartKind } from '../../lib';
 import { useQuoteCart } from '../../context/QuoteCartContext';
+import CrossReferenceDialog from '../CrossReferenceDialog';
+import { playCopySound } from '../../lib/sound';
 import { toast } from 'sonner';
 
 function confidencePresentation(response: ChatResponse) {
@@ -33,11 +36,14 @@ export default function ResultCard({
   onAccess: (mode: 'view' | 'download') => void;
 }) {
   const quoteCart = useQuoteCart();
+  const [crossRefOpen, setCrossRefOpen] = useState(false);
   if (!response.part) return null;
   const part = response.part;
   const confidence = confidencePresentation(response);
   const formattedCode = formatHusqvarnaPartNumber(part.partNumber);
   const inCart = quoteCart.items.find(i => i.partNumber === part.partNumber);
+
+  const classification = part.classification || classifyPartKind(part.name, part.section, part.notes);
 
   return (
     <div className="mt-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-slate-800 dark:text-slate-200 shadow-sm transition hover:shadow-md">
@@ -52,7 +58,15 @@ export default function ResultCard({
             )}
           </div>
         </div>
-        {confidence ? <span className={`h-fit rounded-full px-3 py-1 text-xs font-semibold ring-1 ${confidence.style}`}>{confidence.label}</span> : null}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span
+            title={classification.description}
+            className={`rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold tracking-wider ${classification.badgeColor}`}
+          >
+            {classification.label}
+          </span>
+          {confidence ? <span className={`h-fit rounded-full px-3 py-1 text-xs font-semibold ring-1 ${confidence.style}`}>{confidence.label}</span> : null}
+        </div>
       </div>
 
       {response.match ? <div className="mt-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3 text-xs leading-5 text-slate-500 dark:text-slate-400">{response.match.explanation}</div> : null}
@@ -188,6 +202,83 @@ export default function ResultCard({
         </div>
       )}
 
+      {/* Venda Sugerida / Peças Recomendadas */}
+      {part.suggestedAddons && part.suggestedAddons.items.length > 0 && (
+        <div className="mt-3 rounded-2xl border-2 border-amber-300 dark:border-amber-700 bg-gradient-to-br from-amber-50/90 via-orange-50/40 to-yellow-50/30 dark:from-amber-950/40 dark:via-slate-800 dark:to-slate-900 p-3.5 shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-500 text-slate-950 text-sm font-black shadow-2xs">
+                💡
+              </span>
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-900 dark:text-amber-300">
+                  Venda Sugerida / Peças Correlatas de Manutenção
+                </span>
+                <div className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  {part.suggestedAddons.reason}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                quoteCart.addItems(
+                  part.suggestedAddons!.items.map((item: SuggestedAddon) => ({
+                    partNumber: item.partNumber,
+                    name: item.name,
+                    model: item.model || part.model,
+                    section: item.section || part.section,
+                    position: item.position,
+                    filename: part.filename,
+                  }))
+                );
+                toast.success(`${part.suggestedAddons!.items.length} peças sugeridas adicionadas ao orçamento!`);
+              }}
+              className="rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-1.5 text-xs font-bold transition shadow-2xs active:scale-95 shrink-0"
+            >
+              + Orçar Todas ({part.suggestedAddons.items.length})
+            </button>
+          </div>
+          <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
+            {part.suggestedAddons.items.map((addon: SuggestedAddon) => {
+              const addonInCart = quoteCart.items.find(i => i.partNumber === addon.partNumber);
+              return (
+                <div key={addon.id} className="flex items-center justify-between gap-2 rounded-xl bg-white/90 dark:bg-slate-800/90 border border-amber-200/80 dark:border-amber-800/80 p-2">
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold truncate text-slate-800 dark:text-slate-100">{addon.name}</div>
+                    <div className="text-[11px] font-mono font-semibold text-[#1d4f91] dark:text-blue-300">
+                      {formatHusqvarnaPartNumber(addon.partNumber)}
+                      {addon.position && <span className="text-slate-400 font-sans font-normal ml-1">· Pos. {addon.position}</span>}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      quoteCart.addItem({
+                        partNumber: addon.partNumber,
+                        name: addon.name,
+                        model: addon.model || part.model,
+                        section: addon.section || part.section,
+                        position: addon.position,
+                        filename: part.filename,
+                      });
+                      toast.success(`${addon.name} adicionada ao orçamento!`);
+                    }}
+                    className={`rounded-lg px-2 py-1 text-[10px] font-bold transition shrink-0 ${
+                      addonInCart
+                        ? 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                        : 'bg-amber-400 hover:bg-amber-300 text-slate-950'
+                    }`}
+                  >
+                    {addonInCart ? '✓ No Orçamento' : '+ Orçar'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -212,12 +303,43 @@ export default function ResultCard({
           <span>{inCart ? '✓' : '+'}</span>
           <span>{inCart ? `No Orçamento (${inCart.quantity}x)` : 'Adicionar ao Orçamento'}</span>
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            const clean = cleanErpCode(part.partNumber);
+            void navigator.clipboard.writeText(clean);
+            playCopySound();
+            toast.success(`Código ERP copiado: ${clean}`);
+          }}
+          title="Copiar código sem pontuação/espaço para colar no ERP"
+          className="rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 transition flex items-center gap-1.5 active:scale-95"
+        >
+          <span>📋</span>
+          <span>Copiar ERP (Puro)</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setCrossRefOpen(true)}
+          title="Verificar todos os modelos e catálogos que usam esta mesma peça"
+          className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/70 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 px-3 py-2 text-xs font-semibold text-indigo-700 dark:text-indigo-300 transition flex items-center gap-1.5 active:scale-95"
+        >
+          <span>🔁</span>
+          <span>Onde mais é usada?</span>
+        </button>
         <button type="button" disabled={favoritePending} onClick={onToggleFavorite} className={`rounded-xl border px-3 py-2 text-xs font-semibold transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50 ${favorite?'border-amber-300 bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300':'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300'}`}>{favorite?'★ Favoritada':'☆ Favoritar peça'}</button>
         <button type="button" onClick={onCopyCode} className="rounded-xl bg-[#1d4f91] dark:bg-[#1d4f91]/80 px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90">Copiar código</button>
         <button type="button" onClick={onCopySummary} className="rounded-xl border border-slate-300 dark:border-slate-600 px-3 py-2 text-xs font-semibold transition hover:bg-slate-50 dark:bg-slate-800/50">Copiar ficha</button>
         <button type="button" onClick={() => onAccess('view')} className="rounded-xl border border-slate-300 dark:border-slate-600 px-3 py-2 text-xs font-semibold transition hover:bg-slate-50 dark:bg-slate-800/50">Abrir na página</button>
         <button type="button" onClick={() => onAccess('download')} className="rounded-xl border border-slate-300 dark:border-slate-600 px-3 py-2 text-xs font-semibold transition hover:bg-slate-50 dark:bg-slate-800/50">Baixar PDF</button>
       </div>
+
+      {crossRefOpen && (
+        <CrossReferenceDialog
+          partCode={part.partNumber}
+          partName={part.name}
+          onClose={() => setCrossRefOpen(false)}
+        />
+      )}
     </div>
   );
 }

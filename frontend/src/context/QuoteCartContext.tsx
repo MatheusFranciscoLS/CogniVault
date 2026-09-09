@@ -44,6 +44,7 @@ export interface SavedQuote {
 interface QuoteCartContextType {
   items: QuoteCartItem[];
   addItem: (item: Omit<QuoteCartItem, 'quantity' | 'id'> & { quantity?: number }) => void;
+  addItems: (items: Array<Omit<QuoteCartItem, 'quantity' | 'id'> & { quantity?: number }>) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, delta: number) => void;
   updateUnitPrice: (id: string, price: number | undefined) => void;
@@ -177,6 +178,35 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     playCartSound();
 
     toast.success(`Peça "${item.name}" adicionada ao orçamento.`, {
+      action: {
+        label: 'Ver Cesta',
+        onClick: () => setIsOpen(true),
+      },
+    });
+  };
+
+  const addItems = (itemsToAdd: Array<Omit<QuoteCartItem, 'quantity' | 'id'> & { quantity?: number }>) => {
+    if (!itemsToAdd.length) return;
+    setItems(current => {
+      const updated = [...current];
+      for (const item of itemsToAdd) {
+        const id = `${item.partNumber}|${item.model}|${item.pnc || ''}`;
+        const qty = item.quantity || 1;
+        const existingIndex = updated.findIndex(i => i.id === id);
+        if (existingIndex >= 0) {
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            quantity: updated[existingIndex].quantity + qty,
+          };
+        } else {
+          updated.push({ ...item, id, quantity: qty });
+        }
+      }
+      return updated;
+    });
+
+    playCartSound();
+    toast.success(`${itemsToAdd.length} itens adicionados ao orçamento!`, {
       action: {
         label: 'Ver Cesta',
         onClick: () => setIsOpen(true),
@@ -330,6 +360,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       value={{
         items,
         addItem,
+        addItems,
         removeItem,
         updateQuantity,
         updateUnitPrice,

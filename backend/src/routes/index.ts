@@ -44,6 +44,8 @@ router.get('/me', authMiddleware, (req, res) => adminController.me(req, res));
 
 router.get('/home', authMiddleware, (req, res) => operationalController.home(req, res));
 router.get('/search', authMiddleware, (req, res) => operationalController.search(req, res));
+router.get('/parts/:code/cross-reference', authMiddleware, (req, res) => operationalController.crossReference(req, res));
+router.get('/models/:model/maintenance-kit', authMiddleware, (req, res) => operationalController.maintenanceKit(req, res));
 router.get('/parts/:id', authMiddleware, (req, res) => operationalController.part(req, res));
 router.get('/history', authMiddleware, (req, res) => operationalController.history(req, res));
 router.get('/favorites', authMiddleware, (req, res) => operationalController.favorites(req, res));
@@ -64,6 +66,7 @@ router.post('/upload', authMiddleware, adminOnly, upload.single('file'), (req, r
 router.post('/documents/:id/archive', authMiddleware, adminOnly, (req, res) => documentController.archive(req, res));
 router.post('/documents/:id/restore', authMiddleware, adminOnly, (req, res) => documentController.restore(req, res));
 router.post('/documents/:id/reprocess', authMiddleware, adminOnly, (req, res) => documentController.reprocess(req, res));
+router.post('/documents/:id/refresh-health', authMiddleware, (req, res) => documentController.refreshHealth(req, res));
 router.delete('/documents/:id', authMiddleware, adminOnly, (req, res) => documentController.remove(req, res));
 
 router.post('/chat', authMiddleware, (req, res) => chatController.ask(req, res));

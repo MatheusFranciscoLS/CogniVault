@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api, apiJson, fmtDate, json } from '../lib';
+import { api, apiJson, fmtDate, formatEngineOrCatalogModel, json } from '../lib';
 import { toast } from 'sonner';
 import type { DocumentItem, FavoriteItem } from '../types';
 import BatchCatalogUploader from './BatchCatalogUploader';
@@ -9,8 +9,45 @@ type CatalogData = { documents: DocumentItem[]; favorites: FavoriteItem[]; categ
 type StatusFilter = 'ALL' | 'FAILED' | 'REVIEW' | 'READY';
 export type CatalogSortMode = 'NAME_ASC' | 'NAME_DESC' | 'NEWEST' | 'PARTS_DESC';
 
+export const SORT_OPTIONS: Array<{
+  value: CatalogSortMode;
+  label: string;
+  shortLabel: string;
+  description: string;
+  icon: string;
+}> = [
+  {
+    value: 'NAME_ASC',
+    label: 'Nome / Modelo (A-Z)',
+    shortLabel: 'A-Z',
+    description: 'Ordem alfabética padrão de balcão e oficina',
+    icon: '🔤',
+  },
+  {
+    value: 'NAME_DESC',
+    label: 'Nome / Modelo (Z-A)',
+    shortLabel: 'Z-A',
+    description: 'Ordem alfabética decrescente (Z até A)',
+    icon: '🔡',
+  },
+  {
+    value: 'NEWEST',
+    label: 'Mais recentes',
+    shortLabel: 'Recentes',
+    description: 'Últimos catálogos adicionados no topo',
+    icon: '🕒',
+  },
+  {
+    value: 'PARTS_DESC',
+    label: 'Mais peças',
+    shortLabel: 'Qtd Peças',
+    description: 'Catálogos com maior volume de peças',
+    icon: '📦',
+  },
+];
+
 function getCatalogSortKey(document: DocumentItem): string {
-  const model = document.model?.trim();
+  const model = formatEngineOrCatalogModel(document.model, document.manufacturer, document.filename) || document.model?.trim();
   if (model) return model;
   return document.filename.replace(/\.pdf$/i, '').trim();
 }
@@ -152,7 +189,37 @@ export default function CatalogsPanel({
 }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
-  const [search, setSearch] = useState(initialSearch || '');
+  const cleanInitialSearch = (initialSearch && initialSearch.trim() !== 'null' && initialSearch.trim() !== 'undefined') ? initialSearch.trim() : '';
+  const [search, setSearch] = useState(cleanInitialSearch);
+
+  useEffect(() => {
+    if (initialSearch !== undefined) {
+      const clean = (initialSearch && initialSearch.trim() !== 'null' && initialSearch.trim() !== 'undefined') ? initialSearch.trim() : '';
+      setSearch(clean);
+    }
+  }, [initialSearch]);
+
+  const [sortOpen, setSortOpen] = useState(false);
+  const sortRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!sortOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
+        setSortOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSortOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [sortOpen]);
+
   const [archived, setArchived] = useState(false);
   const [busy, setBusy] = useState(false);
   const [analyzingQuality, setAnalyzingQuality] = useState(false);
@@ -236,7 +303,8 @@ export default function CatalogsPanel({
         || (effectiveCategoryFilter === 'Giro zero' && document.applications?.some(a => /giro\s*zero/i.test(a.label || '')));
       if (!matchesStatusFilter(document, statusFilter) || !matchesCategory) return false;
       if (!normalizedSearch) return true;
-      const baseMatch = [document.filename, document.manufacturer, document.model, document.pnc, document.category]
+      const formatted = formatEngineOrCatalogModel(document.model, document.manufacturer, document.filename);
+      const baseMatch = [document.filename, document.manufacturer, document.model, formatted, document.pnc, document.category]
         .some(value => value?.toLowerCase().includes(normalizedSearch));
       const appMatch = (document.applications || []).some(a => a.machineModel.toLowerCase().includes(normalizedSearch) || a.label.toLowerCase().includes(normalizedSearch));
       const engineMatch = (document.engineApplications || []).some(e => e.engineModel.toLowerCase().includes(normalizedSearch) || e.label.toLowerCase().includes(normalizedSearch));
@@ -363,6 +431,22 @@ export default function CatalogsPanel({
     }
   };
 
+  const refreshHealth = async (id: string) => {
+    setBusy(true);
+    setError('');
+    try {
+      const resp = await apiJson<{ message: string; health: { score: number; reviewStatus: string } }>(`/api/documents/${id}/refresh-health`, {
+        method: 'POST',
+      });
+      await load();
+      flash(resp.message || 'Saúde do catálogo recalculada com sucesso!');
+    } catch (refreshErr) {
+      setError(refreshErr instanceof Error ? refreshErr.message : 'Não foi possível recalcular a saúde do catálogo.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const badge = (document: DocumentItem) =>
     document.processingActive
       ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
@@ -382,8 +466,8 @@ export default function CatalogsPanel({
       if (document.processingStage === 'RETRYING') return 'Nova tentativa agendada';
       return document.status === 'PENDING' ? 'Na fila' : 'Processando';
     }
-    if (document.status === 'COMPLETED' && document.processingStage === 'READY_WITHOUT_EMBEDDINGS') return 'Pronto · índice pendente';
-    return document.status === 'COMPLETED' ? 'Pronto' : document.status === 'PROCESSING' ? 'Processando' : document.status === 'PENDING' ? 'Na fila' : 'Falhou';
+    if (document.status === 'COMPLETED') return 'Pronto';
+    return document.status === 'PROCESSING' ? 'Processando' : document.status === 'PENDING' ? 'Na fila' : 'Falhou';
   };
 
   const statusButtons: Array<[StatusFilter, string, number]> = [
@@ -521,20 +605,81 @@ export default function CatalogsPanel({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* Sort Selector */}
-            <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs">
-              <span className="text-slate-400 font-medium">Ordem:</span>
-              <select
-                aria-label="Ordenar catálogos"
-                value={sortMode}
-                onChange={e => changeSortMode(e.target.value as CatalogSortMode)}
-                className="bg-transparent font-semibold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+            {/* Sort Selector with Native Dark Theme Styling */}
+            <div ref={sortRef} className="relative inline-block text-left">
+              <button
+                type="button"
+                id="catalog-sort-menu-button"
+                aria-haspopup="listbox"
+                aria-expanded={sortOpen}
+                onClick={() => setSortOpen(prev => !prev)}
+                className="group flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-xs hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition active:scale-95 cursor-pointer"
+                title="Ordenar catálogo por nome, data ou quantidade de peças"
               >
-                <option value="NAME_ASC">Nome / Modelo (A-Z)</option>
-                <option value="NAME_DESC">Nome / Modelo (Z-A)</option>
-                <option value="NEWEST">Mais recentes</option>
-                <option value="PARTS_DESC">Mais peças</option>
-              </select>
+                <span className="flex items-center gap-1.5 text-slate-400 dark:text-slate-400 font-medium">
+                  <svg className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500 transition-colors" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M2.24 6.8a.75.75 0 001.06-.04l1.95-2.1v8.59a.75.75 0 001.5 0V4.66l1.95 2.1a.75.75 0 101.1-1.02l-3.25-3.5a.75.75 0 00-1.1 0L2.2 5.74a.75.75 0 00.04 1.06zm8 6.4a.75.75 0 00-.04 1.06l3.25 3.5a.75.75 0 001.1 0l3.25-3.5a.75.75 0 10-1.1-1.02l-1.95 2.1V6.75a.75.75 0 00-1.5 0v8.59l-1.95-2.1a.75.75 0 00-1.06-.04z" clipRule="evenodd" />
+                  </svg>
+                  <span>Ordem:</span>
+                </span>
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {SORT_OPTIONS.find(opt => opt.value === sortMode)?.label || 'Nome / Modelo (A-Z)'}
+                </span>
+                <svg
+                  className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${sortOpen ? 'rotate-180 text-blue-500' : ''}`}
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                </svg>
+              </button>
+
+              {sortOpen && (
+                <div
+                  role="listbox"
+                  aria-labelledby="catalog-sort-menu-button"
+                  className="absolute right-0 z-50 mt-1.5 w-64 origin-top-right rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-1.5 shadow-2xl shadow-slate-950/20 ring-1 ring-black/5"
+                >
+                  <div className="px-2.5 py-1.5 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Critério de ordenação
+                  </div>
+                  <div className="mt-1 space-y-0.5">
+                    {SORT_OPTIONS.map(opt => {
+                      const isSelected = sortMode === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          role="option"
+                          aria-selected={isSelected}
+                          onClick={() => {
+                            changeSortMode(opt.value);
+                            setSortOpen(false);
+                          }}
+                          className={`w-full flex items-start gap-2.5 rounded-xl px-2.5 py-2 text-left transition ${
+                            isSelected
+                              ? 'bg-blue-50 dark:bg-[#123867]/80 text-blue-700 dark:text-blue-200'
+                              : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80'
+                          }`}
+                        >
+                          <span className="text-base leading-none mt-0.5">{opt.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold leading-none">{opt.label}</span>
+                              {isSelected && (
+                                <span className="text-blue-600 dark:text-blue-400 font-bold text-xs">✓</span>
+                              )}
+                            </div>
+                            <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-400 leading-tight">
+                              {opt.description}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* View Mode Toggle */}
@@ -642,8 +787,8 @@ export default function CatalogsPanel({
                     </div>
 
                     <div className="mt-3">
-                      <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 truncate" title={document.model || document.filename}>
-                        {document.model || 'Modelo não confirmado'}
+                      <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 truncate" title={formatEngineOrCatalogModel(document.model, document.manufacturer, document.filename) || document.filename}>
+                        {formatEngineOrCatalogModel(document.model, document.manufacturer, document.filename) || document.model || 'Modelo não confirmado'}
                       </h3>
                       <div className="mt-0.5 text-xs text-slate-400 truncate" title={document.filename}>
                         {document.filename}
@@ -684,12 +829,20 @@ export default function CatalogsPanel({
 
                     {document.applications && document.applications.length > 0 && (
                       <div className="mt-2.5">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Aplicação em Máquinas</div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Aplicação em Máquinas Husqvarna</div>
                         <div className="mt-1 flex flex-wrap gap-1">
-                          {document.applications.slice(0, 3).map((app, idx) => (
-                            <span key={idx} className="rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300">
-                              ⚡ {app.label}
-                            </span>
+                          {document.applications.slice(0, 4).map((app, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => onSearch ? onSearch(app.machineModel) : setSearch(app.machineModel)}
+                              title={`Filtrar / buscar peças da máquina ${app.machineModel}`}
+                              className="inline-flex items-center gap-1 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition active:scale-95 cursor-pointer"
+                            >
+                              <span>⚡</span>
+                              <span>{app.label}</span>
+                              <span className="opacity-60 text-[9px]">→</span>
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -699,10 +852,18 @@ export default function CatalogsPanel({
                       <div className="mt-2.5">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Motor Original</div>
                         <div className="mt-1 flex flex-wrap gap-1">
-                          {document.engineApplications.slice(0, 2).map((app, idx) => (
-                            <span key={idx} className="rounded-md bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-800 dark:text-blue-300">
-                              ⚙️ {app.label}
-                            </span>
+                          {document.engineApplications.slice(0, 3).map((app, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setSearch(app.engineModel)}
+                              title={`Filtrar pelo motor ${app.engineModel}`}
+                              className="inline-flex items-center gap-1 rounded-md bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-800 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition active:scale-95 cursor-pointer"
+                            >
+                              <span>⚙️</span>
+                              <span>{app.label}</span>
+                              <span className="opacity-60 text-[9px]">→</span>
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -748,14 +909,28 @@ export default function CatalogsPanel({
 
                     {admin && (
                       <div className="w-full flex items-center justify-between pt-1 text-[11px] text-slate-400">
-                        <button
-                          type="button"
-                          disabled={busy || document.processingActive}
-                          onClick={() => void action(document.id, 'reprocess')}
-                          className="hover:text-blue-600 disabled:opacity-40 font-medium"
-                        >
-                          Reextrair
-                        </button>
+                        {document.status === 'COMPLETED' && (document.reviewStatus === 'NEEDS_REVIEW' || (typeof document.healthScore === 'number' && document.healthScore < 100)) ? (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void refreshHealth(document.id)}
+                            title="Recalcula a nota de integridade instantaneamente sem precisar reextrair o PDF da IA"
+                            className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition"
+                          >
+                            <span>⚡</span>
+                            <span>Recalcular Saúde</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={busy || document.processingActive}
+                            onClick={() => void action(document.id, 'reprocess')}
+                            title="Reextração completa via IA Gemini (necessário apenas se faltarem páginas)"
+                            className="hover:text-blue-600 disabled:opacity-40 font-medium"
+                          >
+                            Reextrair
+                          </button>
+                        )}
                         <button
                           type="button"
                           disabled={busy || document.processingActive}
@@ -840,24 +1015,40 @@ export default function CatalogsPanel({
                       </td>
                       <td className="pr-4 text-slate-600 dark:text-slate-400">
                         <div className={document.modelNeedsReview ? 'font-semibold text-rose-700 dark:text-rose-300' : 'font-medium text-slate-700 dark:text-slate-300'}>
-                          {document.model || 'Modelo não confirmado'}
+                          {formatEngineOrCatalogModel(document.model, document.manufacturer, document.filename) || document.model || 'Modelo não confirmado'}
                         </div>
                         {document.suggestedModel && <div className="mt-1 text-[10px] font-semibold text-blue-700 dark:text-blue-300">Sugestão: {document.suggestedModel}</div>}
                         {document.applications && document.applications.length > 0 && (
                           <div className="mt-1 flex flex-wrap gap-1">
-                            {document.applications.slice(0, 2).map((app, idx) => (
-                              <span key={idx} className="rounded bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 dark:text-amber-300">
-                                ⚡ {app.label}
-                              </span>
+                            {document.applications.slice(0, 3).map((app, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => onSearch ? onSearch(app.machineModel) : setSearch(app.machineModel)}
+                                title={`Filtrar / buscar peças da máquina ${app.machineModel}`}
+                                className="inline-flex items-center gap-1 rounded bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition cursor-pointer"
+                              >
+                                <span>⚡</span>
+                                <span>{app.label}</span>
+                                <span className="opacity-60 text-[8px]">→</span>
+                              </button>
                             ))}
                           </div>
                         )}
                         {document.engineApplications && document.engineApplications.length > 0 && (
                           <div className="mt-1 flex flex-wrap gap-1">
-                            {document.engineApplications.slice(0, 2).map((app, idx) => (
-                              <span key={idx} className="rounded bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-800 dark:text-blue-300">
-                                ⚙️ {app.label}
-                              </span>
+                            {document.engineApplications.slice(0, 3).map((app, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => setSearch(app.engineModel)}
+                                title={`Filtrar pelo motor ${app.engineModel}`}
+                                className="inline-flex items-center gap-1 rounded bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-800 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition cursor-pointer"
+                              >
+                                <span>⚙️</span>
+                                <span>{app.label}</span>
+                                <span className="opacity-60 text-[8px]">→</span>
+                              </button>
                             ))}
                           </div>
                         )}
@@ -940,6 +1131,17 @@ export default function CatalogsPanel({
                               {document.status === 'COMPLETED' && document.modelNeedsReview && onQuality && (
                                 <button type="button" onClick={onQuality} className="rounded-lg border border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] px-2.5 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
                                   Corrigir dados
+                                </button>
+                              )}
+                              {document.status === 'COMPLETED' && (document.reviewStatus === 'NEEDS_REVIEW' || (typeof document.healthScore === 'number' && document.healthScore < 100)) && (
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  onClick={() => void refreshHealth(document.id)}
+                                  title="Recalcula a nota de integridade instantaneamente sem reextrair o PDF da IA"
+                                  className="rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition"
+                                >
+                                  ⚡ Recalcular Saúde
                                 </button>
                               )}
                               <button

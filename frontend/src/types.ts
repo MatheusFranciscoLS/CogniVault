@@ -35,7 +35,7 @@ export interface ChatResponse {
   };
   technicalContext?:Array<{filename:string;page:number|null;section:string|null;excerpt:string;method:'FULL_TEXT'|'FUZZY'|'SEMANTIC'}>;
   guidance?:{title:string;description:string;tips:string[]};
-  part?:{ id:string; documentId:string; partNumber:string; manufacturer?:string|null; name:string; model:string; pnc:string; section:string|null; position:string|null; page:number|null; notes?:string|null; filename:string; universalAcrossPnc?:boolean; applications?:Array<{model:string;pnc:string}> };
+  part?:{ id:string; documentId:string; partNumber:string; manufacturer?:string|null; name:string; model:string; pnc:string; section:string|null; position:string|null; page:number|null; notes?:string|null; filename:string; universalAcrossPnc?:boolean; applications?:Array<{model:string;pnc:string}>; classification?: PartClassification; suggestedAddons?: { reason: string; items: SuggestedAddon[] } };
   feedbackOptions?:FeedbackOption[]; options?:FeedbackOption[];
   b2bPortal?: { success: boolean; stockStatus: string; supersededBy?: string; };
   technicalReasoningSteps?: Array<{ step: number; title: string; detail: string; status: 'SUCCESS' | 'INFO' | 'NOTICE' }>;
@@ -53,13 +53,69 @@ export interface FavoriteItem {
   id:string; kind:'PART'|'DOCUMENT'; label:string; reference:string|null; model:string|null; pnc:string|null; partId:string|null; documentId:string|null; createdAt:string;
   sourceFilename?:string|null; section?:string|null; position?:string|null; page?:number|null;
 }
+export type PartClassificationKind = 'ASSEMBLY' | 'REPAIR_KIT' | 'INDIVIDUAL_PART';
+
+export interface PartClassification {
+  kind: PartClassificationKind;
+  label: string;
+  badgeColor: string;
+  description: string;
+}
+
+export interface SuggestedAddon {
+  id: string;
+  name: string;
+  partNumber: string;
+  model?: string;
+  pnc?: string | null;
+  section?: string | null;
+  position?: string | null;
+  page?: number | null;
+  classification?: PartClassification;
+}
+
+export interface CrossReferenceModel {
+  model: string;
+  filename: string;
+  category: string;
+  pncs: string[];
+  sections: string[];
+  usages: Array<{ id: string; partNumber: string; name: string; position: string | null; page: number | null }>;
+}
+
+export interface CrossReferenceResult {
+  code: string;
+  totalModels: number;
+  totalUsages: number;
+  models: CrossReferenceModel[];
+}
+
+export interface MaintenanceKitItem {
+  category: string;
+  label: string;
+  part: {
+    id: string;
+    partNumber: string;
+    name: string;
+    model: string;
+    pnc: string | null;
+    section: string | null;
+    position: string | null;
+    page: number | null;
+    filename?: string;
+    classification?: PartClassification;
+  } | null;
+}
+
 export interface SearchPart {
   id:string; name:string; partNumber:string; manufacturer:string|null; model:string; pnc:string|null; section:string|null; position:string|null; page:number|null; documentId:string; filename:string; notes?:string|null;
+  classification?: PartClassification;
 }
 export interface PartDetail extends SearchPart {
   notes:string|null; favoriteId:string|null; document:{id:string;filename:string;manufacturer:string|null;model:string|null;pnc:string|null};
-  related:Array<{id:string;name:string;partNumber:string;model:string;pnc:string|null;section:string|null;position:string|null;page:number|null}>;
+  related:Array<{id:string;name:string;partNumber:string;model:string;pnc:string|null;section:string|null;position:string|null;page:number|null;classification?:PartClassification}>;
   compatibility:Array<{model:string;pnc:string|null}>;
+  suggestedAddons?: { reason: string; items: SuggestedAddon[] };
 }
 export interface HomeData {
   counts:{parts:number;documents:number}; recentSearches:SearchHistoryItem[]; favorites:FavoriteItem[];

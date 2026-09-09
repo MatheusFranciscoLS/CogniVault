@@ -386,6 +386,24 @@ export const ENGINE_APPLICATIONS: EngineApplication[] = [
   // V548 / V554 (Stand-on)
   { machineModel: 'V548', engineModel: 'FX730V' },
   { machineModel: 'V554', engineModel: 'FX850V' },
+  // Cortadores de grama (Walk Mowers) com motores Briggs & Stratton / Kohler / Husqvarna
+  // J55SL: equipado com motor Briggs & Stratton 12J900 / 12J902 (ex.: 12J902-0118-01 / 12J900-0000)
+  { machineModel: 'J55SL', engineModel: 'Motor Briggs 12J902-0118-01' },
+  { machineModel: 'J55SL', engineModel: 'Motor Briggs 12J900-0000' },
+  { machineModel: 'J55SL', engineModel: '12J902-0118-01' },
+  { machineModel: 'J55SL', engineModel: '12J900-0000' },
+  { machineModel: 'J55SL', engineModel: '12J902' },
+  { machineModel: 'J55SL', engineModel: '12J900' },
+
+  // LC121P: equipado com motor Briggs & Stratton 104M02 (ex.: 104M02-0002-F1 / 675EXi)
+  { machineModel: 'LC121P', engineModel: 'Motor Briggs 104M02-0002-F1' },
+  { machineModel: 'LC121P', engineModel: '104M02-0002-F1' },
+  { machineModel: 'LC121P', engineModel: '104M02' },
+
+  // Outros cortadores de grama populares com motor Briggs
+  { machineModel: 'LB155S', engineModel: 'Motor Briggs 675' },
+  { machineModel: 'HU725AWD', engineModel: 'Motor Briggs 725EXi' },
+  { machineModel: 'HU550FH', engineModel: 'Motor Briggs 550' },
 ];
 
 const ENGINE_INTERNAL_TERMS = [
@@ -690,13 +708,100 @@ export function findEngineApplications(machineModel: string, pnc?: string): Engi
   return apps;
 }
 
-export function findMachinesForEngine(engineModel: string): EngineApplication[] {
-  if (!engineModel) return [];
-  const normEngine = normalizeIdentifier(engineModel).replace(/V$/, '');
-  return ENGINE_APPLICATIONS.filter(a => {
-    const norm = normalizeIdentifier(a.engineModel).replace(/V$/, '');
-    return norm === normEngine;
-  });
+export function findMachinesForEngine(engineModel: string, filename?: string): EngineApplication[] {
+  const results: EngineApplication[] = [];
+  const seenMachines = new Set<string>();
+
+  const addMatch = (app: EngineApplication) => {
+    const key = `${normalizeIdentifier(app.machineModel)}|${app.machinePnc || ''}`;
+    if (!seenMachines.has(key)) {
+      seenMachines.add(key);
+      results.push(app);
+    }
+  };
+
+  if (engineModel) {
+    const cleanNorm = normalizeIdentifier(engineModel)
+      .replace(/^motor(?:briggs(?:andstratton)?)?/, '')
+      .replace(/V$/, '');
+
+    for (const a of ENGINE_APPLICATIONS) {
+      const appEngineNorm = normalizeIdentifier(a.engineModel)
+        .replace(/^motor(?:briggs(?:andstratton)?)?/, '')
+        .replace(/V$/, '');
+      if (
+        cleanNorm === appEngineNorm ||
+        (cleanNorm.length >= 5 && appEngineNorm.length >= 5 && (cleanNorm.startsWith(appEngineNorm) || appEngineNorm.startsWith(cleanNorm)))
+      ) {
+        addMatch(a);
+      }
+    }
+  }
+
+  // Verificação dinâmica pelo nome do arquivo do catálogo (SEMPRE QUE TIVER NOVO PDF)
+  // Exemplo: "Motor Briggs 12J900-0000 J55SL.pdf" -> identifica J55SL
+  // Exemplo: "Motor Briggs 104M02-0002-F1 LC121P.pdf" -> identifica LC121P
+  if (filename) {
+    for (const entry of MODEL_FAMILIES) {
+      const regex = new RegExp(`\\b${entry.model}\\b`, 'i');
+      if (regex.test(filename)) {
+        addMatch({
+          machineModel: entry.model,
+          engineModel: engineModel || 'Motor Briggs',
+        });
+      }
+    }
+  }
+
+  return results;
+}
+
+export function formatBriggsEngineModel(
+  model?: string | null,
+  filename?: string | null,
+  manufacturer?: string | null,
+  options?: { includeMachine?: boolean }
+): string {
+  let raw = (model || '').trim();
+  const rawMfg = (manufacturer || '').toLowerCase();
+  const rawFile = (filename || '').toLowerCase();
+
+  const isBriggs =
+    rawMfg.includes('briggs') ||
+    rawFile.includes('briggs') ||
+    /briggs/i.test(raw) ||
+    /^(?:12J|104M|21R|31R|44T|40N|33R|3054|25T|19L|15T|12D|12E|12H|11P|09P|08P|093J|122T|126M|121P)/i.test(raw) ||
+    /^(?:[0-9]{2}[A-Z][0-9]{3}|[0-9]{3}[A-Z][0-9]{2}|[0-9]{5,6})[-_ ][0-9A-Z]{4}(?:[-_ ][0-9A-Z]{1,2})?$/i.test(raw);
+
+  if (!isBriggs) return raw;
+
+  if (!raw && filename) {
+    const m = filename.match(/\b([0-9]{2}[A-Z][0-9]{3}[-_ ][0-9A-Z]{4}|[0-9]{5,6}[-_ ][0-9A-Z]{4}|104M02[-_ ][0-9A-Z]{4}|12J[0-9]{3}[-_ ][0-9A-Z]{4})\b/i);
+    if (m) raw = m[1];
+  }
+
+  let baseModel = raw;
+  if (/^motor\s+briggs\b/i.test(raw)) {
+    baseModel = raw.replace(/^motor\s+briggs\s*/i, 'Motor Briggs ');
+  } else if (/^briggs\s*(?:&|and)?\s*(?:stratton)?\s*/i.test(raw)) {
+    const cleanCode = raw.replace(/^briggs\s*(?:&|and)?\s*(?:stratton)?\s*(?:motor\s*)?/i, '').trim();
+    baseModel = cleanCode ? `Motor Briggs ${cleanCode}` : 'Motor Briggs';
+  } else {
+    baseModel = raw ? `Motor Briggs ${raw}` : 'Motor Briggs';
+  }
+
+  if (options?.includeMachine) {
+    const hay = `${rawFile} ${raw}`.toUpperCase();
+    if (hay.includes('J55SL') && !baseModel.toUpperCase().includes('J55SL')) {
+      baseModel = `${baseModel} (Cortador J55SL)`;
+    } else if (hay.includes('LC121P') && !baseModel.toUpperCase().includes('LC121P')) {
+      baseModel = `${baseModel} (Cortador LC121P)`;
+    } else if (hay.includes('LC121') && !baseModel.toUpperCase().includes('LC121')) {
+      baseModel = `${baseModel} (Cortador LC121)`;
+    }
+  }
+
+  return baseModel;
 }
 
 export function isMachineEngineInquiry(question: string): boolean {
@@ -710,3 +815,117 @@ export function isMachineEngineInquiry(question: string): boolean {
     /\bqual\s+o\s+motor\s+deste\b/.test(norm)
   ) && !/\b(?:partida|arranque|eletrico|elétrico|ventilador|tracao|tração|roda|lamina|lâmina|corte)\b/.test(norm);
 }
+
+export type PartClassificationKind = 'ASSEMBLY' | 'REPAIR_KIT' | 'INDIVIDUAL_PART';
+
+export type PartClassification = {
+  kind: PartClassificationKind;
+  label: string;
+  badgeColor: string;
+  description: string;
+};
+
+export function classifyPartKind(name?: string | null, section?: string | null, notes?: string | null): PartClassification {
+  const text = `${name || ''} ${section || ''} ${notes || ''}`.toLowerCase();
+
+  const isRepairKit = (
+    /\b(?:kit\s+(?:de\s+)?reparo|jogo\s+(?:de\s+)?reparo|kit\s+(?:de\s+)?juntas|jogo\s+(?:de\s+)?juntas|kit\s+(?:de\s+)?vedacao|kit\s+(?:de\s+)?vedação|kit\s+diafragma|kit\s+membrana|repair\s+kit|gasket\s+set|seal\s+kit|diaphragm\s+kit|carburetor\s+kit|kit\s+carburador)\b/i.test(text) ||
+    (/\b(?:kit|jogo)\b/i.test(text) && /\b(?:reparo|junta|juntas|vedacao|vedação|diafragma|membrana|mola|molas|retentor|retentores)\b/i.test(text))
+  ) && !/\b(?:kit\s+(?:de\s+)?cilindro|kit\s+(?:do\s+)?motor|kit\s+(?:de\s+)?bloco)\b/i.test(text);
+
+  if (isRepairKit) {
+    return {
+      kind: 'REPAIR_KIT',
+      label: '[KIT REPARO]',
+      badgeColor: 'amber',
+      description: 'Kit de juntas, diafragmas ou componentes de reposição/reparo',
+    };
+  }
+
+  const isAssembly = (
+    /\b(?:conjunto|subconjunto|completo|completa|assembly|assy|bloco\s+do\s+motor|motor\s+completo|kit\s+(?:de\s+)?cilindro|cilindro\s+c\/\s*pistao|cilindro\s+com\s+pistao)\b/i.test(text) ||
+    (/\bcarburador\b/i.test(text) && !/\b(?:corpo|tampa|parafuso|agulha|mola|eixo)\b/i.test(text)) ||
+    (/\b(?:embreagem|transmissao|transmissão|bomba\s+de\s+oleo|bomba\s+de\s+óleo)\b/i.test(text) && /\b(?:completa|completo)\b/i.test(text))
+  );
+
+  if (isAssembly) {
+    return {
+      kind: 'ASSEMBLY',
+      label: '[CONJUNTO COMPLETO]',
+      badgeColor: 'emerald',
+      description: 'Conjunto ou subconjunto montado completo',
+    };
+  }
+
+  return {
+    kind: 'INDIVIDUAL_PART',
+    label: '[COMPONENTE INDIVIDUAL]',
+    badgeColor: 'slate',
+    description: 'Item avulso / componente individual',
+  };
+}
+
+export function getCorrelatedMaintenanceTerms(partName?: string | null): { suggestedTerms: string[]; reason: string } {
+  const norm = normalizeText(partName || '');
+
+  if (/\b(?:pistao|pistão|cilindro)\b/i.test(norm)) {
+    return {
+      suggestedTerms: ['anel', 'trava', 'pino', 'junta', 'rolamento', 'vela'],
+      reason: 'Ao trocar pistão ou cilindro, recomenda-se trocar anéis, travas, junta do cilindro e rolamento de agulhas.',
+    };
+  }
+  if (/\bcarburador\b/i.test(norm)) {
+    return {
+      suggestedTerms: ['filtro de combustivel', 'filtro combustivel', 'mangueira', 'junta', 'vela'],
+      reason: 'Ao revisar/trocar o carburador, recomenda-se substituir o filtro de combustível e mangueiras.',
+    };
+  }
+  if (/\b(?:sabre|barra|guia)\b/i.test(norm)) {
+    return {
+      suggestedTerms: ['corrente', 'lima', 'pinhao', 'pinhão', 'tambor'],
+      reason: 'Ao trocar o sabre, confira o desgaste da corrente e do pinhão da embreagem.',
+    };
+  }
+  if (/\b(?:partida|arranque|polia)\b/i.test(norm)) {
+    return {
+      suggestedTerms: ['corda', 'mola', 'punho', 'arrastador'],
+      reason: 'Ao consertar a partida, verifique o estado da corda e das molas.',
+    };
+  }
+  if (/\b(?:lamina|lâmina|faca)\b/i.test(norm)) {
+    return {
+      suggestedTerms: ['porca', 'prato', 'arruela', 'protetor', 'copo'],
+      reason: 'Ao trocar a lâmina, certifique-se da porca de fixação e do prato giratório.',
+    };
+  }
+  if (/\b(?:cabecote|cabeçote|carretel|fio de nylon)\b/i.test(norm)) {
+    return {
+      suggestedTerms: ['fio de nylon', 'mola', 'tampa', 'ilhos', 'ilhós'],
+      reason: 'Ao repor o cabeçote, verifique carga de fio de nylon e ilhós.',
+    };
+  }
+  if (/\b(?:filtro de ar|filtro ar)\b/i.test(norm)) {
+    return {
+      suggestedTerms: ['vela', 'filtro de combustivel', 'filtro combustivel', 'pre-filtro'],
+      reason: 'Item de revisão preventiva: considere o combo com vela e filtro de combustível.',
+    };
+  }
+  if (/\b(?:embreagem|tambor)\b/i.test(norm)) {
+    return {
+      suggestedTerms: ['mola', 'rolamento', 'pinhao', 'pinhão', 'arruela'],
+      reason: 'Ao mexer na embreagem, confira molas e rolamento de agulha.',
+    };
+  }
+
+  return { suggestedTerms: [], reason: '' };
+}
+
+export function getBasicMaintenanceKitTerms(): Array<{ category: string; searchTerms: string[]; label: string }> {
+  return [
+    { category: 'SPARK_PLUG', searchTerms: ['vela', 'spark plug', 'ignicao', 'ignição'], label: 'Vela de Ignição' },
+    { category: 'AIR_FILTER', searchTerms: ['filtro de ar', 'filtro ar', 'air filter'], label: 'Filtro de Ar' },
+    { category: 'FUEL_FILTER', searchTerms: ['filtro de combustivel', 'filtro combustivel', 'fuel filter'], label: 'Filtro de Combustível' },
+    { category: 'STARTER_ROPE', searchTerms: ['corda de partida', 'corda', 'starter cord', 'cabo arranque'], label: 'Corda de Partida' },
+  ];
+}
+

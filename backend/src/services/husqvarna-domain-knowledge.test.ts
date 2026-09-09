@@ -7,7 +7,11 @@ import {
   resolveEngineCatalogRoute,
   findEngineApplications,
   findMachinesForEngine,
+  formatBriggsEngineModel,
   isMachineEngineInquiry,
+  classifyPartKind,
+  getCorrelatedMaintenanceTerms,
+  getBasicMaintenanceKitTerms,
 } from './husqvarna-domain-knowledge';
 import { buildSearchGroups, inferredSearchAliases, scorePartText } from './part-vocabulary';
 import { extractLikelyModel } from './chat-reliability';
@@ -201,4 +205,90 @@ test('encontra máquinas que utilizam um motor específico (ex: FR691V -> Z248F,
   const fxMachines = findMachinesForEngine('FX921V');
   assert.ok(fxMachines.some(m => m.machineModel === 'Z560X'));
 });
+
+test('encontra cortadores Husqvarna (J55SL, LC121P) para motores Briggs', () => {
+  const j55Machines = findMachinesForEngine('Motor Briggs 12J902-0118-01');
+  assert.ok(j55Machines.some(m => m.machineModel === 'J55SL'), 'Deveria encontrar J55SL a partir de Motor Briggs 12J902-0118-01');
+
+  const j55Bare = findMachinesForEngine('12J902-0118-01');
+  assert.ok(j55Bare.some(m => m.machineModel === 'J55SL'), 'Deveria encontrar J55SL a partir de código cru 12J902-0118-01');
+
+  const lcMachines = findMachinesForEngine('Motor Briggs 104M02-0002-F1');
+  assert.ok(lcMachines.some(m => m.machineModel === 'LC121P'), 'Deveria encontrar LC121P a partir de Motor Briggs 104M02-0002-F1');
+
+  const lcBare = findMachinesForEngine('104M02-0002-F1');
+  assert.ok(lcBare.some(m => m.machineModel === 'LC121P'), 'Deveria encontrar LC121P a partir de código cru 104M02-0002-F1');
+
+  // Detecção dinâmica de novo PDF pelo nome do arquivo
+  const dynamicJ55 = findMachinesForEngine('12J900-0000', 'Motor Briggs 12J900-0000 J55SL.pdf');
+  assert.ok(dynamicJ55.some(m => m.machineModel === 'J55SL'), 'Deveria detectar J55SL dinamicamente pelo nome do arquivo');
+
+  const dynamicLC = findMachinesForEngine('104M02-0002-F1', 'Motor Briggs 104M02-0002-F1 LC121P.pdf');
+  assert.ok(dynamicLC.some(m => m.machineModel === 'LC121P'), 'Deveria detectar LC121P dinamicamente pelo nome do arquivo');
+});
+
+test('formata identificação de motores Briggs com prefixo Motor Briggs <código>', () => {
+  assert.equal(formatBriggsEngineModel('12J902-0118-01', undefined, 'Briggs & Stratton'), 'Motor Briggs 12J902-0118-01');
+  assert.equal(formatBriggsEngineModel('104M02-0002-F1', 'Motor Briggs 104M02-0002-F1 LC121P.pdf'), 'Motor Briggs 104M02-0002-F1');
+  assert.equal(formatBriggsEngineModel('12J900-0000'), 'Motor Briggs 12J900-0000');
+  assert.equal(formatBriggsEngineModel('Motor Briggs 12J902-0118-01'), 'Motor Briggs 12J902-0118-01');
+  assert.equal(formatBriggsEngineModel('Briggs 12J902-0118-01'), 'Motor Briggs 12J902-0118-01');
+  // Não altera máquinas Husqvarna normais
+  assert.equal(formatBriggsEngineModel('143RII', '143RII.pdf', 'Husqvarna'), '143RII');
+  assert.equal(formatBriggsEngineModel('120 Mark II', 'Motosserra 120 Mark II.pdf', 'Husqvarna'), '120 Mark II');
+  assert.equal(formatBriggsEngineModel('FR691V', 'Motor Kawasaki FR691V.pdf', 'Kawasaki'), 'FR691V');
+});
+
+test('classifica estritamente subconjunto completo vs kit de reparo vs peça avulsa', () => {
+  // Subconjuntos completos
+  assert.equal(classifyPartKind('Carburador Completo').kind, 'ASSEMBLY');
+  assert.equal(classifyPartKind('Conjunto Cilindro').kind, 'ASSEMBLY');
+  assert.equal(classifyPartKind('Cilindro c/ pistao').kind, 'ASSEMBLY');
+  assert.equal(classifyPartKind('Embreagem Completa').kind, 'ASSEMBLY');
+  assert.equal(classifyPartKind('Subconjunto Partida').kind, 'ASSEMBLY');
+  assert.equal(classifyPartKind('Clutch Assy').kind, 'ASSEMBLY');
+
+  // Kits de reparo
+  assert.equal(classifyPartKind('Kit de Reparo Carburador').kind, 'REPAIR_KIT');
+  assert.equal(classifyPartKind('Jogo de Juntas').kind, 'REPAIR_KIT');
+  assert.equal(classifyPartKind('Kit Diafragma').kind, 'REPAIR_KIT');
+  assert.equal(classifyPartKind('Gasket Set').kind, 'REPAIR_KIT');
+  assert.equal(classifyPartKind('Kit Membrana e Vedação').kind, 'REPAIR_KIT');
+
+  // Peças avulsas
+  assert.equal(classifyPartKind('Vela de Ignição RCJ7Y').kind, 'INDIVIDUAL_PART');
+  assert.equal(classifyPartKind('Parafuso M5x20').kind, 'INDIVIDUAL_PART');
+  assert.equal(classifyPartKind('Mola de Retorno').kind, 'INDIVIDUAL_PART');
+  assert.equal(classifyPartKind('Filtro de Ar').kind, 'INDIVIDUAL_PART');
+  assert.equal(classifyPartKind('Anel do Pistão').kind, 'INDIVIDUAL_PART');
+});
+
+test('retorna itens de venda sugerida e manutenção correlata para peças de bancada', () => {
+  const pistonAddons = getCorrelatedMaintenanceTerms('Pistão 143R-II');
+  assert.ok(pistonAddons.suggestedTerms.includes('anel'));
+  assert.ok(pistonAddons.suggestedTerms.includes('trava'));
+  assert.ok(pistonAddons.suggestedTerms.includes('junta'));
+  assert.ok(pistonAddons.reason.length > 0);
+
+  const carbAddons = getCorrelatedMaintenanceTerms('Carburador Completo');
+  assert.ok(carbAddons.suggestedTerms.includes('filtro de combustivel') || carbAddons.suggestedTerms.includes('filtro combustivel'));
+
+  const barAddons = getCorrelatedMaintenanceTerms('Sabre 18 polegadas');
+  assert.ok(barAddons.suggestedTerms.includes('corrente'));
+  assert.ok(barAddons.suggestedTerms.includes('lima'));
+
+  const unknown = getCorrelatedMaintenanceTerms('Chave de vela');
+  assert.equal(unknown.suggestedTerms.length, 0);
+});
+
+test('retorna os 4 itens do combo de revisão básica preventiva', () => {
+  const kit = getBasicMaintenanceKitTerms();
+  assert.equal(kit.length, 4);
+  const categories = kit.map(k => k.category);
+  assert.ok(categories.includes('SPARK_PLUG'));
+  assert.ok(categories.includes('AIR_FILTER'));
+  assert.ok(categories.includes('FUEL_FILTER'));
+  assert.ok(categories.includes('STARTER_ROPE'));
+});
+
 

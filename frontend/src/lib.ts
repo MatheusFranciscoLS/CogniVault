@@ -98,3 +98,96 @@ export function formatHusqvarnaPartNumber(code: string): string {
   return code;
 }
 
+export function formatEngineOrCatalogModel(model?: string | null, manufacturer?: string | null, filename?: string | null): string {
+  let raw = (model || '').trim();
+  const rawMfg = (manufacturer || '').toLowerCase();
+  const rawFile = (filename || '').toLowerCase();
+
+  const isBriggs =
+    rawMfg.includes('briggs') ||
+    rawFile.includes('briggs') ||
+    /briggs/i.test(raw) ||
+    /^(?:12J|104M|21R|31R|44T|40N|33R|3054|25T|19L|15T|12D|12E|12H|11P|09P|08P|093J|122T|126M|121P)/i.test(raw) ||
+    /^(?:[0-9]{2}[A-Z][0-9]{3}|[0-9]{3}[A-Z][0-9]{2}|[0-9]{5,6})[-_ ][0-9A-Z]{4}(?:[-_ ][0-9A-Z]{1,2})?$/i.test(raw);
+
+  if (!isBriggs) return raw;
+
+  if (!raw && filename) {
+    const m = filename.match(/\b([0-9]{2}[A-Z][0-9]{3}[-_ ][0-9A-Z]{4}|[0-9]{5,6}[-_ ][0-9A-Z]{4}|104M02[-_ ][0-9A-Z]{4}|12J[0-9]{3}[-_ ][0-9A-Z]{4})\b/i);
+    if (m) raw = m[1];
+  }
+
+  let baseModel = raw;
+  if (/^motor\s+briggs\b/i.test(raw)) {
+    baseModel = raw.replace(/^motor\s+briggs\s*/i, 'Motor Briggs ');
+  } else if (/^briggs\s*(?:&|and)?\s*(?:stratton)?\s*/i.test(raw)) {
+    const cleanCode = raw.replace(/^briggs\s*(?:&|and)?\s*(?:stratton)?\s*(?:motor\s*)?/i, '').trim();
+    baseModel = cleanCode ? `Motor Briggs ${cleanCode}` : 'Motor Briggs';
+  } else {
+    baseModel = raw ? `Motor Briggs ${raw}` : 'Motor Briggs';
+  }
+
+  // Detecta se faz parte de alguma máquina Husqvarna conhecida (ex: J55SL, LC121P)
+  const hay = `${rawFile} ${raw}`.toUpperCase();
+  if (hay.includes('J55SL') && !baseModel.toUpperCase().includes('J55SL')) {
+    baseModel = `${baseModel} (Cortador J55SL)`;
+  } else if (hay.includes('LC121P') && !baseModel.toUpperCase().includes('LC121P')) {
+    baseModel = `${baseModel} (Cortador LC121P)`;
+  } else if (hay.includes('LC121') && !baseModel.toUpperCase().includes('LC121')) {
+    baseModel = `${baseModel} (Cortador LC121)`;
+  }
+
+  return baseModel;
+}
+
+export function cleanErpCode(code?: string | null): string {
+  if (!code) return '';
+  return code.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+}
+
+export function classifyPartKind(name?: string | null, section?: string | null, notes?: string | null): {
+  kind: 'ASSEMBLY' | 'REPAIR_KIT' | 'INDIVIDUAL_PART';
+  label: string;
+  badgeColor: string;
+  description: string;
+} {
+  const text = `${name || ''} ${section || ''} ${notes || ''}`.toLowerCase();
+
+  const isRepairKit = (
+    /\b(?:kit\s+(?:de\s+)?reparo|jogo\s+(?:de\s+)?reparo|kit\s+(?:de\s+)?juntas|jogo\s+(?:de\s+)?juntas|kit\s+(?:de\s+)?vedacao|kit\s+(?:de\s+)?vedação|kit\s+diafragma|kit\s+membrana|repair\s+kit|gasket\s+set|seal\s+kit|diaphragm\s+kit|carburetor\s+kit|kit\s+carburador)\b/i.test(text) ||
+    (/\b(?:kit|jogo)\b/i.test(text) && /\b(?:reparo|junta|juntas|vedacao|vedação|diafragma|membrana|mola|molas|retentor|retentores)\b/i.test(text))
+  ) && !/\b(?:kit\s+(?:de\s+)?cilindro|kit\s+(?:do\s+)?motor|kit\s+(?:de\s+)?bloco)\b/i.test(text);
+
+  if (isRepairKit) {
+    return {
+      kind: 'REPAIR_KIT',
+      label: '[KIT REPARO]',
+      badgeColor: 'amber',
+      description: 'Kit de juntas, diafragmas ou componentes de reposição/reparo',
+    };
+  }
+
+  const isAssembly = (
+    /\b(?:conjunto|subconjunto|completo|completa|assembly|assy|bloco\s+do\s+motor|motor\s+completo|kit\s+(?:de\s+)?cilindro|cilindro\s+c\/\s*pistao|cilindro\s+com\s+pistao)\b/i.test(text) ||
+    (/\bcarburador\b/i.test(text) && !/\b(?:corpo|tampa|parafuso|agulha|mola|eixo)\b/i.test(text)) ||
+    (/\b(?:embreagem|transmissao|transmissão|bomba\s+de\s+oleo|bomba\s+de\s+óleo)\b/i.test(text) && /\b(?:completa|completo)\b/i.test(text))
+  );
+
+  if (isAssembly) {
+    return {
+      kind: 'ASSEMBLY',
+      label: '[CONJUNTO COMPLETO]',
+      badgeColor: 'emerald',
+      description: 'Conjunto ou subconjunto montado completo',
+    };
+  }
+
+  return {
+    kind: 'INDIVIDUAL_PART',
+    label: '[COMPONENTE INDIVIDUAL]',
+    badgeColor: 'slate',
+    description: 'Item avulso / componente individual',
+  };
+}
+
+

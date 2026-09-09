@@ -10,7 +10,14 @@ import { allRelatedPartNumbers, preferCurrentPartNumbers } from '../services/par
 import { filterCandidatesByMarket } from '../services/catalog-market';
 import { invalidatePartSearchCaches } from '../services/part-search.service';
 import { invalidateChatResponseCache } from '../services/chat.service';
-import { resolveEngineCatalogRoute, findMachinesForEngine, findEngineApplications } from '../services/husqvarna-domain-knowledge';
+import {
+    resolveEngineCatalogRoute,
+    findMachinesForEngine,
+    findEngineApplications,
+    classifyPartKind,
+    getCorrelatedMaintenanceTerms,
+    getBasicMaintenanceKitTerms,
+} from '../services/husqvarna-domain-knowledge';
 
 const homeCountsCache = new LRUCache<string, { parts: number; documents: number }>({
     max: 200,
@@ -227,7 +234,7 @@ export class OperationalController {
         for (const app of engineApps) {
             if (app.engineModel && !relatedDocKeywords.includes(app.engineModel)) relatedDocKeywords.push(app.engineModel);
         }
-        const machineApps = findMachinesForEngine(targetModelKey);
+        const machineApps = findMachinesForEngine(targetModelKey, q);
         for (const m of machineApps) {
             if (m.machineModel && !relatedDocKeywords.includes(m.machineModel)) relatedDocKeywords.push(m.machineModel);
         }
@@ -291,7 +298,12 @@ export class OperationalController {
             .slice(0, 40)
             .map(({ part }) => {
                 const { document, normalizedName: _normalizedName, normalizedPartNumber: _normalizedPartNumber, normalizedModel: _normalizedModel, normalizedPnc: _normalizedPnc, alternativeNames: _alternativeNames, ...publicPart } = part;
-                return { ...publicPart, filename: document.filename, pnc: part.universalAcrossPnc ? 'Qualquer um' : part.pnc };
+                return {
+                    ...publicPart,
+                    filename: document.filename,
+                    pnc: part.universalAcrossPnc ? 'Qualquer um' : part.pnc,
+                    classification: classifyPartKind(part.name, part.section, part.notes),
+                };
             });
 
             const searchResponsePayload = {
@@ -386,11 +398,40 @@ export class OperationalController {
                 select: { id: true },
             });
 
+            const maintenanceInfo = getCorrelatedMaintenanceTerms(cachedBase.resolvedPart.name);
+            let suggestedAddons: { reason: string; items: any[] } = { reason: '', items: [] };
+            if (maintenanceInfo.suggestedTerms.length > 0) {
+                const candidateParts = await prisma.part.findMany({
+                    where: {
+                        documentId: cachedBase.resolvedPart.documentId,
+                        active: true,
+                        id: { not: cachedBase.resolvedPart.id },
+                        OR: maintenanceInfo.suggestedTerms.map(term => ({
+                            name: { contains: term, mode: 'insensitive' as const },
+                        })),
+                    },
+                    take: 6,
+                    select: { id: true, name: true, partNumber: true, model: true, pnc: true, section: true, position: true, page: true },
+                });
+                suggestedAddons = {
+                    reason: maintenanceInfo.reason,
+                    items: candidateParts.map(p => ({
+                        ...p,
+                        classification: classifyPartKind(p.name, p.section),
+                    })),
+                };
+            }
+
             res.json({
                 part: {
                     ...cachedBase.resolvedPart,
                     pnc: cachedBase.resolvedPart.universalAcrossPnc ? 'Qualquer um' : cachedBase.resolvedPart.pnc,
-                    related: cachedBase.related,
+                    classification: classifyPartKind(cachedBase.resolvedPart.name, cachedBase.resolvedPart.section, cachedBase.resolvedPart.notes),
+                    suggestedAddons,
+                    related: cachedBase.related.map(r => ({
+                        ...r,
+                        classification: classifyPartKind(r.name, r.section),
+                    })),
                     compatibility: cachedBase.compatibility,
                     favoriteId: favorite?.id || null,
                 },
@@ -556,6 +597,162 @@ export class OperationalController {
         } catch (error) {
             console.error('❌ Erro ao carregar notificações:', error);
             res.status(500).json({ error: 'Erro ao carregar notificações.', notifications: [] });
+        }
+    }
+
+    async crossReference(req: AuthenticatedRequest, res: Response): Promise<void> {
+        if (!req.user) return;
+        const { tenantId } = req.user;
+        const rawCode = String(req.params.code || '').trim();
+        const code = normalizeIdentifier(rawCode);
+        if (!code || code.length < 3) {
+            res.status(400).json({ error: 'Código de peça inválido.' });
+            return;
+        }
+
+        try {
+            const relatedCodes = allRelatedPartNumbers(code).map(normalizeIdentifier).filter(Boolean);
+            const searchCodes = relatedCodes.length ? relatedCodes : [code];
+
+            const usages = await prisma.part.findMany({
+                where: {
+                    normalizedPartNumber: { in: searchCodes },
+                    active: true,
+                    document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+                },
+                select: {
+                    id: true,
+                    partNumber: true,
+                    name: true,
+                    model: true,
+                    pnc: true,
+                    universalAcrossPnc: true,
+                    section: true,
+                    position: true,
+                    page: true,
+                    notes: true,
+                    document: {
+                        select: {
+                            id: true,
+                            filename: true,
+                            category: { select: { name: true } },
+                        },
+                    },
+                },
+                orderBy: [{ model: 'asc' }, { section: 'asc' }],
+                take: 100,
+            });
+
+            const modelMap = new Map<string, {
+                model: string;
+                filename: string;
+                category: string;
+                pncs: string[];
+                sections: string[];
+                usages: Array<{ id: string; partNumber: string; name: string; position: string | null; page: number | null }>;
+            }>();
+
+            for (const u of usages) {
+                const key = u.model;
+                let entry = modelMap.get(key);
+                if (!entry) {
+                    entry = {
+                        model: u.model,
+                        filename: u.document?.filename || '',
+                        category: u.document?.category?.name || 'Geral',
+                        pncs: [],
+                        sections: [],
+                        usages: [],
+                    };
+                    modelMap.set(key, entry);
+                }
+                const pncLabel = u.universalAcrossPnc ? 'Todos PNCs' : (u.pnc || 'PNC não esp.');
+                if (!entry.pncs.includes(pncLabel)) entry.pncs.push(pncLabel);
+                if (u.section && !entry.sections.includes(u.section)) entry.sections.push(u.section);
+                entry.usages.push({
+                    id: u.id,
+                    partNumber: u.partNumber,
+                    name: u.name,
+                    position: u.position,
+                    page: u.page,
+                });
+            }
+
+            res.json({
+                code: rawCode,
+                totalModels: modelMap.size,
+                totalUsages: usages.length,
+                models: Array.from(modelMap.values()),
+            });
+        } catch (error) {
+            console.error(`❌ Erro ao buscar referência cruzada para ${code}:`, error);
+            res.status(500).json({ error: 'Erro ao buscar referência cruzada da peça.' });
+        }
+    }
+
+    async maintenanceKit(req: AuthenticatedRequest, res: Response): Promise<void> {
+        if (!req.user) return;
+        const { tenantId } = req.user;
+        const modelParam = String(req.params.model || '').trim();
+        if (!modelParam) {
+            res.status(400).json({ error: 'Modelo não especificado.' });
+            return;
+        }
+        const normModel = normalizeIdentifier(modelParam);
+
+        try {
+            const kitTerms = getBasicMaintenanceKitTerms();
+            const results: Array<{
+                category: string;
+                label: string;
+                part: any | null;
+            }> = [];
+
+            for (const kitItem of kitTerms) {
+                const matchingPart = await prisma.part.findFirst({
+                    where: {
+                        active: true,
+                        document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+                        normalizedModel: normModel,
+                        OR: kitItem.searchTerms.map(term => ({
+                            name: { contains: term, mode: 'insensitive' as const },
+                        })),
+                    },
+                    select: {
+                        id: true,
+                        partNumber: true,
+                        name: true,
+                        model: true,
+                        pnc: true,
+                        section: true,
+                        position: true,
+                        page: true,
+                        notes: true,
+                        document: { select: { id: true, filename: true } },
+                    },
+                });
+
+                if (matchingPart) {
+                    results.push({
+                        category: kitItem.category,
+                        label: kitItem.label,
+                        part: {
+                            ...matchingPart,
+                            filename: matchingPart.document?.filename,
+                            classification: classifyPartKind(matchingPart.name, matchingPart.section, matchingPart.notes),
+                        },
+                    });
+                }
+            }
+
+            res.json({
+                model: modelParam,
+                kitCount: results.length,
+                items: results,
+            });
+        } catch (error) {
+            console.error(`❌ Erro ao buscar combo de revisão para ${modelParam}:`, error);
+            res.status(500).json({ error: 'Erro ao buscar combo de revisão do modelo.' });
         }
     }
 }

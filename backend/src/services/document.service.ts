@@ -8,7 +8,8 @@ import { repairMultipartText } from '../utils/text-encoding';
 import { CATALOG_CATEGORY_NAMES, inferCatalogCategory, isCatalogCategoryName } from './catalog-category';
 import { ensureCatalogCategory } from './catalog-category-assignment';
 import { inferCatalogModelFromFilename, isLikelyHusqvarnaPnc, isPlausibleCatalogModel, normalizeHusqvarnaPnc } from './catalog-extractor';
-import { findMachinesForEngine, findEngineApplications } from './husqvarna-domain-knowledge';
+import { findMachinesForEngine, findEngineApplications, formatBriggsEngineModel, inferEquipmentFamily } from './husqvarna-domain-knowledge';
+import { refreshCatalogHealth } from './catalog-health';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
@@ -116,24 +117,34 @@ function toDocumentListItem(document: DocumentListRecord, partPncs: string[] = [
     const filename = safeFilename(document.filename);
     const snapshot = snapshotMetadata(document.extractionSnapshot);
     const resolvedManufacturer = document.manufacturer || snapshot.manufacturer || null;
-    const resolvedModel = document.model || (snapshot.models.length === 1 ? snapshot.models[0] : null);
+    let rawModel = document.model || (snapshot.models.length === 1 ? snapshot.models[0] : null);
+    // Padronização estrita de identificação de Motores Briggs: "Motor Briggs <código> (Cortador <máquina>)"
+    let resolvedModel = formatBriggsEngineModel(rawModel, filename, resolvedManufacturer, { includeMachine: true }) || rawModel;
     const modelNeedsReview = !isPlausibleCatalogModel(resolvedModel);
     const suggestedModel = modelNeedsReview ? inferCatalogModelFromFilename(filename) || null : null;
     const pncs = [...new Set([document.pnc || '', ...snapshotPncs(document.extractionSnapshot), ...partPncs]
         .filter(isLikelyHusqvarnaPnc)
         .map(normalizeHusqvarnaPnc))];
 
-    // Cruzamento automático de aplicações Máquina <-> Motor (ex: Motor Kawasaki FR691V equipa Giro Zero Z248F / Z254F)
+    // Cruzamento automático de aplicações Máquina <-> Motor (ex: Motor Briggs 12J900 / 12J902 -> J55SL; Motor Kawasaki FR691V -> Z248F)
     const effectiveModel = resolvedModel || suggestedModel || '';
-    const machineApps = findMachinesForEngine(effectiveModel).map(app => ({
-        machineModel: app.machineModel,
-        machinePnc: app.machinePnc,
-        label: `${app.machineModel} (Giro Zero / Trator)`,
-    }));
+    const machineApps = findMachinesForEngine(effectiveModel, filename).map(app => {
+        const family = inferEquipmentFamily('', app.machineModel);
+        const typeLabel = family === 'WALK_MOWER' ? 'Cortador de Grama'
+            : family === 'ZERO_TURN' ? 'Giro Zero'
+            : family === 'GARDEN_TRACTOR' ? 'Trator'
+            : family === 'RIDER' ? 'Rider'
+            : 'Máquina';
+        return {
+            machineModel: app.machineModel,
+            machinePnc: app.machinePnc,
+            label: `${app.machineModel} (${typeLabel})`,
+        };
+    });
     const engineApps = findEngineApplications(effectiveModel).map(app => ({
-        engineModel: app.engineModel,
+        engineModel: formatBriggsEngineModel(app.engineModel, undefined, undefined, { includeMachine: false }) || app.engineModel,
         engineArticle: app.engineArticle,
-        label: `Motor ${app.engineModel}`,
+        label: `Motor ${formatBriggsEngineModel(app.engineModel, undefined, undefined, { includeMachine: false }) || app.engineModel}`,
     }));
 
     return {
@@ -195,14 +206,49 @@ async function documentListItems(tenantId: string, documents: DocumentListRecord
         pncsByDocument.set(row.documentId, values);
     }
 
-    // Auto-cura catálogos antigos que ficaram como 'Outros / Não identificado' ou sem categoria no banco:
-    for (const doc of documents) {
-        if (!doc.category?.name || doc.category.name === 'Outros / Não identificado') {
-            ensureCatalogCategory(doc.id, tenantId).catch(err => {
-                console.error(`[CatalogCategory] Erro na autocura do documento ${doc.id}:`, err);
-            });
-        }
-    }
+    // Auto-recálculo instantâneo de saúde e modelo:
+    // Garante que catálogos válidos (como motores Briggs) alcancem 100/100 e nome padronizado
+    // imediatamente ao listar, SEM precisar reextrair o PDF da IA.
+    await Promise.all(
+        documents.map(async doc => {
+            // 1. Auto-cura de categoria
+            if (!doc.category?.name || doc.category.name === 'Outros / Não identificado') {
+                ensureCatalogCategory(doc.id, tenantId).catch(err => {
+                    console.error(`[CatalogCategory] Erro na autocura do documento ${doc.id}:`, err);
+                });
+            }
+
+            // 2. Auto-cura de modelo Briggs
+            const isBriggs = /\bbriggs\b/i.test(`${doc.model || ''} ${doc.filename} ${doc.manufacturer || ''}`) ||
+                /^(?:12J|104M|21R|31R|44T|40N|33R|3054|25T|19L|15T|12D|12E|12H|11P|09P|08P|093J|122T|126M|121P|[0-9]{2}[A-Z][0-9]{3}|[0-9]{3}[A-Z][0-9]{2}|[0-9]{5,6})[-_ ]/i.test(doc.model || '');
+            if (isBriggs) {
+                const formatted = formatBriggsEngineModel(doc.model, doc.filename, doc.manufacturer, { includeMachine: true });
+                if (formatted && formatted !== doc.model) {
+                    doc.model = formatted;
+                    prisma.document.update({
+                        where: { id: doc.id },
+                        data: { model: formatted },
+                    }).catch(err => {
+                        console.error(`[CatalogBriggs] Erro na autocura do modelo ${doc.id}:`, err);
+                    });
+                }
+            }
+
+            // 3. Auto-recálculo de integridade para catálogos que estavam com revisão pendente ou nota reduzida
+            if (doc.status === 'COMPLETED' && (doc.reviewStatus === 'NEEDS_REVIEW' || (doc.healthScore !== null && doc.healthScore < 100 && isBriggs))) {
+                try {
+                    const health = await refreshCatalogHealth(doc.id, tenantId);
+                    if (health) {
+                        doc.healthScore = health.score;
+                        doc.reviewStatus = health.reviewStatus;
+                        doc.reviewReasons = [...health.reasons, ...health.warnings];
+                    }
+                } catch (healthErr) {
+                    console.error(`[CatalogHealth] Erro ao recalcular saúde do documento ${doc.id}:`, healthErr);
+                }
+            }
+        })
+    );
 
     const items = documents.map(document => toDocumentListItem(document, pncsByDocument.get(document.id)));
     items.sort((a, b) => {

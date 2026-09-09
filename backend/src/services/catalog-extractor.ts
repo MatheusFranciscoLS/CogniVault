@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { PDFParse } from 'pdf-parse';
 import { inferCatalogSection } from './catalog-section-inference';
-import { extractKnownHusqvarnaModel } from './husqvarna-domain-knowledge';
+import { extractKnownHusqvarnaModel, formatBriggsEngineModel } from './husqvarna-domain-knowledge';
 
 export interface ExtractedPart { manufacturer:string; model:string; pnc:string; universalAcrossPnc:boolean; section:string; position:string; name:string; alternativeNames:string[]; partNumber:string; page:number; notes:string; }
 export interface CatalogExtraction { manufacturer:string; models:string[]; pncs:string[]; parts:ExtractedPart[]; }
@@ -77,6 +77,13 @@ export function normalizeHusqvarnaPnc(value:string|null|undefined){const digits=
 export function isLikelyHusqvarnaPnc(value:string|null|undefined){return Boolean(normalizeHusqvarnaPnc(value));}
 export function inferCatalogModelFromFilename(filename:string){
   const base=filename.replace(/\.pdf$/i,'').replace(/[\u00a0\u202f]/g,' ').replace(/\s+/g,' ').trim();
+
+  // Caso específico de Motor Briggs: ex: "Motor Briggs 12J900-0000 J55SL.pdf" ou "Motor Briggs 104M02-0002-F1 LC121P.pdf"
+  const briggsMatch = base.match(/(?:Motor\s+)?Briggs\s*(?:&|and)?\s*(?:Stratton)?\s*([0-9A-Z]{5,8}(?:-[0-9A-Z]{4}(?:-[0-9A-Z]{1,2})?)?)/i);
+  if (briggsMatch) {
+    return `Motor Briggs ${briggsMatch[1]}`;
+  }
+
   const candidate=clean(base.match(/Husqvarna\s+(.+)$/i)?.[1]||'');
   if(isPlausibleCatalogModel(candidate))return canonicalCatalogModel(candidate);
 
@@ -97,11 +104,11 @@ function portalModel(text:string){
   return slug?canonicalCatalogModel(slug.replace(/-/g,' ').toUpperCase()):'';
 }
 function detectModel(text:string,hints:CatalogHints){
-  const portal=portalModel(text);if(isPlausibleCatalogModel(portal))return portal;
-  const ipl=text.match(/IPL,\s*([^,\n]+),\s*\d{4}-\d{2}/i)?.[1];if(isPlausibleCatalogModel(ipl))return canonicalCatalogModel(clean(ipl));
-  const model=text.match(/MODEL\s+NUMBER\s*:?\s*([A-Z0-9][A-Z0-9 .®_-]*?)(?=\s*\(|\s+MFG\.|\r?\n|$)/i)?.[1];if(isPlausibleCatalogModel(model))return canonicalCatalogModel(clean(model));
-  const product=text.match(/^\s*([A-Z0-9]{1,8}(?:\s+[A-Z0-9®.-]{1,10}){0,2})\s+(?:LAWN\s+MOWER|CHAIN\s+SAW|CHAINSAW|TRACTOR|BLOWER|TRIMMER|BRUSHCUTTER|ENGINE|SPRAYER|POLE\s+SAW|HEDGE\s+TRIMMER)\b/im)?.[1];if(isPlausibleCatalogModel(product))return canonicalCatalogModel(clean(product));
-  const hinted=clean(hints.model);if(isPlausibleCatalogModel(hinted))return canonicalCatalogModel(hinted);
+  const portal=portalModel(text);if(isPlausibleCatalogModel(portal))return formatBriggsEngineModel(portal, hints.filename, hints.manufacturer);
+  const ipl=text.match(/IPL,\s*([^,\n]+),\s*\d{4}-\d{2}/i)?.[1];if(isPlausibleCatalogModel(ipl))return formatBriggsEngineModel(canonicalCatalogModel(clean(ipl)), hints.filename, hints.manufacturer);
+  const model=text.match(/MODEL\s+NUMBER\s*:?\s*([A-Z0-9][A-Z0-9 .®_-]*?)(?=\s*\(|\s+MFG\.|\r?\n|$)/i)?.[1];if(isPlausibleCatalogModel(model))return formatBriggsEngineModel(canonicalCatalogModel(clean(model)), hints.filename, hints.manufacturer);
+  const product=text.match(/^\s*([A-Z0-9]{1,8}(?:\s+[A-Z0-9®.-]{1,10}){0,2})\s+(?:LAWN\s+MOWER|CHAIN\s+SAW|CHAINSAW|TRACTOR|BLOWER|TRIMMER|BRUSHCUTTER|ENGINE|SPRAYER|POLE\s+SAW|HEDGE\s+TRIMMER)\b/im)?.[1];if(isPlausibleCatalogModel(product))return formatBriggsEngineModel(canonicalCatalogModel(clean(product)), hints.filename, hints.manufacturer);
+  const hinted=clean(hints.model);if(isPlausibleCatalogModel(hinted))return formatBriggsEngineModel(canonicalCatalogModel(hinted), hints.filename, hints.manufacturer);
   return inferCatalogModelFromFilename(clean(hints.filename));
 }
 function detectManufacturer(text:string,hints:CatalogHints){

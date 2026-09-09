@@ -4,6 +4,7 @@ import { DocumentService } from '../services/document.service';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { AuditService } from '../services/audit.service';
 import { invalidateHomeCountsCache } from './operational.controller';
+import { refreshCatalogHealth } from '../services/catalog-health';
 
 const documentService = new DocumentService();
 
@@ -276,6 +277,21 @@ export class DocumentController {
             }
             console.error('❌ Erro ao excluir PDF do catálogo:', error);
             res.status(500).json({ error: 'Não foi possível excluir o PDF.' });
+        }
+    }
+
+    async refreshHealth(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            if (!req.user) return;
+            const health = await refreshCatalogHealth(String(req.params.id), req.user.tenantId);
+            if (!health) {
+                res.status(404).json({ error: 'Catálogo não encontrado.' });
+                return;
+            }
+            res.json({ message: `Saúde recalculada: nota ${health.score}/100 (${health.reviewStatus}).`, health });
+        } catch (error) {
+            console.error('❌ Erro ao recalcular saúde do catálogo:', error);
+            res.status(500).json({ error: 'Não foi possível recalcular a saúde do catálogo.' });
         }
     }
 }

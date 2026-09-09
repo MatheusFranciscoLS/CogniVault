@@ -438,3 +438,32 @@ test('informative sections preserve a clean health result when view context is s
   assert.equal(result.score, 100);
   assert.ok(!result.warnings.some(warning => warning.includes('seção genérica')));
 });
+
+test('Briggs catalog with 5-digit part numbers and series models maintains 100 health and READY', () => {
+  const parts: CatalogHealthPart[] = [
+    healthPart({ normalizedPartNumber: '27911', model: '12J900-0000', normalizedModel: '12J9000000' }),
+    healthPart({ normalizedPartNumber: '69185', model: '12J900-0000', normalizedModel: '12J9000000' }),
+    healthPart({ normalizedPartNumber: '94695', model: '12J900-0000', normalizedModel: '12J9000000' }),
+    healthPart({ normalizedPartNumber: '49768', model: '12J900-0000', normalizedModel: '12J9000000' }),
+    healthPart({ normalizedPartNumber: '794653', model: '12J900-0000', normalizedModel: '12J9000000' }),
+  ];
+  const diagnostics = diagnoseCatalogStructure(parts, 'Motor Briggs 12J902-0118-01', null, []);
+  assert.equal(diagnostics.malformedPartNumberCount, 0);
+  assert.equal(diagnostics.modelMismatchCount, 0);
+
+  const result = assessCatalogHealth({
+    model: 'Motor Briggs 12J902-0118-01',
+    partCount: 274,
+    partsWithPage: 274,
+    partsWithSection: 274,
+    partsWithInformativeSection: 274,
+    partsWithPosition: 274,
+    chunkCount: 15,
+    embeddedPartCount: 274,
+    ...diagnostics,
+  });
+
+  assert.equal(result.reviewStatus, 'READY');
+  assert.equal(result.score, 100);
+  assert.equal(result.reasons.length, 0);
+});

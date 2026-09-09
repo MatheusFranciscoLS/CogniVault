@@ -32,7 +32,8 @@ export default function Dashboard() {
   const [initialParams] = useState(() => new URLSearchParams(window.location.search));
   const initialSectionParam = initialParams.get('tab') as Section | null;
   const initialQueryParam = initialParams.get('code') || initialParams.get('part') || initialParams.get('q') || '';
-  const initialCatalogParam = initialParams.get('catalog') || '';
+  const rawCatalogParam = initialParams.get('catalog') || '';
+  const initialCatalogParam = (rawCatalogParam.trim() === 'null' || rawCatalogParam.trim() === 'undefined') ? '' : rawCatalogParam.trim();
 
   const [user, setUser] = useState<SessionUser | null>(null);
   const [section, setSection] = useState<Section>(() => {
@@ -88,9 +89,10 @@ export default function Dashboard() {
   };
 
   const openCatalogs = (filter?: string) => {
-    setCatalogFilter(filter || '');
+    const clean = (filter && filter.trim() !== 'null' && filter.trim() !== 'undefined') ? filter.trim() : '';
+    setCatalogFilter(clean);
     setSection('catalogs');
-    updateUrl('catalogs', undefined, filter);
+    updateUrl('catalogs', undefined, clean || undefined);
   };
 
   const handleSectionChange = (next: Section) => {
