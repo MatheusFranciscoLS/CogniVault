@@ -107,7 +107,9 @@ export class AiQualityService {
     });
     const documentsWithConfirmedPnc = new Set(pncRows.filter(row => isLikelyHusqvarnaPnc(row.pnc)).map(row => row.documentId));
     const effectiveDocuments = documents.map(document => {
-      const modelNeedsReview = document.status === 'COMPLETED' && !isPlausibleCatalogModel(document.model);
+      const isBriggsModel = /^Motor\s+Briggs\b/i.test(document.model || '') ||
+        /^(?:12J|104M|21R|31R|44T|40N|33R|3054|25T|19L|15T|12D|12E|12H|11P|09P|08P|093J|122T|126M|121P)/i.test(document.model || '');
+      const modelNeedsReview = document.status === 'COMPLETED' && !isBriggsModel && !isPlausibleCatalogModel(document.model);
       const suggestedModel = modelNeedsReview ? inferCatalogModelFromFilename(document.filename) || null : null;
       const modelReason = suggestedModel
         ? `Modelo atual não é confiável. Sugestão pelo nome do arquivo: ${suggestedModel}.`

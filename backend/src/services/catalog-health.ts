@@ -3,6 +3,7 @@ import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { isLikelyHusqvarnaPnc, isPlausibleCatalogModel } from './catalog-extractor';
 
 export type CatalogHealthInput = {
+  filename?: string | null;
   manufacturer?: string | null;
   model?: string | null;
   pnc?: string | null;
@@ -409,11 +410,13 @@ export function assessCatalogHealth(input: CatalogHealthInput): CatalogHealth {
   const pncAsPartNumberCount = safeCount(input.pncAsPartNumberCount);
   const missingPositionCount = safeCount(input.missingPositionCount);
 
-  const isBriggsEngineCode = /^(?:12J|104M|21R|31R|44T|40N|33R|3054|25T|19L|15T|12D|12E|12H|11P|09P|08P|093J|122T|126M|121P|[0-9]{2}[A-Z][0-9]{3}|[0-9]{3}[A-Z][0-9]{2}|[0-9]{5,6})[-_ ]/i.test(text(input.model));
-  const resolvedManufacturer = text(input.manufacturer) || (/\bbriggs\b/i.test(text(input.model)) || isBriggsEngineCode ? 'Briggs & Stratton' : '');
+  const isBriggsEngineCode = /^(?:12J|104M|21R|31R|44T|40N|33R|3054|25T|19L|15T|12D|12E|12H|11P|09P|08P|093J|122T|126M|121P|[0-9]{2}[A-Z][0-9]{3}|[0-9]{3}[A-Z][0-9]{2}|[0-9]{5,6})(?:[-_ ]|$)/i.test(text(input.model));
+  const isBriggsModel = /^Motor\s+Briggs\b/i.test(text(input.model)) || isBriggsEngineCode || /\bbriggs\b/i.test(text(input.model));
+  const isBriggsFromFilename = /\bbriggs\b/i.test(text(input.filename));
+  const resolvedManufacturer = text(input.manufacturer) || (isBriggsModel || isBriggsFromFilename ? 'Briggs & Stratton' : '');
   if (!resolvedManufacturer) findings.push({ message: 'Fabricante não confirmado no catálogo.', penalty: 8, review: true });
   if (!text(input.model)) findings.push({ message: 'Modelo não confirmado no catálogo.', penalty: 30, review: true });
-  else if (!isPlausibleCatalogModel(input.model)) findings.push({
+  else if (!isBriggsModel && !isPlausibleCatalogModel(input.model)) findings.push({
     message: `“${text(input.model)}” não parece ser um modelo de equipamento; pode ser um título de peça ou uma descrição de peça/conjunto lida como modelo.`,
     penalty: 36,
     review: true,
@@ -596,6 +599,7 @@ export async function refreshCatalogHealth(documentId: string, tenantId: string)
     || 'Husqvarna';
 
   const health = assessCatalogHealth({
+    filename: document.filename,
     manufacturer: resolvedManufacturer,
     model: document.model,
     pnc: document.pnc,

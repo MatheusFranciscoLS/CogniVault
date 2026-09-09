@@ -120,15 +120,38 @@ function toDocumentListItem(document: DocumentListRecord, partPncs: string[] = [
     let rawModel = document.model || (snapshot.models.length === 1 ? snapshot.models[0] : null);
     // Padronização estrita de identificação de Motores Briggs: "Motor Briggs <código> (Cortador <máquina>)"
     let resolvedModel = formatBriggsEngineModel(rawModel, filename, resolvedManufacturer, { includeMachine: true }) || rawModel;
-    const modelNeedsReview = !isPlausibleCatalogModel(resolvedModel);
+    const isBriggsModel = /^Motor\s+Briggs\b/i.test(resolvedModel || '') ||
+        /^(?:12J|104M|21R|31R|44T|40N|33R|3054|25T|19L|15T|12D|12E|12H|11P|09P|08P|093J|122T|126M|121P)/i.test(resolvedModel || '');
+    const modelNeedsReview = !isBriggsModel && !isPlausibleCatalogModel(resolvedModel);
     const suggestedModel = modelNeedsReview ? inferCatalogModelFromFilename(filename) || null : null;
+    const effectiveModel = resolvedModel || suggestedModel || '';
     const pncs = [...new Set([document.pnc || '', ...snapshotPncs(document.extractionSnapshot), ...partPncs]
         .filter(isLikelyHusqvarnaPnc)
         .map(normalizeHusqvarnaPnc))];
 
-    // Cruzamento automático de aplicações Máquina <-> Motor (ex: Motor Briggs 12J900 / 12J902 -> J55SL; Motor Kawasaki FR691V -> Z248F)
-    const effectiveModel = resolvedModel || suggestedModel || '';
-    const machineApps = findMachinesForEngine(effectiveModel, filename).map(app => {
+    // Categoria do catálogo
+    const category = (() => {
+        const stored = document.category?.name;
+        if (stored && stored !== 'Outros / Não identificado') return stored;
+        const inferred = inferCatalogCategory({
+            filename,
+            manufacturer: resolvedManufacturer,
+            model: effectiveModel,
+            models: snapshot.models,
+            parts: snapshot.parts,
+        });
+        return inferred !== 'Outros / Não identificado' ? inferred : (stored || 'Outros / Não identificado');
+    })();
+
+    // Cruzamento inteligente Máquina <-> Motor
+    // Se for catálogo de MOTOR: mostra quais máquinas usam este motor (machineApps)
+    // Se for catálogo de MÁQUINA: mostra qual o motor original (engineApps)
+    const isEngineCatalog = category === 'Motores' ||
+        isBriggsModel ||
+        /^(?:motor|engine|kawasaki\s+f[rsx]|kohler|briggs)\b/i.test(effectiveModel) ||
+        /\b(?:motor\s+briggs|kawasaki\s+engine|kohler\s+engine)\b/i.test(filename);
+
+    const machineApps = isEngineCatalog ? findMachinesForEngine(effectiveModel, filename).map(app => {
         const family = inferEquipmentFamily('', app.machineModel);
         const typeLabel = family === 'WALK_MOWER' ? 'Cortador de Grama'
             : family === 'ZERO_TURN' ? 'Giro Zero'
@@ -140,12 +163,13 @@ function toDocumentListItem(document: DocumentListRecord, partPncs: string[] = [
             machinePnc: app.machinePnc,
             label: `${app.machineModel} (${typeLabel})`,
         };
-    });
-    const engineApps = findEngineApplications(effectiveModel).map(app => ({
+    }) : [];
+
+    const engineApps = !isEngineCatalog ? findEngineApplications(effectiveModel).map(app => ({
         engineModel: formatBriggsEngineModel(app.engineModel, undefined, undefined, { includeMachine: false }) || app.engineModel,
         engineArticle: app.engineArticle,
         label: `Motor ${formatBriggsEngineModel(app.engineModel, undefined, undefined, { includeMachine: false }) || app.engineModel}`,
-    }));
+    })) : [];
 
     return {
         id: document.id,
@@ -157,18 +181,7 @@ function toDocumentListItem(document: DocumentListRecord, partPncs: string[] = [
         pncs,
         suggestedModel,
         modelNeedsReview,
-        category: (() => {
-            const stored = document.category?.name;
-            if (stored && stored !== 'Outros / Não identificado') return stored;
-            const inferred = inferCatalogCategory({
-                filename,
-                manufacturer: resolvedManufacturer,
-                model: effectiveModel,
-                models: snapshot.models,
-                parts: snapshot.parts,
-            });
-            return inferred !== 'Outros / Não identificado' ? inferred : (stored || 'Outros / Não identificado');
-        })(),
+        category,
         applications: machineApps,
         engineApplications: engineApps,
         createdAt: document.createdAt,

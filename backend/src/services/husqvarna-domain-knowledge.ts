@@ -738,11 +738,15 @@ export function findMachinesForEngine(engineModel: string, filename?: string): E
     }
   }
 
-  // Verificação dinâmica pelo nome do arquivo do catálogo (SEMPRE QUE TIVER NOVO PDF)
+  // Verificação dinâmica pelo nome do arquivo do catálogo (SEMPRE QUE TIVER NOVO PDF DE MOTOR)
   // Exemplo: "Motor Briggs 12J900-0000 J55SL.pdf" -> identifica J55SL
   // Exemplo: "Motor Briggs 104M02-0002-F1 LC121P.pdf" -> identifica LC121P
-  if (filename) {
+  const isEngineContext = /briggs|stratton|kawasaki|kohler|motor\s|engine\s/i.test(filename || '') ||
+    /^motor\b/i.test(engineModel || '');
+
+  if (filename && isEngineContext) {
     for (const entry of MODEL_FAMILIES) {
+      if (entry.family === 'ENGINE') continue;
       const regex = new RegExp(`\\b${entry.model}\\b`, 'i');
       if (regex.test(filename)) {
         addMatch({

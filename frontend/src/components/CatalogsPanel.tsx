@@ -431,21 +431,6 @@ export default function CatalogsPanel({
     }
   };
 
-  const refreshHealth = async (id: string) => {
-    setBusy(true);
-    setError('');
-    try {
-      const resp = await apiJson<{ message: string; health: { score: number; reviewStatus: string } }>(`/api/documents/${id}/refresh-health`, {
-        method: 'POST',
-      });
-      await load();
-      flash(resp.message || 'Saúde do catálogo recalculada com sucesso!');
-    } catch (refreshErr) {
-      setError(refreshErr instanceof Error ? refreshErr.message : 'Não foi possível recalcular a saúde do catálogo.');
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const badge = (document: DocumentItem) =>
     document.processingActive
@@ -829,7 +814,7 @@ export default function CatalogsPanel({
 
                     {document.applications && document.applications.length > 0 && (
                       <div className="mt-2.5">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Aplicação em Máquinas Husqvarna</div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">{document.category === 'Motores' ? 'Equipamento que usa este motor' : 'Aplicação em equipamentos'}</div>
                         <div className="mt-1 flex flex-wrap gap-1">
                           {document.applications.slice(0, 4).map((app, idx) => (
                             <button
@@ -909,28 +894,14 @@ export default function CatalogsPanel({
 
                     {admin && (
                       <div className="w-full flex items-center justify-between pt-1 text-[11px] text-slate-400">
-                        {document.status === 'COMPLETED' && (document.reviewStatus === 'NEEDS_REVIEW' || (typeof document.healthScore === 'number' && document.healthScore < 100)) ? (
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void refreshHealth(document.id)}
-                            title="Recalcula a nota de integridade instantaneamente sem precisar reextrair o PDF da IA"
-                            className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition"
-                          >
-                            <span>⚡</span>
-                            <span>Recalcular Saúde</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={busy || document.processingActive}
-                            onClick={() => void action(document.id, 'reprocess')}
-                            title="Reextração completa via IA Gemini (necessário apenas se faltarem páginas)"
-                            className="hover:text-blue-600 disabled:opacity-40 font-medium"
-                          >
-                            Reextrair
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          disabled={busy || document.processingActive}
+                          onClick={() => void action(document.id, 'reprocess')}
+                          className="hover:text-blue-600 disabled:opacity-40 font-medium"
+                        >
+                          Reextrair
+                        </button>
                         <button
                           type="button"
                           disabled={busy || document.processingActive}
@@ -1131,17 +1102,6 @@ export default function CatalogsPanel({
                               {document.status === 'COMPLETED' && document.modelNeedsReview && onQuality && (
                                 <button type="button" onClick={onQuality} className="rounded-lg border border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] px-2.5 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
                                   Corrigir dados
-                                </button>
-                              )}
-                              {document.status === 'COMPLETED' && (document.reviewStatus === 'NEEDS_REVIEW' || (typeof document.healthScore === 'number' && document.healthScore < 100)) && (
-                                <button
-                                  type="button"
-                                  disabled={busy}
-                                  onClick={() => void refreshHealth(document.id)}
-                                  title="Recalcula a nota de integridade instantaneamente sem reextrair o PDF da IA"
-                                  className="rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition"
-                                >
-                                  ⚡ Recalcular Saúde
                                 </button>
                               )}
                               <button

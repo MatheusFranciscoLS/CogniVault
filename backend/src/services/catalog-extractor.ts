@@ -65,7 +65,9 @@ export function looksLikePartRowModel(v:string|null|undefined){const n=normalize
 export function looksLikeDescriptionModel(v:string|null|undefined){const n=comparable(clean(v).replace(/[\r\n]+/g,' '));if(!n)return false;if(/^(?:assy|assembly|kit|set|service\s+kit|conj(?:unto)?)\b/.test(n))return true;const words=n.split(/\s+/).filter(Boolean);return words.length>=3&&/\b(?:clutch|embreagem|muffler|silenciador|piston|pistao|cylinder|cilindro|gasket|junta|filter|filtro|carburettor|carburetor|carburador|housing|cobertura|sprayer)\b/.test(n);}
 export function isPlausibleCatalogModel(value:string|null|undefined){
   const candidate=normalizedLine(clean(value).replace(/[\r\n]+/g,' '));
-  if(!candidate||candidate.length>40)return false;
+  if(!candidate)return false;
+  if (/^Motor\s+Briggs\b/i.test(candidate)) return candidate.length <= 60;
+  if(candidate.length>40)return false;
   if(!/^[A-Z0-9][A-Z0-9 .®_+/()-]*$/i.test(candidate))return false;
   if(!/\d/.test(candidate)&&!/\s/.test(candidate))return false;
   if(MODEL_NOISE.test(candidate)||looksLikePartRowModel(candidate)||looksLikeDescriptionModel(candidate))return false;
