@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { CrossReferenceResult } from '../types';
 import { apiJson, cleanErpCode, formatHusqvarnaPartNumber } from '../lib';
 import { playCopySound, playCartSound } from '../lib/sound';
@@ -18,36 +18,16 @@ export default function CrossReferenceDialog({
   isOpen = true,
   onClose,
 }: CrossReferenceDialogProps) {
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<CrossReferenceResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const quoteCart = useQuoteCart();
+  const clean = isOpen && partCode ? cleanErpCode(partCode) : '';
 
-  useEffect(() => {
-    if (!isOpen || !partCode) return;
-    let active = true;
-    setLoading(true);
-    setError(null);
+  const { data = null, isLoading: loading, error: queryError } = useQuery<CrossReferenceResult>({
+    queryKey: ['cross-reference', clean],
+    queryFn: () => apiJson<CrossReferenceResult>(`/api/parts/${encodeURIComponent(clean)}/cross-reference`),
+    enabled: Boolean(isOpen && clean),
+  });
 
-    const clean = cleanErpCode(partCode);
-    apiJson<CrossReferenceResult>(`/api/parts/${encodeURIComponent(clean)}/cross-reference`)
-      .then(res => {
-        if (active) {
-          setData(res);
-          setLoading(false);
-        }
-      })
-      .catch(err => {
-        if (active) {
-          setError(err instanceof Error ? err.message : 'Erro ao buscar referências cruzadas.');
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [isOpen, partCode]);
+  const error = queryError instanceof Error ? queryError.message : queryError ? 'Erro ao buscar referências cruzadas.' : null;
 
   if (!isOpen) return null;
 

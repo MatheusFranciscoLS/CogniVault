@@ -207,9 +207,11 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
     return parts.filter(p => target.regex.test(p.name) || target.regex.test(p.section || ''));
   }, [parts, activeSystemFilter]);
 
-  useEffect(() => {
+  const [prevFilterState, setPrevFilterState] = useState({ filter: activeSystemFilter, count: displayedParts.length });
+  if (prevFilterState.filter !== activeSystemFilter || prevFilterState.count !== displayedParts.length) {
+    setPrevFilterState({ filter: activeSystemFilter, count: displayedParts.length });
     setSelectedIndex(displayedParts.length ? 0 : -1);
-  }, [activeSystemFilter, displayedParts.length]);
+  }
 
   const quickFilters = useMemo(() => [
     { label: '🌿 143RII', query: '143RII' },

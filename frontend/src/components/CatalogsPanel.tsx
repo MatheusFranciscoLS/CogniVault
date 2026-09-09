@@ -9,7 +9,7 @@ type CatalogData = { documents: DocumentItem[]; favorites: FavoriteItem[]; categ
 type StatusFilter = 'ALL' | 'FAILED' | 'REVIEW' | 'READY';
 export type CatalogSortMode = 'NAME_ASC' | 'NAME_DESC' | 'NEWEST' | 'PARTS_DESC';
 
-export const SORT_OPTIONS: Array<{
+const SORT_OPTIONS: Array<{
   value: CatalogSortMode;
   label: string;
   shortLabel: string;
@@ -191,13 +191,13 @@ export default function CatalogsPanel({
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const cleanInitialSearch = (initialSearch && initialSearch.trim() !== 'null' && initialSearch.trim() !== 'undefined') ? initialSearch.trim() : '';
   const [search, setSearch] = useState(cleanInitialSearch);
+  const [prevInitialSearch, setPrevInitialSearch] = useState(initialSearch);
 
-  useEffect(() => {
-    if (initialSearch !== undefined) {
-      const clean = (initialSearch && initialSearch.trim() !== 'null' && initialSearch.trim() !== 'undefined') ? initialSearch.trim() : '';
-      setSearch(clean);
-    }
-  }, [initialSearch]);
+  if (initialSearch !== prevInitialSearch) {
+    setPrevInitialSearch(initialSearch);
+    const clean = (initialSearch && initialSearch.trim() !== 'null' && initialSearch.trim() !== 'undefined') ? initialSearch.trim() : '';
+    setSearch(clean);
+  }
 
   const [sortOpen, setSortOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);

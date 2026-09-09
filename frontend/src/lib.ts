@@ -117,7 +117,7 @@ export function formatEngineOrCatalogModel(model?: string | null, manufacturer?:
     if (m) raw = m[1];
   }
 
-  let baseModel = raw;
+  let baseModel: string;
   if (/^motor\s+briggs\b/i.test(raw)) {
     baseModel = raw.replace(/^motor\s+briggs\s*/i, 'Motor Briggs ');
   } else if (/^briggs\s*(?:&|and)?\s*(?:stratton)?\s*/i.test(raw)) {
