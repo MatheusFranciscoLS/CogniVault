@@ -10,6 +10,7 @@ import { AdminFeedbackController } from '../controllers/admin-feedback.controlle
 import { OperationalController } from '../controllers/operational.controller';
 import { OfficialPartVerificationController } from '../controllers/official-part-verification.controller';
 import { QualityController } from '../controllers/quality.controller';
+import { WorkIntelligenceController } from '../controllers/work-intelligence.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
 
@@ -24,6 +25,7 @@ const adminFeedbackController = new AdminFeedbackController();
 const operationalController = new OperationalController();
 const officialPartVerificationController = new OfficialPartVerificationController();
 const qualityController = new QualityController();
+const workIntelligenceController = new WorkIntelligenceController();
 
 const upload = multer({
   dest: 'uploads/',
@@ -31,11 +33,8 @@ const upload = multer({
   fileFilter: (_req, file, cb) => {
     const isPdfMime = file.mimetype === 'application/pdf';
     const isPdfExt = file.originalname.toLowerCase().endsWith('.pdf');
-    if (isPdfMime || isPdfExt) {
-      cb(null, true);
-    } else {
-      cb(new Error('Somente arquivos PDF são permitidos.'));
-    }
+    if (isPdfMime || isPdfExt) cb(null, true);
+    else cb(new Error('Somente arquivos PDF são permitidos.'));
   },
 });
 
@@ -45,8 +44,14 @@ router.get('/me', authMiddleware, (req, res) => adminController.me(req, res));
 router.get('/home', authMiddleware, (req, res) => operationalController.home(req, res));
 router.get('/search', authMiddleware, (req, res) => operationalController.search(req, res));
 router.get('/search/stream', authMiddleware, (req, res) => operationalController.searchStream(req, res));
+router.get('/master-parts/search', authMiddleware, (req, res) => workIntelligenceController.masterSearch(req, res));
+router.get('/official-fallback', authMiddleware, (req, res) => workIntelligenceController.officialFallback(req, res));
+router.post('/analytics/search-usage', authMiddleware, (req, res) => workIntelligenceController.recordSearchUsage(req, res));
+router.post('/analytics/quote-usage', authMiddleware, (req, res) => workIntelligenceController.recordQuoteUsage(req, res));
 router.get('/parts/:code/cross-reference', authMiddleware, (req, res) => operationalController.crossReference(req, res));
 router.get('/parts/:code/live-data', authMiddleware, (req, res) => operationalController.liveData(req, res));
+router.get('/parts/:code/work-context', authMiddleware, (req, res) => workIntelligenceController.workContext(req, res));
+router.put('/parts/:code/location', authMiddleware, (req, res) => workIntelligenceController.setLocation(req, res));
 router.get('/models/:model/maintenance-kit', authMiddleware, (req, res) => operationalController.maintenanceKit(req, res));
 router.get('/parts/:id', authMiddleware, (req, res) => operationalController.part(req, res));
 router.get('/history', authMiddleware, (req, res) => operationalController.history(req, res));

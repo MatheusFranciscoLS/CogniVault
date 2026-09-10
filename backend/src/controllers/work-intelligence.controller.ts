@@ -10,6 +10,12 @@ const HUSQVARNA_SPARE_PARTS_URL = 'https://www.husqvarna.com/br/pecas-sobressale
 const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 const SEARCH_DEDUP_MS = 2 * 60 * 1000;
 
+type QuoteUsageInput = {
+  partNumber: string;
+  normalizedPartNumber: string;
+  model: string | null;
+};
+
 function cleanCode(value: unknown): string {
   return String(value || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
 }
@@ -111,7 +117,8 @@ export class WorkIntelligenceController {
           partNumber: item.partNumber,
           normalizedNumber: item.normalizedNumber,
           name: item.name,
-          application: item.description || item.brand,
+          application: item.sections.map(section => section.application).find(Boolean) || item.description || item.brand,
+          applications: [...new Set(item.sections.map(section => section.application).filter((value): value is string => Boolean(value)))],
           price: item.price,
           ean: item.ean,
           ncm: item.ncm,
@@ -135,8 +142,8 @@ export class WorkIntelligenceController {
         sections: availableSections.map(section => ({ name: section.section, count: section._count._all })),
       });
     } catch (error) {
-      console.error('❌ Erro ao pesquisar lista de preços:', error);
-      res.status(500).json({ error: 'Não foi possível pesquisar a lista de preços.', parts: [], sections: [] });
+      console.error('❌ Erro ao pesquisar cadastro comercial:', error);
+      res.status(500).json({ error: 'Não foi possível pesquisar o cadastro comercial.', parts: [], sections: [] });
     }
   }
 
@@ -376,7 +383,8 @@ export class WorkIntelligenceController {
           togetherSampleSize: sessionIds.length,
           togetherReady: sessionIds.length >= 3,
           priceSections: masterPart?.sections.map(section => section.section) || [],
-          application: masterPart?.description || masterPart?.brand || null,
+          applications: masterPart?.sections.map(section => section.application).filter((value): value is string => Boolean(value)) || [],
+          application: masterPart?.sections.map(section => section.application).find(Boolean) || masterPart?.description || masterPart?.brand || null,
           sources,
           officialFallback: {
             url: approvedVerification?.officialUrl || HUSQVARNA_SPARE_PARTS_URL,
@@ -435,9 +443,9 @@ export class WorkIntelligenceController {
     if (!req.user) return;
 
     const sessionId = String(req.body?.sessionId || '').trim().slice(0, 120);
-    const rawItems = Array.isArray(req.body?.items) ? req.body.items.slice(0, 60) : [];
-    const items = rawItems
-      .map((raw: unknown) => {
+    const rawItems: unknown[] = Array.isArray(req.body?.items) ? (req.body.items as unknown[]).slice(0, 60) : [];
+    const items: QuoteUsageInput[] = rawItems
+      .map((raw): QuoteUsageInput | null => {
         const item = raw as { partNumber?: unknown; model?: unknown };
         const partNumber = cleanCode(item.partNumber);
         const normalizedPartNumber = normalizeIdentifier(partNumber);
@@ -448,7 +456,7 @@ export class WorkIntelligenceController {
           model: item.model ? String(item.model).trim().slice(0, 160) : null,
         };
       })
-      .filter((item): item is { partNumber: string; normalizedPartNumber: string; model: string | null } => Boolean(item));
+      .filter((item): item is QuoteUsageInput => item !== null);
 
     if (!sessionId || !items.length) {
       res.status(400).json({ error: 'Sessão e itens são obrigatórios.' });
