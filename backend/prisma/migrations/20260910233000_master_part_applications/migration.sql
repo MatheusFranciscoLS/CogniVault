@@ -6,6 +6,7 @@ CREATE TABLE "MasterPartSection" (
     "normalizedNumber" TEXT NOT NULL,
     "section" TEXT NOT NULL,
     "application" TEXT,
+    "applicationKey" TEXT NOT NULL DEFAULT '',
     "reference" TEXT,
     "productCategory" TEXT,
     "itemType" TEXT,
@@ -43,12 +44,14 @@ CREATE TABLE "QuoteUsage" (
     CONSTRAINT "QuoteUsage_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "MasterPartSection_tenantId_normalizedNumber_section_key"
-ON "MasterPartSection"("tenantId", "normalizedNumber", "section");
+CREATE UNIQUE INDEX "MasterPartSection_tenantId_normalizedNumber_section_applicationKey_key"
+ON "MasterPartSection"("tenantId", "normalizedNumber", "section", "applicationKey");
 CREATE INDEX "MasterPartSection_tenantId_section_idx"
 ON "MasterPartSection"("tenantId", "section");
 CREATE INDEX "MasterPartSection_tenantId_application_idx"
 ON "MasterPartSection"("tenantId", "application");
+CREATE INDEX "MasterPartSection_tenantId_applicationKey_idx"
+ON "MasterPartSection"("tenantId", "applicationKey");
 CREATE INDEX "MasterPartSection_tenantId_normalizedNumber_idx"
 ON "MasterPartSection"("tenantId", "normalizedNumber");
 
