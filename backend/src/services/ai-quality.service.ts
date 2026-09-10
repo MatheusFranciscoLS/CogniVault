@@ -8,7 +8,7 @@ import { evaluatePartBenchmark, type PartBenchmarkCase, type PartBenchmarkObserv
 import { PartSearchService } from './part-search.service';
 import { refreshCatalogHealth } from './catalog-health';
 import { inferCatalogModelFromFilename, isLikelyHusqvarnaPnc, isPlausibleCatalogModel } from './catalog-extractor';
-import { buildSearchQualityRadar } from './search-quality-radar';
+import { SearchIntelligenceService } from './search-intelligence.service';
 import { officialVerificationCacheDays } from './official-part-verification.service';
 import { semanticIndexStatus } from './semantic-index-maintenance.service';
 import { visualCatalogRetryStatus } from './visual-catalog-retry.service';
@@ -41,7 +41,7 @@ export class AiQualityService {
         qualityCheckedAt: null,
         NOT: LEGACY_EMPTY_DOCUMENT,
       },
-      take: 40,
+      take: 12,
       select: { id: true },
     });
     if (unchecked.length > 0) {
@@ -56,7 +56,7 @@ export class AiQualityService {
       }
     }
 
-    const [documents, partCount, chunks, noEmbedding, noPage, noSection, archived, removed, legacyEmpty, latestRuns, searchHistory] = await Promise.all([
+    const [documents, partCount, chunks, noEmbedding, noPage, noSection, archived, removed, legacyEmpty, latestRuns, searchRadar] = await Promise.all([
       prisma.document.findMany({
         where: {
           tenantId,
@@ -83,17 +83,9 @@ export class AiQualityService {
       prisma.document.count({ where: { tenantId, archivedAt: null, ...LEGACY_EMPTY_DOCUMENT } }),
       prisma.aiBenchmarkRun.findMany({
         where: { tenantId }, orderBy: { createdAt: 'desc' }, take: 10,
-        select: { id: true, caseCount: true, metrics: true, details: true, createdAt: true },
+        select: { id: true, caseCount: true, metrics: true, createdAt: true },
       }),
-      prisma.searchHistory.findMany({
-        where: {
-          tenantId,
-          createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 300,
-        select: { query: true, pnc: true, status: true, createdAt: true },
-      }),
+      SearchIntelligenceService.identifyCatalogGaps(tenantId, 10),
     ]);
 
     const pncRows = await prisma.part.findMany({
@@ -205,7 +197,7 @@ export class AiQualityService {
         stale: staleOfficial,
         cacheDays: officialVerificationCacheDays(),
       },
-      searchRadar: buildSearchQualityRadar(searchHistory, 10),
+      searchRadar,
       reviewQueue: needsReview,
       catalogs: effectiveDocuments,
       hygiene: {

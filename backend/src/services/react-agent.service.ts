@@ -7,6 +7,8 @@ import { findPartConcepts } from './part-vocabulary';
 import { retrieveTechnicalContext } from './document-memory';
 import { preferCurrentPartNumbers } from './part-supersession';
 import { chooseCandidateLocally } from './chat-reliability';
+import { withTransientAIRetry } from '../utils/ai-retry';
+import { recordAiTelemetry } from '../utils/ai-telemetry';
 
 export interface ReActSearchResult {
   status: 'FOUND' | 'NOT_FOUND' | 'AMBIGUOUS' | 'MODEL_REQUIRED' | 'PNC_REQUIRED';
@@ -28,7 +30,7 @@ export class ReActAgentService {
     preParsedIntent?: SearchIntent,
   ): Promise<ReActSearchResult> {
     // Step 1: Parse and Expand Query (Reasoning)
-    const intent = preParsedIntent || (await ChatIntentService.parse(question));
+    const intent = preParsedIntent || (await ChatIntentService.parse(question, tenantId));
     if (explicitPnc) intent.pnc = explicitPnc;
 
     // Fast local concept expansion using Husqvarna ontology (zero latency)
@@ -155,23 +157,28 @@ Retorne um JSON com:
 - ambiguous: Booleano indicando se a resposta é incerta`;
 
     try {
-      const decisionResponse = await ai.interactions.create({
-        model: GEMINI_GENERATIVE_MODEL,
-        input: decisionPrompt,
-        response_format: {
-          type: 'text',
-          mime_type: 'application/json',
-          schema: {
-            type: 'object',
-            properties: {
-              chosenId: { type: 'string' },
-              explanation: { type: 'string' },
-              ambiguous: { type: 'boolean' },
+      const decisionResponse = await withTransientAIRetry(
+        () => ai.interactions.create({
+          model: GEMINI_GENERATIVE_MODEL,
+          input: decisionPrompt,
+          response_format: {
+            type: 'text',
+            mime_type: 'application/json',
+            schema: {
+              type: 'object',
+              properties: {
+                chosenId: { type: 'string' },
+                explanation: { type: 'string' },
+                ambiguous: { type: 'boolean' },
+              },
+              required: ['explanation', 'ambiguous'],
             },
-            required: ['explanation', 'ambiguous'],
           },
-        },
-      });
+        }),
+        { label: 'ReAct Agent Decision' }
+      );
+      
+      recordAiTelemetry(tenantId, 'REACT_AGENT_DECISION', decisionResponse);
 
       const rawText = String((decisionResponse as any).output_text || '').trim();
       const cleanedText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();

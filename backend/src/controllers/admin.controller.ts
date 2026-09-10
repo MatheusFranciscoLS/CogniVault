@@ -77,6 +77,7 @@ export class AdminController {
             const users = await prisma.user.findMany({
                 where: { tenantId: req.user.tenantId },
                 orderBy: { createdAt: 'asc' },
+                take: 1000,
                 select: {
                     id: true,
                     email: true,

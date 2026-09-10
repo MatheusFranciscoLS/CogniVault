@@ -1,4 +1,4 @@
-import type { ConsumeMessage } from 'amqplib';
+import type { ConsumeMessage, Channel } from 'amqplib';
 import { prisma } from '../config/prisma';
 import { AIService } from '../services/ai.service';
 import { ensureCatalogCategory } from '../services/catalog-category-assignment';
@@ -63,7 +63,13 @@ async function buildAuxiliaryCatalogKnowledge(documentId: string, tenantId: stri
 let reconnectHookRegistered = false;
 
 export class DocumentWorker {
+    private static activeJobs = 0;
+    private static isShuttingDown = false;
+    private static channel?: Channel;
+    private static consumerTag?: string;
+
     static async start(): Promise<void> {
+        this.isShuttingDown = false;
         if (!reconnectHookRegistered) {
             reconnectHookRegistered = true;
             rabbitMQ.onReconnect(async () => {
@@ -75,12 +81,18 @@ export class DocumentWorker {
         }
 
         const channel = rabbitMQ.requireChannel();
+        this.channel = channel;
         await channel.prefetch(1);
         console.log('👷 Worker de IA aguardando documentos na fila...');
 
-        await channel.consume(DOCUMENT_PROCESSING_QUEUE, async (msg: ConsumeMessage | null) => {
+        const consumeResult = await channel.consume(DOCUMENT_PROCESSING_QUEUE, async (msg: ConsumeMessage | null) => {
             if (!msg) return;
+            if (this.isShuttingDown) {
+                channel.nack(msg); // Devolve para a fila se estiver desligando
+                return;
+            }
 
+            this.activeJobs++;
             let data: DocumentMessage;
             try {
                 const parsed: unknown = JSON.parse(msg.content.toString());
@@ -93,6 +105,7 @@ export class DocumentWorker {
             } catch {
                 channel.ack(msg);
                 console.warn('🧹 Mensagem ilegível removida da fila.');
+                this.activeJobs--;
                 return;
             }
 
@@ -103,16 +116,19 @@ export class DocumentWorker {
                 if (!document) {
                     channel.ack(msg);
                     console.warn(`🧹 Documento inexistente ignorado: ${data.documentId}.`);
+                    this.activeJobs--;
                     return;
                 }
                 if (document.tenantId !== data.tenantId) {
                     channel.ack(msg);
                     console.warn(`🧹 Tenant inválido para o documento ${data.documentId}.`);
+                    this.activeJobs--;
                     return;
                 }
                 if (document.processingJobId !== data.jobId) {
                     channel.ack(msg);
                     console.warn(`🧹 Mensagem duplicada/obsoleta ignorada para ${data.documentId}.`);
+                    this.activeJobs--;
                     return;
                 }
 
@@ -157,10 +173,12 @@ export class DocumentWorker {
                 });
                 channel.ack(msg);
                 console.log(`✅ Documento ${data.documentId} processado com sucesso.`);
+                this.activeJobs--;
             } catch (error) {
                 if (error instanceof Error && error.message === 'STALE_DOCUMENT_JOB') {
                     channel.ack(msg);
                     console.warn(`🧹 Trabalho cancelado/obsoleto confirmado para ${data.documentId}.`);
+                    this.activeJobs--;
                     return;
                 }
 
@@ -178,6 +196,7 @@ export class DocumentWorker {
                 if (!currentDocument || currentDocument.processingJobId !== data.jobId) {
                     channel.ack(msg);
                     console.warn(`🧹 Falha obsoleta ignorada para ${data.documentId}.`);
+                    this.activeJobs--;
                     return;
                 }
 
@@ -204,6 +223,7 @@ export class DocumentWorker {
                         await channel.waitForConfirms();
                         channel.ack(msg);
                         console.warn(`🕒 Documento ${data.documentId} reagendado (ciclo ${retryNumber}).`);
+                        this.activeJobs--;
                         return;
                     } catch (retryQueueError) {
                         console.error(`❌ Não foi possível reagendar ${data.documentId}:`, retryQueueError);
@@ -232,7 +252,36 @@ export class DocumentWorker {
                         ? `⚠️ Catálogo ${data.documentId} permanece disponível sem concluir toda a indexação.`
                         : `⚠️ Documento ${data.documentId} marcado como FAILED.`,
                 );
+                this.activeJobs--;
             }
         });
+        
+        this.consumerTag = consumeResult.consumerTag;
+    }
+
+    static async stop(): Promise<void> {
+        this.isShuttingDown = true;
+        console.log('🛑 Solicitando parada do DocumentWorker...');
+        if (this.channel && this.consumerTag) {
+            try {
+                await this.channel.cancel(this.consumerTag);
+                console.log('🛑 Consumidor do DocumentWorker cancelado. Nenhuma nova mensagem será recebida.');
+            } catch (err) {
+                console.warn('⚠️ Falha ao cancelar consumidor do RabbitMQ:', err);
+            }
+        }
+
+        let attempts = 0;
+        while (this.activeJobs > 0 && attempts < 30) { // Wait up to ~30s
+            console.log(`⏳ Aguardando ${this.activeJobs} trabalho(s) em andamento finalizarem... (${attempts + 1}/30)`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            attempts++;
+        }
+
+        if (this.activeJobs > 0) {
+            console.warn(`⚠️ O DocumentWorker está sendo forçado a parar com ${this.activeJobs} trabalho(s) pendente(s).`);
+        } else {
+            console.log('✅ DocumentWorker parado graciosamente.');
+        }
     }
 }

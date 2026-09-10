@@ -1,5 +1,5 @@
 export type Role = 'ADMIN' | 'MECHANIC';
-export type Section = 'home' | 'overview' | 'assistant' | 'parts' | 'catalogs' | 'history' | 'favorites' | 'users' | 'feedback' | 'quality' | 'audit';
+export type Section = 'home' | 'overview' | 'assistant' | 'parts' | 'catalogs' | 'quotes' | 'history' | 'favorites' | 'users' | 'feedback' | 'quality' | 'audit';
 export type SearchStatus = 'FOUND' | 'PNC_REQUIRED' | 'MODEL_REQUIRED' | 'PART_REQUIRED' | 'AMBIGUOUS' | 'NOT_FOUND';
 export type OfficialVerificationState = 'UNVERIFIED' | 'VERIFIED' | 'SUPERSEDED' | 'REVIEW';
 export type OfficialVerificationApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';

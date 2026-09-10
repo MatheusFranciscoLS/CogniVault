@@ -21,7 +21,21 @@ function metadataValue(value: unknown, field: string): string | null | undefined
   return clean || null;
 }
 
+import { SearchIntelligenceService } from '../services/search-intelligence.service';
+
 export class QualityController {
+  async searchIntelligence(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) return;
+      const limit = Number(req.query.limit) || 20;
+      const gaps = await SearchIntelligenceService.identifyCatalogGaps(req.user.tenantId, limit);
+      res.json({ gaps });
+    } catch (error) {
+      console.error('❌ Erro ao processar inteligência de busca:', error);
+      res.status(500).json({ error: 'Não foi possível carregar a inteligência de busca.' });
+    }
+  }
+
   async overview(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.user) return;

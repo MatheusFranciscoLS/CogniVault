@@ -20,6 +20,7 @@ import {
 import { buildPartRetrievalContext } from './part-index-context';
 import { semanticIndexingEnabled, semanticPartBudgetPerDocument } from './semantic-indexing-policy';
 import { invalidateHomeCountsCache } from '../controllers/operational.controller';
+import { recordAiTelemetry } from '../utils/ai-telemetry';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
@@ -304,12 +305,16 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     }),
                         { label: `extração do catálogo ${documentId}` },
                     );
+
+                    recordAiTelemetry(tenantId, 'CATALOG_EXTRACTION', response, { documentId });
+
                     const rawOutput = String((response as any).output_text || '').trim();
                     if (!rawOutput) throw new Error('Gemini não conseguiu extrair informações do PDF.');
                     const cleanedOutput = rawOutput.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
                     try {
                         extraction = JSON.parse(cleanedOutput) as CatalogExtraction;
-                    } catch {
+                    } catch (err) {
+                        console.error('❌ Falha ao processar o JSON retornado pelo Gemini:', rawOutput);
                         throw new Error('Gemini retornou JSON inválido durante a extração do catálogo.');
                     }
                     extractionMethod = `GEMINI:${GEMINI_GENERATIVE_MODEL}`;
@@ -477,24 +482,36 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 }));
                 activePartIds = persistenceRows.map(row => row.id);
 
-                // Uma única transação com 300–800 upserts excedia o limite de
-                // 120 s do Prisma/Render. Lotes independentes mantêm cada lock
-                // curto; a publicação dos novos IDs continua atômica logo abaixo.
-                const persistenceBatchSize = 60;
-                for (let offset = 0; offset < persistenceRows.length; offset += persistenceBatchSize) {
-                    const batch = persistenceRows.slice(offset, offset + persistenceBatchSize);
-                    const batchIds = batch.map(row => row.id);
-                    await prisma.$transaction([
-                        ...batch.map(row => row.existingId
-                            ? prisma.part.update({ where: { id: row.id }, data: row.data })
-                            : prisma.part.create({ data: { id: row.id, ...row.data } })),
-                        prisma.$executeRaw`
-                            UPDATE "Part" SET "embedding" = NULL, "embeddingRevision" = 0
-                            WHERE "id" IN (${Prisma.join(batchIds)})
-                        `,
-                    ]);
-                    console.log(`💾 ${Math.min(offset + batch.length, persistenceRows.length)}/${persistenceRows.length} peças preparadas para persistência.`);
+                // Otimização: Uso de createMany para inserções bulk e transações menores para updates
+                const creates = persistenceRows.filter(row => !row.existingId).map(row => ({ id: row.id, ...row.data }));
+                const updates = persistenceRows.filter(row => row.existingId);
+                const persistenceBatchSize = 100;
+
+                if (creates.length > 0) {
+                    for (let offset = 0; offset < creates.length; offset += persistenceBatchSize) {
+                        const batch = creates.slice(offset, offset + persistenceBatchSize);
+                        await prisma.part.createMany({ data: batch as any });
+                    }
                 }
+
+                if (updates.length > 0) {
+                    for (let offset = 0; offset < updates.length; offset += persistenceBatchSize) {
+                        const batch = updates.slice(offset, offset + persistenceBatchSize);
+                        await prisma.$transaction(
+                            batch.map(row => prisma.part.update({ where: { id: row.id }, data: row.data as any }))
+                        );
+                    }
+                }
+
+                for (let offset = 0; offset < activePartIds.length; offset += persistenceBatchSize) {
+                    const ids = activePartIds.slice(offset, offset + persistenceBatchSize);
+                    await prisma.$executeRaw`
+                        UPDATE "Part" SET "embedding" = NULL, "embeddingRevision" = 0
+                        WHERE "id" IN (${Prisma.join(ids)})
+                    `;
+                }
+                
+                console.log(`💾 ${persistenceRows.length} peças preparadas para persistência (Criações: ${creates.length}, Atualizações: ${updates.length}).`);
 
                 await prisma.$transaction(async tx => {
                     const activated = await tx.part.updateMany({
@@ -581,18 +598,23 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     }
 
                     await prisma.$transaction(async (tx) => {
-                        for (const [batchIndex, item] of batch.entries()) {
+                        const valuesToInsert = batch.map((item, batchIndex) => {
                             const values = embeddings[batchIndex]?.values;
                             if (!values || values.length !== 768) {
                                 throw new Error(`Embedding inválido para a peça ${preparedParts[item.index].data.partNumber}.`);
                             }
                             const embeddingString = `[${values.join(',')}]`;
-                            await tx.$executeRaw`
-                                UPDATE "Part"
-                                SET "embedding" = ${embeddingString}::vector, "embeddingRevision" = ${revision}
-                                WHERE "id" = ${item.id}
-                            `;
-                        }
+                            return Prisma.sql`(${item.id}::uuid, ${embeddingString}::vector, ${revision}::int)`;
+                        });
+
+                        const joinedValues = Prisma.join(valuesToInsert, ', ');
+
+                        await tx.$executeRaw`
+                            UPDATE "Part" AS p
+                            SET "embedding" = v.embedding, "embeddingRevision" = v.revision
+                            FROM (VALUES ${joinedValues}) AS v(id, embedding, revision)
+                            WHERE p."id" = v.id
+                        `;
                         indexedCount += batch.length;
                         const progress = await tx.document.updateMany({
                             where: { id: documentId, processingJobId: jobId },

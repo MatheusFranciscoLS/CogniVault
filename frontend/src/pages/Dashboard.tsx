@@ -15,6 +15,7 @@ const AdminFeedbackPanel = lazy(() => import('../components/AdminFeedbackPanel')
 const QualityPanel = lazy(() => import('../components/QualityPanel'));
 const HistoryPanel = lazy(() => import('../components/SavedItemsPanels').then(m => ({ default: m.HistoryPanel })));
 const FavoritesPanel = lazy(() => import('../components/SavedItemsPanels').then(m => ({ default: m.FavoritesPanel })));
+const SavedQuotesPanel = lazy(() => import('../components/SavedQuotesPanel'));
 
 function PanelLoading() {
   return (
@@ -149,6 +150,7 @@ export default function Dashboard() {
         />
       )}
       <Suspense fallback={<PanelLoading />}>
+        {section === 'quotes' && <SavedQuotesPanel />}
         {section === 'history' && <HistoryPanel onSearch={search} />}
         {section === 'favorites' && <FavoritesPanel onSearch={search} />}
         {section === 'overview' && user.role === 'ADMIN' && <OverviewPanel />}

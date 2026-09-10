@@ -34,7 +34,8 @@
     "jsonwebtoken": "^9.0.3",
     "lru-cache": "^11.5.2",
     "multer": "^2.2.0",
-    "pdf-parse": "^2.4.5"
+    "pdf-parse": "^2.4.5",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/amqplib": "^0.10.8",

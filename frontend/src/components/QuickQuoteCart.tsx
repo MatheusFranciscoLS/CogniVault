@@ -18,6 +18,7 @@ export default function QuickQuoteCart() {
     clearCart,
     copyQuoteToClipboard,
     openWhatsApp,
+    generatePdfQuote,
     savedQuotes,
     saveCurrentQuote,
     restoreQuote,
@@ -679,6 +680,15 @@ export default function QuickQuoteCart() {
                     >
                       <span>📋</span>
                       <span>Copiar para WhatsApp (Texto Formatado)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => generatePdfQuote({ customerName, customerPhone, paymentMethod, discountPercentage })}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-700 to-[#0b1d3a] hover:from-blue-600 hover:to-[#153e75] text-white py-3 px-4 text-xs font-bold shadow-md transition hover:shadow-lg active:scale-98"
+                    >
+                      <span>📄</span>
+                      <span>Baixar Orçamento em PDF</span>
                     </button>
 
                     <button

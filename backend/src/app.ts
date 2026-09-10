@@ -38,14 +38,7 @@ app.use(helmet({
 }));
 app.disable('x-powered-by');
 
-// Probes de orquestrador e health checks (Render, cron jobs, etc.) respondem imediatamente sem overhead
-app.get('/health/live', (_req, res) => {
-  res.set('Cache-Control', 'no-store').json({ status: 'online' });
-});
 
-app.head('/health/live', (_req, res) => {
-  res.set('Cache-Control', 'no-store').status(200).end();
-});
 
 // Limite de requisições (Rate Limiting) para proteger a infraestrutura e permitir uso fluido em balcão/oficina
 const apiLimiter = rateLimit({
@@ -85,6 +78,10 @@ app.get('/health/live', (_req, res) => {
     uptimeSeconds: Math.round(process.uptime()),
     timestamp: new Date().toISOString(),
   });
+});
+
+app.head('/health/live', (_req, res) => {
+  res.set('Cache-Control', 'no-store').status(200).end();
 });
 
 // Endpoint dedicado para crons externos (ex: cron-job.org / UptimeRobot)

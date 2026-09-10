@@ -22,6 +22,7 @@ const operationNav: NavItem[] = [
   ['home', 'Início'],
   ['parts', 'Peças e busca'],
   ['catalogs', 'Catálogos'],
+  ['quotes', 'Orçamentos'],
   ['history', 'Histórico'],
   ['favorites', 'Favoritos'],
 ];
@@ -43,6 +44,7 @@ function NavIcon({ section }: { section: Section }) {
     assistant: <><path d="m12 3 1.1 3.3L16.5 7.5l-3.4 1.2L12 12l-1.1-3.3-3.4-1.2 3.4-1.2L12 3Z"/><path d="m18.3 13.2.7 2.1 2.1.7-2.1.7-.7 2.1-.7-2.1-2.1-.7 2.1-.7.7-2.1Z"/><path d="m5.5 13 .8 2.4 2.4.8-2.4.8-.8 2.4-.8-2.4-2.4-.8 2.4-.8.8-2.4Z"/></>,
     parts: <><path d="m4 7 8-4 8 4-8 4-8-4Z"/><path d="m4 7v10l8 4 8-4V7M12 11v10"/></>,
     catalogs: <><path d="M4.5 4.5A3.5 3.5 0 0 1 8 3h4v16H8a3.5 3.5 0 0 0-3.5 2V4.5Z"/><path d="M19.5 4.5A3.5 3.5 0 0 0 16 3h-4v16h4a3.5 3.5 0 0 1 3.5 2V4.5Z"/></>,
+    quotes: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></>,
     history: <><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8M5.4 5.4 3 5.6l.2-2.4"/></>,
     favorites: <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>,
     overview: <><path d="M4 19V9M10 19V4M16 19v-7M22 19H2"/></>,

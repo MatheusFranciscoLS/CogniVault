@@ -53,6 +53,7 @@ async function bootstrap() {
             server.close(async () => {
                 try {
                     stopVisualRetryScheduler();
+                    await DocumentWorker.stop();
                     await rabbitMQ.close();
                     await prisma.$disconnect();
                     process.exit(0);

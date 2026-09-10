@@ -40,6 +40,11 @@ const directCodeCache = new LRUCache<string, PartCandidate[]>({
   ttl: 5 * 60 * 1000, // 5 minutes
 });
 
+const queryEmbeddingCache = new LRUCache<string, number[]>({
+  max: 1000,
+  ttl: 12 * 60 * 60 * 1000, // 12 hours
+});
+
 export function invalidateSearchFeedbackCache(tenantId?: string): void {
   if (tenantId) {
     for (const key of feedbackCache.keys()) {
@@ -369,10 +374,26 @@ export class PartSearchService {
       console.warn('⚠️ Busca fuzzy indisponível; usando os demais recuperadores.', error instanceof Error ? error.message : error);
       return [];
     });
+    
+    const husqvarnaCodeRegex = /\b(\d{3})\s?(\d{2})\s?(\d{2})-?(\d{2})\b/g;
+    const directCodePromises: Promise<PartCandidate[]>[] = [];
+    let match;
+    while ((match = husqvarnaCodeRegex.exec(question)) !== null) {
+      const rawCode = match[0];
+      const cleanCode = rawCode.replace(/[\s-]/g, '');
+      console.log(`🔍 [Busca Híbrida] Código Husqvarna detectado no texto: ${rawCode} -> ${cleanCode}`);
+      directCodePromises.push(this.directByCode(tenantId, cleanCode));
+    }
 
-    const [localCandidates, fullTextRows, fuzzyRows] = await Promise.all([lexicalPromise, fullTextPromise, fuzzyPromise]);
+    const [localCandidates, fullTextRows, fuzzyRows, ...directCodeResults] = await Promise.all([
+      lexicalPromise, 
+      fullTextPromise, 
+      fuzzyPromise,
+      ...directCodePromises
+    ]);
     const ftsCandidates = fullTextRows.map(hybridRowToCandidate);
     const fuzzyCandidates = fuzzyRows.map(hybridRowToCandidate);
+    const directCandidates = directCodeResults.flat();
     const model = normalizeIdentifier(retrievalIntent.model);
     const pnc = normalizeIdentifier(retrievalIntent.pnc);
 
@@ -387,7 +408,7 @@ export class PartSearchService {
       return [];
     });
 
-    const combined = mergeRetrieverResults([semanticCandidates, localCandidates, ftsCandidates, fuzzyCandidates]);
+    const combined = mergeRetrieverResults([semanticCandidates, localCandidates, ftsCandidates, fuzzyCandidates, directCandidates]);
     if (!combined.length) return [];
     const focused = focusCandidatesByDescription(retrievalIntent.partDescription || retrievalQuestion, combined);
     const deduplicated = deduplicatePartCandidates(focused);
@@ -419,13 +440,21 @@ export class PartSearchService {
 
     const expanded = semanticQueryText(intent.partDescription || question, [intent.manufacturer, intent.model, intent.pnc]);
     const queryText = [expanded, intent.section, intent.position].filter(Boolean).join(' | ');
-    const ai = await getGeminiClient();
-    const embed = await ai.models.embedContent({
-      model: GEMINI_EMBEDDING_MODEL,
-      contents: queryText,
-      config: { outputDimensionality: 768, taskType: 'RETRIEVAL_QUERY' },
-    });
-    const vector = embed.embeddings?.[0]?.values;
+    let vector = queryEmbeddingCache.get(queryText);
+
+    if (!vector) {
+      const ai = await getGeminiClient();
+      const embed = await ai.models.embedContent({
+        model: GEMINI_EMBEDDING_MODEL,
+        contents: queryText,
+        config: { outputDimensionality: 768, taskType: 'RETRIEVAL_QUERY' },
+      });
+      vector = embed.embeddings?.[0]?.values;
+      if (vector && vector.length === 768) {
+        queryEmbeddingCache.set(queryText, vector);
+      }
+    }
+
     if (!vector || vector.length !== 768) return [];
     const vectorString = `[${vector.join(',')}]`;
 

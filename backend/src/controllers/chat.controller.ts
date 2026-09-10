@@ -171,21 +171,32 @@ export class ChatController {
                 }
             }
 
-            let result: GuidedChatSearchResult = await ChatService.askQuestion(
+            const chatPromise = ChatService.askQuestion(
                 req.user.tenantId,
                 cleanQuestion,
                 cleanPnc,
                 cleanSelectedPartId,
                 fallbackModel,
             );
+
+            const requestedCode = cleanSelectedPartId ? '' : extractLikelyPartNumber(cleanQuestion);
+            const explicitVerificationPromise = requestedCode
+                ? OfficialPartVerificationService.resolveCurrentCode(req.user.tenantId, requestedCode)
+                : undefined;
+
+            let result: GuidedChatSearchResult = await chatPromise;
             result = enforceSerialConfirmation(result, cleanQuestion, Boolean(cleanSelectedPartId));
 
             try {
-                const requestedCode = cleanSelectedPartId ? '' : extractLikelyPartNumber(cleanQuestion);
                 const verificationCode = requestedCode || (result.status === 'FOUND' ? result.part?.partNumber || '' : '');
 
                 if (verificationCode) {
-                    const verification = await OfficialPartVerificationService.resolveCurrentCode(req.user.tenantId, verificationCode);
+                    let verification: OfficialVerificationView;
+                    if (requestedCode && explicitVerificationPromise) {
+                        verification = await explicitVerificationPromise;
+                    } else {
+                        verification = await OfficialPartVerificationService.resolveCurrentCode(req.user.tenantId, verificationCode);
+                    }
 
                     if (verification.state === 'SUPERSEDED') {
                         const currentCode = normalizeIdentifier(verification.currentPartNumber);

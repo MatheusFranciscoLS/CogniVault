@@ -169,7 +169,7 @@ export class ChatService {
       }
     }
 
-    const intent = await ChatIntentService.parse(question);
+    const intent = await ChatIntentService.parse(question, tenantId);
     if (!intent.model && fallbackModel?.trim()) {
       intent.model = fallbackModel.trim();
     }

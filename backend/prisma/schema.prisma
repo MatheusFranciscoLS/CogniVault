@@ -19,6 +19,7 @@ model Tenant {
   auditLogs             AuditLog[]
   officialVerifications OfficialPartVerification[]
   benchmarkRuns         AiBenchmarkRun[]
+  masterParts           MasterPart[]
   createdAt             DateTime                   @default(now())
 }
 
@@ -214,6 +215,25 @@ model Part {
   @@index([normalizedModel, normalizedPnc])
   @@index([partNumber])
   @@index([normalizedPartNumber, active])
+}
+
+model MasterPart {
+  id               String   @id @default(uuid())
+  tenantId         String
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  partNumber       String
+  normalizedNumber String
+  name             String
+  description      String?
+  price            Float?
+  ncm              String?
+  ean              String?
+  category         String?
+  brand            String?
+  updatedAt        DateTime @default(now())
+
+  @@unique([tenantId, normalizedNumber])
+  @@index([tenantId, normalizedNumber])
 }
 
 model SearchFeedback {

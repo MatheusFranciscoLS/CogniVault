@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { toast } from 'sonner';
 import { formatHusqvarnaPartNumber } from '../lib';
 import { playCartSound } from '../lib/sound';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export interface QuoteCartItem {
   id: string; // unique key: `${partNumber}|${model}|${pnc || ''}`
@@ -56,6 +58,7 @@ interface QuoteCartContextType {
   generateWhatsAppText: (optionsOrModel?: string | QuoteTextOptions) => string;
   copyQuoteToClipboard: (optionsOrModel?: string | QuoteTextOptions) => Promise<void>;
   openWhatsApp: (optionsOrModel?: string | QuoteTextOptions) => void;
+  generatePdfQuote: (optionsOrModel?: string | QuoteTextOptions) => void;
   savedQuotes: SavedQuote[];
   saveCurrentQuote: (options?: QuoteTextOptions) => SavedQuote | null;
   restoreQuote: (savedQuote: SavedQuote) => void;
@@ -355,6 +358,146 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
+  const generatePdfQuote = (optionsOrModel?: string | QuoteTextOptions) => {
+    if (!items.length) {
+      toast.error('A cesta está vazia!');
+      return;
+    }
+
+    const opts: QuoteTextOptions = typeof optionsOrModel === 'string'
+      ? { machineModel: optionsOrModel }
+      : (optionsOrModel || {});
+
+    saveCurrentQuote(opts);
+
+    const doc = new jsPDF('p', 'pt', 'a4');
+    const now = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date());
+    
+    // Header
+    doc.setFillColor(11, 29, 58); // #0b1d3a
+    doc.rect(0, 0, doc.internal.pageSize.getWidth(), 80, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ORÇAMENTO DE PEÇAS', 40, 40);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Vardão Máquinas - Assistência Técnica Autorizada Husqvarna', 40, 60);
+
+    // Info Section
+    doc.setTextColor(40, 40, 40);
+    let yPos = 110;
+
+    doc.setFontSize(10);
+    doc.text(`Data: ${now}`, 40, yPos);
+    
+    if (opts.customerName) {
+      yPos += 15;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Cliente: ', 40, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(opts.customerName, 85, yPos);
+    }
+    if (opts.customerPhone) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Telefone: ', 300, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(opts.customerPhone, 355, yPos);
+    }
+
+    const modelsFound = [...new Set(items.map(i => i.model).filter(Boolean))];
+    const headerModel = opts.machineModel || (modelsFound.length === 1 ? modelsFound[0] : modelsFound.join(' / '));
+    if (headerModel) {
+      yPos += 15;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Aplicação / Máquina: ', 40, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Husqvarna ${headerModel}`, 155, yPos);
+    }
+
+    yPos += 20;
+
+    // Table
+    const tableData = items.map((item, index) => {
+      const code = formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber);
+      let desc = item.name;
+      if (item.isSuperseded && item.originalCode) {
+         desc += `\n(Substitui: ${formatHusqvarnaPartNumber(item.originalCode)})`;
+      }
+      
+      const unit = item.unitPrice ? `R$ ${item.unitPrice.toFixed(2).replace('.', ',')}` : '-';
+      const total = item.unitPrice ? `R$ ${(item.quantity * item.unitPrice).toFixed(2).replace('.', ',')}` : '-';
+      
+      return [
+        (index + 1).toString(),
+        code,
+        desc,
+        item.quantity.toString(),
+        unit,
+        total
+      ];
+    });
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['#', 'CÓDIGO', 'DESCRIÇÃO', 'QTD', 'V. UNIT', 'SUBTOTAL']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [29, 79, 145] }, // #1d4f91
+      styles: { fontSize: 9, cellPadding: 5 },
+      columnStyles: {
+        0: { cellWidth: 30, halign: 'center' },
+        1: { cellWidth: 80, fontStyle: 'bold' },
+        3: { cellWidth: 40, halign: 'center' },
+        4: { cellWidth: 70, halign: 'right' },
+        5: { cellWidth: 80, halign: 'right' }
+      }
+    });
+
+    // Totals
+    const finalY = (doc as any).lastAutoTable.finalY + 20;
+    const hasAnyPrice = items.some(i => (i.unitPrice || 0) > 0);
+    
+    if (hasAnyPrice && totalPrice > 0) {
+      doc.setFontSize(12);
+      
+      if (opts.discountPercentage && opts.discountPercentage > 0) {
+        const discountAmount = (totalPrice * opts.discountPercentage) / 100;
+        const netTotal = totalPrice - discountAmount;
+        
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Subtotal: R$ ${totalPrice.toFixed(2).replace('.', ',')}`, 350, finalY);
+        doc.text(`Desconto (${opts.discountPercentage}%): -R$ ${discountAmount.toFixed(2).replace('.', ',')}`, 350, finalY + 15);
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text(`TOTAL FINAL: R$ ${netTotal.toFixed(2).replace('.', ',')}`, 350, finalY + 35);
+      } else {
+        doc.setFont('helvetica', 'bold');
+        doc.text(`TOTAL FINAL: R$ ${totalPrice.toFixed(2).replace('.', ',')}`, 350, finalY);
+      }
+    }
+
+    let footerY = finalY + (hasAnyPrice ? 60 : 20);
+    if (opts.paymentMethod && opts.paymentMethod !== 'A Combinar no Balcão') {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Condição de Pagamento:', 40, footerY);
+      doc.setFont('helvetica', 'normal');
+      doc.text(opts.paymentMethod, 180, footerY);
+      footerY += 15;
+    }
+
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Validade da proposta: 7 dias úteis.', 40, footerY);
+    doc.text('Peças 100% Originais Husqvarna.', 40, footerY + 12);
+
+    doc.save(`Orcamento_Vardao_${Date.now()}.pdf`);
+    toast.success('PDF gerado com sucesso!');
+  };
+
   return (
     <QuoteCartContext.Provider
       value={{
@@ -372,6 +515,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
         generateWhatsAppText,
         copyQuoteToClipboard,
         openWhatsApp,
+        generatePdfQuote,
         savedQuotes,
         saveCurrentQuote,
         restoreQuote,

@@ -378,6 +378,7 @@ export class DocumentService {
                 processingStage: { not: 'REMOVED' },
             },
             orderBy: { createdAt: 'desc' },
+            take: 500,
             select: documentListSelect,
         });
 
@@ -568,6 +569,7 @@ export class DocumentService {
         const documents = await prisma.document.findMany({
             where: { tenantId, processingStage: { not: 'REMOVED' } },
             orderBy: { createdAt: 'desc' },
+            take: 500,
             select: documentListSelect,
         });
 

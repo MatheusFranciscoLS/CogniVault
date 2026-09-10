@@ -3,7 +3,10 @@ import { extractExplicitSerialNumber } from './candidate-specificity';
 import { buildFallbackIntent, chooseCandidateLocally } from './chat-reliability';
 import { hasDomainKnowledge } from './husqvarna-domain-knowledge';
 import { hasKnownPartVocabulary, lexicalTerms } from './part-vocabulary';
+import { withTransientAIRetry } from '../utils/ai-retry';
 import { LRUCache } from 'lru-cache';
+import { recordAiTelemetry } from '../utils/ai-telemetry';
+import { PartSearchService } from './part-search.service';
 
 const intentCache = new LRUCache<string, Partial<SearchIntent>>({
   max: 500, // Armazena até 500 intenções
@@ -36,7 +39,7 @@ export interface CandidateForAi {
 }
 
 export class ChatIntentService {
-  static async parse(question: string): Promise<SearchIntent> {
+  static async parse(question: string, tenantId?: string): Promise<SearchIntent> {
     const localIntent = buildFallbackIntent(question);
     const knownVocabulary = hasKnownPartVocabulary(question);
     const knownDomain = hasDomainKnowledge(question, localIntent.model);
@@ -54,7 +57,7 @@ export class ChatIntentService {
 
     if (localIntent.partNumber || knownVocabulary || knownDomain || !unknownDescriptionTerms.length) return localIntent;
 
-    const cacheKey = question.trim().toLowerCase();
+    const cacheKey = `${tenantId || 'global'}:${question.trim().toLowerCase()}`;
     const cached = intentCache.get(cacheKey);
     if (cached) {
       const clean = (value: unknown) => typeof value === 'string' ? value.trim() : '';
@@ -69,6 +72,14 @@ export class ChatIntentService {
       };
     }
 
+    let similarModelsHint = '';
+    if (tenantId && localIntent.model) {
+      const similar = await PartSearchService.similarModels(tenantId, localIntent.model);
+      if (similar.length > 0) {
+        similarModelsHint = `Modelos válidos existentes na loja mais próximos: [${similar.join(', ')}]\nSe a menção do usuário corresponder fonética ou ortograficamente a um desses, use a grafia oficial.`;
+      }
+    }
+
     try {
       const ai = await getGeminiClient();
       const localHints = [
@@ -76,32 +87,45 @@ export class ChatIntentService {
         localIntent.model ? `Modelo detectado localmente: ${localIntent.model}` : '',
         localIntent.pnc ? `PNC detectado localmente: ${localIntent.pnc}` : '',
         serial ? `Número de série detectado localmente: ${serial}` : '',
+        similarModelsHint,
       ].filter(Boolean).join('\n');
 
-      const response = await ai.interactions.create({
-        model: GEMINI_GENERATIVE_MODEL,
-        input: `Interprete uma consulta de balcão de peças. Extraia somente o que foi informado ou claramente implícito. Não invente modelo, PNC, posição ou código.\n${localHints ? `\nPistas locais confiáveis (não contradiga):\n${localHints}\n` : ''}\nPara partDescription, preserve o nome pedido pelo usuário. Se houver um equivalente técnico inequívoco em inglês, português do Brasil ou português de Portugal, acrescente-o na mesma string separado por " / ". Exemplo: "volante magnético / flywheel". Não transforme um componente em conjunto completo e não invente sinônimos incertos.\n\nConsulta: ${question}`,
+      const response = await withTransientAIRetry(
+        () => ai.interactions.create({
+          model: GEMINI_GENERATIVE_MODEL,
+          input: `Interprete uma consulta de balcão de peças. Extraia somente o que foi informado ou claramente implícito. Não invente modelo, PNC, posição ou código.\n${localHints ? `\nPistas locais confiáveis (não contradiga):\n${localHints}\n` : ''}\nPara partDescription, preserve o nome pedido pelo usuário. É CRÍTICO preservar adjetivos mecânicos e de posição (ex: "esquerda", "direita", "superior", "inferior", "traseiro"). Se houver um equivalente técnico inequívoco em inglês ou português, acrescente-o separado por " / " (Ex: "volante magnético / flywheel"). Não transforme um componente em conjunto completo e não invente sinônimos incertos.\n\nConsulta: ${question}`,
           response_format: {
             type: 'text',
             mime_type: 'application/json',
             schema: {
-            type: 'object',
-            properties: {
-              manufacturer: { type: 'string' },
-              model: { type: 'string' },
-              pnc: { type: 'string' },
-              partDescription: { type: 'string' },
-              partNumber: { type: 'string' },
-              section: { type: 'string' },
-              position: { type: 'string' },
+              type: 'object',
+              properties: {
+                manufacturer: { type: 'string' },
+                model: { type: 'string' },
+                pnc: { type: 'string' },
+                partDescription: { type: 'string' },
+                partNumber: { type: 'string' },
+                section: { type: 'string' },
+                position: { type: 'string' },
+              },
+              required: ['manufacturer', 'model', 'pnc', 'partDescription', 'partNumber', 'section', 'position'],
             },
-            required: ['manufacturer', 'model', 'pnc', 'partDescription', 'partNumber', 'section', 'position'],
           },
-        },
-      });
+        }),
+        { label: 'Chat Intent Parse' }
+      );
+      recordAiTelemetry(tenantId || 'global', 'CHAT_INTENT_PARSE', response);
+
       const rawText = String((response as any).output_text || '').trim();
       const cleanedText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-      const parsed = JSON.parse(cleanedText || '{}') as Partial<SearchIntent>;
+      let parsed: Partial<SearchIntent>;
+      try {
+          parsed = JSON.parse(cleanedText || '{}');
+      } catch (err) {
+          console.error('❌ Falha ao processar o JSON retornado pelo Gemini no ChatIntentService.parse:', rawText);
+          throw new Error('Gemini retornou JSON inválido.');
+      }
+      
       intentCache.set(cacheKey, parsed);
       const clean = (value: unknown) => typeof value === 'string' ? value.trim() : '';
       return {
@@ -127,26 +151,39 @@ export class ChatIntentService {
 
     try {
       const ai = await getGeminiClient();
-      const response = await ai.interactions.create({
-        model: GEMINI_GENERATIVE_MODEL,
-        input: `Você está escolhendo uma peça entre candidatos JÁ ENCONTRADOS no banco.\nNunca crie IDs. Nunca escolha apenas por modelo parecido. Diferencie peça completa, kit, junta, parafuso, suporte etc.\nOs campos retrievalScore/retrievalAgreement apenas informam concordância dos recuperadores; eles não substituem compatibilidade mecânica.\nConsidere que a revenda está no Brasil. Se houver restrição regional nos nomes ou notas (ex: EU, US, ASIA, Latin America), dê preferência à opção compatível com o Brasil (Latin America, BR, etc) e descarte as de outras regiões.\nSe ainda houver duas opções plausíveis, marque ambiguous=true.\n\nPergunta: ${question}\n\nCandidatos:\n${candidates.map(candidate => JSON.stringify(candidate)).join('\n')}`,
+      const response = await withTransientAIRetry(
+        () => ai.interactions.create({
+          model: GEMINI_GENERATIVE_MODEL,
+          input: `Você está escolhendo uma peça entre candidatos JÁ ENCONTRADOS no banco.\nNunca crie IDs. Nunca escolha apenas por modelo parecido. Diferencie peça completa, kit, junta, parafuso, suporte etc.\nOs campos retrievalScore/retrievalAgreement apenas informam concordância dos recuperadores; eles não substituem compatibilidade mecânica.\nConsidere que a revenda está no Brasil. Se houver restrição regional nos nomes ou notas (ex: EU, US, ASIA, Latin America), dê preferência à opção compatível com o Brasil (Latin America, BR, etc) e descarte as de outras regiões.\nSe ainda houver duas opções plausíveis, marque ambiguous=true.\n\nPergunta: ${question}\n\nCandidatos:\n${candidates.map(candidate => JSON.stringify(candidate)).join('\n')}`,
           response_format: {
             type: 'text',
             mime_type: 'application/json',
             schema: {
-            type: 'object',
-            properties: {
-              id: { type: 'string' },
-              confidence: { type: 'number' },
-              ambiguous: { type: 'boolean' },
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                confidence: { type: 'number' },
+                ambiguous: { type: 'boolean' },
+              },
+              required: ['id', 'confidence', 'ambiguous'],
             },
-            required: ['id', 'confidence', 'ambiguous'],
           },
-        },
-      });
+        }),
+        { label: 'Chat Intent Choose' }
+      );
+      recordAiTelemetry('global', 'CHAT_INTENT_CHOOSE', response);
+
       const rawText = String((response as any).output_text || '').trim();
       const cleanedText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-      const parsed = JSON.parse(cleanedText || '{}') as { id?: unknown; confidence?: unknown; ambiguous?: unknown };
+      
+      let parsed: { id?: unknown; confidence?: unknown; ambiguous?: unknown };
+      try {
+          parsed = JSON.parse(cleanedText || '{}');
+      } catch (err) {
+          console.error('❌ Falha ao processar o JSON retornado pelo Gemini no ChatIntentService.choose:', rawText);
+          throw new Error('Gemini retornou JSON inválido.');
+      }
+
       const id = typeof parsed.id === 'string' && candidates.some(candidate => candidate.id === parsed.id) ? parsed.id : null;
       const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0));
       return { id, confidence, ambiguous: Boolean(parsed.ambiguous) || !id };

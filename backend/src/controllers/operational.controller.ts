@@ -18,6 +18,7 @@ import {
     getCorrelatedMaintenanceTerms,
     getBasicMaintenanceKitTerms,
 } from '../services/husqvarna-domain-knowledge';
+import { HusqvarnaScraperService } from '../services/husqvarna-scraper.service';
 
 const homeCountsCache = new LRUCache<string, { parts: number; documents: number }>({
     max: 200,
@@ -306,8 +307,27 @@ export class OperationalController {
                 };
             });
 
+            const partNumbers = Array.from(new Set(rankedParts.map(p => p.normalizedPartNumber)));
+            const masterParts = await prisma.masterPart.findMany({
+                where: { tenantId, normalizedNumber: { in: partNumbers } }
+            });
+            const masterPartMap = new Map(masterParts.map(mp => [mp.normalizedNumber, mp]));
+
+            const enrichedParts = rankedParts.map(p => {
+                const master = masterPartMap.get(p.normalizedPartNumber);
+                return {
+                    ...p,
+                    price: master?.price || null,
+                    ean: master?.ean || null,
+                    ncm: master?.ncm || null,
+                    officialName: master?.name || null,
+                    masterCategory: master?.category || null,
+                    brand: master?.brand || null,
+                };
+            });
+
             const searchResponsePayload = {
-                parts: rankedParts,
+                parts: enrichedParts,
                 documents: documents.map((item) => ({ ...item, partCount: item._count.parts, _count: undefined })),
             };
             searchResponseCache.set(searchCacheKey, searchResponsePayload);
@@ -363,6 +383,10 @@ export class OperationalController {
 
                 const [resolvedPart] = preferCurrentPartNumbers([part]);
 
+                const masterPart = await prisma.masterPart.findUnique({
+                    where: { tenantId_normalizedNumber: { tenantId: tenantId, normalizedNumber: resolvedPart.normalizedPartNumber } }
+                });
+
                 // Enriquecimento de compatibilidade cruzada Máquina <-> Motor (ex: Kawasaki FR691V -> Giro Zero Z248F / Z254F)
                 const extraCompatibility: { model: string; pnc: string }[] = [];
                 const engineMachines = findMachinesForEngine(part.normalizedModel);
@@ -386,7 +410,15 @@ export class OperationalController {
                 ];
 
                 cachedBase = {
-                    resolvedPart,
+                    resolvedPart: {
+                        ...resolvedPart,
+                        price: masterPart?.price || null,
+                        ean: masterPart?.ean || null,
+                        ncm: masterPart?.ncm || null,
+                        officialName: masterPart?.name || null,
+                        masterCategory: masterPart?.category || null,
+                        brand: masterPart?.brand || null,
+                    },
                     related,
                     compatibility: mergedCompatibility,
                 };
@@ -753,6 +785,28 @@ export class OperationalController {
         } catch (error) {
             console.error(`❌ Erro ao buscar combo de revisão para ${modelParam}:`, error);
             res.status(500).json({ error: 'Erro ao buscar combo de revisão do modelo.' });
+        }
+    }
+
+    async liveData(req: AuthenticatedRequest, res: Response): Promise<void> {
+        if (!req.user) return;
+        const code = String(req.params.code || '').trim();
+        if (!code) {
+            res.status(400).json({ error: 'Código de peça não informado.' });
+            return;
+        }
+
+        try {
+            const livePart = await HusqvarnaScraperService.fetchLiveData(code);
+            if (!livePart) {
+                res.status(404).json({ error: 'Dados em tempo real não encontrados na Husqvarna para este código.' });
+                return;
+            }
+
+            res.json({ livePart });
+        } catch (error) {
+            console.error(`❌ Erro ao buscar dados ao vivo para ${code}:`, error);
+            res.status(500).json({ error: 'Erro ao conectar ao portal oficial da Husqvarna.' });
         }
     }
 }
