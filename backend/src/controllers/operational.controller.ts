@@ -8,7 +8,7 @@ import { buildFallbackIntent } from '../services/chat-reliability';
 import { buildSearchGroups, scorePartText } from '../services/part-vocabulary';
 import { allRelatedPartNumbers, preferCurrentPartNumbers } from '../services/part-supersession';
 import { filterCandidatesByMarket } from '../services/catalog-market';
-import { invalidatePartSearchCaches } from '../services/part-search.service';
+import { PartSearchService, invalidatePartSearchCaches, } from '../services/part-search.service';
 import { invalidateChatResponseCache } from '../services/chat.service';
 import {
     resolveEngineCatalogRoute,
@@ -121,220 +121,387 @@ export class OperationalController {
         }
     }
 
-    async search(req: AuthenticatedRequest, res: Response): Promise<void> {
-        if (!req.user) return;
-        const q = String(req.query.q || '').trim();
-        if (q.length < 2) {
-            res.json({ parts: [], documents: [] });
+    async searchStream(
+        req: AuthenticatedRequest,
+        res: Response
+    ): Promise<void> {
+        if (!req.user) {
+            res.status(401).end();
             return;
         }
 
-        const tenantId = req.user.tenantId;
-        const searchCacheKey = `${tenantId}:${q.toLowerCase().trim()}`;
-        const cachedSearch = searchResponseCache.get(searchCacheKey);
-        if (cachedSearch) {
-            res.json(cachedSearch);
+        const q = String(req.query.q || '').trim();
+
+        res.setHeader(
+            'Content-Type',
+            'text/event-stream; charset=utf-8'
+        );
+        res.setHeader(
+            'Cache-Control',
+            'no-cache, no-transform'
+        );
+        res.setHeader(
+            'Connection',
+            'keep-alive'
+        );
+
+        // Evita buffering por proxies como nginx.
+        res.setHeader(
+            'X-Accel-Buffering',
+            'no'
+        );
+
+        res.flushHeaders();
+
+        let clientClosed = false;
+
+        req.on('close', () => {
+            clientClosed = true;
+        });
+
+        const send = (data: unknown) => {
+            if (
+                clientClosed ||
+                res.writableEnded
+            ) {
+                return;
+            }
+
+            res.write(
+                `data: ${JSON.stringify(data)}\n\n`
+            );
+        };
+
+        if (q.length < 2) {
+            send({
+                type: 'lexical',
+                parts: [],
+                documents: [],
+            });
+
+            send({
+                type: 'done',
+            });
+
+            res.end();
             return;
         }
 
         try {
+            /*
+             * Primeiro reutilizamos exatamente a busca operacional
+             * já existente. Assim /search e /search/stream não passam
+             * a ter regras diferentes de ranking.
+             */
+            let capturedStatus = 200;
 
-        const normalized = normalizeText(q);
-        const intent = buildFallbackIntent(q);
-        const detectedCode = intent.partNumber || '';
-        const codeIdentifier = normalizeIdentifier(detectedCode);
-        const fullIdentifier = normalizeIdentifier(q);
-        const targetCode = codeIdentifier || fullIdentifier;
-        const relatedCodes = targetCode ? allRelatedPartNumbers(targetCode).map(normalizeIdentifier).filter(Boolean) : [];
-        const normalizedModel = normalizeIdentifier(intent.model);
-        const normalizedManufacturer = normalizeIdentifier(intent.manufacturer);
-        const normalizedPnc = normalizeIdentifier(intent.pnc);
-
-        // Vinculação Giro Zero -> Motor Kawasaki / HS / HV: se for busca de peças internas de motor,
-        // permite que a busca encontre tanto no catálogo da máquina quanto no do motor correspondente.
-        const engineRoute = resolveEngineCatalogRoute(intent.model, intent.pnc, q);
-        const modelFilters = [normalizedModel].filter(Boolean);
-        if (engineRoute?.status === 'ROUTE' && engineRoute.engineModel) {
-            const normEngine = normalizeIdentifier(engineRoute.engineModel);
-            if (normEngine && !modelFilters.includes(normEngine)) {
-                modelFilters.push(normEngine);
-                const baseEngine = normEngine.replace(/v$/i, '');
-                if (baseEngine && !modelFilters.includes(baseEngine)) {
-                    modelFilters.push(baseEngine);
-                }
-            }
-        }
-        if (normalizedModel && /^(fx|fr|fs|hv|hs)\d+/i.test(normalizedModel)) {
-            const base = normalizedModel.replace(/v$/i, '');
-            if (base && !modelFilters.includes(base)) modelFilters.push(base);
-        }
-
-        // Isola texto descritivo removendo código e modelo identificados
-        let descriptiveText = q;
-        if (detectedCode) descriptiveText = descriptiveText.replace(detectedCode, ' ');
-        if (intent.model) descriptiveText = descriptiveText.replace(intent.model, ' ');
-        descriptiveText = descriptiveText.trim();
-
-        const groups = descriptiveText.length >= 2
-            ? buildSearchGroups(descriptiveText, [intent.manufacturer, intent.model, intent.pnc])
-            : (intent.partNumber ? [] : buildSearchGroups(q, [intent.manufacturer, intent.model, intent.pnc]));
-
-        const descriptiveFilters: Prisma.PartWhereInput[] = groups.map(group => ({
-            OR: group.variants.flatMap(variant => [
-                { normalizedName: { contains: variant } },
-                { searchText: { contains: variant, mode: 'insensitive' as const } },
-            ]),
-        }));
-        if (normalizedManufacturer) descriptiveFilters.push({ OR: [{ normalizedManufacturer }, { normalizedManufacturer: null }] });
-        if (normalizedPnc) descriptiveFilters.push({ OR: [{ normalizedPnc }, { universalAcrossPnc: true }] });
-
-        const modelCondition: Prisma.PartWhereInput = modelFilters.length > 1
-            ? { normalizedModel: { in: modelFilters } }
-            : (modelFilters.length === 1 ? { normalizedModel: modelFilters[0] } : {});
-
-        const searchClauses: Prisma.PartWhereInput[] = [];
-
-        // Cláusulas de código de peça (código direto ou substituições oficiais)
-        if (relatedCodes.length) {
-            searchClauses.push({ normalizedPartNumber: { in: relatedCodes } });
-        } else if (targetCode && targetCode.length >= 5) {
-            searchClauses.push({ normalizedPartNumber: { contains: targetCode } });
-        }
-
-        // Cláusulas de busca descritiva / modelo
-        if (groups.length) {
-            searchClauses.push({
-                ...modelCondition,
-                AND: descriptiveFilters,
-            });
-        }
-
-        // Fallback amplo se nem código claro nem grupos descritivos foram isolados
-        if (!searchClauses.length) {
-            searchClauses.push({
-                OR: [
-                    { partNumber: { contains: q, mode: 'insensitive' } },
-                    ...(normalized ? [{ normalizedName: { contains: normalized } }] : []),
-                    ...(targetCode ? [{ normalizedPartNumber: { contains: targetCode } }] : []),
-                    ...(modelFilters.length ? [{ normalizedModel: { in: modelFilters } }] : []),
-                    ...(normalizedManufacturer ? [{ normalizedManufacturer: { contains: normalizedManufacturer } }] : []),
-                    ...(normalizedPnc ? [{ normalizedPnc: { contains: normalizedPnc } }] : []),
-                ],
-            });
-        }
-
-        const partWhere: Prisma.PartWhereInput = {
-            active: true,
-            document: { tenantId, archivedAt: null, status: 'COMPLETED' },
-            OR: searchClauses,
-        };
-
-        const relatedDocKeywords: string[] = [];
-        const targetModelKey = intent.model || q;
-        const engineApps = findEngineApplications(targetModelKey, intent.pnc);
-        for (const app of engineApps) {
-            if (app.engineModel && !relatedDocKeywords.includes(app.engineModel)) relatedDocKeywords.push(app.engineModel);
-        }
-        const machineApps = findMachinesForEngine(targetModelKey, q);
-        for (const m of machineApps) {
-            if (m.machineModel && !relatedDocKeywords.includes(m.machineModel)) relatedDocKeywords.push(m.machineModel);
-        }
-
-        const [parts, documents] = await Promise.all([
-            prisma.part.findMany({
-                where: partWhere,
-                orderBy: [{ model: 'asc' }, { name: 'asc' }],
-                take: 200,
-                select: {
-                    id: true, name: true, partNumber: true, manufacturer: true, model: true, pnc: true,
-                    universalAcrossPnc: true, section: true, position: true, page: true, documentId: true,
-                    normalizedName: true, normalizedPartNumber: true, normalizedModel: true, normalizedPnc: true,
-                    alternativeNames: true, notes: true,
-                    document: { select: { filename: true } },
-                },
-            }),
-            prisma.document.findMany({
-                where: {
-                    tenantId, archivedAt: null, status: 'COMPLETED',
-                    OR: [
-                        { filename: { contains: q, mode: 'insensitive' } },
-                        { manufacturer: { contains: q, mode: 'insensitive' } },
-                        { model: { contains: q, mode: 'insensitive' } },
-                        { pnc: { contains: q, mode: 'insensitive' } },
-                        ...(intent.manufacturer ? [{ manufacturer: { contains: intent.manufacturer, mode: 'insensitive' as const } }] : []),
-                        ...(intent.model ? [{ model: { contains: intent.model, mode: 'insensitive' as const } }] : []),
-                        ...(intent.pnc ? [{ pnc: { contains: intent.pnc, mode: 'insensitive' as const } }] : []),
-                        ...(descriptiveText ? [{ model: { contains: descriptiveText, mode: 'insensitive' as const } }] : []),
-                        ...(relatedDocKeywords.map(keyword => ({ model: { contains: keyword, mode: 'insensitive' as const } }))),
-                        ...(relatedDocKeywords.map(keyword => ({ filename: { contains: keyword, mode: 'insensitive' as const } }))),
-                    ],
-                },
-                orderBy: { createdAt: 'desc' },
-                take: 12,
-                select: { id: true, filename: true, manufacturer: true, model: true, pnc: true, createdAt: true, _count: { select: { parts: { where: { active: true } } } } },
-            }),
-        ]);
-
-        const marketFiltered = filterCandidatesByMarket(parts);
-        const resolvedParts = preferCurrentPartNumbers(marketFiltered);
-
-        const seen = new Set<string>();
-        const rankedParts = resolvedParts
-            .map(part => {
-                let score = groups.length ? scorePartText(q, { name: part.name, section: part.section, aliases: part.alternativeNames, notes: part.notes }) : 0;
-                if (targetCode && part.normalizedPartNumber === targetCode) score += 1000;
-                else if (relatedCodes.length && relatedCodes.includes(part.normalizedPartNumber)) score += 800;
-                else if (targetCode && targetCode.length >= 5 && part.normalizedPartNumber.includes(targetCode)) score += 600;
-                if (modelFilters.length && modelFilters.includes(part.normalizedModel)) score += 200;
-                if (normalizedPnc && part.normalizedPnc === normalizedPnc) score += 150;
-                return { part, score };
-            })
-            .sort((a, b) => b.score - a.score || a.part.name.localeCompare(b.part.name, 'pt-BR'))
-            .filter(({ part }) => {
-                const identity = `${part.normalizedPartNumber}|${part.normalizedModel}|${part.universalAcrossPnc ? '*' : (part.normalizedPnc || '')}|${normalizeText(part.section || '')}|${normalizeText(part.position || '')}`;
-                if (seen.has(identity)) return false;
-                seen.add(identity);
-                return true;
-            })
-            .slice(0, 40)
-            .map(({ part }) => {
-                const { document, normalizedName: _normalizedName, normalizedPartNumber: _normalizedPartNumber, normalizedModel: _normalizedModel, normalizedPnc: _normalizedPnc, alternativeNames: _alternativeNames, ...publicPart } = part;
-                return {
-                    ...publicPart,
-                    filename: document.filename,
-                    pnc: part.universalAcrossPnc ? 'Qualquer um' : part.pnc,
-                    classification: classifyPartKind(part.name, part.section, part.notes),
-                };
-            });
-
-            const partNumbers = Array.from(new Set(rankedParts.map(p => p.normalizedPartNumber)));
-            const masterParts = await prisma.masterPart.findMany({
-                where: { tenantId, normalizedNumber: { in: partNumbers } }
-            });
-            const masterPartMap = new Map(masterParts.map(mp => [mp.normalizedNumber, mp]));
-
-            const enrichedParts = rankedParts.map(p => {
-                const master = masterPartMap.get(p.normalizedPartNumber);
-                return {
-                    ...p,
-                    price: master?.price || null,
-                    ean: master?.ean || null,
-                    ncm: master?.ncm || null,
-                    officialName: master?.name || null,
-                    masterCategory: master?.category || null,
-                    brand: master?.brand || null,
-                };
-            });
-
-            const searchResponsePayload = {
-                parts: enrichedParts,
-                documents: documents.map((item) => ({ ...item, partCount: item._count.parts, _count: undefined })),
+            let capturedPayload:
+                CachedSearchResult & {
+                    error?: string;
+                } = {
+                parts: [],
+                documents: [],
             };
-            searchResponseCache.set(searchCacheKey, searchResponsePayload);
-            res.json(searchResponsePayload);
+
+            const captureResponse = {
+                status(code: number) {
+                    capturedStatus = code;
+                    return this;
+                },
+
+                json(body: unknown) {
+                    if (
+                        body &&
+                        typeof body === 'object'
+                    ) {
+                        const result =
+                            body as Partial<CachedSearchResult> & {
+                                error?: string;
+                            };
+
+                        capturedPayload = {
+                            parts:
+                                Array.isArray(result.parts)
+                                    ? result.parts
+                                    : [],
+
+                            documents:
+                                Array.isArray(result.documents)
+                                    ? result.documents
+                                    : [],
+
+                            error:
+                                typeof result.error === 'string'
+                                    ? result.error
+                                    : undefined,
+                        };
+                    }
+
+                    return this;
+                },
+            } as unknown as Response;
+
+            await this.search(
+                req,
+                captureResponse
+            );
+
+            if (clientClosed) {
+                return;
+            }
+
+            if (capturedStatus >= 400) {
+                send({
+                    type: 'lexical',
+                    error:
+                        capturedPayload.error ||
+                        'Erro ao realizar a busca.',
+                    parts: [],
+                    documents: [],
+                });
+
+                send({
+                    type: 'done',
+                });
+
+                res.end();
+                return;
+            }
+
+            /*
+             * PRIMEIRA RESPOSTA:
+             * resultados rápidos da busca operacional.
+             */
+            send({
+                type: 'lexical',
+                parts:
+                    capturedPayload.parts,
+                documents:
+                    capturedPayload.documents,
+            });
+
+            if (clientClosed) {
+                return;
+            }
+
+            /*
+             * SEGUNDA ETAPA:
+             * recuperação híbrida / semântica.
+             *
+             * O PartSearchService já combina lexical,
+             * full-text, fuzzy, vetorial e código direto.
+             */
+            try {
+                const intent =
+                    buildFallbackIntent(q);
+
+                const semanticCandidates =
+                    await PartSearchService.semantic(
+                        req.user.tenantId,
+                        q,
+                        intent
+                    );
+
+                if (clientClosed) {
+                    return;
+                }
+
+                const lexicalIds =
+                    new Set(
+                        capturedPayload.parts
+                            .map(part =>
+                                String(
+                                    part?.id || ''
+                                )
+                            )
+                            .filter(Boolean)
+                    );
+
+                const additionalCandidates =
+                    semanticCandidates.filter(
+                        candidate =>
+                            !lexicalIds.has(
+                                candidate.id
+                            )
+                    );
+
+                if (
+                    additionalCandidates.length
+                ) {
+                    const normalizedNumbers =
+                        Array.from(
+                            new Set(
+                                additionalCandidates
+                                    .map(candidate =>
+                                        candidate
+                                            .normalizedPartNumber
+                                    )
+                                    .filter(Boolean)
+                            )
+                        );
+
+                    const masterParts =
+                        normalizedNumbers.length
+                            ? await prisma.masterPart.findMany(
+                                {
+                                    where: {
+                                        tenantId:
+                                            req.user
+                                                .tenantId,
+
+                                        normalizedNumber:
+                                        {
+                                            in: normalizedNumbers,
+                                        },
+                                    },
+                                }
+                            )
+                            : [];
+
+                    const masterPartMap =
+                        new Map(
+                            masterParts.map(
+                                master => [
+                                    master.normalizedNumber,
+                                    master,
+                                ]
+                            )
+                        );
+
+                    const semanticParts =
+                        additionalCandidates
+                            .slice(0, 40)
+                            .map(candidate => {
+                                const master =
+                                    masterPartMap.get(
+                                        candidate
+                                            .normalizedPartNumber
+                                    );
+
+                                return {
+                                    id:
+                                        candidate.id,
+
+                                    documentId:
+                                        candidate.documentId,
+
+                                    filename:
+                                        candidate.filename,
+
+                                    manufacturer:
+                                        candidate.manufacturer,
+
+                                    model:
+                                        candidate.model,
+
+                                    pnc:
+                                        candidate
+                                            .universalAcrossPnc
+                                            ? 'Qualquer um'
+                                            : candidate.pnc,
+
+                                    universalAcrossPnc:
+                                        candidate
+                                            .universalAcrossPnc,
+
+                                    section:
+                                        candidate.section,
+
+                                    position:
+                                        candidate.position,
+
+                                    name:
+                                        candidate.name,
+
+                                    partNumber:
+                                        candidate.partNumber,
+
+                                    page:
+                                        candidate.page,
+
+                                    notes:
+                                        candidate.notes,
+
+                                    classification:
+                                        classifyPartKind(
+                                            candidate.name,
+                                            candidate.section,
+                                            candidate.notes
+                                        ),
+
+                                    price:
+                                        master?.price ??
+                                        null,
+
+                                    ean:
+                                        master?.ean ??
+                                        null,
+
+                                    ncm:
+                                        master?.ncm ??
+                                        null,
+
+                                    officialName:
+                                        master?.name ??
+                                        null,
+
+                                    masterCategory:
+                                        master?.category ??
+                                        null,
+
+                                    brand:
+                                        master?.brand ??
+                                        null,
+                                };
+                            });
+
+                    send({
+                        type: 'semantic',
+                        parts:
+                            semanticParts,
+                    });
+                }
+            } catch (semanticError) {
+                /*
+                 * A busca semântica é melhoria progressiva.
+                 * Se Gemini/pgvector/fuzzy estiver indisponível,
+                 * os resultados lexicais continuam válidos.
+                 */
+                console.warn(
+                    '⚠️ Busca semântica indisponível no stream:',
+                    semanticError instanceof Error
+                        ? semanticError.message
+                        : semanticError
+                );
+            }
+
+            send({
+                type: 'done',
+            });
         } catch (error) {
-            console.error('❌ Erro na busca operacional:', error);
-            res.status(500).json({ error: 'Erro ao processar a busca de peças.', parts: [], documents: [] });
+            console.error(
+                '❌ Erro na busca streaming:',
+                error
+            );
+
+            send({
+                type: 'lexical',
+                error:
+                    'Erro ao processar a busca de peças.',
+                parts: [],
+                documents: [],
+            });
+
+            send({
+                type: 'done',
+            });
+        } finally {
+            if (
+                !clientClosed &&
+                !res.writableEnded
+            ) {
+                res.end();
+            }
         }
     }
 
