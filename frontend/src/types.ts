@@ -116,6 +116,11 @@ export interface PartDetail extends SearchPart {
   related:Array<{id:string;name:string;partNumber:string;model:string;pnc:string|null;section:string|null;position:string|null;page:number|null;classification?:PartClassification}>;
   compatibility:Array<{model:string;pnc:string|null}>;
   suggestedAddons?: { reason: string; items: SuggestedAddon[] };
+  price?: number | null;
+  ean?: string | null;
+  officialName?: string | null;
+  masterCategory?: string | null;
+  brand?: string | null;
 }
 export interface HomeData {
   counts:{parts:number;documents:number}; recentSearches:SearchHistoryItem[]; favorites:FavoriteItem[];

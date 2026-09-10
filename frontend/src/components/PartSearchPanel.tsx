@@ -138,6 +138,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [detail, setDetail] = useState<PartDetail | null>(null);
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
+  const [liveData, setLiveData] = useState<any>(null);
   const [pdf, setPdf] = useState<PdfPreview | null>(null);
   const [error, setError] = useState('');
   const [verificationLoading, setVerificationLoading] = useState(false);
@@ -372,15 +373,67 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
       if (signal?.aborted) return;
       setReplacementVerification(resolved.verification);
 
-      const data = await apiJson<{ parts: SearchPart[]; documents: SearchDocument[] }>(
-        `/api/search?q=${encodeURIComponent(resolved.value)}`,
-        signal ? { signal } : undefined,
-      );
+      const response = await api(`/api/search/stream?q=${encodeURIComponent(resolved.value)}`, signal ? { signal, timeoutMs: 60000 } : { timeoutMs: 60000 });
       if (signal?.aborted) return;
-      setParts(data.parts);
-      setDocuments(data.documents);
-      setSelectedIndex(data.parts.length ? 0 : -1);
-      void loadVerifications(data.parts, true);
+
+      if (!response.ok) {
+        throw new Error('Erro na comunicação com o servidor.');
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('Stream não suportado.');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let accumulatedParts: SearchPart[] = [];
+
+      while (true) {
+        const { done, value: chunk } = await reader.read();
+        if (done) break;
+        if (signal?.aborted) {
+          reader.cancel();
+          break;
+        }
+
+        buffer += decoder.decode(chunk, { stream: true });
+        const partsList = buffer.split('\n\n');
+        buffer = partsList.pop() || '';
+
+        for (const part of partsList) {
+          if (part.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(part.slice(6));
+              
+              if (data.type === 'lexical') {
+                if (data.error) {
+                  setError(data.error);
+                } else {
+                  setParts(data.parts || []);
+                  setDocuments(data.documents || []);
+                  accumulatedParts = [...(data.parts || [])];
+                  setSelectedIndex(accumulatedParts.length ? 0 : -1);
+                }
+              } else if (data.type === 'semantic' && data.parts) {
+                setParts(prev => {
+                  const existingIds = new Set(prev.map(p => p.id));
+                  const newParts = data.parts.filter((p: any) => !existingIds.has(p.id));
+                  accumulatedParts = [...prev, ...newParts];
+                  return accumulatedParts;
+                });
+              } else if (data.type === 'done') {
+                // Fim da transmissão
+              }
+            } catch (err) {
+              console.error('Erro ao analisar chunk SSE:', err);
+            }
+          }
+        }
+      }
+
+      if (signal?.aborted) return;
+      if (accumulatedParts.length > 0) {
+        void loadVerifications(accumulatedParts, true);
+      }
     } catch (searchError) {
       if (searchError instanceof Error && searchError.name === 'AbortError') return;
       setError(searchError instanceof Error ? searchError.message : 'Erro ao pesquisar.');
@@ -399,15 +452,60 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
         if (controller.signal.aborted) return;
         setReplacementVerification(resolved.verification);
 
-        const data = await apiJson<{ parts: SearchPart[]; documents: SearchDocument[] }>(
-          `/api/search?q=${encodeURIComponent(resolved.value)}`,
-          { signal: controller.signal },
-        );
+        const response = await api(`/api/search/stream?q=${encodeURIComponent(resolved.value)}`, { signal: controller.signal, timeoutMs: 60000 });
         if (controller.signal.aborted) return;
-        setParts(data.parts);
-        setDocuments(data.documents);
-        setSelectedIndex(data.parts.length ? 0 : -1);
-        void loadVerifications(data.parts, true);
+
+        if (!response.ok) throw new Error('Erro na comunicação com o servidor.');
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('Stream não suportado.');
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let accumulatedParts: SearchPart[] = [];
+
+        while (true) {
+          const { done, value: chunk } = await reader.read();
+          if (done) break;
+          if (controller.signal.aborted) {
+            reader.cancel();
+            break;
+          }
+
+          buffer += decoder.decode(chunk, { stream: true });
+          const partsList = buffer.split('\n\n');
+          buffer = partsList.pop() || '';
+
+          for (const part of partsList) {
+            if (part.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(part.slice(6));
+                
+                if (data.type === 'lexical') {
+                  if (data.error) setError(data.error);
+                  else {
+                    setParts(data.parts || []);
+                    setDocuments(data.documents || []);
+                    accumulatedParts = [...(data.parts || [])];
+                    setSelectedIndex(accumulatedParts.length ? 0 : -1);
+                  }
+                } else if (data.type === 'semantic' && data.parts) {
+                  setParts(prev => {
+                    const existingIds = new Set(prev.map(p => p.id));
+                    const newParts = data.parts.filter((p: any) => !existingIds.has(p.id));
+                    accumulatedParts = [...prev, ...newParts];
+                    return accumulatedParts;
+                  });
+                }
+              } catch (err) {}
+            }
+          }
+        }
+
+        if (controller.signal.aborted) return;
+        if (accumulatedParts.length > 0) {
+          void loadVerifications(accumulatedParts, true);
+        }
       } catch (searchError) {
         if (searchError instanceof Error && searchError.name === 'AbortError') return;
         setError(searchError instanceof Error ? searchError.message : 'Erro ao pesquisar.');
@@ -429,13 +527,18 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
     }
   }, []);
 
-  const openPart = useCallback(async (id: string) => {
+    const openPart = useCallback(async (id: string) => {
     setDetailLoadingId(id);
     setError('');
+    setLiveData(null);
     try {
       const data = await apiJson<{ part: PartDetail }>(`/api/parts/${id}`);
       setDetail(data.part);
       void loadVerifications([data.part]);
+      
+      apiJson<{ livePart: any }>(`/api/parts/${encodeURIComponent(data.part.partNumber)}/live`)
+        .then(res => setLiveData(res.livePart))
+        .catch(() => {}); // Ignora falhas da Husqvarna API silenciosamente
     } catch (partError) {
       setError(partError instanceof Error ? partError.message : 'Não foi possível abrir a peça.');
     } finally {
@@ -1312,6 +1415,88 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                     </a>
                   </div>
                 </div>
+
+              {liveData && (
+                <div className="mt-4 rounded-[22px] border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 p-5 shadow-sm">
+                  <div className="flex flex-col sm:flex-row gap-5">
+                    {liveData.imageUrl && (
+                      <div className="shrink-0 flex items-center justify-center bg-white dark:bg-slate-900 rounded-xl p-2 border border-slate-200 dark:border-slate-700 w-32 h-32">
+                        <img src={liveData.imageUrl} alt="Foto oficial" className="max-w-full max-h-full object-contain rounded-lg" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                        Verificado via Husqvarna
+                      </div>
+                      <div className="mt-2 text-sm font-semibold">{liveData.name}</div>
+
+                      {liveData.replacedBy && (
+                        <div className="mt-3 rounded-xl border-2 border-rose-400 bg-rose-50 p-3 text-rose-900 dark:border-rose-600 dark:bg-rose-950/30 dark:text-rose-200 shadow-sm animate-pulse">
+                          <div className="flex items-start gap-2">
+                            <span className="text-xl" aria-hidden="true">⚠️</span>
+                            <div>
+                              <strong className="block text-xs uppercase tracking-wider text-rose-600 dark:text-rose-400">Aviso: Peça Substituída Oficialmente</strong>
+                              <span className="mt-1 block text-sm font-semibold">
+                                O código novo é: <span className="text-xl font-black">{formatHusqvarnaPartNumber(liveData.replacedBy)}</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {liveData.fitsTo && liveData.fitsTo.length > 0 && (
+                        <div className="mt-4">
+                          <div className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest">Aplicações Oficiais (Onde Usa):</div>
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {liveData.fitsTo.slice(0, 10).map((model: string) => (
+                              <span key={model} className="rounded-md border border-emerald-200 dark:border-emerald-700/50 bg-emerald-100/50 dark:bg-emerald-900/30 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-200">
+                                {model}
+                              </span>
+                            ))}
+                            {liveData.fitsTo.length > 10 && (
+                              <span className="rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                                +{liveData.fitsTo.length - 10} modelos
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {liveData.specifications && (
+                        <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                          {liveData.specifications.ean && <div><span className="text-slate-500 dark:text-slate-400">EAN:</span> <span className="font-medium">{liveData.specifications.ean}</span></div>}
+                          {liveData.specifications.netWeight && <div><span className="text-slate-500 dark:text-slate-400">Peso:</span> <span className="font-medium">{liveData.specifications.netWeight}</span></div>}
+                          {liveData.specifications.grossWeight && <div><span className="text-slate-500 dark:text-slate-400">Peso Bruto:</span> <span className="font-medium">{liveData.specifications.grossWeight}</span></div>}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {detail.price !== undefined && detail.price !== null && (
+                <div className="mt-4 rounded-[22px] border border-blue-200 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-950/20 p-5 shadow-sm">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-wider text-blue-600/80 dark:text-blue-400/80">Preço do Sistema (ERP)</div>
+                        <div className="mt-1 text-2xl font-black text-slate-900 dark:text-white">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(detail.price)}
+                        </div>
+                        {detail.masterCategory && <div className="mt-1 text-xs text-slate-500">{detail.masterCategory} {detail.brand ? `- ${detail.brand}` : ''}</div>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span className="text-sm font-bold">Em Estoque</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
                 {/* Venda Sugerida / Peças Recomendadas */}
                 {detail.suggestedAddons && detail.suggestedAddons.items.length > 0 && (

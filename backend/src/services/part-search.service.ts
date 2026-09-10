@@ -45,6 +45,11 @@ const queryEmbeddingCache = new LRUCache<string, number[]>({
   ttl: 12 * 60 * 60 * 1000, // 12 hours
 });
 
+const semanticResultCache = new LRUCache<string, PartCandidate[]>({
+  max: 500,
+  ttl: 2 * 60 * 60 * 1000, // 2 hours
+});
+
 export function invalidateSearchFeedbackCache(tenantId?: string): void {
   if (tenantId) {
     for (const key of feedbackCache.keys()) {
@@ -66,10 +71,14 @@ export function invalidatePartSearchCaches(tenantId?: string): void {
     for (const key of directCodeCache.keys()) {
       if (key.startsWith(`${tenantId}:`)) directCodeCache.delete(key);
     }
+    for (const key of semanticResultCache.keys()) {
+      if (key.startsWith(`${tenantId}:`)) semanticResultCache.delete(key);
+    }
   } else {
     pncsCache.clear();
     modelsCache.clear();
     directCodeCache.clear();
+    semanticResultCache.clear();
   }
 }
 
@@ -422,6 +431,18 @@ export class PartSearchService {
     const model = normalizeIdentifier(intent.model);
     const manufacturer = normalizeIdentifier(intent.manufacturer);
     const pnc = normalizeIdentifier(intent.pnc);
+
+    const expanded = semanticQueryText(intent.partDescription || question, [intent.manufacturer, intent.model, intent.pnc]);
+    const queryText = [expanded, intent.section, intent.position].filter(Boolean).join(' | ');
+    const resultCacheKey = `${tenantId}:${model || ''}:${manufacturer || ''}:${pnc || ''}:${queryText}`;
+    
+    const cachedCandidates = semanticResultCache.get(resultCacheKey);
+    if (cachedCandidates) {
+      const cloned = cachedCandidates.map(c => ({ ...c, feedbackScore: 0 }));
+      if (cloned.length) await this.applyFeedback(tenantId, question, model, pnc, cloned);
+      return cloned;
+    }
+
     const availabilityFilters: Prisma.PartWhereInput[] = [];
     if (manufacturer) availabilityFilters.push({ OR: [{ normalizedManufacturer: manufacturer }, { normalizedManufacturer: null }] });
     if (pnc) availabilityFilters.push({ OR: [{ normalizedPnc: pnc }, { universalAcrossPnc: true }] });
@@ -438,8 +459,6 @@ export class PartSearchService {
     });
     if (!hasSemanticIndex || !consumeSemanticQueryBudget()) return [];
 
-    const expanded = semanticQueryText(intent.partDescription || question, [intent.manufacturer, intent.model, intent.pnc]);
-    const queryText = [expanded, intent.section, intent.position].filter(Boolean).join(' | ');
     let vector = queryEmbeddingCache.get(queryText);
 
     if (!vector) {
@@ -492,6 +511,8 @@ export class PartSearchService {
         retrievalSources: ['SEMANTIC'] as RetrievalSource[], retrievalAgreement: 1,
       };
     }).filter(candidate => candidate.distance <= MAX_DISTANCE);
+
+    semanticResultCache.set(resultCacheKey, candidates.map(c => ({ ...c, feedbackScore: 0 })));
 
     if (candidates.length) await this.applyFeedback(tenantId, question, model, pnc, candidates);
     return candidates;

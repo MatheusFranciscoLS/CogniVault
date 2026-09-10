@@ -157,96 +157,71 @@ export default function HomePanel({ onSearch, onCatalogs }: { onSearch: (query: 
 
   return (
     <section className="space-y-6">
-      {/* Hero Principal: Busca Rápida de Peças */}
-      <div className="relative overflow-hidden rounded-[30px] bg-[#0b1d3a] px-6 py-8 text-white shadow-[0_22px_70px_rgba(15,35,72,.18)] md:px-9 md:py-10 lg:px-11">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_25%,rgba(45,105,178,.34),transparent_32%),radial-gradient(circle_at_78%_110%,rgba(226,174,71,.13),transparent_28%)]" />
-        <div className="pointer-events-none absolute inset-0 opacity-[.04] [background-image:linear-gradient(rgba(255,255,255,.25)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.25)_1px,transparent_1px)] [background-size:58px_58px]" />
+      {/* Hero Principal: Busca Rápida de Peças (Google-style) */}
+      <div className="relative overflow-hidden rounded-[30px] bg-white dark:bg-slate-900 px-6 py-16 sm:py-24 text-center shadow-[0_22px_70px_rgba(15,35,72,.06)] dark:shadow-none border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center">
+        <div className="pointer-events-none absolute inset-0 opacity-[.03] dark:opacity-[.02] [background-image:linear-gradient(rgba(0,0,0,.8)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,.8)_1px,transparent_1px)] dark:[background-image:linear-gradient(rgba(255,255,255,.8)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.8)_1px,transparent_1px)] [background-size:64px_64px]" />
         
-        <div className="relative z-10 grid items-center gap-9 lg:grid-cols-[minmax(0,1fr)_280px]">
-          <div className="max-w-3xl">
-            <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              <p className="text-[10px] font-bold uppercase tracking-[.18em] text-amber-200">
-                Localizador de Peças & Orçamentos · Balcão & Oficina
-              </p>
-            </div>
-            
-            <h1 className="mt-3 text-3xl font-bold tracking-[-.045em] md:text-[2.65rem]">
-              Qual peça você procura?
-            </h1>
-            
-            <p className="mt-2.5 max-w-2xl text-sm leading-6 text-slate-300">
-              Digite o código da peça, modelo da máquina ou descrição técnica. Retorno direto de códigos originais, vistas explodidas e montagem de orçamento rápido.
-            </p>
-
-            <form onSubmit={submit} className="mt-6 flex items-center gap-2 rounded-2xl bg-white dark:bg-slate-800 p-2 shadow-2xl shadow-black/20">
-              <label htmlFor="home-search" className="sr-only">Pesquisar peça, código ou modelo</label>
-              <div className="pl-3 text-slate-400 text-lg">🔍</div>
-              <input
-                id="home-search"
-                autoFocus
-                value={query}
-                onChange={event => setQuery(event.target.value)}
-                placeholder="Ex.: carburador 143RII, 587106701, lâmina Z248F, filtro 120..."
-                className="min-w-0 flex-1 rounded-xl border-0 px-3 py-3 text-base text-slate-900 dark:text-slate-100 outline-none font-medium placeholder:text-slate-400"
-              />
-              {query ? (
-                <button
-                  type="button"
-                  onClick={() => setQuery('')}
-                  className="flex items-center rounded-xl px-3 py-2 text-xs font-semibold text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:text-slate-300"
-                >
-                  Limpar
-                </button>
-              ) : null}
-              <button type="submit" className="cv-primary px-6 py-3 text-sm font-bold shadow-md hover:shadow-lg transition">
-                Pesquisar Peça
-              </button>
-            </form>
-
-            <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-              <span className="font-semibold text-slate-300 mr-1">Consultas rápidas:</span>
-              {quickExamples.map(example => (
-                <button
-                  type="button"
-                  key={example}
-                  onClick={() => onSearch(example)}
-                  className="rounded-full border border-white/15 bg-white/[.07] px-3 py-1 font-medium text-slate-200 transition hover:bg-white/[.15] active:scale-95"
-                >
-                  {example}
-                </button>
-              ))}
-              <span className="ml-auto hidden items-center gap-2.5 text-slate-400 sm:flex">
-                <span><kbd className="rounded border border-white/15 bg-white/[.08] px-1.5 py-0.5 text-[10px] font-mono text-slate-200">/</kbd> focar busca</span>
-                <span><kbd className="rounded border border-white/15 bg-white/[.08] px-1.5 py-0.5 text-[10px] font-mono text-slate-200">Enter</kbd> buscar</span>
-              </span>
-            </div>
+        <div className="relative z-10 w-full max-w-3xl mx-auto flex flex-col items-center">
+          <div className="mb-6 flex flex-col items-center">
+             <img src="/vardao-logo-transparent.png" alt="Vardão Máquinas" className="h-auto w-[220px] dark:brightness-0 dark:invert opacity-90" />
+             <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1">
+               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                 B2B Husqvarna & Peças
+               </span>
+             </div>
           </div>
+          
+          <h1 className="sr-only">Busca Global de Peças</h1>
 
-          {/* Card Lateral: Orçamento Rápido WhatsApp */}
-          <div className="rounded-[24px] border border-white/12 bg-white/[.07] p-5 backdrop-blur-sm">
-            <div className="flex items-center justify-between">
-              <div className="text-xs font-bold uppercase tracking-[.12em] text-amber-200">Orçamento Ágil</div>
-              <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                1 Clique
-              </span>
+          <form onSubmit={submit} className="w-full mt-2 relative group">
+            <label htmlFor="home-search" className="sr-only">Pesquisar peça, código ou modelo</label>
+            <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-[#1d4f91] dark:group-focus-within:text-blue-400 transition-colors">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-6 w-6"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
             </div>
-            <p className="mt-2 text-xs leading-5 text-slate-200">
-              Adicione peças encontradas direto no carrinho de orçamento e gere a mensagem formatada para o WhatsApp do cliente.
-            </p>
-            <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
-              <span className="text-slate-300 font-medium">Itens no orçamento:</span>
-              <strong className="text-amber-300 font-bold">{quoteCart.totalItems} {quoteCart.totalItems === 1 ? 'peça' : 'peças'}</strong>
-            </div>
-            {quoteCart.totalItems > 0 && (
+            <input
+              id="home-search"
+              autoFocus
+              value={query}
+              onChange={event => setQuery(event.target.value)}
+              placeholder="Buscar código da peça, nome, PNC ou modelo..."
+              className="w-full rounded-[24px] border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 px-14 py-4 md:py-5 text-lg md:text-xl text-slate-900 dark:text-slate-100 outline-none font-medium placeholder:text-slate-400 transition hover:shadow-lg focus:border-[#1d4f91] dark:focus:border-blue-500 focus:shadow-xl focus:shadow-blue-900/10 dark:focus:shadow-blue-900/20"
+            />
+            {query ? (
               <button
                 type="button"
-                onClick={() => quoteCart.setIsOpen(true)}
-                className="mt-3 w-full rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 py-2 text-xs font-bold text-slate-950 shadow-md transition"
+                onClick={() => setQuery('')}
+                className="absolute inset-y-0 right-4 flex items-center px-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               >
-                Abrir Orçamento Ativo →
+                ✕
               </button>
-            )}
+            ) : null}
+            <button type="submit" className="sr-only">
+              Pesquisar
+            </button>
+          </form>
+
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <button type="button" onClick={submit} className="rounded-full bg-slate-100 dark:bg-slate-800 px-6 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700">
+              Pesquisa Inteligente
+            </button>
+            <button type="button" onClick={() => onCatalogs()} className="rounded-full bg-slate-100 dark:bg-slate-800 px-6 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700">
+              Explorar Catálogos
+            </button>
+          </div>
+
+          <div className="mt-8 flex flex-wrap justify-center gap-2 text-[11px] text-slate-400">
+            <span className="font-semibold text-slate-500 dark:text-slate-400 mr-1">Consultas rápidas:</span>
+            {quickExamples.map(example => (
+              <button
+                type="button"
+                key={example}
+                onClick={() => onSearch(example)}
+                className="rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1 font-medium text-slate-600 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-700"
+              >
+                {example}
+              </button>
+            ))}
           </div>
         </div>
       </div>

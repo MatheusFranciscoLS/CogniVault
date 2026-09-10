@@ -44,6 +44,7 @@ router.get('/me', authMiddleware, (req, res) => adminController.me(req, res));
 
 router.get('/home', authMiddleware, (req, res) => operationalController.home(req, res));
 router.get('/search', authMiddleware, (req, res) => operationalController.search(req, res));
+router.get('/search/stream', authMiddleware, (req, res) => operationalController.searchStream(req, res));
 router.get('/parts/:code/cross-reference', authMiddleware, (req, res) => operationalController.crossReference(req, res));
 router.get('/parts/:code/live-data', authMiddleware, (req, res) => operationalController.liveData(req, res));
 router.get('/models/:model/maintenance-kit', authMiddleware, (req, res) => operationalController.maintenanceKit(req, res));
