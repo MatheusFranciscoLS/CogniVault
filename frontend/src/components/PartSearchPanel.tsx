@@ -34,6 +34,25 @@ type PdfPreview = {
   title: string;
 };
 
+type SearchStreamMessage = {
+  type: 'lexical' | 'semantic' | 'done';
+  parts?: SearchPart[];
+  documents?: SearchDocument[];
+  error?: string;
+};
+
+type HusqvarnaLivePart = {
+  name: string;
+  imageUrl?: string;
+  replacedBy?: string;
+  fitsTo?: string[];
+  specifications?: {
+    ean?: string | null;
+    netWeight?: string | null;
+    grossWeight?: string | null;
+  };
+};
+
 type VerificationTarget = Pick<SearchPart, 'partNumber' | 'name'>;
 
 type Props = {
@@ -138,7 +157,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [detail, setDetail] = useState<PartDetail | null>(null);
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
-  const [liveData, setLiveData] = useState<any>(null);
+  const [liveData, setLiveData] = useState<HusqvarnaLivePart | null>(null);
   const [pdf, setPdf] = useState<PdfPreview | null>(null);
   const [error, setError] = useState('');
   const [verificationLoading, setVerificationLoading] = useState(false);
@@ -402,7 +421,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
         for (const part of partsList) {
           if (part.startsWith('data: ')) {
             try {
-              const data = JSON.parse(part.slice(6));
+              const data = JSON.parse(part.slice(6)) as SearchStreamMessage;
               
               if (data.type === 'lexical') {
                 if (data.error) {
@@ -416,7 +435,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
               } else if (data.type === 'semantic' && data.parts) {
                 setParts(prev => {
                   const existingIds = new Set(prev.map(p => p.id));
-                  const newParts = data.parts.filter((p: any) => !existingIds.has(p.id));
+                  const newParts = (data.parts ?? []).filter(p => !existingIds.has(p.id));
                   accumulatedParts = [...prev, ...newParts];
                   return accumulatedParts;
                 });
@@ -479,7 +498,7 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
           for (const part of partsList) {
             if (part.startsWith('data: ')) {
               try {
-                const data = JSON.parse(part.slice(6));
+                const data = JSON.parse(part.slice(6)) as SearchStreamMessage;
                 
                 if (data.type === 'lexical') {
                   if (data.error) setError(data.error);
@@ -492,12 +511,14 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
                 } else if (data.type === 'semantic' && data.parts) {
                   setParts(prev => {
                     const existingIds = new Set(prev.map(p => p.id));
-                    const newParts = data.parts.filter((p: any) => !existingIds.has(p.id));
+                    const newParts = (data.parts ?? []).filter(p => !existingIds.has(p.id));
                     accumulatedParts = [...prev, ...newParts];
                     return accumulatedParts;
                   });
                 }
-              } catch (err) {}
+              } catch (parseError) {
+                console.error('Erro ao analisar chunk SSE:', parseError);
+              }
             }
           }
         }
@@ -536,9 +557,9 @@ export default function PartSearchPanel({ initialQuery, onQueryChange, admin = f
       setDetail(data.part);
       void loadVerifications([data.part]);
       
-      apiJson<{ livePart: any }>(`/api/parts/${encodeURIComponent(data.part.partNumber)}/live`)
-        .then(res => setLiveData(res.livePart))
-        .catch(() => {}); // Ignora falhas da Husqvarna API silenciosamente
+      apiJson<{ livePart: HusqvarnaLivePart }>(`/api/parts/${encodeURIComponent(data.part.partNumber)}/live-data`)
+        .then(response => setLiveData(response.livePart))
+        .catch(() => undefined); // A consulta oficial é complementar e não bloqueia o detalhe.
     } catch (partError) {
       setError(partError instanceof Error ? partError.message : 'Não foi possível abrir a peça.');
     } finally {

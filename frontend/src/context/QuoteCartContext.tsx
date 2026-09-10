@@ -5,6 +5,12 @@ import { playCartSound } from '../lib/sound';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+type JsPdfWithAutoTable = jsPDF & {
+  lastAutoTable?: {
+    finalY: number;
+  };
+};
+
 export interface QuoteCartItem {
   id: string; // unique key: `${partNumber}|${model}|${pnc || ''}`
   partNumber: string;
@@ -457,7 +463,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     });
 
     // Totals
-    const finalY = (doc as any).lastAutoTable.finalY + 20;
+    const finalY = ((doc as JsPdfWithAutoTable).lastAutoTable?.finalY ?? yPos) + 20;
     const hasAnyPrice = items.some(i => (i.unitPrice || 0) > 0);
     
     if (hasAnyPrice && totalPrice > 0) {
