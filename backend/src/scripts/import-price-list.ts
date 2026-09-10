@@ -1,37 +1,46 @@
+import 'dotenv/config';
 import { randomUUID } from 'crypto';
 import path from 'path';
 import { Prisma, PrismaClient } from '@prisma/client';
-import * as xlsx from 'xlsx';
+import * as XLSX from 'xlsx';
 
 const prisma = new PrismaClient();
 
-type ExcelRow = Record<string, unknown>;
+const BASE_SHEET = 'BASE_DADOS CADASTRAIS';
+const EAN_SHEET = 'EAN';
+const BATCH_SIZE = 400;
 
-type SheetConfig = {
-  sheet: string;
-  commercialCategory: string;
-};
+const PRICE_SECTIONS = [
+  { sheet: 'LISTA_DE_PEÇAS', section: 'PEÇAS DE REPOSIÇÃO GERAL' },
+  { sheet: 'PEÇAS_TURFCARE', section: 'PEÇAS PARA CORTADORES DE GRAMA GIRO ZERO' },
+  { sheet: 'PEÇAS_MOTORES', section: 'PEÇAS PARA MOTORES 4 TEMPOS' },
+  { sheet: 'PEÇAS_BATERIA', section: 'PEÇAS PARA PRODUTOS A BATERIA' },
+  { sheet: 'PEÇAS_AUTOMOWER', section: 'PEÇAS PARA CORTADORES DE GRAMA AUTOMOWER' },
+  { sheet: 'PEÇAS_MARCAS', section: 'PEÇAS DE REPOSIÇÃO DE OUTRAS MARCAS' },
+  { sheet: 'FERRAMENTAS', section: 'FERRAMENTAS' },
+] as const;
+
+type Row = Record<string, unknown>;
 
 type CommercialOccurrence = {
   normalizedNumber: string;
   partNumber: string;
   name: string;
+  section: string;
   application: string | null;
   applicationKey: string;
-  commercialCategory: string;
-  subCategory: string | null;
   reference: string | null;
+  productCategory: string | null;
   itemType: string | null;
+  groupCode: string | null;
   sourceSheet: string;
-  sourceRow: number;
   price: number | null;
   ncm: string | null;
 };
 
-type MasterImport = {
-  tenantId: string;
-  normalizedNumber: string;
+type MasterRecord = {
   partNumber: string;
+  normalizedNumber: string;
   name: string;
   description: string | null;
   price: number | null;
@@ -41,332 +50,389 @@ type MasterImport = {
   brand: string | null;
 };
 
-const COMMERCIAL_SHEETS: SheetConfig[] = [
-  { sheet: 'LISTA_DE_PEÇAS', commercialCategory: 'PEÇAS DE REPOSIÇÃO GERAL' },
-  { sheet: 'PEÇAS_TURFCARE', commercialCategory: 'PEÇAS PARA CORTADORES DE GRAMA GIRO ZERO' },
-  { sheet: 'PEÇAS_MOTORES', commercialCategory: 'PEÇAS PARA MOTORES 4 TEMPOS' },
-  { sheet: 'PEÇAS_BATERIA', commercialCategory: 'PEÇAS PARA PRODUTOS A BATERIA' },
-  { sheet: 'PEÇAS_AUTOMOWER', commercialCategory: 'PEÇAS PARA CORTADORES DE GRAMA AUTOMOWER' },
-  { sheet: 'PEÇAS_MARCAS', commercialCategory: 'PEÇAS DE REPOSIÇÃO DE OUTRAS MARCAS' },
-  { sheet: 'FERRAMENTAS', commercialCategory: 'FERRAMENTAS' },
-];
-
-function asText(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  return String(value).trim();
+function value(row: Row, ...keys: string[]): unknown {
+  for (const key of keys) {
+    const found = row[key];
+    if (found !== undefined && found !== null && String(found).trim() !== '') return found;
+  }
+  return null;
 }
 
-function asNullableText(value: unknown): string | null {
-  const text = asText(value);
-  return text && text !== '-' ? text : null;
+function text(input: unknown): string | null {
+  if (input === undefined || input === null) return null;
+  const result = String(input).replace(/\s+/g, ' ').trim();
+  return result && result !== '-' ? result : null;
 }
 
-function asNumber(value: unknown): number | null {
-  if (value === null || value === undefined || value === '') return null;
-  const normalized = typeof value === 'string'
-    ? value.replace(/\./g, '').replace(',', '.')
-    : value;
+function numberValue(input: unknown): number | null {
+  if (typeof input === 'number' && Number.isFinite(input)) return input;
+  const raw = text(input);
+  if (!raw) return null;
+
+  const normalized = raw
+    .replace(/R\$/gi, '')
+    .replace(/\s/g, '')
+    .replace(/\.(?=\d{3}(?:\D|$))/g, '')
+    .replace(',', '.');
+
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function normalizeIdentifier(value: unknown): string {
-  return asText(value)
+function normalizeIdentifier(input: unknown): string {
+  return String(input ?? '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9]/g, '')
+    .replace(/[^A-Za-z0-9]/g, '')
     .toUpperCase();
 }
 
-function firstValue(row: ExcelRow, keys: string[]): unknown {
-  for (const key of keys) {
-    if (row[key] !== undefined && row[key] !== null && asText(row[key])) return row[key];
-  }
-  return undefined;
+function readRows(workbook: XLSX.WorkBook, sheetName: string, range: number): Row[] {
+  const sheet = workbook.Sheets[sheetName];
+  if (!sheet) throw new Error(`Aba "${sheetName}" não encontrada no arquivo.`);
+
+  return XLSX.utils.sheet_to_json<Row>(sheet, {
+    range,
+    defval: null,
+    raw: true,
+  });
 }
 
-function readRows(workbook: xlsx.WorkBook, sheetName: string, range: number): ExcelRow[] {
-  const worksheet = workbook.Sheets[sheetName];
-  if (!worksheet) throw new Error(`Aba "${sheetName}" não encontrada na planilha.`);
-  return xlsx.utils.sheet_to_json<ExcelRow>(worksheet, { range, defval: null, raw: true });
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
 }
 
 function resolveExcelPath(): string {
-  const fileArg = process.argv.slice(2).find(arg => !arg.startsWith('--'));
+  const fileArg = process.argv.slice(2).find(argument => !argument.startsWith('--'));
   const configured = fileArg || process.env.PRICE_LIST_PATH || '../Lista de Preços_Julho_2026_V2.xlsm';
   return path.resolve(process.cwd(), configured);
 }
 
 async function resolveTenant(): Promise<{ id: string; name: string }> {
-  const tenantArg = process.argv.slice(2).find(arg => arg.startsWith('--tenant='));
-  const tenantId = tenantArg?.slice('--tenant='.length).trim();
+  const tenantArg = process.argv.find(argument => argument.startsWith('--tenant='));
+  const tenantNameArg = process.argv.find(argument => argument.startsWith('--tenant-name='));
 
-  if (tenantId) {
-    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true, name: true } });
-    if (!tenant) throw new Error(`Tenant ${tenantId} não encontrado.`);
+  if (tenantArg) {
+    const id = tenantArg.slice('--tenant='.length).trim();
+    const tenant = await prisma.tenant.findUnique({ where: { id }, select: { id: true, name: true } });
+    if (!tenant) throw new Error(`Tenant ${id} não encontrado.`);
     return tenant;
   }
 
-  const tenants = await prisma.tenant.findMany({ select: { id: true, name: true }, orderBy: { createdAt: 'asc' } });
+  if (tenantNameArg) {
+    const name = tenantNameArg.slice('--tenant-name='.length).trim();
+    const tenant = await prisma.tenant.findFirst({ where: { name }, select: { id: true, name: true } });
+    if (!tenant) throw new Error(`Tenant "${name}" não encontrado.`);
+    return tenant;
+  }
+
+  const tenants = await prisma.tenant.findMany({
+    select: { id: true, name: true },
+    orderBy: { createdAt: 'asc' },
+  });
+
   if (tenants.length === 1) return tenants[0];
   if (!tenants.length) throw new Error('Nenhum tenant encontrado no banco.');
 
   throw new Error(
-    `Existem ${tenants.length} tenants. Informe explicitamente --tenant=<id> para não importar no cliente errado.`,
+    `Existem ${tenants.length} tenants. Use --tenant=<uuid> ou --tenant-name="Nome" para evitar importar no cliente errado.`,
   );
 }
 
-function loadEanMap(workbook: xlsx.WorkBook): Map<string, string> {
-  const map = new Map<string, string>();
-  const worksheet = workbook.Sheets.EAN;
-  if (!worksheet) return map;
+function loadEanMap(workbook: XLSX.WorkBook): Map<string, string> {
+  const sheet = workbook.Sheets[EAN_SHEET];
+  const result = new Map<string, string>();
+  if (!sheet) return result;
 
-  const rows = xlsx.utils.sheet_to_json<ExcelRow>(worksheet, { defval: null, raw: true });
+  // A aba EAN já possui o cabeçalho na primeira linha.
+  const rows = XLSX.utils.sheet_to_json<Row>(sheet, { defval: null, raw: true });
+
   for (const row of rows) {
-    const code = normalizeIdentifier(firstValue(row, ['CÓDIGO', 'Código']));
-    const ean = asText(firstValue(row, ['EAN', 'Ean']));
-    if (code && ean) map.set(code, ean);
-  }
-  return map;
-}
+    const partNumber = text(value(row, 'CÓDIGO', 'Código', 'CODIGO'));
+    const ean = text(value(row, 'EAN'));
+    if (!partNumber || !ean) continue;
 
-function loadCommercialOccurrences(workbook: xlsx.WorkBook): CommercialOccurrence[] {
-  const occurrences: CommercialOccurrence[] = [];
-
-  for (const config of COMMERCIAL_SHEETS) {
-    // Todas as sete abas comerciais usam a linha 6 como cabeçalho.
-    const rows = readRows(workbook, config.sheet, 5);
-
-    rows.forEach((row, index) => {
-      const rawPartNumber = asText(firstValue(row, ['CÓDIGO', 'Código']));
-      const normalizedNumber = normalizeIdentifier(rawPartNumber);
-      if (!normalizedNumber) return;
-
-      const application = asNullableText(firstValue(row, ['MODELO/APLICAÇÃO', 'MODELO', 'Modelo/Aplicação', 'Modelo']));
-      const name = asText(firstValue(row, ['DESCRIÇÃO', 'Descrição'])) || rawPartNumber;
-
-      occurrences.push({
-        normalizedNumber,
-        partNumber: rawPartNumber,
-        name,
-        application,
-        applicationKey: normalizeIdentifier(application),
-        commercialCategory: config.commercialCategory,
-        subCategory: asNullableText(firstValue(row, ['CATEGORIA', 'Categoria'])),
-        reference: asNullableText(firstValue(row, ['REFERÊNCIA', 'Referência'])),
-        itemType: asNullableText(firstValue(row, ['TIPO', 'Tipo'])),
-        sourceSheet: config.sheet,
-        sourceRow: index + 7,
-        price: asNumber(firstValue(row, ['PREÇO COM IMPOSTO', 'Preço com Imposto', 'PREÇO'])),
-        ncm: asNullableText(firstValue(row, ['NCM', 'Classific. Fiscal'])),
-      });
-    });
-
-    console.log(`✓ ${config.sheet}: ${rows.length.toLocaleString('pt-BR')} linhas lidas.`);
-  }
-
-  return occurrences;
-}
-
-function buildMasterParts(
-  workbook: xlsx.WorkBook,
-  tenantId: string,
-  occurrences: CommercialOccurrence[],
-  eanMap: Map<string, string>,
-): MasterImport[] {
-  const occurrencesByCode = new Map<string, CommercialOccurrence[]>();
-  for (const occurrence of occurrences) {
-    const group = occurrencesByCode.get(occurrence.normalizedNumber) || [];
-    group.push(occurrence);
-    occurrencesByCode.set(occurrence.normalizedNumber, group);
-  }
-
-  const baseRows = readRows(workbook, 'BASE_DADOS CADASTRAIS', 2);
-  const baseByCode = new Map<string, ExcelRow>();
-
-  for (const row of baseRows) {
-    const normalized = normalizeIdentifier(firstValue(row, ['Código', 'CÓDIGO']));
-    if (normalized) baseByCode.set(normalized, row);
-  }
-
-  const result: MasterImport[] = [];
-
-  // A lista comercial (as sete categorias mostradas no sistema) define quais
-  // códigos pertencem ao catálogo comercial de peças/ferramentas vigente.
-  for (const [normalizedNumber, codeOccurrences] of occurrencesByCode) {
-    const primary = codeOccurrences.find(item => item.itemType?.toLowerCase() === 'base') || codeOccurrences[0];
-    const base = baseByCode.get(normalizedNumber);
-
-    const baseCode = asText(firstValue(base || {}, ['Código', 'CÓDIGO']));
-    const baseName = asText(firstValue(base || {}, ['Descrição', 'DESCRIÇÃO']));
-    const basePrice = asNumber(firstValue(base || {}, ['Preço', 'PREÇO']));
-    const baseNcm = asNullableText(firstValue(base || {}, ['Classific. Fiscal', 'NCM']));
-    const baseEan = asNullableText(firstValue(base || {}, ['EAN']));
-
-    result.push({
-      tenantId,
-      normalizedNumber,
-      partNumber: baseCode || primary.partNumber,
-      name: baseName || primary.name,
-      description: baseName || primary.name || null,
-      price: basePrice ?? primary.price,
-      ncm: baseNcm ?? primary.ncm,
-      ean: baseEan ?? eanMap.get(normalizedNumber) ?? null,
-      category: primary.commercialCategory,
-      // O campo legado "brand" passa a receber a referência/fabricante quando
-      // a aba fornece esse dado. Aplicação fica na tabela relacional própria.
-      brand: primary.reference,
-    });
+    const normalizedNumber = normalizeIdentifier(partNumber);
+    if (normalizedNumber) result.set(normalizedNumber, ean);
   }
 
   return result;
 }
 
-async function upsertMasterParts(items: MasterImport[], importDate: Date): Promise<void> {
-  const batchSize = 250;
+function loadBaseMap(workbook: XLSX.WorkBook): Map<string, Row> {
+  const result = new Map<string, Row>();
+  // BASE_DADOS CADASTRAIS: linha 3 é o cabeçalho.
+  for (const row of readRows(workbook, BASE_SHEET, 2)) {
+    const partNumber = text(value(row, 'Código', 'CÓDIGO', 'CODIGO'));
+    if (!partNumber) continue;
 
-  for (let offset = 0; offset < items.length; offset += batchSize) {
-    const batch = items.slice(offset, offset + batchSize);
-
-    await prisma.$transaction(
-      batch.map(item => prisma.masterPart.upsert({
-        where: {
-          tenantId_normalizedNumber: {
-            tenantId: item.tenantId,
-            normalizedNumber: item.normalizedNumber,
-          },
-        },
-        update: {
-          partNumber: item.partNumber,
-          name: item.name,
-          description: item.description,
-          price: item.price,
-          ncm: item.ncm,
-          ean: item.ean,
-          category: item.category,
-          brand: item.brand,
-          updatedAt: importDate,
-        },
-        create: {
-          ...item,
-          updatedAt: importDate,
-        },
-      })),
-    );
-
-    console.log(`  Cadastro comercial: ${Math.min(offset + batch.length, items.length).toLocaleString('pt-BR')}/${items.length.toLocaleString('pt-BR')}`);
+    const normalizedNumber = normalizeIdentifier(partNumber);
+    if (normalizedNumber) result.set(normalizedNumber, row);
   }
+  return result;
 }
 
-async function upsertApplications(
-  tenantId: string,
+function loadCommercialOccurrences(workbook: XLSX.WorkBook): CommercialOccurrence[] {
+  const occurrences: CommercialOccurrence[] = [];
+
+  for (const config of PRICE_SECTIONS) {
+    // Nas sete abas mostradas na interface, a linha 6 é o cabeçalho.
+    const rows = readRows(workbook, config.sheet, 5);
+    let validRows = 0;
+
+    for (const row of rows) {
+      const partNumber = text(value(row, 'CÓDIGO', 'Código', 'CODIGO'));
+      if (!partNumber) continue;
+
+      const normalizedNumber = normalizeIdentifier(partNumber);
+      if (!normalizedNumber) continue;
+
+      const application = text(value(row, 'MODELO/APLICAÇÃO', 'MODELO', 'MODELO / APLICAÇÃO'));
+      const name = text(value(row, 'DESCRIÇÃO', 'Descrição', 'DESCRICAO')) || partNumber;
+
+      occurrences.push({
+        normalizedNumber,
+        partNumber,
+        name,
+        section: config.section,
+        application,
+        applicationKey: normalizeIdentifier(application),
+        reference: text(value(row, 'REFERÊNCIA', 'REFERENCIA')),
+        productCategory: text(value(row, 'CATEGORIA')),
+        itemType: text(value(row, 'TIPO', 'Tipo')),
+        groupCode: text(value(row, 'GRUPO', 'Grupo')),
+        sourceSheet: config.sheet,
+        price: numberValue(value(row, 'PREÇO COM IMPOSTO', 'Preço com Imposto', 'PREÇO', 'PRECO')),
+        ncm: text(value(row, 'NCM', 'Classific. Fiscal')),
+      });
+      validRows += 1;
+    }
+
+    console.log(`${config.sheet}: ${validRows.toLocaleString('pt-BR')} linhas válidas`);
+  }
+
+  return occurrences;
+}
+
+function buildRecords(
+  baseByCode: Map<string, Row>,
+  eanMap: Map<string, string>,
   occurrences: CommercialOccurrence[],
-  importDate: Date,
-): Promise<void> {
-  const batchSize = 400;
+): { masters: MasterRecord[]; sections: CommercialOccurrence[] } {
+  const occurrenceGroups = new Map<string, CommercialOccurrence[]>();
 
-  for (let offset = 0; offset < occurrences.length; offset += batchSize) {
-    const batch = occurrences.slice(offset, offset + batchSize);
+  for (const occurrence of occurrences) {
+    const group = occurrenceGroups.get(occurrence.normalizedNumber) || [];
+    group.push(occurrence);
+    occurrenceGroups.set(occurrence.normalizedNumber, group);
+  }
 
-    const values = Prisma.join(batch.map(item => Prisma.sql`(
+  const masters: MasterRecord[] = [];
+
+  // As sete abas comerciais definem o conjunto vigente de peças/ferramentas.
+  // BASE_DADOS CADASTRAIS e EAN são usadas apenas para enriquecer esses códigos.
+  for (const [normalizedNumber, codeOccurrences] of occurrenceGroups) {
+    const primary = codeOccurrences.find(item => item.itemType?.toLowerCase() === 'base') || codeOccurrences[0];
+    const base = baseByCode.get(normalizedNumber);
+
+    const basePartNumber = base ? text(value(base, 'Código', 'CÓDIGO', 'CODIGO')) : null;
+    const baseName = base ? text(value(base, 'Descrição', 'DESCRIÇÃO', 'DESCRICAO')) : null;
+    const basePrice = base ? numberValue(value(base, 'Preço', 'PREÇO', 'PRECO')) : null;
+    const baseNcm = base ? text(value(base, 'Classific. Fiscal', 'NCM')) : null;
+    const baseEan = base ? text(value(base, 'EAN')) : null;
+
+    masters.push({
+      partNumber: basePartNumber || primary.partNumber,
+      normalizedNumber,
+      name: baseName || primary.name,
+      description: baseName || primary.name,
+      price: basePrice ?? primary.price,
+      ncm: baseNcm || primary.ncm,
+      ean: baseEan || eanMap.get(normalizedNumber) || null,
+      category: primary.section,
+      // Referência/fabricante comercial quando essa informação existe na aba.
+      brand: primary.reference,
+    });
+  }
+
+  // A mesma peça pode existir na mesma categoria com aplicações diferentes.
+  // Ex.: um único código associado a dois modelos. Não colapsamos esses casos.
+  const uniqueSections = new Map<string, CommercialOccurrence>();
+  for (const occurrence of occurrences) {
+    const key = [
+      occurrence.normalizedNumber,
+      occurrence.section,
+      occurrence.applicationKey,
+    ].join('|');
+
+    if (!uniqueSections.has(key)) uniqueSections.set(key, occurrence);
+  }
+
+  return { masters, sections: [...uniqueSections.values()] };
+}
+
+async function upsertMasterParts(tenantId: string, records: MasterRecord[], importDate: Date): Promise<void> {
+  let processed = 0;
+
+  for (const batch of chunk(records, BATCH_SIZE)) {
+    const values = Prisma.join(batch.map(record => Prisma.sql`(
       ${randomUUID()},
       ${tenantId},
-      ${item.normalizedNumber},
-      ${item.partNumber},
-      ${item.application},
-      ${item.applicationKey},
-      ${item.commercialCategory},
-      ${item.subCategory},
-      ${item.reference},
-      ${item.itemType},
-      ${item.sourceSheet},
-      ${item.sourceRow},
+      ${record.partNumber},
+      ${record.normalizedNumber},
+      ${record.name},
+      ${record.description},
+      ${record.price},
+      ${record.ncm},
+      ${record.ean},
+      ${record.category},
+      ${record.brand},
       ${importDate}
     )`));
 
     await prisma.$executeRaw(Prisma.sql`
-      INSERT INTO "MasterPartApplication" (
-        "id", "tenantId", "normalizedNumber", "partNumber", "application",
-        "applicationKey", "commercialCategory", "subCategory", "reference",
-        "itemType", "sourceSheet", "sourceRow", "updatedAt"
+      INSERT INTO "MasterPart" (
+        "id", "tenantId", "partNumber", "normalizedNumber", "name", "description",
+        "price", "ncm", "ean", "category", "brand", "updatedAt"
       )
       VALUES ${values}
-      ON CONFLICT (
-        "tenantId", "normalizedNumber", "applicationKey", "commercialCategory", "sourceSheet"
-      ) DO UPDATE SET
+      ON CONFLICT ("tenantId", "normalizedNumber")
+      DO UPDATE SET
         "partNumber" = EXCLUDED."partNumber",
-        "application" = EXCLUDED."application",
-        "subCategory" = EXCLUDED."subCategory",
-        "reference" = EXCLUDED."reference",
-        "itemType" = EXCLUDED."itemType",
-        "sourceRow" = EXCLUDED."sourceRow",
+        "name" = EXCLUDED."name",
+        "description" = EXCLUDED."description",
+        "price" = EXCLUDED."price",
+        "ncm" = EXCLUDED."ncm",
+        "ean" = COALESCE(EXCLUDED."ean", "MasterPart"."ean"),
+        "category" = EXCLUDED."category",
+        "brand" = EXCLUDED."brand",
         "updatedAt" = EXCLUDED."updatedAt"
     `);
 
-    console.log(`  Aplicações: ${Math.min(offset + batch.length, occurrences.length).toLocaleString('pt-BR')}/${occurrences.length.toLocaleString('pt-BR')}`);
+    processed += batch.length;
+    console.log(`MasterPart: ${processed.toLocaleString('pt-BR')}/${records.length.toLocaleString('pt-BR')}`);
   }
-
-  // Só depois de uma importação completa removemos relações que não existem
-  // mais na lista atual. Se o processo falhar no meio, a base anterior continua íntegra.
-  await prisma.$executeRaw`
-    DELETE FROM "MasterPartApplication"
-    WHERE "tenantId" = ${tenantId}
-      AND "updatedAt" < ${importDate}
-  `;
 }
 
-async function main(): Promise<void> {
+async function upsertSections(
+  tenantId: string,
+  records: CommercialOccurrence[],
+  importDate: Date,
+): Promise<void> {
+  let processed = 0;
+
+  for (const batch of chunk(records, BATCH_SIZE)) {
+    const values = Prisma.join(batch.map(record => Prisma.sql`(
+      ${randomUUID()},
+      ${tenantId},
+      ${record.normalizedNumber},
+      ${record.section},
+      ${record.application},
+      ${record.applicationKey},
+      ${record.reference},
+      ${record.productCategory},
+      ${record.itemType},
+      ${record.groupCode},
+      ${record.sourceSheet},
+      ${importDate}
+    )`));
+
+    await prisma.$executeRaw(Prisma.sql`
+      INSERT INTO "MasterPartSection" (
+        "id", "tenantId", "normalizedNumber", "section", "application", "applicationKey",
+        "reference", "productCategory", "itemType", "groupCode", "sourceSheet", "updatedAt"
+      )
+      VALUES ${values}
+      ON CONFLICT ("tenantId", "normalizedNumber", "section", "applicationKey")
+      DO UPDATE SET
+        "application" = EXCLUDED."application",
+        "reference" = EXCLUDED."reference",
+        "productCategory" = EXCLUDED."productCategory",
+        "itemType" = EXCLUDED."itemType",
+        "groupCode" = EXCLUDED."groupCode",
+        "sourceSheet" = EXCLUDED."sourceSheet",
+        "updatedAt" = EXCLUDED."updatedAt"
+    `);
+
+    processed += batch.length;
+    console.log(`Aplicações/categorias: ${processed.toLocaleString('pt-BR')}/${records.length.toLocaleString('pt-BR')}`);
+  }
+
+  // Só limpamos dados antigos após terminar todos os lotes. Se a importação cair
+  // no meio, a lista anterior continua disponível e basta executar novamente.
+  await prisma.masterPartSection.deleteMany({
+    where: {
+      tenantId,
+      updatedAt: { lt: importDate },
+    },
+  });
+
+  // MasterPart é exclusivamente o cadastro comercial da lista. Remove entradas
+  // antigas que não possuem mais nenhuma aplicação na lista vigente.
+  await prisma.masterPart.deleteMany({
+    where: {
+      tenantId,
+      sections: { none: {} },
+    },
+  });
+}
+
+async function run(): Promise<void> {
   if (process.argv.includes('--help')) {
-    console.log('Uso: npm run import:price-list -- <arquivo.xlsm> [--tenant=<uuid>] [--dry-run]');
+    console.log(
+      'Uso: npm run import:price-list -- "C:\\caminho\\Lista.xlsm" [--tenant=UUID | --tenant-name="Nome"] [--dry-run]',
+    );
     return;
   }
 
-  const excelPath = resolveExcelPath();
+  const filePath = resolveExcelPath();
   const dryRun = process.argv.includes('--dry-run');
-  const startedAt = new Date();
+  const importDate = new Date();
 
-  console.log('\nCogniVault · Importação da lista de preços');
-  console.log(`Arquivo: ${excelPath}`);
-  console.log('O Excel é usado apenas nesta ingestão; a aplicação consulta o PostgreSQL depois.\n');
+  console.log('\nCogniVault · Importação do catálogo comercial');
+  console.log(`Arquivo de entrada: ${filePath}`);
+  console.log('O Excel será usado somente nesta ingestão. As buscas posteriores usam o PostgreSQL.\n');
 
-  const workbook = xlsx.readFile(excelPath, { cellDates: false });
+  const workbook = XLSX.readFile(filePath, { cellDates: false });
   const tenant = await resolveTenant();
   const eanMap = loadEanMap(workbook);
+  const baseByCode = loadBaseMap(workbook);
   const occurrences = loadCommercialOccurrences(workbook);
-  const masterParts = buildMasterParts(workbook, tenant.id, occurrences, eanMap);
+  const { masters, sections } = buildRecords(baseByCode, eanMap, occurrences);
 
-  console.log('\nResumo antes de gravar:');
+  console.log('\nResumo da importação:');
   console.log(`Tenant: ${tenant.name} (${tenant.id})`);
-  console.log(`Linhas comerciais: ${occurrences.length.toLocaleString('pt-BR')}`);
-  console.log(`Códigos únicos: ${masterParts.length.toLocaleString('pt-BR')}`);
-  console.log(`EANs auxiliares: ${eanMap.size.toLocaleString('pt-BR')}`);
+  console.log(`Linhas comerciais válidas: ${occurrences.length.toLocaleString('pt-BR')}`);
+  console.log(`Códigos comerciais únicos: ${masters.length.toLocaleString('pt-BR')}`);
+  console.log(`Aplicações/categorias únicas: ${sections.length.toLocaleString('pt-BR')}`);
+  console.log(`EANs auxiliares disponíveis: ${eanMap.size.toLocaleString('pt-BR')}`);
 
   if (dryRun) {
-    console.log('\n--dry-run ativo: nenhuma alteração foi feita no banco.');
+    console.log('\n--dry-run ativo: nada foi gravado no banco.\n');
     return;
   }
 
-  await upsertMasterParts(masterParts, startedAt);
-  await upsertApplications(tenant.id, occurrences, startedAt);
+  await upsertMasterParts(tenant.id, masters, importDate);
+  await upsertSections(tenant.id, sections, importDate);
 
-  const [masterCount, applicationCount] = await Promise.all([
+  const [masterCount, sectionCount] = await Promise.all([
     prisma.masterPart.count({ where: { tenantId: tenant.id } }),
-    prisma.$queryRaw<Array<{ count: bigint }>>`
-      SELECT COUNT(*)::bigint AS count
-      FROM "MasterPartApplication"
-      WHERE "tenantId" = ${tenant.id}
-    `,
+    prisma.masterPartSection.count({ where: { tenantId: tenant.id } }),
   ]);
 
   console.log('\n✓ Importação concluída.');
-  console.log(`MasterPart no banco: ${masterCount.toLocaleString('pt-BR')}`);
-  console.log(`Aplicações comerciais vigentes: ${Number(applicationCount[0]?.count || 0).toLocaleString('pt-BR')}`);
-  console.log('O arquivo Excel não é necessário para buscas após esta etapa.\n');
+  console.log(`Peças/ferramentas salvas no PostgreSQL: ${masterCount.toLocaleString('pt-BR')}`);
+  console.log(`Aplicações/categorias salvas no PostgreSQL: ${sectionCount.toLocaleString('pt-BR')}`);
+  console.log('O arquivo Excel não é necessário para a operação normal do CogniVault.\n');
 }
 
-main()
+run()
   .catch(error => {
-    console.error('\n✗ Falha na importação:', error instanceof Error ? error.message : error);
+    console.error('\n✗ Erro na importação da lista de preços:', error instanceof Error ? error.message : error);
     process.exitCode = 1;
   })
   .finally(async () => {
