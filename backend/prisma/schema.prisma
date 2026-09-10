@@ -247,6 +247,7 @@ model MasterPartSection {
   normalizedNumber String
   section          String
   application      String?
+  applicationKey   String     @default("")
   reference        String?
   productCategory  String?
   itemType         String?
@@ -255,9 +256,10 @@ model MasterPartSection {
   updatedAt        DateTime   @default(now())
   masterPart       MasterPart @relation(fields: [tenantId, normalizedNumber], references: [tenantId, normalizedNumber], onDelete: Cascade)
 
-  @@unique([tenantId, normalizedNumber, section])
+  @@unique([tenantId, normalizedNumber, section, applicationKey])
   @@index([tenantId, section])
   @@index([tenantId, application])
+  @@index([tenantId, applicationKey])
   @@index([tenantId, normalizedNumber])
 }
 
