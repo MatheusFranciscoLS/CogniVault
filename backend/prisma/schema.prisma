@@ -20,6 +20,8 @@ model Tenant {
   officialVerifications OfficialPartVerification[]
   benchmarkRuns         AiBenchmarkRun[]
   masterParts           MasterPart[]
+  partLocations         PartLocation[]
+  quoteUsages           QuoteUsage[]
   createdAt             DateTime                   @default(now())
 }
 
@@ -54,22 +56,24 @@ enum CatalogReviewStatus {
 }
 
 model User {
-  id                           String                     @id @default(uuid())
-  email                        String                     @unique
-  password                     String
-  role                         Role                       @default(MECHANIC)
-  status                       UserStatus                 @default(PENDING)
-  tenantId                     String
-  tenant                       Tenant                     @relation(fields: [tenantId], references: [id])
-  searchFeedback               SearchFeedback[]
-  searchHistory                SearchHistory[]
-  favorites                    Favorite[]
-  auditLogs                    AuditLog[]
-  officialVerifications        OfficialPartVerification[] @relation("OfficialVerificationSubmitter")
+  id                            String                     @id @default(uuid())
+  email                         String                     @unique
+  password                      String
+  role                          Role                       @default(MECHANIC)
+  status                        UserStatus                 @default(PENDING)
+  tenantId                      String
+  tenant                        Tenant                     @relation(fields: [tenantId], references: [id])
+  searchFeedback                SearchFeedback[]
+  searchHistory                 SearchHistory[]
+  favorites                     Favorite[]
+  auditLogs                     AuditLog[]
+  officialVerifications         OfficialPartVerification[] @relation("OfficialVerificationSubmitter")
   reviewedOfficialVerifications OfficialPartVerification[] @relation("OfficialVerificationReviewer")
-  reviewedDocuments            Document[]                 @relation("DocumentMetadataReviewer")
-  benchmarkRuns                AiBenchmarkRun[]
-  createdAt                    DateTime                    @default(now())
+  reviewedDocuments             Document[]                 @relation("DocumentMetadataReviewer")
+  benchmarkRuns                 AiBenchmarkRun[]
+  partLocationsUpdated          PartLocation[]             @relation("PartLocationUpdatedBy")
+  quoteUsages                   QuoteUsage[]
+  createdAt                     DateTime                    @default(now())
 
   @@index([tenantId])
 }
@@ -218,9 +222,9 @@ model Part {
 }
 
 model MasterPart {
-  id               String   @id @default(uuid())
+  id               String              @id @default(uuid())
   tenantId         String
-  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  tenant           Tenant              @relation(fields: [tenantId], references: [id])
   partNumber       String
   normalizedNumber String
   name             String
@@ -230,10 +234,70 @@ model MasterPart {
   ean              String?
   category         String?
   brand            String?
-  updatedAt        DateTime @default(now())
+  sections         MasterPartSection[]
+  updatedAt        DateTime            @default(now())
 
   @@unique([tenantId, normalizedNumber])
   @@index([tenantId, normalizedNumber])
+}
+
+model MasterPartSection {
+  id               String     @id @default(uuid())
+  tenantId         String
+  normalizedNumber String
+  section          String
+  application      String?
+  applicationKey   String     @default("")
+  reference        String?
+  productCategory  String?
+  itemType         String?
+  groupCode        String?
+  sourceSheet      String
+  updatedAt        DateTime   @default(now())
+  masterPart       MasterPart @relation(fields: [tenantId, normalizedNumber], references: [tenantId, normalizedNumber], onDelete: Cascade)
+
+  @@unique([tenantId, normalizedNumber, section, applicationKey])
+  @@index([tenantId, section])
+  @@index([tenantId, application])
+  @@index([tenantId, applicationKey])
+  @@index([tenantId, normalizedNumber])
+}
+
+model PartLocation {
+  id                   String   @id @default(uuid())
+  tenantId             String
+  tenant               Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  normalizedPartNumber String
+  partNumber           String
+  location             String
+  note                 String?
+  updatedById          String?
+  updatedBy            User?    @relation("PartLocationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([tenantId, normalizedPartNumber])
+  @@index([tenantId, normalizedPartNumber])
+  @@index([updatedById])
+}
+
+model QuoteUsage {
+  id                   String   @id @default(uuid())
+  tenantId             String
+  tenant               Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId               String?
+  user                 User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sessionId            String
+  normalizedPartNumber String
+  partNumber           String
+  model                String?
+  createdAt            DateTime @default(now())
+
+  @@unique([tenantId, sessionId, normalizedPartNumber])
+  @@index([tenantId, normalizedPartNumber, createdAt])
+  @@index([tenantId, model, createdAt])
+  @@index([tenantId, sessionId])
+  @@index([userId, createdAt])
 }
 
 model SearchFeedback {
@@ -341,26 +405,26 @@ model AuditLog {
 }
 
 model OfficialPartVerification {
-  id                       String                             @id @default(uuid())
-  tenantId                 String
-  tenant                   Tenant                             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  userId                   String
-  user                     User                               @relation("OfficialVerificationSubmitter", fields: [userId], references: [id], onDelete: Restrict)
-  status                   OfficialVerificationStatus
-  approvalStatus           OfficialVerificationApprovalStatus @default(PENDING)
-  queriedPartNumber        String
-  normalizedQueriedNumber  String
-  currentPartNumber        String
-  normalizedCurrentNumber  String
-  description              String?
-  officialUrl              String
-  note                     String?
-  verifiedAt               DateTime
-  reviewedById             String?
-  reviewedBy               User?                              @relation("OfficialVerificationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-  reviewedAt               DateTime?
-  reviewNote               String?
-  createdAt                DateTime                            @default(now())
+  id                        String                              @id @default(uuid())
+  tenantId                  String
+  tenant                    Tenant                              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId                    String
+  user                      User                                @relation("OfficialVerificationSubmitter", fields: [userId], references: [id], onDelete: Restrict)
+  status                    OfficialVerificationStatus
+  approvalStatus            OfficialVerificationApprovalStatus @default(PENDING)
+  queriedPartNumber         String
+  normalizedQueriedNumber   String
+  currentPartNumber         String
+  normalizedCurrentNumber   String
+  description               String?
+  officialUrl               String
+  note                      String?
+  verifiedAt                DateTime
+  reviewedById              String?
+  reviewedBy                User?                               @relation("OfficialVerificationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt                DateTime?
+  reviewNote                String?
+  createdAt                 DateTime                            @default(now())
 
   @@index([tenantId, normalizedQueriedNumber, createdAt])
   @@index([tenantId, normalizedCurrentNumber, createdAt])
