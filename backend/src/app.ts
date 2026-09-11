@@ -5,6 +5,7 @@ import routes from './routes';
 import { prisma } from './config/prisma';
 import { allowedCorsOrigins, isAllowedCorsOrigin } from './config/cors';
 import { rabbitMQ } from './queues/connection';
+import { requestPerformanceMiddleware } from './services/request-performance';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import compression from 'compression';
@@ -32,36 +33,26 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
 
 const allowedOrigins = allowedCorsOrigins();
 
-// Segurança: Adiciona proteções modernas aos cabeçalhos HTTP
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }, // Permite requisições do frontend
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 app.disable('x-powered-by');
 
-
-
-// Limite de requisições (Rate Limiting) para proteger a infraestrutura e permitir uso fluido em balcão/oficina
 const apiLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minuto
-  limit: 300, // 300 requisições por IP por minuto (permite múltiplos atendentes na mesma rede sem bloqueio)
+  windowMs: 1 * 60 * 1000,
+  limit: 300,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.path.startsWith('/health') || req.path === '/api/cron/keepalive', // Probes e crons nunca são bloqueados
+  skip: (req) => req.path.startsWith('/health') || req.path === '/api/cron/keepalive',
   message: { error: 'Muitas requisições deste IP, tente novamente em um minuto.' },
 });
 
-// Aplica o limitador de requisições
 app.use(apiLimiter);
 
 app.use(cors({
   origin(origin, callback) {
-    // Requests sem Origin (health checks, server-to-server) continuam permitidas.
     if (!origin) return callback(null, true);
-
-    if (isAllowedCorsOrigin(origin, allowedOrigins)) {
-      return callback(null, true);
-    }
-
+    if (isAllowedCorsOrigin(origin, allowedOrigins)) return callback(null, true);
     return callback(new HttpError(403, 'Origem não permitida pelo CORS.'));
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
@@ -71,7 +62,10 @@ app.use(cors({
 app.use(compression());
 app.use(express.json({ limit: '2mb' }));
 
-// Liveness probe para Render/Kubernetes (sem dependências externas)
+// Métricas rolling em memória: não aumentam o banco e permitem enxergar
+// média/p95/máximo por endpoint no painel administrativo.
+app.use(requestPerformanceMiddleware);
+
 app.get('/health/live', (_req, res) => {
   res.status(200).set('Cache-Control', 'no-store').json({
     status: 'ok',
@@ -84,7 +78,6 @@ app.head('/health/live', (_req, res) => {
   res.set('Cache-Control', 'no-store').status(200).end();
 });
 
-// Endpoint dedicado para crons externos (ex: cron-job.org / UptimeRobot)
 app.get('/api/cron/keepalive', (_req, res) => {
   res.status(200).set('Cache-Control', 'no-store').json({
     ok: true,
@@ -111,9 +104,6 @@ app.get('/health', async (_req, res) => {
   const queue = rabbitMQ.health();
   const degraded = !databaseReady || !queue.ready;
 
-  // Se o banco falhar, o serviço está inoperante (503).
-  // Se apenas o RabbitMQ estiver reconectando mas o banco estiver ok, responde 200 (degraded)
-  // para evitar que orquestradores reiniciem desnecessariamente a instância web.
   res
     .status(databaseReady ? 200 : 503)
     .set('Cache-Control', 'no-store')
