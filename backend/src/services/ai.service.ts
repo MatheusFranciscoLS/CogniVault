@@ -9,6 +9,7 @@ import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { countDistinctPartOccurrences, hasSafeExtractionCoverage, matchExistingPartIds } from '../utils/part-identity';
 import { shouldForceCatalogReextraction } from '../utils/document-processing-intent';
 import { withTransientAIRetry } from '../utils/ai-retry';
+import { resolvePositionProvenance, type PositionStatus } from '../utils/position-provenance';
 import {
     type CatalogExtraction,
     type ExtractedPart,
@@ -44,6 +45,8 @@ interface PreparedPart {
         universalAcrossPnc: boolean;
         section: string | null;
         position: string | null;
+        positionStatus: PositionStatus;
+        positionEvidence: string | null;
         name: string;
         normalizedName: string;
         alternativeNames: string[];
@@ -241,6 +244,10 @@ ${metadataHints ? `DADOS INFORMADOS PELO USUÁRIO (use como pista, mas não cont
 REGRAS CRÍTICAS:
 - Analise todas as vistas explodidas e todas as tabelas correspondentes, da primeira até a última página.
 - Relacione corretamente cada posição da vista ao Part Number da tabela.
+- O campo position é EXCLUSIVAMENTE o KEY/REF/callout publicado na ilustração/tabela. Nunca invente, complete sequência, copie a posição vizinha nem use o Part Number como posição.
+- Se houver um KEY/REF real (ex.: 1, 17, 12A), retorne esse valor em position, positionStatus="POSITIONED" e copie o valor visível em positionEvidence.
+- Se a própria fonte mostrar traço, "--", "- -" ou célula KEY/REF explicitamente vazia para a linha, retorne position="", positionStatus="SOURCE_UNPOSITIONED" e descreva o marcador em positionEvidence (ex.: "--" ou "REF em branco").
+- Se não for possível confirmar se existe posição, retorne position="", positionStatus="SUSPECT_MISSING" e explique brevemente em positionEvidence. Não adivinhe.
 - Preserve o Part Number EXATAMENTE como aparece no catálogo. Nunca corrija, traduza ou complete código.
 - Não misture modelos parecidos (ex.: 143R, 143RS, 143RII).
 - Identifique o PNC/Product Number Code quando o catálogo informar essa variação.
@@ -248,7 +255,7 @@ REGRAS CRÍTICAS:
 - Não marque universalAcrossPnc=true apenas por suposição.
 - Uma peça repetida em posições ou seções diferentes deve gerar registros diferentes.
 - Nomes alternativos devem ser apenas nomes/descrições encontrados no próprio catálogo.
-- Se um dado não existir, retorne string vazia; para página desconhecida use 0.
+- Para página desconhecida use 0. Para outros dados realmente ausentes, use string vazia.
 - Extraia todas as peças que conseguir identificar com segurança, sem encerrar antes da última tabela.
 - Se o catálogo for de um MOTOR (ex.: Kawasaki FR691V, FX921V, FS730V, Kohler, Briggs & Stratton, Husqvarna HV/HS) utilizado em cortadores giro zero ou tratores, defina o fabricante do motor (ex: Kawasaki) e o código do motor no campo models e nas peças. Não confunda o motor com o chassi da máquina que ele equipa.
 - Para cada peça, informe o modelo e PNC específicos aplicáveis àquela linha.
@@ -285,6 +292,8 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                                                 universalAcrossPnc: { type: 'boolean' },
                                                 section: { type: 'string' },
                                                 position: { type: 'string' },
+                                                positionStatus: { type: 'string', enum: ['POSITIONED', 'SOURCE_UNPOSITIONED', 'SUSPECT_MISSING'] },
+                                                positionEvidence: { type: 'string' },
                                                 name: { type: 'string' },
                                                 alternativeNames: { type: 'array', items: { type: 'string' } },
                                                 partNumber: { type: 'string' },
@@ -293,7 +302,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                                             },
                                             required: [
                                                 'manufacturer', 'model', 'pnc', 'universalAcrossPnc',
-                                                'section', 'position', 'name', 'alternativeNames',
+                                                'section', 'position', 'positionStatus', 'positionEvidence', 'name', 'alternativeNames',
                                                 'partNumber', 'page', 'notes',
                                             ],
                                         },
@@ -363,9 +372,6 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 const extractedPartPnc = normalizeHusqvarnaPnc(cleanString(rawPart.pnc));
                 let pnc = extractedPartPnc || documentPnc || '';
                 let universalAcrossPnc = Boolean(rawPart.universalAcrossPnc) || isUniversalPnc(pnc);
-                // Um catálogo enviado para um PNC específico não comprova que a
-                // peça serve em todos os PNCs. O escopo informado no upload tem
-                // precedência sobre uma inferência visual genérica da IA.
                 if (documentPnc) {
                     pnc = extractedPartPnc || documentPnc;
                     universalAcrossPnc = false;
@@ -373,7 +379,12 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 if (universalAcrossPnc) pnc = '';
 
                 const section = cleanString(rawPart.section);
-                const position = cleanString(rawPart.position);
+                const provenance = resolvePositionProvenance({
+                    position: rawPart.position,
+                    positionStatus: rawPart.positionStatus,
+                    positionEvidence: rawPart.positionEvidence,
+                });
+                const position = provenance.position;
                 const aliases = Array.isArray(rawPart.alternativeNames)
                     ? [...new Set(rawPart.alternativeNames.map(cleanString).filter(Boolean))]
                     : [];
@@ -385,7 +396,7 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     pnc,
                     universalAcrossPnc,
                     section,
-                    position,
+                    position: position || '',
                     name,
                     alternativeNames: aliases,
                     partNumber,
@@ -403,7 +414,9 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                         normalizedPnc: normalizeIdentifier(pnc) || null,
                         universalAcrossPnc,
                         section: section || null,
-                        position: position || null,
+                        position,
+                        positionStatus: provenance.positionStatus,
+                        positionEvidence: provenance.positionEvidence,
                         name,
                         normalizedName: normalizeText(name),
                         alternativeNames: aliases,
@@ -472,8 +485,6 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     data: {
                         ...identifiedPart.item,
                         sourceKey: identifiedPart.sourceKey,
-                        // Peças novas só ficam visíveis na troca final. Peças já
-                        // ativas permanecem disponíveis durante toda a preparação.
                         active: identifiedPart.existingId ? Boolean(existingActiveById.get(identifiedPart.existingId)) : false,
                         retiredAt: identifiedPart.existingId && existingActiveById.get(identifiedPart.existingId) ? null : new Date(),
                         extractionRevision: revision,
@@ -482,7 +493,6 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 }));
                 activePartIds = persistenceRows.map(row => row.id);
 
-                // Otimização: Uso de createMany para inserções bulk e transações menores para updates
                 const creates = persistenceRows.filter(row => !row.existingId).map(row => ({ id: row.id, ...row.data }));
                 const updates = persistenceRows.filter(row => row.existingId);
                 const persistenceBatchSize = 100;
@@ -545,9 +555,6 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 console.log(`💾 Catálogo já utilizável: ${preparedParts.length} peças salvas na revisão ${revision}.`);
             }
 
-            // A busca lexical bilíngue funciona sem vetores. Em produção, a
-            // indisponibilidade/cota da IA nunca deve impedir um PDF já extraído
-            // de ficar pronto para o balcão.
             if (!semanticIndexingEnabled()) {
                 await updateDocumentForJob(documentId, jobId, {
                     status: 'COMPLETED',
