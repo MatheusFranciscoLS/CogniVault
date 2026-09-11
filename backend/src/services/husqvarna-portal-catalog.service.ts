@@ -75,7 +75,10 @@ function officialDocumentUrl(rawUrl: string): string | null {
     if (url.protocol !== 'https:' || !isOfficialHusqvarnaHost(url.hostname)) return null;
 
     const value = `${url.pathname}${url.search}`.toLowerCase();
-    if (!value.includes('tdrdownload') && !value.includes('printipl=true')) return null;
+    const isPrintableIpl = value.includes('printipl=true');
+    const isTechnicalDownload = value.includes('tdrdownload') && /\/(?:ipl|om)\//i.test(url.pathname);
+    if (!isPrintableIpl && !isTechnicalDownload) return null;
+
     return url.toString();
   } catch {
     return null;
@@ -129,6 +132,13 @@ function cleanProductName(value: string, pnc: string): string {
   return compact.replace(new RegExp(`\\s+${pnc}\\s*$`, 'i'), '').trim();
 }
 
+function isSpecificProductName(value: string): boolean {
+  if (!/^HUSQVARNA\s+[A-Za-z0-9]/i.test(value)) return false;
+
+  const normalized = value.replace(/\s+/g, ' ').trim().toUpperCase();
+  return !/^HUSQVARNA\s+(?:PORTAL|GROUP|GLOBAL|B2B|SUPPORT|MANUALS?|DOCUMENTS?)\b/.test(normalized);
+}
+
 function extractProductName(html: string, pnc: string): string | null {
   const decoded = decodeHtml(html);
   const pncIndex = decoded.toUpperCase().indexOf(pnc.toUpperCase());
@@ -138,13 +148,16 @@ function extractProductName(html: string, pnc: string): string | null {
 
   for (const region of regions) {
     const quoted = [...region.matchAll(/"([^"\\]{3,140})"/g)]
-      .map(match => stripMarkup(match[1]))
-      .find(value => /^HUSQVARNA\s+[A-Za-z0-9]/i.test(value) && value.length <= 100);
-    if (quoted) return cleanProductName(quoted, pnc);
+      .map(match => cleanProductName(stripMarkup(match[1]), pnc))
+      .find(value => value.length <= 100 && isSpecificProductName(value));
+    if (quoted) return quoted;
 
     const plain = stripMarkup(region);
-    const match = plain.match(/\bHUSQVARNA\s+([A-Za-z0-9][A-Za-z0-9.+\-/ ]{1,55}?)(?=\s{2,}|\b(?:All|Todos|Documentos|Documents|Descontinuado|Discontinued)\b|$)/i);
-    if (match) return cleanProductName(`HUSQVARNA ${match[1].trim()}`, pnc);
+    const matches = [...plain.matchAll(/\bHUSQVARNA\s+([A-Za-z0-9][A-Za-z0-9.+\-/ ]{1,55}?)(?=\s{2,}|\b(?:All|Todos|Documentos|Documents|Descontinuado|Discontinued)\b|$)/gi)];
+    for (const match of matches) {
+      const candidate = cleanProductName(`HUSQVARNA ${match[1].trim()}`, pnc);
+      if (isSpecificProductName(candidate)) return candidate;
+    }
   }
 
   return null;
@@ -173,6 +186,8 @@ function addDocument(
 
   const provisionalTitle = stripMarkup(rawTitle);
   const type = documentType(provisionalTitle, url);
+  if (type === 'OTHER') return;
+
   const title = provisionalTitle.length >= 3 && provisionalTitle.length <= 280
     ? provisionalTitle
     : titleNear(html, index, type);
@@ -186,7 +201,7 @@ function addDocument(
   };
 
   const current = documents.get(key);
-  if (!current || current.title.startsWith('Documento oficial') || current.title.startsWith('IPL oficial') || current.title.startsWith('Manual oficial')) {
+  if (!current || current.title.startsWith('IPL oficial') || current.title.startsWith('Manual oficial')) {
     documents.set(key, candidate);
   }
 }
@@ -272,6 +287,8 @@ export class HusqvarnaPortalCatalogService {
       catalogCache.set(pnc, { result }, { ttl: result ? PORTAL_SUCCESS_TTL_MS : PORTAL_MISS_TTL_MS });
       if (result) {
         console.log(`[Husqvarna Portal] PNC ${pnc}: ${result.productName || 'produto encontrado'} · ${result.documents.length} documento(s).`);
+      } else {
+        console.log(`[Husqvarna Portal] PNC ${pnc}: nenhuma evidência técnica específica encontrada no HTML público.`);
       }
       return result;
     } catch (error) {
