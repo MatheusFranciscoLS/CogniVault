@@ -1,13 +1,11 @@
 import { Response } from 'express';
-import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
-import { normalizeIdentifier, normalizeText } from '../utils/normalize';
+import { normalizeIdentifier } from '../utils/normalize';
 import { AuditService } from '../services/audit.service';
 import { HusqvarnaScraperService } from '../services/husqvarna-scraper.service';
 
 const HUSQVARNA_SPARE_PARTS_URL = 'https://www.husqvarna.com/br/pecas-sobressalentes/';
-const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 const SEARCH_DEDUP_MS = 2 * 60 * 1000;
 
 type QuoteUsageInput = {
@@ -20,133 +18,11 @@ function cleanCode(value: unknown): string {
   return String(value || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
 }
 
-function scoreCommercialPart(
-  query: string,
-  item: {
-    normalizedNumber: string;
-    name: string;
-    description: string | null;
-    brand: string | null;
-    sections: Array<{
-      application: string | null;
-      reference: string | null;
-      productCategory: string | null;
-      section: string;
-    }>;
-  },
-): number {
-  const normalizedCode = normalizeIdentifier(query);
-  const normalizedQuery = normalizeText(query);
-  const tokens = normalizedQuery.split(/\s+/).filter(token => token.length >= 2);
-
-  let score = 0;
-  if (normalizedCode && item.normalizedNumber === normalizedCode) score += 2000;
-  else if (normalizedCode && item.normalizedNumber.startsWith(normalizedCode)) score += 900;
-  else if (normalizedCode && item.normalizedNumber.includes(normalizedCode)) score += 500;
-
-  const name = normalizeText(item.name);
-  const description = normalizeText(item.description || '');
-  const sectionText = normalizeText(item.sections.map(section => [
-    section.application,
-    section.reference,
-    section.productCategory,
-    section.section,
-  ].filter(Boolean).join(' ')).join(' '));
-  const haystack = `${name} ${description} ${sectionText}`;
-
-  if (normalizedQuery && name === normalizedQuery) score += 800;
-  else if (normalizedQuery && name.includes(normalizedQuery)) score += 500;
-  if (normalizedQuery && sectionText.includes(normalizedQuery)) score += 450;
-  if (tokens.length && tokens.every(token => haystack.includes(token))) score += 350;
-  score += tokens.filter(token => haystack.includes(token)).length * 35;
-
-  return score;
-}
-
+/**
+ * Mantém apenas as ações ainda roteadas para este controller.
+ * Busca comercial e work-context possuem controllers dedicados e otimizados.
+ */
 export class WorkIntelligenceController {
-  async masterSearch(req: AuthenticatedRequest, res: Response): Promise<void> {
-    if (!req.user) return;
-
-    const query = String(req.query.q || '').trim();
-    const selectedSection = String(req.query.section || '').trim();
-
-    if (query.length < 2) {
-      res.json({ parts: [], sections: [] });
-      return;
-    }
-
-    const normalizedCode = normalizeIdentifier(query);
-    const orFilters: Prisma.MasterPartWhereInput[] = [
-      { name: { contains: query, mode: 'insensitive' } },
-      { description: { contains: query, mode: 'insensitive' } },
-      { brand: { contains: query, mode: 'insensitive' } },
-      {
-        sections: {
-          some: {
-            OR: [
-              { application: { contains: query, mode: 'insensitive' } },
-              { reference: { contains: query, mode: 'insensitive' } },
-              { productCategory: { contains: query, mode: 'insensitive' } },
-            ],
-          },
-        },
-      },
-    ];
-
-    if (normalizedCode.length >= 2) {
-      orFilters.unshift({ normalizedNumber: { contains: normalizedCode } });
-    }
-
-    try {
-      const candidates = await prisma.masterPart.findMany({
-        where: {
-          tenantId: req.user.tenantId,
-          ...(selectedSection ? { sections: { some: { section: selectedSection } } } : {}),
-          OR: orFilters,
-        },
-        include: { sections: { orderBy: { section: 'asc' } } },
-        take: 180,
-      });
-
-      const ranked = candidates
-        .map(item => ({ item, score: scoreCommercialPart(query, item) }))
-        .sort((a, b) => b.score - a.score || a.item.name.localeCompare(b.item.name, 'pt-BR'))
-        .slice(0, 50)
-        .map(({ item, score }) => ({
-          id: item.id,
-          partNumber: item.partNumber,
-          normalizedNumber: item.normalizedNumber,
-          name: item.name,
-          application: item.sections.map(section => section.application).find(Boolean) || item.description || item.brand,
-          applications: [...new Set(item.sections.map(section => section.application).filter((value): value is string => Boolean(value)))],
-          price: item.price,
-          ean: item.ean,
-          ncm: item.ncm,
-          classCode: item.category,
-          priceSections: [...new Set(item.sections.map(section => section.section))],
-          references: [...new Set(item.sections.map(section => section.reference).filter((value): value is string => Boolean(value)))],
-          productCategories: [...new Set(item.sections.map(section => section.productCategory).filter((value): value is string => Boolean(value)))],
-          score,
-          source: 'PRICE_LIST' as const,
-        }));
-
-      const availableSections = await prisma.masterPartSection.groupBy({
-        by: ['section'],
-        where: { tenantId: req.user.tenantId },
-        _count: { _all: true },
-        orderBy: { section: 'asc' },
-      });
-
-      res.json({
-        parts: ranked,
-        sections: availableSections.map(section => ({ name: section.section, count: section._count._all })),
-      });
-    } catch (error) {
-      console.error('❌ Erro ao pesquisar cadastro comercial:', error);
-      res.status(500).json({ error: 'Não foi possível pesquisar o cadastro comercial.', parts: [], sections: [] });
-    }
-  }
-
   async recordSearchUsage(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
 
@@ -212,192 +88,6 @@ export class WorkIntelligenceController {
     }
   }
 
-  async workContext(req: AuthenticatedRequest, res: Response): Promise<void> {
-    if (!req.user) return;
-
-    const partNumber = cleanCode(req.params.code);
-    const normalizedPartNumber = normalizeIdentifier(partNumber);
-    const model = String(req.query.model || '').trim();
-
-    if (!normalizedPartNumber) {
-      res.status(400).json({ error: 'Código da peça inválido.' });
-      return;
-    }
-
-    try {
-      const [location, masterPart, technicalPart, approvedVerification] = await Promise.all([
-        prisma.partLocation.findUnique({
-          where: { tenantId_normalizedPartNumber: { tenantId: req.user.tenantId, normalizedPartNumber } },
-          select: { location: true, note: true, updatedAt: true, updatedBy: { select: { email: true } } },
-        }),
-        prisma.masterPart.findUnique({
-          where: { tenantId_normalizedNumber: { tenantId: req.user.tenantId, normalizedNumber: normalizedPartNumber } },
-          include: { sections: true },
-        }),
-        prisma.part.findFirst({
-          where: {
-            normalizedPartNumber,
-            active: true,
-            document: { tenantId: req.user.tenantId, archivedAt: null, status: 'COMPLETED' },
-            ...(model ? { model: { contains: model, mode: 'insensitive' } } : {}),
-          },
-          select: { id: true, name: true, partNumber: true, model: true, pnc: true, document: { select: { filename: true } } },
-        }),
-        prisma.officialPartVerification.findFirst({
-          where: {
-            tenantId: req.user.tenantId,
-            approvalStatus: 'APPROVED',
-            OR: [
-              { normalizedQueriedNumber: normalizedPartNumber },
-              { normalizedCurrentNumber: normalizedPartNumber },
-            ],
-          },
-          orderBy: { reviewedAt: 'desc' },
-          select: { id: true, officialUrl: true, status: true, reviewedAt: true },
-        }),
-      ]);
-
-      if (technicalPart) {
-        const recent = await prisma.searchHistory.findFirst({
-          where: {
-            tenantId: req.user.tenantId,
-            userId: req.user.id,
-            resultCode: cleanCode(technicalPart.partNumber),
-            createdAt: { gte: new Date(Date.now() - SEARCH_DEDUP_MS) },
-          },
-          select: { id: true },
-        });
-        if (!recent) {
-          await prisma.searchHistory.create({
-            data: {
-              tenantId: req.user.tenantId,
-              userId: req.user.id,
-              query: model || cleanCode(technicalPart.partNumber),
-              status: 'FOUND',
-              resultPartId: technicalPart.id,
-              resultLabel: technicalPart.name,
-              resultCode: cleanCode(technicalPart.partNumber),
-              resultModel: technicalPart.model,
-              resultPnc: technicalPart.pnc,
-              sourceFilename: technicalPart.document.filename,
-            },
-          });
-        }
-      }
-
-      const history = model
-        ? await prisma.searchHistory.findMany({
-          where: {
-            tenantId: req.user.tenantId,
-            resultModel: { contains: model, mode: 'insensitive' },
-            resultCode: { not: null },
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 1200,
-          select: { resultCode: true, resultLabel: true, resultModel: true },
-        })
-        : [];
-
-      const popularMap = new Map<string, { partNumber: string; name: string; model: string | null; count: number }>();
-      for (const item of history) {
-        const code = cleanCode(item.resultCode);
-        if (!code || normalizeIdentifier(code) === normalizedPartNumber) continue;
-        const key = normalizeIdentifier(code);
-        const current = popularMap.get(key);
-        if (current) current.count += 1;
-        else popularMap.set(key, { partNumber: code, name: item.resultLabel || code, model: item.resultModel, count: 1 });
-      }
-
-      const popularParts = [...popularMap.values()].sort((a, b) => b.count - a.count).slice(0, 8);
-
-      const currentUsages = await prisma.quoteUsage.findMany({
-        where: {
-          tenantId: req.user.tenantId,
-          normalizedPartNumber,
-          createdAt: { gte: new Date(Date.now() - ONE_YEAR_MS) },
-        },
-        distinct: ['sessionId'],
-        take: 500,
-        select: { sessionId: true },
-      });
-
-      const sessionIds = currentUsages.map(item => item.sessionId);
-      const coUsage = sessionIds.length
-        ? await prisma.quoteUsage.findMany({
-          where: {
-            tenantId: req.user.tenantId,
-            sessionId: { in: sessionIds },
-            normalizedPartNumber: { not: normalizedPartNumber },
-          },
-          select: { sessionId: true, normalizedPartNumber: true, partNumber: true, model: true },
-        })
-        : [];
-
-      const togetherMap = new Map<string, { partNumber: string; model: string | null; sessions: Set<string> }>();
-      for (const item of coUsage) {
-        const current = togetherMap.get(item.normalizedPartNumber);
-        if (current) current.sessions.add(item.sessionId);
-        else togetherMap.set(item.normalizedPartNumber, {
-          partNumber: cleanCode(item.partNumber),
-          model: item.model,
-          sessions: new Set([item.sessionId]),
-        });
-      }
-
-      const togetherCodes = [...togetherMap.entries()]
-        .sort((a, b) => b[1].sessions.size - a[1].sessions.size)
-        .slice(0, 8);
-
-      const togetherMasters = togetherCodes.length
-        ? await prisma.masterPart.findMany({
-          where: { tenantId: req.user.tenantId, normalizedNumber: { in: togetherCodes.map(([code]) => code) } },
-          select: { normalizedNumber: true, name: true },
-        })
-        : [];
-      const togetherNames = new Map(togetherMasters.map(item => [item.normalizedNumber, item.name]));
-
-      const frequentlyTogether = togetherCodes.map(([code, item]) => ({
-        partNumber: item.partNumber,
-        name: togetherNames.get(code) || item.partNumber,
-        model: item.model,
-        count: item.sessions.size,
-        percentage: sessionIds.length ? Math.round((item.sessions.size / sessionIds.length) * 100) : 0,
-      }));
-
-      const sources = [
-        ...(technicalPart ? [{ type: 'CATALOG', label: 'CATÁLOGO', detail: technicalPart.document.filename }] : []),
-        ...(masterPart ? [{ type: 'PRICE_LIST', label: 'LISTA DE PREÇOS', detail: masterPart.sections.map(section => section.section).join(' · ') }] : []),
-        ...(approvedVerification ? [{ type: 'OFFICIAL', label: 'OFICIAL', detail: 'Conferido e aprovado' }] : []),
-      ];
-
-      res.json({
-        context: {
-          location: location ? {
-            value: location.location,
-            note: location.note,
-            updatedAt: location.updatedAt,
-            updatedBy: location.updatedBy?.email || null,
-          } : null,
-          popularParts,
-          frequentlyTogether,
-          togetherSampleSize: sessionIds.length,
-          togetherReady: sessionIds.length >= 3,
-          priceSections: masterPart?.sections.map(section => section.section) || [],
-          applications: masterPart?.sections.map(section => section.application).filter((value): value is string => Boolean(value)) || [],
-          application: masterPart?.sections.map(section => section.application).find(Boolean) || masterPart?.description || masterPart?.brand || null,
-          sources,
-          officialFallback: {
-            url: approvedVerification?.officialUrl || HUSQVARNA_SPARE_PARTS_URL,
-            automatic: Boolean(approvedVerification),
-          },
-        },
-      });
-    } catch (error) {
-      console.error('❌ Erro ao carregar inteligência da peça:', error);
-      res.status(500).json({ error: 'Não foi possível carregar o contexto operacional da peça.' });
-    }
-  }
-
   async setLocation(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
 
@@ -423,7 +113,7 @@ export class WorkIntelligenceController {
         select: { location: true, note: true, updatedAt: true },
       });
 
-      AuditService.record({
+      void AuditService.record({
         tenantId: req.user.tenantId,
         userId: req.user.id,
         action: 'PART_LOCATION_UPDATED',
