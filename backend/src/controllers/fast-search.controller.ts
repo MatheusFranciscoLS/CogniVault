@@ -30,6 +30,21 @@ const prefixSearchCache = new LRUCache<string, FastSearchPayload>({
   ttl: 3 * 60 * 1000,
 });
 
+export function invalidateFastSearchCaches(tenantId?: string): void {
+  if (!tenantId) {
+    exactSearchCache.clear();
+    prefixSearchCache.clear();
+    return;
+  }
+
+  for (const key of exactSearchCache.keys()) {
+    if (key.startsWith(`${tenantId}:`)) exactSearchCache.delete(key);
+  }
+  for (const key of prefixSearchCache.keys()) {
+    if (key.startsWith(`${tenantId}:`)) prefixSearchCache.delete(key);
+  }
+}
+
 /**
  * Evita consultar o caminho de código para pesquisas claramente descritivas/modelos.
  * Códigos Husqvarna numéricos e códigos alfanuméricos longos de motores continuam cobertos.
