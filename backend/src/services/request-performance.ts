@@ -16,10 +16,15 @@ type RouteStats = {
 
 const stats = new Map<string, RouteStats>();
 
-function metricPath(path: string): string {
+/**
+ * Mantém nomes de rotas estáticas legíveis nas métricas e anonimiza apenas
+ * identificadores dinâmicos. Antes, qualquer segmento longo (ex.: notifications,
+ * documents, performance) virava `:key`, o que escondia qual endpoint estava lento.
+ */
+export function metricPath(path: string): string {
   return path
     .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, ':id')
-    .replace(/\/[A-Za-z0-9_-]{7,}(?=\/|$)/g, '/:key');
+    .replace(/\/(?:\d{6,}|(?=[A-Za-z0-9_-]{7,}(?=\/|$))(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]+)(?=\/|$)/g, '/:key');
 }
 
 function percentile(values: number[], ratio: number): number {

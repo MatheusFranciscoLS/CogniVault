@@ -14,6 +14,7 @@ import { WorkIntelligenceController } from '../controllers/work-intelligence.con
 import { CommercialSearchController } from '../controllers/commercial-search.controller';
 import { WorkContextController } from '../controllers/work-context.controller';
 import { PerformanceController } from '../controllers/performance.controller';
+import { NotificationController } from '../controllers/notification.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
 
@@ -32,6 +33,7 @@ const workIntelligenceController = new WorkIntelligenceController();
 const commercialSearchController = new CommercialSearchController();
 const workContextController = new WorkContextController();
 const performanceController = new PerformanceController();
+const notificationController = new NotificationController();
 
 const upload = multer({
   dest: 'uploads/',
@@ -64,7 +66,7 @@ router.get('/history', authMiddleware, (req, res) => operationalController.histo
 router.get('/favorites', authMiddleware, (req, res) => operationalController.favorites(req, res));
 router.post('/favorites', authMiddleware, (req, res) => operationalController.addFavorite(req, res));
 router.delete('/favorites/:id', authMiddleware, (req, res) => operationalController.removeFavorite(req, res));
-router.get('/notifications', authMiddleware, (req, res) => operationalController.notifications(req, res));
+router.get('/notifications', authMiddleware, (req, res) => notificationController.list(req, res));
 
 router.get('/part-verifications', authMiddleware, (req, res) => officialPartVerificationController.list(req, res));
 router.get('/part-verifications/pending', authMiddleware, adminOnly, (req, res) => officialPartVerificationController.pending(req, res));
