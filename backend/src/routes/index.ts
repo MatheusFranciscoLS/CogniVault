@@ -20,6 +20,7 @@ import { HomeController } from '../controllers/home.controller';
 import { FastSearchController } from '../controllers/fast-search.controller';
 import { PartDetailController } from '../controllers/part-detail.controller';
 import { AdminOverviewController } from '../controllers/admin-overview.controller';
+import { CatalogListController } from '../controllers/catalog-list.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
 
@@ -44,6 +45,7 @@ const homeController = new HomeController();
 const fastSearchController = new FastSearchController();
 const partDetailController = new PartDetailController();
 const adminOverviewController = new AdminOverviewController();
+const catalogListController = new CatalogListController();
 
 const upload = multer({
   dest: 'uploads/',
@@ -94,7 +96,7 @@ router.get('/part-verifications/:code/history', authMiddleware, (req, res) => of
 router.post('/part-verifications', authMiddleware, (req, res) => officialPartVerificationController.create(req, res));
 router.patch('/part-verifications/:id/decision', authMiddleware, adminOnly, (req, res) => officialPartVerificationController.decision(req, res));
 
-router.get('/documents', authMiddleware, (req, res) => documentController.list(req, res));
+router.get('/documents', authMiddleware, (req, res) => catalogListController.list(req, res));
 router.get('/documents/:id/access', authMiddleware, (req, res) => documentController.access(req, res));
 router.patch('/documents/:id/category', authMiddleware, adminOnly, (req, res) => documentController.setCategory(req, res));
 router.post('/upload', authMiddleware, adminOnly, upload.single('file'), (req, res) => documentController.upload(req, res));
