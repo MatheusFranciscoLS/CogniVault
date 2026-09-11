@@ -67,7 +67,6 @@ const PRODUCT_DETAILS_QUERY = `
       articles {
         byIds(ids: [$articleId]) {
           id
-          articleLink
           isNew
           isDiscontinued
           name { productName }
@@ -130,9 +129,7 @@ type GraphqlSearchResponse = {
     site?: {
       search?: {
         content?: {
-          results?: Array<{
-            resultItem?: GraphqlProductHit | null;
-          }> | null;
+          results?: Array<{ resultItem?: GraphqlProductHit | null }> | null;
         } | null;
       } | null;
     } | null;
@@ -164,7 +161,6 @@ type GraphqlIplSummary = {
 
 type GraphqlArticleDetails = {
   id?: string | null;
-  articleLink?: string | null;
   isNew?: boolean | null;
   isDiscontinued?: boolean | null;
   name?: { productName?: string | null } | null;
@@ -210,7 +206,6 @@ export type HusqvarnaIplSectionSummary = {
 export type HusqvarnaProductDetailsSummary = {
   pnc: string;
   productName: string;
-  portalUrl: string | null;
   discontinued: boolean;
   articleDescription: string | null;
   categoryName: string | null;
@@ -223,52 +218,35 @@ function normalizeCandidate(value: unknown): string {
   return normalizeIdentifier(String(value || ''));
 }
 
+function normalizeProductName(value: unknown): string {
+  const productName = String(value || '').trim();
+  if (!productName) return '';
+  return /^HUSQVARNA\b/i.test(productName) ? productName : `HUSQVARNA ${productName}`;
+}
+
 function exactPncEvidence(hit: GraphqlProductHit, pnc: string): boolean {
-  const identifiers = [
+  return [
     hit.selectedArticle,
     hit.sku,
     hit.primaryArticle?.id,
     hit.primaryArticle?.commercialReference,
   ]
     .map(normalizeCandidate)
-    .filter(Boolean);
-
-  return identifiers.includes(pnc);
+    .filter(Boolean)
+    .includes(pnc);
 }
 
-function canonicalPortalUrl(rawUrl: string | null | undefined, pnc: string): string | null {
+function canonicalProductUrl(rawUrl: string | null | undefined, pnc: string): string | null {
   if (!rawUrl) return null;
-
   try {
     const url = new URL(rawUrl, HUSQVARNA_PORTAL_ORIGIN);
     if (url.protocol !== 'https:' || url.hostname.toLowerCase() !== 'portal.husqvarnagroup.com') return null;
-
-    if (!url.searchParams.has('article')) {
-      url.searchParams.set('article', pnc);
-    }
+    if (/\/spare-parts\/?$/i.test(url.pathname)) return null;
+    url.searchParams.set('article', pnc);
     return url.toString();
   } catch {
     return null;
   }
-}
-
-function canonicalProductArticleUrl(rawUrl: string | null | undefined, pnc: string): string | null {
-  const url = canonicalPortalUrl(rawUrl, pnc);
-  if (!url) return null;
-
-  try {
-    const parsed = new URL(url);
-    if (/\/spare-parts\/?$/i.test(parsed.pathname)) return null;
-    return parsed.toString();
-  } catch {
-    return null;
-  }
-}
-
-function normalizeProductName(value: unknown): string {
-  const productName = String(value || '').trim();
-  if (!productName) return '';
-  return /^HUSQVARNA\b/i.test(productName) ? productName : `HUSQVARNA ${productName}`;
 }
 
 export function extractExactProductMatch(payload: unknown, pncInput: string): HusqvarnaPortalProductMatch | null {
@@ -282,7 +260,7 @@ export function extractExactProductMatch(payload: unknown, pncInput: string): Hu
     const hit = entry?.resultItem;
     if (!hit || !exactPncEvidence(hit, pnc)) continue;
 
-    const portalUrl = canonicalProductArticleUrl(hit.url, pnc);
+    const portalUrl = canonicalProductUrl(hit.url, pnc);
     const productName = normalizeProductName(hit.name?.productName || hit.primaryArticle?.name);
     if (!portalUrl || !productName) continue;
 
@@ -332,7 +310,6 @@ export function extractProductDetailsSummary(payload: unknown, pncInput: string)
   return {
     pnc,
     productName,
-    portalUrl: canonicalProductArticleUrl(article.articleLink, pnc),
     discontinued: Boolean(article.isDiscontinued),
     articleDescription: article.articleDescription ? String(article.articleDescription).trim() : null,
     categoryName: article.product?.category?.name ? String(article.product.category.name).trim() : null,
