@@ -5,6 +5,7 @@ import { normalizeIdentifier } from '../utils/normalize';
 import { AuditService } from '../services/audit.service';
 import { HusqvarnaScraperService } from '../services/husqvarna-scraper.service';
 import { HusqvarnaPortalCatalogService } from '../services/husqvarna-portal-catalog.service';
+import { HusqvarnaPortalGraphqlService } from '../services/husqvarna-portal-graphql.service';
 
 const HUSQVARNA_SPARE_PARTS_URL = 'https://www.husqvarna.com/br/pecas-sobressalentes/';
 const HUSQVARNA_PORTAL_URL = 'https://portal.husqvarnagroup.com/br/';
@@ -197,12 +198,39 @@ export class WorkIntelligenceController {
 
     try {
       if (looksLikeCode) {
-        const [liveResult, catalogResult] = await Promise.allSettled([
+        const [liveResult, catalogResult, detailsResult] = await Promise.allSettled([
           HusqvarnaScraperService.fetchLiveData(clean),
           looksLikePnc ? HusqvarnaPortalCatalogService.searchByPnc(clean) : Promise.resolve(null),
+          looksLikePnc ? HusqvarnaPortalGraphqlService.getProductDetailsByPnc(clean) : Promise.resolve(null),
         ]);
         const livePart = liveResult.status === 'fulfilled' ? liveResult.value : null;
         const portalCatalog = catalogResult.status === 'fulfilled' ? catalogResult.value : null;
+        const productDetails = detailsResult.status === 'fulfilled' ? detailsResult.value : null;
+
+        if (portalCatalog) {
+          const iplSections = productDetails?.pnc === portalCatalog.pnc ? productDetails.iplSections : [];
+          res.json({
+            result: {
+              status: 'FOUND',
+              source: 'OFFICIAL',
+              kind: 'PRODUCT_CATALOG',
+              query,
+              pnc: portalCatalog.pnc,
+              name: productDetails?.productName || portalCatalog.productName || `Produto Husqvarna ${portalCatalog.pnc}`,
+              discontinued: productDetails?.discontinued ?? portalCatalog.discontinued,
+              categoryName: productDetails?.categoryName || null,
+              articleDescription: productDetails?.articleDescription || null,
+              iplSections,
+              documents: portalCatalog.documents,
+              portalUrl: portalCatalog.portalUrl,
+              url: portalCatalog.portalUrl,
+              message: iplSections.length
+                ? `${iplSections.length} vista(s) explodida(s) oficial(is) confirmada(s) pela Husqvarna para este PNC.`
+                : 'Produto confirmado no Portal Husqvarna. A vista explodida não pôde ser carregada automaticamente agora.',
+            },
+          });
+          return;
+        }
 
         if (livePart) {
           res.json({
@@ -222,30 +250,6 @@ export class WorkIntelligenceController {
           });
           return;
         }
-
-        if (portalCatalog) {
-          const preferredDocument = portalCatalog.documents.find(document => document.type === 'IPL')
-            || portalCatalog.documents[0]
-            || null;
-          res.json({
-            result: {
-              status: 'FOUND',
-              source: 'OFFICIAL',
-              kind: 'PRODUCT_CATALOG',
-              query,
-              pnc: portalCatalog.pnc,
-              name: portalCatalog.productName || `Produto Husqvarna ${portalCatalog.pnc}`,
-              discontinued: portalCatalog.discontinued,
-              documents: portalCatalog.documents,
-              portalUrl: portalCatalog.portalUrl,
-              url: preferredDocument?.url || portalCatalog.portalUrl,
-              message: preferredDocument
-                ? `Abrindo ${preferredDocument.type === 'IPL' ? 'o IPL' : 'o documento'} oficial mais recente encontrado para este PNC.`
-                : 'Produto localizado no Portal Husqvarna. Abra a fonte oficial para consultar os documentos disponíveis.',
-            },
-          });
-          return;
-        }
       }
 
       res.json({
@@ -255,7 +259,7 @@ export class WorkIntelligenceController {
           query,
           url: looksLikePnc ? HUSQVARNA_PORTAL_URL : HUSQVARNA_SPARE_PARTS_URL,
           message: looksLikePnc
-            ? `O Portal Husqvarna não suporta abrir uma busca por PNC diretamente pela URL. Abra o portal e pesquise manualmente o PNC ${clean} enquanto concluímos a integração automática.`
+            ? `O Portal Husqvarna não confirmou automaticamente o PNC ${clean}. Abra o portal e confira manualmente antes de usar qualquer catálogo.`
             : looksLikeCode
               ? 'O código não pôde ser confirmado automaticamente. Abra o localizador oficial para conferir.'
               : 'O CogniVault não tem catálogo técnico suficiente para confirmar essa máquina. Continue no localizador oficial da Husqvarna usando o modelo/SKU informado.',
