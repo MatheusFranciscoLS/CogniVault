@@ -6,12 +6,14 @@ const HUSQVARNA_BR_SITE = 'b2b-br-pt-br';
 const GRAPHQL_TIMEOUT_MS = 8_000;
 
 const SEARCH_PRODUCTS_QUERY = `
-  query searchForProducts($site: String!, $searchTerm: String!, $skip: Int!, $take: Int!) {
+  query searchForProducts($site: String!, $searchTerm: String!, $brands: [String!], $statuses: [String!], $skip: Int!, $take: Int!) {
     site(name: $site) {
       search {
         content(
           searchTerm: $searchTerm
           showResultsFor: MACHINES
+          brands: $brands
+          statuses: $statuses
           skip: $skip
           take: $take
         ) {
@@ -65,6 +67,7 @@ const PRODUCT_DETAILS_QUERY = `
       articles {
         byIds(ids: [$articleId]) {
           id
+          articleLink
           isNew
           isDiscontinued
           name { productName }
@@ -161,6 +164,7 @@ type GraphqlIplSummary = {
 
 type GraphqlArticleDetails = {
   id?: string | null;
+  articleLink?: string | null;
   isNew?: boolean | null;
   isDiscontinued?: boolean | null;
   name?: { productName?: string | null } | null;
@@ -206,6 +210,7 @@ export type HusqvarnaIplSectionSummary = {
 export type HusqvarnaProductDetailsSummary = {
   pnc: string;
   productName: string;
+  portalUrl: string | null;
   discontinued: boolean;
   articleDescription: string | null;
   categoryName: string | null;
@@ -247,6 +252,19 @@ function canonicalPortalUrl(rawUrl: string | null | undefined, pnc: string): str
   }
 }
 
+function canonicalProductArticleUrl(rawUrl: string | null | undefined, pnc: string): string | null {
+  const url = canonicalPortalUrl(rawUrl, pnc);
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+    if (/\/spare-parts\/?$/i.test(parsed.pathname)) return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 function normalizeProductName(value: unknown): string {
   const productName = String(value || '').trim();
   if (!productName) return '';
@@ -264,7 +282,7 @@ export function extractExactProductMatch(payload: unknown, pncInput: string): Hu
     const hit = entry?.resultItem;
     if (!hit || !exactPncEvidence(hit, pnc)) continue;
 
-    const portalUrl = canonicalPortalUrl(hit.url, pnc);
+    const portalUrl = canonicalProductArticleUrl(hit.url, pnc);
     const productName = normalizeProductName(hit.name?.productName || hit.primaryArticle?.name);
     if (!portalUrl || !productName) continue;
 
@@ -314,6 +332,7 @@ export function extractProductDetailsSummary(payload: unknown, pncInput: string)
   return {
     pnc,
     productName,
+    portalUrl: canonicalProductArticleUrl(article.articleLink, pnc),
     discontinued: Boolean(article.isDiscontinued),
     articleDescription: article.articleDescription ? String(article.articleDescription).trim() : null,
     categoryName: article.product?.category?.name ? String(article.product.category.name).trim() : null,
@@ -366,6 +385,8 @@ export class HusqvarnaPortalGraphqlService {
     const payload = await postGraphql<GraphqlSearchResponse>('searchForProducts', SEARCH_PRODUCTS_QUERY, {
       site: HUSQVARNA_BR_SITE,
       searchTerm: pnc,
+      brands: null,
+      statuses: null,
       skip: 0,
       take: 5,
     });
@@ -402,7 +423,7 @@ export class HusqvarnaPortalGraphqlService {
 
     const details = extractProductDetailsSummary(payload, pnc);
     if (details) {
-      console.log(`[Husqvarna GraphQL] PNC ${pnc}: ${details.iplSections.length} vista(s) explodida(s) oficial(is).`);
+      console.log(`[Husqvarna GraphQL] PNC ${pnc} confirmado nos detalhes como ${details.productName}; ${details.iplSections.length} vista(s) explodida(s).`);
     } else {
       console.log(`[Husqvarna GraphQL] PNC ${pnc}: detalhes não confirmaram o artigo exato.`);
     }
