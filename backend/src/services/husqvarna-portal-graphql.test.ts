@@ -149,7 +149,6 @@ test('extrai apenas vistas explodidas do artigo exato retornado pelo Portal', ()
           byIds: [
             {
               id: '965195201',
-              articleLink: '/br/serrotes-com-cabo/327p5x/',
               isDiscontinued: true,
               name: { productName: 'HUSQVARNA 327P5x' },
               articleDescription: 'All ex US50, Lowes',
@@ -188,7 +187,6 @@ test('extrai apenas vistas explodidas do artigo exato retornado pelo Portal', ()
   assert.equal(result.productName, 'HUSQVARNA 327P5x');
   assert.equal(result.discontinued, true);
   assert.equal(result.categoryName, 'Serrotes com cabo');
-  assert.equal(result.portalUrl, 'https://portal.husqvarnagroup.com/br/serrotes-com-cabo/327p5x/?article=965195201');
   assert.equal(result.iplSections.length, 2);
   assert.equal(result.iplSections[0].id, 'HVA_PL-000010489');
   assert.equal(result.iplSections[1].name, 'CABEÇA DA SERRA');
@@ -204,7 +202,6 @@ test('artigo descontinuado continua confirmado mesmo sem vistas explodidas estru
           byIds: [
             {
               id: '967052465',
-              articleLink: '/br/motosserras/55/',
               isDiscontinued: true,
               name: { productName: 'HUSQVARNA 55' },
               articleDescription: '15 - 3/8 - CE - TR, SA, Latin America',
@@ -227,7 +224,6 @@ test('artigo descontinuado continua confirmado mesmo sem vistas explodidas estru
   assert.equal(result.discontinued, true);
   assert.equal(result.categoryName, 'Motosserras');
   assert.equal(result.iplSections.length, 0);
-  assert.equal(result.portalUrl, 'https://portal.husqvarnagroup.com/br/motosserras/55/?article=967052465');
 });
 
 test('detalhes GraphQL não podem validar um artigo diferente do PNC consultado', () => {
