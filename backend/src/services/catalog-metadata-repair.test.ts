@@ -57,3 +57,30 @@ test('fills a unique PNC only when active rows prove one non-universal applicati
   assert.equal(result.model, '321R');
   assert.equal(result.pnc, '967332904');
 });
+
+test('prioritizes an engine manufacturer explicitly named in the filename', () => {
+  const result = suggestAutoMetadataRepair({
+    filename: 'Motor Kawasaki FX921.pdf',
+    manufacturer: 'Husqvarna',
+    model: 'FX921V-ES06',
+    pnc: null,
+    metadataReviewedAt: null,
+    parts: [
+      { manufacturer: 'Husqvarna', model: 'FX921V-ES06', pnc: null },
+      { manufacturer: 'Husqvarna', model: 'FX921V-ES06', pnc: null },
+    ],
+  });
+  assert.equal(result.changed, true);
+  assert.equal(result.manufacturer, 'Kawasaki');
+});
+
+test('explicit engine filename still cannot overwrite administrator-reviewed metadata', () => {
+  const result = suggestAutoMetadataRepair({
+    filename: 'Motor Kawasaki FX921.pdf',
+    manufacturer: 'Husqvarna',
+    model: 'FX921V-ES06',
+    metadataReviewedAt: new Date(),
+    parts: [{ manufacturer: 'Husqvarna', model: 'FX921V-ES06' }],
+  });
+  assert.deepEqual(result, { changed: false });
+});
