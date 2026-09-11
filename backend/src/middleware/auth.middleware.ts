@@ -19,6 +19,9 @@ export interface AuthenticatedUser {
     role: 'ADMIN' | 'MECHANIC';
     tenantId: string;
     email?: string;
+    status?: string;
+    createdAt?: Date;
+    tenantName?: string;
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -37,6 +40,8 @@ interface CachedUser {
     tenantId: string;
     role: 'ADMIN' | 'MECHANIC';
     status: string;
+    createdAt: Date;
+    tenantName: string;
 }
 
 const DEFAULT_AUTH_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -106,6 +111,8 @@ export async function authMiddleware(
                     tenantId: true,
                     role: true,
                     status: true,
+                    createdAt: true,
+                    tenant: { select: { name: true } },
                 },
             });
 
@@ -114,8 +121,16 @@ export async function authMiddleware(
                 return;
             }
 
-            currentUser = dbUser;
-            userAuthCache.set(payload.id, dbUser);
+            currentUser = {
+                id: dbUser.id,
+                email: dbUser.email,
+                tenantId: dbUser.tenantId,
+                role: dbUser.role,
+                status: dbUser.status,
+                createdAt: dbUser.createdAt,
+                tenantName: dbUser.tenant.name,
+            };
+            userAuthCache.set(payload.id, currentUser);
         }
 
         if (currentUser.tenantId !== payload.tenantId) {
@@ -133,6 +148,9 @@ export async function authMiddleware(
             email: currentUser.email,
             tenantId: currentUser.tenantId,
             role: currentUser.role,
+            status: currentUser.status,
+            createdAt: currentUser.createdAt,
+            tenantName: currentUser.tenantName,
         };
 
         next();
