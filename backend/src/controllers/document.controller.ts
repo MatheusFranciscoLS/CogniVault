@@ -4,8 +4,8 @@ import { DocumentService } from '../services/document.service';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { AuditService } from '../services/audit.service';
 import { invalidateHomeCountsCache } from './operational.controller';
-import { invalidateHomeResponseCache } from './home.controller';
 import { invalidateCatalogListCache } from './catalog-list.controller';
+import { invalidateFastSearchCaches } from './fast-search.controller';
 import { refreshCatalogHealth } from '../services/catalog-health';
 
 const documentService = new DocumentService();
@@ -16,7 +16,7 @@ function optionalString(value: unknown): string | undefined {
 
 function invalidateDocumentCaches(tenantId: string): void {
     invalidateHomeCountsCache(tenantId);
-    invalidateHomeResponseCache(tenantId);
+    invalidateFastSearchCaches(tenantId);
     invalidateCatalogListCache(tenantId);
 }
 
@@ -99,24 +99,6 @@ export class DocumentController {
         }
     }
 
-    async list(req: AuthenticatedRequest, res: Response): Promise<void> {
-        try {
-            if (!req.user) {
-                res.status(401).json({ error: 'Usuário não autenticado.' });
-                return;
-            }
-
-            const documents = req.user.role === 'ADMIN' && req.query.includeArchived === 'true'
-                ? await documentService.listAdmin(req.user.tenantId)
-                : await documentService.list(req.user.tenantId);
-
-            res.status(200).json({ documents, categories: documentService.categories() });
-        } catch (error) {
-            console.error('❌ Erro ao listar catálogos:', error);
-            res.status(500).json({ error: 'Erro ao listar catálogos.' });
-        }
-    }
-
     async setCategory(req: AuthenticatedRequest, res: Response): Promise<void> {
         try {
             if (!req.user) return;
@@ -146,39 +128,6 @@ export class DocumentController {
             }
             console.error('❌ Erro ao alterar seção do catálogo:', error);
             res.status(500).json({ error: 'Não foi possível alterar a seção do catálogo.' });
-        }
-    }
-
-    async access(req: AuthenticatedRequest, res: Response): Promise<void> {
-        try {
-            if (!req.user) {
-                res.status(401).json({ error: 'Usuário não autenticado.' });
-                return;
-            }
-
-            const mode = req.query.mode === 'download' ? 'download' : 'view';
-            const url = await documentService.createAccessUrl(
-                req.user.tenantId,
-                String(req.params.id),
-                mode === 'download',
-            );
-
-            res.status(200).json({ url, mode });
-        } catch (error) {
-            const message = error instanceof Error ? error.message : '';
-
-            if (message === 'DOCUMENT_NOT_FOUND') {
-                res.status(404).json({ error: 'Catálogo não encontrado.' });
-                return;
-            }
-
-            if (message === 'DOCUMENT_NOT_READY') {
-                res.status(409).json({ error: 'O catálogo ainda está sendo processado.' });
-                return;
-            }
-
-            console.error('❌ Erro ao gerar acesso ao catálogo:', error);
-            res.status(500).json({ error: 'Não foi possível acessar o catálogo.' });
         }
     }
 
@@ -293,6 +242,11 @@ export class DocumentController {
     async refreshHealth(req: AuthenticatedRequest, res: Response): Promise<void> {
         try {
             if (!req.user) return;
+            if (req.user.role !== 'ADMIN') {
+                res.status(403).json({ error: 'Apenas administradores podem recalcular a saúde do catálogo.' });
+                return;
+            }
+
             const health = await refreshCatalogHealth(String(req.params.id), req.user.tenantId);
             if (!health) {
                 res.status(404).json({ error: 'Catálogo não encontrado.' });
