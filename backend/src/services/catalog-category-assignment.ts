@@ -1,13 +1,18 @@
 import { prisma } from '../config/prisma';
 import { inferCatalogCategory } from './catalog-category';
-import { reconciledCatalogModel } from './catalog-metadata-reconciliation';
+import { repairAutoDetectedDocumentMetadata } from './catalog-metadata-repair';
 
 /**
- * Reconcilia metadados técnicos não revisados e persiste a família apenas quando
- * ela ainda não foi definida ou se estava temporariamente como 'Outros / Não identificado'.
- * Uma correção manual do administrador (metadataReviewedAt) sempre vence.
+ * Garante que metadados automáticos suspeitos sejam reparados pela política
+ * central antes de classificar o catálogo. Uma correção manual do administrador
+ * (metadataReviewedAt) sempre vence.
+ *
+ * A família só é persistida quando ainda não foi definida ou quando estava
+ * temporariamente como 'Outros / Não identificado'.
  */
 export async function ensureCatalogCategory(documentId: string, tenantId: string): Promise<string | null> {
+    await repairAutoDetectedDocumentMetadata(documentId, tenantId);
+
     const document = await prisma.document.findFirst({
         where: { id: documentId, tenantId },
         select: {
@@ -28,18 +33,6 @@ export async function ensureCatalogCategory(documentId: string, tenantId: string
 
     if (!document) return null;
 
-    const resolvedModel = reconciledCatalogModel({
-        storedModel: document.model,
-        metadataReviewedAt: document.metadataReviewedAt,
-        partModels: document.parts.map(part => part.model),
-    });
-    if (resolvedModel !== (document.model || null)) {
-        await prisma.document.updateMany({
-            where: { id: document.id, tenantId, metadataReviewedAt: null },
-            data: { model: resolvedModel },
-        });
-    }
-
     // Se a categoria foi REVISADA manualmente por um administrador, preserva a decisão:
     if (document.metadataReviewedAt && document.categoryId && document.category) {
         return document.category.name;
@@ -51,11 +44,11 @@ export async function ensureCatalogCategory(documentId: string, tenantId: string
     }
 
     // Se não tem categoria OU a categoria atual é 'Outros / Não identificado',
-    // re-infere agora com todas as evidências (fabricante, modelo reconciliado, filename, peças):
+    // re-infere agora com todas as evidências já reconciliadas:
     const categoryName = inferCatalogCategory({
         filename: document.filename,
         manufacturer: document.manufacturer,
-        model: resolvedModel || document.model,
+        model: document.model,
         parts: document.parts,
     });
 
