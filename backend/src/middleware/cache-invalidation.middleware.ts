@@ -5,6 +5,7 @@ import { invalidateWorkContextCache } from '../controllers/work-context.controll
 import { invalidateDocumentAccessCache } from '../controllers/document-access.controller';
 import { invalidateHomeResponseCache } from '../controllers/home.controller';
 import { invalidatePartDetailResponseCache } from '../controllers/part-detail.controller';
+import { invalidateCatalogListCache } from '../controllers/catalog-list.controller';
 
 function successful(status: number): boolean {
   return status >= 200 && status < 300;
@@ -62,9 +63,6 @@ export function invalidateFavoriteCachesAfterMutation(
   res.once('finish', () => {
     if (!tenantId || !successful(res.statusCode)) return;
     invalidateHomeResponseCache(tenantId, userId);
-    // A resposta de detalhe contém favoriteId e é cacheada por usuário.
-    // Limpar o tenant inteiro mantém add/remove consistentes mesmo quando a
-    // mutação chega apenas com o id do Favorite, sem o partId.
     invalidatePartDetailResponseCache(tenantId);
   });
 
@@ -84,6 +82,7 @@ export function invalidateDocumentAccessAfterMutation(
     invalidateDocumentAccessCache(tenantId, documentId);
     invalidateHomeResponseCache(tenantId);
     invalidatePartDetailResponseCache(tenantId);
+    invalidateCatalogListCache(tenantId);
   });
 
   next();
