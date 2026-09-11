@@ -8,6 +8,7 @@ import { invalidatePartDetailResponseCache } from '../controllers/part-detail.co
 import { invalidateCatalogListCache } from '../controllers/catalog-list.controller';
 import { invalidateFastSearchCaches } from '../controllers/fast-search.controller';
 import { invalidateNotificationCache } from '../controllers/notification.controller';
+import { invalidateAdminOverviewCache } from '../controllers/admin-overview.controller';
 
 function successful(status: number): boolean {
   return status >= 200 && status < 300;
@@ -102,6 +103,21 @@ export function invalidateNotificationsAfterMutation(
   next();
 }
 
+export function invalidateAdminOverviewAfterMutation(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+): void {
+  const tenantId = req.user?.tenantId;
+
+  res.once('finish', () => {
+    if (!tenantId || !successful(res.statusCode)) return;
+    invalidateAdminOverviewCache(tenantId);
+  });
+
+  next();
+}
+
 export function invalidateDocumentAccessAfterMutation(
   req: AuthenticatedRequest,
   res: Response,
@@ -121,6 +137,7 @@ export function invalidateDocumentAccessAfterMutation(
     invalidateCatalogListCache(tenantId);
     invalidateFastSearchCaches(tenantId);
     invalidateNotificationCache(tenantId);
+    invalidateAdminOverviewCache(tenantId);
   });
 
   next();
