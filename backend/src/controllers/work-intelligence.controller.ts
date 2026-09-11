@@ -4,6 +4,7 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { normalizeIdentifier } from '../utils/normalize';
 import { AuditService } from '../services/audit.service';
 import { HusqvarnaScraperService } from '../services/husqvarna-scraper.service';
+import { HusqvarnaPortalCatalogService } from '../services/husqvarna-portal-catalog.service';
 
 const HUSQVARNA_SPARE_PARTS_URL = 'https://www.husqvarna.com/br/pecas-sobressalentes/';
 const SEARCH_DEDUP_MS = 2 * 60 * 1000;
@@ -186,6 +187,7 @@ export class WorkIntelligenceController {
     const query = String(req.query.q || '').trim();
     const clean = cleanCode(query);
     const looksLikeCode = clean.length >= 6 && clean.replace(/\D/g, '').length >= 5;
+    const looksLikePnc = /^\d{8,14}$/.test(clean);
 
     if (!query) {
       res.status(400).json({ error: 'Informe o que deseja consultar.' });
@@ -194,12 +196,19 @@ export class WorkIntelligenceController {
 
     try {
       if (looksLikeCode) {
-        const livePart = await HusqvarnaScraperService.fetchLiveData(clean);
+        const [liveResult, catalogResult] = await Promise.allSettled([
+          HusqvarnaScraperService.fetchLiveData(clean),
+          looksLikePnc ? HusqvarnaPortalCatalogService.searchByPnc(clean) : Promise.resolve(null),
+        ]);
+        const livePart = liveResult.status === 'fulfilled' ? liveResult.value : null;
+        const portalCatalog = catalogResult.status === 'fulfilled' ? catalogResult.value : null;
+
         if (livePart) {
           res.json({
             result: {
               status: 'FOUND',
               source: 'OFFICIAL',
+              kind: 'PART',
               query,
               partNumber: clean,
               name: livePart.name,
@@ -212,17 +221,42 @@ export class WorkIntelligenceController {
           });
           return;
         }
+
+        if (portalCatalog) {
+          res.json({
+            result: {
+              status: 'FOUND',
+              source: 'OFFICIAL',
+              kind: 'PRODUCT_CATALOG',
+              query,
+              pnc: portalCatalog.pnc,
+              name: portalCatalog.productName || `Produto Husqvarna ${portalCatalog.pnc}`,
+              discontinued: portalCatalog.discontinued,
+              documents: portalCatalog.documents,
+              url: portalCatalog.portalUrl,
+              message: portalCatalog.documents.length
+                ? `${portalCatalog.documents.length} documento(s) oficial(is) encontrado(s) no Portal Husqvarna.`
+                : 'Produto localizado no Portal Husqvarna. Abra a fonte oficial para consultar os documentos disponíveis.',
+            },
+          });
+          return;
+        }
       }
 
+      const portalUrl = looksLikePnc
+        ? HusqvarnaPortalCatalogService.buildSearchUrl(clean)
+        : HUSQVARNA_SPARE_PARTS_URL;
       res.json({
         result: {
           status: 'REVIEW',
           source: 'ONLINE',
           query,
-          url: HUSQVARNA_SPARE_PARTS_URL,
-          message: looksLikeCode
-            ? 'O código não pôde ser confirmado automaticamente. Abra o localizador oficial para conferir.'
-            : 'O CogniVault não tem catálogo técnico suficiente para confirmar essa máquina. Continue no localizador oficial da Husqvarna usando o modelo/SKU informado.',
+          url: portalUrl,
+          message: looksLikePnc
+            ? 'O PNC não pôde ser lido automaticamente no Portal Husqvarna. Abra a busca oficial já preenchida para continuar.'
+            : looksLikeCode
+              ? 'O código não pôde ser confirmado automaticamente. Abra o localizador oficial para conferir.'
+              : 'O CogniVault não tem catálogo técnico suficiente para confirmar essa máquina. Continue no localizador oficial da Husqvarna usando o modelo/SKU informado.',
         },
       });
     } catch (error) {
@@ -232,7 +266,9 @@ export class WorkIntelligenceController {
           status: 'REVIEW',
           source: 'ONLINE',
           query,
-          url: HUSQVARNA_SPARE_PARTS_URL,
+          url: looksLikePnc
+            ? `https://portal.husqvarnagroup.com/br/?q=${encodeURIComponent(clean)}`
+            : HUSQVARNA_SPARE_PARTS_URL,
           message: 'A consulta automática não respondeu. Use o localizador oficial da Husqvarna para continuar.',
         },
       });
