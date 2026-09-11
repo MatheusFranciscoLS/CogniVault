@@ -1,30 +1,43 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 
+type AuditInput = {
+    tenantId: string;
+    userId?: string | null;
+    action: string;
+    targetType: string;
+    targetId?: string | null;
+    metadata?: Prisma.InputJsonValue;
+};
+
+function auditData(input: AuditInput) {
+    return {
+        tenantId: input.tenantId,
+        userId: input.userId || null,
+        action: input.action,
+        targetType: input.targetType,
+        targetId: input.targetId || null,
+        metadata: input.metadata,
+    };
+}
+
 export class AuditService {
-    static async record(input: {
-        tenantId: string;
-        userId?: string | null;
-        action: string;
-        targetType: string;
-        targetId?: string | null;
-        metadata?: Prisma.InputJsonValue;
-    }): Promise<void> {
+    static async record(input: AuditInput): Promise<void> {
         try {
-            await prisma.auditLog.create({
-                data: {
-                    tenantId: input.tenantId,
-                    userId: input.userId || null,
-                    action: input.action,
-                    targetType: input.targetType,
-                    targetId: input.targetId || null,
-                    metadata: input.metadata,
-                },
-            });
+            await prisma.auditLog.create({ data: auditData(input) });
         } catch (err) {
-            // Auditoria continua best-effort para não derrubar a operação de negócio,
-            // mas agora chamadas que usam `await` realmente aguardam a tentativa de gravação.
+            // Auditoria informativa não derruba a operação de negócio.
             console.error('❌ Falha ao registrar auditoria:', err);
         }
+    }
+
+    static async recordRequired(input: AuditInput): Promise<string> {
+        // Use apenas quando o AuditLog fizer parte do próprio controle operacional,
+        // por exemplo como cooldown persistente para evitar consumo repetido de cota.
+        const row = await prisma.auditLog.create({
+            data: auditData(input),
+            select: { id: true },
+        });
+        return row.id;
     }
 }
