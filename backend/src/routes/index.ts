@@ -11,6 +11,7 @@ import { OperationalController } from '../controllers/operational.controller';
 import { OfficialPartVerificationController } from '../controllers/official-part-verification.controller';
 import { QualityController } from '../controllers/quality.controller';
 import { WorkIntelligenceController } from '../controllers/work-intelligence.controller';
+import { CommercialSearchController } from '../controllers/commercial-search.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
 
@@ -26,6 +27,7 @@ const operationalController = new OperationalController();
 const officialPartVerificationController = new OfficialPartVerificationController();
 const qualityController = new QualityController();
 const workIntelligenceController = new WorkIntelligenceController();
+const commercialSearchController = new CommercialSearchController();
 
 const upload = multer({
   dest: 'uploads/',
@@ -44,7 +46,7 @@ router.get('/me', authMiddleware, (req, res) => adminController.me(req, res));
 router.get('/home', authMiddleware, (req, res) => operationalController.home(req, res));
 router.get('/search', authMiddleware, (req, res) => operationalController.search(req, res));
 router.get('/search/stream', authMiddleware, (req, res) => operationalController.searchStream(req, res));
-router.get('/master-parts/search', authMiddleware, (req, res) => workIntelligenceController.masterSearch(req, res));
+router.get('/master-parts/search', authMiddleware, (req, res) => commercialSearchController.search(req, res));
 router.get('/official-fallback', authMiddleware, (req, res) => workIntelligenceController.officialFallback(req, res));
 router.post('/analytics/search-usage', authMiddleware, (req, res) => workIntelligenceController.recordSearchUsage(req, res));
 router.post('/analytics/quote-usage', authMiddleware, (req, res) => workIntelligenceController.recordQuoteUsage(req, res));
