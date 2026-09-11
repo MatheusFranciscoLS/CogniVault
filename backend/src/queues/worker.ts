@@ -92,167 +92,194 @@ export class DocumentWorker {
                 return;
             }
 
-            this.activeJobs++;
-            let data: DocumentMessage;
-            try {
-                const parsed: unknown = JSON.parse(msg.content.toString());
-                if (!isValidMessage(parsed)) {
-                    channel.ack(msg);
-                    console.warn('🧹 Mensagem antiga ou inválida removida da fila.');
-                    return;
-                }
-                data = parsed;
-            } catch {
+            this.activeJobs += 1;
+            let messageSettled = false;
+
+            const ack = (): void => {
+                if (messageSettled) return;
                 channel.ack(msg);
-                console.warn('🧹 Mensagem ilegível removida da fila.');
-                this.activeJobs--;
-                return;
-            }
-
-            console.log(`📥 Documento recebido: ${data.documentId} (${data.jobId})`);
+                messageSettled = true;
+            };
+            const requeue = (): void => {
+                if (messageSettled) return;
+                channel.nack(msg, false, true);
+                messageSettled = true;
+            };
 
             try {
-                const document = await prisma.document.findUnique({ where: { id: data.documentId } });
-                if (!document) {
-                    channel.ack(msg);
-                    console.warn(`🧹 Documento inexistente ignorado: ${data.documentId}.`);
-                    this.activeJobs--;
-                    return;
-                }
-                if (document.tenantId !== data.tenantId) {
-                    channel.ack(msg);
-                    console.warn(`🧹 Tenant inválido para o documento ${data.documentId}.`);
-                    this.activeJobs--;
-                    return;
-                }
-                if (document.processingJobId !== data.jobId) {
-                    channel.ack(msg);
-                    console.warn(`🧹 Mensagem duplicada/obsoleta ignorada para ${data.documentId}.`);
-                    this.activeJobs--;
+                let data: DocumentMessage;
+                try {
+                    const parsed: unknown = JSON.parse(msg.content.toString());
+                    if (!isValidMessage(parsed)) {
+                        ack();
+                        console.warn('🧹 Mensagem antiga ou inválida removida da fila.');
+                        return;
+                    }
+                    data = parsed;
+                } catch {
+                    ack();
+                    console.warn('🧹 Mensagem ilegível removida da fila.');
                     return;
                 }
 
-                if (document.status !== 'COMPLETED') {
+                console.log(`📥 Documento recebido: ${data.documentId} (${data.jobId})`);
+
+                try {
+                    const document = await prisma.document.findUnique({ where: { id: data.documentId } });
+                    if (!document) {
+                        ack();
+                        console.warn(`🧹 Documento inexistente ignorado: ${data.documentId}.`);
+                        return;
+                    }
+                    if (document.tenantId !== data.tenantId) {
+                        ack();
+                        console.warn(`🧹 Tenant inválido para o documento ${data.documentId}.`);
+                        return;
+                    }
+                    if (document.processingJobId !== data.jobId) {
+                        ack();
+                        console.warn(`🧹 Mensagem duplicada/obsoleta ignorada para ${data.documentId}.`);
+                        return;
+                    }
+
+                    if (document.status !== 'COMPLETED') {
+                        await prisma.document.updateMany({
+                            where: { id: data.documentId, processingJobId: data.jobId },
+                            data: { status: 'PROCESSING' },
+                        });
+                    }
+
+                    await AIService.processDocument(data.documentId, data.tenantId, data.jobId);
+                    try {
+                        const repaired = await repairAutoDetectedDocumentMetadata(data.documentId, data.tenantId);
+                        if (repaired.changed) {
+                            console.log(`🧭 Metadados automáticos corrigidos para ${data.documentId}: ${JSON.stringify(repaired)}.`);
+                        }
+                    } catch (metadataRepairError) {
+                        // Metadado auxiliar nunca deve invalidar Part Numbers já persistidos.
+                        console.warn(`⚠️ Não foi possível reconciliar metadados do catálogo ${data.documentId}:`, metadataRepairError);
+                    }
+                    await buildAuxiliaryCatalogKnowledge(data.documentId, data.tenantId);
+                    try {
+                        const category = await ensureCatalogCategory(data.documentId, data.tenantId);
+                        if (category) console.log(`🗂️ Catálogo ${data.documentId} classificado em ${category}.`);
+                    } catch (categoryError) {
+                        // Organização da biblioteca é auxiliar e nunca deve derrubar um
+                        // catálogo que já foi extraído/indexado com sucesso.
+                        console.warn(`⚠️ Não foi possível classificar o catálogo ${data.documentId}:`, categoryError);
+                    }
+                    try {
+                        const health = await refreshCatalogHealth(data.documentId, data.tenantId);
+                        if (health) console.log(`🩺 Saúde do catálogo ${data.documentId}: ${health.score}/100 · ${health.reviewStatus}.`);
+                    } catch (healthError) {
+                        console.warn(`⚠️ Não foi possível calcular a saúde do catálogo ${data.documentId}:`, healthError);
+                    }
                     await prisma.document.updateMany({
                         where: { id: data.documentId, processingJobId: data.jobId },
-                        data: { status: 'PROCESSING' },
+                        data: {
+                            status: 'COMPLETED',
+                            processingJobId: null,
+                        },
                     });
-                }
-
-                await AIService.processDocument(data.documentId, data.tenantId, data.jobId);
-                try {
-                    const repaired = await repairAutoDetectedDocumentMetadata(data.documentId, data.tenantId);
-                    if (repaired.changed) {
-                        console.log(`🧭 Metadados automáticos corrigidos para ${data.documentId}: ${JSON.stringify(repaired)}.`);
+                    ack();
+                    console.log(`✅ Documento ${data.documentId} processado com sucesso.`);
+                } catch (error) {
+                    if (error instanceof Error && error.message === 'STALE_DOCUMENT_JOB') {
+                        ack();
+                        console.warn(`🧹 Trabalho cancelado/obsoleto confirmado para ${data.documentId}.`);
+                        return;
                     }
-                } catch (metadataRepairError) {
-                    // Metadado auxiliar nunca deve invalidar Part Numbers já persistidos.
-                    console.warn(`⚠️ Não foi possível reconciliar metadados do catálogo ${data.documentId}:`, metadataRepairError);
-                }
-                await buildAuxiliaryCatalogKnowledge(data.documentId, data.tenantId);
-                try {
-                    const category = await ensureCatalogCategory(data.documentId, data.tenantId);
-                    if (category) console.log(`🗂️ Catálogo ${data.documentId} classificado em ${category}.`);
-                } catch (categoryError) {
-                    // Organização da biblioteca é auxiliar e nunca deve derrubar um
-                    // catálogo que já foi extraído/indexado com sucesso.
-                    console.warn(`⚠️ Não foi possível classificar o catálogo ${data.documentId}:`, categoryError);
-                }
-                try {
-                    const health = await refreshCatalogHealth(data.documentId, data.tenantId);
-                    if (health) console.log(`🩺 Saúde do catálogo ${data.documentId}: ${health.score}/100 · ${health.reviewStatus}.`);
-                } catch (healthError) {
-                    console.warn(`⚠️ Não foi possível calcular a saúde do catálogo ${data.documentId}:`, healthError);
-                }
-                await prisma.document.updateMany({
-                    where: { id: data.documentId, processingJobId: data.jobId },
-                    data: {
-                        status: 'COMPLETED',
-                        processingJobId: null,
-                    },
-                });
-                channel.ack(msg);
-                console.log(`✅ Documento ${data.documentId} processado com sucesso.`);
-                this.activeJobs--;
-            } catch (error) {
-                if (error instanceof Error && error.message === 'STALE_DOCUMENT_JOB') {
-                    channel.ack(msg);
-                    console.warn(`🧹 Trabalho cancelado/obsoleto confirmado para ${data.documentId}.`);
-                    this.activeJobs--;
-                    return;
-                }
 
-                console.error(`❌ Erro ao processar documento ${data.documentId}:`, error);
-                const currentDocument = await prisma.document.findUnique({
-                    where: { id: data.documentId },
-                    select: {
-                        processingJobId: true,
-                        status: true,
-                        processingStage: true,
-                        _count: { select: { parts: { where: { active: true } } } },
-                    },
-                });
-
-                if (!currentDocument || currentDocument.processingJobId !== data.jobId) {
-                    channel.ack(msg);
-                    console.warn(`🧹 Falha obsoleta ignorada para ${data.documentId}.`);
-                    this.activeJobs--;
-                    return;
-                }
-
-                const hasUsableCatalog = currentDocument.status === 'COMPLETED'
-                    && currentDocument._count.parts > 0;
-                const retryNumber = nextDocumentRetry(error, msg.properties.headers);
-
-                if (retryNumber !== null) {
+                    console.error(`❌ Erro ao processar documento ${data.documentId}:`, error);
                     try {
+                        const currentDocument = await prisma.document.findUnique({
+                            where: { id: data.documentId },
+                            select: {
+                                processingJobId: true,
+                                status: true,
+                                processingStage: true,
+                                _count: { select: { parts: { where: { active: true } } } },
+                            },
+                        });
+
+                        if (!currentDocument || currentDocument.processingJobId !== data.jobId) {
+                            ack();
+                            console.warn(`🧹 Falha obsoleta ignorada para ${data.documentId}.`);
+                            return;
+                        }
+
+                        const hasUsableCatalog = currentDocument.status === 'COMPLETED'
+                            && currentDocument._count.parts > 0;
+                        const retryNumber = nextDocumentRetry(error, msg.properties.headers);
+
+                        if (retryNumber !== null) {
+                            try {
+                                await prisma.document.updateMany({
+                                    where: { id: data.documentId, processingJobId: data.jobId },
+                                    data: {
+                                        processingStage: currentDocument.processingStage === 'INDEXING'
+                                            ? 'INDEXING'
+                                            : 'RETRYING',
+                                        processingError: readableProcessingError(error, hasUsableCatalog, true),
+                                    },
+                                });
+                                channel.sendToQueue(DOCUMENT_RETRY_QUEUE, msg.content, {
+                                    persistent: true,
+                                    contentType: msg.properties.contentType || 'application/json',
+                                    headers: { ...msg.properties.headers, 'x-retry-count': retryNumber },
+                                });
+                                await channel.waitForConfirms();
+                                ack();
+                                console.warn(`🕒 Documento ${data.documentId} reagendado (ciclo ${retryNumber}).`);
+                                return;
+                            } catch (retryQueueError) {
+                                console.error(`❌ Não foi possível reagendar ${data.documentId}:`, retryQueueError);
+                            }
+                        }
+
                         await prisma.document.updateMany({
                             where: { id: data.documentId, processingJobId: data.jobId },
                             data: {
-                                processingStage: currentDocument.processingStage === 'INDEXING'
-                                    ? 'INDEXING'
-                                    : 'RETRYING',
-                                processingError: readableProcessingError(error, hasUsableCatalog, true),
+                                status: hasUsableCatalog ? 'COMPLETED' : 'FAILED',
+                                processingJobId: null,
+                                processingStage: hasUsableCatalog
+                                    ? (currentDocument.processingStage === 'INDEXING'
+                                        ? 'READY_WITHOUT_EMBEDDINGS'
+                                        : 'READY_WITH_WARNING')
+                                    : 'FAILED',
+                                processingError: readableProcessingError(error, hasUsableCatalog, false),
                             },
                         });
-                        channel.sendToQueue(DOCUMENT_RETRY_QUEUE, msg.content, {
-                            persistent: true,
-                            contentType: msg.properties.contentType || 'application/json',
-                            headers: { ...msg.properties.headers, 'x-retry-count': retryNumber },
-                        });
-                        await channel.waitForConfirms();
-                        channel.ack(msg);
-                        console.warn(`🕒 Documento ${data.documentId} reagendado (ciclo ${retryNumber}).`);
-                        this.activeJobs--;
-                        return;
-                    } catch (retryQueueError) {
-                        console.error(`❌ Não foi possível reagendar ${data.documentId}:`, retryQueueError);
+                        if (hasUsableCatalog) {
+                            try { await refreshCatalogHealth(data.documentId, data.tenantId); } catch { /* diagnóstico não bloqueia recuperação */ }
+                        }
+                        ack();
+                        console.warn(
+                            hasUsableCatalog
+                                ? `⚠️ Catálogo ${data.documentId} permanece disponível sem concluir toda a indexação.`
+                                : `⚠️ Documento ${data.documentId} marcado como FAILED.`,
+                        );
+                    } catch (recoveryError) {
+                        console.error(`❌ Falha ao recuperar o job ${data.documentId}; mensagem será devolvida à fila:`, recoveryError);
+                        requeue();
                     }
                 }
-
-                await prisma.document.updateMany({
-                    where: { id: data.documentId, processingJobId: data.jobId },
-                    data: {
-                        status: hasUsableCatalog ? 'COMPLETED' : 'FAILED',
-                        processingJobId: null,
-                        processingStage: hasUsableCatalog
-                            ? (currentDocument.processingStage === 'INDEXING'
-                                ? 'READY_WITHOUT_EMBEDDINGS'
-                                : 'READY_WITH_WARNING')
-                            : 'FAILED',
-                        processingError: readableProcessingError(error, hasUsableCatalog, false),
-                    },
-                });
-                if (hasUsableCatalog) {
-                    try { await refreshCatalogHealth(data.documentId, data.tenantId); } catch { /* diagnóstico não bloqueia recuperação */ }
+            } catch (fatalHandlerError) {
+                console.error('❌ Falha inesperada no consumidor de documentos; mensagem será devolvida à fila:', fatalHandlerError);
+                try {
+                    requeue();
+                } catch (settleError) {
+                    console.error('❌ Não foi possível devolver a mensagem ao RabbitMQ:', settleError);
                 }
-                channel.ack(msg);
-                console.warn(
-                    hasUsableCatalog
-                        ? `⚠️ Catálogo ${data.documentId} permanece disponível sem concluir toda a indexação.`
-                        : `⚠️ Documento ${data.documentId} marcado como FAILED.`,
-                );
-                this.activeJobs--;
+            } finally {
+                this.activeJobs = Math.max(0, this.activeJobs - 1);
+                if (!messageSettled) {
+                    try {
+                        requeue();
+                    } catch (settleError) {
+                        console.error('❌ Mensagem terminou sem ack/nack e não pôde ser devolvida à fila:', settleError);
+                    }
+                }
             }
         });
         
