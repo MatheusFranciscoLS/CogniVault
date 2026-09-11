@@ -25,7 +25,11 @@ export type HusqvarnaPortalCatalogResult = {
   documents: HusqvarnaPortalDocument[];
 };
 
-const catalogCache = new LRUCache<string, HusqvarnaPortalCatalogResult | null>({
+type CatalogCacheEntry = {
+  result: HusqvarnaPortalCatalogResult | null;
+};
+
+const catalogCache = new LRUCache<string, CatalogCacheEntry>({
   max: 1_000,
 });
 
@@ -224,7 +228,7 @@ export class HusqvarnaPortalCatalogService {
     if (!pnc || pnc.length < 6 || pnc.length > 24) return null;
 
     const cached = catalogCache.get(pnc);
-    if (cached !== undefined) return cached;
+    if (cached !== undefined) return cached.result;
 
     const url = this.buildSearchUrl(pnc);
     const controller = new AbortController();
@@ -243,13 +247,13 @@ export class HusqvarnaPortalCatalogService {
 
       if (!response.ok) {
         console.warn(`[Husqvarna Portal] Busca por PNC ${pnc} retornou HTTP ${response.status}.`);
-        catalogCache.set(pnc, null, { ttl: PORTAL_MISS_TTL_MS });
+        catalogCache.set(pnc, { result: null }, { ttl: PORTAL_MISS_TTL_MS });
         return null;
       }
 
       const html = await response.text();
       const result = parseHusqvarnaPortalSearchHtml(html, pnc);
-      catalogCache.set(pnc, result, { ttl: result ? PORTAL_SUCCESS_TTL_MS : PORTAL_MISS_TTL_MS });
+      catalogCache.set(pnc, { result }, { ttl: result ? PORTAL_SUCCESS_TTL_MS : PORTAL_MISS_TTL_MS });
       if (result) {
         console.log(`[Husqvarna Portal] PNC ${pnc}: ${result.productName || 'produto encontrado'} · ${result.documents.length} documento(s).`);
       }
