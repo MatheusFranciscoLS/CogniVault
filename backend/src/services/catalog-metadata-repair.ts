@@ -17,6 +17,7 @@ export type AutoMetadataPart = {
 };
 
 export type AutoMetadataInput = {
+  filename?: string | null;
   manufacturer?: string | null;
   model?: string | null;
   pnc?: string | null;
@@ -42,10 +43,20 @@ function dominant(values: Array<string | null | undefined>): { value: string; ra
   return { value: winner.label, ratio: winner.count / total };
 }
 
+function explicitEngineManufacturer(filename: string | null | undefined): string | null {
+  const value = (filename || '').trim();
+  if (/\bKawasaki\b/i.test(value)) return 'Kawasaki';
+  if (/\bBriggs\b/i.test(value)) return 'Briggs & Stratton';
+  if (/\bKohler\b/i.test(value)) return 'Kohler';
+  if (/\bHonda\b/i.test(value)) return 'Honda';
+  return null;
+}
+
 /**
- * Política pura de reparo. Só sugere alteração quando o metadado atual está
- * vazio ou claramente parece descrição de peça/conjunto. Um valor revisado pelo
- * administrador nunca é sobrescrito automaticamente.
+ * Política pura de reparo. O nome do arquivo pode ser uma evidência explícita
+ * para catálogos de motor (ex.: "Motor Kawasaki FX921.pdf"). Fora desse caso,
+ * só alteramos metadado vazio ou claramente parecido com descrição de peça.
+ * Um valor revisado pelo administrador nunca é sobrescrito automaticamente.
  */
 export function suggestAutoMetadataRepair(input: AutoMetadataInput): RepairResult {
   if (input.metadataReviewedAt || !input.parts.length) return { changed: false };
@@ -62,8 +73,14 @@ export function suggestAutoMetadataRepair(input: AutoMetadataInput): RepairResul
     data.model = modelConsensus.value;
   }
 
+  const filenameManufacturer = explicitEngineManufacturer(input.filename);
   const manufacturerConsensus = dominant(input.parts.map(part => part.manufacturer));
-  if (!input.manufacturer?.trim() && manufacturerConsensus?.ratio === 1) {
+  if (
+    filenameManufacturer
+    && normalizeIdentifier(input.manufacturer) !== normalizeIdentifier(filenameManufacturer)
+  ) {
+    data.manufacturer = filenameManufacturer;
+  } else if (!input.manufacturer?.trim() && manufacturerConsensus?.ratio === 1) {
     data.manufacturer = manufacturerConsensus.value;
   }
 
@@ -79,15 +96,16 @@ export function suggestAutoMetadataRepair(input: AutoMetadataInput): RepairResul
 }
 
 /**
- * Corrige somente metadados claramente automáticos/suspeitos usando consenso das
- * próprias Part rows recém-extraídas. Nunca altera código de peça e nunca
- * sobrescreve metadados que já foram revisados manualmente pelo administrador.
+ * Corrige somente metadados claramente automáticos/suspeitos. Se o fabricante
+ * explícito do motor for reparado, sincronizamos também as Part rows ativas para
+ * que busca e filtros não fiquem com metadado divergente do documento.
  */
 export async function repairAutoDetectedDocumentMetadata(documentId: string, tenantId: string): Promise<RepairResult> {
   const document = await prisma.document.findFirst({
     where: { id: documentId, tenantId, archivedAt: null },
     select: {
       id: true,
+      filename: true,
       manufacturer: true,
       model: true,
       pnc: true,
@@ -103,6 +121,18 @@ export async function repairAutoDetectedDocumentMetadata(documentId: string, ten
   const suggestion = suggestAutoMetadataRepair(document);
   if (!suggestion.changed) return suggestion;
   const { changed: _changed, ...data } = suggestion;
-  await prisma.document.update({ where: { id: document.id }, data });
+
+  await prisma.$transaction(async tx => {
+    await tx.document.update({ where: { id: document.id }, data });
+    if (suggestion.manufacturer) {
+      await tx.part.updateMany({
+        where: { documentId: document.id, active: true },
+        data: {
+          manufacturer: suggestion.manufacturer,
+          normalizedManufacturer: normalizeIdentifier(suggestion.manufacturer),
+        },
+      });
+    }
+  });
   return suggestion;
 }

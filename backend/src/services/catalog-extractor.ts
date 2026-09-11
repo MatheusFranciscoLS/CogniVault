@@ -2,8 +2,9 @@ import { readFile } from 'node:fs/promises';
 import { PDFParse } from 'pdf-parse';
 import { inferCatalogSection } from './catalog-section-inference';
 import { extractKnownHusqvarnaModel, formatBriggsEngineModel } from './husqvarna-domain-knowledge';
+import { resolvePositionProvenance, type PositionStatus } from '../utils/position-provenance';
 
-export interface ExtractedPart { manufacturer:string; model:string; pnc:string; universalAcrossPnc:boolean; section:string; position:string; name:string; alternativeNames:string[]; partNumber:string; page:number; notes:string; }
+export interface ExtractedPart { manufacturer:string; model:string; pnc:string; universalAcrossPnc:boolean; section:string; position:string; positionStatus?:PositionStatus; positionEvidence?:string; name:string; alternativeNames:string[]; partNumber:string; page:number; notes:string; }
 export interface CatalogExtraction { manufacturer:string; models:string[]; pncs:string[]; parts:ExtractedPart[]; }
 export interface CatalogHints { manufacturer?:string|null; model?:string|null; pnc?:string|null; filename?:string|null; }
 export interface DeterministicExtraction { extraction:CatalogExtraction; method:'HUSQVARNA_IPL_TEXT'; }
@@ -11,10 +12,13 @@ export interface DeterministicExtraction { extraction:CatalogExtraction; method:
 const SPACED_PART_NUMBER_PATTERN='\\d{3}[\\s\\u00a0]+\\d{2}[\\s\\u00a0]+\\d{2}-\\d{2}';
 const CONTIGUOUS_PART_NUMBER_PATTERN='\\d{8,12}';
 const PART_NUMBER_PATTERN=`(?:${SPACED_PART_NUMBER_PATTERN}|${CONTIGUOUS_PART_NUMBER_PATTERN})`;
-const HUSQVARNA_ROW=new RegExp(`^(\\d{1,3}[A-Z]?(?:[-.]\\d{1,2})?)\\s+(${SPACED_PART_NUMBER_PATTERN})\\s+(.+?)\\s+([A-Z])\\s+(\\d+)(?:\\s+(.+))?$`,'i');
-const GENERIC_PART_ROW=new RegExp(`^(\\d{1,3}[A-Z]?(?:[-.]\\d{1,2})?)\\s+(${SPACED_PART_NUMBER_PATTERN})\\s+(.+?)\\s+(\\d+)(?:\\s+(.+))?$`,'i');
-const FLEXIBLE_ROW_START=new RegExp(`^(\\d{1,3}[A-Z]?(?:[-.]\\d{1,2})?)\\s+(${PART_NUMBER_PATTERN})\\s*(.*)$`,'i');
+const POSITION_PATTERN='\\d{1,3}[A-Z]?(?:[-.]\\d{1,2})?';
+const HUSQVARNA_ROW=new RegExp(`^(${POSITION_PATTERN})\\s+(${SPACED_PART_NUMBER_PATTERN})\\s+(.+?)\\s+([A-Z])\\s+(\\d+)(?:\\s+(.+))?$`,'i');
+const GENERIC_PART_ROW=new RegExp(`^(${POSITION_PATTERN})\\s+(${SPACED_PART_NUMBER_PATTERN})\\s+(.+?)\\s+(\\d+)(?:\\s+(.+))?$`,'i');
+const FLEXIBLE_ROW_START=new RegExp(`^(${POSITION_PATTERN})\\s+(${PART_NUMBER_PATTERN})\\s*(.*)$`,'i');
 const PART_NUMBER_ONLY=new RegExp(`^(${PART_NUMBER_PATTERN})\\s*(.*)$`,'i');
+const UNPOSITIONED_ROW_START=new RegExp(`^(-{1,3}(?:\\s+-{1,3})?|–{1,3}|—{1,3})\\s+(${PART_NUMBER_PATTERN})\\s*(.*)$`,'i');
+const POSITION_ONLY=new RegExp(`^(${POSITION_PATTERN})$`,'i');
 const LEGACY_PAGE_MARKER=/--\s+(\d+)\s+of\s+\d+\s+--/g;
 const PORTAL_PAGE_MARKER=/https?:\/\/[^\s]+[\t ]+(\d{1,4})\/(\d{1,4}?)(?=(?:\d{2}\/\d{2}\/\d{4})|[\s\r\n]|$)/g;
 const PNC_PATTERN=/\b(?:\d{11}|\d{9})\b/g;
@@ -28,7 +32,7 @@ function normalizedLine(v:string){return v.replace(/\u00a0/g,' ').replace(/[\u00
 function comparable(v:string){return normalizedLine(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
 function isPartsHeader(v:string){
   const l=normalizedLine(v).toLowerCase();
-  const hasRefOrPos=/\b(?:refer[eê]ncia|pos(?:ition)?\.?|key\s+part|item)\b/i.test(l);
+  const hasRefOrPos=/\b(?:refer[eê]ncia|ref\.?|pos(?:ition)?\.?|key\s+part|key\s*(?:no|nr)\.?|item)\b/i.test(l);
   const hasPartCol=/\b(?:part\s*(?:nr|no|number)\.?|n[uú]mero\s+do\s+artigo|c[oó]digo)\b/i.test(l);
   const hasDescCol=/\b(?:description|descri[cç][aã]o|nome(?:\s+do\s+artigo)?|bezeichnung)\b/i.test(l);
   return (hasRefOrPos && hasPartCol) || (hasPartCol && hasDescCol) || (hasRefOrPos && hasDescCol);
@@ -79,20 +83,13 @@ export function normalizeHusqvarnaPnc(value:string|null|undefined){const digits=
 export function isLikelyHusqvarnaPnc(value:string|null|undefined){return Boolean(normalizeHusqvarnaPnc(value));}
 export function inferCatalogModelFromFilename(filename:string){
   const base=filename.replace(/\.pdf$/i,'').replace(/[\u00a0\u202f]/g,' ').replace(/\s+/g,' ').trim();
-
-  // Caso específico de Motor Briggs: ex: "Motor Briggs 12J900-0000 J55SL.pdf" ou "Motor Briggs 104M02-0002-F1 LC121P.pdf"
   const briggsMatch = base.match(/(?:Motor\s+)?Briggs\s*(?:&|and)?\s*(?:Stratton)?\s*([0-9A-Z]{5,8}(?:-[0-9A-Z]{4}(?:-[0-9A-Z]{1,2})?)?)/i);
-  if (briggsMatch) {
-    return `Motor Briggs ${briggsMatch[1]}`;
-  }
-
+  if (briggsMatch) return `Motor Briggs ${briggsMatch[1]}`;
   const candidate=clean(base.match(/Husqvarna\s+(.+)$/i)?.[1]||'');
   if(isPlausibleCatalogModel(candidate))return canonicalCatalogModel(candidate);
-
   let stripped=base.replace(/^(?:Cortador\s+de\s+grama(?:\s+giro\s+zero)?|Motor|Roçadeira|Motosserra|Trator(?:\s+cortador\s+de\s+grama)?|Soprador(?:\s+de\s+folhas(?:\s+costal)?)?|Aparador(?:\s+de\s+grama(?:\s+multifuncional)?|\s+de\s+cerca\s+viva)?|Podador(?:\s+de\s+galhos)?|Pulverizador|Perfurador|Cortadora(?:\s+de\s+disco)?|Engine|Chainsaw|Trimmer|Blower|Lawn\s*Mower)\s+/i,'');
   stripped=stripped.replace(/^(?:Husqvarna|Kawasaki|Kohler|Briggs\s*(?:&|and)\s*Stratton|Honda)\s+/i,'').trim();
   if(isPlausibleCatalogModel(stripped))return canonicalCatalogModel(stripped);
-
   const known=extractKnownHusqvarnaModel(candidate||base);
   return known&&/[A-Z]/i.test(known)&&isPlausibleCatalogModel(known)?known:'';
 }
@@ -134,12 +131,35 @@ function displayNameWithoutApplication(v:string){const n=normalizedLine(v);retur
 function splitInlineQuantity(v:string){const m=normalizedLine(v).match(/^(.*\S)\s+(\d{1,3})(?:\s+(.+))?$/);return m?{description:clean(m[1]),quantity:m[2],trailing:clean(m[3])}:null;}
 function parseFlexibleBlock(lines:string[],expects:boolean){if(!expects)return{name:normalizedLine(lines.filter(l=>!isNoiseLine(l)).join(' ')),quantity:'',comments:''};const description:string[]=[],comments:string[]=[];let quantity='',after=false;for(const raw of lines){const line=normalizedLine(raw);if(!line||isNoiseLine(line))continue;if(after){comments.push(line);continue;}const q=line.match(/^(\d{1,3})(?:\s+(.+))?$/);if(q){quantity=q[1];if(q[2])comments.push(q[2]);after=true;continue;}const inline=splitInlineQuantity(line);if(inline){if(inline.description)description.push(inline.description);quantity=inline.quantity;if(inline.trailing)comments.push(inline.trailing);after=true;continue;}description.push(line);}return{name:normalizedLine(description.join(' ')),quantity,comments:normalizedLine(comments.join(' '))};}
 
-type ParsedRow={position:string;partNumber:string;name:string;quantity:string;comments:string;sectionCode:string};
+type ParsedRow={position:string;positionStatus:PositionStatus;positionEvidence:string;partNumber:string;name:string;quantity:string;comments:string;sectionCode:string};
 function isPncListMisreadAsPart(row:ParsedRow,knownPncs:string[]){const code=normalizeHusqvarnaPnc(row.partNumber);if(!code||!knownPncs.includes(code))return false;const evidence=comparable([row.name,row.comments].filter(Boolean).join(' ')).replace(/\b\d{9,11}\b/g,'').replace(/[^a-z]+/g,' ').trim(),compact=evidence.replace(/\s+/g,'');if(compact.length<3)return true;return /^(?:(?:north|south|latin)america(?:n)?|europe(?:an)?|usa?|canada|canadian|australia(?:n)?|newzealand|global|export)models?$/.test(compact);}
-function parseLegacyPage(lines:string[]):{rows:ParsedRow[];section:string}|null{if(!lines.some(isPartsHeader))return null;const rows:Array<ParsedRow&{index:number}>=[];lines.forEach((line,index)=>{const full=HUSQVARNA_ROW.exec(line);const generic=full?null:GENERIC_PART_ROW.exec(line);const m=full||generic;if(!m)return;const has=Boolean(full);rows.push({index,position:m[1],partNumber:cleanPartNumber(m[2]),name:clean(m[3]),sectionCode:has?m[4].toUpperCase():'',quantity:has?m[5]:m[4],comments:clean(has?m[6]:m[5])});});if(!rows.length)return null;return{rows,section:sectionFromLines(lines,rows[rows.length-1].index,rows[0].sectionCode||'Peças')};}
-type FlexibleRowStart={index:number;contentIndex:number;position:string;partNumber:string;remainder:string};
-function flexibleRowStarts(lines:string[]):FlexibleRowStart[]{const starts:FlexibleRowStart[]=[];for(let i=0;i<lines.length;i++){const direct=FLEXIBLE_ROW_START.exec(lines[i]);if(direct){starts.push({index:i,contentIndex:i,position:direct[1],partNumber:cleanPartNumber(direct[2]),remainder:clean(direct[3])});continue;}const pos=lines[i].match(/^(\d{1,3}[A-Za-z]?(?:[-.]\d{1,2})?)$/);if(!pos||i+1>=lines.length)continue;const split=PART_NUMBER_ONLY.exec(lines[i+1]);if(!split)continue;starts.push({index:i,contentIndex:i+1,position:pos[1],partNumber:cleanPartNumber(split[1]),remainder:clean(split[2])});i++;}return starts;}
-function parseFlexiblePage(lines:string[]):{rows:ParsedRow[];section:string}|null{const starts=flexibleRowStarts(lines);if(!starts.length)return null;const expects=hasQuantityColumn(lines),rows:ParsedRow[]=[];for(let i=0;i<starts.length;i++){const cur=starts[i],next=starts[i+1]?.index??lines.length;const parsed=parseFlexibleBlock([cur.remainder,...lines.slice(cur.contentIndex+1,next)],expects);if(!parsed.name)continue;rows.push({position:cur.position,partNumber:cur.partNumber,name:parsed.name,quantity:parsed.quantity,comments:parsed.comments,sectionCode:''});}return rows.length?{rows,section:'Peças'}:null;}
+
+function parseLegacyPage(lines:string[]):{rows:ParsedRow[];section:string}|null{
+  if(!lines.some(isPartsHeader))return null;
+  const rows:Array<ParsedRow&{index:number}>=[];
+  lines.forEach((line,index)=>{
+    const full=HUSQVARNA_ROW.exec(line);const generic=full?null:GENERIC_PART_ROW.exec(line);const m=full||generic;
+    if(m){const has=Boolean(full);rows.push({index,position:m[1],positionStatus:'POSITIONED',positionEvidence:m[1],partNumber:cleanPartNumber(m[2]),name:clean(m[3]),sectionCode:has?m[4].toUpperCase():'',quantity:has?m[5]:m[4],comments:clean(has?m[6]:m[5])});return;}
+    const unpositioned=UNPOSITIONED_ROW_START.exec(line);
+    if(unpositioned){rows.push({index,position:'',positionStatus:'SOURCE_UNPOSITIONED',positionEvidence:unpositioned[1],partNumber:cleanPartNumber(unpositioned[2]),name:clean(unpositioned[3]),sectionCode:'',quantity:'',comments:''});return;}
+    const blankRef=PART_NUMBER_ONLY.exec(line);
+    if(blankRef&&clean(blankRef[2])&&!POSITION_ONLY.test(lines[index-1]||'')){
+      rows.push({index,position:'',positionStatus:'SOURCE_UNPOSITIONED',positionEvidence:'REF em branco',partNumber:cleanPartNumber(blankRef[1]),name:clean(blankRef[2]),sectionCode:'',quantity:'',comments:''});
+    }
+  });
+  const valid=rows.filter(row=>row.name);
+  if(!valid.length)return null;
+  return{rows:valid,section:sectionFromLines(lines,valid[valid.length-1].index,valid[0].sectionCode||'Peças')};
+}
+
+type FlexibleRowStart={index:number;contentIndex:number;position:string;positionStatus:PositionStatus;positionEvidence:string;partNumber:string;remainder:string};
+function flexibleRowStarts(lines:string[]):FlexibleRowStart[]{const starts:FlexibleRowStart[]=[];for(let i=0;i<lines.length;i++){
+  const direct=FLEXIBLE_ROW_START.exec(lines[i]);if(direct){starts.push({index:i,contentIndex:i,position:direct[1],positionStatus:'POSITIONED',positionEvidence:direct[1],partNumber:cleanPartNumber(direct[2]),remainder:clean(direct[3])});continue;}
+  const unpositioned=UNPOSITIONED_ROW_START.exec(lines[i]);if(unpositioned){starts.push({index:i,contentIndex:i,position:'',positionStatus:'SOURCE_UNPOSITIONED',positionEvidence:unpositioned[1],partNumber:cleanPartNumber(unpositioned[2]),remainder:clean(unpositioned[3])});continue;}
+  const pos=POSITION_ONLY.exec(lines[i]);if(pos&&i+1<lines.length){const split=PART_NUMBER_ONLY.exec(lines[i+1]);if(split){starts.push({index:i,contentIndex:i+1,position:pos[1],positionStatus:'POSITIONED',positionEvidence:pos[1],partNumber:cleanPartNumber(split[1]),remainder:clean(split[2])});i++;continue;}}
+  const blankRef=PART_NUMBER_ONLY.exec(lines[i]);if(blankRef&&clean(blankRef[2]))starts.push({index:i,contentIndex:i,position:'',positionStatus:'SOURCE_UNPOSITIONED',positionEvidence:'REF em branco',partNumber:cleanPartNumber(blankRef[1]),remainder:clean(blankRef[2])});
+}return starts;}
+function parseFlexiblePage(lines:string[]):{rows:ParsedRow[];section:string}|null{const starts=flexibleRowStarts(lines);if(!starts.length)return null;const expects=hasQuantityColumn(lines),rows:ParsedRow[]=[];for(let i=0;i<starts.length;i++){const cur=starts[i],next=starts[i+1]?.index??lines.length;const parsed=parseFlexibleBlock([cur.remainder,...lines.slice(cur.contentIndex+1,next)],expects);if(!parsed.name)continue;rows.push({position:cur.position,positionStatus:cur.positionStatus,positionEvidence:cur.positionEvidence,partNumber:cur.partNumber,name:parsed.name,quantity:parsed.quantity,comments:parsed.comments,sectionCode:''});}return rows.length?{rows,section:'Peças'}:null;}
 function isGenericSection(v:string){return GENERIC_SECTIONS.has(comparable(v));}
 function technicalSectionFromPage(text:string){for(const line of text.split(/\r?\n/).map(normalizedLine).filter(Boolean)){if(isNoiseLine(line)||!TECHNICAL_SECTION_PATTERN.test(line)||FLEXIBLE_ROW_START.test(line)||line.length>90)continue;const letters=line.replace(/[^A-Za-z]/g,'');if(!letters)continue;const upper=letters.replace(/[^A-Z]/g,'');if(upper.length/letters.length>=.8)return line;}return'';}
 
@@ -149,9 +169,10 @@ export function parseHusqvarnaIplText(text:string,hints:CatalogHints={}):Catalog
   for(let pageIndex=0;pageIndex<pages.length;pageIndex++){
     const page=pages[pageIndex],lines=page.text.split(/\r?\n/).map(normalizedLine).filter(Boolean),parsed=parseLegacyPage(lines)||parseFlexiblePage(lines);if(!parsed)continue;
     const inferred=inferCatalogSection(parsed.rows);const section=isGenericSection(parsed.section)?(sectionHints[pageIndex]||sectionHints[pageIndex-1]||inferred||parsed.section):parsed.section;
-    for(const row of parsed.rows){if(isPncListMisreadAsPart(row,knownPncs))continue;const evidence=[row.name,row.comments].filter(Boolean).join(' '),application=applicationForBlock(evidence,knownPncs,hintedPnc),clause=applicationClause(evidence),rowName=displayNameWithoutApplication(row.name);const notes=[row.quantity?`Quantidade: ${row.quantity}`:'',row.comments,clause&&!row.comments.includes(clause)?clause:'',row.sectionCode?`Seção do catálogo: ${row.sectionCode}`:''].filter(Boolean).join('. ');
-      if(application.pncs.length){for(const pnc of application.pncs)parts.push({manufacturer,model,pnc,universalAcrossPnc:false,section,position:row.position,name:rowName,alternativeNames:[],partNumber:row.partNumber,page:page.page,notes});}
-      else parts.push({manufacturer,model,pnc:'',universalAcrossPnc:application.universal,section,position:row.position,name:rowName,alternativeNames:[],partNumber:row.partNumber,page:page.page,notes});
+    for(const row of parsed.rows){if(isPncListMisreadAsPart(row,knownPncs))continue;const evidence=[row.name,row.comments].filter(Boolean).join(' '),application=applicationForBlock(evidence,knownPncs,hintedPnc),clause=applicationClause(evidence),rowName=displayNameWithoutApplication(row.name);const notes=[row.quantity?`Quantidade: ${row.quantity}`:'',row.comments,clause&&!row.comments.includes(clause)?clause:'',row.sectionCode?`Seção do catálogo: ${row.sectionCode}`:''].filter(Boolean).join('. ');const provenance=resolvePositionProvenance({position:row.position,positionStatus:row.positionStatus,positionEvidence:row.positionEvidence});
+      const partBase={manufacturer,model,section,position:provenance.position||'',positionStatus:provenance.positionStatus,positionEvidence:provenance.positionEvidence||'',name:rowName,alternativeNames:[],partNumber:row.partNumber,page:page.page,notes};
+      if(application.pncs.length){for(const pnc of application.pncs)parts.push({...partBase,pnc,universalAcrossPnc:false});}
+      else parts.push({...partBase,pnc:'',universalAcrossPnc:application.universal});
     }
   }
   const deduped=[...new Map(parts.map(p=>[[p.model,p.pnc,p.page,p.section,p.position,p.partNumber].join('|'),p])).values()];const occurrences=new Set(deduped.map(p=>[p.page,p.position,p.partNumber].join('|'))).size;if(occurrences<10)return null;return{manufacturer,models:[model],pncs:knownPncs,parts:deduped};
