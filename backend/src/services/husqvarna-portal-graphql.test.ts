@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { extractExactProductMatch } from './husqvarna-portal-graphql.service';
+import { extractExactProductMatch, extractProductDetailsSummary } from './husqvarna-portal-graphql.service';
 
 test('confirma produto quando selectedArticle bate exatamente com o PNC', () => {
   const payload = {
@@ -139,4 +139,78 @@ test('rejeita URL externa mesmo quando o PNC bate', () => {
   };
 
   assert.equal(extractExactProductMatch(payload, '965195201'), null);
+});
+
+test('extrai apenas vistas explodidas do artigo exato retornado pelo Portal', () => {
+  const payload = {
+    data: {
+      site: {
+        articles: {
+          byIds: [
+            {
+              id: '965195201',
+              isDiscontinued: true,
+              name: { productName: 'HUSQVARNA 327P5x' },
+              articleDescription: 'All ex US50, Lowes',
+              product: {
+                category: { name: 'Serrotes com cabo' },
+                productDocuments: [
+                  { url: 'https://cdn-portal.husqvarnagroup.com/doc.pdf', publicationType: 'IPL' },
+                ],
+              },
+              iplDocuments: [],
+              ipls: [
+                {
+                  id: 'HVA_PL-000010489',
+                  name: 'CARBURADOR',
+                  image: 'https://p3.aprimocdn.net/husqvarna/carb.png',
+                  referenceHeight: '2204',
+                  referenceWidth: '1573',
+                },
+                {
+                  id: 'HVA_PL-000010490',
+                  name: 'CABEÇA DA SERRA',
+                  image: 'https://p3.aprimocdn.net/husqvarna/saw.png',
+                  referenceHeight: '2300',
+                  referenceWidth: '1600',
+                },
+              ],
+            },
+          ],
+        },
+      },
+    },
+  };
+
+  const result = extractProductDetailsSummary(payload, '965195201');
+  assert.ok(result);
+  assert.equal(result.productName, 'HUSQVARNA 327P5x');
+  assert.equal(result.discontinued, true);
+  assert.equal(result.categoryName, 'Serrotes com cabo');
+  assert.equal(result.iplSections.length, 2);
+  assert.equal(result.iplSections[0].id, 'HVA_PL-000010489');
+  assert.equal(result.iplSections[1].name, 'CABEÇA DA SERRA');
+  assert.equal(result.productDocumentCount, 1);
+  assert.equal(result.iplDocumentCount, 0);
+});
+
+test('detalhes GraphQL não podem validar um artigo diferente do PNC consultado', () => {
+  const payload = {
+    data: {
+      site: {
+        articles: {
+          byIds: [
+            {
+              id: '965195299',
+              isDiscontinued: false,
+              name: { productName: 'Outro produto' },
+              ipls: [{ id: 'HVA_PL-000099999', name: 'SEÇÃO ERRADA' }],
+            },
+          ],
+        },
+      },
+    },
+  };
+
+  assert.equal(extractProductDetailsSummary(payload, '965195201'), null);
 });
