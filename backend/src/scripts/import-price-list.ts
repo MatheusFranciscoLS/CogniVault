@@ -9,6 +9,7 @@ const prisma = new PrismaClient();
 const BASE_SHEET = 'BASE_DADOS CADASTRAIS';
 const EAN_SHEET = 'EAN';
 const BATCH_SIZE = 400;
+const COMMERCIAL_PRICE_DIVISOR = 0.92;
 
 const PRICE_SECTIONS = [
   { sheet: 'LISTA_DE_PEÇAS', section: 'PEÇAS DE REPOSIÇÃO GERAL' },
@@ -77,6 +78,11 @@ function numberValue(input: unknown): number | null {
 
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function commercialPrice(input: number | null): number | null {
+  if (input === null) return null;
+  return Math.round((input / COMMERCIAL_PRICE_DIVISOR) * 100) / 100;
 }
 
 function normalizeIdentifier(input: unknown): string {
@@ -148,7 +154,6 @@ function loadEanMap(workbook: XLSX.WorkBook): Map<string, string> {
   const result = new Map<string, string>();
   if (!sheet) return result;
 
-  // A aba EAN já possui o cabeçalho na primeira linha.
   const rows = XLSX.utils.sheet_to_json<Row>(sheet, { defval: null, raw: true });
 
   for (const row of rows) {
@@ -165,7 +170,6 @@ function loadEanMap(workbook: XLSX.WorkBook): Map<string, string> {
 
 function loadBaseMap(workbook: XLSX.WorkBook): Map<string, Row> {
   const result = new Map<string, Row>();
-  // BASE_DADOS CADASTRAIS: linha 3 é o cabeçalho.
   for (const row of readRows(workbook, BASE_SHEET, 2)) {
     const partNumber = text(value(row, 'Código', 'CÓDIGO', 'CODIGO'));
     if (!partNumber) continue;
@@ -180,7 +184,6 @@ function loadCommercialOccurrences(workbook: XLSX.WorkBook): CommercialOccurrenc
   const occurrences: CommercialOccurrence[] = [];
 
   for (const config of PRICE_SECTIONS) {
-    // Nas sete abas mostradas na interface, a linha 6 é o cabeçalho.
     const rows = readRows(workbook, config.sheet, 5);
     let validRows = 0;
 
@@ -233,8 +236,6 @@ function buildRecords(
 
   const masters: MasterRecord[] = [];
 
-  // As sete abas comerciais definem o conjunto vigente de peças/ferramentas.
-  // BASE_DADOS CADASTRAIS e EAN são usadas apenas para enriquecer esses códigos.
   for (const [normalizedNumber, codeOccurrences] of occurrenceGroups) {
     const primary = codeOccurrences.find(item => item.itemType?.toLowerCase() === 'base') || codeOccurrences[0];
     const base = baseByCode.get(normalizedNumber);
@@ -244,23 +245,21 @@ function buildRecords(
     const basePrice = base ? numberValue(value(base, 'Preço', 'PREÇO', 'PRECO')) : null;
     const baseNcm = base ? text(value(base, 'Classific. Fiscal', 'NCM')) : null;
     const baseEan = base ? text(value(base, 'EAN')) : null;
+    const sourcePrice = basePrice ?? primary.price;
 
     masters.push({
       partNumber: basePartNumber || primary.partNumber,
       normalizedNumber,
       name: baseName || primary.name,
       description: baseName || primary.name,
-      price: basePrice ?? primary.price,
+      price: commercialPrice(sourcePrice),
       ncm: baseNcm || primary.ncm,
       ean: baseEan || eanMap.get(normalizedNumber) || null,
       category: primary.section,
-      // Referência/fabricante comercial quando essa informação existe na aba.
       brand: primary.reference,
     });
   }
 
-  // A mesma peça pode existir na mesma categoria com aplicações diferentes.
-  // Ex.: um único código associado a dois modelos. Não colapsamos esses casos.
   const uniqueSections = new Map<string, CommercialOccurrence>();
   for (const occurrence of occurrences) {
     const key = [
@@ -362,8 +361,6 @@ async function upsertSections(
     console.log(`Aplicações/categorias: ${processed.toLocaleString('pt-BR')}/${records.length.toLocaleString('pt-BR')}`);
   }
 
-  // Só limpamos dados antigos após terminar todos os lotes. Se a importação cair
-  // no meio, a lista anterior continua disponível e basta executar novamente.
   await prisma.masterPartSection.deleteMany({
     where: {
       tenantId,
@@ -371,8 +368,6 @@ async function upsertSections(
     },
   });
 
-  // MasterPart é exclusivamente o cadastro comercial da lista. Remove entradas
-  // antigas que não possuem mais nenhuma aplicação na lista vigente.
   await prisma.masterPart.deleteMany({
     where: {
       tenantId,
@@ -395,7 +390,8 @@ async function run(): Promise<void> {
 
   console.log('\nCogniVault · Importação do catálogo comercial');
   console.log(`Arquivo de entrada: ${filePath}`);
-  console.log('O Excel será usado somente nesta ingestão. As buscas posteriores usam o PostgreSQL.\n');
+  console.log('O Excel será usado somente nesta ingestão. As buscas posteriores usam o PostgreSQL.');
+  console.log(`Regra comercial de preço: valor da planilha ÷ ${COMMERCIAL_PRICE_DIVISOR}, arredondado em 2 casas.\n`);
 
   const workbook = XLSX.readFile(filePath, { cellDates: false });
   const tenant = await resolveTenant();
