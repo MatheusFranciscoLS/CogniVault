@@ -56,9 +56,11 @@ export async function retryEligibleVisualCatalogs(tenantId: string, userId: stri
   const failures: Array<{ id: string; filename: string; error: string }> = [];
 
   for (const document of status.documents.slice(0, limit)) {
+    let cooldownAuditId: string | null = null;
     try {
-      await documentService.reprocess(tenantId, document.id);
-      await AuditService.record({
+      // O AuditLog é o próprio estado de cooldown, portanto precisa existir
+      // antes de qualquer chamada externa/reenfileiramento que consuma cota.
+      cooldownAuditId = await AuditService.recordRequired({
         tenantId,
         userId,
         action: 'AI_VISUAL_CATALOG_RETRY_REQUESTED',
@@ -66,8 +68,26 @@ export async function retryEligibleVisualCatalogs(tenantId: string, userId: stri
         targetId: document.id,
         metadata: { filename: document.filename, reason: 'DAILY_AI_QUOTA_RECOVERY' },
       });
+
+      await documentService.reprocess(tenantId, document.id);
       queued.push(document);
     } catch (error) {
+      if (cooldownAuditId) {
+        // Se nem chegamos a reenfileirar, a reserva não deve consumir o
+        // cooldown. Falha na limpeza é conservadora: evita gastar cota de novo.
+        try {
+          const current = await prisma.document.findUnique({
+            where: { id: document.id },
+            select: { processingJobId: true },
+          });
+          if (!current?.processingJobId) {
+            await prisma.auditLog.delete({ where: { id: cooldownAuditId } });
+          }
+        } catch (cleanupError) {
+          console.warn('⚠️ Não foi possível remover a reserva de cooldown da retentativa visual:', cleanupError);
+        }
+      }
+
       failures.push({
         ...document,
         error: (error instanceof Error ? error.message : String(error)).slice(0, 240),
