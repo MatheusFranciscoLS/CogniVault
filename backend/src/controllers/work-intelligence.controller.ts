@@ -223,6 +223,9 @@ export class WorkIntelligenceController {
         }
 
         if (portalCatalog) {
+          const preferredDocument = portalCatalog.documents.find(document => document.type === 'IPL')
+            || portalCatalog.documents[0]
+            || null;
           res.json({
             result: {
               status: 'FOUND',
@@ -233,9 +236,10 @@ export class WorkIntelligenceController {
               name: portalCatalog.productName || `Produto Husqvarna ${portalCatalog.pnc}`,
               discontinued: portalCatalog.discontinued,
               documents: portalCatalog.documents,
-              url: portalCatalog.portalUrl,
-              message: portalCatalog.documents.length
-                ? `${portalCatalog.documents.length} documento(s) oficial(is) encontrado(s) no Portal Husqvarna.`
+              portalUrl: portalCatalog.portalUrl,
+              url: preferredDocument?.url || portalCatalog.portalUrl,
+              message: preferredDocument
+                ? `Abrindo ${preferredDocument.type === 'IPL' ? 'o IPL' : 'o documento'} oficial mais recente encontrado para este PNC.`
                 : 'Produto localizado no Portal Husqvarna. Abra a fonte oficial para consultar os documentos disponíveis.',
             },
           });
