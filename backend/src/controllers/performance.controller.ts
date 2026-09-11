@@ -1,7 +1,6 @@
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { uploadConcurrencySnapshot } from '../middleware/upload-concurrency.middleware';
-import { catalogProcessingPerformanceSnapshot } from '../services/catalog-processing-performance';
 import { performanceSnapshot } from '../services/request-performance';
 
 export class PerformanceController {
@@ -11,7 +10,6 @@ export class PerformanceController {
       performance: {
         ...performanceSnapshot(),
         uploads: uploadConcurrencySnapshot(),
-        catalogProcessing: catalogProcessingPerformanceSnapshot(),
       },
     });
   }
