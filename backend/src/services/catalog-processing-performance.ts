@@ -1,6 +1,7 @@
 import { performance } from 'node:perf_hooks';
 
 const MAX_RECENT_JOBS = 120;
+const TERMINAL_STAGES = new Set(['READY', 'READY_WITHOUT_EMBEDDINGS', 'READY_WITH_WARNING', 'FAILED']);
 
 type StageSample = {
   stage: string;
@@ -29,6 +30,11 @@ type RecentJob = {
   stages: StageSample[];
 };
 
+type ProcessingMetadata = {
+  documentId?: string;
+  tenantId?: string;
+};
+
 const activeJobs = new Map<string, ActiveJob>();
 const recentJobs: RecentJob[] = [];
 
@@ -48,34 +54,53 @@ function closeCurrentStage(job: ActiveJob, now: number): void {
   if (job.stage) job.stages.push({ stage: job.stage, durationMs: rounded(durationMs) });
 }
 
-export function startCatalogProcessing(jobId: string, documentId: string, tenantId: string): void {
+function createActiveJob(jobId: string, stage: string, metadata: ProcessingMetadata): ActiveJob {
   const now = performance.now();
-  activeJobs.set(jobId, {
+  return {
     jobId,
-    documentId,
-    tenantId,
+    documentId: metadata.documentId || 'unknown',
+    tenantId: metadata.tenantId || 'unknown',
     startedAt: now,
     startedIso: new Date().toISOString(),
-    stage: 'WORKER_START',
+    stage,
     stageStartedAt: now,
     stages: [],
-  });
+  };
 }
 
-export function markCatalogProcessingStage(jobId: string, stage: string): void {
-  const job = activeJobs.get(jobId);
-  if (!job || !stage || job.stage === stage) return;
-  const now = performance.now();
-  closeCurrentStage(job, now);
-  job.stage = stage;
-  job.stageStartedAt = now;
+export function startCatalogProcessing(jobId: string, documentId: string, tenantId: string): void {
+  if (!jobId || activeJobs.has(jobId)) return;
+  activeJobs.set(jobId, createActiveJob(jobId, 'WORKER_START', { documentId, tenantId }));
 }
 
-export function finishCatalogProcessing(jobId: string, status: string): void {
+export function markCatalogProcessingStage(
+  jobId: string,
+  stage: string,
+  metadata: ProcessingMetadata = {},
+): void {
+  if (!jobId || !stage) return;
+
+  let job = activeJobs.get(jobId);
+  if (!job) {
+    job = createActiveJob(jobId, stage, metadata);
+    activeJobs.set(jobId, job);
+  } else if (job.stage !== stage) {
+    const now = performance.now();
+    closeCurrentStage(job, now);
+    job.stage = stage;
+    job.stageStartedAt = now;
+    if (job.documentId === 'unknown' && metadata.documentId) job.documentId = metadata.documentId;
+    if (job.tenantId === 'unknown' && metadata.tenantId) job.tenantId = metadata.tenantId;
+  }
+
+  if (TERMINAL_STAGES.has(stage)) finishCatalogProcessing(jobId, stage, false);
+}
+
+export function finishCatalogProcessing(jobId: string, status: string, closeStage = true): void {
   const job = activeJobs.get(jobId);
   if (!job) return;
   const now = performance.now();
-  closeCurrentStage(job, now);
+  if (closeStage) closeCurrentStage(job, now);
   activeJobs.delete(jobId);
 
   recentJobs.unshift({
@@ -112,14 +137,15 @@ export function catalogProcessingPerformanceSnapshot() {
     };
   }).sort((a, b) => b.p95Ms - a.p95Ms);
 
+  const now = performance.now();
   return {
     active: [...activeJobs.values()].map(job => ({
       jobId: job.jobId,
       documentId: job.documentId,
       tenantId: job.tenantId,
       stage: job.stage,
-      elapsedMs: rounded(performance.now() - job.startedAt),
-      stageElapsedMs: rounded(performance.now() - job.stageStartedAt),
+      elapsedMs: rounded(now - job.startedAt),
+      stageElapsedMs: rounded(now - job.stageStartedAt),
       startedAt: job.startedIso,
     })),
     stages,
