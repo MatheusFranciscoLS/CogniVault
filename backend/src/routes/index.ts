@@ -2,6 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 
 import { DocumentController } from '../controllers/document.controller';
+import { DocumentAccessController } from '../controllers/document-access.controller';
 import { ChatController } from '../controllers/chat.controller';
 import { AuthController } from '../controllers/auth.controller';
 import { FeedbackController } from '../controllers/feedback.controller';
@@ -24,10 +25,17 @@ import { CatalogListController } from '../controllers/catalog-list.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
 import { uploadConcurrencyMiddleware } from '../middleware/upload-concurrency.middleware';
+import { searchSingleFlightMiddleware } from '../middleware/search-single-flight.middleware';
+import {
+  invalidateDocumentAccessAfterMutation,
+  invalidateWorkContextAfterLocation,
+  invalidateWorkContextAfterQuoteUsage,
+} from '../middleware/cache-invalidation.middleware';
 
 const router = Router();
 
 const documentController = new DocumentController();
+const documentAccessController = new DocumentAccessController();
 const chatController = new ChatController();
 const authController = new AuthController();
 const feedbackController = new FeedbackController();
@@ -67,6 +75,7 @@ router.get(
   '/search',
   authMiddleware,
   (req, res, next) => fastSearchController.search(req, res, next),
+  searchSingleFlightMiddleware,
   (req, res) => operationalController.search(req, res),
 );
 router.get(
@@ -78,11 +87,11 @@ router.get(
 router.get('/master-parts/search', authMiddleware, (req, res) => commercialSearchController.search(req, res));
 router.get('/official-fallback', authMiddleware, (req, res) => workIntelligenceController.officialFallback(req, res));
 router.post('/analytics/search-usage', authMiddleware, (req, res) => workIntelligenceController.recordSearchUsage(req, res));
-router.post('/analytics/quote-usage', authMiddleware, (req, res) => workIntelligenceController.recordQuoteUsage(req, res));
+router.post('/analytics/quote-usage', authMiddleware, invalidateWorkContextAfterQuoteUsage, (req, res) => workIntelligenceController.recordQuoteUsage(req, res));
 router.get('/parts/:code/cross-reference', authMiddleware, (req, res) => operationalController.crossReference(req, res));
 router.get('/parts/:code/live-data', authMiddleware, (req, res) => operationalController.liveData(req, res));
 router.get('/parts/:code/work-context', authMiddleware, (req, res) => workContextController.get(req, res));
-router.put('/parts/:code/location', authMiddleware, (req, res) => workIntelligenceController.setLocation(req, res));
+router.put('/parts/:code/location', authMiddleware, invalidateWorkContextAfterLocation, (req, res) => workIntelligenceController.setLocation(req, res));
 router.get('/models/:model/maintenance-kit', authMiddleware, (req, res) => operationalController.maintenanceKit(req, res));
 router.get('/parts/:id', authMiddleware, (req, res) => partDetailController.get(req, res));
 router.get('/history', authMiddleware, (req, res) => operationalController.history(req, res));
@@ -98,14 +107,14 @@ router.post('/part-verifications', authMiddleware, (req, res) => officialPartVer
 router.patch('/part-verifications/:id/decision', authMiddleware, adminOnly, (req, res) => officialPartVerificationController.decision(req, res));
 
 router.get('/documents', authMiddleware, (req, res) => catalogListController.list(req, res));
-router.get('/documents/:id/access', authMiddleware, (req, res) => documentController.access(req, res));
+router.get('/documents/:id/access', authMiddleware, (req, res) => documentAccessController.access(req, res));
 router.patch('/documents/:id/category', authMiddleware, adminOnly, (req, res) => documentController.setCategory(req, res));
 router.post('/upload', authMiddleware, adminOnly, upload.single('file'), uploadConcurrencyMiddleware, (req, res) => documentController.upload(req, res));
-router.post('/documents/:id/archive', authMiddleware, adminOnly, (req, res) => documentController.archive(req, res));
-router.post('/documents/:id/restore', authMiddleware, adminOnly, (req, res) => documentController.restore(req, res));
-router.post('/documents/:id/reprocess', authMiddleware, adminOnly, (req, res) => documentController.reprocess(req, res));
+router.post('/documents/:id/archive', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.archive(req, res));
+router.post('/documents/:id/restore', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.restore(req, res));
+router.post('/documents/:id/reprocess', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.reprocess(req, res));
 router.post('/documents/:id/refresh-health', authMiddleware, (req, res) => documentController.refreshHealth(req, res));
-router.delete('/documents/:id', authMiddleware, adminOnly, (req, res) => documentController.remove(req, res));
+router.delete('/documents/:id', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.remove(req, res));
 
 router.post('/chat', authMiddleware, (req, res) => chatController.ask(req, res));
 router.post('/feedback', authMiddleware, (req, res) => feedbackController.create(req, res));
