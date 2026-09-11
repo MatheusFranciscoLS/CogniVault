@@ -4,6 +4,7 @@ import { prisma } from '../config/prisma';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { normalizeIdentifier } from '../utils/normalize';
 import { classifyPartKind } from '../services/husqvarna-domain-knowledge';
+import { preferCurrentPartNumbers } from '../services/part-supersession';
 import { PartSearchService, type PartCandidate } from '../services/part-search.service';
 
 interface FastSearchPayload {
@@ -84,7 +85,10 @@ async function exactPayload(tenantId: string, query: string): Promise<FastSearch
   const candidates = await PartSearchService.directByCode(tenantId, query);
   if (!candidates.length) return null;
 
-  const payload = await enrichCandidates(tenantId, candidates);
+  // Mantém a mesma regra do fluxo completo: se o código consultado tiver
+  // substituição oficial confirmada, prioriza/expõe o código atual.
+  const currentCandidates = preferCurrentPartNumbers(candidates);
+  const payload = await enrichCandidates(tenantId, currentCandidates);
   exactSearchCache.set(key, payload);
   return payload;
 }
