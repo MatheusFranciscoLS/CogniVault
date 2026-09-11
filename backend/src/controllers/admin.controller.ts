@@ -4,6 +4,13 @@ import { prisma } from '../config/prisma';
 import { AuthenticatedRequest, invalidateUserAuthCache } from '../middleware/auth.middleware';
 import { AuditService } from '../services/audit.service';
 
+function isPrismaUniqueConstraintError(error: unknown): boolean {
+    return typeof error === 'object'
+        && error !== null
+        && 'code' in error
+        && String((error as { code?: unknown }).code) === 'P2002';
+}
+
 export class AdminController {
     async users(req: AuthenticatedRequest, res: Response): Promise<void> {
         try {
@@ -82,6 +89,10 @@ export class AdminController {
 
             res.status(201).json({ user });
         } catch (error) {
+            if (isPrismaUniqueConstraintError(error)) {
+                res.status(409).json({ error: 'Este e-mail já está cadastrado.' });
+                return;
+            }
             console.error('❌ Erro ao criar usuário:', error);
             res.status(500).json({ error: 'Não foi possível cadastrar o usuário.' });
         }
