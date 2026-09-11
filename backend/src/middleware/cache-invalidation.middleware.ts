@@ -6,6 +6,7 @@ import { invalidateDocumentAccessCache } from '../controllers/document-access.co
 import { invalidateHomeResponseCache } from '../controllers/home.controller';
 import { invalidatePartDetailResponseCache } from '../controllers/part-detail.controller';
 import { invalidateCatalogListCache } from '../controllers/catalog-list.controller';
+import { invalidateFastSearchCaches } from '../controllers/fast-search.controller';
 
 function successful(status: number): boolean {
   return status >= 200 && status < 300;
@@ -94,11 +95,15 @@ export function invalidateDocumentAccessAfterMutation(
   const documentId = String(req.params.id || '').trim();
 
   res.once('finish', () => {
-    if (!tenantId || !documentId || !successful(res.statusCode)) return;
-    invalidateDocumentAccessCache(tenantId, documentId);
+    if (!tenantId || !successful(res.statusCode)) return;
+
+    if (documentId) {
+      invalidateDocumentAccessCache(tenantId, documentId);
+    }
     invalidateHomeResponseCache(tenantId);
     invalidatePartDetailResponseCache(tenantId);
     invalidateCatalogListCache(tenantId);
+    invalidateFastSearchCaches(tenantId);
   });
 
   next();
