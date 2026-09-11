@@ -1,15 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
-import { Prisma } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
 import { readFile, unlink } from 'node:fs/promises';
 import { prisma } from '../config/prisma';
 import { DocumentProducer } from '../queues/producer';
 import { repairMultipartText } from '../utils/text-encoding';
-import { CATALOG_CATEGORY_NAMES, inferCatalogCategory, isCatalogCategoryName } from './catalog-category';
-import { ensureCatalogCategory } from './catalog-category-assignment';
-import { inferCatalogModelFromFilename, isLikelyHusqvarnaPnc, isPlausibleCatalogModel, normalizeHusqvarnaPnc } from './catalog-extractor';
-import { findMachinesForEngine, findEngineApplications, formatBriggsEngineModel, inferEquipmentFamily } from './husqvarna-domain-knowledge';
-import { refreshCatalogHealth } from './catalog-health';
+import { isCatalogCategoryName } from './catalog-category';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
@@ -47,227 +42,11 @@ function safeFilename(value: string): string {
     return filename.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 240) || 'catalogo.pdf';
 }
 
-function snapshotPncs(value: Prisma.JsonValue | null): string[] {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
-    const raw = (value as Record<string, unknown>).pncs;
-    if (!Array.isArray(raw)) return [];
-    return raw
-        .filter((item): item is string => typeof item === 'string')
-        .map(normalizeHusqvarnaPnc)
-        .filter(Boolean);
-}
-
-function snapshotMetadata(value: Prisma.JsonValue | null): {
-    manufacturer?: string;
-    models: string[];
-    parts: Array<{ name?: string; section?: string; notes?: string }>;
-} {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return { models: [], parts: [] };
-    const obj = value as Record<string, unknown>;
-    const manufacturer = typeof obj.manufacturer === 'string' ? obj.manufacturer : undefined;
-    const models = Array.isArray(obj.models) ? obj.models.filter((m): m is string => typeof m === 'string') : [];
-    const parts = Array.isArray(obj.parts) ? (obj.parts as any[]).slice(0, 50).map((p: any) => ({
-        name: typeof p?.name === 'string' ? p.name : undefined,
-        section: typeof p?.section === 'string' ? p.section : undefined,
-        notes: typeof p?.notes === 'string' ? p.notes : undefined,
-    })) : [];
-    return { manufacturer, models, parts };
-}
-
 function hasPdfSignature(buffer: Buffer): boolean {
     return buffer.subarray(0, Math.min(buffer.length, 1024)).includes(Buffer.from('%PDF-'));
 }
 
-const legacyEmptyFilter = {
-    AND: [
-        { status: 'COMPLETED' },
-        { processingStage: 'IDLE' },
-        { model: null },
-        { pnc: null },
-        { parts: { none: {} } },
-        { chunks: { none: {} } },
-    ],
-};
-
-const documentListSelect = {
-    id: true,
-    filename: true,
-    status: true,
-    manufacturer: true,
-    model: true,
-    pnc: true,
-    createdAt: true,
-    archivedAt: true,
-    extractionSnapshot: true,
-    processingJobId: true,
-    processingStage: true,
-    processingCurrent: true,
-    processingTotal: true,
-    processingError: true,
-    extractionMethod: true,
-    healthScore: true,
-    reviewStatus: true,
-    reviewReasons: true,
-    qualityCheckedAt: true,
-    category: { select: { name: true } },
-    _count: { select: { parts: { where: { active: true } } } },
-} as const;
-
-type DocumentListRecord = Prisma.DocumentGetPayload<{ select: typeof documentListSelect }>;
-
-function toDocumentListItem(document: DocumentListRecord, partPncs: string[] = []) {
-    const filename = safeFilename(document.filename);
-    const snapshot = snapshotMetadata(document.extractionSnapshot);
-    const resolvedManufacturer = document.manufacturer || snapshot.manufacturer || null;
-    let rawModel = document.model || (snapshot.models.length === 1 ? snapshot.models[0] : null);
-    let resolvedModel = formatBriggsEngineModel(rawModel, filename, resolvedManufacturer, { includeMachine: true }) || rawModel;
-    const isBriggsModel = /^Motor\s+Briggs\b/i.test(resolvedModel || '') ||
-        /^(?:12J|104M|21R|31R|44T|40N|33R|3054|25T|19L|15T|12D|12E|12H|11P|09P|08P|093J|122T|126M|121P)/i.test(resolvedModel || '');
-    const modelNeedsReview = !isBriggsModel && !isPlausibleCatalogModel(resolvedModel);
-    const suggestedModel = modelNeedsReview ? inferCatalogModelFromFilename(filename) || null : null;
-    const effectiveModel = resolvedModel || suggestedModel || '';
-    const pncs = [...new Set([document.pnc || '', ...snapshotPncs(document.extractionSnapshot), ...partPncs]
-        .filter(isLikelyHusqvarnaPnc)
-        .map(normalizeHusqvarnaPnc))];
-
-    const category = (() => {
-        const stored = document.category?.name;
-        if (stored && stored !== 'Outros / Não identificado') return stored;
-        const inferred = inferCatalogCategory({
-            filename,
-            manufacturer: resolvedManufacturer,
-            model: effectiveModel,
-            models: snapshot.models,
-            parts: snapshot.parts,
-        });
-        return inferred !== 'Outros / Não identificado' ? inferred : (stored || 'Outros / Não identificado');
-    })();
-
-    const isEngineCatalog = category === 'Motores' ||
-        isBriggsModel ||
-        /^(?:motor|engine|kawasaki\s+f[rsx]|kohler|briggs)\b/i.test(effectiveModel) ||
-        /\b(?:motor\s+briggs|kawasaki\s+engine|kohler\s+engine)\b/i.test(filename);
-
-    const machineApps = isEngineCatalog ? findMachinesForEngine(effectiveModel, filename).map(app => {
-        const family = inferEquipmentFamily('', app.machineModel);
-        const typeLabel = family === 'WALK_MOWER' ? 'Cortador de Grama'
-            : family === 'ZERO_TURN' ? 'Giro Zero'
-            : family === 'GARDEN_TRACTOR' ? 'Trator'
-            : family === 'RIDER' ? 'Rider'
-            : 'Máquina';
-        return {
-            machineModel: app.machineModel,
-            machinePnc: app.machinePnc,
-            label: `${app.machineModel} (${typeLabel})`,
-        };
-    }) : [];
-
-    const engineApps = !isEngineCatalog ? findEngineApplications(effectiveModel).map(app => ({
-        engineModel: formatBriggsEngineModel(app.engineModel, undefined, undefined, { includeMachine: false }) || app.engineModel,
-        engineArticle: app.engineArticle,
-        label: `Motor ${formatBriggsEngineModel(app.engineModel, undefined, undefined, { includeMachine: false }) || app.engineModel}`,
-    })) : [];
-
-    return {
-        id: document.id,
-        filename,
-        status: document.status,
-        manufacturer: resolvedManufacturer,
-        model: resolvedModel,
-        pnc: document.pnc,
-        pncs,
-        suggestedModel,
-        modelNeedsReview,
-        category,
-        applications: machineApps,
-        engineApplications: engineApps,
-        createdAt: document.createdAt,
-        partCount: document._count.parts,
-        archivedAt: document.archivedAt,
-        processingActive: Boolean(document.processingJobId),
-        processingStage: document.processingStage,
-        processingCurrent: document.processingCurrent,
-        processingTotal: document.processingTotal,
-        processingError: document.processingError,
-        extractionMethod: document.extractionMethod,
-        healthScore: document.healthScore,
-        reviewStatus: document.reviewStatus,
-        reviewReasons: document.reviewReasons,
-        qualityCheckedAt: document.qualityCheckedAt,
-    };
-}
-
-async function documentListItems(tenantId: string, documents: DocumentListRecord[]) {
-    const rows = documents.length ? await prisma.part.findMany({
-        where: {
-            documentId: { in: documents.map(document => document.id) },
-            active: true,
-            pnc: { not: null },
-            document: { tenantId },
-        },
-        distinct: ['documentId', 'pnc'],
-        select: { documentId: true, pnc: true },
-    }) : [];
-    const pncsByDocument = new Map<string, string[]>();
-    for (const row of rows) {
-        if (!row.pnc) continue;
-        const values = pncsByDocument.get(row.documentId) || [];
-        values.push(row.pnc);
-        pncsByDocument.set(row.documentId, values);
-    }
-
-    await Promise.all(
-        documents.map(async doc => {
-            if (!doc.category?.name || doc.category.name === 'Outros / Não identificado') {
-                ensureCatalogCategory(doc.id, tenantId).catch(err => {
-                    console.error(`[CatalogCategory] Erro na autocura do documento ${doc.id}:`, err);
-                });
-            }
-
-            const isBriggs = /\bbriggs\b/i.test(`${doc.model || ''} ${doc.filename} ${doc.manufacturer || ''}`) ||
-                /^(?:12J|104M|21R|31R|44T|40N|33R|3054|25T|19L|15T|12D|12E|12H|11P|09P|08P|093J|122T|126M|121P|[0-9]{2}[A-Z][0-9]{3}|[0-9]{3}[A-Z][0-9]{2}|[0-9]{5,6})[-_ ]/i.test(doc.model || '');
-            if (isBriggs) {
-                const formatted = formatBriggsEngineModel(doc.model, doc.filename, doc.manufacturer, { includeMachine: true });
-                if (formatted && formatted !== doc.model) {
-                    doc.model = formatted;
-                    prisma.document.update({
-                        where: { id: doc.id },
-                        data: { model: formatted },
-                    }).catch(err => {
-                        console.error(`[CatalogBriggs] Erro na autocura do modelo ${doc.id}:`, err);
-                    });
-                }
-            }
-
-            if (doc.status === 'COMPLETED' && (doc.reviewStatus === 'NEEDS_REVIEW' || (doc.healthScore !== null && doc.healthScore < 100 && isBriggs))) {
-                try {
-                    const health = await refreshCatalogHealth(doc.id, tenantId);
-                    if (health) {
-                        doc.healthScore = health.score;
-                        doc.reviewStatus = health.reviewStatus;
-                        doc.reviewReasons = [...health.reasons, ...health.warnings];
-                    }
-                } catch (healthErr) {
-                    console.error(`[CatalogHealth] Erro ao recalcular saúde do documento ${doc.id}:`, healthErr);
-                }
-            }
-        })
-    );
-
-    const items = documents.map(document => toDocumentListItem(document, pncsByDocument.get(document.id)));
-    items.sort((a, b) => {
-        const keyA = a.model?.trim() || a.filename;
-        const keyB = b.model?.trim() || b.filename;
-        return keyA.localeCompare(keyB, 'pt-BR', { numeric: true, sensitivity: 'base' });
-    });
-    return items;
-}
-
 export class DocumentService {
-    categories(): readonly string[] {
-        return CATALOG_CATEGORY_NAMES;
-    }
-
     async handleNewUpload(tenantId: string, filename: string, filePath: string, metadata: UploadMetadata = {}) {
         try {
             const fileBuffer = await readFile(filePath);
@@ -363,21 +142,6 @@ export class DocumentService {
                 if (code !== 'ENOENT') console.warn('⚠️ Não foi possível remover o upload temporário:', error);
             }
         }
-    }
-
-    async list(tenantId: string) {
-        const documents = await prisma.document.findMany({
-            where: {
-                tenantId,
-                archivedAt: null,
-                processingStage: { not: 'REMOVED' },
-            },
-            orderBy: { createdAt: 'desc' },
-            take: 500,
-            select: documentListSelect,
-        });
-
-        return documentListItems(tenantId, documents);
     }
 
     async setCategory(tenantId: string, documentId: string, categoryName: unknown) {
@@ -585,16 +349,5 @@ export class DocumentService {
                 processingError: null,
             },
         });
-    }
-
-    async listAdmin(tenantId: string) {
-        const documents = await prisma.document.findMany({
-            where: { tenantId, processingStage: { not: 'REMOVED' } },
-            orderBy: { createdAt: 'desc' },
-            take: 500,
-            select: documentListSelect,
-        });
-
-        return documentListItems(tenantId, documents);
     }
 }
