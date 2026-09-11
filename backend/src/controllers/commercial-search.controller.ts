@@ -98,6 +98,48 @@ function serializeCommercialPart(
   };
 }
 
+type SerializedCommercialPart = ReturnType<typeof serializeCommercialPart>;
+type CommercialSearchPath = 'EXACT_CODE' | 'CODE_PREFIX' | 'FULL_TEXT';
+type CommercialSearchPayload = {
+  parts: SerializedCommercialPart[];
+  sections: CommercialSection[];
+};
+type CachedCommercialSearch = {
+  payload: CommercialSearchPayload;
+  path: CommercialSearchPath;
+};
+
+const searchResponseCache = new LRUCache<string, CachedCommercialSearch>({
+  max: 2000,
+  ttl: 2 * 60 * 1000,
+});
+
+const inFlightSearches = new Map<string, Promise<CachedCommercialSearch>>();
+
+/**
+ * Só ativa o caminho curto para entradas com forte aparência de código de peça.
+ * Modelos como MZ54/K770 continuam na pesquisa textual e por aplicação.
+ */
+export function looksLikeCommercialCodePrefix(value: string): boolean {
+  const normalized = normalizeIdentifier(value);
+  if (normalized.length < 5 || normalized.length > 20) return false;
+  const digits = (normalized.match(/\d/g) || []).length;
+  return digits >= 5 && digits / normalized.length >= 0.7;
+}
+
+export function invalidateCommercialSearchCache(tenantId?: string): void {
+  if (!tenantId) {
+    sectionCache.clear();
+    searchResponseCache.clear();
+    return;
+  }
+
+  sectionCache.delete(tenantId);
+  for (const key of searchResponseCache.keys()) {
+    if (key.startsWith(`${tenantId}:`)) searchResponseCache.delete(key);
+  }
+}
+
 async function availableSections(tenantId: string): Promise<CommercialSection[]> {
   const cached = sectionCache.get(tenantId);
   if (cached) return cached;
@@ -113,6 +155,97 @@ async function availableSections(tenantId: string): Promise<CommercialSection[]>
   return sections;
 }
 
+async function loadCommercialSearch(
+  tenantId: string,
+  query: string,
+  selectedSection: string,
+): Promise<CachedCommercialSearch> {
+  const normalizedCode = normalizeIdentifier(query);
+  const sectionsPromise = availableSections(tenantId);
+
+  // Código completo: índice UNIQUE (tenantId, normalizedNumber).
+  if (normalizedCode.length >= 4) {
+    const exact = await prisma.masterPart.findUnique({
+      where: { tenantId_normalizedNumber: { tenantId, normalizedNumber: normalizedCode } },
+      include: { sections: { orderBy: { section: 'asc' } } },
+    });
+
+    if (exact && (!selectedSection || exact.sections.some(section => section.section === selectedSection))) {
+      return {
+        path: 'EXACT_CODE',
+        payload: { parts: [serializeCommercialPart(exact, 3000)], sections: await sectionsPromise },
+      };
+    }
+  }
+
+  // Digitação parcial de Part Number: evita abrir OR de nome/descrição/aplicação
+  // quando a intenção é claramente completar um código.
+  if (looksLikeCommercialCodePrefix(query)) {
+    const prefixRows = await prisma.masterPart.findMany({
+      where: {
+        tenantId,
+        normalizedNumber: { startsWith: normalizedCode },
+        ...(selectedSection ? { sections: { some: { section: selectedSection } } } : {}),
+      },
+      include: { sections: { orderBy: { section: 'asc' } } },
+      orderBy: { normalizedNumber: 'asc' },
+      take: 50,
+    });
+
+    if (prefixRows.length) {
+      return {
+        path: 'CODE_PREFIX',
+        payload: {
+          parts: prefixRows.map(item => serializeCommercialPart(item, 2200 + scoreCommercialPart(query, item))),
+          sections: await sectionsPromise,
+        },
+      };
+    }
+  }
+
+  const orFilters: Prisma.MasterPartWhereInput[] = [
+    { name: { contains: query, mode: 'insensitive' } },
+    { description: { contains: query, mode: 'insensitive' } },
+    { brand: { contains: query, mode: 'insensitive' } },
+    {
+      sections: {
+        some: {
+          OR: [
+            { application: { contains: query, mode: 'insensitive' } },
+            { reference: { contains: query, mode: 'insensitive' } },
+            { productCategory: { contains: query, mode: 'insensitive' } },
+          ],
+        },
+      },
+    },
+  ];
+
+  if (normalizedCode.length >= 2) {
+    orFilters.unshift({ normalizedNumber: { contains: normalizedCode } });
+  }
+
+  const candidates = await prisma.masterPart.findMany({
+    where: {
+      tenantId,
+      ...(selectedSection ? { sections: { some: { section: selectedSection } } } : {}),
+      OR: orFilters,
+    },
+    include: { sections: { orderBy: { section: 'asc' } } },
+    take: 180,
+  });
+
+  const parts = candidates
+    .map(item => ({ item, score: scoreCommercialPart(query, item) }))
+    .sort((a, b) => b.score - a.score || a.item.name.localeCompare(b.item.name, 'pt-BR'))
+    .slice(0, 50)
+    .map(({ item, score }) => serializeCommercialPart(item, score));
+
+  return {
+    path: 'FULL_TEXT',
+    payload: { parts, sections: await sectionsPromise },
+  };
+}
+
 export class CommercialSearchController {
   async search(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
@@ -126,65 +259,36 @@ export class CommercialSearchController {
     }
 
     const tenantId = req.user.tenantId;
-    const normalizedCode = normalizeIdentifier(query);
+    const cacheKey = `${tenantId}:${normalizeText(selectedSection)}:${normalizeText(query)}:${normalizeIdentifier(query)}`;
+    const cached = searchResponseCache.get(cacheKey);
+
+    if (cached) {
+      res.set('X-CogniVault-Cache', 'HIT');
+      res.set('X-CogniVault-Search-Path', cached.path);
+      res.set('Cache-Control', 'private, max-age=20');
+      res.json(cached.payload);
+      return;
+    }
 
     try {
-      // Caminho crítico de balcão: código exato usa o índice único e evita
-      // varrer descrição/aplicações das ~26 mil peças comerciais.
-      if (normalizedCode.length >= 4) {
-        const exact = await prisma.masterPart.findUnique({
-          where: { tenantId_normalizedNumber: { tenantId, normalizedNumber: normalizedCode } },
-          include: { sections: { orderBy: { section: 'asc' } } },
-        });
-
-        if (exact && (!selectedSection || exact.sections.some(section => section.section === selectedSection))) {
-          const sections = await availableSections(tenantId);
-          res.json({ parts: [serializeCommercialPart(exact, 3000)], sections });
-          return;
-        }
+      let pending = inFlightSearches.get(cacheKey);
+      if (!pending) {
+        pending = loadCommercialSearch(tenantId, query, selectedSection)
+          .then(result => {
+            searchResponseCache.set(cacheKey, result);
+            return result;
+          })
+          .finally(() => {
+            inFlightSearches.delete(cacheKey);
+          });
+        inFlightSearches.set(cacheKey, pending);
       }
 
-      const orFilters: Prisma.MasterPartWhereInput[] = [
-        { name: { contains: query, mode: 'insensitive' } },
-        { description: { contains: query, mode: 'insensitive' } },
-        { brand: { contains: query, mode: 'insensitive' } },
-        {
-          sections: {
-            some: {
-              OR: [
-                { application: { contains: query, mode: 'insensitive' } },
-                { reference: { contains: query, mode: 'insensitive' } },
-                { productCategory: { contains: query, mode: 'insensitive' } },
-              ],
-            },
-          },
-        },
-      ];
-
-      if (normalizedCode.length >= 2) {
-        orFilters.unshift({ normalizedNumber: { contains: normalizedCode } });
-      }
-
-      const [candidates, sections] = await Promise.all([
-        prisma.masterPart.findMany({
-          where: {
-            tenantId,
-            ...(selectedSection ? { sections: { some: { section: selectedSection } } } : {}),
-            OR: orFilters,
-          },
-          include: { sections: { orderBy: { section: 'asc' } } },
-          take: 180,
-        }),
-        availableSections(tenantId),
-      ]);
-
-      const parts = candidates
-        .map(item => ({ item, score: scoreCommercialPart(query, item) }))
-        .sort((a, b) => b.score - a.score || a.item.name.localeCompare(b.item.name, 'pt-BR'))
-        .slice(0, 50)
-        .map(({ item, score }) => serializeCommercialPart(item, score));
-
-      res.json({ parts, sections });
+      const result = await pending;
+      res.set('X-CogniVault-Cache', 'MISS');
+      res.set('X-CogniVault-Search-Path', result.path);
+      res.set('Cache-Control', 'private, max-age=20');
+      res.json(result.payload);
     } catch (error) {
       console.error('❌ Erro ao pesquisar cadastro comercial:', error);
       res.status(500).json({ error: 'Não foi possível pesquisar o cadastro comercial.', parts: [], sections: [] });
