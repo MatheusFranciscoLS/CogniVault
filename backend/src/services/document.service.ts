@@ -27,6 +27,13 @@ export interface UploadMetadata {
     pnc?: string;
 }
 
+function isPrismaUniqueConstraintError(error: unknown): boolean {
+    return typeof error === 'object'
+        && error !== null
+        && 'code' in error
+        && String((error as { code?: unknown }).code) === 'P2002';
+}
+
 function storageCandidates(tenantId: string, documentId: string, storagePath?: string | null): string[] {
     return [...new Set(
         [storagePath, `${tenantId}/${documentId}.pdf`, `${documentId}.pdf`]
@@ -71,11 +78,6 @@ function hasPdfSignature(buffer: Buffer): boolean {
     return buffer.subarray(0, Math.min(buffer.length, 1024)).includes(Buffer.from('%PDF-'));
 }
 
-/**
- * Registros antigos de desenvolvimento podem ter sido marcados COMPLETED sem
- * qualquer extração, peça ou metadado. Eles são preservados para auditoria, mas
- * não representam um catálogo técnico utilizável e não devem poluir a biblioteca.
- */
 const legacyEmptyFilter = {
     AND: [
         { status: 'COMPLETED' },
@@ -118,7 +120,6 @@ function toDocumentListItem(document: DocumentListRecord, partPncs: string[] = [
     const snapshot = snapshotMetadata(document.extractionSnapshot);
     const resolvedManufacturer = document.manufacturer || snapshot.manufacturer || null;
     let rawModel = document.model || (snapshot.models.length === 1 ? snapshot.models[0] : null);
-    // Padronização estrita de identificação de Motores Briggs: "Motor Briggs <código> (Cortador <máquina>)"
     let resolvedModel = formatBriggsEngineModel(rawModel, filename, resolvedManufacturer, { includeMachine: true }) || rawModel;
     const isBriggsModel = /^Motor\s+Briggs\b/i.test(resolvedModel || '') ||
         /^(?:12J|104M|21R|31R|44T|40N|33R|3054|25T|19L|15T|12D|12E|12H|11P|09P|08P|093J|122T|126M|121P)/i.test(resolvedModel || '');
@@ -129,7 +130,6 @@ function toDocumentListItem(document: DocumentListRecord, partPncs: string[] = [
         .filter(isLikelyHusqvarnaPnc)
         .map(normalizeHusqvarnaPnc))];
 
-    // Categoria do catálogo
     const category = (() => {
         const stored = document.category?.name;
         if (stored && stored !== 'Outros / Não identificado') return stored;
@@ -143,9 +143,6 @@ function toDocumentListItem(document: DocumentListRecord, partPncs: string[] = [
         return inferred !== 'Outros / Não identificado' ? inferred : (stored || 'Outros / Não identificado');
     })();
 
-    // Cruzamento inteligente Máquina <-> Motor
-    // Se for catálogo de MOTOR: mostra quais máquinas usam este motor (machineApps)
-    // Se for catálogo de MÁQUINA: mostra qual o motor original (engineApps)
     const isEngineCatalog = category === 'Motores' ||
         isBriggsModel ||
         /^(?:motor|engine|kawasaki\s+f[rsx]|kohler|briggs)\b/i.test(effectiveModel) ||
@@ -219,19 +216,14 @@ async function documentListItems(tenantId: string, documents: DocumentListRecord
         pncsByDocument.set(row.documentId, values);
     }
 
-    // Auto-recálculo instantâneo de saúde e modelo:
-    // Garante que catálogos válidos (como motores Briggs) alcancem 100/100 e nome padronizado
-    // imediatamente ao listar, SEM precisar reextrair o PDF da IA.
     await Promise.all(
         documents.map(async doc => {
-            // 1. Auto-cura de categoria
             if (!doc.category?.name || doc.category.name === 'Outros / Não identificado') {
                 ensureCatalogCategory(doc.id, tenantId).catch(err => {
                     console.error(`[CatalogCategory] Erro na autocura do documento ${doc.id}:`, err);
                 });
             }
 
-            // 2. Auto-cura de modelo Briggs
             const isBriggs = /\bbriggs\b/i.test(`${doc.model || ''} ${doc.filename} ${doc.manufacturer || ''}`) ||
                 /^(?:12J|104M|21R|31R|44T|40N|33R|3054|25T|19L|15T|12D|12E|12H|11P|09P|08P|093J|122T|126M|121P|[0-9]{2}[A-Z][0-9]{3}|[0-9]{3}[A-Z][0-9]{2}|[0-9]{5,6})[-_ ]/i.test(doc.model || '');
             if (isBriggs) {
@@ -247,7 +239,6 @@ async function documentListItems(tenantId: string, documents: DocumentListRecord
                 }
             }
 
-            // 3. Auto-recálculo de integridade para catálogos que estavam com revisão pendente ou nota reduzida
             if (doc.status === 'COMPLETED' && (doc.reviewStatus === 'NEEDS_REVIEW' || (doc.healthScore !== null && doc.healthScore < 100 && isBriggs))) {
                 try {
                     const health = await refreshCatalogHealth(doc.id, tenantId);
@@ -279,8 +270,6 @@ export class DocumentService {
 
     async handleNewUpload(tenantId: string, filename: string, filePath: string, metadata: UploadMetadata = {}) {
         try {
-            // PDFs podem ter até 50 MB; I/O assíncrono evita bloquear login,
-            // buscas e health checks enquanto o arquivo é lido do disco.
             const fileBuffer = await readFile(filePath);
             if (!hasPdfSignature(fileBuffer)) throw new Error('DOCUMENT_INVALID_PDF');
             const contentHash = createHash('sha256').update(fileBuffer).digest('hex');
@@ -291,7 +280,6 @@ export class DocumentService {
 
             if (duplicate) {
                 if (duplicate.status === 'FAILED') {
-                    // Se o PDF anterior falhou, arquiva o registro morto para permitir nova extração limpa
                     await prisma.document.update({
                         where: { id: duplicate.id },
                         data: {
@@ -339,6 +327,13 @@ export class DocumentService {
                 });
             } catch (error) {
                 await supabase.storage.from(storageBucket).remove([canonicalStoragePath]);
+                if (isPrismaUniqueConstraintError(error)) {
+                    const concurrentDuplicate = await prisma.document.findFirst({
+                        where: { tenantId, contentHash, archivedAt: null },
+                        select: { id: true },
+                    });
+                    if (concurrentDuplicate) throw new Error(`DOCUMENT_DUPLICATE:${concurrentDuplicate.id}`);
+                }
                 throw error;
             }
 
@@ -453,10 +448,39 @@ export class DocumentService {
 
         if (!document) throw new Error('DOCUMENT_NOT_FOUND');
 
-        return prisma.document.update({
-            where: { id: document.id },
-            data: { archivedAt: null, archivedById: null },
-        });
+        if (document.contentHash) {
+            const duplicate = await prisma.document.findFirst({
+                where: {
+                    tenantId,
+                    contentHash: document.contentHash,
+                    archivedAt: null,
+                    id: { not: document.id },
+                },
+                select: { id: true },
+            });
+            if (duplicate) throw new Error(`DOCUMENT_DUPLICATE:${duplicate.id}`);
+        }
+
+        try {
+            return await prisma.document.update({
+                where: { id: document.id },
+                data: { archivedAt: null, archivedById: null },
+            });
+        } catch (error) {
+            if (document.contentHash && isPrismaUniqueConstraintError(error)) {
+                const duplicate = await prisma.document.findFirst({
+                    where: {
+                        tenantId,
+                        contentHash: document.contentHash,
+                        archivedAt: null,
+                        id: { not: document.id },
+                    },
+                    select: { id: true },
+                });
+                if (duplicate) throw new Error(`DOCUMENT_DUPLICATE:${duplicate.id}`);
+            }
+            throw error;
+        }
     }
 
     async reprocess(tenantId: string, documentId: string) {
@@ -485,8 +509,6 @@ export class DocumentService {
             data: {
                 status: hasUsableCatalog ? 'COMPLETED' : 'PENDING',
                 processingJobId: jobId,
-                // Reprocessar significa extrair o PDF novamente. O comportamento
-                // anterior apenas repetia embeddings usando o snapshot antigo.
                 processingStage: 'QUEUED_REEXTRACT',
                 processingCurrent: 0,
                 processingTotal: document.processingTotal,
