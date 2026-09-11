@@ -7,6 +7,7 @@ import { HusqvarnaScraperService } from '../services/husqvarna-scraper.service';
 import { HusqvarnaPortalCatalogService } from '../services/husqvarna-portal-catalog.service';
 
 const HUSQVARNA_SPARE_PARTS_URL = 'https://www.husqvarna.com/br/pecas-sobressalentes/';
+const HUSQVARNA_PORTAL_URL = 'https://portal.husqvarnagroup.com/br/';
 const SEARCH_DEDUP_MS = 2 * 60 * 1000;
 
 type QuoteUsageInput = {
@@ -247,17 +248,14 @@ export class WorkIntelligenceController {
         }
       }
 
-      const portalUrl = looksLikePnc
-        ? HusqvarnaPortalCatalogService.buildSearchUrl(clean)
-        : HUSQVARNA_SPARE_PARTS_URL;
       res.json({
         result: {
           status: 'REVIEW',
           source: 'ONLINE',
           query,
-          url: portalUrl,
+          url: looksLikePnc ? HUSQVARNA_PORTAL_URL : HUSQVARNA_SPARE_PARTS_URL,
           message: looksLikePnc
-            ? 'O PNC não pôde ser lido automaticamente no Portal Husqvarna. Abra a busca oficial já preenchida para continuar.'
+            ? `O Portal Husqvarna não suporta abrir uma busca por PNC diretamente pela URL. Abra o portal e pesquise manualmente o PNC ${clean} enquanto concluímos a integração automática.`
             : looksLikeCode
               ? 'O código não pôde ser confirmado automaticamente. Abra o localizador oficial para conferir.'
               : 'O CogniVault não tem catálogo técnico suficiente para confirmar essa máquina. Continue no localizador oficial da Husqvarna usando o modelo/SKU informado.',
@@ -270,10 +268,10 @@ export class WorkIntelligenceController {
           status: 'REVIEW',
           source: 'ONLINE',
           query,
-          url: looksLikePnc
-            ? `https://portal.husqvarnagroup.com/br/?q=${encodeURIComponent(clean)}`
-            : HUSQVARNA_SPARE_PARTS_URL,
-          message: 'A consulta automática não respondeu. Use o localizador oficial da Husqvarna para continuar.',
+          url: looksLikePnc ? HUSQVARNA_PORTAL_URL : HUSQVARNA_SPARE_PARTS_URL,
+          message: looksLikePnc
+            ? `A consulta automática não respondeu. Abra o Portal Husqvarna e pesquise manualmente o PNC ${clean}.`
+            : 'A consulta automática não respondeu. Use o localizador oficial da Husqvarna para continuar.',
         },
       });
     }
