@@ -224,9 +224,35 @@ export class WorkIntelligenceController {
               documents: portalCatalog.documents,
               portalUrl: portalCatalog.portalUrl,
               url: portalCatalog.portalUrl,
+              directProductUrl: true,
               message: iplSections.length
                 ? `${iplSections.length} vista(s) explodida(s) oficial(is) confirmada(s) pela Husqvarna para este PNC.`
                 : 'Produto confirmado no Portal Husqvarna. A vista explodida não pôde ser carregada automaticamente agora.',
+            },
+          });
+          return;
+        }
+
+        if (productDetails) {
+          res.json({
+            result: {
+              status: 'FOUND',
+              source: 'OFFICIAL',
+              kind: 'PRODUCT_CATALOG',
+              query,
+              pnc: productDetails.pnc,
+              name: productDetails.productName,
+              discontinued: productDetails.discontinued,
+              categoryName: productDetails.categoryName,
+              articleDescription: productDetails.articleDescription,
+              iplSections: productDetails.iplSections,
+              documents: [],
+              portalUrl: null,
+              url: HUSQVARNA_PORTAL_URL,
+              directProductUrl: false,
+              message: productDetails.iplSections.length
+                ? `${productDetails.iplSections.length} vista(s) explodida(s) oficial(is) confirmada(s) pela Husqvarna para este PNC. A busca do Portal não forneceu o link direto do produto.`
+                : 'PNC confirmado diretamente pela Husqvarna. Este artigo não retornou vistas explodidas estruturadas e a busca do Portal não forneceu o link direto do produto.',
             },
           });
           return;
@@ -246,30 +272,6 @@ export class WorkIntelligenceController {
               fitsTo: livePart.fitsTo || [],
               specifications: livePart.specifications || null,
               url: livePart.originalPartUrl || HUSQVARNA_SPARE_PARTS_URL,
-            },
-          });
-          return;
-        }
-
-        if (productDetails?.portalUrl) {
-          res.json({
-            result: {
-              status: 'FOUND',
-              source: 'OFFICIAL',
-              kind: 'PRODUCT_CATALOG',
-              query,
-              pnc: productDetails.pnc,
-              name: productDetails.productName,
-              discontinued: productDetails.discontinued,
-              categoryName: productDetails.categoryName,
-              articleDescription: productDetails.articleDescription,
-              iplSections: productDetails.iplSections,
-              documents: [],
-              portalUrl: productDetails.portalUrl,
-              url: productDetails.portalUrl,
-              message: productDetails.iplSections.length
-                ? `${productDetails.iplSections.length} vista(s) explodida(s) oficial(is) confirmada(s) pela Husqvarna para este PNC.`
-                : 'PNC confirmado diretamente pela Husqvarna. Este artigo não retornou vistas explodidas estruturadas na API.',
             },
           });
           return;
