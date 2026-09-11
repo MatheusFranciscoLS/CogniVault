@@ -15,6 +15,11 @@ import { CommercialSearchController } from '../controllers/commercial-search.con
 import { WorkContextController } from '../controllers/work-context.controller';
 import { PerformanceController } from '../controllers/performance.controller';
 import { NotificationController } from '../controllers/notification.controller';
+import { ProfileController } from '../controllers/profile.controller';
+import { HomeController } from '../controllers/home.controller';
+import { FastSearchController } from '../controllers/fast-search.controller';
+import { PartDetailController } from '../controllers/part-detail.controller';
+import { AdminOverviewController } from '../controllers/admin-overview.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
 
@@ -34,6 +39,11 @@ const commercialSearchController = new CommercialSearchController();
 const workContextController = new WorkContextController();
 const performanceController = new PerformanceController();
 const notificationController = new NotificationController();
+const profileController = new ProfileController();
+const homeController = new HomeController();
+const fastSearchController = new FastSearchController();
+const partDetailController = new PartDetailController();
+const adminOverviewController = new AdminOverviewController();
 
 const upload = multer({
   dest: 'uploads/',
@@ -47,11 +57,21 @@ const upload = multer({
 });
 
 router.post('/login', loginLimiter, (req, res) => authController.login(req, res));
-router.get('/me', authMiddleware, (req, res) => adminController.me(req, res));
+router.get('/me', authMiddleware, (req, res) => profileController.me(req, res));
 
-router.get('/home', authMiddleware, (req, res) => operationalController.home(req, res));
-router.get('/search', authMiddleware, (req, res) => operationalController.search(req, res));
-router.get('/search/stream', authMiddleware, (req, res) => operationalController.searchStream(req, res));
+router.get('/home', authMiddleware, (req, res) => homeController.home(req, res));
+router.get(
+  '/search',
+  authMiddleware,
+  (req, res, next) => fastSearchController.search(req, res, next),
+  (req, res) => operationalController.search(req, res),
+);
+router.get(
+  '/search/stream',
+  authMiddleware,
+  (req, res, next) => fastSearchController.stream(req, res, next),
+  (req, res) => operationalController.searchStream(req, res),
+);
 router.get('/master-parts/search', authMiddleware, (req, res) => commercialSearchController.search(req, res));
 router.get('/official-fallback', authMiddleware, (req, res) => workIntelligenceController.officialFallback(req, res));
 router.post('/analytics/search-usage', authMiddleware, (req, res) => workIntelligenceController.recordSearchUsage(req, res));
@@ -61,7 +81,7 @@ router.get('/parts/:code/live-data', authMiddleware, (req, res) => operationalCo
 router.get('/parts/:code/work-context', authMiddleware, (req, res) => workContextController.get(req, res));
 router.put('/parts/:code/location', authMiddleware, (req, res) => workIntelligenceController.setLocation(req, res));
 router.get('/models/:model/maintenance-kit', authMiddleware, (req, res) => operationalController.maintenanceKit(req, res));
-router.get('/parts/:id', authMiddleware, (req, res) => operationalController.part(req, res));
+router.get('/parts/:id', authMiddleware, (req, res) => partDetailController.get(req, res));
 router.get('/history', authMiddleware, (req, res) => operationalController.history(req, res));
 router.get('/favorites', authMiddleware, (req, res) => operationalController.favorites(req, res));
 router.post('/favorites', authMiddleware, (req, res) => operationalController.addFavorite(req, res));
@@ -88,7 +108,7 @@ router.post('/chat', authMiddleware, (req, res) => chatController.ask(req, res))
 router.post('/feedback', authMiddleware, (req, res) => feedbackController.create(req, res));
 router.patch('/feedback/:id', authMiddleware, (req, res) => feedbackController.update(req, res));
 
-router.get('/admin/overview', authMiddleware, adminOnly, (req, res) => adminController.overview(req, res));
+router.get('/admin/overview', authMiddleware, adminOnly, (req, res) => adminOverviewController.get(req, res));
 router.get('/admin/performance', authMiddleware, adminOnly, (req, res) => performanceController.overview(req, res));
 router.get('/admin/users', authMiddleware, adminOnly, (req, res) => adminController.users(req, res));
 router.post('/admin/users', authMiddleware, adminOnly, (req, res) => adminController.createUser(req, res));
