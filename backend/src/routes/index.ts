@@ -12,6 +12,8 @@ import { OfficialPartVerificationController } from '../controllers/official-part
 import { QualityController } from '../controllers/quality.controller';
 import { WorkIntelligenceController } from '../controllers/work-intelligence.controller';
 import { CommercialSearchController } from '../controllers/commercial-search.controller';
+import { WorkContextController } from '../controllers/work-context.controller';
+import { PerformanceController } from '../controllers/performance.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
 
@@ -28,6 +30,8 @@ const officialPartVerificationController = new OfficialPartVerificationControlle
 const qualityController = new QualityController();
 const workIntelligenceController = new WorkIntelligenceController();
 const commercialSearchController = new CommercialSearchController();
+const workContextController = new WorkContextController();
+const performanceController = new PerformanceController();
 
 const upload = multer({
   dest: 'uploads/',
@@ -52,7 +56,7 @@ router.post('/analytics/search-usage', authMiddleware, (req, res) => workIntelli
 router.post('/analytics/quote-usage', authMiddleware, (req, res) => workIntelligenceController.recordQuoteUsage(req, res));
 router.get('/parts/:code/cross-reference', authMiddleware, (req, res) => operationalController.crossReference(req, res));
 router.get('/parts/:code/live-data', authMiddleware, (req, res) => operationalController.liveData(req, res));
-router.get('/parts/:code/work-context', authMiddleware, (req, res) => workIntelligenceController.workContext(req, res));
+router.get('/parts/:code/work-context', authMiddleware, (req, res) => workContextController.get(req, res));
 router.put('/parts/:code/location', authMiddleware, (req, res) => workIntelligenceController.setLocation(req, res));
 router.get('/models/:model/maintenance-kit', authMiddleware, (req, res) => operationalController.maintenanceKit(req, res));
 router.get('/parts/:id', authMiddleware, (req, res) => operationalController.part(req, res));
@@ -83,6 +87,7 @@ router.post('/feedback', authMiddleware, (req, res) => feedbackController.create
 router.patch('/feedback/:id', authMiddleware, (req, res) => feedbackController.update(req, res));
 
 router.get('/admin/overview', authMiddleware, adminOnly, (req, res) => adminController.overview(req, res));
+router.get('/admin/performance', authMiddleware, adminOnly, (req, res) => performanceController.overview(req, res));
 router.get('/admin/users', authMiddleware, adminOnly, (req, res) => adminController.users(req, res));
 router.post('/admin/users', authMiddleware, adminOnly, (req, res) => adminController.createUser(req, res));
 router.patch('/admin/users/:id', authMiddleware, adminOnly, (req, res) => adminController.updateUser(req, res));
