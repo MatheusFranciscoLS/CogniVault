@@ -13,6 +13,7 @@ import { OfficialPartVerificationController } from '../controllers/official-part
 import { QualityController } from '../controllers/quality.controller';
 import { WorkIntelligenceController } from '../controllers/work-intelligence.controller';
 import { CommercialSearchController } from '../controllers/commercial-search.controller';
+import { CommercialImportController } from '../controllers/commercial-import.controller';
 import { WorkContextController } from '../controllers/work-context.controller';
 import { PerformanceController } from '../controllers/performance.controller';
 import { NotificationController } from '../controllers/notification.controller';
@@ -46,6 +47,7 @@ const officialPartVerificationController = new OfficialPartVerificationControlle
 const qualityController = new QualityController();
 const workIntelligenceController = new WorkIntelligenceController();
 const commercialSearchController = new CommercialSearchController();
+const commercialImportController = new CommercialImportController();
 const workContextController = new WorkContextController();
 const performanceController = new PerformanceController();
 const notificationController = new NotificationController();
@@ -122,6 +124,7 @@ router.patch('/feedback/:id', authMiddleware, (req, res) => feedbackController.u
 
 router.get('/admin/overview', authMiddleware, adminOnly, (req, res) => adminOverviewController.get(req, res));
 router.get('/admin/performance', authMiddleware, adminOnly, (req, res) => performanceController.overview(req, res));
+router.get('/admin/commercial-imports', authMiddleware, adminOnly, (req, res) => commercialImportController.list(req, res));
 router.get('/admin/users', authMiddleware, adminOnly, (req, res) => adminController.users(req, res));
 router.post('/admin/users', authMiddleware, adminOnly, (req, res) => adminController.createUser(req, res));
 router.patch('/admin/users/:id', authMiddleware, adminOnly, (req, res) => adminController.updateUser(req, res));
