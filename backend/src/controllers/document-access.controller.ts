@@ -70,6 +70,11 @@ export class DocumentAccessController {
         return;
       }
 
+      if (message === 'DOCUMENT_URL_UNAVAILABLE') {
+        res.status(502).json({ error: 'O armazenamento do catálogo está temporariamente indisponível.' });
+        return;
+      }
+
       console.error('❌ Erro ao gerar acesso ao catálogo:', error);
       res.status(500).json({ error: 'Não foi possível acessar o catálogo.' });
     }
