@@ -1,11 +1,11 @@
 import { LRUCache } from 'lru-cache';
 import { normalizeIdentifier } from '../utils/normalize';
+import { HusqvarnaPortalGraphqlService } from './husqvarna-portal-graphql.service';
 
 const HUSQVARNA_PORTAL_ORIGIN = 'https://portal.husqvarnagroup.com';
 const HUSQVARNA_PORTAL_COUNTRY_PATH = '/br/';
 const PORTAL_SUCCESS_TTL_MS = 6 * 60 * 60 * 1000;
 const PORTAL_MISS_TTL_MS = 10 * 60 * 1000;
-const PORTAL_TIMEOUT_MS = 8_000;
 
 const VERIFIED_PRODUCT_ROUTES: Record<string, { productName: string; portalUrl: string }> = {
   '965195201': {
@@ -286,59 +286,27 @@ export class HusqvarnaPortalCatalogService {
     const cached = catalogCache.get(pnc);
     if (cached !== undefined) return cached.result;
 
-    const verified = getVerifiedHusqvarnaPortalProduct(pnc);
-    const url = verified?.portalUrl || this.buildSearchUrl(pnc);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), PORTAL_TIMEOUT_MS);
-
-    try {
-      const response = await fetch(url, {
-        redirect: 'follow',
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36',
-          Accept: 'text/html,application/xhtml+xml',
-          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.7',
-        },
-      });
-
-      if (!response.ok) {
-        console.warn(`[Husqvarna Portal] Busca por PNC ${pnc} retornou HTTP ${response.status}.`);
-        if (verified) {
-          catalogCache.set(pnc, { result: verified }, { ttl: PORTAL_SUCCESS_TTL_MS });
-          return verified;
-        }
-        catalogCache.set(pnc, { result: null }, { ttl: PORTAL_MISS_TTL_MS });
-        return null;
-      }
-
-      const html = await response.text();
-      const parsed = parseHusqvarnaPortalSearchHtml(html, pnc, verified?.portalUrl);
-      const result = verified
-        ? {
-            ...verified,
-            discontinued: parsed?.discontinued ?? verified.discontinued,
-            documents: parsed?.documents || [],
-          }
-        : parsed;
-
-      catalogCache.set(pnc, { result }, { ttl: result ? PORTAL_SUCCESS_TTL_MS : PORTAL_MISS_TTL_MS });
-      if (result) {
-        console.log(`[Husqvarna Portal] PNC ${pnc}: ${result.productName || 'produto encontrado'} · ${result.documents.length} documento(s).`);
-      } else {
-        console.log(`[Husqvarna Portal] PNC ${pnc}: nenhuma evidência técnica específica encontrada no HTML público.`);
-      }
+    const graphqlMatch = await HusqvarnaPortalGraphqlService.searchProductByPnc(pnc);
+    if (graphqlMatch) {
+      const result: HusqvarnaPortalCatalogResult = {
+        pnc,
+        productName: graphqlMatch.productName,
+        discontinued: graphqlMatch.discontinued,
+        portalUrl: graphqlMatch.portalUrl,
+        documents: [],
+      };
+      catalogCache.set(pnc, { result }, { ttl: PORTAL_SUCCESS_TTL_MS });
       return result;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn(`[Husqvarna Portal] Falha ao consultar PNC ${pnc}: ${message}`);
-      if (verified) {
-        catalogCache.set(pnc, { result: verified }, { ttl: PORTAL_SUCCESS_TTL_MS });
-        return verified;
-      }
-      return null;
-    } finally {
-      clearTimeout(timeout);
     }
+
+    const verified = getVerifiedHusqvarnaPortalProduct(pnc);
+    if (verified) {
+      console.warn(`[Husqvarna Portal] PNC ${pnc}: usando rota verificada localmente porque a GraphQL não confirmou o produto.`);
+      catalogCache.set(pnc, { result: verified }, { ttl: PORTAL_SUCCESS_TTL_MS });
+      return verified;
+    }
+
+    catalogCache.set(pnc, { result: null }, { ttl: PORTAL_MISS_TTL_MS });
+    return null;
   }
 }
