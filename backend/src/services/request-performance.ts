@@ -11,6 +11,9 @@ type RouteStats = {
   lastMs: number;
   maxMs: number;
   lastStatus: number;
+  cacheHits: number;
+  cacheMisses: number;
+  cacheStales: number;
   updatedAt: string;
 };
 
@@ -48,8 +51,17 @@ export function requestPerformanceMiddleware(req: Request, res: Response, next: 
   res.once('finish', () => {
     const durationMs = performance.now() - started;
     const key = `${req.method} ${metricPath(req.path)}`;
-    const current = stats.get(key) || {
-      samples: [], requests: 0, errors: 0, lastMs: 0, maxMs: 0, lastStatus: 0, updatedAt: new Date().toISOString(),
+    const current: RouteStats = stats.get(key) || {
+      samples: [],
+      requests: 0,
+      errors: 0,
+      lastMs: 0,
+      maxMs: 0,
+      lastStatus: 0,
+      cacheHits: 0,
+      cacheMisses: 0,
+      cacheStales: 0,
+      updatedAt: new Date().toISOString(),
     };
 
     current.requests += 1;
@@ -60,6 +72,12 @@ export function requestPerformanceMiddleware(req: Request, res: Response, next: 
     current.updatedAt = new Date().toISOString();
     current.samples.push(durationMs);
     if (current.samples.length > MAX_SAMPLES_PER_ROUTE) current.samples.shift();
+
+    const cacheStatus = String(res.getHeader('X-CogniVault-Cache') || '').toUpperCase();
+    if (cacheStatus === 'HIT') current.cacheHits += 1;
+    else if (cacheStatus === 'MISS') current.cacheMisses += 1;
+    else if (cacheStatus === 'STALE') current.cacheStales += 1;
+
     stats.set(key, current);
 
     if (durationMs >= SLOW_REQUEST_MS) {
@@ -73,6 +91,7 @@ export function requestPerformanceMiddleware(req: Request, res: Response, next: 
 export function performanceSnapshot() {
   const routes = [...stats.entries()].map(([route, item]) => {
     const total = item.samples.reduce((sum, value) => sum + value, 0);
+    const cacheRequests = item.cacheHits + item.cacheMisses + item.cacheStales;
     return {
       route,
       requests: item.requests,
@@ -83,15 +102,31 @@ export function performanceSnapshot() {
       lastMs: rounded(item.lastMs),
       errors: item.errors,
       errorRate: item.requests ? rounded((item.errors / item.requests) * 100) : 0,
+      cacheHits: item.cacheHits,
+      cacheMisses: item.cacheMisses,
+      cacheStales: item.cacheStales,
+      cacheHitRate: cacheRequests ? rounded((item.cacheHits / cacheRequests) * 100) : null,
       lastStatus: item.lastStatus,
       updatedAt: item.updatedAt,
     };
   });
 
   routes.sort((a, b) => b.p95Ms - a.p95Ms || b.requests - a.requests);
+
+  const memory = process.memoryUsage();
+  const eventLoop = performance.eventLoopUtilization();
+
   return {
     generatedAt: new Date().toISOString(),
     slowThresholdMs: SLOW_REQUEST_MS,
+    runtime: {
+      uptimeSeconds: Math.round(process.uptime()),
+      rssMb: rounded(memory.rss / 1024 / 1024),
+      heapUsedMb: rounded(memory.heapUsed / 1024 / 1024),
+      heapTotalMb: rounded(memory.heapTotal / 1024 / 1024),
+      externalMb: rounded(memory.external / 1024 / 1024),
+      eventLoopUtilizationPct: rounded(eventLoop.utilization * 100),
+    },
     routes,
   };
 }
