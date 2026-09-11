@@ -30,15 +30,15 @@ export function invalidateWorkContextAfterQuoteUsage(
   next: NextFunction,
 ): void {
   const tenantId = req.user?.tenantId;
-  const items = Array.isArray(req.body?.items) ? req.body.items : [];
-  const normalizedCodes = [...new Set(
+  const items: unknown[] = Array.isArray(req.body?.items) ? req.body.items : [];
+  const normalizedCodes: string[] = [...new Set<string>(
     items
-      .map((item: unknown) => {
+      .map((item): string => {
         if (!item || typeof item !== 'object') return '';
         const value = (item as Record<string, unknown>).partNumber;
         return normalizeIdentifier(String(value || ''));
       })
-      .filter(Boolean),
+      .filter((value): value is string => value.length > 0),
   )];
 
   res.once('finish', () => {
