@@ -11,6 +11,22 @@ function successful(status: number): boolean {
   return status >= 200 && status < 300;
 }
 
+export function invalidateHomeAfterSearch(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+): void {
+  const tenantId = req.user?.tenantId;
+  const userId = req.user?.id;
+
+  res.once('finish', () => {
+    if (!tenantId || !userId || !successful(res.statusCode)) return;
+    invalidateHomeResponseCache(tenantId, userId);
+  });
+
+  next();
+}
+
 export function invalidateWorkContextAfterLocation(
   req: AuthenticatedRequest,
   res: Response,
