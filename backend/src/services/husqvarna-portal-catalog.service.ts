@@ -124,6 +124,11 @@ function titleNear(html: string, index: number, type: HusqvarnaPortalDocumentTyp
   return type === 'IPL' ? 'IPL oficial Husqvarna' : type === 'OM' ? 'Manual oficial Husqvarna' : 'Documento oficial Husqvarna';
 }
 
+function cleanProductName(value: string, pnc: string): string {
+  const compact = value.replace(/\s+/g, ' ').trim();
+  return compact.replace(new RegExp(`\\s+${pnc}\\s*$`, 'i'), '').trim();
+}
+
 function extractProductName(html: string, pnc: string): string | null {
   const decoded = decodeHtml(html);
   const pncIndex = decoded.toUpperCase().indexOf(pnc.toUpperCase());
@@ -135,14 +140,25 @@ function extractProductName(html: string, pnc: string): string | null {
     const quoted = [...region.matchAll(/"([^"\\]{3,140})"/g)]
       .map(match => stripMarkup(match[1]))
       .find(value => /^HUSQVARNA\s+[A-Za-z0-9]/i.test(value) && value.length <= 100);
-    if (quoted) return quoted.replace(/\s+/g, ' ').trim();
+    if (quoted) return cleanProductName(quoted, pnc);
 
     const plain = stripMarkup(region);
     const match = plain.match(/\bHUSQVARNA\s+([A-Za-z0-9][A-Za-z0-9.+\-/ ]{1,55}?)(?=\s{2,}|\b(?:All|Todos|Documentos|Documents|Descontinuado|Discontinued)\b|$)/i);
-    if (match) return `HUSQVARNA ${match[1].trim()}`;
+    if (match) return cleanProductName(`HUSQVARNA ${match[1].trim()}`, pnc);
   }
 
   return null;
+}
+
+function documentIdentity(urlValue: string): string {
+  try {
+    const url = new URL(urlValue);
+    const iplId = url.searchParams.get('iplId');
+    if (iplId) return `${url.origin}${url.pathname}?iplId=${iplId}`.toLowerCase();
+    return `${url.origin}${url.pathname}`.toLowerCase();
+  } catch {
+    return urlValue.toLowerCase();
+  }
 }
 
 function addDocument(
@@ -160,7 +176,7 @@ function addDocument(
   const title = provisionalTitle.length >= 3 && provisionalTitle.length <= 280
     ? provisionalTitle
     : titleNear(html, index, type);
-  const key = url.replace(/[?#].*$/, '').toLowerCase();
+  const key = documentIdentity(url);
   const candidate: HusqvarnaPortalDocument = {
     title,
     type,
