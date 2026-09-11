@@ -5,6 +5,7 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { AuditService } from '../services/audit.service';
 import { invalidateHomeCountsCache } from './operational.controller';
 import { invalidateHomeResponseCache } from './home.controller';
+import { invalidateCatalogListCache } from './catalog-list.controller';
 import { refreshCatalogHealth } from '../services/catalog-health';
 
 const documentService = new DocumentService();
@@ -13,9 +14,10 @@ function optionalString(value: unknown): string | undefined {
     return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
-function invalidateDashboardCaches(tenantId: string): void {
+function invalidateDocumentCaches(tenantId: string): void {
     invalidateHomeCountsCache(tenantId);
     invalidateHomeResponseCache(tenantId);
+    invalidateCatalogListCache(tenantId);
 }
 
 export class DocumentController {
@@ -63,7 +65,7 @@ export class DocumentController {
                 },
             });
 
-            invalidateDashboardCaches(req.user.tenantId);
+            invalidateDocumentCaches(req.user.tenantId);
 
             res.status(201).json({
                 message: 'Catálogo recebido e enviado para processamento.',
@@ -131,6 +133,7 @@ export class DocumentController {
                 targetId: document.id,
                 metadata: { filename: document.filename, category: document.category },
             });
+            invalidateDocumentCaches(req.user.tenantId);
             res.status(200).json({ document });
         } catch (error) {
             if (error instanceof Error && error.message === 'DOCUMENT_NOT_FOUND') {
@@ -191,7 +194,7 @@ export class DocumentController {
                 targetId: document.id,
                 metadata: { filename: document.filename },
             });
-            invalidateDashboardCaches(req.user.tenantId);
+            invalidateDocumentCaches(req.user.tenantId);
             res.json({ message: 'Catálogo arquivado com segurança.' });
         } catch (error) {
             if (error instanceof Error && error.message === 'DOCUMENT_NOT_FOUND') {
@@ -215,7 +218,7 @@ export class DocumentController {
                 targetId: document.id,
                 metadata: { filename: document.filename },
             });
-            invalidateDashboardCaches(req.user.tenantId);
+            invalidateDocumentCaches(req.user.tenantId);
             res.json({ message: 'Catálogo restaurado.' });
         } catch (error) {
             if (error instanceof Error && error.message === 'DOCUMENT_NOT_FOUND') {
@@ -239,6 +242,7 @@ export class DocumentController {
                 targetId: document.id,
                 metadata: { filename: document.filename },
             });
+            invalidateDocumentCaches(req.user.tenantId);
             res.json({ message: 'Catálogo enviado novamente para processamento.' });
         } catch (error) {
             if (error instanceof Error && error.message === 'DOCUMENT_NOT_FOUND') {
@@ -270,7 +274,7 @@ export class DocumentController {
                 targetId: document.id,
                 metadata: { filename: document.filename },
             });
-            invalidateDashboardCaches(req.user.tenantId);
+            invalidateDocumentCaches(req.user.tenantId);
             res.json({ message: 'PDF excluído. O registro de auditoria foi preservado.' });
         } catch (error) {
             if (error instanceof Error && error.message === 'DOCUMENT_NOT_FOUND') {
@@ -294,6 +298,7 @@ export class DocumentController {
                 res.status(404).json({ error: 'Catálogo não encontrado.' });
                 return;
             }
+            invalidateCatalogListCache(req.user.tenantId);
             res.json({ message: `Saúde recalculada: nota ${health.score}/100 (${health.reviewStatus}).`, health });
         } catch (error) {
             console.error('❌ Erro ao recalcular saúde do catálogo:', error);
