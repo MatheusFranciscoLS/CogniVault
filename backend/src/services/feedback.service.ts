@@ -121,6 +121,8 @@ export class FeedbackService {
             },
         });
 
+        invalidateSearchFeedbackCache(params.tenantId);
+
         return {
             feedbackId: feedback.id,
             correctedPart: correctedPart ? {
