@@ -250,6 +250,30 @@ export class WorkIntelligenceController {
           });
           return;
         }
+
+        if (productDetails?.portalUrl) {
+          res.json({
+            result: {
+              status: 'FOUND',
+              source: 'OFFICIAL',
+              kind: 'PRODUCT_CATALOG',
+              query,
+              pnc: productDetails.pnc,
+              name: productDetails.productName,
+              discontinued: productDetails.discontinued,
+              categoryName: productDetails.categoryName,
+              articleDescription: productDetails.articleDescription,
+              iplSections: productDetails.iplSections,
+              documents: [],
+              portalUrl: productDetails.portalUrl,
+              url: productDetails.portalUrl,
+              message: productDetails.iplSections.length
+                ? `${productDetails.iplSections.length} vista(s) explodida(s) oficial(is) confirmada(s) pela Husqvarna para este PNC.`
+                : 'PNC confirmado diretamente pela Husqvarna. Este artigo não retornou vistas explodidas estruturadas na API.',
+            },
+          });
+          return;
+        }
       }
 
       res.json({
