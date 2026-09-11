@@ -7,6 +7,13 @@ const PORTAL_SUCCESS_TTL_MS = 6 * 60 * 60 * 1000;
 const PORTAL_MISS_TTL_MS = 10 * 60 * 1000;
 const PORTAL_TIMEOUT_MS = 8_000;
 
+const VERIFIED_PRODUCT_ROUTES: Record<string, { productName: string; portalUrl: string }> = {
+  '965195201': {
+    productName: 'HUSQVARNA 327P5x',
+    portalUrl: 'https://portal.husqvarnagroup.com/br/serrotes-com-cabo/327p5x/?article=965195201',
+  },
+};
+
 export type HusqvarnaPortalDocumentType = 'IPL' | 'OM' | 'OTHER';
 
 export type HusqvarnaPortalDocument = {
@@ -32,6 +39,20 @@ type CatalogCacheEntry = {
 const catalogCache = new LRUCache<string, CatalogCacheEntry>({
   max: 1_000,
 });
+
+export function getVerifiedHusqvarnaPortalProduct(pncInput: string): HusqvarnaPortalCatalogResult | null {
+  const pnc = normalizeIdentifier(pncInput);
+  const verified = VERIFIED_PRODUCT_ROUTES[pnc];
+  if (!verified) return null;
+
+  return {
+    pnc,
+    productName: verified.productName,
+    discontinued: false,
+    portalUrl: verified.portalUrl,
+    documents: [],
+  };
+}
 
 function decodeHtml(value: string): string {
   return value
@@ -136,7 +157,7 @@ function isSpecificProductName(value: string): boolean {
   if (!/^HUSQVARNA\s+[A-Za-z0-9]/i.test(value)) return false;
 
   const normalized = value.replace(/\s+/g, ' ').trim().toUpperCase();
-  return !/^HUSQVARNA\s+(?:PORTAL|GROUP|GLOBAL|B2B|SUPPORT|MANUALS?|DOCUMENTS?)\b/.test(normalized);
+  return !/^HUSQVARNA\s+(?:PORTAL|GROUP|GLOBAL|B2B|SUPPORT|SERVICE(?:\s+HUB)?|HUB|MANUALS?|DOCUMENTS?)\b/.test(normalized);
 }
 
 function extractProductName(html: string, pnc: string): string | null {
@@ -206,11 +227,15 @@ function addDocument(
   }
 }
 
-export function parseHusqvarnaPortalSearchHtml(html: string, pncInput: string): HusqvarnaPortalCatalogResult | null {
+export function parseHusqvarnaPortalSearchHtml(
+  html: string,
+  pncInput: string,
+  portalUrlOverride?: string,
+): HusqvarnaPortalCatalogResult | null {
   const pnc = normalizeIdentifier(pncInput);
   if (!pnc) return null;
 
-  const portalUrl = `${HUSQVARNA_PORTAL_ORIGIN}${HUSQVARNA_PORTAL_COUNTRY_PATH}?q=${encodeURIComponent(pnc)}`;
+  const portalUrl = portalUrlOverride || `${HUSQVARNA_PORTAL_ORIGIN}${HUSQVARNA_PORTAL_COUNTRY_PATH}?q=${encodeURIComponent(pnc)}`;
   const documents = new Map<string, HusqvarnaPortalDocument>();
 
   const anchorRegex = /<a\b[^>]*href\s*=\s*(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
@@ -261,7 +286,8 @@ export class HusqvarnaPortalCatalogService {
     const cached = catalogCache.get(pnc);
     if (cached !== undefined) return cached.result;
 
-    const url = this.buildSearchUrl(pnc);
+    const verified = getVerifiedHusqvarnaPortalProduct(pnc);
+    const url = verified?.portalUrl || this.buildSearchUrl(pnc);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), PORTAL_TIMEOUT_MS);
 
@@ -278,12 +304,24 @@ export class HusqvarnaPortalCatalogService {
 
       if (!response.ok) {
         console.warn(`[Husqvarna Portal] Busca por PNC ${pnc} retornou HTTP ${response.status}.`);
+        if (verified) {
+          catalogCache.set(pnc, { result: verified }, { ttl: PORTAL_SUCCESS_TTL_MS });
+          return verified;
+        }
         catalogCache.set(pnc, { result: null }, { ttl: PORTAL_MISS_TTL_MS });
         return null;
       }
 
       const html = await response.text();
-      const result = parseHusqvarnaPortalSearchHtml(html, pnc);
+      const parsed = parseHusqvarnaPortalSearchHtml(html, pnc, verified?.portalUrl);
+      const result = verified
+        ? {
+            ...verified,
+            discontinued: parsed?.discontinued ?? verified.discontinued,
+            documents: parsed?.documents || [],
+          }
+        : parsed;
+
       catalogCache.set(pnc, { result }, { ttl: result ? PORTAL_SUCCESS_TTL_MS : PORTAL_MISS_TTL_MS });
       if (result) {
         console.log(`[Husqvarna Portal] PNC ${pnc}: ${result.productName || 'produto encontrado'} · ${result.documents.length} documento(s).`);
@@ -294,6 +332,10 @@ export class HusqvarnaPortalCatalogService {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.warn(`[Husqvarna Portal] Falha ao consultar PNC ${pnc}: ${message}`);
+      if (verified) {
+        catalogCache.set(pnc, { result: verified }, { ttl: PORTAL_SUCCESS_TTL_MS });
+        return verified;
+      }
       return null;
     } finally {
       clearTimeout(timeout);
