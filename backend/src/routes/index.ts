@@ -114,12 +114,12 @@ router.patch('/part-verifications/:id/decision', authMiddleware, adminOnly, (req
 
 router.get('/documents', authMiddleware, (req, res) => catalogListController.list(req, res));
 router.get('/documents/:id/access', authMiddleware, (req, res) => documentAccessController.access(req, res));
-router.patch('/documents/:id/category', authMiddleware, adminOnly, (req, res) => documentController.setCategory(req, res));
-router.post('/upload', authMiddleware, adminOnly, upload.single('file'), uploadConcurrencyMiddleware, (req, res) => documentController.upload(req, res));
+router.patch('/documents/:id/category', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.setCategory(req, res));
+router.post('/upload', authMiddleware, adminOnly, upload.single('file'), uploadConcurrencyMiddleware, invalidateDocumentAccessAfterMutation, (req, res) => documentController.upload(req, res));
 router.post('/documents/:id/archive', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.archive(req, res));
 router.post('/documents/:id/restore', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.restore(req, res));
 router.post('/documents/:id/reprocess', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.reprocess(req, res));
-router.post('/documents/:id/refresh-health', authMiddleware, (req, res) => documentController.refreshHealth(req, res));
+router.post('/documents/:id/refresh-health', authMiddleware, invalidateDocumentAccessAfterMutation, (req, res) => documentController.refreshHealth(req, res));
 router.delete('/documents/:id', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.remove(req, res));
 
 router.post('/chat', authMiddleware, (req, res) => chatController.ask(req, res));
@@ -143,7 +143,7 @@ router.post('/admin/quality/rebuild-knowledge', authMiddleware, adminOnly, (req,
 router.post('/admin/quality/index-semantics', authMiddleware, adminOnly, (req, res) => qualityController.indexSemantics(req, res));
 router.post('/admin/quality/clear-semantics', authMiddleware, adminOnly, (req, res) => qualityController.clearSemantics(req, res));
 router.post('/admin/quality/retry-visual-catalogs', authMiddleware, adminOnly, (req, res) => qualityController.retryVisualCatalogs(req, res));
-router.patch('/admin/quality/catalogs/:id', authMiddleware, adminOnly, (req, res) => qualityController.reviewDocument(req, res));
+router.patch('/admin/quality/catalogs/:id', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => qualityController.reviewDocument(req, res));
 router.post('/admin/quality/radar/resolve', authMiddleware, adminOnly, (req, res) => qualityController.resolveRadar(req, res));
 
 export default router;
