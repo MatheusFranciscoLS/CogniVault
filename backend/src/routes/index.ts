@@ -119,7 +119,7 @@ router.post('/upload', authMiddleware, adminOnly, upload.single('file'), uploadC
 router.post('/documents/:id/archive', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.archive(req, res));
 router.post('/documents/:id/restore', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.restore(req, res));
 router.post('/documents/:id/reprocess', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.reprocess(req, res));
-router.post('/documents/:id/refresh-health', authMiddleware, invalidateDocumentAccessAfterMutation, (req, res) => documentController.refreshHealth(req, res));
+router.post('/documents/:id/refresh-health', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.refreshHealth(req, res));
 router.delete('/documents/:id', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.remove(req, res));
 
 router.post('/chat', authMiddleware, (req, res) => chatController.ask(req, res));
