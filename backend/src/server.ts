@@ -77,7 +77,7 @@ async function bootstrap() {
 
     void startBackgroundProcessing();
 
-    const shutdown = async (signal: string) => {
+    const shutdown = async (signal: string, exitCode = 0) => {
         if (shuttingDown) return;
         shuttingDown = true;
         console.log(`🛑 Encerrando CogniVault com ${signal}...`);
@@ -93,7 +93,7 @@ async function bootstrap() {
                 await DocumentWorker.stop();
                 await rabbitMQ.close();
                 await prisma.$disconnect();
-                process.exit(0);
+                process.exit(exitCode);
             } catch (error) {
                 console.error('❌ Falha no encerramento seguro:', error);
                 process.exit(1);
@@ -105,15 +105,15 @@ async function bootstrap() {
 
     process.once('SIGTERM', () => { void shutdown('SIGTERM'); });
     process.once('SIGINT', () => { void shutdown('SIGINT'); });
+    process.once('unhandledRejection', (reason) => {
+        console.error('❌ Rejeição de Promise não tratada; reiniciando processo:', reason);
+        void shutdown('unhandledRejection', 1);
+    });
+    process.once('uncaughtException', (error) => {
+        console.error('❌ Exceção não tratada; reiniciando processo:', error);
+        void shutdown('uncaughtException', 1);
+    });
 }
-
-process.on('unhandledRejection', (reason) => {
-    console.error('❌ Rejeição de Promise não tratada:', reason);
-});
-
-process.on('uncaughtException', (error) => {
-    console.error('❌ Exceção não tratada:', error);
-});
 
 void bootstrap().catch((error) => {
     console.error('❌ Erro crítico ao iniciar o servidor HTTP:', error);
