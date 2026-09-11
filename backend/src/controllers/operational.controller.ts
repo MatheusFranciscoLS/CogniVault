@@ -10,25 +10,16 @@ import { allRelatedPartNumbers, preferCurrentPartNumbers } from '../services/par
 import { filterCandidatesByMarket } from '../services/catalog-market';
 import { PartSearchService, invalidatePartSearchCaches } from '../services/part-search.service';
 import { invalidateChatResponseCache } from '../services/chat.service';
+import { invalidateHomeResponseCache } from './home.controller';
+import { invalidatePartDetailResponseCache } from './part-detail.controller';
 import {
     resolveEngineCatalogRoute,
     findMachinesForEngine,
     findEngineApplications,
     classifyPartKind,
-    getCorrelatedMaintenanceTerms,
     getBasicMaintenanceKitTerms,
 } from '../services/husqvarna-domain-knowledge';
 import { HusqvarnaScraperService } from '../services/husqvarna-scraper.service';
-
-const homeCountsCache = new LRUCache<string, { parts: number; documents: number }>({
-    max: 200,
-    ttl: 30 * 1000, // 30 seconds
-});
-
-const homeRecentDocsCache = new LRUCache<string, any[]>({
-    max: 200,
-    ttl: 30 * 1000, // 30 seconds
-});
 
 interface CachedSearchResult {
     parts: any[];
@@ -37,91 +28,27 @@ interface CachedSearchResult {
 
 const searchResponseCache = new LRUCache<string, CachedSearchResult>({
     max: 1000,
-    ttl: 60 * 1000, // 60 seconds
+    ttl: 60 * 1000,
 });
 
-interface CachedPartBase {
-    resolvedPart: any;
-    related: any[];
-    compatibility: any[];
-}
-
-const partDetailCache = new LRUCache<string, CachedPartBase>({
-    max: 1000,
-    ttl: 2 * 60 * 1000, // 2 minutes
-});
-
+// Mantém o export legado para chamadas antigas, mas invalida somente os caches
+// que continuam ativos após a separação dos controllers dedicados.
 export function invalidateHomeCountsCache(tenantId?: string): void {
     if (tenantId) {
-        homeCountsCache.delete(tenantId);
-        homeRecentDocsCache.delete(tenantId);
         for (const key of searchResponseCache.keys()) {
             if (key.startsWith(`${tenantId}:`)) searchResponseCache.delete(key);
         }
-        for (const key of partDetailCache.keys()) {
-            if (key.startsWith(`${tenantId}:`)) partDetailCache.delete(key);
-        }
     } else {
-        homeCountsCache.clear();
-        homeRecentDocsCache.clear();
         searchResponseCache.clear();
-        partDetailCache.clear();
     }
+
+    invalidateHomeResponseCache(tenantId);
+    invalidatePartDetailResponseCache(tenantId);
     invalidatePartSearchCaches(tenantId);
     invalidateChatResponseCache(tenantId);
 }
 
 export class OperationalController {
-    async home(req: AuthenticatedRequest, res: Response): Promise<void> {
-        if (!req.user) return;
-        const { tenantId, id: userId } = req.user;
-
-        try {
-            let counts = homeCountsCache.get(tenantId);
-            if (!counts) {
-                const [parts, documents] = await Promise.all([
-                    prisma.part.count({ where: { active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } } }),
-                    prisma.document.count({ where: { tenantId, archivedAt: null, status: 'COMPLETED' } }),
-                ]);
-                counts = { parts, documents };
-                homeCountsCache.set(tenantId, counts);
-            }
-
-            let recentDocuments = homeRecentDocsCache.get(tenantId);
-            if (!recentDocuments) {
-                const docs = await prisma.document.findMany({
-                    where: { tenantId, archivedAt: null, status: 'COMPLETED' },
-                    orderBy: { createdAt: 'desc' },
-                    take: 5,
-                    select: {
-                        id: true, filename: true, manufacturer: true, model: true, pnc: true, createdAt: true,
-                        _count: { select: { parts: { where: { active: true } } } },
-                    },
-                });
-                recentDocuments = docs.map((item) => ({ ...item, partCount: item._count.parts, _count: undefined }));
-                homeRecentDocsCache.set(tenantId, recentDocuments);
-            }
-
-            const [recentSearches, favorites] = await Promise.all([
-                prisma.searchHistory.findMany({ where: { tenantId, userId }, orderBy: { createdAt: 'desc' }, take: 6 }),
-                prisma.favorite.findMany({ where: { tenantId, userId }, orderBy: { createdAt: 'desc' }, take: 6 }),
-            ]);
-
-            res.json({
-                home: {
-                    counts,
-                    recentSearches,
-                    favorites,
-                    recentDocuments,
-                },
-            });
-        } catch (error) {
-            console.error('❌ Erro na consulta do painel inicial:', error);
-            res.status(500).json({ error: 'Não foi possível carregar as informações do painel inicial.' });
-        }
-    }
-
-
     async search(req: AuthenticatedRequest, res: Response): Promise<void> {
         if (!req.user) return;
 
@@ -159,7 +86,6 @@ export class OperationalController {
             const normalizedManufacturer = normalizeIdentifier(intent.manufacturer);
             const normalizedPnc = normalizeIdentifier(intent.pnc);
 
-            // Vinculação Giro Zero -> Motor Kawasaki / HS / HV.
             const engineRoute = resolveEngineCatalogRoute(
                 intent.model,
                 intent.pnc,
@@ -190,7 +116,6 @@ export class OperationalController {
                 }
             }
 
-            // Isola texto descritivo removendo código e modelo já reconhecidos.
             let descriptiveText = q;
 
             if (detectedCode) {
@@ -410,7 +335,6 @@ export class OperationalController {
                         },
                     },
                 }),
-
                 prisma.document.findMany({
                     where: {
                         tenantId,
@@ -515,8 +439,6 @@ export class OperationalController {
             const resolvedParts = preferCurrentPartNumbers(marketFiltered);
             const seen = new Set<string>();
 
-            // Mantemos o registro original até o enriquecimento.
-            // Assim normalizedPartNumber continua disponível apenas internamente.
             const rankedParts = resolvedParts
                 .map(part => {
                     let score = groups.length
@@ -678,7 +600,9 @@ export class OperationalController {
                 documents: [],
             });
         }
-    }    async searchStream(
+    }
+
+    async searchStream(
         req: AuthenticatedRequest,
         res: Response
     ): Promise<void> {
@@ -701,8 +625,6 @@ export class OperationalController {
             'Connection',
             'keep-alive'
         );
-
-        // Evita buffering por proxies como nginx.
         res.setHeader(
             'X-Accel-Buffering',
             'no'
@@ -745,11 +667,6 @@ export class OperationalController {
         }
 
         try {
-            /*
-             * Primeiro reutilizamos exatamente a busca operacional
-             * já existente. Assim /search e /search/stream não passam
-             * a ter regras diferentes de ranking.
-             */
             let capturedStatus = 200;
 
             let capturedPayload:
@@ -825,10 +742,6 @@ export class OperationalController {
                 return;
             }
 
-            /*
-             * PRIMEIRA RESPOSTA:
-             * resultados rápidos da busca operacional.
-             */
             send({
                 type: 'lexical',
                 parts:
@@ -841,13 +754,6 @@ export class OperationalController {
                 return;
             }
 
-            /*
-             * SEGUNDA ETAPA:
-             * recuperação híbrida / semântica.
-             *
-             * O PartSearchService já combina lexical,
-             * full-text, fuzzy, vetorial e código direto.
-             */
             try {
                 const intent =
                     buildFallbackIntent(q);
@@ -936,94 +842,41 @@ export class OperationalController {
                                     );
 
                                 return {
-                                    id:
-                                        candidate.id,
-
-                                    documentId:
-                                        candidate.documentId,
-
-                                    filename:
-                                        candidate.filename,
-
-                                    manufacturer:
-                                        candidate.manufacturer,
-
-                                    model:
-                                        candidate.model,
-
-                                    pnc:
-                                        candidate
-                                            .universalAcrossPnc
-                                            ? 'Qualquer um'
-                                            : candidate.pnc,
-
-                                    universalAcrossPnc:
-                                        candidate
-                                            .universalAcrossPnc,
-
-                                    section:
-                                        candidate.section,
-
-                                    position:
-                                        candidate.position,
-
-                                    name:
+                                    id: candidate.id,
+                                    documentId: candidate.documentId,
+                                    filename: candidate.filename,
+                                    manufacturer: candidate.manufacturer,
+                                    model: candidate.model,
+                                    pnc: candidate.universalAcrossPnc
+                                        ? 'Qualquer um'
+                                        : candidate.pnc,
+                                    universalAcrossPnc: candidate.universalAcrossPnc,
+                                    section: candidate.section,
+                                    position: candidate.position,
+                                    name: candidate.name,
+                                    partNumber: candidate.partNumber,
+                                    page: candidate.page,
+                                    notes: candidate.notes,
+                                    classification: classifyPartKind(
                                         candidate.name,
-
-                                    partNumber:
-                                        candidate.partNumber,
-
-                                    page:
-                                        candidate.page,
-
-                                    notes:
-                                        candidate.notes,
-
-                                    classification:
-                                        classifyPartKind(
-                                            candidate.name,
-                                            candidate.section,
-                                            candidate.notes
-                                        ),
-
-                                    price:
-                                        master?.price ??
-                                        null,
-
-                                    ean:
-                                        master?.ean ??
-                                        null,
-
-                                    ncm:
-                                        master?.ncm ??
-                                        null,
-
-                                    officialName:
-                                        master?.name ??
-                                        null,
-
-                                    masterCategory:
-                                        master?.category ??
-                                        null,
-
-                                    brand:
-                                        master?.brand ??
-                                        null,
+                                        candidate.section,
+                                        candidate.notes
+                                    ),
+                                    price: master?.price ?? null,
+                                    ean: master?.ean ?? null,
+                                    ncm: master?.ncm ?? null,
+                                    officialName: master?.name ?? null,
+                                    masterCategory: master?.category ?? null,
+                                    brand: master?.brand ?? null,
                                 };
                             });
 
                     send({
                         type: 'semantic',
-                        parts:
-                            semanticParts,
+                        parts: semanticParts,
                     });
                 }
             } catch (semanticError) {
-                /*
-                 * A busca semântica é melhoria progressiva.
-                 * Se Gemini/pgvector/fuzzy estiver indisponível,
-                 * os resultados lexicais continuam válidos.
-                 */
                 console.warn(
                     '⚠️ Busca semântica indisponível no stream:',
                     semanticError instanceof Error
@@ -1059,142 +912,6 @@ export class OperationalController {
             ) {
                 res.end();
             }
-        }
-    }
-
-    async part(req: AuthenticatedRequest, res: Response): Promise<void> {
-        if (!req.user) return;
-        const id = String(req.params.id);
-        const tenantId = req.user.tenantId;
-        const detailCacheKey = `${tenantId}:${id}`;
-
-        try {
-            let cachedBase = partDetailCache.get(detailCacheKey);
-            if (!cachedBase) {
-                const part = await prisma.part.findFirst({
-                    where: { id, active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } },
-                    include: { document: { select: { id: true, filename: true, manufacturer: true, model: true, pnc: true } } },
-                });
-                if (!part) {
-                    res.status(404).json({ error: 'Peça não encontrada.' });
-                    return;
-                }
-
-                const relatedCodes = allRelatedPartNumbers(part.normalizedPartNumber).map(normalizeIdentifier).filter(Boolean);
-                const compatibilityCodes = relatedCodes.length ? relatedCodes : [part.normalizedPartNumber];
-
-                const [related, compatibility] = await Promise.all([
-                    prisma.part.findMany({
-                        where: {
-                            id: { not: part.id }, normalizedModel: part.normalizedModel, active: true,
-                            document: { tenantId, archivedAt: null, status: 'COMPLETED' },
-                            ...(part.section ? { section: part.section } : {}),
-                        },
-                        take: 8,
-                        select: { id: true, name: true, partNumber: true, model: true, pnc: true, section: true, position: true, page: true },
-                    }),
-                    prisma.part.findMany({
-                        where: {
-                            normalizedPartNumber: { in: compatibilityCodes },
-                            active: true,
-                            document: { tenantId, archivedAt: null, status: 'COMPLETED' },
-                        },
-                        distinct: ['normalizedModel', 'normalizedPnc'],
-                        take: 50,
-                        select: { model: true, pnc: true, universalAcrossPnc: true },
-                    }),
-                ]);
-
-                const [resolvedPart] = preferCurrentPartNumbers([part]);
-
-                const masterPart = await prisma.masterPart.findUnique({
-                    where: { tenantId_normalizedNumber: { tenantId: tenantId, normalizedNumber: resolvedPart.normalizedPartNumber } }
-                });
-
-                // Enriquecimento de compatibilidade cruzada Máquina <-> Motor (ex: Kawasaki FR691V -> Giro Zero Z248F / Z254F)
-                const extraCompatibility: { model: string; pnc: string }[] = [];
-                const engineMachines = findMachinesForEngine(part.normalizedModel);
-                for (const app of engineMachines) {
-                    extraCompatibility.push({
-                        model: `${app.machineModel} (Giro Zero / Trator c/ motor ${part.model})`,
-                        pnc: app.machinePnc || 'Chassi',
-                    });
-                }
-                const machineEngines = findEngineApplications(part.normalizedModel);
-                for (const app of machineEngines) {
-                    extraCompatibility.push({
-                        model: `Motor ${app.engineModel} (Equipamento original)`,
-                        pnc: app.engineArticle ? `Artigo ${app.engineArticle}` : 'Motor',
-                    });
-                }
-
-                const mergedCompatibility = [
-                    ...compatibility.map((item) => ({ model: item.model, pnc: item.universalAcrossPnc ? 'Qualquer um' : item.pnc })),
-                    ...extraCompatibility,
-                ];
-
-                cachedBase = {
-                    resolvedPart: {
-                        ...resolvedPart,
-                        price: masterPart?.price || null,
-                        ean: masterPart?.ean || null,
-                        ncm: masterPart?.ncm || null,
-                        officialName: masterPart?.name || null,
-                        masterCategory: masterPart?.category || null,
-                        brand: masterPart?.brand || null,
-                    },
-                    related,
-                    compatibility: mergedCompatibility,
-                };
-                partDetailCache.set(detailCacheKey, cachedBase);
-            }
-
-            const favorite = await prisma.favorite.findFirst({
-                where: { userId: req.user.id, partId: id },
-                select: { id: true },
-            });
-
-            const maintenanceInfo = getCorrelatedMaintenanceTerms(cachedBase.resolvedPart.name);
-            let suggestedAddons: { reason: string; items: any[] } = { reason: '', items: [] };
-            if (maintenanceInfo.suggestedTerms.length > 0) {
-                const candidateParts = await prisma.part.findMany({
-                    where: {
-                        documentId: cachedBase.resolvedPart.documentId,
-                        active: true,
-                        id: { not: cachedBase.resolvedPart.id },
-                        OR: maintenanceInfo.suggestedTerms.map(term => ({
-                            name: { contains: term, mode: 'insensitive' as const },
-                        })),
-                    },
-                    take: 6,
-                    select: { id: true, name: true, partNumber: true, model: true, pnc: true, section: true, position: true, page: true },
-                });
-                suggestedAddons = {
-                    reason: maintenanceInfo.reason,
-                    items: candidateParts.map(p => ({
-                        ...p,
-                        classification: classifyPartKind(p.name, p.section),
-                    })),
-                };
-            }
-
-            res.json({
-                part: {
-                    ...cachedBase.resolvedPart,
-                    pnc: cachedBase.resolvedPart.universalAcrossPnc ? 'Qualquer um' : cachedBase.resolvedPart.pnc,
-                    classification: classifyPartKind(cachedBase.resolvedPart.name, cachedBase.resolvedPart.section, cachedBase.resolvedPart.notes),
-                    suggestedAddons,
-                    related: cachedBase.related.map(r => ({
-                        ...r,
-                        classification: classifyPartKind(r.name, r.section),
-                    })),
-                    compatibility: cachedBase.compatibility,
-                    favoriteId: favorite?.id || null,
-                },
-            });
-        } catch (error) {
-            console.error(`❌ Erro ao buscar detalhe da peça ${id}:`, error);
-            res.status(500).json({ error: 'Erro ao carregar detalhes da peça.' });
         }
     }
 
@@ -1306,53 +1023,6 @@ export class OperationalController {
         } catch (error) {
             console.error('❌ Erro ao remover favorito:', error);
             res.status(500).json({ error: 'Erro ao remover favorito.' });
-        }
-    }
-
-    async notifications(req: AuthenticatedRequest, res: Response): Promise<void> {
-        if (!req.user) return;
-        const tenantId = req.user.tenantId;
-        const isAdmin = req.user.role === 'ADMIN';
-        try {
-            const [documents, audits, verifications] = await Promise.all([
-                prisma.document.findMany({
-                    where: { tenantId, archivedAt: null, status: { in: ['FAILED', 'PROCESSING', 'PENDING'] } },
-                    orderBy: { createdAt: 'desc' }, take: 8,
-                    select: { id: true, filename: true, status: true, createdAt: true },
-                }),
-                isAdmin ? prisma.auditLog.findMany({
-                    where: { tenantId }, orderBy: { createdAt: 'desc' }, take: 12,
-                    select: { id: true, action: true, targetType: true, createdAt: true, user: { select: { email: true } } },
-                }) : Promise.resolve([]),
-                isAdmin ? prisma.officialPartVerification.findMany({
-                    where: { tenantId, approvalStatus: 'PENDING' },
-                    orderBy: { createdAt: 'desc' }, take: 8,
-                    select: { id: true, queriedPartNumber: true, currentPartNumber: true, status: true, user: { select: { email: true } }, createdAt: true },
-                }) : Promise.resolve([]),
-            ]);
-
-            const items = [
-                ...verifications.map((item) => {
-                    const isSuperseded = item.status === 'SUPERSEDED' || item.queriedPartNumber.replace(/\W/g, '') !== item.currentPartNumber.replace(/\W/g, '');
-                    const label = isSuperseded
-                        ? `Substituição ${item.queriedPartNumber} → ${item.currentPartNumber}`
-                        : `Conferência da peça ${item.queriedPartNumber}`;
-                    return {
-                        id: `verification-${item.id}`,
-                        type: 'warning' as const,
-                        title: 'Conferência pendente de aprovação',
-                        description: `${label} (por ${item.user.email})`,
-                        createdAt: item.createdAt,
-                    };
-                }),
-                ...documents.map((item) => ({ id: `doc-${item.id}`, type: item.status === 'FAILED' ? 'error' as const : 'processing' as const, title: item.status === 'FAILED' ? 'Falha no processamento' : 'Catálogo em processamento', description: item.filename, createdAt: item.createdAt })),
-                ...audits.map((item) => ({ id: `audit-${item.id}`, type: 'info' as const, title: item.action.replaceAll('_', ' '), description: item.user?.email || 'Sistema', createdAt: item.createdAt })),
-            ].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)).slice(0, 20);
-
-            res.json({ notifications: items });
-        } catch (error) {
-            console.error('❌ Erro ao carregar notificações:', error);
-            res.status(500).json({ error: 'Erro ao carregar notificações.', notifications: [] });
         }
     }
 
