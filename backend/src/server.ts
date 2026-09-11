@@ -3,7 +3,6 @@ import app from './app';
 import { rabbitMQ } from './queues/connection';
 import { DocumentWorker } from './queues/worker';
 import { prisma } from './config/prisma';
-import { refreshLegacyCatalogHealth } from './services/catalog-health-maintenance';
 import { retryVisualCatalogsAfterStartup, startVisualCatalogRetryScheduler } from './services/visual-catalog-retry.service';
 import { semanticIndexingEnabled } from './services/semantic-indexing-policy';
 
@@ -23,24 +22,6 @@ function validateCriticalConfiguration(): void {
 }
 
 async function runPostStartupMaintenance(): Promise<void> {
-    try {
-        const catalogHealthMaintenance = await refreshLegacyCatalogHealth();
-        if (catalogHealthMaintenance.found > 0) {
-            console.log(
-                `🩺 Diagnósticos legados recalculados: ${catalogHealthMaintenance.refreshed}/${catalogHealthMaintenance.found}`
-                + (catalogHealthMaintenance.failed ? ` · ${catalogHealthMaintenance.failed} falha(s)` : ''),
-            );
-        }
-        if (catalogHealthMaintenance.reextractQueued > 0 || catalogHealthMaintenance.reextractFailed > 0) {
-            console.log(
-                `🛠️ Correções de extração reenfileiradas: ${catalogHealthMaintenance.reextractQueued}`
-                + (catalogHealthMaintenance.reextractFailed ? ` · ${catalogHealthMaintenance.reextractFailed} falha(s)` : ''),
-            );
-        }
-    } catch (error) {
-        console.warn('⚠️ Manutenção de saúde dos catálogos falhou sem interromper a API:', error);
-    }
-
     try {
         const visualRetry = await retryVisualCatalogsAfterStartup();
         if (visualRetry.queued > 0 || visualRetry.failures > 0) {
