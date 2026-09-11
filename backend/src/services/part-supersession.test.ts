@@ -8,8 +8,8 @@ test('redireciona o carburador antigo para o código atual confirmado pela Husqv
 });
 
 test('oculta a peça substituída somente quando a atual também está no catálogo', () => {
-  const oldPart = { id: 'old', partNumber: '586931401', normalizedPartNumber: '586931401' };
-  const currentPart = { id: 'current', partNumber: '587106701', normalizedPartNumber: '587106701' };
+  const oldPart = { id: 'old', partNumber: '586931401', normalizedPartNumber: '586931401', notes: null as string | null };
+  const currentPart = { id: 'current', partNumber: '587106701', normalizedPartNumber: '587106701', notes: null as string | null };
   assert.deepEqual(preferCurrentPartNumbers([oldPart, currentPart]).map(item => item.id), ['current']);
 
   const [resolvedOldOnly] = preferCurrentPartNumbers([oldPart]);
