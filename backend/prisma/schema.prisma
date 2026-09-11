@@ -22,6 +22,7 @@ model Tenant {
   masterParts           MasterPart[]
   partLocations         PartLocation[]
   quoteUsages           QuoteUsage[]
+  commercialImportRuns  CommercialImportRun[]
   createdAt             DateTime                   @default(now())
 }
 
@@ -306,6 +307,25 @@ model QuoteUsage {
   @@index([tenantId, model, createdAt])
   @@index([tenantId, sessionId])
   @@index([userId, createdAt])
+}
+
+model CommercialImportRun {
+  id              String    @id @default(uuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sourceFilename  String
+  sourceHash      String
+  priceDivisor    Float
+  occurrenceCount Int       @default(0)
+  masterCount     Int       @default(0)
+  sectionCount    Int       @default(0)
+  status          String    @default("RUNNING")
+  error           String?
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+
+  @@index([tenantId, startedAt])
+  @@index([tenantId, sourceHash])
 }
 
 model SearchFeedback {
