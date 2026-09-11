@@ -9,6 +9,7 @@
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
     "benchmark:parts": "npm run build && node dist/scripts/run-part-benchmark.js",
     "import:price-list": "tsx src/scripts/import-price-list.ts",
+    "audit:catalogs": "tsx src/scripts/audit-catalog-integrity.ts",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate:deploy": "prisma migrate deploy"
