@@ -174,6 +174,13 @@ export class DocumentController {
                 res.status(404).json({ error: 'Catálogo arquivado não encontrado.' });
                 return;
             }
+            if (error instanceof Error && error.message.startsWith('DOCUMENT_DUPLICATE:')) {
+                res.status(409).json({
+                    error: 'Não é possível restaurar este catálogo porque o mesmo PDF já está ativo.',
+                    existingDocumentId: error.message.split(':')[1],
+                });
+                return;
+            }
             console.error('❌ Erro ao restaurar catálogo:', error);
             res.status(500).json({ error: 'Não foi possível restaurar o catálogo.' });
         }
@@ -232,6 +239,10 @@ export class DocumentController {
             }
             if (error instanceof Error && error.message === 'DOCUMENT_ALREADY_PROCESSING') {
                 res.status(409).json({ error: 'Aguarde o processamento terminar antes de excluir o PDF.' });
+                return;
+            }
+            if (error instanceof Error && error.message.startsWith('DOCUMENT_STORAGE_DELETE_FAILED:')) {
+                res.status(502).json({ error: 'Não foi possível excluir o PDF do armazenamento. Tente novamente.' });
                 return;
             }
             console.error('❌ Erro ao excluir PDF do catálogo:', error);
