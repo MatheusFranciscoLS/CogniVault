@@ -28,6 +28,7 @@ import { loginLimiter } from '../middleware/rate-limit.middleware';
 import { uploadConcurrencyMiddleware } from '../middleware/upload-concurrency.middleware';
 import { searchSingleFlightMiddleware } from '../middleware/search-single-flight.middleware';
 import {
+  invalidateAdminOverviewAfterMutation,
   invalidateDocumentAccessAfterMutation,
   invalidateFavoriteCachesAfterMutation,
   invalidateHomeAfterSearch,
@@ -124,18 +125,18 @@ router.post('/documents/:id/refresh-health', authMiddleware, adminOnly, invalida
 router.delete('/documents/:id', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.remove(req, res));
 
 router.post('/chat', authMiddleware, (req, res) => chatController.ask(req, res));
-router.post('/feedback', authMiddleware, (req, res) => feedbackController.create(req, res));
+router.post('/feedback', authMiddleware, invalidateAdminOverviewAfterMutation, (req, res) => feedbackController.create(req, res));
 router.patch('/feedback/:id', authMiddleware, (req, res) => feedbackController.update(req, res));
 
 router.get('/admin/overview', authMiddleware, adminOnly, (req, res) => adminOverviewController.get(req, res));
 router.get('/admin/performance', authMiddleware, adminOnly, (req, res) => performanceController.overview(req, res));
 router.get('/admin/commercial-imports', authMiddleware, adminOnly, (req, res) => commercialImportController.list(req, res));
 router.get('/admin/users', authMiddleware, adminOnly, (req, res) => adminController.users(req, res));
-router.post('/admin/users', authMiddleware, adminOnly, (req, res) => adminController.createUser(req, res));
-router.patch('/admin/users/:id', authMiddleware, adminOnly, (req, res) => adminController.updateUser(req, res));
+router.post('/admin/users', authMiddleware, adminOnly, invalidateAdminOverviewAfterMutation, (req, res) => adminController.createUser(req, res));
+router.patch('/admin/users/:id', authMiddleware, adminOnly, invalidateAdminOverviewAfterMutation, (req, res) => adminController.updateUser(req, res));
 router.get('/admin/feedback', authMiddleware, adminOnly, (req, res) => adminFeedbackController.list(req, res));
-router.delete('/admin/feedback/:id', authMiddleware, adminOnly, (req, res) => adminFeedbackController.delete(req, res));
-router.post('/admin/feedback/seed-knowledge', authMiddleware, adminOnly, (req, res) => adminFeedbackController.seedKnowledge(req, res));
+router.delete('/admin/feedback/:id', authMiddleware, adminOnly, invalidateAdminOverviewAfterMutation, (req, res) => adminFeedbackController.delete(req, res));
+router.post('/admin/feedback/seed-knowledge', authMiddleware, adminOnly, invalidateAdminOverviewAfterMutation, (req, res) => adminFeedbackController.seedKnowledge(req, res));
 router.get('/admin/audit', authMiddleware, adminOnly, (req, res) => adminController.audit(req, res));
 router.get('/admin/quality', authMiddleware, adminOnly, (req, res) => qualityController.overview(req, res));
 router.get('/admin/quality/search-intelligence', authMiddleware, adminOnly, (req, res) => qualityController.searchIntelligence(req, res));
