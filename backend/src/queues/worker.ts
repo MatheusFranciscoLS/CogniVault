@@ -51,11 +51,10 @@ async function buildAuxiliaryCatalogKnowledge(documentId: string, tenantId: stri
             tenantId,
             Math.max(1, document.catalogRevision),
             document.parts,
+            { allowProcessing: true },
         );
         console.log(`🧠 Memória técnica ${documentId}: ${memory.chunks} chunks (${memory.embedded} vetorizados).`);
     } catch (memoryError) {
-        // Chunks explicam o contexto, mas nunca são a autoridade do Part Number.
-        // Uma falha desta camada não pode retirar do balcão peças já extraídas.
         console.warn(`⚠️ Memória técnica auxiliar indisponível para ${documentId}:`, memoryError);
     }
 }
@@ -88,7 +87,7 @@ export class DocumentWorker {
         const consumeResult = await channel.consume(DOCUMENT_PROCESSING_QUEUE, async (msg: ConsumeMessage | null) => {
             if (!msg) return;
             if (this.isShuttingDown) {
-                channel.nack(msg); // Devolve para a fila se estiver desligando
+                channel.nack(msg);
                 return;
             }
 
@@ -156,7 +155,6 @@ export class DocumentWorker {
                             console.log(`🧭 Metadados automáticos corrigidos para ${data.documentId}: ${JSON.stringify(repaired)}.`);
                         }
                     } catch (metadataRepairError) {
-                        // Metadado auxiliar nunca deve invalidar Part Numbers já persistidos.
                         console.warn(`⚠️ Não foi possível reconciliar metadados do catálogo ${data.documentId}:`, metadataRepairError);
                     }
                     await buildAuxiliaryCatalogKnowledge(data.documentId, data.tenantId);
@@ -164,8 +162,6 @@ export class DocumentWorker {
                         const category = await ensureCatalogCategory(data.documentId, data.tenantId);
                         if (category) console.log(`🗂️ Catálogo ${data.documentId} classificado em ${category}.`);
                     } catch (categoryError) {
-                        // Organização da biblioteca é auxiliar e nunca deve derrubar um
-                        // catálogo que já foi extraído/indexado com sucesso.
                         console.warn(`⚠️ Não foi possível classificar o catálogo ${data.documentId}:`, categoryError);
                     }
                     try {
@@ -299,7 +295,7 @@ export class DocumentWorker {
         }
 
         let attempts = 0;
-        while (this.activeJobs > 0 && attempts < 30) { // Wait up to ~30s
+        while (this.activeJobs > 0 && attempts < 30) {
             console.log(`⏳ Aguardando ${this.activeJobs} trabalho(s) em andamento finalizarem... (${attempts + 1}/30)`);
             await new Promise(resolve => setTimeout(resolve, 1000));
             attempts++;
