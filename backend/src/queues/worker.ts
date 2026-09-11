@@ -5,6 +5,9 @@ import { ensureCatalogCategory } from '../services/catalog-category-assignment';
 import { refreshCatalogHealth } from '../services/catalog-health';
 import { repairAutoDetectedDocumentMetadata } from '../services/catalog-metadata-repair';
 import { rebuildDocumentMemory } from '../services/document-memory';
+import { invalidateHomeResponseCache } from '../controllers/home.controller';
+import { invalidatePartDetailResponseCache } from '../controllers/part-detail.controller';
+import { invalidateCatalogListCache } from '../controllers/catalog-list.controller';
 import { nextDocumentRetry } from '../utils/document-retry';
 import { readableProcessingError } from '../utils/processing-error';
 import { DOCUMENT_PROCESSING_QUEUE, DOCUMENT_RETRY_QUEUE, rabbitMQ } from './connection';
@@ -177,6 +180,9 @@ export class DocumentWorker {
                             processingJobId: null,
                         },
                     });
+                    invalidateHomeResponseCache(data.tenantId);
+                    invalidatePartDetailResponseCache(data.tenantId);
+                    invalidateCatalogListCache(data.tenantId);
                     ack();
                     console.log(`✅ Documento ${data.documentId} processado com sucesso.`);
                 } catch (error) {
@@ -249,6 +255,9 @@ export class DocumentWorker {
                         if (hasUsableCatalog) {
                             try { await refreshCatalogHealth(data.documentId, data.tenantId); } catch { /* diagnóstico não bloqueia recuperação */ }
                         }
+                        invalidateCatalogListCache(data.tenantId);
+                        invalidateHomeResponseCache(data.tenantId);
+                        invalidatePartDetailResponseCache(data.tenantId);
                         ack();
                         console.warn(
                             hasUsableCatalog
