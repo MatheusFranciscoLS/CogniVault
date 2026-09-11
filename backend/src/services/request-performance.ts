@@ -1,5 +1,6 @@
-import { NextFunction, Request, Response } from 'express';
+import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
+import { NextFunction, Request, Response } from 'express';
 
 const MAX_SAMPLES_PER_ROUTE = 240;
 const SLOW_REQUEST_MS = Number(process.env.SLOW_REQUEST_MS || '500');
@@ -41,11 +42,20 @@ function rounded(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
+function requestId(req: Request): string {
+  const received = String(req.header('x-request-id') || '').trim();
+  if (/^[A-Za-z0-9._:-]{1,100}$/.test(received)) return received;
+  return randomUUID();
+}
+
 export function requestPerformanceMiddleware(req: Request, res: Response, next: NextFunction): void {
   if (!req.path.startsWith('/api') && !req.path.startsWith('/health')) {
     next();
     return;
   }
+
+  const correlationId = requestId(req);
+  res.set('X-Request-Id', correlationId);
 
   const started = performance.now();
   res.once('finish', () => {
@@ -81,7 +91,7 @@ export function requestPerformanceMiddleware(req: Request, res: Response, next: 
     stats.set(key, current);
 
     if (durationMs >= SLOW_REQUEST_MS) {
-      console.warn(`🐢 Requisição lenta: ${key} · ${rounded(durationMs)} ms · HTTP ${res.statusCode}`);
+      console.warn(`🐢 Requisição lenta: ${key} · ${rounded(durationMs)} ms · HTTP ${res.statusCode} · id=${correlationId}`);
     }
   });
 
