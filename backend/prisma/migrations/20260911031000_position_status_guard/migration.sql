@@ -1,6 +1,3 @@
-ALTER TABLE "Part"
-  ALTER COLUMN "positionStatus" SET DEFAULT 'SUSPECT_MISSING';
-
 CREATE OR REPLACE FUNCTION public.cognivault_guard_part_position()
 RETURNS trigger
 LANGUAGE plpgsql
