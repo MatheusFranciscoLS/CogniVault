@@ -30,6 +30,7 @@ import { searchSingleFlightMiddleware } from '../middleware/search-single-flight
 import {
   invalidateDocumentAccessAfterMutation,
   invalidateFavoriteCachesAfterMutation,
+  invalidateHomeAfterSearch,
   invalidateWorkContextAfterLocation,
   invalidateWorkContextAfterQuoteUsage,
 } from '../middleware/cache-invalidation.middleware';
@@ -77,6 +78,7 @@ router.get('/home', authMiddleware, (req, res) => homeController.home(req, res))
 router.get(
   '/search',
   authMiddleware,
+  invalidateHomeAfterSearch,
   (req, res, next) => fastSearchController.search(req, res, next),
   searchSingleFlightMiddleware,
   (req, res) => operationalController.search(req, res),
@@ -84,6 +86,7 @@ router.get(
 router.get(
   '/search/stream',
   authMiddleware,
+  invalidateHomeAfterSearch,
   (req, res, next) => fastSearchController.stream(req, res, next),
   (req, res) => operationalController.searchStream(req, res),
 );
