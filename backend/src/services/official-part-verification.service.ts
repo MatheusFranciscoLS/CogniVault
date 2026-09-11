@@ -59,6 +59,13 @@ type VerificationRow = {
   reviewedBy: { email: string } | null;
 };
 
+function isPrismaUniqueConstraintError(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && String((error as { code?: unknown }).code) === 'P2002';
+}
+
 export function buildHusqvarnaPortalUrl(partNumber: string): string {
   const normalized = normalizeIdentifier(partNumber);
   if (!normalized) throw new Error('Código da peça inválido.');
@@ -331,44 +338,52 @@ export class OfficialPartVerificationService {
 
     const verifiedAt = new Date();
     const officialUrl = buildHusqvarnaPortalUrl(currentPartNumber);
-    const record = await prisma.$transaction(async tx => {
-      const created = await tx.officialPartVerification.create({
-        data: {
-          tenantId: input.tenantId,
-          userId: input.userId,
-          status,
-          approvalStatus: 'PENDING',
-          queriedPartNumber,
-          normalizedQueriedNumber,
-          currentPartNumber,
-          normalizedCurrentNumber,
-          description: input.description?.trim() || null,
-          officialUrl,
-          note: input.note?.trim() || null,
-          verifiedAt,
-        },
-        include: rowInclude,
-      });
-
-      await tx.auditLog.create({
-        data: {
-          tenantId: input.tenantId,
-          userId: input.userId,
-          action: 'OFFICIAL_PART_VERIFICATION_SUBMITTED',
-          targetType: 'OfficialPartVerification',
-          targetId: created.id,
-          metadata: {
+    let record: VerificationRow;
+    try {
+      record = await prisma.$transaction(async tx => {
+        const created = await tx.officialPartVerification.create({
+          data: {
+            tenantId: input.tenantId,
+            userId: input.userId,
             status,
             approvalStatus: 'PENDING',
-            queriedPartNumber: created.queriedPartNumber,
-            currentPartNumber: created.currentPartNumber,
-            officialUrl: created.officialUrl,
-            verifiedAt: created.verifiedAt.toISOString(),
+            queriedPartNumber,
+            normalizedQueriedNumber,
+            currentPartNumber,
+            normalizedCurrentNumber,
+            description: input.description?.trim() || null,
+            officialUrl,
+            note: input.note?.trim() || null,
+            verifiedAt,
           },
-        },
+          include: rowInclude,
+        });
+
+        await tx.auditLog.create({
+          data: {
+            tenantId: input.tenantId,
+            userId: input.userId,
+            action: 'OFFICIAL_PART_VERIFICATION_SUBMITTED',
+            targetType: 'OfficialPartVerification',
+            targetId: created.id,
+            metadata: {
+              status,
+              approvalStatus: 'PENDING',
+              queriedPartNumber: created.queriedPartNumber,
+              currentPartNumber: created.currentPartNumber,
+              officialUrl: created.officialUrl,
+              verifiedAt: created.verifiedAt.toISOString(),
+            },
+          },
+        });
+        return created;
       });
-      return created;
-    });
+    } catch (error) {
+      // O índice parcial do PostgreSQL é a autoridade contra duas submissões
+      // simultâneas; o findFirst acima existe apenas para resposta rápida.
+      if (isPrismaUniqueConstraintError(error)) throw new Error('VERIFICATION_ALREADY_PENDING');
+      throw error;
+    }
 
     return rowToSubmissionView(record);
   }
