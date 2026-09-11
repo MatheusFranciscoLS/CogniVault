@@ -12,6 +12,12 @@ import compression from 'compression';
 
 const app = express();
 
+// Render termina TLS e encaminha a requisição por um proxy reverso antes de
+// chegar ao processo Node. Confiar exatamente em um hop permite que o Express
+// e o express-rate-limit usem o IP real do cliente sem aceitar uma cadeia
+// arbitrária de X-Forwarded-For enviada pelo próprio cliente.
+app.set('trust proxy', 1);
+
 class HttpError extends Error {
   constructor(public readonly status: number, message: string) {
     super(message);
