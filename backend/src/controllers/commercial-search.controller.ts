@@ -127,6 +127,20 @@ export function looksLikeCommercialCodePrefix(value: string): boolean {
   return digits >= 5 && digits / normalized.length >= 0.7;
 }
 
+/**
+ * Converte um prefixo ASCII normalizado em um limite superior exclusivo.
+ * Ex.: 58710 -> 58711. Usar gte/lt permite que o PostgreSQL aproveite o
+ * índice btree composto (tenantId, normalizedNumber), ao contrário de LIKE 'x%'
+ * na collation atual do banco.
+ */
+export function commercialCodePrefixUpperBound(value: string): string {
+  const normalized = normalizeIdentifier(value);
+  if (!normalized) return '\uffff';
+  const lastIndex = normalized.length - 1;
+  const nextChar = String.fromCharCode(normalized.charCodeAt(lastIndex) + 1);
+  return `${normalized.slice(0, lastIndex)}${nextChar}`;
+}
+
 export function invalidateCommercialSearchCache(tenantId?: string): void {
   if (!tenantId) {
     sectionCache.clear();
@@ -178,13 +192,16 @@ async function loadCommercialSearch(
     }
   }
 
-  // Digitação parcial de Part Number: evita abrir OR de nome/descrição/aplicação
-  // quando a intenção é claramente completar um código.
+  // Digitação parcial de Part Number: usa range no btree existente em vez de
+  // LIKE/startsWith, que nesta base fazia sequential scan nas 25 mil peças.
   if (looksLikeCommercialCodePrefix(query)) {
     const prefixRows = await prisma.masterPart.findMany({
       where: {
         tenantId,
-        normalizedNumber: { startsWith: normalizedCode },
+        normalizedNumber: {
+          gte: normalizedCode,
+          lt: commercialCodePrefixUpperBound(normalizedCode),
+        },
         ...(selectedSection ? { sections: { some: { section: selectedSection } } } : {}),
       },
       include: { sections: { orderBy: { section: 'asc' } } },
