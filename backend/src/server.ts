@@ -16,6 +16,12 @@ let queueStarting = false;
 let backgroundRetryTimer: ReturnType<typeof setTimeout> | undefined;
 let stopVisualRetryScheduler: () => void = () => undefined;
 
+function validateCriticalConfiguration(): void {
+    if (!process.env.JWT_SECRET && process.env.NODE_ENV !== 'test') {
+        throw new Error('JWT_SECRET não definida no ambiente. O servidor não pode iniciar sem uma chave de assinatura privada.');
+    }
+}
+
 async function runPostStartupMaintenance(): Promise<void> {
     try {
         const catalogHealthMaintenance = await refreshLegacyCatalogHealth();
@@ -63,8 +69,6 @@ async function startBackgroundProcessing(): Promise<void> {
     queueStarting = true;
 
     try {
-        // Uma falha temporária da fila não deve derrubar busca/login/banco.
-        // A primeira tentativa é curta; se falhar, repetimos em background.
         await rabbitMQ.connect(1, 0);
         await DocumentWorker.start();
         queueStarted = true;
@@ -82,10 +86,9 @@ async function startBackgroundProcessing(): Promise<void> {
 }
 
 async function bootstrap() {
+    validateCriticalConfiguration();
     console.log(`🔎 Busca semântica opcional: ${semanticIndexingEnabled() ? 'ativada com limites de custo' : 'desativada; busca textual preservada'}.`);
 
-    // O HTTP sobe primeiro. Assim login, busca e consultas ao PostgreSQL continuam
-    // disponíveis mesmo se a infraestrutura de processamento de PDFs estiver fora.
     const server = app.listen(PORT, () => {
         console.log(`🚀 Servidor rodando com sucesso na porta ${PORT}`);
         console.log(`✅ Rota de teste: http://localhost:${PORT}/health`);
