@@ -5,8 +5,8 @@ import { ensureCatalogCategory } from '../services/catalog-category-assignment';
 import { refreshCatalogHealth } from '../services/catalog-health';
 import { repairAutoDetectedDocumentMetadata } from '../services/catalog-metadata-repair';
 import { rebuildDocumentMemory } from '../services/document-memory';
-import { invalidateHomeResponseCache } from '../controllers/home.controller';
-import { invalidatePartDetailResponseCache } from '../controllers/part-detail.controller';
+import { invalidateHomeCountsCache } from '../controllers/operational.controller';
+import { invalidateFastSearchCaches } from '../controllers/fast-search.controller';
 import { invalidateCatalogListCache } from '../controllers/catalog-list.controller';
 import { nextDocumentRetry } from '../utils/document-retry';
 import { readableProcessingError } from '../utils/processing-error';
@@ -23,6 +23,12 @@ function isValidMessage(value: unknown): value is DocumentMessage {
     const message = value as Record<string, unknown>;
     return [message.documentId, message.tenantId, message.jobId]
         .every((item) => typeof item === 'string' && item.trim().length > 0);
+}
+
+function invalidateCatalogRuntimeCaches(tenantId: string): void {
+    invalidateHomeCountsCache(tenantId);
+    invalidateFastSearchCaches(tenantId);
+    invalidateCatalogListCache(tenantId);
 }
 
 async function buildAuxiliaryCatalogKnowledge(documentId: string, tenantId: string): Promise<void> {
@@ -149,6 +155,7 @@ export class DocumentWorker {
                             where: { id: data.documentId, processingJobId: data.jobId },
                             data: { status: 'PROCESSING' },
                         });
+                        invalidateCatalogListCache(data.tenantId);
                     }
 
                     await AIService.processDocument(data.documentId, data.tenantId, data.jobId);
@@ -180,9 +187,7 @@ export class DocumentWorker {
                             processingJobId: null,
                         },
                     });
-                    invalidateHomeResponseCache(data.tenantId);
-                    invalidatePartDetailResponseCache(data.tenantId);
-                    invalidateCatalogListCache(data.tenantId);
+                    invalidateCatalogRuntimeCaches(data.tenantId);
                     ack();
                     console.log(`✅ Documento ${data.documentId} processado com sucesso.`);
                 } catch (error) {
@@ -225,6 +230,7 @@ export class DocumentWorker {
                                         processingError: readableProcessingError(error, hasUsableCatalog, true),
                                     },
                                 });
+                                invalidateCatalogListCache(data.tenantId);
                                 channel.sendToQueue(DOCUMENT_RETRY_QUEUE, msg.content, {
                                     persistent: true,
                                     contentType: msg.properties.contentType || 'application/json',
@@ -255,9 +261,7 @@ export class DocumentWorker {
                         if (hasUsableCatalog) {
                             try { await refreshCatalogHealth(data.documentId, data.tenantId); } catch { /* diagnóstico não bloqueia recuperação */ }
                         }
-                        invalidateCatalogListCache(data.tenantId);
-                        invalidateHomeResponseCache(data.tenantId);
-                        invalidatePartDetailResponseCache(data.tenantId);
+                        invalidateCatalogRuntimeCaches(data.tenantId);
                         ack();
                         console.warn(
                             hasUsableCatalog
