@@ -8,14 +8,13 @@ import { invalidateUserAuthCache } from '../middleware/auth.middleware';
 function getJwtSecret(): string {
     const secret = process.env.JWT_SECRET;
     if (!secret) {
-        if (process.env.NODE_ENV === 'test' || !process.env.NODE_ENV) {
+        if (process.env.NODE_ENV === 'test') {
             return 'test-jwt-secret-key-cognivault';
         }
-        throw new Error('JWT_SECRET não definida no .env');
+        throw new Error('JWT_SECRET não definida no ambiente');
     }
     return secret;
 }
-
 
 export class AuthController {
     async login(req: Request, res: Response): Promise<void> {
@@ -36,7 +35,6 @@ export class AuthController {
 
             const normalizedEmail = email.trim().toLowerCase();
 
-            // Busca o usuário
             const user = await prisma.user.findUnique({
                 where: {
                     email: normalizedEmail
@@ -50,7 +48,6 @@ export class AuthController {
                 return;
             }
 
-            // Confere a senha
             const isValidPassword = await bcrypt.compare(
                 password,
                 user.password
@@ -63,7 +60,6 @@ export class AuthController {
                 return;
             }
 
-            // Verifica status da conta
             if (user.status === 'PENDING') {
                 res.status(403).json({
                     error:
@@ -78,12 +74,6 @@ export class AuthController {
                 });
                 return;
             }
-
-            // =====================================================
-            // JWT
-            // O TENANT_ID FICA DENTRO DO TOKEN
-            // O FRONTEND NÃO PRECISA ENVIAR TENANT_ID
-            // =====================================================
 
             const token = jwt.sign(
                 {

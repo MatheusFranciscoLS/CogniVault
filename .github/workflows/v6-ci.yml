@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - 'feature/**'
+      - 'fix/**'
   pull_request:
     branches:
       - main
@@ -19,6 +20,20 @@ concurrency:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.6-pg17
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: cognivault
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d cognivault"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: backend
@@ -26,6 +41,8 @@ jobs:
       DATABASE_URL: postgresql://user:password@localhost:5432/cognivault
       JWT_SECRET: ci-only-secret-not-used-in-production
       GEMINI_API_KEY: ci-placeholder
+      SUPABASE_URL: https://example.supabase.co
+      SUPABASE_SECRET_KEY: ci-placeholder
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -36,6 +53,8 @@ jobs:
       - run: npm ci
       - run: npx prisma validate
       - run: npx prisma generate
+      - name: Apply full migration chain on clean PostgreSQL
+        run: npx prisma migrate deploy
       - run: npm test
       - name: Smoke-test compiled Gemini loader
         run: node -e "require('./dist/config/gemini.js').getGeminiClient().then(() => console.log('Gemini ESM loader OK'))"

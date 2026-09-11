@@ -166,8 +166,8 @@ export class AdminController {
                 return;
             }
 
-            if (target.id === req.user.id && (status === 'REJECTED' || role === 'MECHANIC')) {
-                res.status(400).json({ error: 'Você não pode bloquear nem remover seu próprio acesso de administrador.' });
+            if (target.id === req.user.id && (status !== undefined && status !== 'APPROVED' || role !== undefined && role !== 'ADMIN')) {
+                res.status(400).json({ error: 'Você não pode bloquear, deixar pendente nem remover seu próprio acesso de administrador.' });
                 return;
             }
 

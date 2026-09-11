@@ -497,33 +497,40 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 const updates = persistenceRows.filter(row => row.existingId);
                 const persistenceBatchSize = 100;
 
-                if (creates.length > 0) {
-                    for (let offset = 0; offset < creates.length; offset += persistenceBatchSize) {
-                        const batch = creates.slice(offset, offset + persistenceBatchSize);
-                        await prisma.part.createMany({ data: batch as any });
-                    }
-                }
-
-                if (updates.length > 0) {
-                    for (let offset = 0; offset < updates.length; offset += persistenceBatchSize) {
-                        const batch = updates.slice(offset, offset + persistenceBatchSize);
-                        await prisma.$transaction(
-                            batch.map(row => prisma.part.update({ where: { id: row.id }, data: row.data as any }))
-                        );
-                    }
-                }
-
-                for (let offset = 0; offset < activePartIds.length; offset += persistenceBatchSize) {
-                    const ids = activePartIds.slice(offset, offset + persistenceBatchSize);
-                    await prisma.$executeRaw`
-                        UPDATE "Part" SET "embedding" = NULL, "embeddingRevision" = 0
-                        WHERE "id" IN (${Prisma.join(ids)})
-                    `;
-                }
-                
-                console.log(`💾 ${persistenceRows.length} peças preparadas para persistência (Criações: ${creates.length}, Atualizações: ${updates.length}).`);
-
+                // Toda a revisão é preparada e promovida no mesmo commit de banco.
+                // Se o job ficar obsoleto, o banco cair ou qualquer lote falhar,
+                // as peças ativas anteriores permanecem exatamente como estavam.
                 await prisma.$transaction(async tx => {
+                    const ownedJob = await tx.document.findFirst({
+                        where: { id: documentId, tenantId, processingJobId: jobId },
+                        select: { id: true },
+                    });
+                    if (!ownedJob) throw new Error('STALE_DOCUMENT_JOB');
+
+                    if (creates.length > 0) {
+                        for (let offset = 0; offset < creates.length; offset += persistenceBatchSize) {
+                            const batch = creates.slice(offset, offset + persistenceBatchSize);
+                            await tx.part.createMany({ data: batch as any });
+                        }
+                    }
+
+                    if (updates.length > 0) {
+                        for (let offset = 0; offset < updates.length; offset += persistenceBatchSize) {
+                            const batch = updates.slice(offset, offset + persistenceBatchSize);
+                            await Promise.all(
+                                batch.map(row => tx.part.update({ where: { id: row.id }, data: row.data as any })),
+                            );
+                        }
+                    }
+
+                    for (let offset = 0; offset < activePartIds.length; offset += persistenceBatchSize) {
+                        const ids = activePartIds.slice(offset, offset + persistenceBatchSize);
+                        await tx.$executeRaw`
+                            UPDATE "Part" SET "embedding" = NULL, "embeddingRevision" = 0
+                            WHERE "id" IN (${Prisma.join(ids)})
+                        `;
+                    }
+
                     const activated = await tx.part.updateMany({
                         where: { documentId, id: { in: activePartIds } },
                         data: { active: true, retiredAt: null },
@@ -550,7 +557,9 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                         },
                     });
                     if (documentUpdate.count !== 1 || activated.count !== activePartIds.length) throw new Error('STALE_DOCUMENT_JOB');
-                }, { maxWait: 10_000, timeout: 30_000 });
+                }, { maxWait: 10_000, timeout: 60_000 });
+
+                console.log(`💾 ${persistenceRows.length} peças persistidas atomicamente (Criações: ${creates.length}, Atualizações: ${updates.length}).`);
                 invalidateHomeCountsCache(document.tenantId);
                 console.log(`💾 Catálogo já utilizável: ${preparedParts.length} peças salvas na revisão ${revision}.`);
             }

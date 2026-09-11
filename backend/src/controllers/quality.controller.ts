@@ -170,7 +170,18 @@ export class QualityController {
       const documentId = String(req.params.id);
       const document = await prisma.document.findFirst({
         where: { id: documentId, tenantId: req.user.tenantId, processingStage: { not: 'REMOVED' } },
-        select: { id: true, filename: true, manufacturer: true, model: true, pnc: true, processingJobId: true },
+        select: {
+          id: true,
+          filename: true,
+          manufacturer: true,
+          model: true,
+          pnc: true,
+          processingJobId: true,
+          metadataReviewedAt: true,
+          metadataReviewedById: true,
+          reviewStatus: true,
+          qualityCheckedAt: true,
+        },
       });
       if (!document) { res.status(404).json({ error: 'Catálogo não encontrado.' }); return; }
       if (document.processingJobId) { res.status(409).json({ error: 'Aguarde o processamento atual terminar antes de revisar metadados.' }); return; }
@@ -198,26 +209,54 @@ export class QualityController {
             qualityCheckedAt: null,
           },
         });
-        const queued = await documentService.reprocess(req.user.tenantId, document.id);
-        await AuditService.record({
-          tenantId: req.user.tenantId,
-          userId: req.user.id,
-          action: 'DOCUMENT_METADATA_REVIEWED',
-          targetType: 'DOCUMENT',
-          targetId: document.id,
-          metadata: {
-            filename: document.filename,
-            before: { manufacturer: document.manufacturer, model: document.model, pnc: document.pnc },
-            after: {
-              manufacturer: manufacturer === undefined ? document.manufacturer : manufacturer,
-              model: model === undefined ? document.model : model,
-              pnc: pnc === undefined ? document.pnc : pnc,
+
+        try {
+          const queued = await documentService.reprocess(req.user.tenantId, document.id);
+          await AuditService.record({
+            tenantId: req.user.tenantId,
+            userId: req.user.id,
+            action: 'DOCUMENT_METADATA_REVIEWED',
+            targetType: 'DOCUMENT',
+            targetId: document.id,
+            metadata: {
+              filename: document.filename,
+              before: { manufacturer: document.manufacturer, model: document.model, pnc: document.pnc },
+              after: {
+                manufacturer: manufacturer === undefined ? document.manufacturer : manufacturer,
+                model: model === undefined ? document.model : model,
+                pnc: pnc === undefined ? document.pnc : pnc,
+              },
+              reprocessQueued: true,
             },
-            reprocessQueued: true,
-          },
-        });
-        res.json({ message: 'Metadados salvos. O catálogo foi enviado para reprocessamento antes de liberar a revisão.', document: { id: queued.id, status: queued.status } });
-        return;
+          });
+          res.json({ message: 'Metadados salvos. O catálogo foi enviado para reprocessamento antes de liberar a revisão.', document: { id: queued.id, status: queued.status } });
+          return;
+        } catch (reprocessError) {
+          try {
+            const rollback = await prisma.document.updateMany({
+              where: {
+                id: document.id,
+                tenantId: req.user.tenantId,
+                processingJobId: null,
+              },
+              data: {
+                manufacturer: document.manufacturer,
+                model: document.model,
+                pnc: document.pnc,
+                metadataReviewedAt: document.metadataReviewedAt,
+                metadataReviewedById: document.metadataReviewedById,
+                reviewStatus: document.reviewStatus,
+                qualityCheckedAt: document.qualityCheckedAt,
+              },
+            });
+            if (rollback.count !== 1) {
+              console.warn(`⚠️ Metadados de ${document.id} não foram revertidos porque outro processamento assumiu o catálogo.`);
+            }
+          } catch (rollbackError) {
+            console.error(`❌ Falha ao reverter metadados de ${document.id} após erro de fila:`, rollbackError);
+          }
+          throw reprocessError;
+        }
       }
 
       const health = await refreshCatalogHealth(document.id, req.user.tenantId);

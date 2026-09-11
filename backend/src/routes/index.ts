@@ -29,6 +29,8 @@ import { uploadConcurrencyMiddleware } from '../middleware/upload-concurrency.mi
 import { searchSingleFlightMiddleware } from '../middleware/search-single-flight.middleware';
 import {
   invalidateDocumentAccessAfterMutation,
+  invalidateFavoriteCachesAfterMutation,
+  invalidateHomeAfterSearch,
   invalidateWorkContextAfterLocation,
   invalidateWorkContextAfterQuoteUsage,
 } from '../middleware/cache-invalidation.middleware';
@@ -76,6 +78,7 @@ router.get('/home', authMiddleware, (req, res) => homeController.home(req, res))
 router.get(
   '/search',
   authMiddleware,
+  invalidateHomeAfterSearch,
   (req, res, next) => fastSearchController.search(req, res, next),
   searchSingleFlightMiddleware,
   (req, res) => operationalController.search(req, res),
@@ -83,6 +86,7 @@ router.get(
 router.get(
   '/search/stream',
   authMiddleware,
+  invalidateHomeAfterSearch,
   (req, res, next) => fastSearchController.stream(req, res, next),
   (req, res) => operationalController.searchStream(req, res),
 );
@@ -98,8 +102,8 @@ router.get('/models/:model/maintenance-kit', authMiddleware, (req, res) => opera
 router.get('/parts/:id', authMiddleware, (req, res) => partDetailController.get(req, res));
 router.get('/history', authMiddleware, (req, res) => operationalController.history(req, res));
 router.get('/favorites', authMiddleware, (req, res) => operationalController.favorites(req, res));
-router.post('/favorites', authMiddleware, (req, res) => operationalController.addFavorite(req, res));
-router.delete('/favorites/:id', authMiddleware, (req, res) => operationalController.removeFavorite(req, res));
+router.post('/favorites', authMiddleware, invalidateFavoriteCachesAfterMutation, (req, res) => operationalController.addFavorite(req, res));
+router.delete('/favorites/:id', authMiddleware, invalidateFavoriteCachesAfterMutation, (req, res) => operationalController.removeFavorite(req, res));
 router.get('/notifications', authMiddleware, (req, res) => notificationController.list(req, res));
 
 router.get('/part-verifications', authMiddleware, (req, res) => officialPartVerificationController.list(req, res));

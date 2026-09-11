@@ -67,10 +67,6 @@ function partLine(part: MemoryPart): string {
   ].filter(Boolean).join(' · ');
 }
 
-/**
- * Cria memória de arquitetura por página/vista sem copiar o Part Number.
- * O código continua tendo uma única fonte de autoridade: a tabela Part.
- */
 export function buildTechnicalMemoryChunks(parts: MemoryPart[], maxItemsPerChunk = 24): TechnicalMemoryChunk[] {
   const groups = new Map<string, MemoryPart[]>();
   for (const part of parts) {
@@ -118,7 +114,7 @@ export async function rebuildDocumentMemory(
   tenantId: string,
   revision: number,
   parts: MemoryPart[],
-  options: { embeddings?: boolean } = {},
+  options: { embeddings?: boolean; allowProcessing?: boolean } = {},
 ): Promise<{ chunks: number; embedded: number }> {
   const document = await prisma.document.findFirst({
     where: { id: documentId, tenantId, archivedAt: null },
@@ -128,6 +124,20 @@ export async function rebuildDocumentMemory(
 
   const chunks = buildTechnicalMemoryChunks(parts);
   await prisma.$transaction(async tx => {
+    await tx.$executeRaw`
+      SELECT pg_advisory_xact_lock(
+        hashtextextended(${`cognivault:document-memory:${documentId}`}, 0)
+      )
+    `;
+
+    const current = await tx.document.findFirst({
+      where: { id: documentId, tenantId, archivedAt: null },
+      select: { catalogRevision: true, processingJobId: true },
+    });
+    if (!current) throw new Error('DOCUMENT_NOT_FOUND');
+    if (Math.max(1, current.catalogRevision) !== revision) throw new Error('STALE_DOCUMENT_MEMORY_REVISION');
+    if (current.processingJobId && !options.allowProcessing) throw new Error('DOCUMENT_PROCESSING');
+
     await tx.documentChunk.deleteMany({ where: { documentId } });
     if (chunks.length) {
       await tx.documentChunk.createMany({
@@ -169,7 +179,7 @@ export async function rebuildDocumentMemory(
           await tx.$executeRaw`
             UPDATE "DocumentChunk"
             SET "embedding" = ${vector}::vector, "embeddingRevision" = ${revision}
-            WHERE "id" = ${row.id}
+            WHERE "id" = ${row.id} AND "revision" = ${revision}
           `;
           embedded += 1;
         }

@@ -22,6 +22,7 @@ const PRICE_SECTIONS = [
 ] as const;
 
 type Row = Record<string, unknown>;
+type CommercialDbClient = Prisma.TransactionClient;
 
 type CommercialOccurrence = {
   normalizedNumber: string;
@@ -274,7 +275,12 @@ function buildRecords(
   return { masters, sections: [...uniqueSections.values()] };
 }
 
-async function upsertMasterParts(tenantId: string, records: MasterRecord[], importDate: Date): Promise<void> {
+async function upsertMasterParts(
+  client: CommercialDbClient,
+  tenantId: string,
+  records: MasterRecord[],
+  importDate: Date,
+): Promise<void> {
   let processed = 0;
 
   for (const batch of chunk(records, BATCH_SIZE)) {
@@ -293,7 +299,7 @@ async function upsertMasterParts(tenantId: string, records: MasterRecord[], impo
       ${importDate}
     )`));
 
-    await prisma.$executeRaw(Prisma.sql`
+    await client.$executeRaw(Prisma.sql`
       INSERT INTO "MasterPart" (
         "id", "tenantId", "partNumber", "normalizedNumber", "name", "description",
         "price", "ncm", "ean", "category", "brand", "updatedAt"
@@ -318,6 +324,7 @@ async function upsertMasterParts(tenantId: string, records: MasterRecord[], impo
 }
 
 async function upsertSections(
+  client: CommercialDbClient,
   tenantId: string,
   records: CommercialOccurrence[],
   importDate: Date,
@@ -340,7 +347,7 @@ async function upsertSections(
       ${importDate}
     )`));
 
-    await prisma.$executeRaw(Prisma.sql`
+    await client.$executeRaw(Prisma.sql`
       INSERT INTO "MasterPartSection" (
         "id", "tenantId", "normalizedNumber", "section", "application", "applicationKey",
         "reference", "productCategory", "itemType", "groupCode", "sourceSheet", "updatedAt"
@@ -361,14 +368,14 @@ async function upsertSections(
     console.log(`Aplicações/categorias: ${processed.toLocaleString('pt-BR')}/${records.length.toLocaleString('pt-BR')}`);
   }
 
-  await prisma.masterPartSection.deleteMany({
+  await client.masterPartSection.deleteMany({
     where: {
       tenantId,
       updatedAt: { lt: importDate },
     },
   });
 
-  await prisma.masterPart.deleteMany({
+  await client.masterPart.deleteMany({
     where: {
       tenantId,
       sections: { none: {} },
@@ -412,15 +419,25 @@ async function run(): Promise<void> {
     return;
   }
 
-  await upsertMasterParts(tenant.id, masters, importDate);
-  await upsertSections(tenant.id, sections, importDate);
+  await prisma.$transaction(async tx => {
+    // Uma importação por tenant de cada vez. A trava some automaticamente no
+    // commit/rollback e impede duas planilhas concorrentes de se sobrescreverem.
+    await tx.$executeRaw`
+      SELECT pg_advisory_xact_lock(
+        hashtextextended(${`cognivault:commercial-import:${tenant.id}`}, 0)
+      )
+    `;
+
+    await upsertMasterParts(tx, tenant.id, masters, importDate);
+    await upsertSections(tx, tenant.id, sections, importDate);
+  }, { maxWait: 15_000, timeout: 300_000 });
 
   const [masterCount, sectionCount] = await Promise.all([
     prisma.masterPart.count({ where: { tenantId: tenant.id } }),
     prisma.masterPartSection.count({ where: { tenantId: tenant.id } }),
   ]);
 
-  console.log('\n✓ Importação concluída.');
+  console.log('\n✓ Importação concluída de forma atômica.');
   console.log(`Peças/ferramentas salvas no PostgreSQL: ${masterCount.toLocaleString('pt-BR')}`);
   console.log(`Aplicações/categorias salvas no PostgreSQL: ${sectionCount.toLocaleString('pt-BR')}`);
   console.log('O arquivo Excel não é necessário para a operação normal do CogniVault.\n');
