@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseHusqvarnaPortalSearchHtml } from './husqvarna-portal-catalog.service';
+import {
+  getVerifiedHusqvarnaPortalProduct,
+  parseHusqvarnaPortalSearchHtml,
+} from './husqvarna-portal-catalog.service';
 
 test('extrai produto e IPL oficial do HTML de busca por PNC', () => {
   const html = `
@@ -90,4 +93,25 @@ test('não aceita documento corporativo RD/REACH como catálogo técnico do PNC'
 
   const result = parseHusqvarnaPortalSearchHtml(html, '965195201');
   assert.equal(result, null);
+});
+
+test('não trata Husqvarna Service Hub como nome de produto', () => {
+  const html = `
+    <html>
+      <body>
+        <div>Husqvarna Service Hub</div>
+        <div>965195201</div>
+      </body>
+    </html>
+  `;
+
+  const result = parseHusqvarnaPortalSearchHtml(html, '965195201');
+  assert.equal(result, null);
+});
+
+test('mantém rota canônica verificada do 327P5x para o PNC 965195201', () => {
+  const result = getVerifiedHusqvarnaPortalProduct('965 19 52-01');
+  assert.ok(result);
+  assert.equal(result.productName, 'HUSQVARNA 327P5x');
+  assert.equal(result.portalUrl, 'https://portal.husqvarnagroup.com/br/serrotes-com-cabo/327p5x/?article=965195201');
 });
