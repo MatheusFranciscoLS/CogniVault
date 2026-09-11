@@ -64,7 +64,7 @@ app.use(cors({
 
     return callback(new HttpError(403, 'Origem não permitida pelo CORS.'));
   },
-  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
