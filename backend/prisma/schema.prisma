@@ -55,6 +55,12 @@ enum CatalogReviewStatus {
   REVIEWED
 }
 
+enum PartPositionStatus {
+  POSITIONED
+  SOURCE_UNPOSITIONED
+  SUSPECT_MISSING
+}
+
 model User {
   id                            String                     @id @default(uuid())
   email                         String                     @unique
@@ -188,6 +194,8 @@ model Part {
 
   section          String?
   position         String?
+  positionStatus   PartPositionStatus @default(POSITIONED)
+  positionEvidence String?
   name             String
   normalizedName   String
   alternativeNames String[] @default([])
