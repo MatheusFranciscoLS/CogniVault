@@ -75,3 +75,19 @@ test('ignora links externos mesmo quando tentam parecer tdrdownload', () => {
   assert.ok(result);
   assert.equal(result.documents.length, 0);
 });
+
+test('não aceita documento corporativo RD/REACH como catálogo técnico do PNC', () => {
+  const html = `
+    <html>
+      <head><title>Husqvarna Portal</title></head>
+      <body>
+        <a href="https://portal.husqvarnagroup.com/b2b/tdrdownload/v2/pub000082523/doc000150260/RD/ZE5ZPQydtDI-PFI7CjWrGScLfWI?httproute=True">
+          Microsoft Word - REACH Article 33_General Letter[79].doc
+        </a>
+      </body>
+    </html>
+  `;
+
+  const result = parseHusqvarnaPortalSearchHtml(html, '965195201');
+  assert.equal(result, null);
+});
