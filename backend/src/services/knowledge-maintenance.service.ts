@@ -12,20 +12,6 @@ export type KnowledgeBackfillResult = {
   failures: Array<{ documentId: string; filename: string; error: string }>;
 };
 
-/**
- * Atualiza a camada de conhecimento dos catálogos já existentes sem reextrair PDF,
- * sem alterar Part Number e sem reescrever as peças. O backfill usa somente Part
- * rows já ativos para gerar memória técnica textual, classificar a família e
- * recalcular a saúde estrutural.
- *
- * Registros históricos sem nenhuma peça ativa são ignorados de propósito: eles
- * continuam preservados no banco/auditoria, mas não representam um catálogo
- * técnico utilizável e não devem entrar em classificação, memória ou saúde.
- *
- * Embeddings ficam desligados aqui de propósito: a operação administrativa deve
- * ser previsível, rápida e não consumir cota externa. Novos processamentos seguem
- * a configuração normal de indexação semântica do worker.
- */
 export async function rebuildTenantTechnicalKnowledge(
   tenantId: string,
   limit = 250,
@@ -85,7 +71,7 @@ export async function rebuildTenantTechnicalKnowledge(
         tenantId,
         Math.max(1, document.catalogRevision),
         document.parts,
-        { embeddings: false },
+        { embeddings: false, allowProcessing: false },
       );
       result.chunksCreated += memory.chunks;
 
@@ -93,11 +79,17 @@ export async function rebuildTenantTechnicalKnowledge(
       await refreshCatalogHealth(document.id, tenantId);
       result.processed += 1;
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message === 'DOCUMENT_PROCESSING' || message === 'STALE_DOCUMENT_MEMORY_REVISION') {
+        result.skippedProcessing += 1;
+        continue;
+      }
+
       result.failed += 1;
       result.failures.push({
         documentId: document.id,
         filename: document.filename,
-        error: (error instanceof Error ? error.message : String(error)).slice(0, 240),
+        error: message.slice(0, 240),
       });
     }
   }
