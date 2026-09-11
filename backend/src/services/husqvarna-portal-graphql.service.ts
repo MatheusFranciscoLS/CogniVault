@@ -59,6 +59,44 @@ const SEARCH_PRODUCTS_QUERY = `
   }
 `;
 
+const PRODUCT_DETAILS_QUERY = `
+  query getProductDetailsSections($siteName: String!, $articleId: ID!) {
+    site(name: $siteName) {
+      articles {
+        byIds(ids: [$articleId]) {
+          id
+          isNew
+          isDiscontinued
+          name { productName }
+          articleDescription
+          product {
+            category { name }
+            productDocuments {
+              url
+              fileFormat
+              publicationTitle
+              publicationType
+              languages
+            }
+          }
+          iplDocuments {
+            documentId
+            publicationTitle
+            url
+          }
+          ipls {
+            id
+            name
+            image
+            referenceHeight
+            referenceWidth
+          }
+        }
+      }
+    }
+  }
+`;
+
 type GraphqlCategory = {
   id?: string | null;
   name?: string | null;
@@ -99,6 +137,53 @@ type GraphqlSearchResponse = {
   errors?: Array<{ message?: string }>;
 };
 
+type GraphqlProductDocument = {
+  url?: string | null;
+  fileFormat?: string | null;
+  publicationTitle?: string | null;
+  publicationType?: string | null;
+  languages?: string[] | null;
+};
+
+type GraphqlIplDocument = {
+  documentId?: string | null;
+  publicationTitle?: string | null;
+  url?: string | null;
+};
+
+type GraphqlIplSummary = {
+  id?: string | null;
+  name?: string | null;
+  image?: string | null;
+  referenceHeight?: string | null;
+  referenceWidth?: string | null;
+};
+
+type GraphqlArticleDetails = {
+  id?: string | null;
+  isNew?: boolean | null;
+  isDiscontinued?: boolean | null;
+  name?: { productName?: string | null } | null;
+  articleDescription?: string | null;
+  product?: {
+    category?: { name?: string | null } | null;
+    productDocuments?: GraphqlProductDocument[] | null;
+  } | null;
+  iplDocuments?: GraphqlIplDocument[] | null;
+  ipls?: GraphqlIplSummary[] | null;
+};
+
+type GraphqlProductDetailsResponse = {
+  data?: {
+    site?: {
+      articles?: {
+        byIds?: Array<GraphqlArticleDetails | null> | null;
+      } | null;
+    } | null;
+  } | null;
+  errors?: Array<{ message?: string }>;
+};
+
 export type HusqvarnaPortalProductMatch = {
   pnc: string;
   productName: string;
@@ -108,6 +193,25 @@ export type HusqvarnaPortalProductMatch = {
   selectedArticle: string | null;
   sku: string | null;
   category: { id: string | null; name: string | null; url: string | null } | null;
+};
+
+export type HusqvarnaIplSectionSummary = {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  referenceHeight: string | null;
+  referenceWidth: string | null;
+};
+
+export type HusqvarnaProductDetailsSummary = {
+  pnc: string;
+  productName: string;
+  discontinued: boolean;
+  articleDescription: string | null;
+  categoryName: string | null;
+  iplSections: HusqvarnaIplSectionSummary[];
+  productDocumentCount: number;
+  iplDocumentCount: number;
 };
 
 function normalizeCandidate(value: unknown): string {
@@ -143,6 +247,12 @@ function canonicalPortalUrl(rawUrl: string | null | undefined, pnc: string): str
   }
 }
 
+function normalizeProductName(value: unknown): string {
+  const productName = String(value || '').trim();
+  if (!productName) return '';
+  return /^HUSQVARNA\b/i.test(productName) ? productName : `HUSQVARNA ${productName}`;
+}
+
 export function extractExactProductMatch(payload: unknown, pncInput: string): HusqvarnaPortalProductMatch | null {
   const pnc = normalizeIdentifier(pncInput);
   if (!pnc || !payload || typeof payload !== 'object') return null;
@@ -155,12 +265,12 @@ export function extractExactProductMatch(payload: unknown, pncInput: string): Hu
     if (!hit || !exactPncEvidence(hit, pnc)) continue;
 
     const portalUrl = canonicalPortalUrl(hit.url, pnc);
-    const productName = String(hit.name?.productName || hit.primaryArticle?.name || '').trim();
+    const productName = normalizeProductName(hit.name?.productName || hit.primaryArticle?.name);
     if (!portalUrl || !productName) continue;
 
     return {
       pnc,
-      productName: /^HUSQVARNA\b/i.test(productName) ? productName : `HUSQVARNA ${productName}`,
+      productName,
       portalUrl,
       discontinued: Boolean(hit.isDiscontinued || hit.primaryArticle?.isDiscontinued),
       productId: hit.id || null,
@@ -179,63 +289,123 @@ export function extractExactProductMatch(payload: unknown, pncInput: string): Hu
   return null;
 }
 
+export function extractProductDetailsSummary(payload: unknown, pncInput: string): HusqvarnaProductDetailsSummary | null {
+  const pnc = normalizeIdentifier(pncInput);
+  if (!pnc || !payload || typeof payload !== 'object') return null;
+
+  const response = payload as GraphqlProductDetailsResponse;
+  const articles = response.data?.site?.articles?.byIds || [];
+  const article = articles.find(candidate => normalizeCandidate(candidate?.id) === pnc) || null;
+  if (!article) return null;
+
+  const productName = normalizeProductName(article.name?.productName);
+  if (!productName) return null;
+
+  const iplSections = (article.ipls || [])
+    .map(section => ({
+      id: String(section?.id || '').trim(),
+      name: String(section?.name || '').trim(),
+      imageUrl: section?.image ? String(section.image) : null,
+      referenceHeight: section?.referenceHeight ? String(section.referenceHeight) : null,
+      referenceWidth: section?.referenceWidth ? String(section.referenceWidth) : null,
+    }))
+    .filter(section => /^HVA_PL-[A-Za-z0-9_-]+$/i.test(section.id) && Boolean(section.name));
+
+  return {
+    pnc,
+    productName,
+    discontinued: Boolean(article.isDiscontinued),
+    articleDescription: article.articleDescription ? String(article.articleDescription).trim() : null,
+    categoryName: article.product?.category?.name ? String(article.product.category.name).trim() : null,
+    iplSections,
+    productDocumentCount: Array.isArray(article.product?.productDocuments) ? article.product!.productDocuments!.length : 0,
+    iplDocumentCount: Array.isArray(article.iplDocuments) ? article.iplDocuments.length : 0,
+  };
+}
+
+async function postGraphql<T>(operationName: string, query: string, variables: Record<string, unknown>): Promise<T | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), GRAPHQL_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(HUSQVARNA_GRAPHQL_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      signal: controller.signal,
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.7',
+        Origin: HUSQVARNA_PORTAL_ORIGIN,
+        Referer: `${HUSQVARNA_PORTAL_ORIGIN}/br/`,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36',
+      },
+      body: JSON.stringify({ operationName, query, variables }),
+    });
+
+    if (!response.ok) {
+      console.warn(`[Husqvarna GraphQL] ${operationName} retornou HTTP ${response.status}.`);
+      return null;
+    }
+
+    return await response.json() as T;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[Husqvarna GraphQL] Falha em ${operationName}: ${message}`);
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export class HusqvarnaPortalGraphqlService {
   static async searchProductByPnc(pncInput: string): Promise<HusqvarnaPortalProductMatch | null> {
     const pnc = normalizeIdentifier(pncInput);
     if (!/^\d{8,14}$/.test(pnc)) return null;
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), GRAPHQL_TIMEOUT_MS);
+    const payload = await postGraphql<GraphqlSearchResponse>('searchForProducts', SEARCH_PRODUCTS_QUERY, {
+      site: HUSQVARNA_BR_SITE,
+      searchTerm: pnc,
+      skip: 0,
+      take: 5,
+    });
+    if (!payload) return null;
 
-    try {
-      const response = await fetch(HUSQVARNA_GRAPHQL_URL, {
-        method: 'POST',
-        redirect: 'follow',
-        signal: controller.signal,
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.7',
-          Origin: HUSQVARNA_PORTAL_ORIGIN,
-          Referer: `${HUSQVARNA_PORTAL_ORIGIN}/br/`,
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36',
-        },
-        body: JSON.stringify({
-          operationName: 'searchForProducts',
-          query: SEARCH_PRODUCTS_QUERY,
-          variables: {
-            site: HUSQVARNA_BR_SITE,
-            searchTerm: pnc,
-            skip: 0,
-            take: 5,
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        console.warn(`[Husqvarna GraphQL] Busca por PNC ${pnc} retornou HTTP ${response.status}.`);
-        return null;
-      }
-
-      const payload = await response.json() as GraphqlSearchResponse;
-      if (payload.errors?.length) {
-        console.warn(`[Husqvarna GraphQL] Busca por PNC ${pnc} retornou erro GraphQL: ${payload.errors.map(error => error.message || 'erro').join('; ')}`);
-        return null;
-      }
-
-      const match = extractExactProductMatch(payload, pnc);
-      if (match) {
-        console.log(`[Husqvarna GraphQL] PNC ${pnc} confirmado como ${match.productName}.`);
-      } else {
-        console.log(`[Husqvarna GraphQL] PNC ${pnc}: nenhum produto com correspondência exata.`);
-      }
-      return match;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn(`[Husqvarna GraphQL] Falha ao consultar PNC ${pnc}: ${message}`);
+    if (payload.errors?.length) {
+      console.warn(`[Husqvarna GraphQL] Busca por PNC ${pnc} retornou erro GraphQL: ${payload.errors.map(error => error.message || 'erro').join('; ')}`);
       return null;
-    } finally {
-      clearTimeout(timeout);
     }
+
+    const match = extractExactProductMatch(payload, pnc);
+    if (match) {
+      console.log(`[Husqvarna GraphQL] PNC ${pnc} confirmado como ${match.productName}.`);
+    } else {
+      console.log(`[Husqvarna GraphQL] PNC ${pnc}: nenhum produto com correspondência exata.`);
+    }
+    return match;
+  }
+
+  static async getProductDetailsByPnc(pncInput: string): Promise<HusqvarnaProductDetailsSummary | null> {
+    const pnc = normalizeIdentifier(pncInput);
+    if (!/^\d{8,14}$/.test(pnc)) return null;
+
+    const payload = await postGraphql<GraphqlProductDetailsResponse>('getProductDetailsSections', PRODUCT_DETAILS_QUERY, {
+      siteName: HUSQVARNA_BR_SITE,
+      articleId: pnc,
+    });
+    if (!payload) return null;
+
+    if (payload.errors?.length) {
+      console.warn(`[Husqvarna GraphQL] Detalhes do PNC ${pnc} retornaram erro GraphQL: ${payload.errors.map(error => error.message || 'erro').join('; ')}`);
+      return null;
+    }
+
+    const details = extractProductDetailsSummary(payload, pnc);
+    if (details) {
+      console.log(`[Husqvarna GraphQL] PNC ${pnc}: ${details.iplSections.length} vista(s) explodida(s) oficial(is).`);
+    } else {
+      console.log(`[Husqvarna GraphQL] PNC ${pnc}: detalhes não confirmaram o artigo exato.`);
+    }
+    return details;
   }
 }
