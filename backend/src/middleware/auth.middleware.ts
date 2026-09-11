@@ -6,10 +6,10 @@ import { prisma } from '../config/prisma';
 function getJwtSecret(): string {
     const secret = process.env.JWT_SECRET;
     if (!secret) {
-        if (process.env.NODE_ENV === 'test' || !process.env.NODE_ENV) {
+        if (process.env.NODE_ENV === 'test') {
             return 'test-jwt-secret-key-cognivault';
         }
-        throw new Error('JWT_SECRET não definida no .env');
+        throw new Error('JWT_SECRET não definida no ambiente');
     }
     return secret;
 }
