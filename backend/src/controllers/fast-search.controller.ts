@@ -12,9 +12,22 @@ interface FastSearchPayload {
   documents: Array<Record<string, unknown>>;
 }
 
+type SearchPath = 'DIRECT_CODE' | 'CODE_PREFIX';
+type CacheStatus = 'HIT' | 'MISS';
+type FastSearchResolution = {
+  payload: FastSearchPayload;
+  path: SearchPath;
+  cache: CacheStatus;
+};
+
 const exactSearchCache = new LRUCache<string, FastSearchPayload>({
   max: 1200,
   ttl: 5 * 60 * 1000,
+});
+
+const prefixSearchCache = new LRUCache<string, FastSearchPayload>({
+  max: 1200,
+  ttl: 3 * 60 * 1000,
 });
 
 /**
@@ -34,6 +47,29 @@ export function looksLikeExactPartCode(value: string): boolean {
 
   if (hasCatalogSeparators && digitCount >= 6 && digitRatio >= 0.65) return true;
   return normalized.length >= 10 && digitCount >= 6 && digitRatio >= 0.6;
+}
+
+/**
+ * Detecta digitação parcial de Part Number sem desviar modelos curtos como
+ * MZ54, K770, FR691V ou 143RII para o caminho rápido de código.
+ */
+export function looksLikeTechnicalCodePrefix(value: string): boolean {
+  const normalized = normalizeIdentifier(value);
+  if (normalized.length < 5 || normalized.length > 8) return false;
+  const digits = (normalized.match(/\d/g) || []).length;
+  return digits >= 5 && digits / normalized.length >= 0.7;
+}
+
+/**
+ * Limite superior exclusivo para range lexicográfico no índice btree.
+ * Ex.: 58710 -> 58711. Assim evitamos LIKE '58710%', que pode virar seq scan.
+ */
+export function technicalCodePrefixUpperBound(value: string): string {
+  const normalized = normalizeIdentifier(value);
+  if (!normalized) return '\uffff';
+  const lastIndex = normalized.length - 1;
+  const nextChar = String.fromCharCode(normalized.charCodeAt(lastIndex) + 1);
+  return `${normalized.slice(0, lastIndex)}${nextChar}`;
 }
 
 async function enrichCandidates(tenantId: string, candidates: PartCandidate[]): Promise<FastSearchPayload> {
@@ -75,43 +111,106 @@ async function enrichCandidates(tenantId: string, candidates: PartCandidate[]): 
   };
 }
 
-async function exactPayload(tenantId: string, query: string): Promise<FastSearchPayload | null> {
+async function exactPayload(tenantId: string, query: string): Promise<FastSearchResolution | null> {
   if (!looksLikeExactPartCode(query)) return null;
   const normalized = normalizeIdentifier(query);
   const key = `${tenantId}:${normalized}`;
   const cached = exactSearchCache.get(key);
-  if (cached) return cached;
+  if (cached) return { payload: cached, path: 'DIRECT_CODE', cache: 'HIT' };
 
   const candidates = await PartSearchService.directByCode(tenantId, query);
   if (!candidates.length) return null;
 
-  // Mantém a mesma regra do fluxo completo: se o código consultado tiver
-  // substituição oficial confirmada, prioriza/expõe o código atual.
   const currentCandidates = preferCurrentPartNumbers(candidates);
   const payload = await enrichCandidates(tenantId, currentCandidates);
   exactSearchCache.set(key, payload);
-  return payload;
+  return { payload, path: 'DIRECT_CODE', cache: 'MISS' };
+}
+
+async function prefixPayload(tenantId: string, query: string): Promise<FastSearchResolution | null> {
+  if (!looksLikeTechnicalCodePrefix(query)) return null;
+  const normalized = normalizeIdentifier(query);
+  const key = `${tenantId}:${normalized}`;
+  const cached = prefixSearchCache.get(key);
+  if (cached) return { payload: cached, path: 'CODE_PREFIX', cache: 'HIT' };
+
+  const rows = await prisma.part.findMany({
+    where: {
+      normalizedPartNumber: {
+        gte: normalized,
+        lt: technicalCodePrefixUpperBound(normalized),
+      },
+      active: true,
+      document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+    },
+    include: { document: { select: { filename: true, pnc: true } } },
+    orderBy: [{ normalizedPartNumber: 'asc' }, { model: 'asc' }],
+    take: 40,
+  });
+
+  if (!rows.length) return null;
+
+  const candidates: PartCandidate[] = rows.map(part => ({
+    id: part.id,
+    documentId: part.documentId,
+    filename: part.document.filename,
+    manufacturer: part.manufacturer,
+    model: part.model,
+    normalizedModel: part.normalizedModel,
+    pnc: part.pnc || part.document.pnc,
+    normalizedPnc: part.normalizedPnc || normalizeIdentifier(part.document.pnc) || null,
+    universalAcrossPnc: part.document.pnc ? false : part.universalAcrossPnc,
+    section: part.section,
+    position: part.position,
+    name: part.name,
+    alternativeNames: part.alternativeNames,
+    partNumber: part.partNumber,
+    normalizedPartNumber: part.normalizedPartNumber,
+    page: part.page,
+    notes: part.notes,
+    distance: 0,
+    feedbackScore: 0,
+    searchMethod: 'DIRECT_CODE',
+    retrievalSources: ['DIRECT_CODE'],
+    retrievalAgreement: 1,
+  }));
+
+  const currentCandidates = preferCurrentPartNumbers(candidates);
+  const payload = await enrichCandidates(tenantId, currentCandidates);
+  prefixSearchCache.set(key, payload);
+  return { payload, path: 'CODE_PREFIX', cache: 'MISS' };
+}
+
+async function resolveFastSearch(tenantId: string, query: string): Promise<FastSearchResolution | null> {
+  const exact = await exactPayload(tenantId, query);
+  if (exact) return exact;
+  return prefixPayload(tenantId, query);
+}
+
+function isFastSearchCandidate(query: string): boolean {
+  return looksLikeExactPartCode(query) || looksLikeTechnicalCodePrefix(query);
 }
 
 export class FastSearchController {
   async search(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     if (!req.user) return;
     const q = String(req.query.q || '').trim();
-    if (!looksLikeExactPartCode(q)) {
+    if (!isFastSearchCandidate(q)) {
       next();
       return;
     }
 
     try {
-      const payload = await exactPayload(req.user.tenantId, q);
-      if (!payload) {
+      const result = await resolveFastSearch(req.user.tenantId, q);
+      if (!result) {
         next();
         return;
       }
 
-      res.set('X-CogniVault-Search-Path', 'DIRECT_CODE');
+      res.set('X-CogniVault-Search-Path', result.path);
+      res.set('X-CogniVault-Cache', result.cache);
       res.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=240');
-      res.json(payload);
+      res.json(result.payload);
     } catch (error) {
       console.warn('⚠️ Caminho rápido de código indisponível; usando busca completa.', error);
       next();
@@ -121,14 +220,14 @@ export class FastSearchController {
   async stream(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     if (!req.user) return;
     const q = String(req.query.q || '').trim();
-    if (!looksLikeExactPartCode(q)) {
+    if (!isFastSearchCandidate(q)) {
       next();
       return;
     }
 
     try {
-      const payload = await exactPayload(req.user.tenantId, q);
-      if (!payload) {
+      const result = await resolveFastSearch(req.user.tenantId, q);
+      if (!result) {
         next();
         return;
       }
@@ -137,9 +236,10 @@ export class FastSearchController {
       res.setHeader('Cache-Control', 'no-cache, no-transform');
       res.setHeader('Connection', 'keep-alive');
       res.setHeader('X-Accel-Buffering', 'no');
-      res.setHeader('X-CogniVault-Search-Path', 'DIRECT_CODE');
+      res.setHeader('X-CogniVault-Search-Path', result.path);
+      res.setHeader('X-CogniVault-Cache', result.cache);
       res.flushHeaders();
-      res.write(`data: ${JSON.stringify({ type: 'lexical', ...payload })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: 'lexical', ...result.payload })}\n\n`);
       res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
       res.end();
     } catch (error) {
