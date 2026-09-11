@@ -61,6 +61,14 @@ export type HusqvarnaLivePart = {
   };
 };
 
+export type HusqvarnaPortalDocument = {
+  title: string;
+  type: 'IPL' | 'OM' | 'OTHER';
+  url: string;
+  date: string | null;
+  language: string | null;
+};
+
 export type PdfPreview = { url: string; page: number | null; title: string };
 
 export type WorkContext = {
@@ -84,13 +92,17 @@ export type WorkContext = {
 export type OfficialFallbackResult = {
   status: 'FOUND' | 'REVIEW';
   source: 'OFFICIAL' | 'ONLINE';
+  kind?: 'PART' | 'PRODUCT_CATALOG';
   query: string;
   partNumber?: string;
+  pnc?: string;
   name?: string;
   imageUrl?: string | null;
   replacedBy?: string | null;
   fitsTo?: string[];
   specifications?: HusqvarnaLivePart['specifications'] | null;
+  discontinued?: boolean;
+  documents?: HusqvarnaPortalDocument[];
   url: string;
   message?: string;
 };
