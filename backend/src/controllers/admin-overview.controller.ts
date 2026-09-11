@@ -23,6 +23,14 @@ type Entry = { payload: OverviewPayload; refreshedAt: number };
 const cache = new LRUCache<string, Entry>({ max: 200, ttl: STALE_MS });
 const refreshes = new Map<string, Promise<OverviewPayload>>();
 
+export function invalidateAdminOverviewCache(tenantId?: string): void {
+  if (tenantId) {
+    cache.delete(tenantId);
+    return;
+  }
+  cache.clear();
+}
+
 async function load(tenantId: string, tenantName: string): Promise<OverviewPayload> {
   const [users, activeDocuments, processingDocuments, failedDocuments, parts, feedbackTotal, feedbackCorrect] = await Promise.all([
     prisma.user.count({ where: { tenantId, status: 'APPROVED' } }),
