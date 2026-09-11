@@ -39,9 +39,18 @@ interface CachedUser {
     status: string;
 }
 
+const DEFAULT_AUTH_CACHE_TTL_MS = 5 * 60 * 1000;
+const configuredAuthCacheTtlMs = Number(process.env.AUTH_USER_CACHE_TTL_MS || DEFAULT_AUTH_CACHE_TTL_MS);
+const authCacheTtlMs = Number.isFinite(configuredAuthCacheTtlMs)
+    ? Math.max(15_000, configuredAuthCacheTtlMs)
+    : DEFAULT_AUTH_CACHE_TTL_MS;
+
 const userAuthCache = new LRUCache<string, CachedUser>({
     max: 500,
-    ttl: 15 * 1000, // 15 seconds TTL
+    // A validação do JWT continua em toda requisição. Somente a releitura de
+    // status/role/tenant no PostgreSQL fica em cache; alterações feitas pelo
+    // painel invalidam o usuário imediatamente via invalidateUserAuthCache.
+    ttl: authCacheTtlMs,
 });
 
 export function invalidateUserAuthCache(userId?: string): void {
