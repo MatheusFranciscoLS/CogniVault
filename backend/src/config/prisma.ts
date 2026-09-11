@@ -21,11 +21,14 @@ if (!globalForPrisma.prismaProcessingTelemetryInstalled) {
             const where = params.args?.where as Record<string, unknown> | undefined;
             const stage = typeof data?.processingStage === 'string' ? data.processingStage : '';
             const jobId = typeof where?.processingJobId === 'string' ? where.processingJobId : '';
+            const documentId = typeof where?.id === 'string' ? where.id : undefined;
             const affected = typeof result === 'object' && result !== null && 'count' in result
                 ? Number((result as { count?: unknown }).count || 0)
                 : 1;
 
-            if (stage && jobId && affected > 0) markCatalogProcessingStage(jobId, stage);
+            if (stage && jobId && affected > 0) {
+                markCatalogProcessingStage(jobId, stage, { documentId });
+            }
         }
 
         return result;
