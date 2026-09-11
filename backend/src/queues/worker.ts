@@ -8,6 +8,7 @@ import { invalidateHomeCountsCache } from '../controllers/operational.controller
 import { invalidateFastSearchCaches } from '../controllers/fast-search.controller';
 import { invalidateCatalogListCache } from '../controllers/catalog-list.controller';
 import { invalidateNotificationCache } from '../controllers/notification.controller';
+import { invalidateAdminOverviewCache } from '../controllers/admin-overview.controller';
 import { nextDocumentRetry } from '../utils/document-retry';
 import { readableProcessingError } from '../utils/processing-error';
 import { DOCUMENT_PROCESSING_QUEUE, DOCUMENT_RETRY_QUEUE, rabbitMQ } from './connection';
@@ -30,6 +31,7 @@ function invalidateCatalogRuntimeCaches(tenantId: string): void {
     invalidateFastSearchCaches(tenantId);
     invalidateCatalogListCache(tenantId);
     invalidateNotificationCache(tenantId);
+    invalidateAdminOverviewCache(tenantId);
 }
 
 async function buildAuxiliaryCatalogKnowledge(documentId: string, tenantId: string): Promise<void> {
@@ -158,6 +160,7 @@ export class DocumentWorker {
                         });
                         invalidateCatalogListCache(data.tenantId);
                         invalidateNotificationCache(data.tenantId);
+                        invalidateAdminOverviewCache(data.tenantId);
                     }
 
                     await AIService.processDocument(data.documentId, data.tenantId, data.jobId);
