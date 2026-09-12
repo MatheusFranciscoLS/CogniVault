@@ -3,7 +3,7 @@ import test from 'node:test';
 import { parseOfficialProductDetails, parseOfficialSparePart } from './husqvarna-official-detail.service';
 import { buildHusqvarnaPublicSupportUrl } from './husqvarna-public-support.service';
 
-test('extrai IPL completo, especificações, variantes, documentos e acessórios do artigo exato', () => {
+test('extrai detalhes oficiais, diferenças de variantes, documentos recentes e características', () => {
   const payload = {
     site: {
       articles: {
@@ -12,19 +12,40 @@ test('extrai IPL completo, especificações, variantes, documentos e acessórios
           isDiscontinued: true,
           articleDescription: 'All ex US50, Lowes',
           name: { productName: 'HUSQVARNA 327P5x' },
-          specificationValues: [{ id: 'weight', formattedValue: '5,0 kg' }],
+          specificationValues: [
+            { id: 'weight', formattedValue: '5,0 kg' },
+            { id: 'length', formattedValue: '240 cm' },
+          ],
           product: {
             category: { name: 'Serrotes com cabo' },
             productDocuments: [
-              { url: 'https://cdn-portal.husqvarnagroup.com/doc/om', fileFormat: 'pdf', publicationTitle: 'OM PT', publicationType: 'OM', languages: ['PT'] },
-              { url: 'https://cdn-portal.husqvarnagroup.com/doc/ipl', fileFormat: 'pdf', publicationTitle: 'IPL EN', publicationType: 'IPL', languages: ['EN'] },
+              { url: 'https://cdn-portal.husqvarnagroup.com/doc/om-old', fileFormat: 'pdf', publicationTitle: 'OM PT antigo', publicationType: 'OM', languages: ['PT'], lastUpdated: '2010-01-01T00:00:00' },
+              { url: 'https://cdn-portal.husqvarnagroup.com/doc/om-new', fileFormat: 'pdf', publicationTitle: 'OM PT novo', publicationType: 'OM', languages: ['PT'], lastUpdated: '2020-01-01T00:00:00' },
+              { url: 'https://cdn-portal.husqvarnagroup.com/doc/ipl', fileFormat: 'pdf', publicationTitle: 'IPL EN', publicationType: 'IPL', languages: ['EN'], lastUpdated: '2022-01-01T00:00:00' },
             ],
-            specifications: { specificationGroups: [{ id: 'general', name: 'Produto', specifications: [{ id: 'weight', name: 'Peso' }] }] },
+            specifications: {
+              specificationGroups: [{
+                id: 'general',
+                name: 'Produto',
+                specifications: [
+                  { id: 'weight', name: 'Peso' },
+                  { id: 'length', name: 'Comprimento' },
+                ],
+              }],
+            },
             articles: [
-              { id: '965195201', articleDescription: 'Variante A' },
-              { id: '965195202', articleDescription: 'Variante B' },
+              { id: '965195201', articleDescription: 'Variante A', specificationValues: [{ id: 'weight', formattedValue: '5,0 kg' }, { id: 'length', formattedValue: '240 cm' }] },
+              { id: '965195202', articleDescription: 'Variante B', specificationValues: [{ id: 'weight', formattedValue: '5,2 kg' }, { id: 'length', formattedValue: '300 cm' }] },
             ],
+            sharedFeatures: [{
+              id: 'feature-1',
+              name: 'Baixa vibração',
+              description: 'Recurso compartilhado',
+              image: { url: 'https://media.husqvarnagroup.com/feature.png' },
+              video: { link: 'https://www.husqvarna.com/video/feature' },
+            }],
           },
+          additionalFeatures: [{ id: 'feature-2', name: 'Ajuste rápido', description: 'Característica desta variante' }],
           relatedAccessories: { result: [{ id: '579653601', articleDescription: 'Acessório', name: { shortName: 'Cinto' }, product: { url: '/br/acessorios/cinto/', category: { name: 'Acessórios' } } }] },
           alsoUsedIn: [{ __typename: 'Machine', id: 'm1', primaryArticle: { articleNumberFormatted: '970 00 00-01' }, name: { shortName: 'Modelo Relacionado' }, category: { name: 'Roçadeiras' }, url: '/br/rocadeiras/modelo/', isDiscontinued: false }],
           ipls: [{
@@ -42,9 +63,11 @@ test('extrai IPL completo, especificações, variantes, documentos e acessórios
               commercialReference: '503 12 34-01',
               replacedIds: ['503123402'],
               coordinates: '10,20,30,40',
+              comment: 'A partir do serial 12345',
               url: '/br/spare-parts/?part=503123401',
             }],
           }],
+          spareParts: [],
         }],
       },
     },
@@ -54,13 +77,18 @@ test('extrai IPL completo, especificações, variantes, documentos e acessórios
   assert.ok(result);
   assert.equal(result.productName, 'HUSQVARNA 327P5x');
   assert.equal(result.specifications[0].name, 'Peso');
-  assert.equal(result.specifications[0].value, '5,0 kg');
   assert.equal(result.variants.length, 2);
-  assert.equal(result.documents[0].languages[0], 'PT');
+  assert.equal(result.variants[1].specifications.find(item => item.name === 'Peso')?.value, '5,2 kg');
+  assert.equal(result.documents[0].title, 'OM PT novo');
+  assert.equal(result.documents[0].isLatest, true);
+  assert.equal(result.documents[1].title, 'OM PT antigo');
+  assert.equal(result.documents[1].isLatest, false);
+  assert.equal(result.features.length, 2);
+  assert.equal(result.features[0].name, 'Baixa vibração');
   assert.equal(result.accessories[0].name, 'Cinto');
   assert.equal(result.alsoUsedIn[0].pnc, '970000001');
   assert.equal(result.iplSections[0].parts[0].position, '7');
-  assert.equal(result.iplSections[0].parts[0].partNumber, '503123401');
+  assert.equal(result.iplSections[0].parts[0].comment, 'A partir do serial 12345');
   assert.deepEqual(result.iplSections[0].parts[0].replacementPartNumbers, ['503123402']);
 });
 

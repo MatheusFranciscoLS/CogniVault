@@ -52,7 +52,7 @@ export class HusqvarnaOfficialController {
       res.json({ results });
     } catch (error) {
       console.error(`❌ Erro na busca oficial Husqvarna por "${query}":`, error);
-      res.status(502).json({ error: 'Não foi possível pesquisar produtos na Husqvarna.' });
+      res.status(502).json({ error: 'Não foi possível pesquisar na Husqvarna.' });
     }
   }
 
@@ -91,6 +91,7 @@ export class HusqvarnaOfficialController {
             documents: [],
             specifications: [],
             variants: [],
+            features: [],
             accessories: [],
             alsoUsedIn: [],
             spareParts: [],
@@ -214,9 +215,12 @@ export class HusqvarnaOfficialController {
         return;
       }
 
+      const commercialApplications = commercial?.sections
+        .map(section => section.application)
+        .filter((value): value is string => Boolean(value)) || [];
       const applications = [
         ...(livePart?.fitsTo || []),
-        ...(commercial?.sections.map(section => section.application).filter((value): value is string => Boolean(value)) || []),
+        ...commercialApplications,
       ];
       const replacementChain = livePart?.replacedBy
         ? await buildReplacementChain(code, livePart.replacedBy)
@@ -237,11 +241,13 @@ export class HusqvarnaOfficialController {
             ? {
                 partNumber: commercial.partNumber,
                 name: commercial.name,
+                description: commercial.description,
                 price: commercial.price,
                 ean: commercial.ean,
                 ncm: commercial.ncm,
                 category: commercial.category,
                 brand: commercial.brand,
+                applications: commercialApplications,
                 references: commercial.sections.map(section => section.reference).filter(Boolean),
               }
             : null,

@@ -25,6 +25,7 @@ query getProductDetailsSections($siteName: String!, $articleId: ID!) {
             publicationTitle
             publicationType
             languages
+            lastUpdated
           }
           specifications {
             specificationGroups {
@@ -38,6 +39,20 @@ query getProductDetailsSections($siteName: String!, $articleId: ID!) {
             articleDescription
             specificationValues { id formattedValue }
           }
+          sharedFeatures {
+            id
+            name
+            description
+            image { url altText }
+            video { link }
+          }
+        }
+        additionalFeatures {
+          id
+          name
+          description
+          image { url altText }
+          video { link }
         }
         relatedAccessories(skip: 0, take: 50) {
           result {
@@ -153,6 +168,8 @@ export type HusqvarnaOfficialDocument = {
   languages: string[];
   fileFormat: string | null;
   url: string;
+  lastUpdated: string | null;
+  isLatest: boolean;
 };
 
 export type HusqvarnaOfficialSpecification = {
@@ -164,6 +181,16 @@ export type HusqvarnaOfficialSpecification = {
 export type HusqvarnaOfficialVariant = {
   pnc: string;
   description: string | null;
+  specifications: HusqvarnaOfficialSpecification[];
+};
+
+export type HusqvarnaOfficialFeature = {
+  id: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  videoUrl: string | null;
+  source: 'SHARED' | 'ADDITIONAL';
 };
 
 export type HusqvarnaOfficialAccessory = {
@@ -226,6 +253,7 @@ export type HusqvarnaOfficialProductDetails = {
   documents: HusqvarnaOfficialDocument[];
   specifications: HusqvarnaOfficialSpecification[];
   variants: HusqvarnaOfficialVariant[];
+  features: HusqvarnaOfficialFeature[];
   accessories: HusqvarnaOfficialAccessory[];
   alsoUsedIn: HusqvarnaOfficialUsage[];
   spareParts: HusqvarnaOfficialRelatedSparePart[];
@@ -265,6 +293,17 @@ function safePortalUrl(value: unknown): string | null {
   }
 }
 
+function safeHttpsUrl(value: unknown): string | null {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  try {
+    const url = new URL(raw, PORTAL_ORIGIN);
+    return url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function officialMediaUrl(value: unknown): string | null {
   const raw = String(value || '').trim();
   if (!raw) return null;
@@ -282,6 +321,12 @@ function officialMediaUrl(value: unknown): string | null {
 function numberOrNull(value: unknown): number | null {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function dateTimestamp(value: string | null): number {
+  if (!value) return 0;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 async function postGraphql<T>(operationName: string, query: string, variables: Record<string, unknown>): Promise<T | null> {
@@ -332,50 +377,96 @@ export function parseOfficialProductDetails(payload: unknown, pncInput: string):
   const productName = normalizeProductName(article.name?.productName);
   if (!productName) return null;
 
-  const specificationValues = new Map<string, string>();
-  for (const value of Array.isArray(article.specificationValues) ? article.specificationValues : []) {
-    const id = String(value?.id || '').trim();
-    const formattedValue = String(value?.formattedValue || '').trim();
-    if (id && formattedValue) specificationValues.set(id, formattedValue);
-  }
-
-  const specifications: HusqvarnaOfficialSpecification[] = [];
+  const specificationDefinitions = new Map<string, { group: string; name: string }>();
   for (const group of article.product?.specifications?.specificationGroups || []) {
+    const groupName = String(group?.name || 'Especificações').trim() || 'Especificações';
     for (const specification of group?.specifications || []) {
       const id = String(specification?.id || '').trim();
-      const value = specificationValues.get(id);
-      if (!id || !value) continue;
-      specifications.push({
-        group: String(group?.name || 'Especificações').trim() || 'Especificações',
+      if (!id) continue;
+      specificationDefinitions.set(id, {
+        group: groupName,
         name: String(specification?.name || id).trim(),
-        value,
       });
     }
   }
+
+  const mapSpecificationValues = (values: any[]): HusqvarnaOfficialSpecification[] => {
+    const mapped: HusqvarnaOfficialSpecification[] = [];
+    for (const rawValue of Array.isArray(values) ? values : []) {
+      const id = String(rawValue?.id || '').trim();
+      const value = String(rawValue?.formattedValue || '').trim();
+      const definition = specificationDefinitions.get(id);
+      if (!id || !value || !definition) continue;
+      mapped.push({ group: definition.group, name: definition.name, value });
+    }
+    return mapped;
+  };
+
+  const specifications = mapSpecificationValues(article.specificationValues || []);
 
   const variants: HusqvarnaOfficialVariant[] = (article.product?.articles || [])
     .map((item: any) => ({
       pnc: normalizeIdentifier(String(item?.id || '')),
       description: item?.articleDescription ? String(item.articleDescription).trim() : null,
+      specifications: mapSpecificationValues(item?.specificationValues || []),
     }))
     .filter((item: HusqvarnaOfficialVariant) => /^\d{8,14}$/.test(item.pnc));
 
-  const documents: HusqvarnaOfficialDocument[] = (article.product?.productDocuments || [])
+  const rawDocuments: Array<Omit<HusqvarnaOfficialDocument, 'isLatest'>> = (article.product?.productDocuments || [])
     .map((document: any) => ({
       title: String(document?.publicationTitle || 'Documento Husqvarna').trim(),
       type: String(document?.publicationType || 'OTHER').trim().toUpperCase(),
       languages: Array.isArray(document?.languages) ? document.languages.map((language: unknown) => String(language).toUpperCase()) : [],
       fileFormat: document?.fileFormat ? String(document.fileFormat) : null,
       url: safePortalUrl(document?.url) || '',
+      lastUpdated: document?.lastUpdated ? String(document.lastUpdated) : null,
     }))
-    .filter((document: HusqvarnaOfficialDocument) => Boolean(document.url))
-    .sort((left: HusqvarnaOfficialDocument, right: HusqvarnaOfficialDocument) => {
+    .filter((document: Omit<HusqvarnaOfficialDocument, 'isLatest'>) => Boolean(document.url));
+
+  const latestByType = new Map<string, number>();
+  for (const document of rawDocuments) {
+    const timestamp = dateTimestamp(document.lastUpdated);
+    if (!timestamp) continue;
+    latestByType.set(document.type, Math.max(latestByType.get(document.type) || 0, timestamp));
+  }
+
+  const documents: HusqvarnaOfficialDocument[] = rawDocuments
+    .map(document => ({
+      ...document,
+      isLatest: Boolean(dateTimestamp(document.lastUpdated) && dateTimestamp(document.lastUpdated) === latestByType.get(document.type)),
+    }))
+    .sort((left, right) => {
       const leftPt = left.languages.includes('PT') ? 0 : 1;
       const rightPt = right.languages.includes('PT') ? 0 : 1;
       if (leftPt !== rightPt) return leftPt - rightPt;
       const typeOrder = (type: string) => type === 'OM' ? 0 : type === 'IPL' ? 1 : 2;
-      return typeOrder(left.type) - typeOrder(right.type) || left.title.localeCompare(right.title, 'pt-BR');
+      const typeDifference = typeOrder(left.type) - typeOrder(right.type);
+      if (typeDifference !== 0) return typeDifference;
+      const dateDifference = dateTimestamp(right.lastUpdated) - dateTimestamp(left.lastUpdated);
+      return dateDifference || left.title.localeCompare(right.title, 'pt-BR');
     });
+
+  const featureMap = new Map<string, HusqvarnaOfficialFeature>();
+  const addFeatures = (items: any[], source: HusqvarnaOfficialFeature['source']) => {
+    for (const item of Array.isArray(items) ? items : []) {
+      const name = String(item?.name || '').trim();
+      if (!name) continue;
+      const id = String(item?.id || name).trim();
+      const key = id || name.toLocaleLowerCase('pt-BR');
+      const feature: HusqvarnaOfficialFeature = {
+        id,
+        name,
+        description: item?.description ? String(item.description).trim() : null,
+        imageUrl: officialMediaUrl(item?.image?.url),
+        videoUrl: safeHttpsUrl(item?.video?.link),
+        source,
+      };
+      if (!featureMap.has(key) || source === 'ADDITIONAL') featureMap.set(key, feature);
+    }
+  };
+  addFeatures(article.product?.sharedFeatures || [], 'SHARED');
+  addFeatures(article.additionalFeatures || [], 'ADDITIONAL');
+  const features = [...featureMap.values()];
 
   const accessories: HusqvarnaOfficialAccessory[] = (article.relatedAccessories?.result || [])
     .map((item: any) => ({
@@ -456,6 +547,7 @@ export function parseOfficialProductDetails(payload: unknown, pncInput: string):
     documents,
     specifications,
     variants,
+    features,
     accessories,
     alsoUsedIn,
     spareParts,

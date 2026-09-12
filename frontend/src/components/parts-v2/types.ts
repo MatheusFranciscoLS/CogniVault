@@ -122,6 +122,17 @@ export type HusqvarnaOfficialRelatedSparePart = {
   commercial: HusqvarnaOfficialCommercial | null;
 };
 
+export type HusqvarnaOfficialSpecification = { group: string; name: string; value: string };
+
+export type HusqvarnaOfficialFeature = {
+  id: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  videoUrl: string | null;
+  source: 'SHARED' | 'ADDITIONAL';
+};
+
 export type HusqvarnaOfficialProductDetails = {
   pnc: string;
   productName: string;
@@ -132,9 +143,18 @@ export type HusqvarnaOfficialProductDetails = {
   portalUrl: string | null;
   publicSupportUrl: string | null;
   publicSupportVerifiedBy: 'PNC' | 'MODEL' | null;
-  documents: Array<{ title: string; type: string; languages: string[]; fileFormat: string | null; url: string }>;
-  specifications: Array<{ group: string; name: string; value: string }>;
-  variants: Array<{ pnc: string; description: string | null }>;
+  documents: Array<{
+    title: string;
+    type: string;
+    languages: string[];
+    fileFormat: string | null;
+    url: string;
+    lastUpdated: string | null;
+    isLatest: boolean;
+  }>;
+  specifications: HusqvarnaOfficialSpecification[];
+  variants: Array<{ pnc: string; description: string | null; specifications: HusqvarnaOfficialSpecification[] }>;
+  features: HusqvarnaOfficialFeature[];
   accessories: Array<{ id: string; name: string; description: string | null; url: string | null; category: string | null; imageUrl: string | null; discontinued: boolean }>;
   alsoUsedIn: Array<{ kind: string; id: string; pnc: string | null; name: string; category: string | null; url: string | null; imageUrl: string | null; discontinued: boolean }>;
   spareParts: HusqvarnaOfficialRelatedSparePart[];
@@ -155,15 +175,29 @@ export type HusqvarnaOfficialPartDetails = {
   sources: { graphql: boolean; portalScraper: boolean; commercial: boolean };
 };
 
-export type HusqvarnaProductSearchResult = {
-  pnc: string;
-  productName: string;
+export type HusqvarnaOfficialSearchKind = 'PRODUCT' | 'ACCESSORY' | 'SPARE_PART' | 'DOCUMENT' | 'CATEGORY';
+
+export type HusqvarnaOfficialSearchResult = {
+  kind: HusqvarnaOfficialSearchKind;
+  id: string;
+  title: string;
+  subtitle: string | null;
+  pnc: string | null;
+  partNumber: string | null;
   categoryName: string | null;
   portalUrl: string | null;
   imageUrl: string | null;
   discontinued: boolean;
   numberOfVariants: number | null;
+  documentType: string | null;
+  languages: string[];
+  lastUpdated: string | null;
+  productCount: number | null;
 };
+
+// Kept as an alias for older callers while the official search now returns
+// products, accessories, spare parts, documents and categories.
+export type HusqvarnaProductSearchResult = HusqvarnaOfficialSearchResult;
 
 export type PdfPreview = { url: string; page: number | null; title: string };
 
