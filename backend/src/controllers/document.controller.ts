@@ -150,6 +150,10 @@ export class DocumentController {
                 res.status(404).json({ error: 'Catálogo não encontrado.' });
                 return;
             }
+            if (error instanceof Error && error.message === 'DOCUMENT_ALREADY_PROCESSING') {
+                res.status(409).json({ error: 'Este catálogo ainda está em processamento. Aguarde a conclusão antes de arquivá-lo.' });
+                return;
+            }
             console.error('❌ Erro ao arquivar catálogo:', error);
             res.status(500).json({ error: 'Não foi possível arquivar o catálogo.' });
         }
