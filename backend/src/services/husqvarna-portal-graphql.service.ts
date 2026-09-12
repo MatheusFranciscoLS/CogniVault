@@ -124,8 +124,8 @@ type GraphqlProductHit = {
   subCategories?: GraphqlCategory[] | null;
 };
 
-type GraphqlSearchEntry = {
-  resultItem?: GraphqlProductHit | null;
+type GraphqlSearchResultContainer = {
+  resultItem?: GraphqlProductHit | GraphqlProductHit[] | null;
 };
 
 type GraphqlSearchResponse = {
@@ -133,7 +133,7 @@ type GraphqlSearchResponse = {
     site?: {
       search?: {
         content?: {
-          results?: GraphqlSearchEntry | GraphqlSearchEntry[] | null;
+          results?: GraphqlSearchResultContainer | GraphqlSearchResultContainer[] | null;
         } | null;
       } | null;
     } | null;
@@ -233,10 +233,27 @@ function normalizeProductName(value: unknown): string {
   return /^HUSQVARNA\b/i.test(productName) ? productName : `HUSQVARNA ${productName}`;
 }
 
-function searchEntries(response: GraphqlSearchResponse): GraphqlSearchEntry[] {
-  const raw = response.data?.site?.search?.content?.results;
-  if (!raw) return [];
-  return Array.isArray(raw) ? raw : [raw];
+function searchHits(response: GraphqlSearchResponse): GraphqlProductHit[] {
+  const rawResults = response.data?.site?.search?.content?.results;
+  if (!rawResults) return [];
+
+  const containers = Array.isArray(rawResults) ? rawResults : [rawResults];
+  const hits: GraphqlProductHit[] = [];
+
+  for (const container of containers) {
+    const rawItems = container?.resultItem;
+    if (!rawItems) continue;
+
+    if (Array.isArray(rawItems)) {
+      for (const item of rawItems) {
+        if (item && typeof item === 'object') hits.push(item);
+      }
+    } else if (typeof rawItems === 'object') {
+      hits.push(rawItems);
+    }
+  }
+
+  return hits;
 }
 
 function exactPncEvidence(hit: GraphqlProductHit, pnc: string): boolean {
@@ -292,9 +309,8 @@ export function extractExactProductMatch(payload: unknown, pncInput: string): Hu
   if (!pnc || !payload || typeof payload !== 'object') return null;
 
   const response = payload as GraphqlSearchResponse;
-  for (const entry of searchEntries(response)) {
-    const hit = entry?.resultItem;
-    if (!hit || !exactPncEvidence(hit, pnc)) continue;
+  for (const hit of searchHits(response)) {
+    if (!exactPncEvidence(hit, pnc)) continue;
     const match = toProductMatch(hit, pnc);
     if (match) return match;
   }
@@ -315,10 +331,7 @@ export function extractVerifiedProductMatch(
   const response = payload as GraphqlSearchResponse;
   const matches = new Map<string, HusqvarnaPortalProductMatch>();
 
-  for (const entry of searchEntries(response)) {
-    const hit = entry?.resultItem;
-    if (!hit) continue;
-
+  for (const hit of searchHits(response)) {
     const candidateName = normalizeCandidate(normalizeProductName(hit.name?.productName || hit.primaryArticle?.name));
     if (!candidateName || candidateName !== expectedName) continue;
 
