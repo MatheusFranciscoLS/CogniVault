@@ -140,6 +140,10 @@ export type HusqvarnaOfficialProductDetails = {
   categoryName: string | null;
   articleDescription: string | null;
   discontinued: boolean;
+  equipment?: {
+    included: Array<{ id: string; name: string; value: string | null }>;
+    notIncluded: Array<{ id: string; name: string; value: string | null }>;
+  } | null;
   portalUrl: string | null;
   publicSupportUrl: string | null;
   publicSupportVerifiedBy: 'PNC' | 'MODEL' | null;

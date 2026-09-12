@@ -17,6 +17,8 @@ query getProductDetailsSections($siteName: String!, $articleId: ID!) {
         articleDescription
         name { productName }
         specificationValues { id formattedValue }
+        included { id formattedValue specificationDefinitions { name } }
+        notIncluded { id formattedValue specificationDefinitions { name } }
         product {
           category { name }
           productDocuments {
@@ -281,6 +283,7 @@ export type HusqvarnaOfficialProductDetails = {
   categoryName: string | null;
   articleDescription: string | null;
   discontinued: boolean;
+  equipment: HusqvarnaOfficialProductEquipment | null;
   documents: HusqvarnaOfficialDocument[];
   specifications: HusqvarnaOfficialSpecification[];
   variants: HusqvarnaOfficialVariant[];
@@ -298,6 +301,17 @@ export type HusqvarnaOfficialSparePart = {
   commercialReference: string | null;
   url: string | null;
   imageUrl: string | null;
+};
+
+export type HusqvarnaOfficialEquipmentItem = {
+  id: string;
+  name: string;
+  value: string | null;
+};
+
+export type HusqvarnaOfficialProductEquipment = {
+  included: HusqvarnaOfficialEquipmentItem[];
+  notIncluded: HusqvarnaOfficialEquipmentItem[];
 };
 
 export type HusqvarnaOfficialSparePartDetails = HusqvarnaOfficialSparePart & {
@@ -400,6 +414,30 @@ async function postGraphql<T>(operationName: string, query: string, variables: R
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export function parseOfficialProductEquipment(article: { included?: unknown; notIncluded?: unknown }): HusqvarnaOfficialProductEquipment | null {
+  if (!Array.isArray(article.included) && !Array.isArray(article.notIncluded)) return null;
+  const parseItems = (raw: unknown): HusqvarnaOfficialEquipmentItem[] => {
+    if (!Array.isArray(raw)) return [];
+    const items = new Map<string, HusqvarnaOfficialEquipmentItem>();
+    for (const item of raw) {
+      const id = typeof item?.id === 'string' ? item.id.trim() : '';
+      const name = typeof item?.specificationDefinitions?.name === 'string' ? item.specificationDefinitions.name.trim() : '';
+      const value = typeof item?.formattedValue === 'string' ? item.formattedValue.trim() : '';
+      if (!id || !name || items.has(id)) continue;
+      items.set(id, { id, name, value: !value || /^[-–—]+$/.test(value) ? null : value });
+    }
+    return [...items.values()];
+  };
+  const included = parseItems(article.included);
+  const notIncluded = parseItems(article.notIncluded);
+  const includedIds = new Set(included.map(item => item.id));
+  const conflicts = new Set(notIncluded.filter(item => includedIds.has(item.id)).map(item => item.id));
+  return {
+    included: included.filter(item => !conflicts.has(item.id)),
+    notIncluded: notIncluded.filter(item => !conflicts.has(item.id)),
+  };
 }
 
 export function parseOfficialProductDetails(payload: unknown, pncInput: string): HusqvarnaOfficialProductDetails | null {
@@ -581,6 +619,7 @@ export function parseOfficialProductDetails(payload: unknown, pncInput: string):
     categoryName: article.product?.category?.name ? String(article.product.category.name).trim() : null,
     articleDescription: article.articleDescription ? String(article.articleDescription).trim() : null,
     discontinued: Boolean(article.isDiscontinued),
+    equipment: parseOfficialProductEquipment(article),
     documents,
     specifications,
     variants,

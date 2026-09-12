@@ -86,6 +86,7 @@ export class HusqvarnaOfficialController {
             categoryName: productMatch.category?.name || null,
             articleDescription: null,
             discontinued: productMatch.discontinued,
+            equipment: null,
             portalUrl: productMatch.portalUrl,
             publicSupportUrl: publicSupport?.url || null,
             publicSupportVerifiedBy: publicSupport?.verifiedBy || null,

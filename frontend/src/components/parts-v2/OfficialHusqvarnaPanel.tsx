@@ -30,6 +30,12 @@ function labelForType(type: string): string {
   return type || 'Documento';
 }
 
+function equipmentName(item: { id: string; name: string }): string {
+  if (item.id === 'PT1966') return 'Bateria';
+  if (item.id === 'PT1968') return 'Carregador de bateria';
+  return item.name;
+}
+
 function formatDocumentDate(value: string | null | undefined): string | null {
   if (!value) return null;
   const date = new Date(value);
@@ -74,7 +80,7 @@ function additionalApplications(part: InspectablePart, detail: HusqvarnaOfficial
 function detailHasUsefulExtra(part: InspectablePart, detail: HusqvarnaOfficialPartDetails): boolean {
   if (detail.replacementChain?.length) return true;
   if (additionalApplications(part, detail).length) return true;
-  if (detail.specifications && Object.values(detail.specifications).some(Boolean)) return true;
+  if (detail.specifications?.ean) return true;
   if (detail.officialUrl && !part.url) return true;
   const shownName = part.commercial?.name || part.name;
   if (detail.name && normalizeComparable(detail.name) !== normalizeComparable(shownName)) return true;
@@ -433,7 +439,7 @@ export default function OfficialHusqvarnaPanel({ result }: Props) {
     const detail = partDetailsByCode.get(code);
     const detailError = partErrorsByCode.get(code);
     const extras = additionalApplications(part, detail);
-    const specifications = detail?.specifications ? Object.entries(detail.specifications).filter(([, value]) => Boolean(value)) : [];
+    const ean = detail?.specifications?.ean;
 
     return <div id={`${domId(cardKey)}-details`} className="mt-3 rounded-xl border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-900 dark:bg-blue-950/20">
       {detailError && <div className="flex flex-wrap items-center justify-between gap-2"><div className="text-xs font-semibold text-rose-700">{detailError}</div><button type="button" onClick={() => void retryInlineDetails(part, cardKey)} className="rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-[10px] font-black text-rose-700">Tentar novamente</button></div>}
@@ -442,9 +448,9 @@ export default function OfficialHusqvarnaPanel({ result }: Props) {
           <div><div className="text-[10px] font-black uppercase tracking-wide text-blue-700">Informações adicionais oficiais</div>{normalizeComparable(detail.name) !== normalizeComparable(part.commercial?.name || part.name) && <div className="mt-1 text-xs font-black">{detail.name}</div>}</div>
           {detail.officialUrl && !part.url && <button type="button" onClick={() => void openOfficialPart(part)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-[10px] font-black text-blue-700">Abrir peça ↗</button>}
         </div>
-        {detail.replacementChain?.length > 0 && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900"><div className="font-black">Substituição confirmada</div><div className="mt-1 flex flex-wrap items-center gap-1 font-mono font-bold"><span>{cleanErpCode(detail.replacementChain[0].from)}</span>{detail.replacementChain.map(link => <span key={`${link.from}-${link.to}`} className="contents"><span>→</span><span>{cleanErpCode(link.to)}</span></span>)}</div><div className="mt-1 text-[9px] font-semibold text-amber-700">Exibida somente quando a relação foi confirmada pela consulta específica da peça.</div></div>}
+        {detail.replacementChain?.length > 0 && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900"><div className="font-black">Substituição confirmada</div><div className="mt-1 flex flex-wrap items-center gap-1 font-mono font-bold"><span>{cleanErpCode(detail.replacementChain[0].from)}</span>{detail.replacementChain.map(link => <span key={`${link.from}-${link.to}`} className="contents"><span>→</span><span>{cleanErpCode(link.to)}</span></span>)}</div></div>}
         {extras.length > 0 && <div className="mt-3"><div className="text-[9px] font-black uppercase tracking-wide text-blue-700">Aplicações adicionais encontradas</div><div className="mt-2 flex flex-wrap gap-1.5">{extras.slice(0, 40).map(item => <button key={item} type="button" onClick={() => void openApplication(item)} className="rounded-full border border-blue-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-700 hover:text-blue-700">{item}</button>)}</div></div>}
-        {specifications.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2">{specifications.map(([name, value]) => <div key={name} className="rounded-lg border border-blue-100 bg-white p-2"><div className="text-[9px] font-black uppercase text-slate-400">{name}</div><div className="mt-1 text-[11px] font-bold">{String(value)}</div></div>)}</div>}
+        {ean && <div className="mt-3 text-[11px]"><span className="font-bold text-slate-500">EAN</span><span className="ml-2 font-mono font-bold">{ean}</span></div>}
       </>}
     </div>;
   };
@@ -469,6 +475,8 @@ export default function OfficialHusqvarnaPanel({ result }: Props) {
           <div><div className="text-sm font-black">{details.productName}</div><div className="mt-1 text-xs text-slate-500">{details.articleDescription || details.categoryName || 'Produto confirmado pela Husqvarna'}</div></div>
           <div className="flex flex-wrap gap-2">{details.portalUrl && <a href={details.portalUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-600">Portal B2B ↗</a>}{details.publicSupportUrl && <a href={details.publicSupportUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-600">Suporte público ↗</a>}</div>
         </div>
+
+        {!!details.equipment?.notIncluded.length && <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200"><span className="font-black">Não acompanha: </span>{details.equipment.notIncluded.map(equipmentName).join(' · ')}</div>}
 
         <div className="relative mb-4">
           <input value={machineSearch} onChange={event => setMachineSearch(event.target.value)} placeholder="Buscar nesta máquina: código, nome, posição ou seção…" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-blue-400 dark:border-slate-700 dark:bg-slate-950" />
