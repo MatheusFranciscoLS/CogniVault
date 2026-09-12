@@ -5,6 +5,7 @@ import { prisma } from '../config/prisma';
 import { DocumentProducer } from '../queues/producer';
 import { repairMultipartText } from '../utils/text-encoding';
 import { isCatalogCategoryName } from './catalog-category';
+import { isDocumentBusy } from './document-processing-state';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
@@ -198,6 +199,9 @@ export class DocumentService {
         });
 
         if (!document) throw new Error('DOCUMENT_NOT_FOUND');
+        if (isDocumentBusy(document.status, document.processingJobId)) {
+            throw new Error('DOCUMENT_ALREADY_PROCESSING');
+        }
 
         return prisma.document.update({
             where: { id: document.id },
