@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { NextFunction, Request, Response } from 'express';
+import { LRUCache } from 'lru-cache';
 
 const MAX_SAMPLES_PER_ROUTE = 240;
+export const MAX_TRACKED_ROUTES = 240;
 const SLOW_REQUEST_MS = Number(process.env.SLOW_REQUEST_MS || '500');
 
 type RouteStats = {
@@ -18,7 +20,10 @@ type RouteStats = {
   updatedAt: string;
 };
 
-const stats = new Map<string, RouteStats>();
+// Rotas inválidas/aleatórias também passam pelo middleware antes do 404. Um Map
+// sem teto permitiria que caminhos únicos ocupassem memória até o próximo restart.
+// LRU preserva as rotas realmente ativas e limita a memória usada por métricas.
+const stats = new LRUCache<string, RouteStats>({ max: MAX_TRACKED_ROUTES });
 
 /**
  * Mantém nomes de rotas estáticas legíveis nas métricas e anonimiza apenas
