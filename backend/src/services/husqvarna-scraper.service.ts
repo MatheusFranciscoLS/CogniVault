@@ -18,24 +18,25 @@ export interface HusqvarnaLivePart {
     imageUrl?: string;
     specifications?: HusqvarnaLiveSpecifications;
     originalPartUrl: string;
-    replacedBy?: string; // Supersession
-    fitsTo?: string[]; // Compatible machines
+    replacedBy?: string;
+    fitsTo?: string[];
 }
 
 export class HusqvarnaScraperService {
-    // Cache de peças para não sobrecarregar o portal Husqvarna
-    // TTL de 7 dias = 1000 * 60 * 60 * 24 * 7 = 604,800,000 ms
-    private static cache = new LRUCache<string, any>({
-        max: 5000, // Armazena até 5000 peças diferentes na RAM
+    private static cache = new LRUCache<string, HusqvarnaLivePart | null>({
+        max: 5000,
         ttl: 1000 * 60 * 60 * 24 * 7,
     });
+    private static readonly NOT_FOUND_TTL_MS = 10 * 60 * 1000;
+    private static readonly FETCH_TIMEOUT_MS = 5000;
 
     /**
-     * Busca os dados reais de uma peça diretamente no Portal B2B da Husqvarna
-     * @param partCode Código da peça (ex: 532431650)
+     * Busca os dados reais de uma peça diretamente no Portal B2B da Husqvarna.
+     * Sucessos podem ficar em cache por sete dias. Apenas um 404 explícito recebe
+     * cache negativo curto; falhas de rede, timeout ou parsing nunca significam
+     * que a peça não existe.
      */
     static async fetchLiveData(partCode: string, retries = 1): Promise<HusqvarnaLivePart | null> {
-        // Limpar espaços ou traços do código para a URL
         const cleanCode = partCode.replace(/[\s-]/g, '');
 
         if (this.cache.has(cleanCode)) {
@@ -44,83 +45,75 @@ export class HusqvarnaScraperService {
 
         const url = `https://portal.husqvarnagroup.com/br/spare-parts/?part=${cleanCode}`;
         let response: Response | null = null;
-        
+        let html: string | null = null;
+
         for (let attempt = 0; attempt <= retries; attempt++) {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
-            
+            const timeoutId = setTimeout(() => controller.abort(), this.FETCH_TIMEOUT_MS);
+
             try {
-                // Buscar o HTML
                 response = await fetch(url, {
                     signal: controller.signal,
                     headers: {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
                         'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-                    }
+                    },
                 });
-                clearTimeout(timeoutId);
 
                 if (response.ok) {
+                    // O mesmo AbortController cobre também o download do corpo.
+                    // Sem isso, um servidor que envia apenas os headers poderia
+                    // manter response.text() pendurado indefinidamente.
+                    html = await response.text();
                     break;
-                } else if (response.status === 404) {
-                    // Se for 404 não faz sentido tentar de novo
-                    console.warn(`[Husqvarna Scraper] Portal returned ${response.status} for part ${cleanCode}`);
-                    this.cache.set(cleanCode, null);
-                    return null;
-                } else {
-                    console.warn(`[Husqvarna Scraper] Portal returned ${response.status} for part ${cleanCode}, attempt ${attempt}`);
                 }
+
+                if (response.status === 404) {
+                    console.warn(`[Husqvarna Scraper] Portal returned ${response.status} for part ${cleanCode}`);
+                    this.cache.set(cleanCode, null, { ttl: this.NOT_FOUND_TTL_MS });
+                    return null;
+                }
+
+                console.warn(`[Husqvarna Scraper] Portal returned ${response.status} for part ${cleanCode}, attempt ${attempt}`);
             } catch (error: any) {
-                clearTimeout(timeoutId);
                 console.warn(`[Husqvarna Scraper] Error fetching part ${cleanCode} on attempt ${attempt}:`, error.message || error);
+            } finally {
+                clearTimeout(timeoutId);
             }
         }
 
-        if (!response || !response.ok) {
+        if (!response?.ok || html === null) {
             console.warn(`[Husqvarna Scraper] Max retries reached for part ${cleanCode} or failed.`);
             return null;
         }
 
         try {
-            const html = await response.text();
-
-            // A Husqvarna hidrata o estado do React dentro do HTML usando ReactDOMClient.createRoot(...).render(React.createElement(SparePartDetails, { ... JSON ...}))
-            // Vamos tentar extrair esse JSON.
             const regex = /React\.createElement\(SparePartDetails,\s*(\{.*?\})\)\)\}\}\);/s;
             const match = html.match(regex);
 
             if (!match || !match[1]) {
-                 console.warn(`[Husqvarna Scraper] JSON Payload not found in HTML for part ${cleanCode}`);
-                 this.cache.set(cleanCode, null);
-                 return null;
+                console.warn(`[Husqvarna Scraper] JSON Payload not found in HTML for part ${cleanCode}`);
+                return null;
             }
 
             let payload: any;
             try {
                 payload = JSON.parse(match[1]);
-            } catch (e) {
-                console.error(`[Husqvarna Scraper] Failed to parse JSON for part ${cleanCode}`, e);
-                this.cache.set(cleanCode, null);
+            } catch (error) {
+                console.error(`[Husqvarna Scraper] Failed to parse JSON for part ${cleanCode}`, error);
                 return null;
             }
 
-            // Navegando no payload para achar a peça
             const sparePartsDict = payload?.query?.site?.spareParts?.byId;
-            
             if (!sparePartsDict) {
                 console.warn(`[Husqvarna Scraper] spareParts.byId not found in payload for part ${cleanCode}`);
-                this.cache.set(cleanCode, null);
                 return null;
             }
 
-            // Tenta extrair substituição (supersession) e aplicações (fitsTo)
-            // A estrutura real varia, mas geralmente está em replacedBy ou replacements
-            let replacedBy = undefined;
+            let replacedBy: string | undefined;
             if (sparePartsDict.replacedBy?.articleNumberFormatted) {
                 replacedBy = sparePartsDict.replacedBy.articleNumberFormatted;
-            } else if (sparePartsDict.replacementFor?.articleNumberFormatted) {
-                 // as vezes vem diferente
             }
 
             let fitsTo: string[] = [];
@@ -132,18 +125,16 @@ export class HusqvarnaScraperService {
                 name: sparePartsDict.name || 'Desconhecido',
                 shortName: sparePartsDict.shortName,
                 articleNumberFormatted: sparePartsDict.articleNumberFormatted,
-                imageUrl: sparePartsDict.mainImage?.url, // Aqui está o segredo!
+                imageUrl: sparePartsDict.mainImage?.url,
                 specifications: sparePartsDict.specifications,
                 originalPartUrl: sparePartsDict.url || url,
                 replacedBy,
-                fitsTo
+                fitsTo,
             };
 
-            // Salva no cache
             this.cache.set(cleanCode, livePart);
             console.log(`[Husqvarna Scraper] Live data fetched successfully for ${cleanCode}`);
             return livePart;
-
         } catch (error: any) {
             console.error(`[Husqvarna Scraper] Error parsing part ${partCode}:`, error.message || error);
             return null;

@@ -132,7 +132,7 @@ router.patch('/part-verifications/:id/decision', authMiddleware, adminOnly, inva
 router.get('/documents', authMiddleware, (req, res) => catalogListController.list(req, res));
 router.get('/documents/:id/access', authMiddleware, (req, res) => documentAccessController.access(req, res));
 router.patch('/documents/:id/category', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.setCategory(req, res));
-router.post('/upload', authMiddleware, adminOnly, upload.single('file'), uploadConcurrencyMiddleware, invalidateDocumentAccessAfterMutation, (req, res) => documentController.upload(req, res));
+router.post('/upload', authMiddleware, adminOnly, uploadConcurrencyMiddleware, upload.single('file'), invalidateDocumentAccessAfterMutation, (req, res) => documentController.upload(req, res));
 router.post('/documents/:id/archive', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.archive(req, res));
 router.post('/documents/:id/restore', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.restore(req, res));
 router.post('/documents/:id/reprocess', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.reprocess(req, res));
