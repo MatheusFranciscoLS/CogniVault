@@ -4,7 +4,6 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { normalizeIdentifier } from '../utils/normalize';
 import { AuditService } from '../services/audit.service';
 import { HusqvarnaLivePartService } from '../services/husqvarna-live-part.service';
-import { HusqvarnaPortalCatalogService } from '../services/husqvarna-portal-catalog.service';
 import { HusqvarnaPortalGraphqlService } from '../services/husqvarna-portal-graphql.service';
 
 const HUSQVARNA_SPARE_PARTS_URL = 'https://www.husqvarna.com/br/pecas-sobressalentes/';
@@ -198,61 +197,60 @@ export class WorkIntelligenceController {
 
     try {
       if (looksLikeCode) {
-        const [liveResult, catalogResult, productSearchResult, detailsResult] = await Promise.allSettled([
-          HusqvarnaLivePartService.getPart(clean),
-          looksLikePnc ? HusqvarnaPortalCatalogService.searchByPnc(clean) : Promise.resolve(null),
-          looksLikePnc ? HusqvarnaPortalGraphqlService.searchProductByPnc(clean) : Promise.resolve(null),
-          looksLikePnc ? HusqvarnaPortalGraphqlService.getProductDetailsByPnc(clean) : Promise.resolve(null),
-        ]);
-        const livePart = liveResult.status === 'fulfilled' ? liveResult.value : null;
-        const portalCatalog = catalogResult.status === 'fulfilled' ? catalogResult.value : null;
-        let productMatch = productSearchResult.status === 'fulfilled' ? productSearchResult.value : null;
-        const productDetails = detailsResult.status === 'fulfilled' ? detailsResult.value : null;
+        if (looksLikePnc) {
+          const [productSearchResult, detailsResult] = await Promise.allSettled([
+            HusqvarnaPortalGraphqlService.searchProductByPnc(clean),
+            HusqvarnaPortalGraphqlService.getProductDetailsByPnc(clean),
+          ]);
+          let productMatch = productSearchResult.status === 'fulfilled' ? productSearchResult.value : null;
+          const productDetails = detailsResult.status === 'fulfilled' ? detailsResult.value : null;
 
-        // Alguns artigos antigos são confirmados por ID nos detalhes, mas a busca de produto
-        // não repete o PNC nos campos selecionados. Nesse caso, usamos a identidade já
-        // confirmada (produto + categoria) apenas para recuperar a rota canônica do mesmo resultado.
-        if (!productMatch && productDetails && looksLikePnc) {
-          productMatch = await HusqvarnaPortalGraphqlService.searchProductByPnc(clean, {
-            productName: productDetails.productName,
-            categoryName: productDetails.categoryName,
-          });
+          // Alguns artigos antigos são confirmados por ID nos detalhes, mas a busca de produto
+          // não repete o PNC nos campos selecionados. Nesse caso, usamos a identidade já
+          // confirmada (produto + categoria) apenas para recuperar a rota canônica do mesmo resultado.
+          if (!productMatch && productDetails) {
+            productMatch = await HusqvarnaPortalGraphqlService.searchProductByPnc(clean, {
+              productName: productDetails.productName,
+              categoryName: productDetails.categoryName,
+            });
+          }
+
+          // Só tentamos interpretar o mesmo número como peça quando as consultas oficiais
+          // de produto não confirmaram o PNC. Isso evita scraper e GraphQL de peça desnecessários
+          // para máquinas já identificadas com segurança pelo portal.
+          if (productMatch || productDetails) {
+            const confirmedPnc = productMatch?.pnc || productDetails!.pnc;
+            const sameDetails = productDetails?.pnc === confirmedPnc ? productDetails : null;
+            const directUrl = productMatch?.portalUrl || null;
+            const iplSections = sameDetails?.iplSections || [];
+            const workspaceUrl = `/husqvarna?pnc=${encodeURIComponent(confirmedPnc)}`;
+
+            res.json({
+              result: {
+                status: 'FOUND',
+                source: 'OFFICIAL',
+                kind: 'PRODUCT_CATALOG',
+                query,
+                pnc: confirmedPnc,
+                name: sameDetails?.productName || productMatch?.productName || `Produto Husqvarna ${confirmedPnc}`,
+                discontinued: sameDetails?.discontinued ?? productMatch?.discontinued ?? false,
+                categoryName: sameDetails?.categoryName || productMatch?.category?.name || null,
+                articleDescription: sameDetails?.articleDescription || null,
+                iplSections,
+                documents: sameDetails?.documents || [],
+                portalUrl: directUrl,
+                url: workspaceUrl,
+                directProductUrl: Boolean(directUrl),
+                message: iplSections.length
+                  ? `${iplSections.length} vista(s) explodida(s) oficial(is) confirmada(s). Abra os dados oficiais para consultar posições, peças, preço e aplicações.`
+                  : 'PNC e produto confirmados diretamente pela Husqvarna. Abra os dados oficiais para consultar documentos, especificações, variantes e acessórios disponíveis.',
+              },
+            });
+            return;
+          }
         }
 
-        // Uma máquina só vira resultado oficial quando uma das consultas GraphQL da Husqvarna
-        // confirma exatamente o PNC. O parser HTML antigo pode apenas enriquecer esse resultado.
-        if (productMatch || productDetails) {
-          const confirmedPnc = productMatch?.pnc || productDetails!.pnc;
-          const sameDetails = productDetails?.pnc === confirmedPnc ? productDetails : null;
-          const sameCatalog = portalCatalog?.pnc === confirmedPnc ? portalCatalog : null;
-          const directUrl = productMatch?.portalUrl || null;
-          const iplSections = sameDetails?.iplSections || [];
-          const workspaceUrl = `/husqvarna?pnc=${encodeURIComponent(confirmedPnc)}`;
-
-          res.json({
-            result: {
-              status: 'FOUND',
-              source: 'OFFICIAL',
-              kind: 'PRODUCT_CATALOG',
-              query,
-              pnc: confirmedPnc,
-              name: sameDetails?.productName || productMatch?.productName || `Produto Husqvarna ${confirmedPnc}`,
-              discontinued: sameDetails?.discontinued ?? productMatch?.discontinued ?? false,
-              categoryName: sameDetails?.categoryName || productMatch?.category?.name || null,
-              articleDescription: sameDetails?.articleDescription || null,
-              iplSections,
-              documents: sameCatalog?.documents || [],
-              portalUrl: directUrl,
-              url: workspaceUrl,
-              directProductUrl: Boolean(directUrl),
-              message: iplSections.length
-                ? `${iplSections.length} vista(s) explodida(s) oficial(is) confirmada(s). Abra os dados oficiais para consultar posições, peças, preço e aplicações.`
-                : 'PNC e produto confirmados diretamente pela Husqvarna. Abra os dados oficiais para consultar documentos, especificações, variantes e acessórios disponíveis.',
-            },
-          });
-          return;
-        }
-
+        const livePart = await HusqvarnaLivePartService.getPart(clean);
         if (livePart) {
           res.json({
             result: {
