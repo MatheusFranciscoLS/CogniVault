@@ -198,61 +198,49 @@ export class WorkIntelligenceController {
 
     try {
       if (looksLikeCode) {
-        const [liveResult, catalogResult, detailsResult] = await Promise.allSettled([
+        const [liveResult, catalogResult, productSearchResult, detailsResult] = await Promise.allSettled([
           HusqvarnaScraperService.fetchLiveData(clean),
           looksLikePnc ? HusqvarnaPortalCatalogService.searchByPnc(clean) : Promise.resolve(null),
+          looksLikePnc ? HusqvarnaPortalGraphqlService.searchProductByPnc(clean) : Promise.resolve(null),
           looksLikePnc ? HusqvarnaPortalGraphqlService.getProductDetailsByPnc(clean) : Promise.resolve(null),
         ]);
         const livePart = liveResult.status === 'fulfilled' ? liveResult.value : null;
         const portalCatalog = catalogResult.status === 'fulfilled' ? catalogResult.value : null;
+        const productMatch = productSearchResult.status === 'fulfilled' ? productSearchResult.value : null;
         const productDetails = detailsResult.status === 'fulfilled' ? detailsResult.value : null;
 
-        if (portalCatalog) {
-          const iplSections = productDetails?.pnc === portalCatalog.pnc ? productDetails.iplSections : [];
-          res.json({
-            result: {
-              status: 'FOUND',
-              source: 'OFFICIAL',
-              kind: 'PRODUCT_CATALOG',
-              query,
-              pnc: portalCatalog.pnc,
-              name: productDetails?.productName || portalCatalog.productName || `Produto Husqvarna ${portalCatalog.pnc}`,
-              discontinued: productDetails?.discontinued ?? portalCatalog.discontinued,
-              categoryName: productDetails?.categoryName || null,
-              articleDescription: productDetails?.articleDescription || null,
-              iplSections,
-              documents: portalCatalog.documents,
-              portalUrl: portalCatalog.portalUrl,
-              url: portalCatalog.portalUrl,
-              directProductUrl: true,
-              message: iplSections.length
-                ? `${iplSections.length} vista(s) explodida(s) oficial(is) confirmada(s) pela Husqvarna para este PNC.`
-                : 'Produto confirmado no Portal Husqvarna. A vista explodida não pôde ser carregada automaticamente agora.',
-            },
-          });
-          return;
-        }
+        // Uma máquina só vira resultado oficial quando uma das consultas GraphQL da Husqvarna
+        // confirma exatamente o PNC. O parser HTML antigo pode apenas enriquecer esse resultado.
+        if (productMatch || productDetails) {
+          const confirmedPnc = productMatch?.pnc || productDetails!.pnc;
+          const sameDetails = productDetails?.pnc === confirmedPnc ? productDetails : null;
+          const sameCatalog = portalCatalog?.pnc === confirmedPnc ? portalCatalog : null;
+          const directUrl = productMatch?.portalUrl || null;
+          const iplSections = sameDetails?.iplSections || [];
 
-        if (productDetails) {
           res.json({
             result: {
               status: 'FOUND',
               source: 'OFFICIAL',
               kind: 'PRODUCT_CATALOG',
               query,
-              pnc: productDetails.pnc,
-              name: productDetails.productName,
-              discontinued: productDetails.discontinued,
-              categoryName: productDetails.categoryName,
-              articleDescription: productDetails.articleDescription,
-              iplSections: productDetails.iplSections,
-              documents: [],
-              portalUrl: null,
-              url: HUSQVARNA_PORTAL_URL,
-              directProductUrl: false,
-              message: productDetails.iplSections.length
-                ? `${productDetails.iplSections.length} vista(s) explodida(s) oficial(is) confirmada(s) pela Husqvarna para este PNC. A busca do Portal não forneceu o link direto do produto.`
-                : 'PNC confirmado diretamente pela Husqvarna. Este artigo não retornou vistas explodidas estruturadas e a busca do Portal não forneceu o link direto do produto.',
+              pnc: confirmedPnc,
+              name: sameDetails?.productName || productMatch?.productName || `Produto Husqvarna ${confirmedPnc}`,
+              discontinued: sameDetails?.discontinued ?? productMatch?.discontinued ?? false,
+              categoryName: sameDetails?.categoryName || productMatch?.category?.name || null,
+              articleDescription: sameDetails?.articleDescription || null,
+              iplSections,
+              documents: sameCatalog?.documents || [],
+              portalUrl: directUrl,
+              url: directUrl,
+              directProductUrl: Boolean(directUrl),
+              message: directUrl
+                ? (iplSections.length
+                    ? `${iplSections.length} vista(s) explodida(s) oficial(is) confirmada(s) pela Husqvarna para este PNC.`
+                    : 'PNC e produto confirmados diretamente pela Husqvarna.')
+                : (iplSections.length
+                    ? `${iplSections.length} vista(s) explodida(s) oficial(is) confirmada(s). O Portal não forneceu um link canônico do produto nesta consulta.`
+                    : 'PNC confirmado diretamente pela Husqvarna. O Portal não forneceu um link canônico do produto nesta consulta.'),
             },
           });
           return;
