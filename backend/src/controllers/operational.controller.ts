@@ -754,6 +754,20 @@ export class OperationalController {
                 return;
             }
 
+            const normalizedStreamQuery = normalizeIdentifier(q);
+            const exactNumericIdentifier =
+                /^[\d\s-]+$/.test(q) &&
+                /^\d{6,14}$/.test(normalizedStreamQuery);
+
+            if (exactNumericIdentifier) {
+                // PNCs e códigos numéricos exatos já possuem caminhos estruturados.
+                // Embedding/semântica só adiciona latência e não melhora a precisão aqui.
+                send({
+                    type: 'done',
+                });
+                return;
+            }
+
             try {
                 const intent =
                     buildFallbackIntent(q);
@@ -1022,7 +1036,7 @@ export class OperationalController {
             res.json({ message: 'Favorito removido.' });
         } catch (error) {
             console.error('❌ Erro ao remover favorito:', error);
-            res.status(500).json({ error: 'Erro ao remover favorito.' });
+            res.status(500).json({ error: 'Erro ao remover o favorito.' });
         }
     }
 
