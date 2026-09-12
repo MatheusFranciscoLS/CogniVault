@@ -24,8 +24,19 @@ test('storage fetch aborts a stalled upstream request', async () => {
     })) as typeof fetch;
 
   const timedFetch = createStorageFetch(stalledFetch, 10);
-  await assert.rejects(
-    () => timedFetch('https://storage.example.test/catalog.pdf'),
-    (error: unknown) => error instanceof Error && (error.name === 'TimeoutError' || /timeout/i.test(error.message)),
-  );
+  let watchdog: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    await assert.rejects(
+      () => Promise.race([
+        timedFetch('https://storage.example.test/catalog.pdf'),
+        new Promise<Response>((_resolve, reject) => {
+          watchdog = setTimeout(() => reject(new Error('storage timeout did not abort the request')), 250);
+        }),
+      ]),
+      (error: unknown) => error instanceof Error && (error.name === 'TimeoutError' || /timeout/i.test(error.message)),
+    );
+  } finally {
+    if (watchdog) clearTimeout(watchdog);
+  }
 });
