@@ -112,6 +112,16 @@ export type HusqvarnaOfficialIplSection = {
   parts: HusqvarnaOfficialIplPart[];
 };
 
+export type HusqvarnaOfficialRelatedSparePart = {
+  partNumber: string;
+  name: string;
+  description: string | null;
+  commercialReference: string | null;
+  url: string | null;
+  imageUrl: string | null;
+  commercial: HusqvarnaOfficialCommercial | null;
+};
+
 export type HusqvarnaOfficialProductDetails = {
   pnc: string;
   productName: string;
@@ -127,6 +137,7 @@ export type HusqvarnaOfficialProductDetails = {
   variants: Array<{ pnc: string; description: string | null }>;
   accessories: Array<{ id: string; name: string; description: string | null; url: string | null; category: string | null; imageUrl: string | null; discontinued: boolean }>;
   alsoUsedIn: Array<{ kind: string; id: string; pnc: string | null; name: string; category: string | null; url: string | null; imageUrl: string | null; discontinued: boolean }>;
+  spareParts: HusqvarnaOfficialRelatedSparePart[];
   iplSections: HusqvarnaOfficialIplSection[];
 };
 
@@ -137,10 +148,21 @@ export type HusqvarnaOfficialPartDetails = {
   imageUrl: string | null;
   officialUrl: string | null;
   replacedBy: string | null;
+  replacementChain: Array<{ from: string; to: string }>;
   fitsTo: string[];
   specifications: Record<string, string | null | undefined> | null;
   commercial: HusqvarnaOfficialCommercial | null;
   sources: { graphql: boolean; portalScraper: boolean; commercial: boolean };
+};
+
+export type HusqvarnaProductSearchResult = {
+  pnc: string;
+  productName: string;
+  categoryName: string | null;
+  portalUrl: string | null;
+  imageUrl: string | null;
+  discontinued: boolean;
+  numberOfVariants: number | null;
 };
 
 export type PdfPreview = { url: string; page: number | null; title: string };
