@@ -69,6 +69,14 @@ export type HusqvarnaPortalDocument = {
   language: string | null;
 };
 
+export type HusqvarnaIplSectionSummary = {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  referenceHeight: string | null;
+  referenceWidth: string | null;
+};
+
 export type PdfPreview = { url: string; page: number | null; title: string };
 
 export type WorkContext = {
@@ -102,7 +110,12 @@ export type OfficialFallbackResult = {
   fitsTo?: string[];
   specifications?: HusqvarnaLivePart['specifications'] | null;
   discontinued?: boolean;
+  categoryName?: string | null;
+  articleDescription?: string | null;
   documents?: HusqvarnaPortalDocument[];
-  url: string;
+  iplSections?: HusqvarnaIplSectionSummary[];
+  portalUrl?: string | null;
+  url?: string | null;
+  directProductUrl?: boolean;
   message?: string;
 };
