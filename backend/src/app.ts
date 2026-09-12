@@ -6,6 +6,7 @@ import { prisma } from './config/prisma';
 import { allowedCorsOrigins, isAllowedCorsOrigin } from './config/cors';
 import { rabbitMQ } from './queues/connection';
 import { requestPerformanceMiddleware } from './services/request-performance';
+import { createReadinessProbe } from './services/readiness-probe';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import compression from 'compression';
@@ -37,6 +38,18 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
   }
 }
 
+const databaseReadiness = createReadinessProbe(async () => {
+  try {
+    await withTimeout(prisma.$queryRaw`SELECT 1`, 3_000);
+  } catch (error) {
+    const databaseError = error instanceof Error ? error.message : 'Falha desconhecida no banco.';
+    // O detalhe fica apenas nos logs. /health é público e não deve revelar host,
+    // driver, credenciais mascaradas ou mensagens internas do PostgreSQL.
+    console.error('❌ Health check do PostgreSQL falhou:', databaseError);
+    throw error;
+  }
+}, { successTtlMs: 5_000, failureTtlMs: 2_000 });
+
 const allowedOrigins = allowedCorsOrigins();
 
 app.use(helmet({
@@ -49,7 +62,7 @@ const apiLimiter = rateLimit({
   limit: 300,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.path.startsWith('/health') || req.path === '/api/cron/keepalive',
+  skip: (req) => req.path === '/health/live' || req.path === '/api/cron/keepalive',
   message: { error: 'Muitas requisições deste IP, tente novamente em um minuto.' },
 });
 
@@ -96,18 +109,7 @@ app.get('/api/cron/keepalive', (_req, res) => {
 app.use('/api', routes);
 
 app.get('/health', async (_req, res) => {
-  let databaseReady = false;
-
-  try {
-    await withTimeout(prisma.$queryRaw`SELECT 1`, 3_000);
-    databaseReady = true;
-  } catch (error) {
-    const databaseError = error instanceof Error ? error.message : 'Falha desconhecida no banco.';
-    // O detalhe fica apenas nos logs. /health é público e não deve revelar host,
-    // driver, credenciais mascaradas ou mensagens internas do PostgreSQL.
-    console.error('❌ Health check do PostgreSQL falhou:', databaseError);
-  }
-
+  const databaseReady = await databaseReadiness();
   const queue = rabbitMQ.health();
   const degraded = !databaseReady || !queue.ready;
 
