@@ -23,11 +23,14 @@ export interface HusqvarnaLivePart {
 }
 
 export class HusqvarnaScraperService {
-    private static cache = new LRUCache<string, HusqvarnaLivePart | null>({
+    private static positiveCache = new LRUCache<string, HusqvarnaLivePart>({
         max: 5000,
         ttl: 1000 * 60 * 60 * 24 * 7,
     });
-    private static readonly NOT_FOUND_TTL_MS = 10 * 60 * 1000;
+    private static negativeCache = new LRUCache<string, true>({
+        max: 5000,
+        ttl: 10 * 60 * 1000,
+    });
     private static readonly FETCH_TIMEOUT_MS = 5000;
 
     /**
@@ -38,10 +41,9 @@ export class HusqvarnaScraperService {
      */
     static async fetchLiveData(partCode: string, retries = 1): Promise<HusqvarnaLivePart | null> {
         const cleanCode = partCode.replace(/[\s-]/g, '');
-
-        if (this.cache.has(cleanCode)) {
-            return this.cache.get(cleanCode) || null;
-        }
+        const cached = this.positiveCache.get(cleanCode);
+        if (cached) return cached;
+        if (this.negativeCache.has(cleanCode)) return null;
 
         const url = `https://portal.husqvarnagroup.com/br/spare-parts/?part=${cleanCode}`;
         let response: Response | null = null;
@@ -71,7 +73,7 @@ export class HusqvarnaScraperService {
 
                 if (response.status === 404) {
                     console.warn(`[Husqvarna Scraper] Portal returned ${response.status} for part ${cleanCode}`);
-                    this.cache.set(cleanCode, null, { ttl: this.NOT_FOUND_TTL_MS });
+                    this.negativeCache.set(cleanCode, true);
                     return null;
                 }
 
@@ -132,7 +134,8 @@ export class HusqvarnaScraperService {
                 fitsTo,
             };
 
-            this.cache.set(cleanCode, livePart);
+            this.positiveCache.set(cleanCode, livePart);
+            this.negativeCache.delete(cleanCode);
             console.log(`[Husqvarna Scraper] Live data fetched successfully for ${cleanCode}`);
             return livePart;
         } catch (error: any) {
