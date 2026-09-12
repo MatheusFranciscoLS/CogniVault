@@ -237,7 +237,7 @@ export class WorkIntelligenceController {
                 categoryName: sameDetails?.categoryName || productMatch?.category?.name || null,
                 articleDescription: sameDetails?.articleDescription || null,
                 iplSections,
-                documents: sameDetails?.documents || [],
+                documents: [],
                 portalUrl: directUrl,
                 url: workspaceUrl,
                 directProductUrl: Boolean(directUrl),
