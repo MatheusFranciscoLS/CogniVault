@@ -38,7 +38,7 @@
     "lru-cache": "^11.5.2",
     "multer": "^2.2.0",
     "pdf-parse": "^2.4.5",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@types/amqplib": "^0.10.8",
@@ -51,5 +51,8 @@
     "prisma": "^5.22.0",
     "tsx": "^4.23.12",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "qs": "6.16.0"
   }
 }
