@@ -4,6 +4,7 @@ import { prisma } from '../config/prisma';
 import { normalizeIdentifier } from '../utils/normalize';
 import { HusqvarnaOfficialDetailService } from '../services/husqvarna-official-detail.service';
 import { HusqvarnaPortalGraphqlService } from '../services/husqvarna-portal-graphql.service';
+import { HusqvarnaProductSearchService } from '../services/husqvarna-product-search.service';
 import { HusqvarnaPublicSupportService } from '../services/husqvarna-public-support.service';
 import { HusqvarnaScraperService } from '../services/husqvarna-scraper.service';
 
@@ -15,7 +16,46 @@ function extractModel(productName: string): string {
   return productName.replace(/^HUSQVARNA\s+/i, '').trim();
 }
 
+async function buildReplacementChain(code: string, firstReplacement?: string): Promise<Array<{ from: string; to: string }>> {
+  const chain: Array<{ from: string; to: string }> = [];
+  const seen = new Set<string>([code]);
+  let from = code;
+  let to = normalizeIdentifier(firstReplacement || '');
+
+  for (let depth = 0; depth < 4; depth += 1) {
+    if (!/^\d{6,14}$/.test(to) || seen.has(to)) break;
+    chain.push({ from, to });
+    seen.add(to);
+    from = to;
+
+    const nextLive = await Promise.race([
+      HusqvarnaScraperService.fetchLiveData(to, 0).catch(() => null),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 2500)),
+    ]);
+    to = normalizeIdentifier(nextLive?.replacedBy || '');
+  }
+
+  return chain;
+}
+
 export class HusqvarnaOfficialController {
+  async productSearch(req: AuthenticatedRequest, res: Response): Promise<void> {
+    if (!req.user) return;
+    const query = String(req.query.q || '').trim().replace(/\s+/g, ' ').slice(0, 80);
+    if (query.length < 2) {
+      res.status(400).json({ error: 'Informe pelo menos 2 caracteres para pesquisar.' });
+      return;
+    }
+
+    try {
+      const results = await HusqvarnaProductSearchService.search(query);
+      res.json({ results });
+    } catch (error) {
+      console.error(`❌ Erro na busca oficial Husqvarna por "${query}":`, error);
+      res.status(502).json({ error: 'Não foi possível pesquisar produtos na Husqvarna.' });
+    }
+  }
+
   async productDetails(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
     const pnc = cleanNumericIdentifier(req.params.pnc);
@@ -30,9 +70,6 @@ export class HusqvarnaOfficialController {
         HusqvarnaPortalGraphqlService.searchProductByPnc(pnc),
       ]);
 
-      // Se a busca de produto confirmou o PNC mas a consulta técnica detalhada não
-      // estiver disponível, ainda devolvemos uma ficha mínima e tentamos validar a
-      // página pública de suporte. Não inventamos IPL, especificação ou documento.
       if (!details) {
         if (!productMatch) {
           res.status(404).json({ error: 'A Husqvarna não confirmou detalhes oficiais para este PNC.' });
@@ -56,17 +93,17 @@ export class HusqvarnaOfficialController {
             variants: [],
             accessories: [],
             alsoUsedIn: [],
+            spareParts: [],
             iplSections: [],
           },
         });
         return;
       }
 
-      const partNumbers = [...new Set(details.iplSections
-        .flatMap(section => section.parts)
-        .map(part => normalizeIdentifier(part.partNumber || ''))
-        .filter(value => /^\d{6,14}$/.test(value)))]
-        .slice(0, 1500);
+      const partNumbers = [...new Set([
+        ...details.iplSections.flatMap(section => section.parts).map(part => normalizeIdentifier(part.partNumber || '')),
+        ...details.spareParts.map(part => normalizeIdentifier(part.partNumber || '')),
+      ].filter(value => /^\d{6,14}$/.test(value)))].slice(0, 1800);
 
       const [masterParts, publicSupport] = await Promise.all([
         partNumbers.length
@@ -93,33 +130,38 @@ export class HusqvarnaOfficialController {
       ]);
 
       const commercialByNumber = new Map(masterParts.map(part => [part.normalizedNumber, part]));
+      const commercialPayload = (normalizedNumber: string) => {
+        const commercial = commercialByNumber.get(normalizedNumber);
+        return commercial
+          ? {
+              partNumber: commercial.partNumber,
+              name: commercial.name,
+              description: commercial.description,
+              price: commercial.price,
+              ean: commercial.ean,
+              ncm: commercial.ncm,
+              category: commercial.category,
+              brand: commercial.brand,
+              applications: commercial.sections.map(sectionItem => sectionItem.application).filter(Boolean),
+              references: commercial.sections.map(sectionItem => sectionItem.reference).filter(Boolean),
+            }
+          : null;
+      };
+
       const iplSections = details.iplSections.map(section => ({
         ...section,
-        parts: section.parts.map(part => {
-          const commercial = part.partNumber ? commercialByNumber.get(normalizeIdentifier(part.partNumber)) : undefined;
-          return {
-            ...part,
-            // A API chama este campo de replacedIds, mas a direção da relação não
-            // está documentada. Mantemos fail-closed: ele não pode trocar o código
-            // do orçamento. Supersession só é afirmada quando a consulta específica
-            // da peça retorna replacedBy.
-            replacementPartNumbers: [],
-            commercial: commercial
-              ? {
-                  partNumber: commercial.partNumber,
-                  name: commercial.name,
-                  description: commercial.description,
-                  price: commercial.price,
-                  ean: commercial.ean,
-                  ncm: commercial.ncm,
-                  category: commercial.category,
-                  brand: commercial.brand,
-                  applications: commercial.sections.map(sectionItem => sectionItem.application).filter(Boolean),
-                  references: commercial.sections.map(sectionItem => sectionItem.reference).filter(Boolean),
-                }
-              : null,
-          };
-        }),
+        parts: section.parts.map(part => ({
+          ...part,
+          // replacedIds é mantido fail-closed. A direção dessa relação não está
+          // documentada; supersession só é afirmada pela consulta específica da peça.
+          replacementPartNumbers: [],
+          commercial: part.partNumber ? commercialPayload(normalizeIdentifier(part.partNumber)) : null,
+        })),
+      }));
+
+      const spareParts = details.spareParts.map(part => ({
+        ...part,
+        commercial: commercialPayload(normalizeIdentifier(part.partNumber)),
       }));
 
       res.json({
@@ -130,6 +172,7 @@ export class HusqvarnaOfficialController {
           publicSupportUrl: publicSupport?.url || null,
           publicSupportVerifiedBy: publicSupport?.verifiedBy || null,
           iplSections,
+          spareParts,
         },
       });
     } catch (error) {
@@ -175,6 +218,9 @@ export class HusqvarnaOfficialController {
         ...(livePart?.fitsTo || []),
         ...(commercial?.sections.map(section => section.application).filter((value): value is string => Boolean(value)) || []),
       ];
+      const replacementChain = livePart?.replacedBy
+        ? await buildReplacementChain(code, livePart.replacedBy)
+        : [];
 
       res.json({
         part: {
@@ -183,7 +229,8 @@ export class HusqvarnaOfficialController {
           description: graphqlPart?.description || commercial?.description || null,
           imageUrl: graphqlPart?.imageUrl || livePart?.imageUrl || null,
           officialUrl: graphqlPart?.url || livePart?.originalPartUrl || null,
-          replacedBy: livePart?.replacedBy ? normalizeIdentifier(livePart.replacedBy) : null,
+          replacedBy: replacementChain[0]?.to || null,
+          replacementChain,
           fitsTo: [...new Set(applications)].slice(0, 100),
           specifications: livePart?.specifications || null,
           commercial: commercial
