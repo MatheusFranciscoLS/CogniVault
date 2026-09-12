@@ -16,7 +16,7 @@ test('SheetJS runtime preserves the XLSM read/write flow used by the commercial 
       ['503808302', 'Filtro de teste', 123.45],
     ]);
     XLSX.utils.book_append_sheet(workbook, worksheet, 'LISTA_DE_PEÇAS');
-    XLSX.writeFile(filePath, workbook, { bookType: 'xlsm' });
+    XLSX.writeFile(workbook, filePath, { bookType: 'xlsm' });
 
     const parsed = XLSX.readFile(filePath);
     const rows = XLSX.utils.sheet_to_json<Array<string | number>>(
