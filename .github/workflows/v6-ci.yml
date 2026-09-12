@@ -51,6 +51,8 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
+      - name: Block high-severity dependency vulnerabilities
+        run: npm audit --audit-level=high
       - run: npx prisma validate
       - run: npx prisma generate
       - name: Apply full migration chain on clean PostgreSQL
@@ -72,5 +74,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - name: Block high-severity dependency vulnerabilities
+        run: npm audit --audit-level=high
       - run: npm run lint
       - run: npm run build
