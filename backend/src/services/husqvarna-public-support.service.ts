@@ -3,13 +3,18 @@ import { normalizeIdentifier } from '../utils/normalize';
 
 const SUPPORT_ORIGIN = 'https://www.husqvarna.com';
 const TIMEOUT_MS = 5_000;
-const cache = new LRUCache<string, HusqvarnaPublicSupportResult | null>({ max: 500, ttl: 6 * 60 * 60 * 1000 });
 
 export type HusqvarnaPublicSupportResult = {
   url: string;
   title: string | null;
   verifiedBy: 'PNC' | 'MODEL';
 };
+
+type SupportCacheEntry = {
+  result: HusqvarnaPublicSupportResult | null;
+};
+
+const cache = new LRUCache<string, SupportCacheEntry>({ max: 500, ttl: 6 * 60 * 60 * 1000 });
 
 function slugifyModel(productName: string): string {
   return productName
@@ -37,7 +42,7 @@ export class HusqvarnaPublicSupportService {
     const pnc = normalizeIdentifier(pncInput);
     const cacheKey = `${pnc}:${productName.toLowerCase()}`;
     const cached = cache.get(cacheKey);
-    if (cached !== undefined) return cached;
+    if (cached !== undefined) return cached.result;
 
     const url = buildHusqvarnaPublicSupportUrl(productName);
     if (!url) return null;
@@ -55,7 +60,7 @@ export class HusqvarnaPublicSupportService {
         },
       });
       if (!response.ok) {
-        cache.set(cacheKey, null, { ttl: 20 * 60 * 1000 });
+        cache.set(cacheKey, { result: null }, { ttl: 20 * 60 * 1000 });
         return null;
       }
 
@@ -68,7 +73,7 @@ export class HusqvarnaPublicSupportService {
       const pncMatch = Boolean(pnc && normalizedHtml.includes(pnc));
       const modelMatch = Boolean(normalizedModel && normalizedHtml.includes(normalizedModel));
       if (!pncMatch && !modelMatch) {
-        cache.set(cacheKey, null, { ttl: 20 * 60 * 1000 });
+        cache.set(cacheKey, { result: null }, { ttl: 20 * 60 * 1000 });
         return null;
       }
 
@@ -77,7 +82,7 @@ export class HusqvarnaPublicSupportService {
         title: htmlTitle(html),
         verifiedBy: pncMatch ? 'PNC' : 'MODEL',
       };
-      cache.set(cacheKey, result);
+      cache.set(cacheKey, { result });
       return result;
     } catch (error) {
       console.warn(`[Husqvarna Support] Falha ao validar ${productName}/${pnc}: ${error instanceof Error ? error.message : String(error)}`);
