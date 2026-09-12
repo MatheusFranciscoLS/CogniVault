@@ -1,9 +1,9 @@
 import { Prisma } from '@prisma/client';
-import { createClient } from '@supabase/supabase-js';
 import { createHash, randomUUID } from 'node:crypto';
 import { access, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { prisma } from '../config/prisma';
+import { storageBucket, supabase } from '../config/supabase-storage';
 import { GEMINI_EMBEDDING_MODEL, GEMINI_GENERATIVE_MODEL, getGeminiClient } from '../config/gemini';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { countDistinctPartOccurrences, hasSafeExtractionCoverage, matchExistingPartIds } from '../utils/part-identity';
@@ -22,16 +22,6 @@ import { buildPartRetrievalContext } from './part-index-context';
 import { semanticIndexingEnabled, semanticPartBudgetPerDocument } from './semantic-indexing-policy';
 import { invalidateHomeCountsCache } from '../controllers/operational.controller';
 import { recordAiTelemetry } from '../utils/ai-telemetry';
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SECRET_KEY;
-const storageBucket = process.env.STORAGE_BUCKET || 'catalogos';
-
-if (!supabaseUrl || !supabaseKey) {
-    throw new Error('❌ Chaves do Supabase não encontradas no .env');
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface PreparedPart {
     data: {
