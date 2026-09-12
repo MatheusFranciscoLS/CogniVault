@@ -25,6 +25,8 @@ type MachinePartMatch = {
   part: HusqvarnaOfficialIplPart;
 };
 
+type InspectablePart = HusqvarnaOfficialIplPart | HusqvarnaOfficialRelatedSparePart;
+
 function money(value: number | null | undefined): string {
   return typeof value === 'number'
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
@@ -47,6 +49,10 @@ function sectionShortId(id: string): string {
 
 function partKey(sectionId: string, index: number, part: HusqvarnaOfficialIplPart): string {
   return `${sectionId}|${index}|${part.partNumber || part.position || part.name}`;
+}
+
+function spareKey(part: HusqvarnaOfficialRelatedSparePart): string {
+  return `spare|${part.partNumber}`;
 }
 
 function domId(key: string): string {
@@ -93,6 +99,10 @@ function hotspotFromCoordinates(
   return null;
 }
 
+function uniqueStrings(values: Array<string | null | undefined>): string[] {
+  return [...new Set(values.map(value => String(value || '').trim()).filter(Boolean))];
+}
+
 export default function OfficialHusqvarnaPanel({ result }: Props) {
   const quoteCart = useQuoteCart();
   const [expanded, setExpanded] = useState(false);
@@ -101,11 +111,13 @@ export default function OfficialHusqvarnaPanel({ result }: Props) {
   const [error, setError] = useState('');
   const [tab, setTab] = useState<Tab>('IPL');
   const [sectionId, setSectionId] = useState<string>('');
-  const [partDetails, setPartDetails] = useState<HusqvarnaOfficialPartDetails | null>(null);
-  const [partLoading, setPartLoading] = useState<string | null>(null);
   const [machineSearch, setMachineSearch] = useState('');
   const [selectedParts, setSelectedParts] = useState<Set<string>>(() => new Set());
   const [highlightedPart, setHighlightedPart] = useState<string | null>(null);
+  const [expandedPartKeys, setExpandedPartKeys] = useState<Set<string>>(() => new Set());
+  const [partDetailsByCode, setPartDetailsByCode] = useState<Map<string, HusqvarnaOfficialPartDetails>>(() => new Map());
+  const [partLoadingCodes, setPartLoadingCodes] = useState<Set<string>>(() => new Set());
+  const [partErrorsByCode, setPartErrorsByCode] = useState<Map<string, string>>(() => new Map());
 
   const selectedSection = useMemo(() => {
     if (!details?.iplSections.length) return null;
@@ -183,18 +195,59 @@ export default function OfficialHusqvarnaPanel({ result }: Props) {
     }
   };
 
-  const inspectPart = async (part: HusqvarnaOfficialIplPart | HusqvarnaOfficialRelatedSparePart) => {
+  const toggleInlineDetails = async (part: InspectablePart, cardKey: string) => {
     if (!part.partNumber) return;
-    setPartLoading(part.partNumber);
-    setPartDetails(null);
-    try {
-      const response = await apiJson<{ part: HusqvarnaOfficialPartDetails }>(`/api/husqvarna/parts/${encodeURIComponent(part.partNumber)}/details`, { timeoutMs: 20_000 });
-      setPartDetails(response.part);
-    } catch (partError) {
-      toast.error(partError instanceof Error ? partError.message : 'Não foi possível consultar aplicações da peça.');
-    } finally {
-      setPartLoading(null);
+    const code = cleanErpCode(part.partNumber);
+    const isOpen = expandedPartKeys.has(cardKey);
+
+    if (isOpen) {
+      setExpandedPartKeys(current => {
+        const next = new Set(current);
+        next.delete(cardKey);
+        return next;
+      });
+      return;
     }
+
+    setExpandedPartKeys(current => new Set(current).add(cardKey));
+    if (partDetailsByCode.has(code) || partLoadingCodes.has(code)) return;
+
+    setPartLoadingCodes(current => new Set(current).add(code));
+    setPartErrorsByCode(current => {
+      const next = new Map(current);
+      next.delete(code);
+      return next;
+    });
+
+    try {
+      const response = await apiJson<{ part: HusqvarnaOfficialPartDetails }>(`/api/husqvarna/parts/${encodeURIComponent(code)}/details`, { timeoutMs: 20_000 });
+      setPartDetailsByCode(current => new Map(current).set(code, response.part));
+    } catch (partError) {
+      const message = partError instanceof Error ? partError.message : 'Não foi possível consultar aplicações da peça.';
+      setPartErrorsByCode(current => new Map(current).set(code, message));
+    } finally {
+      setPartLoadingCodes(current => {
+        const next = new Set(current);
+        next.delete(code);
+        return next;
+      });
+    }
+  };
+
+  const retryInlineDetails = async (part: InspectablePart, cardKey: string) => {
+    if (!part.partNumber) return;
+    const code = cleanErpCode(part.partNumber);
+    setPartDetailsByCode(current => {
+      const next = new Map(current);
+      next.delete(code);
+      return next;
+    });
+    setExpandedPartKeys(current => {
+      const next = new Set(current);
+      next.delete(cardKey);
+      return next;
+    });
+    await toggleInlineDetails(part, cardKey);
   };
 
   const copyPart = async (partNumber: string) => {
@@ -287,10 +340,9 @@ export default function OfficialHusqvarnaPanel({ result }: Props) {
     setSelectedParts(new Set());
   };
 
-  const focusPart = (targetSectionId: string, _index: number, key: string) => {
+  const focusPart = (targetSectionId: string, key: string) => {
     setTab('IPL');
     setSectionId(targetSectionId);
-    setPartDetails(null);
     setHighlightedPart(key);
     window.setTimeout(() => {
       document.getElementById(domId(key))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -308,28 +360,62 @@ export default function OfficialHusqvarnaPanel({ result }: Props) {
     { id: 'USES', label: 'Também usado em', count: details?.alsoUsedIn.length },
   ];
 
-  const renderPartDetails = () => partDetails ? <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-900 dark:bg-blue-950/20">
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <div className="text-xs font-black uppercase tracking-wide text-blue-700">Peça oficial</div>
-        <div className="mt-1 text-sm font-black">{partDetails.name}</div>
-        <div className="font-mono text-xs text-slate-500">{cleanErpCode(partDetails.partNumber)}</div>
-      </div>
-      {partDetails.officialUrl && <a href={partDetails.officialUrl} target="_blank" rel="noreferrer" className="text-xs font-black text-blue-700">Abrir peça ↗</a>}
-    </div>
-    {partDetails.replacementChain?.length > 0 && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-      <div className="font-black">Cadeia de substituição confirmada</div>
-      <div className="mt-1 flex flex-wrap items-center gap-1 font-mono font-bold">
-        <span>{cleanErpCode(partDetails.replacementChain[0].from)}</span>
-        {partDetails.replacementChain.map(link => <span key={`${link.from}-${link.to}`} className="contents"><span>→</span><span>{cleanErpCode(link.to)}</span></span>)}
-      </div>
-      <div className="mt-1 text-[10px] font-semibold text-amber-700">Somente relações confirmadas pela consulta específica da peça são exibidas aqui.</div>
-    </div>}
-    {partDetails.fitsTo.length > 0 && <div className="mt-3">
-      <div className="text-[10px] font-black uppercase tracking-wide text-slate-400">Aplicações confirmadas/encontradas</div>
-      <div className="mt-2 flex flex-wrap gap-1.5">{partDetails.fitsTo.slice(0, 40).map(item => <span key={item} className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600">{item}</span>)}</div>
-    </div>}
-  </div> : null;
+  const renderInlineDetails = (part: InspectablePart, cardKey: string) => {
+    if (!part.partNumber || !expandedPartKeys.has(cardKey)) return null;
+    const code = cleanErpCode(part.partNumber);
+    const detail = partDetailsByCode.get(code);
+    const loadingPart = partLoadingCodes.has(code);
+    const detailError = partErrorsByCode.get(code);
+    const commercialApplications = uniqueStrings(part.commercial?.applications || []);
+    const officialApplications = uniqueStrings(detail?.fitsTo || []);
+    const directUrl = part.url || detail?.officialUrl || null;
+
+    return <div id={`${domId(cardKey)}-details`} className="mt-3 rounded-xl border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-900 dark:bg-blue-950/20">
+      {loadingPart && <div className="flex items-center gap-2 text-xs font-bold text-blue-700"><span className="h-3 w-3 animate-spin rounded-full border-2 border-blue-300 border-t-blue-700" />Consultando aplicações oficiais…</div>}
+
+      {detailError && !loadingPart && <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-xs font-semibold text-rose-700">{detailError}</div>
+        <button type="button" onClick={() => void retryInlineDetails(part, cardKey)} className="rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-[10px] font-black text-rose-700">Tentar novamente</button>
+      </div>}
+
+      {detail && !loadingPart && <>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="text-[10px] font-black uppercase tracking-wide text-blue-700">Detalhes da peça</div>
+            <div className="mt-1 text-xs font-black text-slate-800 dark:text-slate-100">{detail.name}</div>
+            <div className="font-mono text-[11px] text-slate-500">{cleanErpCode(detail.partNumber)}</div>
+          </div>
+          {directUrl && <a href={directUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-[10px] font-black text-blue-700">Abrir peça ↗</a>}
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {detail.sources.graphql && <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-black text-emerald-700">HUSQVARNA GRAPHQL</span>}
+          {detail.sources.portalScraper && <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[9px] font-black text-blue-700">PORTAL HUSQVARNA</span>}
+          {detail.sources.commercial && <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[9px] font-black text-slate-600">CADASTRO COMERCIAL</span>}
+        </div>
+
+        {detail.replacementChain?.length > 0 && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900">
+          <div className="font-black">Substituição confirmada</div>
+          <div className="mt-1 flex flex-wrap items-center gap-1 font-mono font-bold">
+            <span>{cleanErpCode(detail.replacementChain[0].from)}</span>
+            {detail.replacementChain.map(link => <span key={`${link.from}-${link.to}`} className="contents"><span>→</span><span>{cleanErpCode(link.to)}</span></span>)}
+          </div>
+          <div className="mt-1 text-[9px] font-semibold text-amber-700">Somente relações confirmadas pela consulta específica da peça.</div>
+        </div>}
+
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <div className="rounded-lg border border-blue-100 bg-white p-3 dark:border-blue-900 dark:bg-slate-900">
+            <div className="text-[9px] font-black uppercase tracking-wide text-blue-700">Aplicações Husqvarna / Portal</div>
+            {officialApplications.length ? <div className="mt-2 flex flex-wrap gap-1.5">{officialApplications.slice(0, 40).map(item => <span key={item} className="rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-bold text-slate-700">{item}</span>)}</div> : <div className="mt-2 text-[10px] text-slate-500">Nenhuma aplicação adicional foi retornada pela fonte oficial.</div>}
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+            <div className="text-[9px] font-black uppercase tracking-wide text-slate-500">Aplicações do cadastro comercial</div>
+            {commercialApplications.length ? <div className="mt-2 flex flex-wrap gap-1.5">{commercialApplications.slice(0, 40).map(item => <span key={item} className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold text-slate-600">{item}</span>)}</div> : <div className="mt-2 text-[10px] text-slate-500">Sem aplicação cadastrada internamente.</div>}
+          </div>
+        </div>
+      </>}
+    </div>;
+  };
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
@@ -371,7 +457,7 @@ export default function OfficialHusqvarnaPanel({ result }: Props) {
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-blue-400 dark:border-slate-700 dark:bg-slate-950"
             />
             {machineSearch.trim().length >= 2 && <div className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-              {machineMatches.length ? machineMatches.map(match => <button key={match.key} type="button" onClick={() => { focusPart(match.sectionId, match.index, match.key); setMachineSearch(''); }} className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
+              {machineMatches.length ? machineMatches.map(match => <button key={match.key} type="button" onClick={() => { focusPart(match.sectionId, match.key); setMachineSearch(''); }} className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
                 <div className="min-w-0"><div className="truncate text-xs font-black">{match.part.commercial?.name || match.part.name}</div><div className="mt-0.5 text-[10px] text-slate-400">{match.sectionName} · posição {match.part.position || '—'}</div></div>
                 <div className="shrink-0 font-mono text-xs font-black text-[#123867]">{match.part.partNumber ? cleanErpCode(match.part.partNumber) : 'sem código'}</div>
               </button>) : <div className="px-3 py-4 text-center text-xs text-slate-500">Nada encontrado nas vistas desta máquina.</div>}
@@ -391,7 +477,7 @@ export default function OfficialHusqvarnaPanel({ result }: Props) {
             <div className="max-h-[680px] space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-2 dark:border-slate-800">
               {details.iplSections.length ? details.iplSections.map(section => {
                 const duplicate = (duplicateSectionNames.get(section.name) || 0) > 1;
-                return <button key={section.id} type="button" onClick={() => { setSectionId(section.id); setPartDetails(null); }} className={`w-full rounded-lg px-3 py-2 text-left text-xs font-bold ${selectedSection?.id === section.id ? 'bg-blue-50 text-[#123867] dark:bg-blue-950/30' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'}`}>
+                return <button key={section.id} type="button" onClick={() => setSectionId(section.id)} className={`w-full rounded-lg px-3 py-2 text-left text-xs font-bold ${selectedSection?.id === section.id ? 'bg-blue-50 text-[#123867] dark:bg-blue-950/30' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'}`}>
                   <div>{section.name}{duplicate ? <span className="ml-1 font-mono text-[9px] text-slate-400">· {sectionShortId(section.id)}</span> : null}</div>
                   <div className="mt-0.5 text-[10px] font-normal text-slate-400">{section.parts.length} posições</div>
                 </button>;
@@ -417,7 +503,7 @@ export default function OfficialHusqvarnaPanel({ result }: Props) {
                       key={`hotspot-${key}`}
                       type="button"
                       title={`${part.position || 'Posição'} · ${part.commercial?.name || part.name}${part.partNumber ? ` · ${cleanErpCode(part.partNumber)}` : ''}`}
-                      onClick={() => focusPart(selectedSection.id, index, key)}
+                      onClick={() => focusPart(selectedSection.id, key)}
                       style={{ left: `${point.left}%`, top: `${point.top}%` }}
                       className="absolute grid h-6 min-w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-[#123867] px-1 text-[9px] font-black text-white shadow-md transition hover:scale-125 focus:outline-none focus:ring-2 focus:ring-blue-400"
                     >{part.position || '•'}</button>;
@@ -430,6 +516,10 @@ export default function OfficialHusqvarnaPanel({ result }: Props) {
                   const key = partKey(selectedSection.id, index, part);
                   const selected = selectedParts.has(key);
                   const highlighted = highlightedPart === key;
+                  const code = part.partNumber ? cleanErpCode(part.partNumber) : '';
+                  const cachedDetail = code ? partDetailsByCode.get(code) : undefined;
+                  const inlineOpen = expandedPartKeys.has(key);
+                  const directUrl = part.url || cachedDetail?.officialUrl || null;
                   return <div id={domId(key)} key={key} className={`rounded-xl border p-3 transition ${highlighted ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200 dark:bg-blue-950/20' : selected ? 'border-blue-300 bg-blue-50/40 dark:border-blue-800 dark:bg-blue-950/10' : 'border-slate-200 dark:border-slate-800'}`}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="flex min-w-0 flex-1 gap-3">
@@ -442,25 +532,39 @@ export default function OfficialHusqvarnaPanel({ result }: Props) {
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {part.partNumber && <button type="button" onClick={() => void inspectPart(part)} disabled={partLoading === part.partNumber} className="rounded-lg border border-slate-200 px-3 py-2 text-[10px] font-black text-slate-600 disabled:opacity-50">{partLoading === part.partNumber ? 'Consultando…' : 'Aplicações'}</button>}
+                        {part.partNumber && <button type="button" aria-expanded={inlineOpen} aria-controls={`${domId(key)}-details`} onClick={() => void toggleInlineDetails(part, key)} className={`rounded-lg border px-3 py-2 text-[10px] font-black ${inlineOpen ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600'}`}>{inlineOpen ? 'Ocultar aplicações' : partLoadingCodes.has(code) ? 'Consultando…' : 'Aplicações'}</button>}
+                        {directUrl && <a href={directUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 px-3 py-2 text-[10px] font-black text-slate-600">Abrir peça ↗</a>}
                         {part.partNumber && <button type="button" onClick={() => addToQuote(part)} className="rounded-lg bg-[#123867] px-3 py-2 text-[10px] font-black text-white">+ Orçamento</button>}
                       </div>
                     </div>
+                    {renderInlineDetails(part, key)}
                   </div>;
                 })}
               </div>
-              {renderPartDetails()}
             </div>}
           </div>}
 
           {tab === 'SPARE_PARTS' && <div>
             <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-950/30">Lista de peças relacionadas devolvida diretamente pela Husqvarna para este artigo. Ela complementa as vistas explodidas; não substitui a posição técnica do IPL.</div>
-            <div className="grid gap-3 md:grid-cols-2">{details.spareParts.length ? details.spareParts.map(part => <div key={part.partNumber} className="flex gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-              {part.imageUrl && <img src={part.imageUrl} alt={part.name} className="h-16 w-16 rounded-lg object-contain" loading="lazy" />}
-              <div className="min-w-0 flex-1"><div className="text-xs font-black">{part.commercial?.name || part.name}</div><button type="button" onClick={() => void copyPart(part.partNumber)} className="mt-1 font-mono text-xs font-black text-[#123867] hover:underline">{cleanErpCode(part.partNumber)}</button>{part.description && <div className="mt-1 line-clamp-2 text-[11px] text-slate-500">{part.description}</div>}<div className="mt-2 text-xs font-black text-emerald-700">{money(part.commercial?.price)}</div></div>
-              <div className="flex shrink-0 flex-col gap-2"><button type="button" onClick={() => void inspectPart(part)} disabled={partLoading === part.partNumber} className="rounded-lg border border-slate-200 px-2.5 py-2 text-[10px] font-black">Aplicações</button><button type="button" onClick={() => addSpareToQuote(part)} className="rounded-lg bg-[#123867] px-2.5 py-2 text-[10px] font-black text-white">+ Orçamento</button></div>
-            </div>) : <div className="text-sm text-slate-500">Nenhuma peça relacionada estruturada retornada.</div>}</div>
-            {renderPartDetails()}
+            <div className="grid gap-3 md:grid-cols-2">{details.spareParts.length ? details.spareParts.map(part => {
+              const key = spareKey(part);
+              const code = cleanErpCode(part.partNumber);
+              const cachedDetail = partDetailsByCode.get(code);
+              const directUrl = part.url || cachedDetail?.officialUrl || null;
+              const inlineOpen = expandedPartKeys.has(key);
+              return <div key={part.partNumber} className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                <div className="flex gap-3">
+                  {part.imageUrl && <img src={part.imageUrl} alt={part.name} className="h-16 w-16 rounded-lg object-contain" loading="lazy" />}
+                  <div className="min-w-0 flex-1"><div className="text-xs font-black">{part.commercial?.name || part.name}</div><button type="button" onClick={() => void copyPart(part.partNumber)} className="mt-1 font-mono text-xs font-black text-[#123867] hover:underline">{cleanErpCode(part.partNumber)}</button>{part.description && <div className="mt-1 line-clamp-2 text-[11px] text-slate-500">{part.description}</div>}<div className="mt-2 text-xs font-black text-emerald-700">{money(part.commercial?.price)}</div></div>
+                  <div className="flex shrink-0 flex-col gap-2">
+                    <button type="button" aria-expanded={inlineOpen} aria-controls={`${domId(key)}-details`} onClick={() => void toggleInlineDetails(part, key)} className={`rounded-lg border px-2.5 py-2 text-[10px] font-black ${inlineOpen ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200'}`}>{inlineOpen ? 'Ocultar aplicações' : partLoadingCodes.has(code) ? 'Consultando…' : 'Aplicações'}</button>
+                    {directUrl && <a href={directUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 px-2.5 py-2 text-center text-[10px] font-black text-slate-600">Abrir peça ↗</a>}
+                    <button type="button" onClick={() => addSpareToQuote(part)} className="rounded-lg bg-[#123867] px-2.5 py-2 text-[10px] font-black text-white">+ Orçamento</button>
+                  </div>
+                </div>
+                {renderInlineDetails(part, key)}
+              </div>;
+            }) : <div className="text-sm text-slate-500">Nenhuma peça relacionada estruturada retornada.</div>}</div>
           </div>}
 
           {tab === 'SPECS' && <div>{details.specifications.length ? <div className="grid gap-2 md:grid-cols-2">{details.specifications.map((spec, index) => <div key={`${spec.group}-${spec.name}-${index}`} className="rounded-xl border border-slate-200 p-3 dark:border-slate-800"><div className="text-[10px] font-black uppercase tracking-wide text-slate-400">{spec.group}</div><div className="mt-1 text-xs font-bold text-slate-600 dark:text-slate-300">{spec.name}</div><div className="mt-1 text-sm font-black">{spec.value}</div></div>)}</div> : <div className="text-sm text-slate-500">A Husqvarna não retornou especificações estruturadas para esta variante.</div>}</div>}
