@@ -124,12 +124,16 @@ type GraphqlProductHit = {
   subCategories?: GraphqlCategory[] | null;
 };
 
+type GraphqlSearchEntry = {
+  resultItem?: GraphqlProductHit | null;
+};
+
 type GraphqlSearchResponse = {
   data?: {
     site?: {
       search?: {
         content?: {
-          results?: Array<{ resultItem?: GraphqlProductHit | null }> | null;
+          results?: GraphqlSearchEntry | GraphqlSearchEntry[] | null;
         } | null;
       } | null;
     } | null;
@@ -229,6 +233,12 @@ function normalizeProductName(value: unknown): string {
   return /^HUSQVARNA\b/i.test(productName) ? productName : `HUSQVARNA ${productName}`;
 }
 
+function searchEntries(response: GraphqlSearchResponse): GraphqlSearchEntry[] {
+  const raw = response.data?.site?.search?.content?.results;
+  if (!raw) return [];
+  return Array.isArray(raw) ? raw : [raw];
+}
+
 function exactPncEvidence(hit: GraphqlProductHit, pnc: string): boolean {
   return [
     hit.selectedArticle,
@@ -282,9 +292,7 @@ export function extractExactProductMatch(payload: unknown, pncInput: string): Hu
   if (!pnc || !payload || typeof payload !== 'object') return null;
 
   const response = payload as GraphqlSearchResponse;
-  const results = response.data?.site?.search?.content?.results || [];
-
-  for (const entry of results) {
+  for (const entry of searchEntries(response)) {
     const hit = entry?.resultItem;
     if (!hit || !exactPncEvidence(hit, pnc)) continue;
     const match = toProductMatch(hit, pnc);
@@ -305,10 +313,9 @@ export function extractVerifiedProductMatch(
   if (!pnc || !expectedName || !payload || typeof payload !== 'object') return null;
 
   const response = payload as GraphqlSearchResponse;
-  const results = response.data?.site?.search?.content?.results || [];
   const matches = new Map<string, HusqvarnaPortalProductMatch>();
 
-  for (const entry of results) {
+  for (const entry of searchEntries(response)) {
     const hit = entry?.resultItem;
     if (!hit) continue;
 
@@ -423,18 +430,24 @@ export class HusqvarnaPortalGraphqlService {
       return null;
     }
 
-    const exactMatch = extractExactProductMatch(payload, pnc);
-    if (exactMatch) {
-      console.log(`[Husqvarna GraphQL] PNC ${pnc} confirmado como ${exactMatch.productName}.`);
-      return exactMatch;
-    }
-
-    if (verified) {
-      const verifiedMatch = extractVerifiedProductMatch(payload, pnc, verified);
-      if (verifiedMatch) {
-        console.log(`[Husqvarna GraphQL] PNC ${pnc}: rota canônica confirmada por produto/categoria (${verifiedMatch.productName}).`);
-        return verifiedMatch;
+    try {
+      const exactMatch = extractExactProductMatch(payload, pnc);
+      if (exactMatch) {
+        console.log(`[Husqvarna GraphQL] PNC ${pnc} confirmado como ${exactMatch.productName}.`);
+        return exactMatch;
       }
+
+      if (verified) {
+        const verifiedMatch = extractVerifiedProductMatch(payload, pnc, verified);
+        if (verifiedMatch) {
+          console.log(`[Husqvarna GraphQL] PNC ${pnc}: rota canônica confirmada por produto/categoria (${verifiedMatch.productName}).`);
+          return verifiedMatch;
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[Husqvarna GraphQL] PNC ${pnc}: resposta de busca em formato inesperado (${message}).`);
+      return null;
     }
 
     console.log(`[Husqvarna GraphQL] PNC ${pnc}: nenhum produto com correspondência segura.`);
