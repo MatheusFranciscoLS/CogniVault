@@ -5,6 +5,7 @@ services:
     plan: free
     region: oregon
     branch: main
+    autoDeployTrigger: checksPass
     buildCommand: cd backend && npm ci && npx prisma generate && npx prisma migrate deploy && npm run build
     startCommand: cd backend && npm start
     healthCheckPath: /health/live
@@ -53,6 +54,8 @@ services:
         sync: false
       - key: STORAGE_BUCKET
         value: catalogos
+      - key: STORAGE_REQUEST_TIMEOUT_MS
+        value: "60000"
       - key: CORS_ORIGINS
         value: http://localhost:5173,https://cognivault-murex.vercel.app,https://cognivault-matheus-projects-50653618.vercel.app,https://cognivault-git-main-matheus-projects-50653618.vercel.app
       - key: PART_SEARCH_MAX_DISTANCE
