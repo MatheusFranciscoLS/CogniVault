@@ -67,15 +67,9 @@ export default function HusqvarnaOfficialPage() {
       navigate('/login', { replace: true });
       return;
     }
-    setResult(null);
-    setError('');
-    if (!validPnc) {
-      setLoading(false);
-      return;
-    }
+    if (!validPnc) return;
 
     let active = true;
-    setLoading(true);
     void apiJson<{ result: OfficialFallbackResult }>(`/api/official-fallback?q=${encodeURIComponent(pnc)}`, { timeoutMs: 20_000 })
       .then(data => {
         if (!active) return;
@@ -116,9 +110,8 @@ export default function HusqvarnaOfficialPage() {
 
   useEffect(() => {
     if (!initialSearch || initialSearch.length < 2 || !getToken()) return;
-    setModelQuery(initialSearch);
-    void runOfficialSearch(initialSearch);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const timer = window.setTimeout(() => { void runOfficialSearch(initialSearch); }, 0);
+    return () => window.clearTimeout(timer);
   }, [initialSearch]);
 
   const searchOfficialProducts = async (event: FormEvent) => {

@@ -303,8 +303,18 @@ export default function OfficialHusqvarnaPanel({ result }: Props) {
     const query = application.trim();
     if (!query) return;
     try {
-      const response = await apiJson<{ results: HusqvarnaOfficialSearchResult[] }>(`/api/husqvarna/products/search?q=${encodeURIComponent(query)}`, { timeoutMs: 12_000 });
-      const products = response.results.filter(item => item.kind === 'PRODUCT' && item.pnc);
+      const response = await apiJson<{ results: unknown }>(`/api/husqvarna/products/search?q=${encodeURIComponent(query)}`, { timeoutMs: 12_000 });
+      const raw = Array.isArray(response.results) ? response.results : [];
+      const products: Array<Pick<HusqvarnaOfficialSearchResult, 'pnc' | 'title'>> = raw.flatMap(rawItem => {
+        const item = rawItem as Record<string, unknown>;
+        if (item.kind === 'PRODUCT' && typeof item.pnc === 'string' && typeof item.title === 'string') {
+          return [{ pnc: item.pnc, title: item.title }];
+        }
+        if (typeof item.productName === 'string' && typeof item.pnc === 'string') {
+          return [{ pnc: item.pnc, title: item.productName }];
+        }
+        return [];
+      });
       const expected = normalizeComparable(query);
       const exact = products.filter(item => normalizeComparable(item.title) === expected);
       if (exact.length === 1 && exact[0].pnc) {
@@ -366,7 +376,10 @@ export default function OfficialHusqvarnaPanel({ result }: Props) {
     const allSelected = codedKeys.length > 0 && codedKeys.every(item => selectedParts.has(item.key));
     setSelectedParts(current => {
       const next = new Set(current);
-      for (const item of codedKeys) allSelected ? next.delete(item.key) : next.add(item.key);
+      for (const item of codedKeys) {
+        if (allSelected) next.delete(item.key);
+        else next.add(item.key);
+      }
       return next;
     });
   };
