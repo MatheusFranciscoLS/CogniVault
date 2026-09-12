@@ -77,6 +77,72 @@ export type HusqvarnaIplSectionSummary = {
   referenceWidth: string | null;
 };
 
+export type HusqvarnaOfficialCommercial = {
+  partNumber: string;
+  name: string;
+  description?: string | null;
+  price: number | null;
+  ean?: string | null;
+  ncm?: string | null;
+  category?: string | null;
+  brand?: string | null;
+  applications?: Array<string | null>;
+  references?: Array<string | null>;
+};
+
+export type HusqvarnaOfficialIplPart = {
+  position: string | null;
+  partNumber: string | null;
+  name: string;
+  description: string | null;
+  quantity: number | null;
+  comment: string | null;
+  coordinates: string | null;
+  url: string | null;
+  replacementPartNumbers: string[];
+  commercial: HusqvarnaOfficialCommercial | null;
+};
+
+export type HusqvarnaOfficialIplSection = {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  referenceHeight: number | null;
+  referenceWidth: number | null;
+  parts: HusqvarnaOfficialIplPart[];
+};
+
+export type HusqvarnaOfficialProductDetails = {
+  pnc: string;
+  productName: string;
+  model: string;
+  categoryName: string | null;
+  articleDescription: string | null;
+  discontinued: boolean;
+  portalUrl: string | null;
+  publicSupportUrl: string | null;
+  publicSupportVerifiedBy: 'PNC' | 'MODEL' | null;
+  documents: Array<{ title: string; type: string; languages: string[]; fileFormat: string | null; url: string }>;
+  specifications: Array<{ group: string; name: string; value: string }>;
+  variants: Array<{ pnc: string; description: string | null }>;
+  accessories: Array<{ id: string; name: string; description: string | null; url: string | null; category: string | null; imageUrl: string | null; discontinued: boolean }>;
+  alsoUsedIn: Array<{ kind: string; id: string; pnc: string | null; name: string; category: string | null; url: string | null; imageUrl: string | null; discontinued: boolean }>;
+  iplSections: HusqvarnaOfficialIplSection[];
+};
+
+export type HusqvarnaOfficialPartDetails = {
+  partNumber: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  officialUrl: string | null;
+  replacedBy: string | null;
+  fitsTo: string[];
+  specifications: Record<string, string | null | undefined> | null;
+  commercial: HusqvarnaOfficialCommercial | null;
+  sources: { graphql: boolean; portalScraper: boolean; commercial: boolean };
+};
+
 export type PdfPreview = { url: string; page: number | null; title: string };
 
 export type WorkContext = {
