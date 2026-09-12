@@ -244,7 +244,7 @@ async function loadCommercialSearch(
   const candidates = await prisma.masterPart.findMany({
     where: {
       tenantId,
-      ...(selectedSection ? { sections: { some: { section: selectedSection } } : {}),
+      ...(selectedSection ? { sections: { some: { section: selectedSection } } } : {}),
       OR: orFilters,
     },
     include: { sections: { orderBy: { section: 'asc' } } },
