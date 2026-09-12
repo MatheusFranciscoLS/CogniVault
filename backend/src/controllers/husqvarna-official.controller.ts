@@ -6,6 +6,7 @@ import { HusqvarnaOfficialDetailService } from '../services/husqvarna-official-d
 import { HusqvarnaPortalGraphqlService } from '../services/husqvarna-portal-graphql.service';
 import { HusqvarnaProductSearchService } from '../services/husqvarna-product-search.service';
 import { HusqvarnaPublicSupportService } from '../services/husqvarna-public-support.service';
+import { HusqvarnaReplacementHistoryService } from '../services/husqvarna-replacement-history.service';
 import { HusqvarnaScraperService } from '../services/husqvarna-scraper.service';
 
 function cleanNumericIdentifier(value: unknown): string {
@@ -16,7 +17,7 @@ function extractModel(productName: string): string {
   return productName.replace(/^HUSQVARNA\s+/i, '').trim();
 }
 
-async function buildReplacementChain(code: string, firstReplacement?: string): Promise<Array<{ from: string; to: string }>> {
+async function buildScraperReplacementChain(code: string, firstReplacement?: string): Promise<Array<{ from: string; to: string }>> {
   const chain: Array<{ from: string; to: string }> = [];
   const seen = new Set<string>([code]);
   let from = code;
@@ -191,8 +192,9 @@ export class HusqvarnaOfficialController {
     }
 
     try {
-      const [graphqlPart, livePart, commercial] = await Promise.all([
+      const [graphqlPart, replacementHistory, livePart, commercial] = await Promise.all([
         HusqvarnaOfficialDetailService.searchSparePart(code),
+        HusqvarnaReplacementHistoryService.getReplacementHistory(code).catch(() => null),
         HusqvarnaScraperService.fetchLiveData(code).catch(() => null),
         prisma.masterPart.findUnique({
           where: { tenantId_normalizedNumber: { tenantId: req.user.tenantId, normalizedNumber: code } },
@@ -210,7 +212,8 @@ export class HusqvarnaOfficialController {
         }),
       ]);
 
-      if (!graphqlPart && !livePart && !commercial) {
+      const officialReplacementHistoryAvailable = Boolean(replacementHistory?.history.length);
+      if (!graphqlPart && !livePart && !commercial && !officialReplacementHistoryAvailable) {
         res.status(404).json({ error: 'Peça não localizada nas fontes disponíveis.' });
         return;
       }
@@ -222,9 +225,20 @@ export class HusqvarnaOfficialController {
         ...(livePart?.fitsTo || []),
         ...commercialApplications,
       ];
-      const replacementChain = livePart?.replacedBy
-        ? await buildReplacementChain(code, livePart.replacedBy)
-        : [];
+
+      let replacementChain: Array<{ from: string; to: string }> = [];
+      let replacedBy: string | null = null;
+      let replacementSource: 'HUSQVARNA_GRAPHQL' | 'PORTAL_SCRAPER' | null = null;
+
+      if (officialReplacementHistoryAvailable && replacementHistory) {
+        replacementChain = replacementHistory.chain;
+        replacedBy = replacementHistory.replacedBy;
+        replacementSource = 'HUSQVARNA_GRAPHQL';
+      } else if (livePart?.replacedBy) {
+        replacementChain = await buildScraperReplacementChain(code, livePart.replacedBy);
+        replacedBy = replacementChain[0]?.to || normalizeIdentifier(livePart.replacedBy) || null;
+        replacementSource = replacementChain.length || replacedBy ? 'PORTAL_SCRAPER' : null;
+      }
 
       res.json({
         part: {
@@ -233,8 +247,12 @@ export class HusqvarnaOfficialController {
           description: graphqlPart?.description || commercial?.description || null,
           imageUrl: graphqlPart?.imageUrl || livePart?.imageUrl || null,
           officialUrl: graphqlPart?.url || livePart?.originalPartUrl || null,
-          replacedBy: replacementChain[0]?.to || null,
+          replacedBy,
           replacementChain,
+          latestReplacementPartNumber: officialReplacementHistoryAvailable ? replacementHistory?.latestPartNumber || null : replacementChain.at(-1)?.to || replacedBy,
+          replacementHistory: officialReplacementHistoryAvailable ? replacementHistory?.history || [] : [],
+          replacementHistoryComplete: officialReplacementHistoryAvailable ? Boolean(replacementHistory?.completeChain) : false,
+          replacementSource,
           fitsTo: [...new Set(applications)].slice(0, 100),
           specifications: livePart?.specifications || null,
           commercial: commercial
