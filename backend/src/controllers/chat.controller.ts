@@ -7,6 +7,9 @@ import { OfficialPartVerificationService, type OfficialVerificationView } from '
 import { requiresSerialConfirmation, type SerialGuidanceCandidate } from '../services/serial-guidance';
 import { normalizeIdentifier } from '../utils/normalize';
 
+const MAX_CHAT_QUESTION_LENGTH = 1_000;
+const MAX_CHAT_PNC_LENGTH = 80;
+
 type GuidedChatSearchResult = ChatSearchResult & { serialRequired?: boolean };
 
 function prependOfficialNotice(result: ChatSearchResult, previousCode: string, currentCode: string): ChatSearchResult {
@@ -135,7 +138,13 @@ export class ChatController {
                 return;
             }
 
-            if (pnc !== undefined && typeof pnc !== 'string') {
+            const cleanQuestion = question.trim();
+            if (cleanQuestion.length > MAX_CHAT_QUESTION_LENGTH) {
+                res.status(400).json({ error: `A pergunta deve ter no máximo ${MAX_CHAT_QUESTION_LENGTH} caracteres.` });
+                return;
+            }
+
+            if (pnc !== undefined && (typeof pnc !== 'string' || pnc.trim().length > MAX_CHAT_PNC_LENGTH)) {
                 res.status(400).json({ error: 'PNC inválido.' });
                 return;
             }
@@ -145,7 +154,6 @@ export class ChatController {
                 return;
             }
 
-            const cleanQuestion = question.trim();
             const cleanPnc = typeof pnc === 'string' ? pnc.trim() : undefined;
             const cleanSelectedPartId = typeof selectedPartId === 'string' ? selectedPartId.trim() : undefined;
 

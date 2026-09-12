@@ -3,6 +3,9 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { FeedbackService } from '../services/feedback.service';
 
 const ALLOWED_REASONS = ['WRONG_CODE', 'WRONG_PNC', 'WRONG_MODEL', 'WRONG_PART', 'OTHER'];
+const MAX_FEEDBACK_QUERY_LENGTH = 500;
+const MAX_FEEDBACK_ID_LENGTH = 100;
+const MAX_FEEDBACK_PNC_LENGTH = 80;
 
 function knownFeedbackError(error: unknown): { status: number; message: string } | null {
     if (!(error instanceof Error)) return null;
@@ -27,12 +30,13 @@ export class FeedbackController {
             }
 
             const { query, partId, correct, correctedPartId, pnc, reason } = req.body;
+            const cleanQuery = typeof query === 'string' ? query.trim() : '';
 
-            if (typeof query !== 'string' || !query.trim()) {
+            if (!cleanQuery || cleanQuery.length > MAX_FEEDBACK_QUERY_LENGTH) {
                 res.status(400).json({ error: 'Consulta original inválida.' });
                 return;
             }
-            if (typeof partId !== 'string' || !partId.trim()) {
+            if (typeof partId !== 'string' || !partId.trim() || partId.trim().length > MAX_FEEDBACK_ID_LENGTH) {
                 res.status(400).json({ error: 'Peça avaliada inválida.' });
                 return;
             }
@@ -40,8 +44,15 @@ export class FeedbackController {
                 res.status(400).json({ error: 'O campo correct deve ser true ou false.' });
                 return;
             }
-            if (correctedPartId !== undefined && typeof correctedPartId !== 'string') {
+            if (correctedPartId !== undefined && (
+                typeof correctedPartId !== 'string'
+                || correctedPartId.trim().length > MAX_FEEDBACK_ID_LENGTH
+            )) {
                 res.status(400).json({ error: 'Peça corrigida inválida.' });
+                return;
+            }
+            if (pnc !== undefined && (typeof pnc !== 'string' || pnc.trim().length > MAX_FEEDBACK_PNC_LENGTH)) {
+                res.status(400).json({ error: 'PNC inválido.' });
                 return;
             }
             if (reason !== undefined && (typeof reason !== 'string' || !ALLOWED_REASONS.includes(reason))) {
@@ -52,7 +63,7 @@ export class FeedbackController {
             const result = await FeedbackService.register({
                 tenantId: req.user.tenantId,
                 userId: req.user.id,
-                query: query.trim(),
+                query: cleanQuery,
                 resultPartId: partId.trim(),
                 correct,
                 correctedPartId: typeof correctedPartId === 'string' && correctedPartId.trim() ? correctedPartId.trim() : undefined,
@@ -80,11 +91,14 @@ export class FeedbackController {
 
             const feedbackId = req.params.id;
             const { correctedPartId, reason } = req.body;
-            if (typeof feedbackId !== 'string' || !feedbackId.trim()) {
+            if (typeof feedbackId !== 'string' || !feedbackId.trim() || feedbackId.trim().length > MAX_FEEDBACK_ID_LENGTH) {
                 res.status(400).json({ error: 'Feedback inválido.' });
                 return;
             }
-            if (correctedPartId !== undefined && typeof correctedPartId !== 'string') {
+            if (correctedPartId !== undefined && (
+                typeof correctedPartId !== 'string'
+                || correctedPartId.trim().length > MAX_FEEDBACK_ID_LENGTH
+            )) {
                 res.status(400).json({ error: 'Peça corrigida inválida.' });
                 return;
             }

@@ -10,6 +10,8 @@ import { chooseCandidateLocally } from './chat-reliability';
 import { withTransientAIRetry } from '../utils/ai-retry';
 import { recordAiTelemetry } from '../utils/ai-telemetry';
 
+const INTERACTIVE_AI_TIMEOUT_MS = 8_000;
+
 export interface ReActSearchResult {
   status: 'FOUND' | 'NOT_FOUND' | 'AMBIGUOUS' | 'MODEL_REQUIRED' | 'PNC_REQUIRED';
   chosenPartId?: string;
@@ -20,20 +22,15 @@ export interface ReActSearchResult {
 }
 
 export class ReActAgentService {
-  /**
-   * Executa o fluxo de reasoning e ação para resolver a intenção do usuário com alta velocidade e certeza técnica.
-   */
   static async execute(
     tenantId: string,
     question: string,
     explicitPnc?: string,
     preParsedIntent?: SearchIntent,
   ): Promise<ReActSearchResult> {
-    // Step 1: Parse and Expand Query (Reasoning)
     const intent = preParsedIntent || (await ChatIntentService.parse(question, tenantId));
     if (explicitPnc) intent.pnc = explicitPnc;
 
-    // Fast local concept expansion using Husqvarna ontology (zero latency)
     let expandedDescription = intent.partDescription || '';
     const concepts = findPartConcepts(intent.partDescription || question);
     if (concepts.length > 0) {
@@ -46,7 +43,6 @@ export class ReActAgentService {
       partDescription: expandedDescription || intent.partDescription,
     };
 
-    // Step 2: Action - Search Database (Hybrid Retrieval)
     const rawCandidates = await PartSearchService.semantic(tenantId, question, searchIntent);
 
     if (!rawCandidates.length) {
@@ -57,7 +53,6 @@ export class ReActAgentService {
       };
     }
 
-    // Step 3: Market Filtering & Official Supersession (Strict priority to Latin America / Brazil)
     const candidates = preferCurrentPartNumbers(filterCandidatesByMarket(rawCandidates));
     if (!candidates.length) {
       return {
@@ -67,7 +62,6 @@ export class ReActAgentService {
       };
     }
 
-    // Fast-path 1: Single remaining candidate (0ms)
     if (candidates.length === 1) {
       const single = candidates[0];
       const supersessionNotice = single.notes?.includes('Substituição oficial') ? ` [Substituição oficial ativa: ${single.partNumber}]` : '';
@@ -79,7 +73,6 @@ export class ReActAgentService {
       };
     }
 
-    // Fast-path 2: Deterministic local selection using Husqvarna engineering ontology (<20ms)
     const localSelection = chooseCandidateLocally(question, candidates.map(c => ({
       id: c.id,
       name: c.name,
@@ -108,7 +101,6 @@ export class ReActAgentService {
       }
     }
 
-    // Fast-path 3: Dominant winner with decisive margin or strong retrieval agreement
     const top = candidates[0];
     const second = candidates[1];
     if (top.distance <= 0.22 && (second.distance - top.distance >= 0.25 || (top.retrievalAgreement && top.retrievalAgreement >= 2))) {
@@ -121,7 +113,6 @@ export class ReActAgentService {
       };
     }
 
-    // Step 4: Observation & Reasoning via Gemini with technical notes and market context
     const ai = await getGeminiClient();
     const candidatesSummary = candidates.slice(0, 10).map((c, index) => {
       return `Opção ${index + 1}:
@@ -174,10 +165,10 @@ Retorne um JSON com:
               required: ['explanation', 'ambiguous'],
             },
           },
-        }),
-        { label: 'ReAct Agent Decision' }
+        }, { timeout_ms: INTERACTIVE_AI_TIMEOUT_MS }),
+        { label: 'ReAct Agent Decision', maxAttempts: 2, baseDelayMs: 500, maxDelayMs: 1_500 },
       );
-      
+
       recordAiTelemetry(tenantId, 'REACT_AGENT_DECISION', decisionResponse);
 
       const rawText = String((decisionResponse as any).output_text || '').trim();
@@ -217,7 +208,7 @@ Retorne um JSON com:
         if (hits.length) {
           contextEvidence = hits.map(h => h.content).join('\n');
         }
-      } catch (e) {}
+      } catch {}
 
       const supersessionNotice = chosenCandidate.notes?.includes('Substituição oficial') ? ` [Substituição oficial ativa: ${chosenCandidate.partNumber}]` : '';
       return {
@@ -226,9 +217,8 @@ Retorne um JSON com:
         explanation: `${decision.explanation}${contextEvidence ? ' (Confirmado no contexto do IPL)' : ''}${supersessionNotice}`,
         candidates,
       };
-
-    } catch (e) {
-      console.warn('⚠️ Falha na tomada de decisão do ReAct Agent.', e);
+    } catch (error) {
+      console.warn('⚠️ Falha na tomada de decisão do ReAct Agent.', error);
       return { status: 'AMBIGUOUS', explanation: 'Falha ao analisar os candidatos.', candidates };
     }
   }

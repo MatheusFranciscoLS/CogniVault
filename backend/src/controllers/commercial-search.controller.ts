@@ -10,6 +10,9 @@ type CommercialSection = {
   count: number;
 };
 
+const MAX_COMMERCIAL_QUERY_LENGTH = 200;
+const MAX_COMMERCIAL_SECTION_LENGTH = 160;
+
 const sectionCache = new LRUCache<string, CommercialSection[]>({
   max: 200,
   ttl: 5 * 60 * 1000,
@@ -177,7 +180,6 @@ async function loadCommercialSearch(
   const normalizedCode = normalizeIdentifier(query);
   const sectionsPromise = availableSections(tenantId);
 
-  // Código completo: índice UNIQUE (tenantId, normalizedNumber).
   if (normalizedCode.length >= 4) {
     const exact = await prisma.masterPart.findUnique({
       where: { tenantId_normalizedNumber: { tenantId, normalizedNumber: normalizedCode } },
@@ -192,8 +194,6 @@ async function loadCommercialSearch(
     }
   }
 
-  // Digitação parcial de Part Number: usa range no btree existente em vez de
-  // LIKE/startsWith, que nesta base fazia sequential scan nas 25 mil peças.
   if (looksLikeCommercialCodePrefix(query)) {
     const prefixRows = await prisma.masterPart.findMany({
       where: {
@@ -244,7 +244,7 @@ async function loadCommercialSearch(
   const candidates = await prisma.masterPart.findMany({
     where: {
       tenantId,
-      ...(selectedSection ? { sections: { some: { section: selectedSection } } } : {}),
+      ...(selectedSection ? { sections: { some: { section: selectedSection } } : {}),
       OR: orFilters,
     },
     include: { sections: { orderBy: { section: 'asc' } } },
@@ -272,6 +272,10 @@ export class CommercialSearchController {
 
     if (query.length < 2) {
       res.json({ parts: [], sections: [] });
+      return;
+    }
+    if (query.length > MAX_COMMERCIAL_QUERY_LENGTH || selectedSection.length > MAX_COMMERCIAL_SECTION_LENGTH) {
+      res.status(400).json({ error: 'Consulta comercial inválida ou muito longa.', parts: [], sections: [] });
       return;
     }
 

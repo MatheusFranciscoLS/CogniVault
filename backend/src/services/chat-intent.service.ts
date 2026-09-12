@@ -8,9 +8,12 @@ import { LRUCache } from 'lru-cache';
 import { recordAiTelemetry } from '../utils/ai-telemetry';
 import { PartSearchService } from './part-search.service';
 
+const INTERACTIVE_AI_TIMEOUT_MS = 8_000;
+const INTERACTIVE_AI_RETRY = { maxAttempts: 2, baseDelayMs: 500, maxDelayMs: 1_500 } as const;
+
 const intentCache = new LRUCache<string, Partial<SearchIntent>>({
-  max: 500, // Armazena até 500 intenções
-  ttl: 1000 * 60 * 60 * 2, // 2 horas de cache por pergunta
+  max: 500,
+  ttl: 1000 * 60 * 60 * 2,
 });
 
 export interface SearchIntent {
@@ -111,8 +114,8 @@ export class ChatIntentService {
               required: ['manufacturer', 'model', 'pnc', 'partDescription', 'partNumber', 'section', 'position'],
             },
           },
-        }),
-        { label: 'Chat Intent Parse' }
+        }, { timeout_ms: INTERACTIVE_AI_TIMEOUT_MS }),
+        { label: 'Chat Intent Parse', ...INTERACTIVE_AI_RETRY },
       );
       recordAiTelemetry(tenantId || 'global', 'CHAT_INTENT_PARSE', response);
 
@@ -120,12 +123,12 @@ export class ChatIntentService {
       const cleanedText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
       let parsed: Partial<SearchIntent>;
       try {
-          parsed = JSON.parse(cleanedText || '{}');
-      } catch (err) {
-          console.error('❌ Falha ao processar o JSON retornado pelo Gemini no ChatIntentService.parse:', rawText);
-          throw new Error('Gemini retornou JSON inválido.');
+        parsed = JSON.parse(cleanedText || '{}');
+      } catch {
+        console.error('❌ Falha ao processar o JSON retornado pelo Gemini no ChatIntentService.parse:', rawText);
+        throw new Error('Gemini retornou JSON inválido.');
       }
-      
+
       intentCache.set(cacheKey, parsed);
       const clean = (value: unknown) => typeof value === 'string' ? value.trim() : '';
       return {
@@ -168,20 +171,20 @@ export class ChatIntentService {
               required: ['id', 'confidence', 'ambiguous'],
             },
           },
-        }),
-        { label: 'Chat Intent Choose' }
+        }, { timeout_ms: INTERACTIVE_AI_TIMEOUT_MS }),
+        { label: 'Chat Intent Choose', ...INTERACTIVE_AI_RETRY },
       );
       recordAiTelemetry('global', 'CHAT_INTENT_CHOOSE', response);
 
       const rawText = String((response as any).output_text || '').trim();
       const cleanedText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-      
+
       let parsed: { id?: unknown; confidence?: unknown; ambiguous?: unknown };
       try {
-          parsed = JSON.parse(cleanedText || '{}');
-      } catch (err) {
-          console.error('❌ Falha ao processar o JSON retornado pelo Gemini no ChatIntentService.choose:', rawText);
-          throw new Error('Gemini retornou JSON inválido.');
+        parsed = JSON.parse(cleanedText || '{}');
+      } catch {
+        console.error('❌ Falha ao processar o JSON retornado pelo Gemini no ChatIntentService.choose:', rawText);
+        throw new Error('Gemini retornou JSON inválido.');
       }
 
       const id = typeof parsed.id === 'string' && candidates.some(candidate => candidate.id === parsed.id) ? parsed.id : null;
