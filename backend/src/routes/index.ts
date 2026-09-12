@@ -28,6 +28,7 @@ import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
 import { uploadConcurrencyMiddleware } from '../middleware/upload-concurrency.middleware';
 import { searchSingleFlightMiddleware } from '../middleware/search-single-flight.middleware';
+import { tenantOperationSingleFlight } from '../middleware/tenant-operation-single-flight.middleware';
 import {
   validateModelParam,
   validateOfficialFallbackQuery,
@@ -150,14 +151,14 @@ router.post('/admin/users', authMiddleware, adminOnly, invalidateAdminOverviewAf
 router.patch('/admin/users/:id', authMiddleware, adminOnly, invalidateAdminOverviewAfterMutation, (req, res) => adminController.updateUser(req, res));
 router.get('/admin/feedback', authMiddleware, adminOnly, (req, res) => adminFeedbackController.list(req, res));
 router.delete('/admin/feedback/:id', authMiddleware, adminOnly, invalidateAdminOverviewAfterMutation, (req, res) => adminFeedbackController.delete(req, res));
-router.post('/admin/feedback/seed-knowledge', authMiddleware, adminOnly, invalidateAdminOverviewAfterMutation, (req, res) => adminFeedbackController.seedKnowledge(req, res));
+router.post('/admin/feedback/seed-knowledge', authMiddleware, adminOnly, tenantOperationSingleFlight('feedback-seed-knowledge'), invalidateAdminOverviewAfterMutation, (req, res) => adminFeedbackController.seedKnowledge(req, res));
 router.get('/admin/audit', authMiddleware, adminOnly, (req, res) => adminController.audit(req, res));
 router.get('/admin/quality', authMiddleware, adminOnly, (req, res) => qualityController.overview(req, res));
 router.get('/admin/quality/search-intelligence', authMiddleware, adminOnly, (req, res) => qualityController.searchIntelligence(req, res));
-router.post('/admin/quality/benchmark', authMiddleware, adminOnly, (req, res) => qualityController.benchmark(req, res));
-router.post('/admin/quality/rebuild-knowledge', authMiddleware, adminOnly, (req, res) => qualityController.rebuildKnowledge(req, res));
-router.post('/admin/quality/index-semantics', authMiddleware, adminOnly, (req, res) => qualityController.indexSemantics(req, res));
-router.post('/admin/quality/clear-semantics', authMiddleware, adminOnly, (req, res) => qualityController.clearSemantics(req, res));
+router.post('/admin/quality/benchmark', authMiddleware, adminOnly, tenantOperationSingleFlight('quality-benchmark'), (req, res) => qualityController.benchmark(req, res));
+router.post('/admin/quality/rebuild-knowledge', authMiddleware, adminOnly, tenantOperationSingleFlight('quality-rebuild-knowledge'), (req, res) => qualityController.rebuildKnowledge(req, res));
+router.post('/admin/quality/index-semantics', authMiddleware, adminOnly, tenantOperationSingleFlight('semantic-maintenance'), (req, res) => qualityController.indexSemantics(req, res));
+router.post('/admin/quality/clear-semantics', authMiddleware, adminOnly, tenantOperationSingleFlight('semantic-maintenance'), (req, res) => qualityController.clearSemantics(req, res));
 router.post('/admin/quality/retry-visual-catalogs', authMiddleware, adminOnly, (req, res) => qualityController.retryVisualCatalogs(req, res));
 router.patch('/admin/quality/catalogs/:id', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => qualityController.reviewDocument(req, res));
 router.post('/admin/quality/radar/resolve', authMiddleware, adminOnly, (req, res) => qualityController.resolveRadar(req, res));
