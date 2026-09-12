@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { extractExactProductMatch, extractProductDetailsSummary } from './husqvarna-portal-graphql.service';
+import { extractExactProductMatch, extractProductDetailsSummary, extractVerifiedProductMatch } from './husqvarna-portal-graphql.service';
 
 test('confirma produto quando selectedArticle bate exatamente com o PNC', () => {
   const payload = {
@@ -112,6 +112,81 @@ test('rejeita resultado de busca parecido quando nenhum identificador bate exata
   };
 
   assert.equal(extractExactProductMatch(payload, '965195201'), null);
+});
+
+test('recupera rota canônica quando artigo exato já confirmou produto e categoria', () => {
+  const payload = {
+    data: {
+      site: {
+        search: {
+          content: {
+            results: [
+              {
+                resultItem: {
+                  __typename: 'Machine',
+                  id: 'machine-55',
+                  sku: '55',
+                  url: '/br/motosserras/55/',
+                  selectedArticle: null,
+                  isDiscontinued: true,
+                  name: { productName: '55' },
+                  primaryArticle: {
+                    id: '967052401',
+                    commercialReference: '967 05 24-01',
+                    name: '55',
+                    isDiscontinued: true,
+                  },
+                  category: {
+                    id: 'chainsaws',
+                    name: 'Motosserras',
+                    url: '/br/motosserras/',
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
+  };
+
+  assert.equal(extractExactProductMatch(payload, '967052465'), null);
+  const result = extractVerifiedProductMatch(payload, '967052465', {
+    productName: 'HUSQVARNA 55',
+    categoryName: 'Motosserras',
+  });
+  assert.ok(result);
+  assert.equal(result.portalUrl, 'https://portal.husqvarnagroup.com/br/motosserras/55/?article=967052465');
+});
+
+test('não recupera rota por nome quando a categoria confirmada diverge', () => {
+  const payload = {
+    data: {
+      site: {
+        search: {
+          content: {
+            results: [
+              {
+                resultItem: {
+                  __typename: 'Machine',
+                  id: 'machine-55-wrong',
+                  sku: '55',
+                  url: '/br/rocadeiras/55/',
+                  name: { productName: '55' },
+                  category: { id: 'brushcutters', name: 'Roçadeiras', url: '/br/rocadeiras/' },
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
+  };
+
+  assert.equal(extractVerifiedProductMatch(payload, '967052465', {
+    productName: 'HUSQVARNA 55',
+    categoryName: 'Motosserras',
+  }), null);
 });
 
 test('rejeita URL externa mesmo quando o PNC bate', () => {
