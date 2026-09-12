@@ -187,6 +187,15 @@ export type HusqvarnaOfficialUsage = {
   discontinued: boolean;
 };
 
+export type HusqvarnaOfficialRelatedSparePart = {
+  partNumber: string;
+  name: string;
+  description: string | null;
+  commercialReference: string | null;
+  url: string | null;
+  imageUrl: string | null;
+};
+
 export type HusqvarnaOfficialIplPart = {
   position: string | null;
   partNumber: string | null;
@@ -219,6 +228,7 @@ export type HusqvarnaOfficialProductDetails = {
   variants: HusqvarnaOfficialVariant[];
   accessories: HusqvarnaOfficialAccessory[];
   alsoUsedIn: HusqvarnaOfficialUsage[];
+  spareParts: HusqvarnaOfficialRelatedSparePart[];
   iplSections: HusqvarnaOfficialIplSection[];
 };
 
@@ -392,6 +402,23 @@ export function parseOfficialProductDetails(payload: unknown, pncInput: string):
     }))
     .filter((item: HusqvarnaOfficialUsage) => Boolean(item.name));
 
+  const spareParts: HusqvarnaOfficialRelatedSparePart[] = (article.spareParts || [])
+    .map((item: any) => {
+      const candidates = [item?.articleNumberFormatted, item?.commercialReference, item?.id]
+        .map((value: unknown) => normalizeIdentifier(String(value || '')))
+        .filter((value: string) => /^\d{6,14}$/.test(value));
+      const partNumber = candidates[0] || '';
+      return {
+        partNumber,
+        name: String(item?.name || item?.description || partNumber || 'Peça').trim(),
+        description: item?.description ? String(item.description).trim() : null,
+        commercialReference: item?.commercialReference ? String(item.commercialReference).trim() : null,
+        url: safePortalUrl(item?.url),
+        imageUrl: officialMediaUrl(item?.mainImage?.url),
+      };
+    })
+    .filter((item: HusqvarnaOfficialRelatedSparePart) => Boolean(item.partNumber));
+
   const iplSections: HusqvarnaOfficialIplSection[] = (article.ipls || [])
     .map((section: any) => ({
       id: String(section?.id || '').trim(),
@@ -431,6 +458,7 @@ export function parseOfficialProductDetails(payload: unknown, pncInput: string):
     variants,
     accessories,
     alsoUsedIn,
+    spareParts,
     iplSections,
   };
 }
