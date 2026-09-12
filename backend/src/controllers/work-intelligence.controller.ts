@@ -206,8 +206,18 @@ export class WorkIntelligenceController {
         ]);
         const livePart = liveResult.status === 'fulfilled' ? liveResult.value : null;
         const portalCatalog = catalogResult.status === 'fulfilled' ? catalogResult.value : null;
-        const productMatch = productSearchResult.status === 'fulfilled' ? productSearchResult.value : null;
+        let productMatch = productSearchResult.status === 'fulfilled' ? productSearchResult.value : null;
         const productDetails = detailsResult.status === 'fulfilled' ? detailsResult.value : null;
+
+        // Alguns artigos antigos são confirmados por ID nos detalhes, mas a busca de produto
+        // não repete o PNC nos campos selecionados. Nesse caso, usamos a identidade já
+        // confirmada (produto + categoria) apenas para recuperar a rota canônica do mesmo resultado.
+        if (!productMatch && productDetails && looksLikePnc) {
+          productMatch = await HusqvarnaPortalGraphqlService.searchProductByPnc(clean, {
+            productName: productDetails.productName,
+            categoryName: productDetails.categoryName,
+          });
+        }
 
         // Uma máquina só vira resultado oficial quando uma das consultas GraphQL da Husqvarna
         // confirma exatamente o PNC. O parser HTML antigo pode apenas enriquecer esse resultado.
