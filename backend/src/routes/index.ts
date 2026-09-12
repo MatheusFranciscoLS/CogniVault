@@ -96,6 +96,7 @@ router.get(
 );
 router.get('/master-parts/search', authMiddleware, (req, res) => commercialSearchController.search(req, res));
 router.get('/official-fallback', authMiddleware, (req, res) => workIntelligenceController.officialFallback(req, res));
+router.get('/husqvarna/products/search', authMiddleware, (req, res) => husqvarnaOfficialController.productSearch(req, res));
 router.get('/husqvarna/products/:pnc/details', authMiddleware, (req, res) => husqvarnaOfficialController.productDetails(req, res));
 router.get('/husqvarna/parts/:code/details', authMiddleware, (req, res) => husqvarnaOfficialController.partDetails(req, res));
 router.post('/analytics/search-usage', authMiddleware, (req, res) => workIntelligenceController.recordSearchUsage(req, res));
