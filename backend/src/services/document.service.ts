@@ -1,21 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
 import { createHash, randomUUID } from 'node:crypto';
 import { readFile, unlink } from 'node:fs/promises';
 import { prisma } from '../config/prisma';
+import { storageBucket, supabase } from '../config/supabase-storage';
 import { DocumentProducer } from '../queues/producer';
 import { repairMultipartText } from '../utils/text-encoding';
 import { isCatalogCategoryName } from './catalog-category';
 import { isDocumentBusy } from './document-processing-state';
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SECRET_KEY;
-const storageBucket = process.env.STORAGE_BUCKET || 'catalogos';
-
-if (!supabaseUrl || !supabaseKey) {
-    throw new Error('❌ Chaves do Supabase não encontradas no .env');
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export interface UploadMetadata {
     manufacturer?: string;
@@ -28,6 +18,10 @@ function isPrismaUniqueConstraintError(error: unknown): boolean {
         && error !== null
         && 'code' in error
         && String((error as { code?: unknown }).code) === 'P2002';
+}
+
+function errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error || 'Falha desconhecida.');
 }
 
 function storageCandidates(tenantId: string, documentId: string, storagePath?: string | null): string[] {
@@ -75,12 +69,19 @@ export class DocumentService {
             const documentId = randomUUID();
             const jobId = randomUUID();
             const canonicalStoragePath = `${tenantId}/${documentId}.pdf`;
-            const { error: uploadError } = await supabase.storage
-                .from(storageBucket)
-                .upload(canonicalStoragePath, fileBuffer, {
-                    contentType: 'application/pdf',
-                    upsert: false,
-                });
+            let uploadError: { message: string } | null = null;
+
+            try {
+                const result = await supabase.storage
+                    .from(storageBucket)
+                    .upload(canonicalStoragePath, fileBuffer, {
+                        contentType: 'application/pdf',
+                        upsert: false,
+                    });
+                uploadError = result.error;
+            } catch (error) {
+                uploadError = { message: errorMessage(error) };
+            }
 
             if (uploadError) throw new Error(`DOCUMENT_STORAGE_UPLOAD_FAILED:${uploadError.message}`);
 
@@ -106,7 +107,11 @@ export class DocumentService {
                     },
                 });
             } catch (error) {
-                await supabase.storage.from(storageBucket).remove([canonicalStoragePath]);
+                try {
+                    await supabase.storage.from(storageBucket).remove([canonicalStoragePath]);
+                } catch (cleanupError) {
+                    console.warn('⚠️ Não foi possível limpar PDF do Storage após falha no banco:', errorMessage(cleanupError));
+                }
                 if (isPrismaUniqueConstraintError(error)) {
                     const concurrentDuplicate = await prisma.document.findFirst({
                         where: { tenantId, contentHash, archivedAt: null },
@@ -177,12 +182,16 @@ export class DocumentService {
         if (document.status !== 'COMPLETED') throw new Error('DOCUMENT_NOT_READY');
 
         for (const candidate of storageCandidates(tenantId, document.id, document.storagePath)) {
-            const { data, error } = await supabase.storage
-                .from(storageBucket)
-                .createSignedUrl(candidate, 60 * 10, download ? { download: safeFilename(document.filename) } : undefined);
+            try {
+                const { data, error } = await supabase.storage
+                    .from(storageBucket)
+                    .createSignedUrl(candidate, 60 * 10, download ? { download: safeFilename(document.filename) } : undefined);
 
-            if (!error && data?.signedUrl) {
-                return data.signedUrl;
+                if (!error && data?.signedUrl) {
+                    return data.signedUrl;
+                }
+            } catch (error) {
+                console.warn(`⚠️ Storage indisponível ao assinar ${candidate}:`, errorMessage(error));
             }
         }
 
@@ -328,7 +337,14 @@ export class DocumentService {
         });
 
         const candidates = storageCandidates(tenantId, document.id, document.storagePath);
-        const { error: removeError } = await supabase.storage.from(storageBucket).remove(candidates);
+        let removeError: { message: string } | null = null;
+        try {
+            const result = await supabase.storage.from(storageBucket).remove(candidates);
+            removeError = result.error;
+        } catch (error) {
+            removeError = { message: errorMessage(error) };
+        }
+
         if (removeError) {
             await prisma.document.update({
                 where: { id: document.id },
