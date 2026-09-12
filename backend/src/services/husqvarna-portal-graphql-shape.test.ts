@@ -2,84 +2,94 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { extractExactProductMatch, extractVerifiedProductMatch } from './husqvarna-portal-graphql.service';
 
-test('aceita results como objeto único na busca GraphQL da Husqvarna', () => {
-  const payload = {
+function husqvarna55Payload(selectedArticle: string | null = '967052465') {
+  return {
     data: {
       site: {
         search: {
           content: {
             results: {
-              resultItem: {
-                __typename: 'Machine',
-                id: 'machine-55',
-                sku: '55',
-                url: '/br/motosserras/55/',
-                selectedArticle: '967052465',
-                isDiscontinued: true,
-                name: { productName: '55' },
-                primaryArticle: {
-                  id: '967052465',
-                  commercialReference: '967 05 24-65',
-                  name: '55',
-                  isDiscontinued: true,
-                },
-                category: {
-                  id: 'chainsaws',
-                  name: 'Motosserras',
-                  url: '/br/motosserras/',
-                },
+              facet: {
+                count: 1,
+                name: 'MACHINES',
+                displayName: null,
+                type: 'TOTAL',
               },
+              facets: [],
+              resultItem: [
+                {
+                  __typename: 'Machine',
+                  id: '{FCB3F8CD-3628-4113-8A15-58339812BBCB}',
+                  sku: 'MP_125560574',
+                  url: '/br/motosserras/55/?article=967052465',
+                  brand: 'Husqvarna',
+                  selectedArticle,
+                  isDiscontinued: true,
+                  name: { productName: 'HUSQVARNA 55' },
+                  primaryArticle: {
+                    id: '967052465',
+                    commercialReference: null,
+                    name: 'HUSQVARNA 55',
+                    isDiscontinued: true,
+                  },
+                  category: {
+                    id: '{742C6358-775C-4D2B-BD38-EFD20209A081}',
+                    name: 'Motosserras',
+                    url: '/br/motosserras/',
+                  },
+                  subCategories: [],
+                },
+              ],
             },
           },
         },
       },
     },
   };
+}
 
-  const result = extractExactProductMatch(payload, '967052465');
+test('extrai o produto exato do formato real products.results.resultItem[] da Husqvarna', () => {
+  const result = extractExactProductMatch(husqvarna55Payload(), '967052465');
+
   assert.ok(result);
   assert.equal(result.productName, 'HUSQVARNA 55');
+  assert.equal(result.pnc, '967052465');
+  assert.equal(result.discontinued, true);
+  assert.equal(result.category?.name, 'Motosserras');
   assert.equal(result.portalUrl, 'https://portal.husqvarnagroup.com/br/motosserras/55/?article=967052465');
 });
 
-test('recupera rota por produto e categoria confirmados quando results é objeto único', () => {
-  const payload = {
-    data: {
-      site: {
-        search: {
-          content: {
-            results: {
-              resultItem: {
-                __typename: 'Machine',
-                id: 'machine-55',
-                sku: '55',
-                url: '/br/motosserras/55/',
-                selectedArticle: null,
-                isDiscontinued: true,
-                name: { productName: '55' },
-                primaryArticle: {
-                  id: 'old-article-id',
-                  commercialReference: null,
-                  name: '55',
-                  isDiscontinued: true,
-                },
-                category: {
-                  id: 'chainsaws',
-                  name: 'Motosserras',
-                  url: '/br/motosserras/',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  };
+test('recupera a rota por produto e categoria já confirmados quando o item não repete o PNC', () => {
+  const payload = husqvarna55Payload(null);
+  payload.data.site.search.content.results.resultItem[0].primaryArticle.id = 'outro-artigo';
 
   const result = extractVerifiedProductMatch(payload, '967052465', {
     productName: 'HUSQVARNA 55',
     categoryName: 'Motosserras',
   });
+
   assert.ok(result);
   assert.equal(result.portalUrl, 'https://portal.husqvarnagroup.com/br/motosserras/55/?article=967052465');
+});
+
+test('mantém compatibilidade defensiva se resultItem vier como objeto único', () => {
+  const payload = husqvarna55Payload();
+  const hit = payload.data.site.search.content.results.resultItem[0];
+  const defensivePayload = {
+    data: {
+      site: {
+        search: {
+          content: {
+            results: {
+              resultItem: hit,
+            },
+          },
+        },
+      },
+    },
+  };
+
+  const result = extractExactProductMatch(defensivePayload, '967052465');
+  assert.ok(result);
+  assert.equal(result.productName, 'HUSQVARNA 55');
 });
