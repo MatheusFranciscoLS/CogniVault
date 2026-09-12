@@ -7,20 +7,17 @@ import { apiJson, getToken } from '../lib';
 export default function HusqvarnaOfficialPage() {
   const navigate = useNavigate();
   const [pnc] = useState(() => new URLSearchParams(window.location.search).get('pnc')?.replace(/\D/g, '') || '');
+  const validPnc = /^\d{8,14}$/.test(pnc);
   const [result, setResult] = useState<OfficialFallbackResult | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(validPnc);
+  const [error, setError] = useState(validPnc ? '' : 'PNC inválido ou não informado.');
 
   useEffect(() => {
     if (!getToken()) {
       navigate('/login', { replace: true });
       return;
     }
-    if (!/^\d{8,14}$/.test(pnc)) {
-      setError('PNC inválido ou não informado.');
-      setLoading(false);
-      return;
-    }
+    if (!validPnc) return;
 
     let active = true;
     void apiJson<{ result: OfficialFallbackResult }>(`/api/official-fallback?q=${encodeURIComponent(pnc)}`, { timeoutMs: 20_000 })
@@ -43,7 +40,7 @@ export default function HusqvarnaOfficialPage() {
       });
 
     return () => { active = false; };
-  }, [navigate, pnc]);
+  }, [navigate, pnc, validPnc]);
 
   return (
     <main className="min-h-screen bg-[#f5f7fb] px-4 py-6 text-slate-900 dark:bg-slate-950 dark:text-slate-100 md:px-8">
