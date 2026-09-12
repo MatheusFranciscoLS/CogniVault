@@ -101,6 +101,11 @@ export async function fullTextPartCandidates(
 /**
  * Recuperador tolerante a erro de digitação. pg_trgm só amplia candidatos dentro
  * do mesmo tenant/modelo/PNC já filtrado; ele nunca cria uma compatibilidade nova.
+ *
+ * searchText é NOT NULL no schema. Mantê-lo sem lower()/COALESCE() é importante:
+ * a expressão direta é a mesma usada pelo GIN Part_searchText_direct_gin_idx.
+ * Além de preservar a busca case-insensitive do pg_trgm, evita sequential scan
+ * de todas as peças quando não há modelo/PNC para reduzir o conjunto primeiro.
  */
 export async function fuzzyPartCandidates(
   tenantId: string,
@@ -118,14 +123,14 @@ export async function fuzzyPartCandidates(
   const rows = await prisma.$queryRaw<Raw[]>(Prisma.sql`
     SELECT ${PART_SELECT},
       GREATEST(
-        word_similarity(lower(${query}), lower(COALESCE(p."searchText", ''))),
+        word_similarity(${query}, p."searchText"),
         similarity(p."normalizedName", ${normalizedQuery})
       ) AS "score"
     FROM "Part" p
     INNER JOIN "Document" d ON d."id" = p."documentId"
     WHERE ${Prisma.join(filters, ' AND ')}
       AND (
-        lower(${query}) <% lower(COALESCE(p."searchText", ''))
+        ${query} <% p."searchText"
         OR p."normalizedName" % ${normalizedQuery}
       )
     ORDER BY "score" DESC, p."name" ASC

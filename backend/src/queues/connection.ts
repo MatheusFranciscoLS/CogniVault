@@ -116,7 +116,9 @@ class RabbitMQConnection {
     private notifyReconnect(): void {
         for (const listener of this.reconnectListeners) {
             try {
-                void listener();
+                Promise.resolve(listener()).catch((err) => {
+                    console.error('❌ Erro assíncrono no listener de reconexão RabbitMQ:', err);
+                });
             } catch (err) {
                 console.error('❌ Erro no listener de reconexão RabbitMQ:', err);
             }
@@ -176,4 +178,3 @@ class RabbitMQConnection {
 }
 
 export const rabbitMQ = new RabbitMQConnection();
-

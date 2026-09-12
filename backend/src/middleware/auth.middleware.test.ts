@@ -1,7 +1,8 @@
 import 'dotenv/config';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { adminOnly, invalidateUserAuthCache, type AuthenticatedRequest } from './auth.middleware';
+import jwt from 'jsonwebtoken';
+import { adminOnly, authMiddleware, invalidateUserAuthCache, type AuthenticatedRequest } from './auth.middleware';
 
 test('adminOnly allows users with ADMIN role', () => {
     let nextCalled = false;
@@ -85,6 +86,38 @@ test('adminOnly blocks unauthenticated requests with status 401', () => {
     assert.equal(nextCalled, false);
     assert.equal(statusCode, 401);
     assert.match(jsonPayload?.error || '', /não autenticado/i);
+});
+
+test('authMiddleware rejects tokens signed with an algorithm other than HS256', async () => {
+    const previousSecret = process.env.JWT_SECRET;
+    process.env.JWT_SECRET = 'test-jwt-secret-key-cognivault';
+
+    try {
+        const token = jwt.sign(
+            { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' },
+            process.env.JWT_SECRET,
+            { algorithm: 'HS512', expiresIn: '1h' },
+        );
+        let statusCode: number | null = null;
+        let payload: any = null;
+        let nextCalled = false;
+        const req = {
+            headers: { authorization: `Bearer ${token}` },
+        } as unknown as AuthenticatedRequest;
+        const res = {
+            status(code: number) { statusCode = code; return this; },
+            json(value: unknown) { payload = value; return this; },
+        } as any;
+
+        await authMiddleware(req, res, () => { nextCalled = true; });
+
+        assert.equal(nextCalled, false);
+        assert.equal(statusCode, 401);
+        assert.match(payload?.error || '', /token inválido/i);
+    } finally {
+        if (previousSecret === undefined) delete process.env.JWT_SECRET;
+        else process.env.JWT_SECRET = previousSecret;
+    }
 });
 
 test('invalidateUserAuthCache runs safely with specific id and full clear', () => {

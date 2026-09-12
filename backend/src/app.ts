@@ -97,13 +97,14 @@ app.use('/api', routes);
 
 app.get('/health', async (_req, res) => {
   let databaseReady = false;
-  let databaseError: string | null = null;
 
   try {
     await withTimeout(prisma.$queryRaw`SELECT 1`, 3_000);
     databaseReady = true;
   } catch (error) {
-    databaseError = error instanceof Error ? error.message : 'Falha desconhecida no banco.';
+    const databaseError = error instanceof Error ? error.message : 'Falha desconhecida no banco.';
+    // O detalhe fica apenas nos logs. /health é público e não deve revelar host,
+    // driver, credenciais mascaradas ou mensagens internas do PostgreSQL.
     console.error('❌ Health check do PostgreSQL falhou:', databaseError);
   }
 
@@ -116,8 +117,8 @@ app.get('/health', async (_req, res) => {
     .json({
       status: !degraded ? 'online' : 'degraded',
       checks: {
-        database: { ready: databaseReady, error: databaseError },
-        queue: { ready: queue.ready, lastError: queue.lastError },
+        database: { ready: databaseReady },
+        queue: { ready: queue.ready },
       },
       uptimeSeconds: Math.round(process.uptime()),
       timestamp: new Date().toISOString(),

@@ -84,7 +84,7 @@ export async function authMiddleware(
             return;
         }
 
-        const decoded = jwt.verify(parts[1], getJwtSecret());
+        const decoded = jwt.verify(parts[1], getJwtSecret(), { algorithms: ['HS256'] });
         if (typeof decoded !== 'object' || decoded === null) {
             res.status(401).json({ error: 'Token inválido.' });
             return;

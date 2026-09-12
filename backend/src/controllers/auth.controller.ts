@@ -83,6 +83,7 @@ export class AuthController {
                 },
                 getJwtSecret(),
                 {
+                    algorithm: 'HS256',
                     expiresIn: '8h'
                 }
             );
