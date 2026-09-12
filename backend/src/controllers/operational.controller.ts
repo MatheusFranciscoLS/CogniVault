@@ -19,7 +19,7 @@ import {
     classifyPartKind,
     getBasicMaintenanceKitTerms,
 } from '../services/husqvarna-domain-knowledge';
-import { HusqvarnaScraperService } from '../services/husqvarna-scraper.service';
+import { HusqvarnaLivePartService } from '../services/husqvarna-live-part.service';
 
 interface CachedSearchResult {
     parts: any[];
@@ -1205,7 +1205,7 @@ export class OperationalController {
         }
 
         try {
-            const livePart = await HusqvarnaScraperService.fetchLiveData(code);
+            const livePart = await HusqvarnaLivePartService.getPart(code);
             if (!livePart) {
                 res.status(404).json({ error: 'Dados em tempo real não encontrados na Husqvarna para este código.' });
                 return;

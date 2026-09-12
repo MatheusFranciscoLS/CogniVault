@@ -3,7 +3,7 @@ import { prisma } from '../config/prisma';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { normalizeIdentifier } from '../utils/normalize';
 import { AuditService } from '../services/audit.service';
-import { HusqvarnaScraperService } from '../services/husqvarna-scraper.service';
+import { HusqvarnaLivePartService } from '../services/husqvarna-live-part.service';
 import { HusqvarnaPortalCatalogService } from '../services/husqvarna-portal-catalog.service';
 import { HusqvarnaPortalGraphqlService } from '../services/husqvarna-portal-graphql.service';
 
@@ -199,7 +199,7 @@ export class WorkIntelligenceController {
     try {
       if (looksLikeCode) {
         const [liveResult, catalogResult, productSearchResult, detailsResult] = await Promise.allSettled([
-          HusqvarnaScraperService.fetchLiveData(clean),
+          HusqvarnaLivePartService.getPart(clean),
           looksLikePnc ? HusqvarnaPortalCatalogService.searchByPnc(clean) : Promise.resolve(null),
           looksLikePnc ? HusqvarnaPortalGraphqlService.searchProductByPnc(clean) : Promise.resolve(null),
           looksLikePnc ? HusqvarnaPortalGraphqlService.getProductDetailsByPnc(clean) : Promise.resolve(null),
