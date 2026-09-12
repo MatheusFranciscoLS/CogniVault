@@ -29,8 +29,36 @@ export class HusqvarnaOfficialController {
         HusqvarnaOfficialDetailService.getProductDetails(pnc),
         HusqvarnaPortalGraphqlService.searchProductByPnc(pnc),
       ]);
+
+      // Se a busca de produto confirmou o PNC mas a consulta técnica detalhada não
+      // estiver disponível, ainda devolvemos uma ficha mínima e tentamos validar a
+      // página pública de suporte. Não inventamos IPL, especificação ou documento.
       if (!details) {
-        res.status(404).json({ error: 'A Husqvarna não confirmou detalhes oficiais para este PNC.' });
+        if (!productMatch) {
+          res.status(404).json({ error: 'A Husqvarna não confirmou detalhes oficiais para este PNC.' });
+          return;
+        }
+
+        const publicSupport = await HusqvarnaPublicSupportService.verifyProduct(pnc, productMatch.productName);
+        res.json({
+          product: {
+            pnc,
+            productName: productMatch.productName,
+            model: extractModel(productMatch.productName),
+            categoryName: productMatch.category?.name || null,
+            articleDescription: null,
+            discontinued: productMatch.discontinued,
+            portalUrl: productMatch.portalUrl,
+            publicSupportUrl: publicSupport?.url || null,
+            publicSupportVerifiedBy: publicSupport?.verifiedBy || null,
+            documents: [],
+            specifications: [],
+            variants: [],
+            accessories: [],
+            alsoUsedIn: [],
+            iplSections: [],
+          },
+        });
         return;
       }
 
@@ -71,6 +99,11 @@ export class HusqvarnaOfficialController {
           const commercial = part.partNumber ? commercialByNumber.get(normalizeIdentifier(part.partNumber)) : undefined;
           return {
             ...part,
+            // A API chama este campo de replacedIds, mas a direção da relação não
+            // está documentada. Mantemos fail-closed: ele não pode trocar o código
+            // do orçamento. Supersession só é afirmada quando a consulta específica
+            // da peça retorna replacedBy.
+            replacementPartNumbers: [],
             commercial: commercial
               ? {
                   partNumber: commercial.partNumber,
