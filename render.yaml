@@ -20,6 +20,8 @@ services:
         sync: false
       - key: GEMINI_GENERATIVE_MODEL
         value: gemini-3.7-flash
+      - key: GEMINI_REQUEST_TIMEOUT_MS
+        value: "180000"
       - key: ENABLE_SEMANTIC_INDEXING
         value: "false"
       - key: SEMANTIC_PARTS_PER_DOCUMENT
