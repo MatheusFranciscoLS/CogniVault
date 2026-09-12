@@ -4,11 +4,23 @@ import { prisma } from '../config/prisma';
 import { AuthenticatedRequest, invalidateUserAuthCache } from '../middleware/auth.middleware';
 import { AuditService } from '../services/audit.service';
 
+const MAX_EMAIL_LENGTH = 254;
+const MAX_PASSWORD_LENGTH = 200;
+const MAX_ENTITY_ID_LENGTH = 100;
+const SIMPLE_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function isPrismaUniqueConstraintError(error: unknown): boolean {
     return typeof error === 'object'
         && error !== null
         && 'code' in error
         && String((error as { code?: unknown }).code) === 'P2002';
+}
+
+function validEmail(value: string): boolean {
+    const normalized = value.trim().toLowerCase();
+    return normalized.length > 0
+        && normalized.length <= MAX_EMAIL_LENGTH
+        && SIMPLE_EMAIL_PATTERN.test(normalized);
 }
 
 export class AdminController {
@@ -47,12 +59,12 @@ export class AdminController {
             if (!req.user) return;
             const { email, password, role } = req.body;
 
-            if (typeof email !== 'string' || !email.trim()) {
-                res.status(400).json({ error: 'E-mail é obrigatório.' });
+            if (typeof email !== 'string' || !validEmail(email)) {
+                res.status(400).json({ error: 'Informe um e-mail válido de até 254 caracteres.' });
                 return;
             }
-            if (typeof password !== 'string' || password.length < 6) {
-                res.status(400).json({ error: 'A senha inicial precisa ter ao menos 6 caracteres.' });
+            if (typeof password !== 'string' || password.length < 6 || password.length > MAX_PASSWORD_LENGTH) {
+                res.status(400).json({ error: 'A senha inicial precisa ter entre 6 e 200 caracteres.' });
                 return;
             }
             if (role !== undefined && role !== 'ADMIN' && role !== 'MECHANIC') {
@@ -101,8 +113,25 @@ export class AdminController {
     async updateUser(req: AuthenticatedRequest, res: Response): Promise<void> {
         try {
             if (!req.user) return;
-            const userId = String(req.params.id);
+            const userId = String(req.params.id || '').trim();
             const { role, status, password } = req.body;
+
+            if (!userId || userId.length > MAX_ENTITY_ID_LENGTH) {
+                res.status(400).json({ error: 'Usuário inválido.' });
+                return;
+            }
+            if (password !== undefined && (typeof password !== 'string' || password.length < 6 || password.length > MAX_PASSWORD_LENGTH)) {
+                res.status(400).json({ error: 'A nova senha precisa ter entre 6 e 200 caracteres.' });
+                return;
+            }
+            if (role !== undefined && role !== 'ADMIN' && role !== 'MECHANIC') {
+                res.status(400).json({ error: 'Perfil inválido.' });
+                return;
+            }
+            if (status !== undefined && status !== 'APPROVED' && status !== 'REJECTED' && status !== 'PENDING') {
+                res.status(400).json({ error: 'Status inválido.' });
+                return;
+            }
 
             const target = await prisma.user.findFirst({
                 where: { id: userId, tenantId: req.user.tenantId },
@@ -114,19 +143,6 @@ export class AdminController {
 
             if (target.id === req.user.id && (status !== undefined && status !== 'APPROVED' || role !== undefined && role !== 'ADMIN')) {
                 res.status(400).json({ error: 'Você não pode bloquear, deixar pendente nem remover seu próprio acesso de administrador.' });
-                return;
-            }
-
-            if (role !== undefined && role !== 'ADMIN' && role !== 'MECHANIC') {
-                res.status(400).json({ error: 'Perfil inválido.' });
-                return;
-            }
-            if (status !== undefined && status !== 'APPROVED' && status !== 'REJECTED' && status !== 'PENDING') {
-                res.status(400).json({ error: 'Status inválido.' });
-                return;
-            }
-            if (password !== undefined && (typeof password !== 'string' || password.length < 6)) {
-                res.status(400).json({ error: 'A nova senha precisa ter ao menos 6 caracteres.' });
                 return;
             }
 

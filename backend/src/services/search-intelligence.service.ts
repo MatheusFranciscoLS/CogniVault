@@ -2,6 +2,11 @@ import { prisma } from '../config/prisma';
 import { SearchRadarItem, SearchRadarStatus } from './search-quality-radar';
 import { buildFallbackIntent } from './chat-reliability';
 
+export function normalizeSearchIntelligenceLimit(limit: number): number {
+  if (!Number.isFinite(limit)) return 20;
+  return Math.max(1, Math.min(100, Math.trunc(limit)));
+}
+
 export class SearchIntelligenceService {
   /**
    * Identifica lacunas no catálogo baseado em buscas que frequentemente
@@ -30,7 +35,7 @@ export class SearchIntelligenceService {
           id: 'desc',
         },
       },
-      take: limit,
+      take: normalizeSearchIntelligenceLimit(limit),
     });
 
     return gaps.map(gap => {

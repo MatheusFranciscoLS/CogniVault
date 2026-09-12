@@ -29,6 +29,13 @@ import { loginLimiter } from '../middleware/rate-limit.middleware';
 import { uploadConcurrencyMiddleware } from '../middleware/upload-concurrency.middleware';
 import { searchSingleFlightMiddleware } from '../middleware/search-single-flight.middleware';
 import {
+  validateModelParam,
+  validateOfficialFallbackQuery,
+  validatePartCodeParam,
+  validateSearchQuery,
+  validateWorkContextModel,
+} from '../middleware/request-validation.middleware';
+import {
   invalidateAdminOverviewAfterMutation,
   invalidateDocumentAccessAfterMutation,
   invalidateFavoriteCachesAfterMutation,
@@ -82,6 +89,7 @@ router.get('/home', authMiddleware, (req, res) => homeController.home(req, res))
 router.get(
   '/search',
   authMiddleware,
+  validateSearchQuery,
   invalidateHomeAfterSearch,
   (req, res, next) => fastSearchController.search(req, res, next),
   searchSingleFlightMiddleware,
@@ -90,22 +98,23 @@ router.get(
 router.get(
   '/search/stream',
   authMiddleware,
+  validateSearchQuery,
   invalidateHomeAfterSearch,
   (req, res, next) => fastSearchController.stream(req, res, next),
   (req, res) => operationalController.searchStream(req, res),
 );
 router.get('/master-parts/search', authMiddleware, (req, res) => commercialSearchController.search(req, res));
-router.get('/official-fallback', authMiddleware, (req, res) => workIntelligenceController.officialFallback(req, res));
+router.get('/official-fallback', authMiddleware, validateOfficialFallbackQuery, (req, res) => workIntelligenceController.officialFallback(req, res));
 router.get('/husqvarna/products/search', authMiddleware, (req, res) => husqvarnaOfficialController.productSearch(req, res));
 router.get('/husqvarna/products/:pnc/details', authMiddleware, (req, res) => husqvarnaOfficialController.productDetails(req, res));
-router.get('/husqvarna/parts/:code/details', authMiddleware, (req, res) => husqvarnaOfficialController.partDetails(req, res));
+router.get('/husqvarna/parts/:code/details', authMiddleware, validatePartCodeParam, (req, res) => husqvarnaOfficialController.partDetails(req, res));
 router.post('/analytics/search-usage', authMiddleware, (req, res) => workIntelligenceController.recordSearchUsage(req, res));
 router.post('/analytics/quote-usage', authMiddleware, invalidateWorkContextAfterQuoteUsage, (req, res) => workIntelligenceController.recordQuoteUsage(req, res));
-router.get('/parts/:code/cross-reference', authMiddleware, (req, res) => operationalController.crossReference(req, res));
-router.get('/parts/:code/live-data', authMiddleware, (req, res) => operationalController.liveData(req, res));
-router.get('/parts/:code/work-context', authMiddleware, (req, res) => workContextController.get(req, res));
-router.put('/parts/:code/location', authMiddleware, invalidateWorkContextAfterLocation, (req, res) => workIntelligenceController.setLocation(req, res));
-router.get('/models/:model/maintenance-kit', authMiddleware, (req, res) => operationalController.maintenanceKit(req, res));
+router.get('/parts/:code/cross-reference', authMiddleware, validatePartCodeParam, (req, res) => operationalController.crossReference(req, res));
+router.get('/parts/:code/live-data', authMiddleware, validatePartCodeParam, (req, res) => operationalController.liveData(req, res));
+router.get('/parts/:code/work-context', authMiddleware, validatePartCodeParam, validateWorkContextModel, (req, res) => workContextController.get(req, res));
+router.put('/parts/:code/location', authMiddleware, validatePartCodeParam, invalidateWorkContextAfterLocation, (req, res) => workIntelligenceController.setLocation(req, res));
+router.get('/models/:model/maintenance-kit', authMiddleware, validateModelParam, (req, res) => operationalController.maintenanceKit(req, res));
 router.get('/parts/:id', authMiddleware, (req, res) => partDetailController.get(req, res));
 router.get('/history', authMiddleware, (req, res) => operationalController.history(req, res));
 router.get('/favorites', authMiddleware, (req, res) => operationalController.favorites(req, res));
@@ -115,7 +124,7 @@ router.get('/notifications', authMiddleware, (req, res) => notificationControlle
 
 router.get('/part-verifications', authMiddleware, (req, res) => officialPartVerificationController.list(req, res));
 router.get('/part-verifications/pending', authMiddleware, adminOnly, (req, res) => officialPartVerificationController.pending(req, res));
-router.get('/part-verifications/:code/history', authMiddleware, (req, res) => officialPartVerificationController.history(req, res));
+router.get('/part-verifications/:code/history', authMiddleware, validatePartCodeParam, (req, res) => officialPartVerificationController.history(req, res));
 router.post('/part-verifications', authMiddleware, invalidateNotificationsAfterMutation, (req, res) => officialPartVerificationController.create(req, res));
 router.patch('/part-verifications/:id/decision', authMiddleware, adminOnly, invalidateNotificationsAfterMutation, (req, res) => officialPartVerificationController.decision(req, res));
 
