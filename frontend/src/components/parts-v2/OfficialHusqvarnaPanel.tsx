@@ -287,7 +287,7 @@ export default function OfficialHusqvarnaPanel({ result }: Props) {
     setSelectedParts(new Set());
   };
 
-  const focusPart = (targetSectionId: string, index: number, key: string) => {
+  const focusPart = (targetSectionId: string, _index: number, key: string) => {
     setTab('IPL');
     setSectionId(targetSectionId);
     setPartDetails(null);
