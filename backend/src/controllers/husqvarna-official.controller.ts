@@ -192,10 +192,9 @@ export class HusqvarnaOfficialController {
     }
 
     try {
-      const [graphqlPart, replacementHistory, livePart, commercial] = await Promise.all([
-        HusqvarnaOfficialDetailService.searchSparePart(code),
+      const [officialPart, replacementHistory, commercial] = await Promise.all([
+        HusqvarnaOfficialDetailService.getSparePartDetails(code),
         HusqvarnaReplacementHistoryService.getReplacementHistory(code).catch(() => null),
-        HusqvarnaScraperService.fetchLiveData(code).catch(() => null),
         prisma.masterPart.findUnique({
           where: { tenantId_normalizedNumber: { tenantId: req.user.tenantId, normalizedNumber: code } },
           select: {
@@ -213,6 +212,14 @@ export class HusqvarnaOfficialController {
       ]);
 
       const officialReplacementHistoryAvailable = Boolean(replacementHistory?.history.length);
+      // The structured detail query supplies images, specifications and model
+      // applications. Fetch HTML only when official detail/history is unavailable.
+      const [graphqlPart, livePart] = await Promise.all([
+        officialPart || HusqvarnaOfficialDetailService.searchSparePart(code),
+        !officialPart || !officialReplacementHistoryAvailable
+          ? HusqvarnaScraperService.fetchLiveData(code).catch(() => null)
+          : null,
+      ]);
       if (!graphqlPart && !livePart && !commercial && !officialReplacementHistoryAvailable) {
         res.status(404).json({ error: 'Peça não localizada nas fontes disponíveis.' });
         return;
@@ -222,6 +229,7 @@ export class HusqvarnaOfficialController {
         .map(section => section.application)
         .filter((value): value is string => Boolean(value)) || [];
       const applications = [
+        ...(officialPart?.fitsTo || []),
         ...(livePart?.fitsTo || []),
         ...commercialApplications,
       ];
@@ -254,7 +262,7 @@ export class HusqvarnaOfficialController {
           replacementHistoryComplete: officialReplacementHistoryAvailable ? Boolean(replacementHistory?.completeChain) : false,
           replacementSource,
           fitsTo: [...new Set(applications)].slice(0, 100),
-          specifications: livePart?.specifications || null,
+          specifications: officialPart?.specifications || livePart?.specifications || null,
           commercial: commercial
             ? {
                 partNumber: commercial.partNumber,

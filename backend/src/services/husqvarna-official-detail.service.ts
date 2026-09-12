@@ -162,6 +162,37 @@ query searchForSpareparts($site: String!, $searchTerm: String!, $skip: Int!, $ta
   }
 }`;
 
+// Query used by the Portal's SparePartDetails page. Applications are model-level
+// relations; a product's primary article is not proof of every PNC/serial fit.
+const SPARE_PART_DETAILS_QUERY = `
+query getSparePart($siteName: String!, $sparePartId: ID!) {
+  site(name: $siteName) {
+    spareParts {
+      byId(id: $sparePartId) {
+        articleNumberFormatted
+        commercialReference
+        name
+        articleDescription
+        mainImage: mainImageData { url }
+        url
+        alsoUsedIn {
+          ... on Machine { name { longName } }
+          ... on Accessory { name { longName } }
+        }
+        specifications {
+          grossWeight packagingHeight packagingLength packagingWidth ean length
+          netWeight airFilterType batteryCellShape batteryEnergy batteryMaxVoltage
+          batteryPackWeight batteryRechargeable batteryReplaceable batteryType
+          batteryUsage bladeLength bladeType cellsPerBattery diameter masterPackQuantity
+          nominalCapacity nominalVoltage packagingType power ratedCurrent
+          useTogetherWithGrassBlades useTogetherWithGrassKnifes useTogetherWithSawBlades
+          articleDescription
+        }
+      }
+    }
+  }
+}`;
+
 export type HusqvarnaOfficialDocument = {
   title: string;
   type: string;
@@ -269,11 +300,17 @@ export type HusqvarnaOfficialSparePart = {
   imageUrl: string | null;
 };
 
+export type HusqvarnaOfficialSparePartDetails = HusqvarnaOfficialSparePart & {
+  specifications: Record<string, string> | null;
+  fitsTo: string[];
+};
+
 type GraphqlError = { message?: string };
 type GraphqlEnvelope<T> = { data?: T; errors?: GraphqlError[] };
 
 const productCache = new LRUCache<string, HusqvarnaOfficialProductDetails>({ max: 500, ttl: 30 * 60 * 1000 });
 const sparePartCache = new LRUCache<string, HusqvarnaOfficialSparePart>({ max: 2_000, ttl: 6 * 60 * 60 * 1000 });
+const sparePartDetailsCache = new LRUCache<string, HusqvarnaOfficialSparePartDetails>({ max: 2_000, ttl: 6 * 60 * 60 * 1000 });
 
 function normalizeProductName(value: unknown): string {
   const raw = String(value || '').trim();
@@ -582,7 +619,57 @@ export function parseOfficialSparePart(payload: unknown, partNumberInput: string
   return null;
 }
 
+export function parseOfficialSparePartDetails(payload: unknown, partNumberInput: string): HusqvarnaOfficialSparePartDetails | null {
+  const partNumber = normalizeIdentifier(partNumberInput);
+  if (!/^\d{6,14}$/.test(partNumber)) return null;
+  const record = (value: unknown): Record<string, unknown> =>
+    value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const text = (value: unknown): string | null => typeof value === 'string' && value.trim() ? value.trim() : null;
+  const item = record(record(record(record(payload).site).spareParts).byId);
+  // Do not accept a search neighbour, replacement, or unrelated hydrated object.
+  if (normalizeIdentifier(text(item.articleNumberFormatted)) !== partNumber) return null;
+
+  const specifications = Object.fromEntries(Object.entries(record(item.specifications))
+    .flatMap(([key, value]) => {
+      const formatted = text(value);
+      return formatted ? [[key, formatted]] : [];
+    }));
+  const name = text(item.name);
+  if (!name) return null;
+  const related = Array.isArray(item.alsoUsedIn) ? item.alsoUsedIn : [];
+  const fitsTo = [...new Set(related.flatMap(usage => {
+    const name = text(record(record(usage).name).longName);
+    return name ? [name.replace(/\s+/g, ' ')] : [];
+  }))];
+
+  return {
+    partNumber,
+    name,
+    description: text(item.articleDescription) || specifications.articleDescription || null,
+    commercialReference: text(item.commercialReference),
+    url: safePortalUrl(item.url),
+    imageUrl: officialMediaUrl(record(item.mainImage).url),
+    specifications: Object.keys(specifications).length ? specifications : null,
+    fitsTo,
+  };
+}
+
 export class HusqvarnaOfficialDetailService {
+  static async getSparePartDetails(partNumberInput: string): Promise<HusqvarnaOfficialSparePartDetails | null> {
+    const partNumber = normalizeIdentifier(partNumberInput);
+    if (!/^\d{6,14}$/.test(partNumber)) return null;
+    const cached = sparePartDetailsCache.get(partNumber);
+    if (cached) return cached;
+
+    const data = await postGraphql<unknown>('getSparePart', SPARE_PART_DETAILS_QUERY, {
+      siteName: SITE,
+      sparePartId: partNumber,
+    });
+    const result = parseOfficialSparePartDetails(data, partNumber);
+    if (result) sparePartDetailsCache.set(partNumber, result);
+    return result;
+  }
+
   static async getProductDetails(pncInput: string): Promise<HusqvarnaOfficialProductDetails | null> {
     const pnc = normalizeIdentifier(pncInput);
     if (!/^\d{8,14}$/.test(pnc)) return null;
