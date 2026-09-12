@@ -227,6 +227,7 @@ export class WorkIntelligenceController {
           const sameCatalog = portalCatalog?.pnc === confirmedPnc ? portalCatalog : null;
           const directUrl = productMatch?.portalUrl || null;
           const iplSections = sameDetails?.iplSections || [];
+          const workspaceUrl = `/husqvarna?pnc=${encodeURIComponent(confirmedPnc)}`;
 
           res.json({
             result: {
@@ -242,15 +243,11 @@ export class WorkIntelligenceController {
               iplSections,
               documents: sameCatalog?.documents || [],
               portalUrl: directUrl,
-              url: directUrl,
+              url: workspaceUrl,
               directProductUrl: Boolean(directUrl),
-              message: directUrl
-                ? (iplSections.length
-                    ? `${iplSections.length} vista(s) explodida(s) oficial(is) confirmada(s) pela Husqvarna para este PNC.`
-                    : 'PNC e produto confirmados diretamente pela Husqvarna.')
-                : (iplSections.length
-                    ? `${iplSections.length} vista(s) explodida(s) oficial(is) confirmada(s). O Portal não forneceu um link canônico do produto nesta consulta.`
-                    : 'PNC confirmado diretamente pela Husqvarna. O Portal não forneceu um link canônico do produto nesta consulta.'),
+              message: iplSections.length
+                ? `${iplSections.length} vista(s) explodida(s) oficial(is) confirmada(s). Abra os dados oficiais para consultar posições, peças, preço e aplicações.`
+                : 'PNC e produto confirmados diretamente pela Husqvarna. Abra os dados oficiais para consultar documentos, especificações, variantes e acessórios disponíveis.',
             },
           });
           return;
