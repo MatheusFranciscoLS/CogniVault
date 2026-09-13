@@ -1,0 +1,63 @@
+name: Temporary PDF bundle split
+
+on:
+  push:
+    branches:
+      - fix/ecosystem-ci-frontend-bundle
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: fix/ecosystem-ci-frontend-bundle
+          fetch-depth: 0
+      - name: Apply verified PDF lazy-loading patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('frontend/src/context/QuoteCartContext.tsx')
+          text = path.read_text(encoding='utf-8')
+
+          replacements = [
+              (
+                  "import jsPDF from 'jspdf';\nimport autoTable from 'jspdf-autotable';\n\ntype JsPdfWithAutoTable = jsPDF & {",
+                  "type JsPdfWithAutoTable = import('jspdf').jsPDF & {",
+              ),
+              (
+                  "  generatePdfQuote: (optionsOrModel?: string | QuoteTextOptions) => void;",
+                  "  generatePdfQuote: (optionsOrModel?: string | QuoteTextOptions) => Promise<void>;",
+              ),
+              (
+                  "  const generatePdfQuote = (optionsOrModel?: string | QuoteTextOptions) => {",
+                  "  const generatePdfQuote = async (optionsOrModel?: string | QuoteTextOptions) => {",
+              ),
+              (
+                  "    if (!items.length) {\n      toast.error('A cesta está vazia!');\n      return;\n    }\n\n    const opts: QuoteTextOptions = typeof optionsOrModel === 'string'",
+                  "    if (!items.length) {\n      toast.error('A cesta está vazia!');\n      return;\n    }\n\n    let jsPDF: typeof import('jspdf').jsPDF;\n    let autoTable: typeof import('jspdf-autotable').default;\n    try {\n      const [jspdfModule, autoTableModule] = await Promise.all([\n        import('jspdf'),\n        import('jspdf-autotable'),\n      ]);\n      jsPDF = jspdfModule.jsPDF;\n      autoTable = autoTableModule.default;\n    } catch (error) {\n      console.error('Falha ao carregar gerador de PDF:', error);\n      toast.error('Não foi possível carregar o gerador de PDF. Tente novamente.');\n      return;\n    }\n\n    const opts: QuoteTextOptions = typeof optionsOrModel === 'string'",
+              ),
+          ]
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'Expected exactly one match, found {count}: {old[:80]!r}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Remove temporary workflow and commit clean result
+        run: |
+          rm .github/workflows/temp-pdf-split.yml
+          git config user.name "Matheus Francisco"
+          git config user.email "matheusf.ls@hotmail.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "perf: load quote PDF generator on demand"
+          git push origin HEAD:fix/ecosystem-ci-frontend-bundle
