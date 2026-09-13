@@ -51,6 +51,7 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
+      # npm ci reports advisories but does not fail on them; keep security explicit.
       - name: Block high-severity dependency vulnerabilities
         run: npm audit --audit-level=high
       - run: npx prisma validate
@@ -74,6 +75,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      # Apply the same dependency policy to code shipped to the browser.
       - name: Block high-severity dependency vulnerabilities
         run: npm audit --audit-level=high
       - run: npm run lint
