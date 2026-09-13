@@ -20,6 +20,7 @@ import {
     getBasicMaintenanceKitTerms,
 } from '../services/husqvarna-domain-knowledge';
 import { HusqvarnaLivePartService } from '../services/husqvarna-live-part.service';
+import { resolveMaintenanceKitMatches } from '../services/maintenance-kit.service';
 
 interface CachedSearchResult {
     parts: any[];
@@ -1142,48 +1143,45 @@ export class OperationalController {
 
         try {
             const kitTerms = getBasicMaintenanceKitTerms();
-            const results: Array<{
-                category: string;
-                label: string;
-                part: any | null;
-            }> = [];
+            const matches = await resolveMaintenanceKitMatches(
+      kitTerms,
+      async kitItem => prisma.part.findFirst({
+          where: {
+              active: true,
+              document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+              normalizedModel: normModel,
+              OR: kitItem.searchTerms.map(term => ({
+                  name: { contains: term, mode: 'insensitive' as const },
+              })),
+          },
+          select: {
+              id: true,
+              partNumber: true,
+              name: true,
+              model: true,
+              pnc: true,
+              section: true,
+              position: true,
+              page: true,
+              notes: true,
+              document: { select: { id: true, filename: true } },
+          },
+      }),
+  );
 
-            for (const kitItem of kitTerms) {
-                const matchingPart = await prisma.part.findFirst({
-                    where: {
-                        active: true,
-                        document: { tenantId, archivedAt: null, status: 'COMPLETED' },
-                        normalizedModel: normModel,
-                        OR: kitItem.searchTerms.map(term => ({
-                            name: { contains: term, mode: 'insensitive' as const },
-                        })),
-                    },
-                    select: {
-                        id: true,
-                        partNumber: true,
-                        name: true,
-                        model: true,
-                        pnc: true,
-                        section: true,
-                        position: true,
-                        page: true,
-                        notes: true,
-                        document: { select: { id: true, filename: true } },
-                    },
-                });
-
-                if (matchingPart) {
-                    results.push({
-                        category: kitItem.category,
-                        label: kitItem.label,
-                        part: {
-                            ...matchingPart,
-                            filename: matchingPart.document?.filename,
-                            classification: classifyPartKind(matchingPart.name, matchingPart.section, matchingPart.notes),
-                        },
-                    });
-                }
-            }
+  const results = matches.map(({ kitItem, matchingPart }) => ({
+      category: kitItem.category,
+      label: kitItem.label,
+      part: {
+          ...matchingPart,
+          filename: matchingPart.document?.filename,
+          classification: classifyPartKind(
+              matchingPart.name,
+              matchingPart.section,
+              matchingPart.notes,
+          ),
+      },
+  }));
 
             res.json({
                 model: modelParam,
