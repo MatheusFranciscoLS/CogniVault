@@ -62,7 +62,7 @@ const apiLimiter = rateLimit({
   limit: 300,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.path === '/health/live' || req.path === '/api/cron/keepalive',
+  skip: (req) => req.path === '/health/live',
   message: { error: 'Muitas requisições deste IP, tente novamente em um minuto.' },
 });
 

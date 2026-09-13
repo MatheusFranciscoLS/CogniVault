@@ -5,16 +5,11 @@ import { normalizeIdentifier } from '../utils/normalize';
 import { AuditService } from '../services/audit.service';
 import { HusqvarnaLivePartService } from '../services/husqvarna-live-part.service';
 import { HusqvarnaPortalGraphqlService } from '../services/husqvarna-portal-graphql.service';
+import { parseOperationalPartCode, parseOptionalOperationalPartId, parseQuoteUsageItems } from '../services/operational-input-validation';
 
 const HUSQVARNA_SPARE_PARTS_URL = 'https://www.husqvarna.com/br/pecas-sobressalentes/';
 const HUSQVARNA_PORTAL_URL = 'https://portal.husqvarnagroup.com/br/';
 const SEARCH_DEDUP_MS = 2 * 60 * 1000;
-
-type QuoteUsageInput = {
-  partNumber: string;
-  normalizedPartNumber: string;
-  model: string | null;
-};
 
 function cleanCode(value: unknown): string {
   return String(value || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
@@ -29,8 +24,9 @@ export class WorkIntelligenceController {
     if (!req.user) return;
 
     const query = String(req.body?.query || '').trim().slice(0, 500);
-    const partId = typeof req.body?.partId === 'string' ? req.body.partId.trim() : '';
-    const resultCode = cleanCode(req.body?.partNumber);
+    const parsedPartId = parseOptionalOperationalPartId(req.body?.partId);
+    const partId = parsedPartId.value;
+    const resultCode = parseOperationalPartCode(req.body?.partNumber);
     const resultLabel = String(req.body?.name || '').trim().slice(0, 500) || resultCode;
     const resultModel = String(req.body?.model || '').trim().slice(0, 200) || null;
     const resultPnc = String(req.body?.pnc || '').trim().slice(0, 200) || null;
@@ -38,6 +34,10 @@ export class WorkIntelligenceController {
 
     if (!query || !resultCode) {
       res.status(400).json({ error: 'Consulta e código são obrigatórios.' });
+      return;
+    }
+    if (!parsedPartId.valid) {
+      res.status(400).json({ error: 'Identificador da peça inválido.' });
       return;
     }
 
@@ -135,21 +135,12 @@ export class WorkIntelligenceController {
     if (!req.user) return;
 
     const sessionId = String(req.body?.sessionId || '').trim().slice(0, 120);
-    const rawItems: unknown[] = Array.isArray(req.body?.items) ? (req.body.items as unknown[]).slice(0, 60) : [];
-    const items: QuoteUsageInput[] = rawItems
-      .map((raw): QuoteUsageInput | null => {
-        const item = raw as { partNumber?: unknown; model?: unknown };
-        const partNumber = cleanCode(item.partNumber);
-        const normalizedPartNumber = normalizeIdentifier(partNumber);
-        if (!normalizedPartNumber) return null;
-        return {
-          partNumber,
-          normalizedPartNumber,
-          model: item.model ? String(item.model).trim().slice(0, 160) : null,
-        };
-      })
-      .filter((item): item is QuoteUsageInput => item !== null);
+    const items = parseQuoteUsageItems(req.body?.items);
 
+    if (items === null) {
+      res.status(400).json({ error: 'Os itens do orçamento possuem código de peça inválido.' });
+      return;
+    }
     if (!sessionId || !items.length) {
       res.status(400).json({ error: 'Sessão e itens são obrigatórios.' });
       return;
