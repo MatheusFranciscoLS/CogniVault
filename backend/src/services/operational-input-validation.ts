@@ -10,6 +10,27 @@ export interface QuoteUsageInput {
     model: string | null;
 }
 
+export function parseOperationalText(value: unknown, maxLength: number): string | null {
+    if (typeof value !== 'string') return null;
+    const clean = value.trim();
+    if (!clean || clean.length > maxLength) return null;
+    return clean;
+}
+
+export function parseOptionalOperationalText(
+    value: unknown,
+    maxLength: number,
+): { valid: boolean; value: string } {
+    if (value === undefined || value === null || value === '') {
+        return { valid: true, value: '' };
+    }
+    if (typeof value !== 'string') return { valid: false, value: '' };
+
+    const clean = value.trim();
+    if (clean.length > maxLength) return { valid: false, value: '' };
+    return { valid: true, value: clean };
+}
+
 export function parseOperationalPartCode(value: unknown): string | null {
     if (typeof value !== 'string') return null;
 
@@ -47,10 +68,13 @@ export function parseQuoteUsageItems(value: unknown): QuoteUsageInput[] | null {
         const normalizedPartNumber = normalizeIdentifier(partNumber);
         if (!normalizedPartNumber) return null;
 
+        const parsedModel = parseOptionalOperationalText(input.model, 160);
+        if (!parsedModel.valid) return null;
+
         items.push({
             partNumber,
             normalizedPartNumber,
-            model: input.model ? String(input.model).trim().slice(0, 160) : null,
+            model: parsedModel.value || null,
         });
     }
 
