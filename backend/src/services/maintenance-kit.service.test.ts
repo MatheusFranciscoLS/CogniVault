@@ -18,12 +18,14 @@ test('maintenance kit starts every independent lookup before waiting for results
         { category: 'fuel', label: 'Filtro de combustível', searchTerms: ['combustivel'] },
     ];
     const gates = items.map(() => deferred<string | null>());
+    const gateIndex = new Map(items.map((item, index) => [item.category, index] as const));
     const started: string[] = [];
 
     const pending = resolveMaintenanceKitMatches(items, item => {
-        const index = items.indexOf(item);
+        const index = gateIndex.get(item.category);
+        assert.notEqual(index, undefined);
         started.push(item.category);
-        return gates[index].promise;
+        return gates[index as number].promise;
     });
 
     assert.deepEqual(started, ['air', 'oil', 'spark', 'fuel']);
