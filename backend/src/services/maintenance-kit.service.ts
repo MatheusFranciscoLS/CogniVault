@@ -1,7 +1,7 @@
 export interface MaintenanceKitLookupItem {
     category: string;
     label: string;
-    searchTerms: string[];
+    searchTerms: readonly string[];
 }
 
 export interface MaintenanceKitMatch<T> {
