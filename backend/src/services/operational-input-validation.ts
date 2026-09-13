@@ -1,5 +1,6 @@
 import { normalizeIdentifier } from '../utils/normalize';
 
+// Mantém analytics operacionais alinhados aos limites de código/ID do restante da API.
 export const MAX_OPERATIONAL_PART_CODE_LENGTH = 80;
 export const MAX_OPERATIONAL_PART_ID_LENGTH = 100;
 
