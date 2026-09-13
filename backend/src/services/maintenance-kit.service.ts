@@ -13,6 +13,7 @@ export async function resolveMaintenanceKitMatches<T>(
     kitItems: readonly MaintenanceKitLookupItem[],
     lookup: (item: MaintenanceKitLookupItem) => Promise<T | null>,
 ): Promise<Array<MaintenanceKitMatch<T>>> {
+    // Promise.all starts independent database lookups together and preserves item order.
     const matches = await Promise.all(
         kitItems.map(async kitItem => ({
             kitItem,
