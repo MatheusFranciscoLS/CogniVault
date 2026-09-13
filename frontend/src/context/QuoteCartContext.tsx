@@ -2,10 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { toast } from 'sonner';
 import { formatHusqvarnaPartNumber } from '../lib';
 import { playCartSound } from '../lib/sound';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-
-type JsPdfWithAutoTable = jsPDF & {
+type JsPdfWithAutoTable = import('jspdf').jsPDF & {
   lastAutoTable?: {
     finalY: number;
   };
@@ -64,7 +61,7 @@ interface QuoteCartContextType {
   generateWhatsAppText: (optionsOrModel?: string | QuoteTextOptions) => string;
   copyQuoteToClipboard: (optionsOrModel?: string | QuoteTextOptions) => Promise<void>;
   openWhatsApp: (optionsOrModel?: string | QuoteTextOptions) => void;
-  generatePdfQuote: (optionsOrModel?: string | QuoteTextOptions) => void;
+  generatePdfQuote: (optionsOrModel?: string | QuoteTextOptions) => Promise<void>;
   savedQuotes: SavedQuote[];
   saveCurrentQuote: (options?: QuoteTextOptions) => SavedQuote | null;
   restoreQuote: (savedQuote: SavedQuote) => void;
@@ -364,9 +361,24 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  const generatePdfQuote = (optionsOrModel?: string | QuoteTextOptions) => {
+  const generatePdfQuote = async (optionsOrModel?: string | QuoteTextOptions) => {
     if (!items.length) {
       toast.error('A cesta está vazia!');
+      return;
+    }
+
+    let jsPDF: typeof import('jspdf').jsPDF;
+    let autoTable: typeof import('jspdf-autotable').default;
+    try {
+      const [jspdfModule, autoTableModule] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable'),
+      ]);
+      jsPDF = jspdfModule.jsPDF;
+      autoTable = autoTableModule.default;
+    } catch (error) {
+      console.error('Falha ao carregar gerador de PDF:', error);
+      toast.error('Não foi possível carregar o gerador de PDF. Tente novamente.');
       return;
     }
 
