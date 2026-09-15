@@ -32,7 +32,10 @@ import { tenantOperationSingleFlight } from '../middleware/tenant-operation-sing
 import {
   validateModelParam,
   validateOfficialFallbackQuery,
+  validateOperationalQuoteUsage,
+  validateOperationalSearchUsage,
   validatePartCodeParam,
+  validatePartLocationBody,
   validateSearchQuery,
   validateWorkContextModel,
 } from '../middleware/request-validation.middleware';
@@ -109,12 +112,12 @@ router.get('/official-fallback', authMiddleware, validateOfficialFallbackQuery, 
 router.get('/husqvarna/products/search', authMiddleware, (req, res) => husqvarnaOfficialController.productSearch(req, res));
 router.get('/husqvarna/products/:pnc/details', authMiddleware, (req, res) => husqvarnaOfficialController.productDetails(req, res));
 router.get('/husqvarna/parts/:code/details', authMiddleware, validatePartCodeParam, (req, res) => husqvarnaOfficialController.partDetails(req, res));
-router.post('/analytics/search-usage', authMiddleware, (req, res) => workIntelligenceController.recordSearchUsage(req, res));
-router.post('/analytics/quote-usage', authMiddleware, invalidateWorkContextAfterQuoteUsage, (req, res) => workIntelligenceController.recordQuoteUsage(req, res));
+router.post('/analytics/search-usage', authMiddleware, validateOperationalSearchUsage, (req, res) => workIntelligenceController.recordSearchUsage(req, res));
+router.post('/analytics/quote-usage', authMiddleware, validateOperationalQuoteUsage, invalidateWorkContextAfterQuoteUsage, (req, res) => workIntelligenceController.recordQuoteUsage(req, res));
 router.get('/parts/:code/cross-reference', authMiddleware, validatePartCodeParam, (req, res) => operationalController.crossReference(req, res));
 router.get('/parts/:code/live-data', authMiddleware, validatePartCodeParam, (req, res) => operationalController.liveData(req, res));
 router.get('/parts/:code/work-context', authMiddleware, validatePartCodeParam, validateWorkContextModel, (req, res) => workContextController.get(req, res));
-router.put('/parts/:code/location', authMiddleware, validatePartCodeParam, invalidateWorkContextAfterLocation, (req, res) => workIntelligenceController.setLocation(req, res));
+router.put('/parts/:code/location', authMiddleware, validatePartCodeParam, validatePartLocationBody, invalidateWorkContextAfterLocation, (req, res) => workIntelligenceController.setLocation(req, res));
 router.get('/models/:model/maintenance-kit', authMiddleware, validateModelParam, (req, res) => operationalController.maintenanceKit(req, res));
 router.get('/parts/:id', authMiddleware, (req, res) => partDetailController.get(req, res));
 router.get('/history', authMiddleware, (req, res) => operationalController.history(req, res));
