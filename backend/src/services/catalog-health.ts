@@ -80,12 +80,6 @@ function safeCount(value: number | undefined): number {
   return Number.isFinite(value) ? Math.max(0, Math.trunc(value || 0)) : 0;
 }
 
-/**
- * Uma seção preenchida não é necessariamente contexto mecânico. O parser local
- * usa "Peças" como fallback quando o Portal não expõe o nome da vista; isso é
- * melhor que null para navegação, mas não deve valer como CLUTCH, TRANSMISSION,
- * CUTTING EQUIPMENT etc. na saúde técnica do catálogo.
- */
 export function isInformativeCatalogSection(value: string | null | undefined): boolean {
   const normalized = normalizeText(value || '');
   return Boolean(normalized) && !GENERIC_SECTION_NAMES.has(normalized);
@@ -116,13 +110,6 @@ function numericPosition(value: string | null | undefined): number | null {
   return Number.isInteger(number) && number > 0 ? number : null;
 }
 
-/**
- * Conta saltos numéricos em vistas que parecem sequenciais. Isso é apenas um
- * diagnóstico: IPLs Husqvarna podem omitir números deliberadamente (por exemplo,
- * 1,2,4,5,7,8,9,10 no STARTER do 321R). A ausência de um número na ilustração
- * não prova que uma linha de peça deixou de ser extraída; completude deve ser
- * sustentada pela tabela/snapshot, não pelo maior número visível da vista.
- */
 export function countLikelyMissingPositions(parts: CatalogHealthPart[]): number {
   const groups = new Map<string, Set<number>>();
   for (const part of parts) {
@@ -202,9 +189,6 @@ function serialRange(part: CatalogHealthPart): SerialRange | null {
       : { lower: null, upper: serial };
   }
 
-  // IPLs antigos também usam a faixa compacta sem rótulo, por exemplo
-  // 20090100001-20113100000 / 20113100001-Current. Procuramos isso somente em
-  // notes para não confundir números presentes no nome/código da peça.
   const compactNotes = text(part.notes).toUpperCase();
   const compact = compactNotes.match(/(?:^|\s)(\d{8,16})\s*-\s*(\d{8,16}|CURRENT)(?:\s|$)/);
   if (compact) {
@@ -269,9 +253,6 @@ function hasMutuallyExclusiveMarketVariants(parts: CatalogHealthPart[]): boolean
   }
   const groups = [...byCode.values()];
   if (groups.length < 2 || groups.every(group => group.size === 0)) return false;
-  // Uma linha "South America only" ao lado de uma linha sem mercado é uma
-  // substituição regional explícita no próprio Portal. A linha genérica não
-  // transforma a ocorrência em corrupção estrutural.
   if (groups.some(group => group.size === 0)) return true;
   for (let left = 0; left < groups.length; left += 1) {
     for (let right = left + 1; right < groups.length; right += 1) {
@@ -300,14 +281,6 @@ function areModelsCompatible(docModel: string, partModel: string): boolean {
   return false;
 }
 
-/**
- * Diagnostica conflitos somente quando a própria estrutura prova que se trata da
- * mesma ocorrência. PNC, página e seção fazem parte da chave. Se a seção é apenas
- * um fallback genérico, não afirmamos que duas posições pertencem à mesma vista.
- * Variantes mutuamente exclusivas por série ou mercado são cobertura legítima do
- * catálogo, não corrupção. Regras For/EXCEPT persistidas no PNC errado continuam
- * sendo tratadas como erro real de aplicação.
- */
 export function diagnoseCatalogStructure(
   parts: CatalogHealthPart[],
   documentModel?: string | null,
@@ -387,12 +360,6 @@ export function diagnoseCatalogStructure(
   };
 }
 
-/**
- * A nota mede somente defeitos estruturais detectados. Avisos operacionais
- * (Gemini, embedding ausente, seção genérica etc.) continuam visíveis, mas não
- * reduzem a saúde: um catálogo sem defeito estrutural pode e deve chegar a 100.
- * Vários PNCs no mesmo IPL representam cobertura válida e não são penalizados.
- */
 export function assessCatalogHealth(input: CatalogHealthInput): CatalogHealth {
   const findings: Finding[] = [];
   const warnings: string[] = [];
@@ -543,6 +510,32 @@ export function assessCatalogHealth(input: CatalogHealthInput): CatalogHealth {
   };
 }
 
+export function catalogHealthSnapshotWhere(input: {
+  documentId: string;
+  tenantId: string;
+  catalogRevision: number;
+  processingJobId: string | null;
+  processingStage: string;
+  manufacturer: string | null;
+  model: string | null;
+  pnc: string | null;
+  categoryId: string | null;
+  reviewStatus: 'PENDING' | 'READY' | 'NEEDS_REVIEW' | 'REVIEWED';
+}) {
+  return {
+    id: input.documentId,
+    tenantId: input.tenantId,
+    processingStage: input.processingStage,
+    processingJobId: input.processingJobId,
+    catalogRevision: input.catalogRevision,
+    manufacturer: input.manufacturer,
+    model: input.model,
+    pnc: input.pnc,
+    categoryId: input.categoryId,
+    reviewStatus: input.reviewStatus,
+  };
+}
+
 export async function refreshCatalogHealth(documentId: string, tenantId: string): Promise<CatalogHealth | null> {
   const document = await prisma.document.findFirst({
     where: { id: documentId, tenantId, processingStage: { not: 'REMOVED' } },
@@ -555,6 +548,9 @@ export async function refreshCatalogHealth(documentId: string, tenantId: string)
       extractionSnapshot: true,
       extractionMethod: true,
       processingStage: true,
+      processingJobId: true,
+      catalogRevision: true,
+      categoryId: true,
       reviewStatus: true,
       category: { select: { name: true } },
       _count: { select: { chunks: true } },
@@ -620,15 +616,29 @@ export async function refreshCatalogHealth(documentId: string, tenantId: string)
     previouslyReviewed: document.reviewStatus === 'REVIEWED',
   });
 
-  await prisma.document.update({
-    where: { id: document.id },
+  const qualityCheckedAt = new Date();
+  const persisted = await prisma.document.updateMany({
+    where: catalogHealthSnapshotWhere({
+      documentId: document.id,
+      tenantId,
+      catalogRevision: document.catalogRevision,
+      processingJobId: document.processingJobId,
+      processingStage: document.processingStage,
+      manufacturer: document.manufacturer,
+      model: document.model,
+      pnc: document.pnc,
+      categoryId: document.categoryId,
+      reviewStatus: document.reviewStatus,
+    }),
     data: {
       manufacturer: resolvedManufacturer,
       healthScore: health.score,
       reviewStatus: health.reviewStatus,
       reviewReasons: [...health.reasons, ...health.warnings],
-      qualityCheckedAt: new Date(),
+      qualityCheckedAt,
     },
   });
+  if (persisted.count !== 1) throw new Error('CATALOG_HEALTH_STALE');
+
   return health;
 }
