@@ -19,6 +19,13 @@ export function semanticAdminBatchLimit(): number {
   return boundedInteger(process.env.SEMANTIC_ADMIN_BATCH_LIMIT, 120, 10, 500);
 }
 
+export function normalizeSemanticAdminBatchRequest(value: unknown): number {
+  const maximum = semanticAdminBatchLimit();
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed)) return maximum;
+  return Math.min(maximum, Math.max(10, Math.trunc(parsed)));
+}
+
 export function semanticDailyAdminRuns(): number {
   return boundedInteger(process.env.SEMANTIC_DAILY_ADMIN_RUNS, 2, 0, 12);
 }
