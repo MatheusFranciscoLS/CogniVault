@@ -4,11 +4,13 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { AiQualityService } from '../services/ai-quality.service';
 import { AuditService } from '../services/audit.service';
 import { DocumentService } from '../services/document.service';
+import { idleDocumentReservationWhere } from '../services/document-processing-state';
 import { refreshCatalogHealth } from '../services/catalog-health';
 import { isPlausibleCatalogModel, normalizeHusqvarnaPnc } from '../services/catalog-extractor';
 import { rebuildTenantTechnicalKnowledge } from '../services/knowledge-maintenance.service';
 import { indexNextSemanticBatch } from '../services/semantic-index-maintenance.service';
 import { retryEligibleVisualCatalogs } from '../services/visual-catalog-retry.service';
+import { SearchIntelligenceService } from '../services/search-intelligence.service';
 
 const documentService = new DocumentService();
 
@@ -20,8 +22,6 @@ function metadataValue(value: unknown, field: string): string | null | undefined
   if (clean.length > 120) throw new Error(`${field}_INVALID`);
   return clean || null;
 }
-
-import { SearchIntelligenceService } from '../services/search-intelligence.service';
 
 export class QualityController {
   async searchIntelligence(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -168,8 +168,9 @@ export class QualityController {
     try {
       if (!req.user) return;
       const documentId = String(req.params.id);
+      const tenantId = req.user.tenantId;
       const document = await prisma.document.findFirst({
-        where: { id: documentId, tenantId: req.user.tenantId, processingStage: { not: 'REMOVED' } },
+        where: { id: documentId, tenantId, processingStage: { not: 'REMOVED' } },
         select: {
           id: true,
           filename: true,
@@ -181,6 +182,7 @@ export class QualityController {
           metadataReviewedById: true,
           reviewStatus: true,
           qualityCheckedAt: true,
+          catalogRevision: true,
         },
       });
       if (!document) { res.status(404).json({ error: 'Catálogo não encontrado.' }); return; }
@@ -197,81 +199,61 @@ export class QualityController {
       if (!changed && !confirm) { res.status(400).json({ error: 'Informe um metadado para corrigir ou confirme a revisão.' }); return; }
 
       if (changed) {
-        await prisma.document.update({
-          where: { id: document.id },
-          data: {
-            manufacturer: manufacturer === undefined ? undefined : manufacturer,
-            model: model === undefined ? undefined : model,
-            pnc: pnc === undefined ? undefined : pnc,
-            metadataReviewedAt: new Date(),
-            metadataReviewedById: req.user.id,
-            reviewStatus: 'PENDING',
-            qualityCheckedAt: null,
+        const reviewedAt = new Date();
+        const queued = await documentService.reprocess(tenantId, document.id, {
+          manufacturer,
+          model,
+          pnc,
+          reviewedAt,
+          reviewedById: req.user.id,
+        });
+        await AuditService.record({
+          tenantId,
+          userId: req.user.id,
+          action: 'DOCUMENT_METADATA_REVIEWED',
+          targetType: 'DOCUMENT',
+          targetId: document.id,
+          metadata: {
+            filename: document.filename,
+            before: { manufacturer: document.manufacturer, model: document.model, pnc: document.pnc },
+            after: {
+              manufacturer: manufacturer === undefined ? document.manufacturer : manufacturer,
+              model: model === undefined ? document.model : model,
+              pnc: pnc === undefined ? document.pnc : pnc,
+            },
+            reprocessQueued: true,
           },
         });
-
-        try {
-          const queued = await documentService.reprocess(req.user.tenantId, document.id);
-          await AuditService.record({
-            tenantId: req.user.tenantId,
-            userId: req.user.id,
-            action: 'DOCUMENT_METADATA_REVIEWED',
-            targetType: 'DOCUMENT',
-            targetId: document.id,
-            metadata: {
-              filename: document.filename,
-              before: { manufacturer: document.manufacturer, model: document.model, pnc: document.pnc },
-              after: {
-                manufacturer: manufacturer === undefined ? document.manufacturer : manufacturer,
-                model: model === undefined ? document.model : model,
-                pnc: pnc === undefined ? document.pnc : pnc,
-              },
-              reprocessQueued: true,
-            },
-          });
-          res.json({ message: 'Metadados salvos. O catálogo foi enviado para reprocessamento antes de liberar a revisão.', document: { id: queued.id, status: queued.status } });
-          return;
-        } catch (reprocessError) {
-          try {
-            const rollback = await prisma.document.updateMany({
-              where: {
-                id: document.id,
-                tenantId: req.user.tenantId,
-                processingJobId: null,
-              },
-              data: {
-                manufacturer: document.manufacturer,
-                model: document.model,
-                pnc: document.pnc,
-                metadataReviewedAt: document.metadataReviewedAt,
-                metadataReviewedById: document.metadataReviewedById,
-                reviewStatus: document.reviewStatus,
-                qualityCheckedAt: document.qualityCheckedAt,
-              },
-            });
-            if (rollback.count !== 1) {
-              console.warn(`⚠️ Metadados de ${document.id} não foram revertidos porque outro processamento assumiu o catálogo.`);
-            }
-          } catch (rollbackError) {
-            console.error(`❌ Falha ao reverter metadados de ${document.id} após erro de fila:`, rollbackError);
-          }
-          throw reprocessError;
-        }
+        res.json({ message: 'Metadados salvos. O catálogo foi enviado para reprocessamento antes de liberar a revisão.', document: { id: queued.id, status: queued.status } });
+        return;
       }
 
-      const health = await refreshCatalogHealth(document.id, req.user.tenantId);
+      const health = await refreshCatalogHealth(document.id, tenantId);
       if (!health) { res.status(404).json({ error: 'Catálogo não encontrado.' }); return; }
       const critical = health.reasons.some(reason => /modelo|nenhuma peça|somente \d+ peças|menos da metade/i.test(reason));
       if (critical) {
         res.status(409).json({ error: 'Ainda existem problemas estruturais que precisam ser corrigidos antes de marcar este catálogo como revisado.', reasons: health.reasons });
         return;
       }
-      await prisma.document.update({
-        where: { id: document.id },
+
+      const reviewedSnapshot = await prisma.document.findFirst({
+        where: { id: document.id, tenantId },
+        select: { catalogRevision: true, qualityCheckedAt: true },
+      });
+      if (!reviewedSnapshot?.qualityCheckedAt) throw new Error('DOCUMENT_REVIEW_STALE');
+
+      const confirmed = await prisma.document.updateMany({
+        where: {
+          ...idleDocumentReservationWhere(document.id, tenantId),
+          catalogRevision: reviewedSnapshot.catalogRevision,
+          qualityCheckedAt: reviewedSnapshot.qualityCheckedAt,
+        },
         data: { reviewStatus: 'REVIEWED', metadataReviewedAt: new Date(), metadataReviewedById: req.user.id },
       });
+      if (confirmed.count !== 1) throw new Error('DOCUMENT_REVIEW_STALE');
+
       await AuditService.record({
-        tenantId: req.user.tenantId,
+        tenantId,
         userId: req.user.id,
         action: 'DOCUMENT_QUALITY_CONFIRMED',
         targetType: 'DOCUMENT',
@@ -282,7 +264,10 @@ export class QualityController {
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
       if (message.endsWith('_INVALID')) { res.status(400).json({ error: 'Metadado inválido.' }); return; }
-      if (message === 'DOCUMENT_ALREADY_PROCESSING') { res.status(409).json({ error: 'Este catálogo já está em processamento.' }); return; }
+      if (message === 'DOCUMENT_ALREADY_PROCESSING' || message === 'DOCUMENT_REVIEW_STALE') {
+        res.status(409).json({ error: 'O catálogo mudou ou entrou em processamento durante a revisão. Atualize os dados e tente novamente.' });
+        return;
+      }
       console.error('❌ Erro ao revisar catálogo:', error);
       res.status(500).json({ error: 'Não foi possível concluir a revisão do catálogo.' });
     }
