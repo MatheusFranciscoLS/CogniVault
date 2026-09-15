@@ -18,6 +18,27 @@ export interface UploadMetadata {
     pnc?: string;
 }
 
+export interface DocumentMetadataReview {
+    manufacturer?: string | null;
+    model?: string | null;
+    pnc?: string | null;
+    reviewedAt: Date;
+    reviewedById: string;
+}
+
+export function metadataReviewMutation(review?: DocumentMetadataReview) {
+    if (!review) return {};
+    return {
+        manufacturer: review.manufacturer,
+        model: review.model,
+        pnc: review.pnc,
+        metadataReviewedAt: review.reviewedAt,
+        metadataReviewedById: review.reviewedById,
+        reviewStatus: 'PENDING' as const,
+        qualityCheckedAt: null,
+    };
+}
+
 function isPrismaUniqueConstraintError(error: unknown): boolean {
     return typeof error === 'object'
         && error !== null
@@ -269,7 +290,7 @@ export class DocumentService {
         }
     }
 
-    async reprocess(tenantId: string, documentId: string) {
+    async reprocess(tenantId: string, documentId: string, metadataReview?: DocumentMetadataReview) {
         const document = await prisma.document.findFirst({
             where: { id: documentId, tenantId, archivedAt: null },
         });
@@ -283,6 +304,7 @@ export class DocumentService {
 
         const hasUsableCatalog = document.status === 'COMPLETED';
         const jobId = randomUUID();
+        const reviewMutation = metadataReviewMutation(metadataReview);
         const locked = await prisma.document.updateMany({
             where: reprocessableDocumentReservationWhere(document.id, tenantId),
             data: {
@@ -292,6 +314,7 @@ export class DocumentService {
                 processingCurrent: 0,
                 processingTotal: document.processingTotal,
                 processingError: null,
+                ...reviewMutation,
             },
         });
         if (locked.count !== 1) throw new Error('DOCUMENT_ALREADY_PROCESSING');
@@ -300,7 +323,7 @@ export class DocumentService {
             await DocumentProducer.publishToQueue(document.id, tenantId, jobId);
         } catch (error) {
             await prisma.document.updateMany({
-                where: { id: document.id, processingJobId: jobId },
+                where: { id: document.id, tenantId, processingJobId: jobId },
                 data: {
                     status: document.status,
                     processingJobId: null,
@@ -308,12 +331,34 @@ export class DocumentService {
                     processingCurrent: document.processingCurrent,
                     processingTotal: document.processingTotal,
                     processingError: document.processingError,
+                    ...(metadataReview ? {
+                        manufacturer: document.manufacturer,
+                        model: document.model,
+                        pnc: document.pnc,
+                        metadataReviewedAt: document.metadataReviewedAt,
+                        metadataReviewedById: document.metadataReviewedById,
+                        reviewStatus: document.reviewStatus,
+                        qualityCheckedAt: document.qualityCheckedAt,
+                    } : {}),
                 },
             });
             throw error;
         }
 
-        return { ...document, status: hasUsableCatalog ? 'COMPLETED' : 'PENDING', processingJobId: jobId };
+        return {
+            ...document,
+            status: hasUsableCatalog ? 'COMPLETED' : 'PENDING',
+            processingJobId: jobId,
+            ...(metadataReview ? {
+                manufacturer: metadataReview.manufacturer === undefined ? document.manufacturer : metadataReview.manufacturer,
+                model: metadataReview.model === undefined ? document.model : metadataReview.model,
+                pnc: metadataReview.pnc === undefined ? document.pnc : metadataReview.pnc,
+                metadataReviewedAt: metadataReview.reviewedAt,
+                metadataReviewedById: metadataReview.reviewedById,
+                reviewStatus: 'PENDING' as const,
+                qualityCheckedAt: null,
+            } : {}),
+        };
     }
 
     async removePdf(tenantId: string, documentId: string, userId: string) {
