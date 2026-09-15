@@ -212,15 +212,32 @@ export class DocumentService {
             throw new Error('DOCUMENT_ALREADY_PROCESSING');
         }
 
-        return prisma.document.update({
-            where: { id: document.id },
-            data: { archivedAt: new Date(), archivedById: userId },
+        const archivedAt = new Date();
+        const reserved = await prisma.document.updateMany({
+            where: {
+                id: document.id,
+                tenantId,
+                archivedAt: null,
+                OR: [
+                    { status: 'FAILED' },
+                    { processingJobId: null, status: { notIn: ['PENDING', 'PROCESSING'] } },
+                ],
+            },
+            data: { archivedAt, archivedById: userId },
         });
+        if (reserved.count !== 1) throw new Error('DOCUMENT_ALREADY_PROCESSING');
+
+        return { ...document, archivedAt, archivedById: userId };
     }
 
     async restore(tenantId: string, documentId: string) {
         const document = await prisma.document.findFirst({
-            where: { id: documentId, tenantId, archivedAt: { not: null }, processingStage: { not: 'REMOVED' } },
+            where: {
+                id: documentId,
+                tenantId,
+                archivedAt: { not: null },
+                processingStage: { notIn: ['REMOVING', 'REMOVED'] },
+            },
         });
 
         if (!document) throw new Error('DOCUMENT_NOT_FOUND');
@@ -278,6 +295,8 @@ export class DocumentService {
             where: {
                 id: document.id,
                 tenantId,
+                archivedAt: null,
+                processingStage: { notIn: ['REMOVING', 'REMOVED'] },
                 OR: [
                     { processingJobId: null },
                     { status: 'FAILED' },
@@ -326,8 +345,16 @@ export class DocumentService {
         }
 
         const archivedAt = new Date();
-        await prisma.document.update({
-            where: { id: document.id },
+        const reserved = await prisma.document.updateMany({
+            where: {
+                id: document.id,
+                tenantId,
+                archivedAt: null,
+                OR: [
+                    { status: 'FAILED' },
+                    { processingJobId: null, status: { notIn: ['PENDING', 'PROCESSING'] } },
+                ],
+            },
             data: {
                 archivedAt,
                 archivedById: userId,
@@ -335,6 +362,7 @@ export class DocumentService {
                 processingError: null,
             },
         });
+        if (reserved.count !== 1) throw new Error('DOCUMENT_ALREADY_PROCESSING');
 
         const candidates = storageCandidates(tenantId, document.id, document.storagePath);
         let removeError: { message: string } | null = null;
