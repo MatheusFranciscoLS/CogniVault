@@ -5,6 +5,7 @@ import { AuthenticatedRequest, invalidateUserAuthCache } from '../middleware/aut
 import { AuditService } from '../services/audit.service';
 
 const MAX_EMAIL_LENGTH = 254;
+const MIN_PASSWORD_LENGTH = 15;
 const MAX_PASSWORD_LENGTH = 200;
 const MAX_ENTITY_ID_LENGTH = 100;
 const SIMPLE_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -63,8 +64,8 @@ export class AdminController {
                 res.status(400).json({ error: 'Informe um e-mail válido de até 254 caracteres.' });
                 return;
             }
-            if (typeof password !== 'string' || password.length < 6 || password.length > MAX_PASSWORD_LENGTH) {
-                res.status(400).json({ error: 'A senha inicial precisa ter entre 6 e 200 caracteres.' });
+            if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
+                res.status(400).json({ error: `A senha inicial precisa ter entre ${MIN_PASSWORD_LENGTH} e ${MAX_PASSWORD_LENGTH} caracteres.` });
                 return;
             }
             if (role !== undefined && role !== 'ADMIN' && role !== 'MECHANIC') {
@@ -120,8 +121,8 @@ export class AdminController {
                 res.status(400).json({ error: 'Usuário inválido.' });
                 return;
             }
-            if (password !== undefined && (typeof password !== 'string' || password.length < 6 || password.length > MAX_PASSWORD_LENGTH)) {
-                res.status(400).json({ error: 'A nova senha precisa ter entre 6 e 200 caracteres.' });
+            if (password !== undefined && (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH)) {
+                res.status(400).json({ error: `A nova senha precisa ter entre ${MIN_PASSWORD_LENGTH} e ${MAX_PASSWORD_LENGTH} caracteres.` });
                 return;
             }
             if (role !== undefined && role !== 'ADMIN' && role !== 'MECHANIC') {
