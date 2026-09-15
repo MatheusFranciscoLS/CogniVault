@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { NextFunction, Request, Response } from 'express';
 import {
+  validateEntityIdParam,
+  validateFavoriteMutationBody,
   validateModelParam,
   validateOfficialFallbackQuery,
   validateOperationalQuoteUsage,
@@ -38,11 +40,23 @@ test('official fallback query is capped before external services are called', ()
   assert.equal(run(validateOfficialFallbackQuery, { query: { q: '503808302' } as any }).nextCalled, true);
 });
 
-test('part and model guards reject pathological route input', () => {
+test('part, model and generic entity guards reject pathological route input', () => {
   assert.equal(run(validatePartCodeParam, { params: { code: '9'.repeat(81) } as any }).statusCode, 400);
   assert.equal(run(validateWorkContextModel, { query: { model: 'M'.repeat(161) } as any }).statusCode, 400);
   assert.equal(run(validateModelParam, { params: { model: 'M'.repeat(161) } as any }).statusCode, 400);
+  assert.equal(run(validateEntityIdParam, { params: { id: 'x'.repeat(101) } as any }).statusCode, 400);
+  assert.equal(run(validateEntityIdParam, { params: { id: '   ' } as any }).statusCode, 400);
   assert.equal(run(validatePartCodeParam, { params: { code: '503808302' } as any }).nextCalled, true);
+  assert.equal(run(validateEntityIdParam, { params: { id: '550e8400-e29b-41d4-a716-446655440000' } as any }).nextCalled, true);
+});
+
+test('favorite mutation requires exactly one bounded string identifier', () => {
+  assert.equal(run(validateFavoriteMutationBody, { body: { partId: 'part-1' } } as any).nextCalled, true);
+  assert.equal(run(validateFavoriteMutationBody, { body: { documentId: 'doc-1' } } as any).nextCalled, true);
+  assert.equal(run(validateFavoriteMutationBody, { body: {} } as any).statusCode, 400);
+  assert.equal(run(validateFavoriteMutationBody, { body: { partId: 'part-1', documentId: 'doc-1' } } as any).statusCode, 400);
+  assert.equal(run(validateFavoriteMutationBody, { body: { partId: { id: 'part-1' } } } as any).statusCode, 400);
+  assert.equal(run(validateFavoriteMutationBody, { body: { documentId: 'x'.repeat(101) } } as any).statusCode, 400);
 });
 
 test('operational search analytics rejects structured or oversized text before database work', () => {
