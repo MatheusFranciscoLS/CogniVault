@@ -47,17 +47,30 @@ class RabbitMQConnection {
                     },
                 });
 
+                const previousConnection = this.connection;
                 this.connection = connection;
                 this.channel = channel;
                 this.lastError = null;
 
+                // Se uma falha anterior fechou somente o canal, não mantemos o
+                // socket antigo vivo depois que uma nova conexão já assumiu.
+                if (previousConnection && previousConnection !== connection) {
+                    void previousConnection.close().catch((error) => {
+                        console.warn('⚠️ Não foi possível encerrar conexão RabbitMQ substituída:', error);
+                    });
+                }
+
                 connection.on('error', (error: Error) => {
+                    // Eventos tardios de uma conexão substituída não podem
+                    // corromper o estado da conexão que está ativa agora.
+                    if (this.connection !== connection) return;
                     this.lastError = error.message;
                     console.error('❌ Erro na conexão RabbitMQ:', error);
                 });
                 connection.on('close', () => {
+                    if (this.connection !== connection) return;
                     this.connection = null;
-                    this.channel = null;
+                    if (this.channel === channel) this.channel = null;
                     if (!this.closing) {
                         this.lastError = 'Conexão com RabbitMQ encerrada inesperadamente.';
                         console.error('❌ Conexão com RabbitMQ encerrada inesperadamente. Agendando reconexão...');
@@ -65,6 +78,7 @@ class RabbitMQConnection {
                     }
                 });
                 channel.on('error', (error: Error) => {
+                    if (this.channel !== channel) return;
                     this.lastError = error.message;
                     console.error('❌ Erro no canal RabbitMQ:', error);
                     if (!this.closing) {
@@ -72,7 +86,21 @@ class RabbitMQConnection {
                     }
                 });
                 channel.on('close', () => {
+                    if (this.channel !== channel) return;
                     this.channel = null;
+
+                    // A estratégia de reconexão cria conexão + canal novos. Se
+                    // apenas o canal morreu, feche também a conexão associada
+                    // para não deixar socket órfão nem callback antigo ativo.
+                    if (this.connection === connection) {
+                        this.connection = null;
+                        void connection.close().catch((error) => {
+                            if (!this.closing) {
+                                console.warn('⚠️ Não foi possível encerrar conexão RabbitMQ sem canal:', error);
+                            }
+                        });
+                    }
+
                     if (!this.closing) {
                         this.lastError = 'Canal do RabbitMQ encerrado inesperadamente.';
                         console.error('❌ Canal do RabbitMQ encerrado inesperadamente. Agendando reconexão...');
@@ -111,6 +139,10 @@ class RabbitMQConnection {
             }
         }, 5000);
         this.reconnectTimer.unref();
+    }
+
+    onReconnect(listener: () => void | Promise<void>): void {
+        this.reconnectListeners.push(listener);
     }
 
     private notifyReconnect(): void {
