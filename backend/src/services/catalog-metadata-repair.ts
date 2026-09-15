@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { normalizeIdentifier } from '../utils/normalize';
 import { looksLikeDescriptionModel } from './catalog-extractor';
@@ -24,6 +25,27 @@ export type AutoMetadataInput = {
   metadataReviewedAt?: Date | string | null;
   parts: AutoMetadataPart[];
 };
+
+export function autoMetadataRepairReservationWhere(input: {
+  documentId: string;
+  tenantId: string;
+  manufacturer: string | null;
+  model: string | null;
+  pnc: string | null;
+  metadataReviewedAt: Date | null;
+  processingJobId: string | null;
+}): Prisma.DocumentWhereInput {
+  return {
+    id: input.documentId,
+    tenantId: input.tenantId,
+    archivedAt: null,
+    manufacturer: input.manufacturer,
+    model: input.model,
+    pnc: input.pnc,
+    metadataReviewedAt: input.metadataReviewedAt,
+    processingJobId: input.processingJobId,
+  };
+}
 
 function dominant(values: Array<string | null | undefined>): { value: string; ratio: number } | null {
   const counts = new Map<string, { label: string; count: number }>();
@@ -110,6 +132,7 @@ export async function repairAutoDetectedDocumentMetadata(documentId: string, ten
       model: true,
       pnc: true,
       metadataReviewedAt: true,
+      processingJobId: true,
       parts: {
         where: { active: true },
         select: { manufacturer: true, model: true, pnc: true, universalAcrossPnc: true },
@@ -122,8 +145,21 @@ export async function repairAutoDetectedDocumentMetadata(documentId: string, ten
   if (!suggestion.changed) return suggestion;
   const { changed: _changed, ...data } = suggestion;
 
-  await prisma.$transaction(async tx => {
-    await tx.document.update({ where: { id: document.id }, data });
+  const applied = await prisma.$transaction(async tx => {
+    const reserved = await tx.document.updateMany({
+      where: autoMetadataRepairReservationWhere({
+        documentId: document.id,
+        tenantId,
+        manufacturer: document.manufacturer,
+        model: document.model,
+        pnc: document.pnc,
+        metadataReviewedAt: document.metadataReviewedAt,
+        processingJobId: document.processingJobId,
+      }),
+      data,
+    });
+    if (reserved.count !== 1) return false;
+
     if (suggestion.manufacturer) {
       await tx.part.updateMany({
         where: { documentId: document.id, active: true },
@@ -133,6 +169,8 @@ export async function repairAutoDetectedDocumentMetadata(documentId: string, ten
         },
       });
     }
+    return true;
   });
-  return suggestion;
+
+  return applied ? suggestion : { changed: false };
 }
