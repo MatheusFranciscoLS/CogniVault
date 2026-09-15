@@ -235,11 +235,11 @@ export async function retrieveTechnicalContext(
 
   const fuzzy = await prisma.$queryRaw<Raw[]>(Prisma.sql`
     SELECT c."id", c."documentId", d."filename", c."content", c."page", c."section", c."model", c."pnc",
-      word_similarity(lower(${query}), lower(COALESCE(c."searchText", ''))) AS "score"
+      word_similarity(lower(${query}), lower(c."searchText")) AS "score"
     FROM "DocumentChunk" c
     INNER JOIN "Document" d ON d."id" = c."documentId"
     WHERE ${Prisma.join(filters, ' AND ')}
-      AND lower(${query}) <% lower(COALESCE(c."searchText", ''))
+      AND lower(${query}) <% lower(c."searchText")
     ORDER BY "score" DESC
     LIMIT ${limit}
   `);
