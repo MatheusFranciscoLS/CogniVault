@@ -123,6 +123,33 @@ test('confirma peça apenas quando um identificador GraphQL bate exatamente', ()
   assert.equal(parseOfficialSparePart(payload, '503123499'), null);
 });
 
+test('rejeita URL e mídia de domínios parecidos nos detalhes oficiais', () => {
+  const payload = {
+    site: {
+      search: {
+        content: {
+          results: {
+            resultItem: [{
+              id: '503123401',
+              articleNumberFormatted: '503 12 34-01',
+              commercialReference: '503123401',
+              description: 'PARAFUSO',
+              name: 'Parafuso',
+              url: 'https://evilhusqvarnagroup.com/br/spare-parts/?part=503123401',
+              mainImage: { url: 'https://fakehusqvarna.com/image.png' },
+            }],
+          },
+        },
+      },
+    },
+  };
+
+  const result = parseOfficialSparePart(payload, '503123401');
+  assert.ok(result);
+  assert.equal(result.url, null);
+  assert.equal(result.imageUrl, null);
+});
+
 test('gera URL pública de suporte sem depender da categoria do Portal', () => {
   assert.equal(buildHusqvarnaPublicSupportUrl('HUSQVARNA 120 Mark II'), 'https://www.husqvarna.com/br/suporte/120-mark-ii/');
   assert.equal(buildHusqvarnaPublicSupportUrl('HUSQVARNA 327P5x'), 'https://www.husqvarna.com/br/suporte/327p5x/');
