@@ -2,19 +2,23 @@ import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { normalizeIdentifier } from '../utils/normalize';
 import { OfficialPartVerificationService, type VerificationDecision } from '../services/official-part-verification.service';
+import {
+  parseOptionalVerificationText,
+  parseRequiredVerificationCode,
+  parseVerificationCodesQuery,
+} from '../services/verification-input-validation';
 
 export class OfficialPartVerificationController {
   async list(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
     try {
-      const codes = String(req.query.codes || '')
-        .split(',')
-        .map(code => code.trim())
-        .filter(code => Boolean(normalizeIdentifier(code)))
-        .slice(0, 80);
+      const codes = parseVerificationCodesQuery(req.query.codes);
+      if (codes === null) {
+        res.status(400).json({ error: 'Lista de códigos inválida ou muito longa.' });
+        return;
+      }
 
-      const uniqueCodes = [...new Set(codes)];
-      const verifications = await OfficialPartVerificationService.latestForCodes(req.user.tenantId, uniqueCodes);
+      const verifications = await OfficialPartVerificationService.latestForCodes(req.user.tenantId, codes);
       res.json({ verifications });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : 'Não foi possível consultar as verificações.' });
@@ -51,13 +55,17 @@ export class OfficialPartVerificationController {
   async create(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
     try {
-      const queriedPartNumber = String(req.body.queriedPartNumber || '').trim();
-      const currentPartNumber = String(req.body.currentPartNumber || '').trim();
-      const description = typeof req.body.description === 'string' ? req.body.description : null;
-      const note = typeof req.body.note === 'string' ? req.body.note : null;
+      const queriedPartNumber = parseRequiredVerificationCode(req.body?.queriedPartNumber);
+      const currentPartNumber = parseRequiredVerificationCode(req.body?.currentPartNumber);
+      const description = parseOptionalVerificationText(req.body?.description, 500);
+      const note = parseOptionalVerificationText(req.body?.note, 2000);
 
       if (!queriedPartNumber || !currentPartNumber) {
-        res.status(400).json({ error: 'Código consultado e código atual são obrigatórios.' });
+        res.status(400).json({ error: 'Código consultado e código atual devem ser textos válidos.' });
+        return;
+      }
+      if (!description.valid || !note.valid) {
+        res.status(400).json({ error: 'Descrição ou observação inválida ou muito longa.' });
         return;
       }
 
@@ -66,8 +74,8 @@ export class OfficialPartVerificationController {
         userId: req.user.id,
         queriedPartNumber,
         currentPartNumber,
-        description,
-        note,
+        description: description.value,
+        note: note.value,
       });
       res.status(201).json({
         message: 'Conferência registrada e enviada para aprovação do Administrador.',
@@ -90,18 +98,22 @@ export class OfficialPartVerificationController {
   async decision(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
     try {
-      const decision = String(req.body.decision || '') as VerificationDecision;
+      const decision = typeof req.body?.decision === 'string' ? req.body.decision : '';
       if (decision !== 'APPROVE' && decision !== 'REJECT') {
         res.status(400).json({ error: 'Decisão inválida.' });
         return;
       }
-      const reviewNote = typeof req.body.note === 'string' ? req.body.note : null;
+      const reviewNote = parseOptionalVerificationText(req.body?.note, 1000);
+      if (!reviewNote.valid) {
+        res.status(400).json({ error: 'Observação de revisão inválida ou muito longa.' });
+        return;
+      }
       const submission = await OfficialPartVerificationService.decide({
         tenantId: req.user.tenantId,
         userId: req.user.id,
         verificationId: String(req.params.id || ''),
-        decision,
-        reviewNote,
+        decision: decision as VerificationDecision,
+        reviewNote: reviewNote.value,
       });
       res.json({
         message: decision === 'APPROVE'
