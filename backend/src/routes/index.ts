@@ -34,6 +34,7 @@ import { tenantOperationSingleFlight } from '../middleware/tenant-operation-sing
 import {
   validateEntityIdParam,
   validateFavoriteMutationBody,
+  validateHusqvarnaProductSearchQuery,
   validateModelParam,
   validateOfficialFallbackQuery,
   validateOperationalQuoteUsage,
@@ -42,6 +43,7 @@ import {
   validatePartLocationBody,
   validateQualityRadarResolution,
   validateSearchQuery,
+  validateVisualCatalogRetryRequest,
   validateWorkContextModel,
 } from '../middleware/request-validation.middleware';
 import {
@@ -115,7 +117,7 @@ router.get(
 );
 router.get('/master-parts/search', authMiddleware, (req, res) => commercialSearchController.search(req, res));
 router.get('/official-fallback', authMiddleware, validateOfficialFallbackQuery, (req, res) => workIntelligenceController.officialFallback(req, res));
-router.get('/husqvarna/products/search', authMiddleware, (req, res) => husqvarnaOfficialController.productSearch(req, res));
+router.get('/husqvarna/products/search', authMiddleware, validateHusqvarnaProductSearchQuery, (req, res) => husqvarnaOfficialController.productSearch(req, res));
 router.get('/husqvarna/products/:pnc/details', authMiddleware, (req, res) => husqvarnaOfficialController.productDetails(req, res));
 router.get('/husqvarna/parts/:code/details', authMiddleware, validatePartCodeParam, (req, res) => husqvarnaOfficialController.partDetails(req, res));
 router.post('/analytics/search-usage', authMiddleware, validateOperationalSearchUsage, (req, res) => workIntelligenceController.recordSearchUsage(req, res));
@@ -168,7 +170,7 @@ router.post('/admin/quality/benchmark', authMiddleware, adminOnly, tenantOperati
 router.post('/admin/quality/rebuild-knowledge', authMiddleware, adminOnly, tenantOperationSingleFlight('quality-rebuild-knowledge'), (req, res) => qualityController.rebuildKnowledge(req, res));
 router.post('/admin/quality/index-semantics', authMiddleware, adminOnly, tenantOperationSingleFlight('semantic-maintenance'), (req, res) => qualityController.indexSemantics(req, res));
 router.post('/admin/quality/clear-semantics', authMiddleware, adminOnly, tenantOperationSingleFlight('semantic-maintenance'), (req, res) => qualityController.clearSemantics(req, res));
-router.post('/admin/quality/retry-visual-catalogs', authMiddleware, adminOnly, (req, res) => qualityController.retryVisualCatalogs(req, res));
+router.post('/admin/quality/retry-visual-catalogs', authMiddleware, adminOnly, validateVisualCatalogRetryRequest, (req, res) => qualityController.retryVisualCatalogs(req, res));
 router.patch('/admin/quality/catalogs/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => qualityController.reviewDocument(req, res));
 router.post('/admin/quality/radar/resolve', authMiddleware, adminOnly, validateQualityRadarResolution, (req, res) => qualityController.resolveRadar(req, res));
 
