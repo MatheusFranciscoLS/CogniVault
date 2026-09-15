@@ -152,9 +152,9 @@ export function UsersPanel() {
           <input
             required
             minLength={15}
-                        maxLength={64}
             maxLength={64}
             type="password"
+            autoComplete="new-password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             placeholder="Senha inicial"
@@ -223,6 +223,9 @@ export function UsersPanel() {
                     <form onSubmit={e => void reset(e, user.id)} className="mt-3 flex gap-2">
                       <input
                         minLength={15}
+                        maxLength={64}
+                        type="password"
+                        autoComplete="new-password"
                         value={passwordDraft}
                         onChange={e => setPasswordDraft(e.target.value)}
                         placeholder="Nova senha"
