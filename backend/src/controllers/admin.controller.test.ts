@@ -30,6 +30,18 @@ test('admin user creation rejects malformed or oversized email before database a
   }
 });
 
+test('admin user creation and update reject passwords shorter than 15 characters before database access', async () => {
+  const create = capture();
+  await new AdminController().createUser(request({ email: 'novo@teste.com', password: 'x'.repeat(14) }), create.res);
+  assert.equal(create.read().statusCode, 400);
+  assert.match(create.read().payload?.error || '', /15/);
+
+  const update = capture();
+  await new AdminController().updateUser(request({ password: 'x'.repeat(14) }), update.res);
+  assert.equal(update.read().statusCode, 400);
+  assert.match(update.read().payload?.error || '', /15/);
+});
+
 test('admin user creation and update reject oversized passwords', async () => {
   const create = capture();
   await new AdminController().createUser(request({ email: 'novo@teste.com', password: 'x'.repeat(201) }), create.res);
