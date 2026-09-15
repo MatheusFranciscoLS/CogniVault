@@ -116,8 +116,8 @@ export function UsersPanel() {
 
   const reset = async (event: FormEvent, id: string) => {
     event.preventDefault();
-    if (passwordDraft.length < 15) {
-      setError('A nova senha precisa ter pelo menos 15 caracteres.');
+    if (passwordDraft.length < 15 || passwordDraft.length > 64 || new TextEncoder().encode(passwordDraft).length > 72) {
+      setError('A nova senha precisa ter entre 15 e 64 caracteres e respeitar o limite seguro do bcrypt.');
       return;
     }
     await update(id, { password: passwordDraft });
@@ -152,6 +152,8 @@ export function UsersPanel() {
           <input
             required
             minLength={15}
+                        maxLength={64}
+            maxLength={64}
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
