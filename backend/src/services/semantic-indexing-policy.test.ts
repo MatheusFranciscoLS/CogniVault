@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   consumeSemanticQueryBudget,
+  normalizeSemanticAdminBatchRequest,
   resetSemanticQueryBudgetForTests,
   semanticAdminBatchLimit,
   semanticChunkBudgetPerDocument,
@@ -31,6 +32,19 @@ test('limites semânticos ficam sempre dentro das faixas seguras', () => {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
   }
+});
+
+test('pedido administrativo semântico nunca deixa NaN ou infinito chegar ao SQL', () => {
+  const previous = process.env.SEMANTIC_ADMIN_BATCH_LIMIT;
+  process.env.SEMANTIC_ADMIN_BATCH_LIMIT = '120';
+  assert.equal(normalizeSemanticAdminBatchRequest(Number.NaN), 120);
+  assert.equal(normalizeSemanticAdminBatchRequest(Number.POSITIVE_INFINITY), 120);
+  assert.equal(normalizeSemanticAdminBatchRequest('não-numérico'), 120);
+  assert.equal(normalizeSemanticAdminBatchRequest(-50), 10);
+  assert.equal(normalizeSemanticAdminBatchRequest(12.9), 12);
+  assert.equal(normalizeSemanticAdminBatchRequest(9999), 120);
+  if (previous === undefined) delete process.env.SEMANTIC_ADMIN_BATCH_LIMIT;
+  else process.env.SEMANTIC_ADMIN_BATCH_LIMIT = previous;
 });
 
 test('freio horário interrompe apenas a semântica e reinicia na hora seguinte', () => {
