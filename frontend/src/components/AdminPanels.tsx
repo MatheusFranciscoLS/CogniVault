@@ -116,8 +116,8 @@ export function UsersPanel() {
 
   const reset = async (event: FormEvent, id: string) => {
     event.preventDefault();
-    if (passwordDraft.length < 6) {
-      setError('A nova senha precisa ter pelo menos 6 caracteres.');
+    if (passwordDraft.length < 15) {
+      setError('A nova senha precisa ter pelo menos 15 caracteres.');
       return;
     }
     await update(id, { password: passwordDraft });
@@ -151,7 +151,7 @@ export function UsersPanel() {
           />
           <input
             required
-            minLength={6}
+            minLength={15}
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
@@ -220,7 +220,7 @@ export function UsersPanel() {
                   {passwordUser === user.id && (
                     <form onSubmit={e => void reset(e, user.id)} className="mt-3 flex gap-2">
                       <input
-                        minLength={6}
+                        minLength={15}
                         value={passwordDraft}
                         onChange={e => setPasswordDraft(e.target.value)}
                         placeholder="Nova senha"
