@@ -141,10 +141,6 @@ class RabbitMQConnection {
         this.reconnectTimer.unref();
     }
 
-    onReconnect(listener: () => void | Promise<void>): void {
-        this.reconnectListeners.push(listener);
-    }
-
     private notifyReconnect(): void {
         for (const listener of this.reconnectListeners) {
             try {
