@@ -170,7 +170,7 @@ router.post('/admin/quality/benchmark', authMiddleware, adminOnly, tenantOperati
 router.post('/admin/quality/rebuild-knowledge', authMiddleware, adminOnly, tenantOperationSingleFlight('quality-rebuild-knowledge'), (req, res) => qualityController.rebuildKnowledge(req, res));
 router.post('/admin/quality/index-semantics', authMiddleware, adminOnly, tenantOperationSingleFlight('semantic-maintenance'), (req, res) => qualityController.indexSemantics(req, res));
 router.post('/admin/quality/clear-semantics', authMiddleware, adminOnly, tenantOperationSingleFlight('semantic-maintenance'), (req, res) => qualityController.clearSemantics(req, res));
-router.post('/admin/quality/retry-visual-catalogs', authMiddleware, adminOnly, validateVisualCatalogRetryRequest, (req, res) => qualityController.retryVisualCatalogs(req, res));
+router.post('/admin/quality/retry-visual-catalogs', authMiddleware, adminOnly, validateVisualCatalogRetryRequest, tenantOperationSingleFlight('visual-catalog-retry'), (req, res) => qualityController.retryVisualCatalogs(req, res));
 router.patch('/admin/quality/catalogs/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => qualityController.reviewDocument(req, res));
 router.post('/admin/quality/radar/resolve', authMiddleware, adminOnly, validateQualityRadarResolution, (req, res) => qualityController.resolveRadar(req, res));
 
