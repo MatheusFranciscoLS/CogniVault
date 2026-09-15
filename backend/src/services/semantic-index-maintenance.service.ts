@@ -3,6 +3,7 @@ import { GEMINI_EMBEDDING_MODEL, getGeminiClient } from '../config/gemini';
 import { prisma } from '../config/prisma';
 import { withTransientAIRetry } from '../utils/ai-retry';
 import {
+  normalizeSemanticAdminBatchRequest,
   semanticAdminBatchLimit,
   semanticDailyAdminRuns,
   semanticIndexingEnabled,
@@ -137,7 +138,7 @@ export async function indexNextSemanticBatch(tenantId: string, userId: string | 
   });
   if (runsToday >= semanticDailyAdminRuns()) throw new Error('SEMANTIC_DAILY_BUDGET_EXHAUSTED');
 
-  const limit = Math.min(semanticAdminBatchLimit(), Math.max(10, Math.trunc(requested)));
+  const limit = normalizeSemanticAdminBatchRequest(requested);
   const partLimit = Math.max(1, Math.ceil(limit * 0.8));
   const chunkLimit = Math.max(0, limit - partLimit);
   const [partCandidates, chunkCandidates] = await Promise.all([
