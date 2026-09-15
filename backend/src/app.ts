@@ -7,6 +7,7 @@ import { allowedCorsOrigins, isAllowedCorsOrigin } from './config/cors';
 import { rabbitMQ } from './queues/connection';
 import { requestPerformanceMiddleware } from './services/request-performance';
 import { createReadinessProbe } from './services/readiness-probe';
+import { uploadErrorResponse } from './services/upload-error-response';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import compression from 'compression';
@@ -133,34 +134,35 @@ app.use((_req, res) => {
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   const isUploadError = error instanceof multer.MulterError;
+  const multipartError = isUploadError ? uploadErrorResponse(error.code) : null;
   const isCustomUploadError = error instanceof Error && error.message === 'Somente arquivos PDF são permitidos.';
   const bodyErrorType = typeof error === 'object' && error !== null && 'type' in error
     ? String(error.type)
     : '';
   const isInvalidJson = error instanceof SyntaxError && bodyErrorType === 'entity.parse.failed';
   const isBodyTooLarge = bodyErrorType === 'entity.too.large';
-  const isUploadTooLarge = isUploadError && error.code === 'LIMIT_FILE_SIZE';
-  const isPayloadTooLarge = isUploadTooLarge || isBodyTooLarge;
   const status = error instanceof HttpError
     ? error.status
     : isCustomUploadError
       ? 400
-      : isPayloadTooLarge
-        ? 413
-        : isUploadError || isInvalidJson
-          ? 400
-          : 500;
+      : multipartError
+        ? multipartError.status
+        : isBodyTooLarge
+          ? 413
+          : isInvalidJson
+            ? 400
+            : 500;
   const message = error instanceof HttpError
     ? error.message
     : isCustomUploadError
       ? error.message
-      : isPayloadTooLarge
-        ? isUploadTooLarge ? 'O PDF excede o limite de 50 MB.' : 'O corpo da requisição excede o limite permitido.'
-        : isInvalidJson
-          ? 'O corpo JSON da requisição é inválido.'
-        : isUploadError
-          ? 'Não foi possível receber o arquivo enviado.'
-          : 'Erro interno do servidor.';
+      : multipartError
+        ? multipartError.message
+        : isBodyTooLarge
+          ? 'O corpo da requisição excede o limite permitido.'
+          : isInvalidJson
+            ? 'O corpo JSON da requisição é inválido.'
+            : 'Erro interno do servidor.';
 
   if (status >= 500) console.error('❌ Erro não tratado na API:', error);
   res.status(status).json({ error: message });
