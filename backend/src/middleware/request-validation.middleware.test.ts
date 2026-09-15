@@ -4,6 +4,7 @@ import { NextFunction, Request, Response } from 'express';
 import {
   validateEntityIdParam,
   validateFavoriteMutationBody,
+  validateHusqvarnaProductSearchQuery,
   validateModelParam,
   validateOfficialFallbackQuery,
   validateOperationalQuoteUsage,
@@ -12,6 +13,7 @@ import {
   validatePartLocationBody,
   validateQualityRadarResolution,
   validateSearchQuery,
+  validateVisualCatalogRetryRequest,
   validateWorkContextModel,
 } from './request-validation.middleware';
 
@@ -39,6 +41,13 @@ test('search query middleware rejects oversized and structured query values', ()
 test('official fallback query is capped before external services are called', () => {
   assert.equal(run(validateOfficialFallbackQuery, { query: { q: '9'.repeat(201) } as any }).statusCode, 400);
   assert.equal(run(validateOfficialFallbackQuery, { query: { q: '503808302' } as any }).nextCalled, true);
+});
+
+test('official product search rejects structured or oversized queries before upstream work', () => {
+  assert.equal(run(validateHusqvarnaProductSearchQuery, { query: { q: ['TS114'] } as any }).statusCode, 400);
+  assert.equal(run(validateHusqvarnaProductSearchQuery, { query: { q: { model: 'TS114' } } as any }).statusCode, 400);
+  assert.equal(run(validateHusqvarnaProductSearchQuery, { query: { q: 'x'.repeat(81) } as any }).statusCode, 400);
+  assert.equal(run(validateHusqvarnaProductSearchQuery, { query: { q: 'TS 114' } as any }).nextCalled, true);
 });
 
 test('part, model and generic entity guards reject pathological route input', () => {
@@ -88,4 +97,14 @@ test('quality radar resolution rejects structured and oversized payloads before 
   assert.equal(run(validateQualityRadarResolution, { body: { query: 'x'.repeat(501) } } as any).statusCode, 400);
   assert.equal(run(validateQualityRadarResolution, { body: { query: 'filtro', pnc: ['967983916'] } } as any).statusCode, 400);
   assert.equal(run(validateQualityRadarResolution, { body: { query: 'filtro', pnc: '9'.repeat(81) } } as any).statusCode, 400);
+});
+
+test('visual catalog retry accepts only integer limits between one and three', () => {
+  assert.equal(run(validateVisualCatalogRetryRequest, { body: {} } as any).nextCalled, true);
+  assert.equal(run(validateVisualCatalogRetryRequest, { body: { limit: 1 } } as any).nextCalled, true);
+  assert.equal(run(validateVisualCatalogRetryRequest, { body: { limit: '3' } } as any).nextCalled, true);
+  assert.equal(run(validateVisualCatalogRetryRequest, { body: { limit: Number.NaN } } as any).statusCode, 400);
+  assert.equal(run(validateVisualCatalogRetryRequest, { body: { limit: 1.5 } } as any).statusCode, 400);
+  assert.equal(run(validateVisualCatalogRetryRequest, { body: { limit: 4 } } as any).statusCode, 400);
+  assert.equal(run(validateVisualCatalogRetryRequest, { body: { limit: { value: 1 } } } as any).statusCode, 400);
 });
