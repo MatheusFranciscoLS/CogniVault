@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
+import { CATALOG_UPLOAD_LIMITS } from '../config/upload-limits';
 
 import { DocumentController } from '../controllers/document.controller';
 import { DocumentAccessController } from '../controllers/document-access.controller';
@@ -81,7 +82,7 @@ const catalogListController = new CatalogListController();
 
 const upload = multer({
   dest: 'uploads/',
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: CATALOG_UPLOAD_LIMITS,
   fileFilter: (_req, file, cb) => {
     const isPdfMime = file.mimetype === 'application/pdf';
     const isPdfExt = file.originalname.toLowerCase().endsWith('.pdf');
