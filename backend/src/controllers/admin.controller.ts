@@ -6,7 +6,8 @@ import { AuditService } from '../services/audit.service';
 
 const MAX_EMAIL_LENGTH = 254;
 const MIN_PASSWORD_LENGTH = 15;
-const MAX_PASSWORD_LENGTH = 200;
+const MAX_PASSWORD_LENGTH = 64;
+const MAX_BCRYPT_PASSWORD_BYTES = 72;
 const MAX_ENTITY_ID_LENGTH = 100;
 const SIMPLE_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -23,6 +24,15 @@ function validEmail(value: string): boolean {
         && normalized.length <= MAX_EMAIL_LENGTH
         && SIMPLE_EMAIL_PATTERN.test(normalized);
 }
+
+export function validAdminPassword(value: unknown): value is string {
+    return typeof value === 'string'
+        && value.length >= MIN_PASSWORD_LENGTH
+        && value.length <= MAX_PASSWORD_LENGTH
+        && Buffer.byteLength(value, 'utf8') <= MAX_BCRYPT_PASSWORD_BYTES;
+}
+
+const PASSWORD_REQUIREMENTS = `entre ${MIN_PASSWORD_LENGTH} e ${MAX_PASSWORD_LENGTH} caracteres e no máximo ${MAX_BCRYPT_PASSWORD_BYTES} bytes em UTF-8`;
 
 export class AdminController {
     async users(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -64,8 +74,8 @@ export class AdminController {
                 res.status(400).json({ error: 'Informe um e-mail válido de até 254 caracteres.' });
                 return;
             }
-            if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
-                res.status(400).json({ error: `A senha inicial precisa ter entre ${MIN_PASSWORD_LENGTH} e ${MAX_PASSWORD_LENGTH} caracteres.` });
+            if (!validAdminPassword(password)) {
+                res.status(400).json({ error: `A senha inicial precisa ter ${PASSWORD_REQUIREMENTS}.` });
                 return;
             }
             if (role !== undefined && role !== 'ADMIN' && role !== 'MECHANIC') {
@@ -121,8 +131,8 @@ export class AdminController {
                 res.status(400).json({ error: 'Usuário inválido.' });
                 return;
             }
-            if (password !== undefined && (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH)) {
-                res.status(400).json({ error: `A nova senha precisa ter entre ${MIN_PASSWORD_LENGTH} e ${MAX_PASSWORD_LENGTH} caracteres.` });
+            if (password !== undefined && !validAdminPassword(password)) {
+                res.status(400).json({ error: `A nova senha precisa ter ${PASSWORD_REQUIREMENTS}.` });
                 return;
             }
             if (role !== undefined && role !== 'ADMIN' && role !== 'MECHANIC') {
