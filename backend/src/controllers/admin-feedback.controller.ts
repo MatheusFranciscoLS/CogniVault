@@ -75,14 +75,13 @@ export class AdminFeedbackController {
         try {
             if (!req.user) return;
             const id = String(req.params.id);
-            const item = await prisma.searchFeedback.findFirst({
+            const deleted = await prisma.searchFeedback.deleteMany({
                 where: { id, tenantId: req.user.tenantId },
             });
-            if (!item) {
+            if (deleted.count !== 1) {
                 res.status(404).json({ error: 'Feedback não encontrado.' });
                 return;
             }
-            await prisma.searchFeedback.delete({ where: { id } });
             invalidateSearchFeedbackCache(req.user.tenantId);
             res.json({ message: 'Feedback removido com sucesso.' });
         } catch (error) {
