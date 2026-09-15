@@ -332,12 +332,18 @@ function normalizeProductName(value: unknown): string {
   return /^HUSQVARNA\b/i.test(raw) ? raw : `HUSQVARNA ${raw}`;
 }
 
+function isHostOrSubdomain(host: string, domain: string): boolean {
+  const normalizedHost = host.toLowerCase().replace(/\.$/, '');
+  const normalizedDomain = domain.toLowerCase().replace(/\.$/, '');
+  return normalizedHost === normalizedDomain || normalizedHost.endsWith(`.${normalizedDomain}`);
+}
+
 function safePortalUrl(value: unknown): string | null {
   const raw = String(value || '').trim();
   if (!raw) return null;
   try {
     const url = new URL(raw, PORTAL_ORIGIN);
-    if (url.protocol !== 'https:' || !url.hostname.endsWith('husqvarnagroup.com')) return null;
+    if (url.protocol !== 'https:' || !isHostOrSubdomain(url.hostname, 'husqvarnagroup.com')) return null;
     return url.toString();
   } catch {
     return null;
@@ -362,7 +368,7 @@ function officialMediaUrl(value: unknown): string | null {
     const url = new URL(raw, PORTAL_ORIGIN);
     const host = url.hostname.toLowerCase();
     if (url.protocol !== 'https:') return null;
-    if (!host.endsWith('husqvarnagroup.com') && !host.endsWith('husqvarna.com') && !host.endsWith('aprimocdn.net')) return null;
+    if (!isHostOrSubdomain(host, 'husqvarnagroup.com') && !isHostOrSubdomain(host, 'husqvarna.com') && !isHostOrSubdomain(host, 'aprimocdn.net')) return null;
     return url.toString();
   } catch {
     return null;
