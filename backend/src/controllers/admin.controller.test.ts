@@ -23,6 +23,8 @@ function request(body: Record<string, unknown>, id = 'user-target'): Authenticat
 }
 
 test('admin password policy requires 15-64 characters without exceeding bcrypt 72-byte input', () => {
+  assert.equal(validAdminPassword(undefined), false);
+  assert.equal(validAdminPassword(null), false);
   assert.equal(validAdminPassword('x'.repeat(14)), false);
   assert.equal(validAdminPassword('x'.repeat(15)), true);
   assert.equal(validAdminPassword('x'.repeat(64)), true);
