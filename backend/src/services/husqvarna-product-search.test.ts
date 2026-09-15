@@ -119,3 +119,52 @@ test('tolera results/resultItem como coleções ou objetos únicos', () => {
   assert.equal(results.length, 1);
   assert.equal(results[0].title, 'HUSQVARNA 55');
 });
+
+test('rejeita domínios parecidos que não são Husqvarna nem CDN aprovado', () => {
+  const payload = {
+    data: {
+      site: {
+        search: {
+          products: {
+            results: {
+              resultItem: [{
+                id: 'machine-lookalike',
+                url: 'https://evilhusqvarnagroup.com/br/produto/',
+                selectedArticle: '967052465',
+                name: { productName: 'HUSQVARNA 55' },
+                mainImageData: { url: 'https://fakehusqvarna.com/image.png' },
+                primaryArticle: { id: '967052465', name: 'HUSQVARNA 55' },
+              }],
+            },
+          },
+          documents: {
+            results: {
+              resultItem: [{
+                url: 'https://cdn-husqvarnagroup.com/manual.pdf',
+                publicationTitle: 'Documento falso',
+                publicationType: 'OM',
+              }],
+            },
+          },
+          categories: {
+            results: {
+              resultItem: [{
+                id: 'category-lookalike',
+                name: 'Categoria falsa',
+                url: 'https://not-husqvarnagroup.com/category',
+                image: { url: 'https://evilaprimocdn.net/category.png' },
+              }],
+            },
+          },
+        },
+      },
+    },
+  };
+
+  const results = parseHusqvarnaSearchPayload(payload);
+  const product = results.find(item => item.kind === 'PRODUCT');
+  assert.equal(product?.portalUrl, null);
+  assert.equal(product?.imageUrl, null);
+  assert.equal(results.some(item => item.kind === 'DOCUMENT'), false);
+  assert.equal(results.some(item => item.kind === 'CATEGORY'), false);
+});
