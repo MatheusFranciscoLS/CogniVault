@@ -1,7 +1,7 @@
 import { prisma } from '../config/prisma';
 import { AuditService } from './audit.service';
 import { DocumentService } from './document.service';
-import { isVisualQuotaFailure } from '../utils/visual-catalog-retry-policy';
+import { isVisualQuotaFailure, normalizeVisualRetryLimit } from '../utils/visual-catalog-retry-policy';
 
 const documentService = new DocumentService();
 
@@ -51,7 +51,7 @@ export async function visualCatalogRetryStatus(tenantId: string) {
 
 export async function retryEligibleVisualCatalogs(tenantId: string, userId: string | null, requested = 1) {
   const status = await visualCatalogRetryStatus(tenantId);
-  const limit = Math.min(3, Math.max(1, Math.trunc(requested)));
+  const limit = normalizeVisualRetryLimit(requested);
   const queued: Array<{ id: string; filename: string }> = [];
   const failures: Array<{ id: string; filename: string; error: string }> = [];
 
