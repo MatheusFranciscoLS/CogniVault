@@ -5,7 +5,12 @@ import { storageBucket, supabase } from '../config/supabase-storage';
 import { DocumentProducer } from '../queues/producer';
 import { repairMultipartText } from '../utils/text-encoding';
 import { isCatalogCategoryName } from './catalog-category';
-import { isDocumentBusy } from './document-processing-state';
+import {
+    idleDocumentReservationWhere,
+    isDocumentBusy,
+    reprocessableDocumentReservationWhere,
+    restorableDocumentLookupWhere,
+} from './document-processing-state';
 
 export interface UploadMetadata {
     manufacturer?: string;
@@ -214,15 +219,7 @@ export class DocumentService {
 
         const archivedAt = new Date();
         const reserved = await prisma.document.updateMany({
-            where: {
-                id: document.id,
-                tenantId,
-                archivedAt: null,
-                OR: [
-                    { status: 'FAILED' },
-                    { processingJobId: null, status: { notIn: ['PENDING', 'PROCESSING'] } },
-                ],
-            },
+            where: idleDocumentReservationWhere(document.id, tenantId),
             data: { archivedAt, archivedById: userId },
         });
         if (reserved.count !== 1) throw new Error('DOCUMENT_ALREADY_PROCESSING');
@@ -232,12 +229,7 @@ export class DocumentService {
 
     async restore(tenantId: string, documentId: string) {
         const document = await prisma.document.findFirst({
-            where: {
-                id: documentId,
-                tenantId,
-                archivedAt: { not: null },
-                processingStage: { notIn: ['REMOVING', 'REMOVED'] },
-            },
+            where: restorableDocumentLookupWhere(documentId, tenantId),
         });
 
         if (!document) throw new Error('DOCUMENT_NOT_FOUND');
@@ -292,16 +284,7 @@ export class DocumentService {
         const hasUsableCatalog = document.status === 'COMPLETED';
         const jobId = randomUUID();
         const locked = await prisma.document.updateMany({
-            where: {
-                id: document.id,
-                tenantId,
-                archivedAt: null,
-                processingStage: { notIn: ['REMOVING', 'REMOVED'] },
-                OR: [
-                    { processingJobId: null },
-                    { status: 'FAILED' },
-                ],
-            },
+            where: reprocessableDocumentReservationWhere(document.id, tenantId),
             data: {
                 status: hasUsableCatalog ? 'COMPLETED' : 'PENDING',
                 processingJobId: jobId,
@@ -346,15 +329,7 @@ export class DocumentService {
 
         const archivedAt = new Date();
         const reserved = await prisma.document.updateMany({
-            where: {
-                id: document.id,
-                tenantId,
-                archivedAt: null,
-                OR: [
-                    { status: 'FAILED' },
-                    { processingJobId: null, status: { notIn: ['PENDING', 'PROCESSING'] } },
-                ],
-            },
+            where: idleDocumentReservationWhere(document.id, tenantId),
             data: {
                 archivedAt,
                 archivedById: userId,
