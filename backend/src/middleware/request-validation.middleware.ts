@@ -6,6 +6,8 @@ import {
   parseOptionalOperationalText,
 } from '../services/operational-input-validation';
 
+const MAX_ENTITY_ID_LENGTH = 100;
+
 function stringQueryParam(req: Request, name: string): string | null {
   const value = req.query[name];
   if (value === undefined) return '';
@@ -34,6 +36,28 @@ export function validatePartCodeParam(req: Request, res: Response, next: NextFun
   const code = String(req.params.code || '').trim();
   if (!code || code.length > 80) {
     res.status(400).json({ error: 'Código da peça inválido.' });
+    return;
+  }
+  next();
+}
+
+export function validateEntityIdParam(req: Request, res: Response, next: NextFunction): void {
+  const id = typeof req.params.id === 'string' ? req.params.id.trim() : '';
+  if (!id || id.length > MAX_ENTITY_ID_LENGTH) {
+    res.status(400).json({ error: 'Identificador inválido.' });
+    return;
+  }
+  next();
+}
+
+export function validateFavoriteMutationBody(req: Request, res: Response, next: NextFunction): void {
+  const partId = parseOptionalOperationalText(req.body?.partId, MAX_ENTITY_ID_LENGTH);
+  const documentId = parseOptionalOperationalText(req.body?.documentId, MAX_ENTITY_ID_LENGTH);
+  const hasPartId = Boolean(partId.value);
+  const hasDocumentId = Boolean(documentId.value);
+
+  if (!partId.valid || !documentId.valid || hasPartId === hasDocumentId) {
+    res.status(400).json({ error: 'Informe exatamente uma peça ou um documento válido para favoritar.' });
     return;
   }
   next();
