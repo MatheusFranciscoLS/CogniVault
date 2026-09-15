@@ -18,6 +18,11 @@ test('archive and remove reservation require the document to still be active and
   });
 });
 
+test('failed documents remain recoverable even when they carry a stale processing job id', () => {
+  const where = idleDocumentReservationWhere('doc-1', 'tenant-1');
+  assert.deepEqual(where.OR?.[0], { status: 'FAILED' });
+});
+
 test('reprocess reservation cannot acquire archived, removing or removed documents', () => {
   assert.deepEqual(reprocessableDocumentReservationWhere('doc-1', 'tenant-1'), {
     id: 'doc-1',
