@@ -40,6 +40,7 @@ import {
   validateOperationalSearchUsage,
   validatePartCodeParam,
   validatePartLocationBody,
+  validateQualityRadarResolution,
   validateSearchQuery,
   validateWorkContextModel,
 } from '../middleware/request-validation.middleware';
@@ -169,6 +170,6 @@ router.post('/admin/quality/index-semantics', authMiddleware, adminOnly, tenantO
 router.post('/admin/quality/clear-semantics', authMiddleware, adminOnly, tenantOperationSingleFlight('semantic-maintenance'), (req, res) => qualityController.clearSemantics(req, res));
 router.post('/admin/quality/retry-visual-catalogs', authMiddleware, adminOnly, (req, res) => qualityController.retryVisualCatalogs(req, res));
 router.patch('/admin/quality/catalogs/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => qualityController.reviewDocument(req, res));
-router.post('/admin/quality/radar/resolve', authMiddleware, adminOnly, (req, res) => qualityController.resolveRadar(req, res));
+router.post('/admin/quality/radar/resolve', authMiddleware, adminOnly, validateQualityRadarResolution, (req, res) => qualityController.resolveRadar(req, res));
 
 export default router;
