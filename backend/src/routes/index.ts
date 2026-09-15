@@ -30,6 +30,8 @@ import { uploadConcurrencyMiddleware } from '../middleware/upload-concurrency.mi
 import { searchSingleFlightMiddleware } from '../middleware/search-single-flight.middleware';
 import { tenantOperationSingleFlight } from '../middleware/tenant-operation-single-flight.middleware';
 import {
+  validateEntityIdParam,
+  validateFavoriteMutationBody,
   validateModelParam,
   validateOfficialFallbackQuery,
   validateOperationalQuoteUsage,
@@ -119,41 +121,41 @@ router.get('/parts/:code/live-data', authMiddleware, validatePartCodeParam, (req
 router.get('/parts/:code/work-context', authMiddleware, validatePartCodeParam, validateWorkContextModel, (req, res) => workContextController.get(req, res));
 router.put('/parts/:code/location', authMiddleware, validatePartCodeParam, validatePartLocationBody, invalidateWorkContextAfterLocation, (req, res) => workIntelligenceController.setLocation(req, res));
 router.get('/models/:model/maintenance-kit', authMiddleware, validateModelParam, (req, res) => operationalController.maintenanceKit(req, res));
-router.get('/parts/:id', authMiddleware, (req, res) => partDetailController.get(req, res));
+router.get('/parts/:id', authMiddleware, validateEntityIdParam, (req, res) => partDetailController.get(req, res));
 router.get('/history', authMiddleware, (req, res) => operationalController.history(req, res));
 router.get('/favorites', authMiddleware, (req, res) => operationalController.favorites(req, res));
-router.post('/favorites', authMiddleware, invalidateFavoriteCachesAfterMutation, (req, res) => operationalController.addFavorite(req, res));
-router.delete('/favorites/:id', authMiddleware, invalidateFavoriteCachesAfterMutation, (req, res) => operationalController.removeFavorite(req, res));
+router.post('/favorites', authMiddleware, validateFavoriteMutationBody, invalidateFavoriteCachesAfterMutation, (req, res) => operationalController.addFavorite(req, res));
+router.delete('/favorites/:id', authMiddleware, validateEntityIdParam, invalidateFavoriteCachesAfterMutation, (req, res) => operationalController.removeFavorite(req, res));
 router.get('/notifications', authMiddleware, (req, res) => notificationController.list(req, res));
 
 router.get('/part-verifications', authMiddleware, (req, res) => officialPartVerificationController.list(req, res));
 router.get('/part-verifications/pending', authMiddleware, adminOnly, (req, res) => officialPartVerificationController.pending(req, res));
 router.get('/part-verifications/:code/history', authMiddleware, validatePartCodeParam, (req, res) => officialPartVerificationController.history(req, res));
 router.post('/part-verifications', authMiddleware, invalidateNotificationsAfterMutation, (req, res) => officialPartVerificationController.create(req, res));
-router.patch('/part-verifications/:id/decision', authMiddleware, adminOnly, invalidateNotificationsAfterMutation, (req, res) => officialPartVerificationController.decision(req, res));
+router.patch('/part-verifications/:id/decision', authMiddleware, adminOnly, validateEntityIdParam, invalidateNotificationsAfterMutation, (req, res) => officialPartVerificationController.decision(req, res));
 
 router.get('/documents', authMiddleware, (req, res) => catalogListController.list(req, res));
-router.get('/documents/:id/access', authMiddleware, (req, res) => documentAccessController.access(req, res));
-router.patch('/documents/:id/category', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.setCategory(req, res));
+router.get('/documents/:id/access', authMiddleware, validateEntityIdParam, (req, res) => documentAccessController.access(req, res));
+router.patch('/documents/:id/category', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.setCategory(req, res));
 router.post('/upload', authMiddleware, adminOnly, uploadConcurrencyMiddleware, upload.single('file'), invalidateDocumentAccessAfterMutation, (req, res) => documentController.upload(req, res));
-router.post('/documents/:id/archive', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.archive(req, res));
-router.post('/documents/:id/restore', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.restore(req, res));
-router.post('/documents/:id/reprocess', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.reprocess(req, res));
-router.post('/documents/:id/refresh-health', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.refreshHealth(req, res));
-router.delete('/documents/:id', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => documentController.remove(req, res));
+router.post('/documents/:id/archive', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.archive(req, res));
+router.post('/documents/:id/restore', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.restore(req, res));
+router.post('/documents/:id/reprocess', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.reprocess(req, res));
+router.post('/documents/:id/refresh-health', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.refreshHealth(req, res));
+router.delete('/documents/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.remove(req, res));
 
 router.post('/chat', authMiddleware, (req, res) => chatController.ask(req, res));
 router.post('/feedback', authMiddleware, invalidateAdminOverviewAfterMutation, (req, res) => feedbackController.create(req, res));
-router.patch('/feedback/:id', authMiddleware, (req, res) => feedbackController.update(req, res));
+router.patch('/feedback/:id', authMiddleware, validateEntityIdParam, (req, res) => feedbackController.update(req, res));
 
 router.get('/admin/overview', authMiddleware, adminOnly, (req, res) => adminOverviewController.get(req, res));
 router.get('/admin/performance', authMiddleware, adminOnly, (req, res) => performanceController.overview(req, res));
 router.get('/admin/commercial-imports', authMiddleware, adminOnly, (req, res) => commercialImportController.list(req, res));
 router.get('/admin/users', authMiddleware, adminOnly, (req, res) => adminController.users(req, res));
 router.post('/admin/users', authMiddleware, adminOnly, invalidateAdminOverviewAfterMutation, (req, res) => adminController.createUser(req, res));
-router.patch('/admin/users/:id', authMiddleware, adminOnly, invalidateAdminOverviewAfterMutation, (req, res) => adminController.updateUser(req, res));
+router.patch('/admin/users/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateAdminOverviewAfterMutation, (req, res) => adminController.updateUser(req, res));
 router.get('/admin/feedback', authMiddleware, adminOnly, (req, res) => adminFeedbackController.list(req, res));
-router.delete('/admin/feedback/:id', authMiddleware, adminOnly, invalidateAdminOverviewAfterMutation, (req, res) => adminFeedbackController.delete(req, res));
+router.delete('/admin/feedback/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateAdminOverviewAfterMutation, (req, res) => adminFeedbackController.delete(req, res));
 router.post('/admin/feedback/seed-knowledge', authMiddleware, adminOnly, tenantOperationSingleFlight('feedback-seed-knowledge'), invalidateAdminOverviewAfterMutation, (req, res) => adminFeedbackController.seedKnowledge(req, res));
 router.get('/admin/audit', authMiddleware, adminOnly, (req, res) => adminController.audit(req, res));
 router.get('/admin/quality', authMiddleware, adminOnly, (req, res) => qualityController.overview(req, res));
@@ -163,7 +165,7 @@ router.post('/admin/quality/rebuild-knowledge', authMiddleware, adminOnly, tenan
 router.post('/admin/quality/index-semantics', authMiddleware, adminOnly, tenantOperationSingleFlight('semantic-maintenance'), (req, res) => qualityController.indexSemantics(req, res));
 router.post('/admin/quality/clear-semantics', authMiddleware, adminOnly, tenantOperationSingleFlight('semantic-maintenance'), (req, res) => qualityController.clearSemantics(req, res));
 router.post('/admin/quality/retry-visual-catalogs', authMiddleware, adminOnly, (req, res) => qualityController.retryVisualCatalogs(req, res));
-router.patch('/admin/quality/catalogs/:id', authMiddleware, adminOnly, invalidateDocumentAccessAfterMutation, (req, res) => qualityController.reviewDocument(req, res));
+router.patch('/admin/quality/catalogs/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => qualityController.reviewDocument(req, res));
 router.post('/admin/quality/radar/resolve', authMiddleware, adminOnly, (req, res) => qualityController.resolveRadar(req, res));
 
 export default router;
