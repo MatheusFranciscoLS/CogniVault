@@ -238,7 +238,8 @@ export class DocumentWorker {
                                 console.warn(`🕒 Documento ${data.documentId} reagendado (ciclo ${retryNumber}).`);
                                 return;
                             } catch (retryQueueError) {
-                                console.error(`❌ Não foi possível reagendar ${data.documentId}:`, retryQueueError);
+                                console.error(`❌ Não foi possível publicar o retry de ${data.documentId}; preservando a mensagem original:`, retryQueueError);
+                                throw retryQueueError;
                             }
                         }
 
