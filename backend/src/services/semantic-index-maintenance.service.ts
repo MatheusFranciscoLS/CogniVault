@@ -57,6 +57,12 @@ async function pendingChunks(tenantId: string, limit: number): Promise<PendingSe
   `);
 }
 
+export function semanticBackfillWriteGuard(table: 'Part' | 'DocumentChunk', revision: number) {
+  return table === 'Part'
+    ? { active: true, extractionRevision: revision }
+    : { revision };
+}
+
 async function embedRows(rows: PendingSemanticRow[], table: 'Part' | 'DocumentChunk'): Promise<number> {
   if (!rows.length) return 0;
   const ai = await getGeminiClient();
@@ -81,20 +87,24 @@ async function embedRows(rows: PendingSemanticRow[], table: 'Part' | 'DocumentCh
         const values = embeddings[index]?.values;
         if (!values || values.length !== 768) throw new Error('Embedding inválido no lote administrativo.');
         const vector = `[${values.join(',')}]`;
+        let updated = 0;
         if (table === 'Part') {
-          await tx.$executeRaw`
+          updated = await tx.$executeRaw`
             UPDATE "Part" SET "embedding" = ${vector}::vector, "embeddingRevision" = ${row.revision}
-            WHERE "id" = ${row.id} AND "active" = true
+            WHERE "id" = ${row.id}
+              AND "active" = true
+              AND "extractionRevision" = ${row.revision}
           `;
         } else {
-          await tx.$executeRaw`
+          updated = await tx.$executeRaw`
             UPDATE "DocumentChunk" SET "embedding" = ${vector}::vector, "embeddingRevision" = ${row.revision}
             WHERE "id" = ${row.id}
+              AND "revision" = ${row.revision}
           `;
         }
+        indexed += updated;
       }
     }, { maxWait: 10_000, timeout: 60_000 });
-    indexed += batch.length;
   }
   return indexed;
 }
