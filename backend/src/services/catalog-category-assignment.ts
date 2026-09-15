@@ -1,6 +1,21 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { inferCatalogCategory } from './catalog-category';
 import { repairAutoDetectedDocumentMetadata } from './catalog-metadata-repair';
+
+export function automaticCategoryAssignmentWhere(
+    documentId: string,
+    tenantId: string,
+    observedCategoryId: string | null,
+    observedMetadataReviewedAt: Date | null,
+): Prisma.DocumentWhereInput {
+    return {
+        id: documentId,
+        tenantId,
+        categoryId: observedCategoryId,
+        metadataReviewedAt: observedMetadataReviewedAt,
+    };
+}
 
 /**
  * Garante que metadados automáticos suspeitos sejam reparados pela política
@@ -58,10 +73,25 @@ export async function ensureCatalogCategory(documentId: string, tenantId: string
         create: { name: categoryName, tenantId },
     });
 
-    await prisma.document.update({
-        where: { id: document.id },
+    // Compare-and-set: uma escolha/revisão manual feita depois da leitura acima
+    // deve vencer a classificação automática, nunca ser sobrescrita por ela.
+    const assigned = await prisma.document.updateMany({
+        where: automaticCategoryAssignmentWhere(
+            document.id,
+            tenantId,
+            document.categoryId,
+            document.metadataReviewedAt,
+        ),
         data: { categoryId: category.id },
     });
+
+    if (assigned.count === 0) {
+        const current = await prisma.document.findFirst({
+            where: { id: document.id, tenantId },
+            select: { category: { select: { name: true } } },
+        });
+        return current?.category?.name ?? null;
+    }
 
     return category.name;
 }
