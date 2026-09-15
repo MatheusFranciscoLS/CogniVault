@@ -42,6 +42,18 @@ test('admin user creation and update reject passwords shorter than 15 characters
   assert.match(update.read().payload?.error || '', /15/);
 });
 
+test('admin user creation and update reject structured password payloads before database access', async () => {
+  for (const password of [{ value: 'x'.repeat(15) }, ['x'.repeat(15)]]) {
+    const create = capture();
+    await new AdminController().createUser(request({ email: 'novo@teste.com', password }), create.res);
+    assert.equal(create.read().statusCode, 400);
+
+    const update = capture();
+    await new AdminController().updateUser(request({ password }), update.res);
+    assert.equal(update.read().statusCode, 400);
+  }
+});
+
 test('admin user creation and update reject oversized passwords', async () => {
   const create = capture();
   await new AdminController().createUser(request({ email: 'novo@teste.com', password: 'x'.repeat(201) }), create.res);
