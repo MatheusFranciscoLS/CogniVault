@@ -10,6 +10,7 @@ import {
   validateOperationalSearchUsage,
   validatePartCodeParam,
   validatePartLocationBody,
+  validateQualityRadarResolution,
   validateSearchQuery,
   validateWorkContextModel,
 } from './request-validation.middleware';
@@ -77,4 +78,14 @@ test('part location validation accepts text only and keeps note bounded', () => 
   assert.equal(run(validatePartLocationBody, { body: { location: 'Corredor A', note: 'Prateleira 2' } } as any).nextCalled, true);
   assert.equal(run(validatePartLocationBody, { body: { location: ['Corredor A'], note: '' } } as any).statusCode, 400);
   assert.equal(run(validatePartLocationBody, { body: { location: 'Corredor A', note: 'x'.repeat(501) } } as any).statusCode, 400);
+});
+
+test('quality radar resolution rejects structured and oversized payloads before database work', () => {
+  assert.equal(run(validateQualityRadarResolution, { body: { all: true } } as any).nextCalled, true);
+  assert.equal(run(validateQualityRadarResolution, { body: { all: 'true' } } as any).statusCode, 400);
+  assert.equal(run(validateQualityRadarResolution, { body: { query: 'filtro 143RII', pnc: '967983916' } } as any).nextCalled, true);
+  assert.equal(run(validateQualityRadarResolution, { body: { query: { text: 'filtro' } } } as any).statusCode, 400);
+  assert.equal(run(validateQualityRadarResolution, { body: { query: 'x'.repeat(501) } } as any).statusCode, 400);
+  assert.equal(run(validateQualityRadarResolution, { body: { query: 'filtro', pnc: ['967983916'] } } as any).statusCode, 400);
+  assert.equal(run(validateQualityRadarResolution, { body: { query: 'filtro', pnc: '9'.repeat(81) } } as any).statusCode, 400);
 });
