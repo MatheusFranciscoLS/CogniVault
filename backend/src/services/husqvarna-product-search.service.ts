@@ -170,13 +170,19 @@ export type HusqvarnaOfficialSearchResult = {
 type SearchCacheEntry = { results: HusqvarnaOfficialSearchResult[] };
 const cache = new LRUCache<string, SearchCacheEntry>({ max: 300, ttl: 15 * 60 * 1000 });
 
+function isHostOrSubdomain(host: string, domain: string): boolean {
+  const normalizedHost = host.toLowerCase().replace(/\.$/, '');
+  const normalizedDomain = domain.toLowerCase().replace(/\.$/, '');
+  return normalizedHost === normalizedDomain || normalizedHost.endsWith(`.${normalizedDomain}`);
+}
+
 function safePortalUrl(value: unknown, pnc?: string | null): string | null {
   const raw = String(value || '').trim();
   if (!raw) return null;
   try {
     const url = new URL(raw, PORTAL_ORIGIN);
     const host = url.hostname.toLowerCase();
-    if (url.protocol !== 'https:' || !host.endsWith('husqvarnagroup.com')) return null;
+    if (url.protocol !== 'https:' || !isHostOrSubdomain(host, 'husqvarnagroup.com')) return null;
     if (pnc && host === 'portal.husqvarnagroup.com' && !/\/spare-parts\/?$/i.test(url.pathname)) {
       url.searchParams.set('article', pnc);
     }
@@ -193,7 +199,7 @@ function safeMediaUrl(value: unknown): string | null {
     const url = new URL(raw, PORTAL_ORIGIN);
     const host = url.hostname.toLowerCase();
     if (url.protocol !== 'https:') return null;
-    if (!host.endsWith('husqvarnagroup.com') && !host.endsWith('husqvarna.com') && !host.endsWith('aprimocdn.net')) return null;
+    if (!isHostOrSubdomain(host, 'husqvarnagroup.com') && !isHostOrSubdomain(host, 'husqvarna.com') && !isHostOrSubdomain(host, 'aprimocdn.net')) return null;
     return url.toString();
   } catch {
     return null;
