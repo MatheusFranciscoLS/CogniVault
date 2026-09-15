@@ -32,6 +32,15 @@ export function validateOfficialFallbackQuery(req: Request, res: Response, next:
   next();
 }
 
+export function validateHusqvarnaProductSearchQuery(req: Request, res: Response, next: NextFunction): void {
+  const query = stringQueryParam(req, 'q');
+  if (query === null || query.length > 80) {
+    res.status(400).json({ error: 'Consulta de produto Husqvarna inválida ou muito longa.' });
+    return;
+  }
+  next();
+}
+
 export function validatePartCodeParam(req: Request, res: Response, next: NextFunction): void {
   const code = String(req.params.code || '').trim();
   if (!code || code.length > 80) {
@@ -134,6 +143,24 @@ export function validateQualityRadarResolution(req: Request, res: Response, next
   const pnc = parseOptionalOperationalText(req.body?.pnc, 80);
   if (!query || !pnc.valid) {
     res.status(400).json({ error: 'Consulta ou PNC do radar inválido.' });
+    return;
+  }
+  next();
+}
+
+export function validateVisualCatalogRetryRequest(req: Request, res: Response, next: NextFunction): void {
+  const requested = req.body?.limit;
+  if (requested === undefined) {
+    next();
+    return;
+  }
+  if ((typeof requested !== 'number' && typeof requested !== 'string') || String(requested).trim() === '') {
+    res.status(400).json({ error: 'Limite da retentativa visual inválido.' });
+    return;
+  }
+  const parsed = Number(requested);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 1 || parsed > 3) {
+    res.status(400).json({ error: 'O limite da retentativa visual deve ser um inteiro entre 1 e 3.' });
     return;
   }
   next();
