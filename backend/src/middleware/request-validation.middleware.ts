@@ -118,3 +118,23 @@ export function validatePartLocationBody(req: Request, res: Response, next: Next
   }
   next();
 }
+
+export function validateQualityRadarResolution(req: Request, res: Response, next: NextFunction): void {
+  const all = req.body?.all;
+  if (all !== undefined && typeof all !== 'boolean') {
+    res.status(400).json({ error: 'Opção de resolução do radar inválida.' });
+    return;
+  }
+  if (all === true) {
+    next();
+    return;
+  }
+
+  const query = parseOperationalText(req.body?.query, 500);
+  const pnc = parseOptionalOperationalText(req.body?.pnc, 80);
+  if (!query || !pnc.valid) {
+    res.status(400).json({ error: 'Consulta ou PNC do radar inválido.' });
+    return;
+  }
+  next();
+}
