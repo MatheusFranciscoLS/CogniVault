@@ -3,9 +3,17 @@
   "git": {
     "deploymentEnabled": {
       "feature/*": false,
-      "promote/*": false,
+      "feat/*": false,
       "fix/*": false,
+      "ci/*": false,
       "chore/*": false,
+      "security/*": false,
+      "perf/*": false,
+      "docs/*": false,
+      "test/*": false,
+      "ops/*": false,
+      "refactor/*": false,
+      "promote/*": false,
       "main": true
     }
   },
