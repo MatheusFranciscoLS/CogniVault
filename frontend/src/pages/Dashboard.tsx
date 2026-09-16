@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ShellV2 from '../components/ShellV2';
 import TechnicalAssistantWorkspace from '../components/parts-v2/TechnicalAssistantWorkspace';
-import CatalogsPanel from '../components/CatalogsPanel';
+import CatalogsWorkspace from '../components/CatalogsWorkspace';
 import { apiJson, clearSession, getToken, SESSION_EXPIRED_EVENT } from '../lib';
 import type { Section, SessionUser } from '../types';
 import '../assistant.css';
@@ -12,8 +12,8 @@ const UsersPanel = lazy(() => import('../components/AdminPanels').then(module =>
 const AuditPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.AuditPanel })));
 const AdminFeedbackPanel = lazy(() => import('../components/AdminFeedbackPanel'));
 const QualityPanel = lazy(() => import('../components/QualityPanel'));
-const HistoryPanel = lazy(() => import('../components/SavedItemsPanels').then(module => ({ default: module.HistoryPanel })));
-const FavoritesPanel = lazy(() => import('../components/SavedItemsPanels').then(module => ({ default: module.FavoritesPanel })));
+const HistoryWorkspace = lazy(() => import('../components/HistoryWorkspace'));
+const FavoritesWorkspace = lazy(() => import('../components/FavoritesWorkspace'));
 const SavedQuotesPanel = lazy(() => import('../components/SavedQuotesPanel'));
 
 function cleanNavigationValue(value: string | null | undefined) {
@@ -166,7 +166,7 @@ export default function Dashboard() {
       )}
 
       {section === 'catalogs' && (
-        <CatalogsPanel
+        <CatalogsWorkspace
           key={catalogFilter || 'all-catalogs'}
           initialSearch={catalogFilter}
           admin={user.role === 'ADMIN'}
@@ -177,8 +177,8 @@ export default function Dashboard() {
 
       <Suspense fallback={<PanelLoading />}>
         {section === 'quotes' && <SavedQuotesPanel />}
-        {section === 'history' && <HistoryPanel onSearch={search} />}
-        {section === 'favorites' && <FavoritesPanel onSearch={search} />}
+        {section === 'history' && <HistoryWorkspace onSearch={search} />}
+        {section === 'favorites' && <FavoritesWorkspace onSearch={search} />}
         {section === 'overview' && user.role === 'ADMIN' && <OverviewPanel />}
         {section === 'users' && user.role === 'ADMIN' && <UsersPanel />}
         {section === 'feedback' && user.role === 'ADMIN' && <AdminFeedbackPanel />}
