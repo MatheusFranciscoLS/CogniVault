@@ -7,6 +7,7 @@ import { apiJson, clearSession, getToken, SESSION_EXPIRED_EVENT } from '../lib';
 import type { Section, SessionUser } from '../types';
 import '../assistant.css';
 import '../admin-polish.css';
+import '../quality-polish.css';
 
 const OverviewPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.OverviewPanel })));
 const UsersPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.UsersPanel })));
@@ -183,7 +184,7 @@ export default function Dashboard() {
         {section === 'overview' && user.role === 'ADMIN' && <OverviewPanel />}
         {section === 'users' && user.role === 'ADMIN' && <UsersPanel />}
         {section === 'feedback' && user.role === 'ADMIN' && <AdminFeedbackPanel />}
-        {section === 'quality' && user.role === 'ADMIN' && <QualityPanel onSearch={search} />}
+        {section === 'quality' && user.role === 'ADMIN' && <div className="cv-quality-workspace"><QualityPanel onSearch={search} /></div>}
         {section === 'audit' && user.role === 'ADMIN' && <AuditPanel />}
       </Suspense>
     </ShellV2>
