@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import type { SearchIntent } from './chat-intent.service';
+import { shouldRunFuzzyPartRetrieval } from './hybrid-retrieval-policy';
 import { lexicalTerms } from './part-vocabulary';
 
 export type HybridTextSource = 'FULL_TEXT' | 'FUZZY';
@@ -28,6 +29,8 @@ export interface HybridTextCandidateRow {
   score: number;
   source: HybridTextSource;
 }
+
+const fullTextInFlight = new Map<string, Promise<HybridTextCandidateRow[]>>();
 
 export function meaningfulHybridQuery(question: string, intent: SearchIntent): string {
   const terms = lexicalTerms(intent.partDescription || question, [
@@ -56,6 +59,16 @@ function contextFilters(tenantId: string, intent: SearchIntent): Prisma.Sql[] {
   return filters;
 }
 
+function retrievalKey(tenantId: string, query: string, intent: SearchIntent): string {
+  return [
+    tenantId,
+    normalizeIdentifier(intent.model),
+    normalizeIdentifier(intent.manufacturer),
+    normalizeIdentifier(intent.pnc),
+    query,
+  ].join(':');
+}
+
 const PART_SELECT = Prisma.sql`
   p."id", p."documentId", d."filename", p."manufacturer", p."model", p."normalizedModel",
   p."pnc", p."normalizedPnc", p."universalAcrossPnc", p."section", p."position", p."name",
@@ -77,25 +90,35 @@ export async function fullTextPartCandidates(
   if (query.length < 2) return [];
   const filters = contextFilters(tenantId, intent);
   const take = Math.max(1, Math.min(80, Math.trunc(limit)));
+  const key = retrievalKey(tenantId, query, intent);
 
   type Raw = Omit<HybridTextCandidateRow, 'score' | 'source'> & { score: number | string };
-  const rows = await prisma.$queryRaw<Raw[]>(Prisma.sql`
-    SELECT ${PART_SELECT},
-      ts_rank_cd(
-        to_tsvector('simple'::regconfig, COALESCE(p."searchText", '')),
-        websearch_to_tsquery('simple'::regconfig, ${query}),
-        32
-      ) AS "score"
-    FROM "Part" p
-    INNER JOIN "Document" d ON d."id" = p."documentId"
-    WHERE ${Prisma.join(filters, ' AND ')}
-      AND to_tsvector('simple'::regconfig, COALESCE(p."searchText", ''))
-          @@ websearch_to_tsquery('simple'::regconfig, ${query})
-    ORDER BY "score" DESC, p."name" ASC
-    LIMIT ${take}
-  `);
+  const task = (async () => {
+    const rows = await prisma.$queryRaw<Raw[]>(Prisma.sql`
+      SELECT ${PART_SELECT},
+        ts_rank_cd(
+          to_tsvector('simple'::regconfig, COALESCE(p."searchText", '')),
+          websearch_to_tsquery('simple'::regconfig, ${query}),
+          32
+        ) AS "score"
+      FROM "Part" p
+      INNER JOIN "Document" d ON d."id" = p."documentId"
+      WHERE ${Prisma.join(filters, ' AND ')}
+        AND to_tsvector('simple'::regconfig, COALESCE(p."searchText", ''))
+            @@ websearch_to_tsquery('simple'::regconfig, ${query})
+      ORDER BY "score" DESC, p."name" ASC
+      LIMIT ${take}
+    `);
 
-  return rows.map(row => ({ ...row, score: Number(row.score), source: 'FULL_TEXT' }));
+    return rows.map(row => ({ ...row, score: Number(row.score), source: 'FULL_TEXT' as const }));
+  })();
+
+  fullTextInFlight.set(key, task);
+  try {
+    return await task;
+  } finally {
+    if (fullTextInFlight.get(key) === task) fullTextInFlight.delete(key);
+  }
 }
 
 /**
@@ -106,6 +129,10 @@ export async function fullTextPartCandidates(
  * a expressão direta é a mesma usada pelo GIN Part_searchText_direct_gin_idx.
  * Além de preservar a busca case-insensitive do pg_trgm, evita sequential scan
  * de todas as peças quando não há modelo/PNC para reduzir o conjunto primeiro.
+ *
+ * Quando a busca full-text da mesma requisição já encontrou evidência suficiente,
+ * o fuzzy é pulado. Isso remove o caminho pg_trgm caro das consultas normais e
+ * mantém a tolerância a erros de digitação quando o FTS é insuficiente.
  */
 export async function fuzzyPartCandidates(
   tenantId: string,
@@ -118,6 +145,17 @@ export async function fuzzyPartCandidates(
   const normalizedQuery = normalizeText(query);
   const filters = contextFilters(tenantId, intent);
   const take = Math.max(1, Math.min(80, Math.trunc(limit)));
+  const key = retrievalKey(tenantId, query, intent);
+  const fullTextTask = fullTextInFlight.get(key);
+
+  if (fullTextTask) {
+    try {
+      const fullTextRows = await fullTextTask;
+      if (!shouldRunFuzzyPartRetrieval(fullTextRows.length)) return [];
+    } catch {
+      // Se o FTS falhar, fuzzy continua como caminho de resiliência.
+    }
+  }
 
   type Raw = Omit<HybridTextCandidateRow, 'score' | 'source'> & { score: number | string };
   const rows = await prisma.$queryRaw<Raw[]>(Prisma.sql`
