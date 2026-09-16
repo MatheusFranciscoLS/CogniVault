@@ -1,4 +1,5 @@
-export const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3333').replace(/\/$/, '');
+const configuredApiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3333').replace(/\/$/, '');
+export const API_URL = import.meta.env.PROD ? '' : configuredApiUrl;
 export const SESSION_EXPIRED_EVENT = 'cognivault:session-expired';
 
 export type ApiRequestInit = RequestInit & { timeoutMs?: number };
@@ -50,6 +51,7 @@ export function ensureApiReady(maxWaitMs = 75_000): Promise<boolean> {
         const response = await fetch(`${API_URL}/health/live`, {
           method: 'HEAD',
           cache: 'no-store',
+          credentials: 'include',
           signal: controller.signal,
         });
         if (response.ok) {
@@ -83,8 +85,10 @@ export function clearSession() {
 export async function api(path: string, init: ApiRequestInit = {}) {
   const { timeoutMs = 30_000, signal: callerSignal, ...requestInit } = init;
   const headers = new Headers(init.headers);
-  const token = getToken();
-  if (token) headers.set('Authorization', `Bearer ${token}`);
+  // Compatibilidade temporária para sessões abertas antes da migração para cookie.
+  // Logins novos não persistem mais o JWT no JavaScript.
+  const legacyToken = getToken();
+  if (legacyToken) headers.set('Authorization', `Bearer ${legacyToken}`);
 
   const controller = new AbortController();
   const abortFromCaller = () => controller.abort(callerSignal?.reason);
@@ -103,11 +107,12 @@ export async function api(path: string, init: ApiRequestInit = {}) {
     const response = await fetch(`${API_URL}${path}`, {
       ...requestInit,
       headers,
+      credentials: 'include',
       signal: controller.signal,
     });
     markApiReady();
 
-    if (response.status === 401 && token) {
+    if (response.status === 401) {
       clearSession();
       window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
     }
