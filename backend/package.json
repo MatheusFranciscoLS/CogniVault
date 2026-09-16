@@ -9,6 +9,7 @@
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
     "benchmark:parts": "npm run build && node dist/scripts/run-part-benchmark.js",
     "benchmark:parts:full": "npm run build && node dist/scripts/run-part-benchmark.js --full",
+    "benchmark:portfolio": "npm run build && node dist/scripts/run-portfolio-coverage.js",
     "import:price-list": "tsx src/scripts/import-price-list-with-history.ts",
     "import:price-list:core": "tsx src/scripts/import-price-list.ts",
     "audit:catalogs": "tsx src/scripts/audit-catalog-integrity.ts",
@@ -42,6 +43,7 @@
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
+    "@types/amqpblib": "^0.10.8",
     "@types/amqplib": "^0.10.8",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
