@@ -12,6 +12,12 @@ export type KnowledgeBackfillResult = {
   failures: Array<{ documentId: string; filename: string; error: string }>;
 };
 
+export function isKnowledgeMaintenanceConcurrencySkip(message: string): boolean {
+  return message === 'DOCUMENT_PROCESSING'
+    || message === 'STALE_DOCUMENT_MEMORY_REVISION'
+    || message === 'CATALOG_HEALTH_STALE';
+}
+
 export async function rebuildTenantTechnicalKnowledge(
   tenantId: string,
   limit = 250,
@@ -80,7 +86,7 @@ export async function rebuildTenantTechnicalKnowledge(
       result.processed += 1;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (message === 'DOCUMENT_PROCESSING' || message === 'STALE_DOCUMENT_MEMORY_REVISION') {
+      if (isKnowledgeMaintenanceConcurrencySkip(message)) {
         result.skippedProcessing += 1;
         continue;
       }
