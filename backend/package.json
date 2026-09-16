@@ -8,6 +8,7 @@
     "build": "tsc",
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
     "benchmark:parts": "npm run build && node dist/scripts/run-part-benchmark.js",
+    "benchmark:parts:ci": "npm run build && node dist/scripts/run-ci-search-gate.js",
     "benchmark:parts:full": "npm run build && node dist/scripts/run-part-benchmark.js --full",
     "benchmark:parts:release": "npm run build && node dist/scripts/run-part-benchmark.js --release",
     "benchmark:parts:portfolio": "npm run build && node dist/scripts/run-part-benchmark.js --portfolio",
