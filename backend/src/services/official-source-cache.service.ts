@@ -19,8 +19,6 @@ export type OfficialSourceCacheResult<T> = {
   changedAt: Date | null;
 };
 
-type CacheEnvelope<T> = { value: T | null };
-
 const inflight = new Map<string, Promise<OfficialSourceCacheResult<unknown>>>();
 
 function envNumber(name: string, fallback: number): number {
@@ -54,8 +52,8 @@ function fingerprint(value: unknown): string {
     .digest('hex');
 }
 
-function envelope<T>(value: T | null): Prisma.InputJsonValue {
-  return { value: value as Prisma.InputJsonValue | null } as Prisma.InputJsonValue;
+function envelope<T>(value: T): Prisma.InputJsonValue {
+  return { value: value as Prisma.InputJsonValue };
 }
 
 function unwrap<T>(payload: Prisma.JsonValue): T | null {
@@ -137,7 +135,7 @@ async function refresh<T>(
 
   return {
     value: loaded,
-    state: existing ? 'MISS' : 'MISS',
+    state: 'MISS',
     fetchedAt: saved.fetchedAt,
     changedAt: saved.changedAt,
   };
