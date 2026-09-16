@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { LRUCache } from 'lru-cache';
 import { prisma } from '../config/prisma';
+import { readSessionCookie } from '../utils/session-cookie';
 
 function getJwtSecret(): string {
     const secret = process.env.JWT_SECRET;
@@ -66,25 +67,30 @@ export function invalidateUserAuthCache(userId?: string): void {
     }
 }
 
+export function requestAuthToken(req: Request): string {
+    const cookieToken = readSessionCookie(req);
+    if (cookieToken) return cookieToken;
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return '';
+    const parts = authHeader.split(' ');
+    if (parts.length !== 2 || parts[0] !== 'Bearer') return '';
+    return parts[1] || '';
+}
+
 export async function authMiddleware(
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction,
 ): Promise<void> {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) {
-            res.status(401).json({ error: 'Token de autenticação não informado.' });
+        const token = requestAuthToken(req);
+        if (!token) {
+            res.status(401).json({ error: 'Sessão de autenticação não informada.' });
             return;
         }
 
-        const parts = authHeader.split(' ');
-        if (parts.length !== 2 || parts[0] !== 'Bearer') {
-            res.status(401).json({ error: 'Formato do token inválido. Use: Bearer TOKEN' });
-            return;
-        }
-
-        const decoded = jwt.verify(parts[1], getJwtSecret(), { algorithms: ['HS256'] });
+        const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] });
         if (typeof decoded !== 'object' || decoded === null) {
             res.status(401).json({ error: 'Token inválido.' });
             return;
