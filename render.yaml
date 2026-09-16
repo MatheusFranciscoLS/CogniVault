@@ -6,7 +6,7 @@ services:
     region: oregon
     branch: main
     autoDeployTrigger: checksPass
-    buildCommand: cd backend && npm ci && npx prisma generate && npx prisma migrate deploy && npm run build
+    buildCommand: cd backend && npm ci --prefix . --workspaces=false && npx prisma generate && npx prisma migrate deploy && npm run build
     startCommand: cd backend && npm start
     healthCheckPath: /health/live
     envVars:

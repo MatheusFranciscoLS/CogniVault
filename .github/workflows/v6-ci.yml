@@ -49,10 +49,10 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: backend/package-lock.json
-      - run: npm ci
+      - run: npm ci --prefix . --workspaces=false
       # npm ci reports advisories but does not fail on them; keep security explicit.
       - name: Block high-severity dependency vulnerabilities
-        run: npm audit --audit-level=high
+        run: npm audit --prefix . --workspaces=false --audit-level=high
       - run: npx prisma validate
       - run: npx prisma generate
       - name: Apply full migration chain on clean PostgreSQL
@@ -75,10 +75,10 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
+      - run: npm ci --prefix . --workspaces=false
       # Apply the same dependency policy to code shipped to the browser.
       - name: Block high-severity dependency vulnerabilities
-        run: npm audit --audit-level=high
+        run: npm audit --prefix . --workspaces=false --audit-level=high
       - run: npm run lint
       - run: npm run build
 
@@ -121,7 +121,7 @@ jobs:
       - name: Prepare E2E backend
         working-directory: backend
         run: |
-          npm ci
+          npm ci --prefix . --workspaces=false
           npx prisma generate
           npx prisma migrate deploy
           npm run seed:e2e
@@ -143,9 +143,9 @@ jobs:
       - name: Prepare Playwright and frontend
         working-directory: frontend
         run: |
-          npm ci
-          npm install --no-save --no-package-lock @playwright/test@1.63.0
-          npm audit --audit-level=high
+          npm ci --prefix . --workspaces=false
+          npm install --prefix . --workspaces=false --no-save --no-package-lock @playwright/test@1.63.0
+          npm audit --prefix . --workspaces=false --audit-level=high
           npx playwright install --with-deps chromium
           nohup npm run dev -- --host 0.0.0.0 >/tmp/cognivault-frontend.log 2>&1 &
       - name: Wait for E2E frontend
