@@ -5,6 +5,7 @@ import TechnicalAssistantWorkspace from '../components/parts-v2/TechnicalAssista
 import CatalogsPanel from '../components/CatalogsPanel';
 import { apiJson, clearSession, getToken, SESSION_EXPIRED_EVENT } from '../lib';
 import type { Section, SessionUser } from '../types';
+import '../assistant.css';
 
 const OverviewPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.OverviewPanel })));
 const UsersPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.UsersPanel })));
@@ -14,6 +15,11 @@ const QualityPanel = lazy(() => import('../components/QualityPanel'));
 const HistoryPanel = lazy(() => import('../components/SavedItemsPanels').then(module => ({ default: module.HistoryPanel })));
 const FavoritesPanel = lazy(() => import('../components/SavedItemsPanels').then(module => ({ default: module.FavoritesPanel })));
 const SavedQuotesPanel = lazy(() => import('../components/SavedQuotesPanel'));
+
+function cleanNavigationValue(value: string | null | undefined) {
+  const clean = (value ?? '').trim();
+  return clean === 'null' || clean === 'undefined' ? '' : clean;
+}
 
 function PanelLoading() {
   return (
@@ -30,11 +36,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [initialParams] = useState(() => new URLSearchParams(window.location.search));
   const initialSectionParam = initialParams.get('tab') as Section | null;
-  const initialQueryParam = initialParams.get('code') || initialParams.get('part') || initialParams.get('q') || '';
-  const rawCatalogParam = initialParams.get('catalog') || '';
-  const initialCatalogParam = rawCatalogParam.trim() === 'null' || rawCatalogParam.trim() === 'undefined'
-    ? ''
-    : rawCatalogParam.trim();
+  const initialQueryParam = cleanNavigationValue(initialParams.get('code') || initialParams.get('part') || initialParams.get('q'));
+  const initialCatalogParam = cleanNavigationValue(initialParams.get('catalog'));
 
   const [user, setUser] = useState<SessionUser | null>(null);
   const [section, setSection] = useState<Section>(() => {
@@ -97,15 +100,17 @@ export default function Dashboard() {
   };
 
   const search = (query: string) => {
-    setGlobalQuery(query);
+    const clean = cleanNavigationValue(query);
+    setGlobalQuery(clean);
     setSearchVersion(version => version + 1);
     setSection('parts');
-    updateUrl('parts', query);
+    updateUrl('parts', clean || undefined);
   };
 
   const updatePartQuery = (query: string) => {
-    setGlobalQuery(query);
-    updateUrl('parts', query || undefined);
+    const clean = cleanNavigationValue(query);
+    setGlobalQuery(clean);
+    updateUrl('parts', clean || undefined);
   };
 
   const handleSectionChange = (next: Section) => {
@@ -149,13 +154,15 @@ export default function Dashboard() {
       onSearch={search}
     >
       {(section === 'parts' || section === 'assistant' || section === 'home') && (
-        <TechnicalAssistantWorkspace
-          key={searchVersion}
-          initialQuery={globalQuery}
-          onQueryChange={updatePartQuery}
-          admin={user.role === 'ADMIN'}
-          storageScope={user.id}
-        />
+        <div className="cv-assistant-workspace">
+          <TechnicalAssistantWorkspace
+            key={searchVersion}
+            initialQuery={globalQuery}
+            onQueryChange={updatePartQuery}
+            admin={user.role === 'ADMIN'}
+            storageScope={user.id}
+          />
+        </div>
       )}
 
       {section === 'catalogs' && (
