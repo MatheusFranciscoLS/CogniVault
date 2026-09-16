@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import ReloadPrompt from './components/ReloadPrompt';
+import QuickQuoteCart from './components/QuickQuoteCart';
+import QuoteCartOverlayLifecycle from './components/QuoteCartOverlayLifecycle';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 const Login = lazy(() => import('./pages/Login'));
@@ -18,6 +20,17 @@ function RouteLoading() {
   );
 }
 
+function RouteScopedQuoteExperience() {
+  const { pathname } = useLocation();
+  if (pathname === '/' || pathname === '/login') return null;
+  return (
+    <>
+      <QuoteCartOverlayLifecycle />
+      <QuickQuoteCart />
+    </>
+  );
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
@@ -31,6 +44,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Suspense>
+        <RouteScopedQuoteExperience />
         <ReloadPrompt />
       </BrowserRouter>
     </ErrorBoundary>
