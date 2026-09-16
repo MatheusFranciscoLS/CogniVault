@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { interactiveAiBudgetStatus } from './interactive-ai-budget';
-import { buildPortfolioCoverage } from './portfolio-coverage';
+import { buildPortfolioCoverage, rankPortfolioCoverageGaps } from './portfolio-coverage';
 
 type CacheCountRow = { purpose: string; count: bigint | number };
 
@@ -83,6 +83,7 @@ export class AssistantObservabilityService {
       localIplModels: portfolio.localIpl,
       withoutLocalIpl: portfolio.unverified,
       localCoveragePercent: portfolio.total ? Math.round((portfolio.localIpl / portfolio.total) * 1000) / 10 : 0,
+      priorityGaps: rankPortfolioCoverageGaps(portfolio.items, 12),
     } : null;
 
     return {
