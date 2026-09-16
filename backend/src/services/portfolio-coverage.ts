@@ -12,6 +12,7 @@ export type PortfolioCoverageItem = {
   source: string | null;
   pnc: string | null;
   commercialSignals: number;
+  commercialEvidence: string[];
 };
 
 const NOISE_TOKENS = new Set([
@@ -107,7 +108,9 @@ export function rankPortfolioCoverageGaps(items: PortfolioCoverageItem[], limit 
     .map(item => ({
       model: item.model,
       normalizedModel: item.normalizedModel,
+      status: item.status,
       commercialSignals: item.commercialSignals,
+      commercialEvidence: item.commercialEvidence,
     }));
 }
 
@@ -128,14 +131,21 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
   ]);
 
   const localByModel = new Map(localRows.map(row => [row.normalizedModel, row]));
-  const commercialModels = new Map<string, { model: string; signals: number }>();
+  const commercialModels = new Map<string, { model: string; signals: number; evidence: string[] }>();
   for (const row of commercialRows) {
     if (!row.application) continue;
+    const application = row.application.trim();
     for (const model of extractCommercialModels(row.application)) {
       const key = normalizeIdentifier(model);
       const current = commercialModels.get(key);
-      if (current) current.signals += 1;
-      else commercialModels.set(key, { model, signals: 1 });
+      if (current) {
+        current.signals += 1;
+        if (application && current.evidence.length < 3 && !current.evidence.includes(application)) {
+          current.evidence.push(application);
+        }
+      } else {
+        commercialModels.set(key, { model, signals: 1, evidence: application ? [application] : [] });
+      }
     }
   }
 
@@ -143,7 +153,7 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
   // que ainda não apareçam na planilha comercial atual.
   for (const row of localRows) {
     if (!commercialModels.has(row.normalizedModel)) {
-      commercialModels.set(row.normalizedModel, { model: row.model, signals: 0 });
+      commercialModels.set(row.normalizedModel, { model: row.model, signals: 0, evidence: [] });
     }
   }
 
@@ -159,6 +169,7 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
             source: local.document.filename,
             pnc: null,
             commercialSignals: commercial.signals,
+            commercialEvidence: commercial.evidence,
           }
         : {
             model: commercial.model,
@@ -167,6 +178,7 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
             source: null,
             pnc: null,
             commercialSignals: commercial.signals,
+            commercialEvidence: commercial.evidence,
           };
     });
 
