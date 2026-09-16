@@ -5,7 +5,7 @@ import App from './App.tsx'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider, ThemedToaster } from './components/ThemeProvider'
 import { QuoteCartProvider } from './context/QuoteCartContext'
-import { CounterSessionProvider } from './context/CounterSessionContext'
+import { CounterSessionProvider } from './context/CounterSessionProvider'
 import QuickQuoteCart from './components/QuickQuoteCart'
 
 const queryClient = new QueryClient({
