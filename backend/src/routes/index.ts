@@ -96,6 +96,7 @@ const upload = multer({
 });
 
 router.post('/login', loginLimiter, (req, res) => authController.login(req, res));
+router.post('/logout', (req, res) => authController.logout(req, res));
 router.get('/me', authMiddleware, (req, res) => profileController.me(req, res));
 
 router.get('/home', authMiddleware, (req, res) => homeController.home(req, res));
