@@ -9,6 +9,7 @@
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
     "benchmark:parts": "npm run build && node dist/scripts/run-part-benchmark.js",
     "benchmark:parts:full": "npm run build && node dist/scripts/run-part-benchmark.js --full",
+    "benchmark:parts:release": "npm run build && node dist/scripts/run-part-benchmark.js --release",
     "benchmark:parts:portfolio": "npm run build && node dist/scripts/run-part-benchmark.js --portfolio",
     "import:price-list": "tsx src/scripts/import-price-list-with-history.ts",
     "import:price-list:core": "tsx src/scripts/import-price-list.ts",
