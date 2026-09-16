@@ -1,0 +1,56 @@
+name: Production Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: 'Optional full commit SHA expected in production. Leave blank to use the selected ref SHA.'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cognivault-production-smoke
+  cancel-in-progress: true
+
+jobs:
+  production-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wait for Render to serve expected commit
+        env:
+          INPUT_SHA: ${{ inputs.expected_sha }}
+          REF_SHA: ${{ github.sha }}
+          HEALTH_URL: https://cognivault-api.onrender.com/health/live
+        run: |
+          set -euo pipefail
+          expected_full="${INPUT_SHA:-$REF_SHA}"
+          expected="${expected_full:0:12}"
+          echo "Expecting production revision $expected"
+
+          for attempt in $(seq 1 90); do
+            response="$(curl --silent --show-error --fail --max-time 10 "$HEALTH_URL" || true)"
+            revision="$(node -e 'try { const body = JSON.parse(process.argv[1]); process.stdout.write(body.revision || ""); } catch {}' "$response")"
+            if [ "$revision" = "$expected" ]; then
+              echo "Render is serving revision $revision"
+              exit 0
+            fi
+            echo "Attempt $attempt/90: production revision is '${revision:-unavailable}', waiting for '$expected'"
+            sleep 5
+          done
+
+          echo "::error::Render did not publish revision $expected within the smoke-test window."
+          exit 1
+
+      - name: Smoke-test production frontend routes and same-origin API proxy
+        run: |
+          set -euo pipefail
+          for path in / /login /dashboard /husqvarna; do
+            curl --silent --show-error --fail --location --max-time 15 "https://cognivault-murex.vercel.app${path}" >/dev/null
+            echo "OK https://cognivault-murex.vercel.app${path}"
+          done
+          curl --silent --show-error --fail --max-time 15 "https://cognivault-murex.vercel.app/health/live" >/dev/null
+          echo "OK same-origin /health/live proxy"
