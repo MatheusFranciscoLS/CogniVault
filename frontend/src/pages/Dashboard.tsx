@@ -163,7 +163,7 @@ export default function Dashboard() {
       onLogout={logout}
       onSearch={search}
     >
-      {section === 'home' && <HomePanel onSearch={search} onCatalogs={openCatalogs} />}
+      {section === 'home' && <HomePanel onCatalogs={openCatalogs} />}
 
       {(section === 'parts' || section === 'assistant') && (
         <PartSearchWorkspace
