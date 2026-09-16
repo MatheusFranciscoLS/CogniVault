@@ -38,20 +38,14 @@ export default function FavoritesWorkspace({ onSearch }: { onSearch: (query: str
   const [pdf, setPdf] = useState<{ url: string; title: string; page: number | null } | null>(null);
   const quoteCart = useQuoteCart();
 
-  const load = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await apiJson<{ favorites: FavoriteItem[] }>('/api/favorites');
-      setItems(data.favorites);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Erro ao carregar favoritos.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    let active = true;
+    void apiJson<{ favorites: FavoriteItem[] }>('/api/favorites')
+      .then(data => { if (active) setItems(data.favorites); })
+      .catch(loadError => { if (active) setError(loadError instanceof Error ? loadError.message : 'Erro ao carregar favoritos.'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
 
   const normalized = filter.trim().toLocaleLowerCase('pt-BR');
   const filtered = useMemo(() => items.filter(item => {
