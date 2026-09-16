@@ -104,9 +104,6 @@ export class AuthController {
 
             res.status(200).set('Cache-Control', 'no-store').json({
                 message: 'Login realizado com sucesso!',
-                // Compatibilidade temporária durante a migração do frontend. A aplicação
-                // nova não persiste este valor; autenticação normal usa cookie HttpOnly.
-                token,
                 user: {
                     id: user.id,
                     email: user.email,
