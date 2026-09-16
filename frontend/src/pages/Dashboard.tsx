@@ -150,7 +150,7 @@ export default function Dashboard() {
     >
       {(section === 'parts' || section === 'assistant' || section === 'home') && (
         <TechnicalAssistantWorkspace
-          key={`${searchVersion}:${globalQuery || 'empty-search'}`}
+          key={searchVersion}
           initialQuery={globalQuery}
           onQueryChange={updatePartQuery}
           admin={user.role === 'ADMIN'}
