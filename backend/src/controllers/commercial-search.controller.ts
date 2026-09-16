@@ -131,6 +131,16 @@ export function looksLikeCommercialCodePrefix(value: string): boolean {
 }
 
 /**
+ * Só pesquisa normalizedNumber no fallback amplo quando a entrada realmente
+ * se parece com um código. Termos descritivos como "filtro" não devem adicionar
+ * LIKE '%FILTRO%' ao campo de código, porque isso impede um plano barato para a
+ * pesquisa textual e não acrescenta resultado comercial útil.
+ */
+export function shouldSearchCommercialPartNumber(value: string): boolean {
+  return looksLikeCommercialCodePrefix(value);
+}
+
+/**
  * Converte um prefixo ASCII normalizado em um limite superior exclusivo.
  * Ex.: 58710 -> 58711. Usar gte/lt permite que o PostgreSQL aproveite o
  * índice btree composto (tenantId, normalizedNumber), ao contrário de LIKE 'x%'
@@ -237,7 +247,7 @@ async function loadCommercialSearch(
     },
   ];
 
-  if (normalizedCode.length >= 2) {
+  if (normalizedCode.length >= 2 && shouldSearchCommercialPartNumber(query)) {
     orFilters.unshift({ normalizedNumber: { contains: normalizedCode } });
   }
 
