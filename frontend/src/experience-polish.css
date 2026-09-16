@@ -1,0 +1,104 @@
+/* Quote drawer: keep the existing business flow, reduce visual noise and make it mobile-safe. */
+button[aria-label^="Ver orçamento com"] {
+  border-radius: .75rem !important;
+  background: #123867 !important;
+  background-image: none !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .18) !important;
+  transform: none !important;
+}
+
+button[aria-label^="Ver orçamento com"]:hover,
+button[aria-label^="Ver orçamento com"]:active {
+  transform: none !important;
+  background: #0d2c52 !important;
+}
+
+aside[aria-label="Cesta de Orçamento de Balcão"] {
+  height: 100dvh !important;
+}
+
+aside[aria-label="Cesta de Orçamento de Balcão"] [class*="rounded-2xl"] {
+  border-radius: .75rem !important;
+}
+
+aside[aria-label="Cesta de Orçamento de Balcão"] [class*="shadow-sm"],
+aside[aria-label="Cesta de Orçamento de Balcão"] [class*="shadow-2xs"],
+aside[aria-label="Cesta de Orçamento de Balcão"] [class*="shadow-md"],
+aside[aria-label="Cesta de Orçamento de Balcão"] [class*="shadow-lg"] {
+  box-shadow: none !important;
+}
+
+aside[aria-label="Cesta de Orçamento de Balcão"] [class*="active:scale"],
+aside[aria-label="Cesta de Orçamento de Balcão"] [class*="hover:scale"] {
+  transform: none !important;
+}
+
+/* Assistant and PDF overlays share the same dynamic viewport behavior on phones. */
+div:has(> button[aria-label="Fechar assistente"]) > div.relative.z-10 {
+  height: 100dvh !important;
+}
+
+div.fixed.inset-0.z-\[90\] > div {
+  max-height: 100dvh;
+}
+
+@media (max-width: 640px) {
+  button[aria-label^="Ver orçamento com"] {
+    right: .75rem !important;
+    bottom: max(.75rem, env(safe-area-inset-bottom)) !important;
+    gap: .5rem !important;
+    padding: .625rem .75rem !important;
+  }
+
+  button[aria-label^="Ver orçamento com"] > div:first-child {
+    height: 2rem !important;
+    width: 2rem !important;
+    border-radius: .5rem !important;
+  }
+
+  button[aria-label^="Ver orçamento com"] > div:last-child > div:first-child {
+    display: none;
+  }
+
+  button[aria-label^="Ver orçamento com"] > div:last-child > div:last-child {
+    font-size: .6875rem !important;
+    white-space: nowrap;
+  }
+
+  aside[aria-label="Cesta de Orçamento de Balcão"] {
+    max-width: none !important;
+    border-left: 0 !important;
+  }
+
+  aside[aria-label="Cesta de Orçamento de Balcão"] > div:first-child {
+    padding: 1rem !important;
+  }
+
+  aside[aria-label="Cesta de Orçamento de Balcão"] .grid-cols-2 {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  aside[aria-label="Cesta de Orçamento de Balcão"] .grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  aside[aria-label="Cesta de Orçamento de Balcão"] > div.border-t:last-child {
+    max-height: 46dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
+  }
+
+  div:has(> button[aria-label="Fechar assistente"]) > div.relative.z-10 {
+    max-width: none !important;
+  }
+
+  div.fixed.inset-0.z-\[90\] {
+    padding: .5rem !important;
+  }
+
+  div.fixed.inset-0.z-\[90\] > div {
+    height: calc(100dvh - 1rem) !important;
+    border-radius: .75rem !important;
+  }
+}
