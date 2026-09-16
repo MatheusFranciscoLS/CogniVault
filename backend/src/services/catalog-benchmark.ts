@@ -2,6 +2,8 @@ import { prisma } from '../config/prisma';
 import { normalizeIdentifier } from '../utils/normalize';
 import type { PartBenchmarkCase } from './part-benchmark';
 
+const MAX_PORTFOLIO_BENCHMARK_CASES = 10_000;
+
 type CatalogBenchmarkRow = {
   id: string;
   name: string;
@@ -85,7 +87,7 @@ function caseFromRow(row: CatalogBenchmarkRow): PartBenchmarkCase {
  * artificial para uma consulta que o próprio catálogo considera ambígua.
  */
 export function selectCatalogBenchmarkCases(rows: CatalogBenchmarkRow[], limit = 500): PartBenchmarkCase[] {
-  const safeLimit = Math.max(1, Math.min(500, Math.trunc(limit)));
+  const safeLimit = Math.max(1, Math.min(MAX_PORTFOLIO_BENCHMARK_CASES, Math.trunc(limit)));
   const byEvidence = new Map<string, CatalogBenchmarkRow[]>();
   for (const row of rows) {
     if (!eligible(row)) continue;
@@ -156,7 +158,7 @@ export async function buildCatalogBenchmarkCases(tenantId: string, limit = 500):
       },
     },
     orderBy: [{ normalizedModel: 'asc' }, { normalizedPartNumber: 'asc' }],
-    take: 25_000,
+    take: 50_000,
     select: {
       id: true,
       name: true,
