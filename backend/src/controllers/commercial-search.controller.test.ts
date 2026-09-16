@@ -6,6 +6,7 @@ import {
   CommercialSearchController,
   commercialCodePrefixUpperBound,
   looksLikeCommercialCodePrefix,
+  shouldSearchCommercialPartNumber,
 } from './commercial-search.controller';
 
 test('detecta Part Number numérico parcial sem confundir modelos curtos', () => {
@@ -19,6 +20,14 @@ test('detecta Part Number numérico parcial sem confundir modelos curtos', () =>
 test('aceita códigos alfanuméricos longos quando a maior parte é numérica', () => {
   assert.equal(looksLikeCommercialCodePrefix('12345A7'), true);
   assert.equal(looksLikeCommercialCodePrefix('ABC12345'), false);
+});
+
+test('mantém termos descritivos fora do filtro de número comercial', () => {
+  assert.equal(shouldSearchCommercialPartNumber('filtro'), false);
+  assert.equal(shouldSearchCommercialPartNumber('correia deck'), false);
+  assert.equal(shouldSearchCommercialPartNumber('MZ54'), false);
+  assert.equal(shouldSearchCommercialPartNumber('587106701'), true);
+  assert.equal(shouldSearchCommercialPartNumber('587 10 67'), true);
 });
 
 test('gera limite superior exclusivo para busca por range no índice btree', () => {
