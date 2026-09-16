@@ -6,6 +6,7 @@ import CatalogsWorkspace from '../components/CatalogsWorkspace';
 import { apiJson, clearSession, getToken, SESSION_EXPIRED_EVENT } from '../lib';
 import type { Section, SessionUser } from '../types';
 import '../assistant.css';
+import '../admin-polish.css';
 
 const OverviewPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.OverviewPanel })));
 const UsersPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.UsersPanel })));
