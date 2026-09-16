@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { apiJson, formatEngineOrCatalogModel } from '../lib';
@@ -59,24 +59,12 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
     refetchInterval: query => (query.state.data?.documents || []).some(document => document.processingActive || ['PENDING', 'PROCESSING'].includes(document.status)) ? 8000 : false,
   });
 
-  if (managementOpen) {
-    return (
-      <section>
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <button type="button" onClick={() => setManagementOpen(false)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">← Voltar para catálogos</button>
-          <span className="text-xs text-slate-400">Modo administração da biblioteca</span>
-        </div>
-        <CatalogsPanel admin={admin} onQuality={onQuality} initialSearch={initialSearch} onSearch={onSearch} />
-      </section>
-    );
-  }
-
   const documents = (data?.documents || []).filter(document => !document.archivedAt);
   const categories = data?.categories || [];
   const favoritesByDocument = new Map((data?.favorites || []).filter(item => item.documentId).map(item => [item.documentId!, item]));
   const normalized = search.trim().toLocaleLowerCase('pt-BR');
 
-  const filtered = useMemo(() => documents
+  const filtered = documents
     .filter(document => {
       if (category !== 'ALL' && document.category !== category) return false;
       if (!normalized) return true;
@@ -89,7 +77,19 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
       const nameA = formatEngineOrCatalogModel(a.model, a.manufacturer, a.filename) || a.filename;
       const nameB = formatEngineOrCatalogModel(b.model, b.manufacturer, b.filename) || b.filename;
       return nameA.localeCompare(nameB, 'pt-BR', { numeric: true, sensitivity: 'base' });
-    }), [category, documents, normalized]);
+    });
+
+  if (managementOpen) {
+    return (
+      <section>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <button type="button" onClick={() => setManagementOpen(false)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">← Voltar para catálogos</button>
+          <span className="text-xs text-slate-400">Modo administração da biblioteca</span>
+        </div>
+        <CatalogsPanel admin={admin} onQuality={onQuality} initialSearch={initialSearch} onSearch={onSearch} />
+      </section>
+    );
+  }
 
   const access = async (document: DocumentItem) => {
     try {
