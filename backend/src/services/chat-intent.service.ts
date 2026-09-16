@@ -5,12 +5,14 @@ import { hasDomainKnowledge } from './husqvarna-domain-knowledge';
 import { hasKnownPartVocabulary, lexicalTerms } from './part-vocabulary';
 import { withTransientAIRetry } from '../utils/ai-retry';
 import { LRUCache } from 'lru-cache';
-import { recordAiTelemetry } from '../utils/ai-telemetry';
+import { extractAiUsage, recordAiTelemetry } from '../utils/ai-telemetry';
 import { PartSearchService } from './part-search.service';
 import { canUseInteractiveAi, consumeInteractiveAiBudget } from './interactive-ai-budget';
+import { AiDecisionCacheService } from './ai-decision-cache.service';
 
 const INTERACTIVE_AI_TIMEOUT_MS = 8_000;
 const INTERACTIVE_AI_RETRY = { maxAttempts: 2, baseDelayMs: 500, maxDelayMs: 1_500 } as const;
+const PERSISTENT_INTENT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const intentCache = new LRUCache<string, Partial<SearchIntent>>({
   max: 500,
@@ -42,6 +44,19 @@ export interface CandidateForAi {
   retrievalSources?: string[];
 }
 
+function mergeIntent(localIntent: SearchIntent, cached: Partial<SearchIntent>, question: string): SearchIntent {
+  const clean = (value: unknown) => typeof value === 'string' ? value.trim() : '';
+  return {
+    manufacturer: localIntent.manufacturer || clean(cached.manufacturer),
+    model: localIntent.model || clean(cached.model),
+    pnc: localIntent.pnc || clean(cached.pnc),
+    partDescription: clean(cached.partDescription) || localIntent.partDescription || question.trim(),
+    partNumber: localIntent.partNumber || clean(cached.partNumber),
+    section: clean(cached.section),
+    position: clean(cached.position),
+  };
+}
+
 export class ChatIntentService {
   static async parse(question: string, tenantId?: string): Promise<SearchIntent> {
     const localIntent = buildFallbackIntent(question);
@@ -63,19 +78,23 @@ export class ChatIntentService {
     // domínio conhecido e consultas totalmente interpretáveis ficam locais.
     if (localIntent.partNumber || knownVocabulary || knownDomain || !unknownDescriptionTerms.length) return localIntent;
 
-    const cacheKey = `${tenantId || 'global'}:${question.trim().toLowerCase()}`;
+    const normalizedQuestion = question.trim().toLocaleLowerCase('pt-BR');
+    const cacheKey = `${tenantId || 'global'}:${normalizedQuestion}`;
     const cached = intentCache.get(cacheKey);
-    if (cached) {
-      const clean = (value: unknown) => typeof value === 'string' ? value.trim() : '';
-      return {
-        manufacturer: localIntent.manufacturer || clean(cached.manufacturer),
-        model: localIntent.model || clean(cached.model),
-        pnc: localIntent.pnc || clean(cached.pnc),
-        partDescription: clean(cached.partDescription) || localIntent.partDescription || question.trim(),
-        partNumber: localIntent.partNumber || clean(cached.partNumber),
-        section: clean(cached.section),
-        position: clean(cached.position),
-      };
+    if (cached) return mergeIntent(localIntent, cached, question);
+
+    // Persistência evita pagar novamente pela mesma interpretação depois que o
+    // Render Free dorme/reinicia. O cache contém apenas intenção estruturada.
+    if (tenantId) {
+      const persisted = await AiDecisionCacheService.get<Partial<SearchIntent>>(
+        tenantId,
+        'CHAT_INTENT_PARSE',
+        { question: normalizedQuestion },
+      );
+      if (persisted) {
+        intentCache.set(cacheKey, persisted);
+        return mergeIntent(localIntent, persisted, question);
+      }
     }
 
     let similarModelsHint = '';
@@ -86,8 +105,6 @@ export class ChatIntentService {
       }
     }
 
-    // Protege a franquia gratuita: quando o orçamento diário chega ao limite,
-    // continuamos com a interpretação determinística em vez de falhar a busca.
     if (tenantId && !(await canUseInteractiveAi(tenantId))) {
       console.info('[AI Budget] Interpretação generativa pulada; usando leitura local segura.');
       return localIntent;
@@ -128,7 +145,7 @@ export class ChatIntentService {
         { label: 'Chat Intent Parse', ...INTERACTIVE_AI_RETRY },
       );
       recordAiTelemetry(tenantId || 'global', 'CHAT_INTENT_PARSE', response);
-      if (tenantId) consumeInteractiveAiBudget(tenantId, (response as any)?.usage?.total_tokens);
+      if (tenantId) consumeInteractiveAiBudget(tenantId, extractAiUsage(response).totalTokens);
 
       const rawText = String((response as any).output_text || '').trim();
       const cleanedText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
@@ -141,16 +158,16 @@ export class ChatIntentService {
       }
 
       intentCache.set(cacheKey, parsed);
-      const clean = (value: unknown) => typeof value === 'string' ? value.trim() : '';
-      return {
-        manufacturer: localIntent.manufacturer || clean(parsed.manufacturer),
-        model: localIntent.model || clean(parsed.model),
-        pnc: localIntent.pnc || clean(parsed.pnc),
-        partDescription: clean(parsed.partDescription) || localIntent.partDescription || question.trim(),
-        partNumber: localIntent.partNumber || clean(parsed.partNumber),
-        section: clean(parsed.section),
-        position: clean(parsed.position),
-      };
+      if (tenantId) {
+        void AiDecisionCacheService.set(
+          tenantId,
+          'CHAT_INTENT_PARSE',
+          { question: normalizedQuestion },
+          parsed,
+          PERSISTENT_INTENT_TTL_MS,
+        );
+      }
+      return mergeIntent(localIntent, parsed, question);
     } catch (error) {
       console.warn('⚠️ Interpretação generativa indisponível; usando leitura local segura.', error instanceof Error ? error.message : error);
       return localIntent;
