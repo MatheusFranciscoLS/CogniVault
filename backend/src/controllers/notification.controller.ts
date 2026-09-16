@@ -32,8 +32,6 @@ type CachedNotification = {
 
 const notificationCache = new LRUCache<string, CachedNotification>({
   max: 400,
-  // Mantém uma cópia utilizável por alguns minutos para que uma atualização
-  // periódica nunca bloqueie o balcão esperando o banco remoto.
   ttl: NOTIFICATION_RETENTION_MS,
 });
 
@@ -51,13 +49,20 @@ export function invalidateNotificationCache(tenantId?: string): void {
 }
 
 function cacheHeaders(res: Response, status: 'HIT' | 'MISS' | 'STALE'): void {
-  // Conteúdo autenticado: pode ficar no cache privado do navegador, nunca em cache compartilhado.
   res.set('Cache-Control', 'private, max-age=30, stale-while-revalidate=60');
   res.set('X-CogniVault-Cache', status);
 }
 
+function officialChangeLabel(resourceType: string): string {
+  if (resourceType === 'LIVE_PART') return 'Peça / substituição';
+  if (resourceType.includes('getProductDetailsSections')) return 'Detalhes e vistas do produto';
+  if (resourceType.includes('searchForProducts')) return 'Identidade do produto';
+  return 'Dados oficiais';
+}
+
 async function loadNotifications(tenantId: string, isAdmin: boolean): Promise<NotificationPayload> {
-  const [documents, audits, verifications] = await Promise.all([
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const [documents, audits, verifications, officialChanges] = await Promise.all([
     prisma.document.findMany({
       where: {
         tenantId,
@@ -97,9 +102,24 @@ async function loadNotifications(tenantId: string, isAdmin: boolean): Promise<No
           },
         })
       : Promise.resolve([]),
+    isAdmin
+      ? prisma.officialSourceCache.findMany({
+          where: { source: 'HUSQVARNA', changedAt: { gte: thirtyDaysAgo } },
+          orderBy: { changedAt: 'desc' },
+          take: 8,
+          select: { key: true, resourceType: true, resourceId: true, changedAt: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   const items: NotificationItem[] = [
+    ...officialChanges.flatMap(item => item.changedAt ? [{
+      id: `official-source-${item.key}`,
+      type: 'warning' as const,
+      title: 'Fonte oficial Husqvarna atualizada',
+      description: `${officialChangeLabel(item.resourceType)} · ${item.resourceId}`,
+      createdAt: item.changedAt,
+    }] : []),
     ...verifications.map((item) => {
       const isSuperseded = item.status === 'SUPERSEDED'
         || item.queriedPartNumber.replace(/\W/g, '') !== item.currentPartNumber.replace(/\W/g, '');
@@ -175,11 +195,7 @@ export class NotificationController {
     if (cached) {
       const stale = Date.now() - cached.fetchedAt >= NOTIFICATION_FRESH_MS;
       cacheHeaders(res, stale ? 'STALE' : 'HIT');
-
-      // Responde imediatamente com a última visão conhecida. Quando ela envelhece,
-      // a atualização é disparada sem prender a resposta ao tempo de rede/DB.
       if (stale) refreshInBackground(cacheKey, tenantId, isAdmin);
-
       res.json(cached.payload);
       return;
     }
