@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { extractCommercialModels, rankPortfolioCoverageGaps, summarizePortfolioCoverage } from './portfolio-coverage';
+import { extractCommercialModels, hasStrongCommercialModelShape, rankPortfolioCoverageGaps, summarizePortfolioCoverage } from './portfolio-coverage';
 
 test('extrai múltiplos modelos de aplicação comercial sem tratar a planilha como prova técnica', () => {
   assert.deepEqual(extractCommercialModels('ROC.236R/143RII'), ['236R', '143RII']);
@@ -11,6 +11,18 @@ test('preserva modelos com prefixo separado e remove data da aplicação', () =>
   assert.deepEqual(extractCommercialModels('TRATOR GT52XLSi'), ['GT52XLSi']);
   assert.deepEqual(extractCommercialModels('143RII - 12/2017'), ['143RII']);
   assert.deepEqual(extractCommercialModels('Z 248F'), ['Z248F']);
+});
+
+test('não promove abreviações encadeadas do cadastro comercial a modelos completos', () => {
+  assert.deepEqual(extractCommercialModels('323R/LD/5/7LDx/HE/P5x'), ['323R']);
+  assert.deepEqual(extractCommercialModels('325HE3x/HE4x/325P5x/327P5x'), ['325HE3x', '325P5x', '327P5x']);
+  assert.deepEqual(extractCommercialModels('CTH160/36A/LT125B/151/P12597'), ['CTH160', 'LT125B', 'P12597']);
+
+  assert.equal(hasStrongCommercialModelShape('3R'), false);
+  assert.equal(hasStrongCommercialModelShape('P5X'), false);
+  assert.equal(hasStrongCommercialModelShape('7LDX'), false);
+  assert.equal(hasStrongCommercialModelShape('GT52XLSi'), true);
+  assert.equal(hasStrongCommercialModelShape('143RII'), true);
 });
 
 test('resumo de cobertura diferencia IPL local, Portal e lacuna', () => {
