@@ -111,16 +111,6 @@ export default function Dashboard() {
     updateUrl('parts', query || undefined);
   };
 
-  const openCatalogs = (filter?: string) => {
-    const clean = filter && filter.trim() !== 'null' && filter.trim() !== 'undefined'
-      ? filter.trim()
-      : '';
-
-    setCatalogFilter(clean);
-    setSection('catalogs');
-    updateUrl('catalogs', undefined, clean || undefined);
-  };
-
   const handleSectionChange = (next: Section) => {
     if (next !== 'catalogs') setCatalogFilter('');
 
