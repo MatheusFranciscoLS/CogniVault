@@ -25,27 +25,33 @@ test('não promove abreviações encadeadas do cadastro comercial a modelos comp
   assert.equal(hasStrongCommercialModelShape('143RII'), true);
 });
 
+test('preserva modelos completos antigos encontrados na homologação comercial', () => {
+  assert.deepEqual(extractCommercialModels('CRT51/LT125B/LT151/1597/P12597'), ['CRT51', 'LT125B', 'LT151', 'P12597']);
+  assert.deepEqual(extractCommercialModels('J55S (02/03/04/05/06)/SL/XT722'), ['J55S', 'XT722']);
+  assert.deepEqual(extractCommercialModels('W3612/3/4814/5/iZ4821T/LZ6125T'), ['W3612', 'iZ4821T', 'LZ6125T']);
+});
+
 test('resumo de cobertura diferencia IPL local, Portal e lacuna', () => {
   const summary = summarizePortfolioCoverage([
-    { model: '143RII', normalizedModel: '143RII', status: 'LOCAL_IPL', source: '143RII.pdf', pnc: null, commercialSignals: 5 },
-    { model: 'Z460', normalizedModel: 'Z460', status: 'PORTAL_IPL', source: 'Portal', pnc: '967984601', commercialSignals: 3 },
-    { model: 'MODELOX', normalizedModel: 'MODELOX', status: 'UNVERIFIED', source: null, pnc: null, commercialSignals: 1 },
+    { model: '143RII', normalizedModel: '143RII', status: 'LOCAL_IPL', source: '143RII.pdf', pnc: null, commercialSignals: 5, commercialEvidence: ['ROC.143RII'] },
+    { model: 'Z460', normalizedModel: 'Z460', status: 'PORTAL_IPL', source: 'Portal', pnc: '967984601', commercialSignals: 3, commercialEvidence: ['Z460'] },
+    { model: 'MODELOX', normalizedModel: 'MODELOX', status: 'UNVERIFIED', source: null, pnc: null, commercialSignals: 1, commercialEvidence: ['MODELOX'] },
   ]);
   assert.equal(summary.total, 3);
   assert.equal(summary.covered, 2);
   assert.equal(summary.coverageRate, 2 / 3);
 });
 
-test('prioriza lacunas com mais sinais comerciais sem misturar modelos já cobertos', () => {
+test('prioriza lacunas com mais sinais comerciais e preserva evidência para homologação', () => {
   const gaps = rankPortfolioCoverageGaps([
-    { model: '143RII', normalizedModel: '143RII', status: 'LOCAL_IPL', source: '143RII.pdf', pnc: null, commercialSignals: 20 },
-    { model: 'Z248F', normalizedModel: 'Z248F', status: 'UNVERIFIED', source: null, pnc: null, commercialSignals: 8 },
-    { model: 'LC353AWD', normalizedModel: 'LC353AWD', status: 'UNVERIFIED', source: null, pnc: null, commercialSignals: 12 },
-    { model: '125B', normalizedModel: '125B', status: 'PORTAL_IPL', source: 'Portal', pnc: '952711902', commercialSignals: 30 },
+    { model: '143RII', normalizedModel: '143RII', status: 'LOCAL_IPL', source: '143RII.pdf', pnc: null, commercialSignals: 20, commercialEvidence: ['ROC.143RII'] },
+    { model: 'Z248F', normalizedModel: 'Z248F', status: 'UNVERIFIED', source: null, pnc: null, commercialSignals: 8, commercialEvidence: ['TRATOR Z 248F'] },
+    { model: 'LC353AWD', normalizedModel: 'LC353AWD', status: 'UNVERIFIED', source: null, pnc: null, commercialSignals: 12, commercialEvidence: ['LC353AWD/LC353V'] },
+    { model: '125B', normalizedModel: '125B', status: 'PORTAL_IPL', source: 'Portal', pnc: '952711902', commercialSignals: 30, commercialEvidence: ['125B'] },
   ], 2);
 
   assert.deepEqual(gaps, [
-    { model: 'LC353AWD', normalizedModel: 'LC353AWD', commercialSignals: 12 },
-    { model: 'Z248F', normalizedModel: 'Z248F', commercialSignals: 8 },
+    { model: 'LC353AWD', normalizedModel: 'LC353AWD', status: 'UNVERIFIED', commercialSignals: 12, commercialEvidence: ['LC353AWD/LC353V'] },
+    { model: 'Z248F', normalizedModel: 'Z248F', status: 'UNVERIFIED', commercialSignals: 8, commercialEvidence: ['TRATOR Z 248F'] },
   ]);
 });
