@@ -77,7 +77,7 @@ function Starter({ hasContext, onExample }: { hasContext: boolean; onExample: (v
           <div className="text-xs font-black text-slate-800 dark:text-slate-100">Pesquise como você falaria no balcão</div>
           <p className="mt-1 max-w-2xl text-[11px] leading-5 text-slate-400">
             {hasContext
-              ? 'Modelo e PNC do atendimento já serão considerados. Você pode digitar só a peça, o código ou fazer uma pergunta.'
+              ? 'Modelo, PNC e S/N disponíveis no atendimento serão considerados automaticamente. Você pode digitar só a peça, o código ou fazer uma pergunta.'
               : 'Código, descrição, modelo ou uma pergunta técnica. O CogniVault escolhe a melhor combinação entre catálogo, cadastro, fonte oficial e assistência por IA.'}
           </p>
         </div>
@@ -113,7 +113,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   const inputRef = useRef<HTMLInputElement>(null);
   const quoteCart = useQuoteCart();
   const { session, hasContext } = useCounterSession();
-  const contextRevisionRef = useRef(`${session.machineModel}\u0000${session.pnc}`);
+  const contextRevisionRef = useRef(`${session.machineModel}\u0000${session.pnc}\u0000${session.serial}`);
 
   const [query, setQuery] = useState(initialQuery);
   const [lastQuery, setLastQuery] = useState(initialQuery.trim());
@@ -180,14 +180,20 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     const additions: string[] = [];
     const model = session.machineModel.trim();
     const pnc = session.pnc.trim();
+    const serial = session.serial.trim();
     if (model && !lowerBase.includes(model.toLocaleLowerCase('pt-BR'))) additions.push(model);
     if (pnc) {
       const compactBase = base.replace(/\W/g, '').toLowerCase();
       const compactPnc = pnc.replace(/\W/g, '').toLowerCase();
       if (compactPnc && !compactBase.includes(compactPnc)) additions.push(pnc);
     }
+    if (serial) {
+      const compactBase = base.replace(/\W/g, '').toLowerCase();
+      const compactSerial = serial.replace(/\W/g, '').toLowerCase();
+      if (compactSerial && !compactBase.includes(compactSerial)) additions.push(`S/N ${serial}`);
+    }
     return [base, ...additions].filter(Boolean).join(' ');
-  }, [session.machineModel, session.pnc]);
+  }, [session.machineModel, session.pnc, session.serial]);
 
   const fetchCommercial = useCallback(async (value: string, section = '', signal?: AbortSignal) => {
     setCommercialLoading(true);
@@ -295,13 +301,13 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   }, [initialQuery, runSearch]);
 
   useEffect(() => {
-    const nextRevision = `${session.machineModel}\u0000${session.pnc}`;
+    const nextRevision = `${session.machineModel}\u0000${session.pnc}\u0000${session.serial}`;
     if (contextRevisionRef.current === nextRevision) return;
     contextRevisionRef.current = nextRevision;
     if (!hasSearched || lastQuery.length < 2) return;
     const timer = window.setTimeout(() => void runSearch(lastQuery), 450);
     return () => window.clearTimeout(timer);
-  }, [hasSearched, lastQuery, runSearch, session.machineModel, session.pnc]);
+  }, [hasSearched, lastQuery, runSearch, session.machineModel, session.pnc, session.serial]);
 
   const selectedTechnical = useMemo(() => selection?.kind === 'technical' ? parts.find(part => part.id === selection.id) : undefined, [parts, selection]);
   const selectedCommercial = useMemo(() => selection?.kind === 'commercial' ? commercialParts.find(part => part.id === selection.id) : undefined, [commercialParts, selection]);
@@ -329,10 +335,10 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     const clean = value.trim();
     if (clean.length < 2) return;
     setQuery(clean);
-    if (looksLikeQuestion(clean)) openAi(clean);
+    if (looksLikeQuestion(clean)) openAi(buildTechnicalQuery(clean));
     if (clean !== initialQuery.trim()) onQueryChange(clean);
     else void runSearch(clean);
-  }, [initialQuery, onQueryChange, openAi, runSearch]);
+  }, [buildTechnicalQuery, initialQuery, onQueryChange, openAi, runSearch]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -467,7 +473,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-2 text-[10px] text-slate-400 dark:border-slate-800">
           <span>Busca direta para códigos e peças · perguntas naturais recebem assistência técnica automaticamente.</span>
-          {hasContext && <span className="font-bold text-emerald-600 dark:text-emerald-400">Contexto: {session.machineModel || 'modelo'}{session.pnc ? ` · PNC ${session.pnc}` : ''}</span>}
+          {hasContext && <span className="font-bold text-emerald-600 dark:text-emerald-400">Contexto: {session.machineModel || 'modelo'}{session.pnc ? ` · PNC ${session.pnc}` : ''}{session.serial ? ` · S/N ${session.serial}` : ''}</span>}
         </div>
       </form>
 
@@ -543,7 +549,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
                   {officialResult?.partNumber && <button type="button" onClick={() => void copyCode(officialResult.partNumber!)} className="rounded-lg bg-[#123867] px-3 py-2 text-xs font-black text-white">Copiar código</button>}
-                  <button type="button" onClick={() => openAi(lastQuery)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:border-blue-200 hover:text-[#1d4f91] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">Pedir orientação</button>
+                  <button type="button" onClick={() => openAi(buildTechnicalQuery(lastQuery))} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:border-blue-200 hover:text-[#1d4f91] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">Pedir orientação</button>
                 </div>
               </div>
             </section>
