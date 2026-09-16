@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, apiJson, fmtDate, json } from '../lib';
 import { toast } from 'sonner';
@@ -8,57 +8,62 @@ function fetchUsers() {
   return apiJson<{ users: AdminUser[] }>('/api/admin/users');
 }
 
+function AdminHeading({ kicker, title, description, action }: { kicker: string; title: string; description: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <div className="text-[10px] font-black uppercase tracking-[.15em] text-[#1d4f91] dark:text-blue-300">{kicker}</div>
+        <h1 className="mt-1 text-2xl font-black tracking-[-.03em] text-slate-950 dark:text-white">{title}</h1>
+        <p className="mt-1 max-w-2xl text-sm text-slate-500 dark:text-slate-400">{description}</p>
+      </div>
+      {action}
+    </div>
+  );
+}
+
 export function OverviewPanel() {
   const [data, setData] = useState<Overview | null>(null);
+
   useEffect(() => {
-    void (async () => setData((await json<{ overview: Overview }>(await api('/api/admin/overview'))).overview))();
+    let active = true;
+    void api('/api/admin/overview')
+      .then(response => json<{ overview: Overview }>(response))
+      .then(response => { if (active) setData(response.overview); })
+      .catch(() => undefined);
+    return () => { active = false; };
   }, []);
-  const cards = data ? [
-    ['Catálogos ativos', data.activeDocuments, 'Base disponível para a equipe'],
-    ['Peças indexadas', data.parts, 'Itens prontos para consulta'],
-    ['Usuários ativos', data.users, 'Acessos habilitados'],
-    ['Acerto confirmado', data.feedbackAccuracy === null ? '—' : `${Math.round(data.feedbackAccuracy * 100)}%`, 'Precisão validada pelo balcão'],
+
+  const metrics = data ? [
+    ['Catálogos ativos', data.activeDocuments],
+    ['Peças indexadas', data.parts],
+    ['Usuários ativos', data.users],
+    ['Acerto confirmado', data.feedbackAccuracy === null ? '—' : `${Math.round(data.feedbackAccuracy * 100)}%`],
   ] : [];
 
   return (
-    <section>
-      <div className="relative mb-6 overflow-hidden rounded-[30px] bg-[#0b1d3a] p-6 text-white shadow-[0_18px_60px_rgba(15,35,72,.16)] md:p-8">
-        <div className="absolute -right-24 top-1/2 w-[460px] -translate-y-1/2 opacity-[.035]">
-          <img src="/husqvarna-logo.webp" alt="" className="w-full grayscale brightness-0 invert" />
-        </div>
-        <div className="relative z-10 max-w-2xl">
-          <p className="text-[10px] font-bold uppercase tracking-[.16em] text-amber-200">Painel administrativo</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-[-.04em] md:text-[2.35rem]">Visão geral do CogniVault</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300">Indicadores essenciais da operação técnica da Vardão Máquinas em uma visão limpa e objetiva.</p>
+    <section className="mx-auto max-w-[1400px] space-y-4">
+      <AdminHeading kicker="Administração" title="Visão geral" description="Situação da base técnica, acessos e sinais de qualidade sem misturar esses dados com o fluxo do balcão." />
+
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div className="grid divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4 dark:divide-slate-800">
+          {(data ? metrics : Array.from({ length: 4 }, (_, index) => [`Carregando ${index}`, '—'])).map(([label, value], index) => (
+            <div key={String(label)} className="px-5 py-4">
+              <div className="text-[10px] font-black uppercase tracking-[.1em] text-slate-400">{data ? label : 'Carregando'}</div>
+              <div className="mt-2 text-2xl font-black tracking-[-.03em] text-slate-950 dark:text-white">{data ? value : '—'}</div>
+              {data && index === 3 && <div className="mt-1 text-[11px] text-slate-400">Validação registrada pelo balcão</div>}
+            </div>
+          ))}
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map(([key, value, description]) => (
-          <div key={String(key)} className="cv-surface rounded-[22px] p-5">
-            <div className="text-xs font-semibold uppercase tracking-[.09em] text-slate-400">{key}</div>
-            <div className="mt-3 text-3xl font-semibold tracking-[-.04em] text-slate-950 dark:text-white">{value}</div>
-            <div className="mt-2 text-xs leading-5 text-slate-400">{description}</div>
-          </div>
-        ))}
-      </div>
-
-      {data && (
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          <div className="rounded-[20px] border border-amber-200 dark:border-amber-800/60 bg-amber-50/70 dark:bg-amber-900/30 p-5">
-            <div className="text-2xl font-semibold text-amber-950 dark:text-amber-200">{data.processingDocuments}</div>
-            <div className="mt-1 text-xs font-medium text-amber-800 dark:text-amber-300">Em processamento</div>
-          </div>
-          <div className="rounded-[20px] border border-rose-200 dark:border-rose-800/60 bg-rose-50/70 dark:bg-rose-900/30 p-5">
-            <div className="text-2xl font-semibold text-rose-950 dark:text-rose-200">{data.failedDocuments}</div>
-            <div className="mt-1 text-xs font-medium text-rose-800 dark:text-rose-300">Com falha</div>
-          </div>
-          <div className="rounded-[20px] border border-blue-200 dark:border-blue-600/60 bg-blue-50 dark:bg-[#123867]/70 p-5">
-            <div className="text-2xl font-semibold text-blue-950 dark:text-blue-200">{data.feedbackTotal}</div>
-            <div className="mt-1 text-xs font-medium text-blue-800 dark:text-blue-300">Feedbacks registrados</div>
-          </div>
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div className="border-b border-slate-100 px-4 py-3 text-xs font-black text-slate-700 dark:border-slate-800 dark:text-slate-200">Situação operacional</div>
+        <div className="grid divide-y divide-slate-100 md:grid-cols-3 md:divide-x md:divide-y-0 dark:divide-slate-800">
+          <div className="flex items-center justify-between gap-4 px-4 py-4"><span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Catálogos processando</span><span className="text-lg font-black text-amber-700 dark:text-amber-300">{data?.processingDocuments ?? '—'}</span></div>
+          <div className="flex items-center justify-between gap-4 px-4 py-4"><span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Catálogos com falha</span><span className="text-lg font-black text-rose-700 dark:text-rose-300">{data?.failedDocuments ?? '—'}</span></div>
+          <div className="flex items-center justify-between gap-4 px-4 py-4"><span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Feedbacks registrados</span><span className="text-lg font-black text-[#123867] dark:text-blue-300">{data?.feedbackTotal ?? '—'}</span></div>
         </div>
-      )}
+      </div>
     </section>
   );
 }
@@ -71,6 +76,8 @@ export function UsersPanel() {
   const [error, setError] = useState('');
   const [passwordUser, setPasswordUser] = useState<string | null>(null);
   const [passwordDraft, setPasswordDraft] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [filter, setFilter] = useState('');
 
   const load = async () => setUsers((await fetchUsers()).users);
   useEffect(() => {
@@ -93,6 +100,7 @@ export function UsersPanel() {
       setEmail('');
       setPassword('');
       setRole('MECHANIC');
+      setCreateOpen(false);
       await load();
       toast.success('Novo usuário cadastrado.');
     } catch (err) {
@@ -126,117 +134,58 @@ export function UsersPanel() {
     toast.success('Senha redefinida com sucesso.');
   };
 
-  return (
-    <section>
-      <p className="cv-kicker">Controle de acesso</p>
-      <h1 className="cv-page-title">Usuários</h1>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
-        A empresa trabalha com dois perfis simples: Administrador e Balcão. Crie acessos, bloqueie contas e redefina senhas por aqui.
-      </p>
-      <form onSubmit={create} className="cv-surface mt-6 rounded-[22px] p-5">
-        <div className="mb-4 text-sm font-semibold text-slate-900 dark:text-slate-100">Novo acesso</div>
-        {error && (
-          <div className="mb-4 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 px-3 py-2.5 text-sm text-rose-700 dark:text-rose-300">
-            {error}
-          </div>
-        )}
-        <div className="grid gap-3 md:grid-cols-[1fr_1fr_180px_auto]">
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="email@empresa.com"
-            className="cv-field text-sm"
-          />
-          <input
-            required
-            minLength={15}
-            maxLength={64}
-            type="password"
-            autoComplete="new-password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder="Senha inicial"
-            className="cv-field text-sm"
-          />
-          <select
-            value={role}
-            onChange={e => setRole(e.target.value as Role)}
-            className="cv-field text-sm"
-          >
-            <option value="MECHANIC">Balcão</option>
-            <option value="ADMIN">Administrador</option>
-          </select>
-          <button className="cv-primary px-5 py-2.5 text-sm font-semibold">Criar</button>
-        </div>
-      </form>
+  const normalized = filter.trim().toLocaleLowerCase('pt-BR');
+  const filtered = useMemo(() => users.filter(user => !normalized || [user.email, user.role, user.status].some(value => value.toLocaleLowerCase('pt-BR').includes(normalized))), [normalized, users]);
 
-      <div className="cv-surface cv-scrollbar mt-5 overflow-x-auto rounded-[22px]">
-        <table className="w-full text-sm">
-          <thead className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800 text-left text-[11px] font-semibold uppercase tracking-[.08em] text-slate-400">
-            <tr>
-              <th className="p-4">Usuário</th>
-              <th>Perfil</th>
-              <th>Status</th>
-              <th>Feedback</th>
-              <th className="p-4">Ações</th>
-            </tr>
-          </thead>
+  return (
+    <section className="mx-auto max-w-[1400px] space-y-4">
+      <AdminHeading
+        kicker="Controle de acesso"
+        title="Usuários"
+        description="Crie acessos, altere perfil, bloqueie contas e redefina senhas."
+        action={<button type="button" onClick={() => setCreateOpen(value => !value)} className="self-start rounded-lg bg-[#123867] px-4 py-2.5 text-xs font-black text-white transition hover:bg-[#0d2c52]">{createOpen ? 'Fechar' : 'Novo usuário'}</button>}
+      />
+
+      {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">{error}</div>}
+
+      {createOpen && (
+        <form onSubmit={create} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          <div className="mb-3 text-xs font-black text-slate-700 dark:text-slate-200">Novo acesso</div>
+          <div className="grid gap-2 lg:grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_170px_auto]">
+            <input type="email" required value={email} onChange={event => setEmail(event.target.value)} placeholder="email@empresa.com" className="h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-[#1d4f91] focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-800" />
+            <input required minLength={15} maxLength={64} type="password" autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Senha inicial · mínimo 15 caracteres" className="h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-[#1d4f91] focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-800" />
+            <select value={role} onChange={event => setRole(event.target.value as Role)} className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold dark:border-slate-700 dark:bg-slate-800"><option value="MECHANIC">Balcão</option><option value="ADMIN">Administrador</option></select>
+            <button className="h-11 rounded-lg bg-[#123867] px-5 text-xs font-black text-white">Criar acesso</button>
+          </div>
+        </form>
+      )}
+
+      <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+        <div className="relative min-w-0 flex-1"><span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">⌕</span><input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Filtrar por e-mail, perfil ou status…" className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-800" /></div>
+        <span className="px-1 text-xs font-semibold text-slate-400">{filtered.length} usuários</span>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <table className="w-full min-w-[850px] text-sm">
+          <thead className="border-b border-slate-100 bg-slate-50/70 text-left text-[10px] font-black uppercase tracking-[.1em] text-slate-400 dark:border-slate-800 dark:bg-slate-800/50"><tr><th className="px-4 py-3">Usuário</th><th>Perfil</th><th>Status</th><th>Feedback</th><th className="px-4 text-right">Ações</th></tr></thead>
           <tbody>
-            {users.map(user => (
-              <tr key={user.id} className="border-t border-slate-100 dark:border-slate-800 align-top transition hover:bg-slate-50/60 dark:bg-slate-800">
-                <td className="p-4">
-                  <b className="font-semibold text-slate-800 dark:text-slate-200">{user.email}</b>
-                  <div className="mt-1 text-xs text-slate-400">desde {fmtDate(user.createdAt)}</div>
-                </td>
-                <td className="pt-4 text-slate-600 dark:text-slate-400">{user.role === 'ADMIN' ? 'Administrador' : 'Balcão'}</td>
-                <td className="pt-4 text-slate-600 dark:text-slate-400">
-                  {user.status === 'APPROVED' ? 'Ativo' : user.status === 'REJECTED' ? 'Bloqueado' : 'Pendente'}
-                </td>
-                <td className="pt-4 text-slate-600 dark:text-slate-400">{user.feedbackCount}</td>
-                <td className="min-w-[320px] p-4">
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => void update(user.id, { role: user.role === 'ADMIN' ? 'MECHANIC' : 'ADMIN' })}
-                      className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-800/50"
-                    >
-                      {user.role === 'ADMIN' ? 'Tornar Balcão' : 'Tornar Admin'}
-                    </button>
-                    <button
-                      onClick={() => void update(user.id, { status: user.status === 'APPROVED' ? 'REJECTED' : 'APPROVED' })}
-                      className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-800/50"
-                    >
-                      {user.status === 'APPROVED' ? 'Bloquear' : 'Ativar'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setPasswordUser(passwordUser === user.id ? null : user.id);
-                        setPasswordDraft('');
-                      }}
-                      className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-800/50"
-                    >
-                      Redefinir senha
-                    </button>
+            {filtered.map(user => (
+              <tr key={user.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70 dark:border-slate-800 dark:hover:bg-slate-800/40">
+                <td className="px-4 py-3"><div className="font-bold text-slate-800 dark:text-slate-100">{user.email}</div><div className="mt-1 text-[11px] text-slate-400">desde {fmtDate(user.createdAt)}</div></td>
+                <td className="text-xs font-semibold text-slate-600 dark:text-slate-300">{user.role === 'ADMIN' ? 'Administrador' : 'Balcão'}</td>
+                <td><span className={`text-xs font-bold ${user.status === 'APPROVED' ? 'text-emerald-700 dark:text-emerald-300' : user.status === 'REJECTED' ? 'text-rose-700 dark:text-rose-300' : 'text-amber-700 dark:text-amber-300'}`}>{user.status === 'APPROVED' ? 'Ativo' : user.status === 'REJECTED' ? 'Bloqueado' : 'Pendente'}</span></td>
+                <td className="text-xs text-slate-500 dark:text-slate-400">{user.feedbackCount}</td>
+                <td className="px-4 py-3">
+                  <div className="flex justify-end gap-1.5">
+                    <button type="button" onClick={() => void update(user.id, { role: user.role === 'ADMIN' ? 'MECHANIC' : 'ADMIN' })} className="rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-bold text-slate-500 dark:border-slate-700 dark:text-slate-300">{user.role === 'ADMIN' ? 'Tornar Balcão' : 'Tornar Admin'}</button>
+                    <button type="button" onClick={() => void update(user.id, { status: user.status === 'APPROVED' ? 'REJECTED' : 'APPROVED' })} className="rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-bold text-slate-500 dark:border-slate-700 dark:text-slate-300">{user.status === 'APPROVED' ? 'Bloquear' : 'Ativar'}</button>
+                    <button type="button" onClick={() => { setPasswordUser(passwordUser === user.id ? null : user.id); setPasswordDraft(''); }} className="rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-bold text-slate-500 dark:border-slate-700 dark:text-slate-300">Senha</button>
                   </div>
-                  {passwordUser === user.id && (
-                    <form onSubmit={e => void reset(e, user.id)} className="mt-3 flex gap-2">
-                      <input
-                        minLength={15}
-                        maxLength={64}
-                        type="password"
-                        autoComplete="new-password"
-                        value={passwordDraft}
-                        onChange={e => setPasswordDraft(e.target.value)}
-                        placeholder="Nova senha"
-                        className="cv-field min-w-0 flex-1 py-2 text-xs"
-                      />
-                      <button className="cv-primary px-3 py-2 text-xs font-semibold">Salvar</button>
-                    </form>
-                  )}
+                  {passwordUser === user.id && <form onSubmit={event => void reset(event, user.id)} className="mt-2 flex justify-end gap-2"><input minLength={15} maxLength={64} type="password" autoComplete="new-password" value={passwordDraft} onChange={event => setPasswordDraft(event.target.value)} placeholder="Nova senha" className="h-9 min-w-[220px] rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none dark:border-slate-700 dark:bg-slate-800" /><button className="rounded-lg bg-[#123867] px-3 text-xs font-black text-white">Salvar</button></form>}
                 </td>
               </tr>
             ))}
+            {!filtered.length && <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-400">Nenhum usuário encontrado.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -246,9 +195,17 @@ export function UsersPanel() {
 
 export function AuditPanel() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [filter, setFilter] = useState('');
+
   useEffect(() => {
-    void (async () => setLogs((await json<{ logs: AuditLog[] }>(await api('/api/admin/audit'))).logs))();
+    let active = true;
+    void api('/api/admin/audit')
+      .then(response => json<{ logs: AuditLog[] }>(response))
+      .then(response => { if (active) setLogs(response.logs); })
+      .catch(() => undefined);
+    return () => { active = false; };
   }, []);
+
   const label = (action: string): string => ({
     DOCUMENT_UPLOADED: 'Catálogo enviado',
     DOCUMENT_ARCHIVED: 'Catálogo arquivado',
@@ -262,22 +219,17 @@ export function AuditPanel() {
     AI_TECHNICAL_KNOWLEDGE_REBUILT: 'Memória técnica reconstruída',
   }[action] || action);
 
+  const normalized = filter.trim().toLocaleLowerCase('pt-BR');
+  const filtered = useMemo(() => logs.filter(log => !normalized || [label(log.action), log.action, log.user?.email, log.targetType].some(value => value?.toLocaleLowerCase('pt-BR').includes(normalized))), [logs, normalized]);
+
   return (
-    <section>
-      <p className="cv-kicker">Rastreabilidade</p>
-      <h1 className="cv-page-title">Auditoria</h1>
-      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Histórico das principais ações administrativas do ambiente.</p>
-      <div className="cv-surface mt-6 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden rounded-[22px]">
-        {logs.map(log => (
-          <div key={log.id} className="flex flex-wrap justify-between gap-3 p-4 transition hover:bg-slate-50/50 dark:bg-slate-800">
-            <div>
-              <b className="text-sm font-semibold text-slate-800 dark:text-slate-200">{label(log.action)}</b>
-              <div className="mt-1 text-xs text-slate-400">{log.user?.email || 'Sistema'} · {log.targetType}</div>
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">{fmtDate(log.createdAt)}</div>
-          </div>
-        ))}
-        {!logs.length && <div className="p-10 text-center text-sm text-slate-400">Nenhuma ação registrada.</div>}
+    <section className="mx-auto max-w-[1400px] space-y-4">
+      <AdminHeading kicker="Rastreabilidade" title="Auditoria" description="Ações administrativas relevantes, em ordem cronológica." />
+      <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"><div className="relative min-w-0 flex-1"><span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">⌕</span><input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Ação, usuário ou recurso…" className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-800" /></div><span className="px-1 text-xs font-semibold text-slate-400">{filtered.length} eventos</span></div>
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div className="hidden grid-cols-[minmax(230px,1fr)_minmax(180px,.8fr)_160px] gap-4 border-b border-slate-100 px-4 py-2.5 text-[10px] font-black uppercase tracking-[.1em] text-slate-400 md:grid dark:border-slate-800"><span>Ação</span><span>Responsável / recurso</span><span className="text-right">Data</span></div>
+        {filtered.map(log => <div key={log.id} className="grid gap-2 border-b border-slate-100 px-4 py-3.5 last:border-0 md:grid-cols-[minmax(230px,1fr)_minmax(180px,.8fr)_160px] md:items-center dark:border-slate-800"><div className="text-sm font-bold text-slate-800 dark:text-slate-100">{label(log.action)}</div><div className="text-xs text-slate-500 dark:text-slate-400">{log.user?.email || 'Sistema'} · {log.targetType}</div><div className="text-xs text-slate-400 md:text-right">{fmtDate(log.createdAt)}</div></div>)}
+        {!filtered.length && <div className="px-5 py-10 text-center text-sm text-slate-400">Nenhuma ação encontrada.</div>}
       </div>
     </section>
   );
