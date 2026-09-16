@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { apiJson } from '../lib';
 
 type ActionMetric = {
@@ -28,6 +29,11 @@ type AssistantPerformance = {
     localIplModels: number;
     withoutLocalIpl: number;
     localCoveragePercent: number;
+    priorityGaps: Array<{
+      model: string;
+      normalizedModel: string;
+      commercialSignals: number;
+    }>;
   };
 };
 
@@ -146,7 +152,29 @@ export default function AssistantObservabilityPanel() {
                 <div className="flex items-center justify-between text-xs"><span className="text-slate-500 dark:text-slate-400">Modelos descobertos</span><b>{portfolio.totalModels}</b></div>
                 <div className="mt-2 flex items-center justify-between text-xs"><span className="text-slate-500 dark:text-slate-400">Com IPL local</span><b className="text-emerald-700 dark:text-emerald-300">{portfolio.localIplModels}</b></div>
                 <div className="mt-2 flex items-center justify-between text-xs"><span className="text-slate-500 dark:text-slate-400">Sem IPL local</span><b className="text-amber-700 dark:text-amber-300">{portfolio.withoutLocalIpl}</b></div>
-                <p className="mt-3 border-t border-slate-100 pt-3 text-[10px] leading-4 text-slate-400 dark:border-slate-800">“Sem IPL local” não significa incompatível: esses modelos podem ser cobertos pela fonte oficial e continuam exigindo evidência antes de liberar aplicação.</p>
+
+                {portfolio.priorityGaps.length > 0 && (
+                  <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="text-[9px] font-black uppercase tracking-[.1em] text-slate-400">Prioridade de cobertura</span>
+                      <span className="text-[9px] font-semibold text-slate-400">sinais comerciais</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {portfolio.priorityGaps.slice(0, 6).map(item => (
+                        <Link
+                          key={item.normalizedModel}
+                          to={`/husqvarna?search=${encodeURIComponent(item.model)}`}
+                          className="flex items-center justify-between gap-3 rounded-md border border-slate-100 px-2.5 py-2 text-xs transition hover:border-blue-200 hover:bg-blue-50/50 dark:border-slate-800 dark:hover:border-blue-900 dark:hover:bg-blue-950/20"
+                        >
+                          <span className="min-w-0 truncate font-bold text-slate-700 dark:text-slate-200">{item.model}</span>
+                          <span className="shrink-0 font-mono text-[10px] font-bold text-[#1d4f91] dark:text-blue-300">{number(item.commercialSignals)} · verificar →</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <p className="mt-3 border-t border-slate-100 pt-3 text-[10px] leading-4 text-slate-400 dark:border-slate-800">“Sem IPL local” não significa incompatível. A fila acima só prioriza onde buscar evidência primeiro; a fonte oficial continua sendo necessária antes de liberar aplicação.</p>
               </>
             ) : (
               <div className="text-xs text-slate-500 dark:text-slate-400">Inventário de cobertura indisponível nesta leitura.</div>
