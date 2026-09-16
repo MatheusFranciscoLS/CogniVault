@@ -5,5 +5,16 @@
 ALTER TABLE public."OfficialSourceCache" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."AiDecisionCache" ENABLE ROW LEVEL SECURITY;
 
-REVOKE ALL ON TABLE public."OfficialSourceCache" FROM anon, authenticated;
-REVOKE ALL ON TABLE public."AiDecisionCache" FROM anon, authenticated;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON TABLE public."OfficialSourceCache" FROM anon;
+    REVOKE ALL ON TABLE public."AiDecisionCache" FROM anon;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON TABLE public."OfficialSourceCache" FROM authenticated;
+    REVOKE ALL ON TABLE public."AiDecisionCache" FROM authenticated;
+  END IF;
+END
+$$;
