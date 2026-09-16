@@ -2,7 +2,7 @@ import { prisma } from '../config/prisma';
 import { normalizeIdentifier } from '../utils/normalize';
 import type { PartBenchmarkCase } from './part-benchmark';
 
-const MAX_PORTFOLIO_BENCHMARK_CASES = 10_000;
+const MAX_PORTFOLIO_BENCHMARK_CASES = 50_000;
 
 type CatalogBenchmarkRow = {
   id: string;
@@ -81,7 +81,10 @@ function caseFromRow(row: CatalogBenchmarkRow): PartBenchmarkCase {
 }
 
 /**
- * Seleciona casos de catálogo de forma determinística e distribuída por família.
+ * Seleciona casos de catálogo de forma determinística e distribuída por família
+ * e por modelo. Um modelo recebe uma nova vaga somente depois de os demais
+ * modelos consultáveis da mesma família também terem tido oportunidade.
+ *
  * Um caso só entra quando a combinação de evidência (modelo/PNC/vista/posição/nome)
  * aponta para um único Part Number. Assim o benchmark não cria uma resposta
  * artificial para uma consulta que o próprio catálogo considera ambígua.
@@ -101,45 +104,72 @@ export function selectCatalogBenchmarkCases(rows: CatalogBenchmarkRow[], limit =
     .filter(group => new Set(group.map(row => normalizeIdentifier(row.partNumber))).size === 1)
     .map(group => group[0]);
 
-  const families = new Map<string, CatalogBenchmarkRow[]>();
+  const families = new Map<string, Map<string, CatalogBenchmarkRow[]>>();
   for (const row of uniqueRows) {
     const family = text(row.document.category?.name) || 'Sem categoria';
-    const group = families.get(family) || [];
-    group.push(row);
-    families.set(family, group);
+    const models = families.get(family) || new Map<string, CatalogBenchmarkRow[]>();
+    const modelRows = models.get(row.normalizedModel) || [];
+    modelRows.push(row);
+    models.set(row.normalizedModel, modelRows);
+    families.set(family, models);
   }
 
-  for (const group of families.values()) {
-    group.sort((a, b) => (
-      a.normalizedModel.localeCompare(b.normalizedModel)
-      || text(a.section).localeCompare(text(b.section))
-      || text(a.position).localeCompare(text(b.position))
-      || a.normalizedPartNumber.localeCompare(b.normalizedPartNumber)
-    ));
+  for (const models of families.values()) {
+    for (const group of models.values()) {
+      group.sort((a, b) => (
+        text(a.section).localeCompare(text(b.section))
+        || text(a.position).localeCompare(text(b.position))
+        || a.normalizedPartNumber.localeCompare(b.normalizedPartNumber)
+      ));
+    }
   }
 
   const familyNames = [...families.keys()].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  const offsets = new Map(familyNames.map(name => [name, 0]));
+  const modelNamesByFamily = new Map(
+    familyNames.map(family => [family, [...(families.get(family)?.keys() || [])].sort((a, b) => a.localeCompare(b, 'pt-BR'))]),
+  );
+  const nextModelIndex = new Map(familyNames.map(family => [family, 0]));
+  const offsetsByModel = new Map<string, number>();
   const selected: CatalogBenchmarkRow[] = [];
   const selectedCodesByModel = new Set<string>();
 
   while (selected.length < safeLimit) {
     let progressed = false;
+
     for (const family of familyNames) {
-      const rowsInFamily = families.get(family) || [];
-      let offset = offsets.get(family) || 0;
-      while (offset < rowsInFamily.length) {
-        const candidate = rowsInFamily[offset++];
-        const diversityKey = `${candidate.normalizedModel}|${candidate.normalizedPartNumber}`;
-        if (selectedCodesByModel.has(diversityKey)) continue;
-        selected.push(candidate);
-        selectedCodesByModel.add(diversityKey);
-        progressed = true;
-        break;
+      const models = families.get(family);
+      const modelNames = modelNamesByFamily.get(family) || [];
+      if (!models || !modelNames.length) continue;
+
+      let cursor = nextModelIndex.get(family) || 0;
+      let selectedFromFamily = false;
+
+      for (let attempt = 0; attempt < modelNames.length; attempt += 1) {
+        const model = modelNames[cursor % modelNames.length];
+        cursor = (cursor + 1) % modelNames.length;
+        const modelRows = models.get(model) || [];
+        const offsetKey = `${family}|${model}`;
+        let offset = offsetsByModel.get(offsetKey) || 0;
+
+        while (offset < modelRows.length) {
+          const candidate = modelRows[offset++];
+          const diversityKey = `${candidate.normalizedModel}|${candidate.normalizedPartNumber}`;
+          if (selectedCodesByModel.has(diversityKey)) continue;
+          selected.push(candidate);
+          selectedCodesByModel.add(diversityKey);
+          progressed = true;
+          selectedFromFamily = true;
+          break;
+        }
+
+        offsetsByModel.set(offsetKey, offset);
+        if (selectedFromFamily) break;
       }
-      offsets.set(family, offset);
+
+      nextModelIndex.set(family, cursor);
       if (selected.length >= safeLimit) break;
     }
+
     if (!progressed) break;
   }
 
@@ -186,4 +216,15 @@ export function benchmarkCoverageByFamily(cases: PartBenchmarkCase[]) {
   return [...counts.entries()]
     .map(([family, count]) => ({ family, count }))
     .sort((a, b) => b.count - a.count || a.family.localeCompare(b.family, 'pt-BR'));
+}
+
+export function benchmarkCoverageByModel(cases: PartBenchmarkCase[]) {
+  const counts = new Map<string, number>();
+  for (const item of cases) {
+    const model = text(item.model) || 'Sem modelo';
+    counts.set(model, (counts.get(model) || 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([model, count]) => ({ model, count }))
+    .sort((a, b) => b.count - a.count || a.model.localeCompare(b.model, 'pt-BR'));
 }
