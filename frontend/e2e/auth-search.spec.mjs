@@ -17,7 +17,9 @@ async function searchCarburettor(page) {
   const search = page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/);
   await search.fill('carburador 143RII 967332904');
   await page.getByRole('button', { name: 'Buscar' }).click();
-  await expect(page.getByText('587106701', { exact: true })).toBeVisible();
+  const technicalResult = page.getByRole('button', { name: 'Abrir detalhes de CARBURADOR' });
+  await expect(technicalResult).toBeVisible();
+  await expect(technicalResult.getByText('587106701', { exact: true })).toBeVisible();
 }
 
 test('rota protegida rejeita navegador sem sessão', async ({ page }) => {
