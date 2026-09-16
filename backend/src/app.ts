@@ -39,6 +39,11 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
   }
 }
 
+function deployRevision(): string | null {
+  const revision = process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT_SHA;
+  return revision ? revision.slice(0, 12) : null;
+}
+
 const databaseReadiness = createReadinessProbe(async () => {
   try {
     await withTimeout(prisma.$queryRaw`SELECT 1`, 3_000);
@@ -89,6 +94,7 @@ app.use(requestPerformanceMiddleware);
 app.get('/health/live', (_req, res) => {
   res.status(200).set('Cache-Control', 'no-store').json({
     status: 'ok',
+    revision: deployRevision(),
     uptimeSeconds: Math.round(process.uptime()),
     timestamp: new Date().toISOString(),
   });

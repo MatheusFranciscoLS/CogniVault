@@ -71,7 +71,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
@@ -80,3 +80,37 @@ jobs:
         run: npm audit --audit-level=high
       - run: npm run lint
       - run: npm run build
+
+  production-smoke:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wait for Render to serve this commit
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          HEALTH_URL: https://cognivault-api.onrender.com/health/live
+        run: |
+          set -euo pipefail
+          expected="${EXPECTED_SHA:0:12}"
+          for attempt in $(seq 1 90); do
+            response="$(curl --silent --show-error --fail --max-time 10 "$HEALTH_URL" || true)"
+            revision="$(node -e 'try { const body = JSON.parse(process.argv[1]); process.stdout.write(body.revision || ""); } catch {}' "$response")"
+            if [ "$revision" = "$expected" ]; then
+              echo "Render is serving revision $revision"
+              exit 0
+            fi
+            echo "Attempt $attempt/90: production revision is '${revision:-unavailable}', waiting for '$expected'"
+            sleep 5
+          done
+          echo "::error::Render did not publish revision $expected within the smoke-test window."
+          exit 1
+
+      - name: Smoke-test production frontend routes
+        run: |
+          set -euo pipefail
+          for path in / /login /dashboard /husqvarna; do
+            curl --silent --show-error --fail --location --max-time 15 "https://cognivault-murex.vercel.app${path}" >/dev/null
+            echo "OK https://cognivault-murex.vercel.app${path}"
+          done
