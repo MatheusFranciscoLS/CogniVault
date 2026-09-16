@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { apiJson, ensureApiReady, isApiRecentlyReady } from '../lib';
 
 type LoginResponse = {
-  token: string;
   user: {
+    id: string;
     tenantId: string;
     role: 'ADMIN' | 'MECHANIC';
     email: string;
@@ -56,7 +56,9 @@ export default function Login() {
         timeoutMs: 20_000,
       });
 
-      localStorage.setItem('cognivault_token', data.token);
+      // O JWT fica em cookie HttpOnly. Mantemos apenas dados não-secretos para
+      // escopar preferências/contexto local por usuário.
+      localStorage.removeItem('cognivault_token');
       localStorage.setItem('cognivault_tenant', data.user.tenantId);
       localStorage.setItem('cognivault_role', data.user.role);
       localStorage.setItem('cognivault_email', data.user.email);

@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { AuditService } from '../services/audit.service';
 import { invalidateUserAuthCache } from '../middleware/auth.middleware';
+import { clearSessionCookie, setSessionCookie } from '../utils/session-cookie';
 
 function getJwtSecret(): string {
     const secret = process.env.JWT_SECRET;
@@ -88,6 +89,8 @@ export class AuthController {
                 }
             );
 
+            setSessionCookie(res, token);
+
             AuditService.record({
                 tenantId: user.tenantId,
                 userId: user.id,
@@ -99,9 +102,8 @@ export class AuthController {
 
             invalidateUserAuthCache(user.id);
 
-            res.status(200).json({
+            res.status(200).set('Cache-Control', 'no-store').json({
                 message: 'Login realizado com sucesso!',
-                token,
                 user: {
                     id: user.id,
                     email: user.email,
@@ -117,5 +119,10 @@ export class AuthController {
                 error: 'Erro interno ao fazer login.'
             });
         }
+    }
+
+    logout(_req: Request, res: Response): void {
+        clearSessionCookie(res);
+        res.status(204).set('Cache-Control', 'no-store').end();
     }
 }

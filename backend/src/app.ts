@@ -80,6 +80,7 @@ app.use(cors({
     if (isAllowedCorsOrigin(origin, allowedOrigins)) return callback(null, true);
     return callback(new HttpError(403, 'Origem não permitida pelo CORS.'));
   },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));

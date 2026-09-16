@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ShellV2 from '../components/ShellV2';
 import TechnicalAssistantWorkspace from '../components/parts-v2/TechnicalAssistantWorkspace';
 import CatalogsWorkspace from '../components/CatalogsWorkspace';
-import { apiJson, clearSession, getToken, SESSION_EXPIRED_EVENT } from '../lib';
+import { api, apiJson, clearSession, SESSION_EXPIRED_EVENT } from '../lib';
 import type { Section, SessionUser } from '../types';
 import '../assistant.css';
 import '../admin-polish.css';
@@ -70,19 +70,17 @@ export default function Dashboard() {
 
   useEffect(() => {
     let active = true;
-    if (!getToken()) {
-      navigate('/login', { replace: true });
-      return;
-    }
-
+    // O JWT fica em cookie HttpOnly e não pode/deve ser lido pelo JavaScript.
+    // /api/me é a fonte de verdade para restaurar ou rejeitar a sessão.
     void apiJson<{ user: SessionUser }>('/api/me')
       .then(data => {
         if (active) setUser(data.user);
       })
       .catch(requestError => {
         if (!active) return;
-        setError(requestError instanceof Error ? requestError.message : 'Sessão inválida');
         clearSession();
+        const message = requestError instanceof Error ? requestError.message : 'Sessão inválida';
+        if (!/sessão|token|autentica/i.test(message)) setError(message);
         navigate('/login', { replace: true });
       });
 
@@ -98,8 +96,12 @@ export default function Dashboard() {
   }, [navigate]);
 
   const logout = () => {
-    clearSession();
-    navigate('/login');
+    // Limpa a sessão no servidor (cookie HttpOnly) e sempre remove o contexto
+    // não sensível local, mesmo se a API estiver temporariamente indisponível.
+    void api('/api/logout', { method: 'POST', timeoutMs: 8_000 }).catch(() => undefined).finally(() => {
+      clearSession();
+      navigate('/login', { replace: true });
+    });
   };
 
   const search = (query: string) => {

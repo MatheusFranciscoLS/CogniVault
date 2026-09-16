@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import OfficialHusqvarnaPanel from '../components/parts-v2/OfficialHusqvarnaPanel';
 import type { HusqvarnaOfficialSearchKind, HusqvarnaOfficialSearchResult, OfficialFallbackResult } from '../components/parts-v2/types';
-import { apiJson, getToken } from '../lib';
+import { apiJson } from '../lib';
 
 const SEARCH_KIND_LABELS: Record<HusqvarnaOfficialSearchKind, string> = {
   PRODUCT: 'Produtos',
@@ -65,6 +65,7 @@ export default function HusqvarnaOfficialPage() {
   const initialSearch = (searchParams.get('search') || '').trim();
   const validPnc = /^\d{8,14}$/.test(pnc);
 
+  const [sessionReady, setSessionReady] = useState(false);
   const [result, setResult] = useState<OfficialFallbackResult | null>(null);
   const [loading, setLoading] = useState(validPnc);
   const [error, setError] = useState('');
@@ -74,11 +75,16 @@ export default function HusqvarnaOfficialPage() {
   const [searchResults, setSearchResults] = useState<HusqvarnaOfficialSearchResult[]>([]);
 
   useEffect(() => {
-    if (!getToken()) {
-      navigate('/login', { replace: true });
-      return;
-    }
-    if (!validPnc) return;
+    let active = true;
+    // A sessão real vive em cookie HttpOnly; não usamos mais presença de JWT no localStorage.
+    void apiJson('/api/me')
+      .then(() => { if (active) setSessionReady(true); })
+      .catch(() => { if (active) navigate('/login', { replace: true }); });
+    return () => { active = false; };
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!sessionReady || !validPnc) return;
 
     let active = true;
     void apiJson<{ result: OfficialFallbackResult }>(`/api/official-fallback?q=${encodeURIComponent(pnc)}`, { timeoutMs: 20_000 })
@@ -97,7 +103,7 @@ export default function HusqvarnaOfficialPage() {
       .finally(() => { if (active) setLoading(false); });
 
     return () => { active = false; };
-  }, [navigate, pnc, validPnc]);
+  }, [pnc, sessionReady, validPnc]);
 
   const runOfficialSearch = async (rawQuery: string) => {
     const query = rawQuery.trim().replace(/\s+/g, ' ');
@@ -118,10 +124,10 @@ export default function HusqvarnaOfficialPage() {
   };
 
   useEffect(() => {
-    if (!initialSearch || initialSearch.length < 2 || !getToken()) return;
+    if (!sessionReady || !initialSearch || initialSearch.length < 2) return;
     const timer = window.setTimeout(() => { void runOfficialSearch(initialSearch); }, 0);
     return () => window.clearTimeout(timer);
-  }, [initialSearch]);
+  }, [initialSearch, sessionReady]);
 
   const searchOfficialProducts = async (event: FormEvent) => {
     event.preventDefault();
