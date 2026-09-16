@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiJson } from '../lib';
+import { apiJson, ensureApiReady, isApiRecentlyReady } from '../lib';
 
 type LoginResponse = {
   token: string;
@@ -12,13 +12,25 @@ type LoginResponse = {
   };
 };
 
+type ServerState = 'checking' | 'ready' | 'slow';
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [serverState, setServerState] = useState<ServerState>(isApiRecentlyReady() ? 'ready' : 'checking');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isApiRecentlyReady()) return;
+    let active = true;
+    void ensureApiReady().then(ready => {
+      if (active) setServerState(ready ? 'ready' : 'slow');
+    });
+    return () => { active = false; };
+  }, []);
 
   const handleLogin = async (event: FormEvent) => {
     event.preventDefault();
@@ -26,11 +38,22 @@ export default function Login() {
     setLoading(true);
 
     try {
+      if (!isApiRecentlyReady()) {
+        setServerState('checking');
+        const ready = await ensureApiReady(75_000);
+        if (!ready) {
+          setServerState('slow');
+          setError('O servidor ainda está iniciando. Aguarde alguns instantes e tente novamente.');
+          return;
+        }
+        setServerState('ready');
+      }
+
       const data = await apiJson<LoginResponse>('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
-        timeoutMs: 15_000,
+        timeoutMs: 20_000,
       });
 
       localStorage.setItem('cognivault_token', data.token);
@@ -44,6 +67,8 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  const preparing = loading && serverState !== 'ready';
 
   return (
     <main className="min-h-[100dvh] bg-[#eef3f8] px-4 py-6 text-slate-950 dark:bg-[#060d1c] dark:text-white sm:px-6 lg:grid lg:place-items-center lg:py-10">
@@ -103,12 +128,16 @@ export default function Login() {
               </div>
               <button disabled={loading} className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#123867] text-sm font-black text-white transition hover:bg-[#0d2c52] focus:ring-4 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60">
                 {loading && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />}
-                {loading ? 'Validando acesso…' : 'Entrar no CogniVault'}
+                {loading ? (preparing ? 'Preparando o CogniVault…' : 'Validando acesso…') : 'Entrar no CogniVault'}
               </button>
             </form>
 
-            <div className="mt-7 flex items-center justify-between gap-4 border-t border-slate-100 pt-4 text-[10px] font-semibold text-slate-400 dark:border-slate-800">
-              <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Acesso protegido</span>
+            <div className="mt-3 min-h-5 text-center text-[10px] font-semibold text-slate-400" aria-live="polite">
+              {serverState === 'checking' ? 'Preparando o servidor em segundo plano…' : serverState === 'slow' ? 'Servidor em inicialização; o acesso aguardará ficar pronto.' : 'Servidor pronto para o atendimento.'}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-100 pt-4 text-[10px] font-semibold text-slate-400 dark:border-slate-800">
+              <span className="flex items-center gap-2"><span className={`h-1.5 w-1.5 rounded-full ${serverState === 'ready' ? 'bg-emerald-500' : 'bg-amber-400'}`} />Acesso protegido</span>
               <span>Administrador · Balcão</span>
             </div>
           </div>

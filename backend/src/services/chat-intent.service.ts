@@ -7,6 +7,7 @@ import { withTransientAIRetry } from '../utils/ai-retry';
 import { LRUCache } from 'lru-cache';
 import { recordAiTelemetry } from '../utils/ai-telemetry';
 import { PartSearchService } from './part-search.service';
+import { canUseInteractiveAi, consumeInteractiveAiBudget } from './interactive-ai-budget';
 
 const INTERACTIVE_AI_TIMEOUT_MS = 8_000;
 const INTERACTIVE_AI_RETRY = { maxAttempts: 2, baseDelayMs: 500, maxDelayMs: 1_500 } as const;
@@ -58,6 +59,8 @@ export class ChatIntentService {
       'número de série',
     ]);
 
+    // O caminho comum do balcão não consome IA: código, vocabulário conhecido,
+    // domínio conhecido e consultas totalmente interpretáveis ficam locais.
     if (localIntent.partNumber || knownVocabulary || knownDomain || !unknownDescriptionTerms.length) return localIntent;
 
     const cacheKey = `${tenantId || 'global'}:${question.trim().toLowerCase()}`;
@@ -81,6 +84,13 @@ export class ChatIntentService {
       if (similar.length > 0) {
         similarModelsHint = `Modelos válidos existentes na loja mais próximos: [${similar.join(', ')}]\nSe a menção do usuário corresponder fonética ou ortograficamente a um desses, use a grafia oficial.`;
       }
+    }
+
+    // Protege a franquia gratuita: quando o orçamento diário chega ao limite,
+    // continuamos com a interpretação determinística em vez de falhar a busca.
+    if (tenantId && !(await canUseInteractiveAi(tenantId))) {
+      console.info('[AI Budget] Interpretação generativa pulada; usando leitura local segura.');
+      return localIntent;
     }
 
     try {
@@ -118,6 +128,7 @@ export class ChatIntentService {
         { label: 'Chat Intent Parse', ...INTERACTIVE_AI_RETRY },
       );
       recordAiTelemetry(tenantId || 'global', 'CHAT_INTENT_PARSE', response);
+      if (tenantId) consumeInteractiveAiBudget(tenantId, (response as any)?.usage?.total_tokens);
 
       const rawText = String((response as any).output_text || '').trim();
       const cleanedText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();

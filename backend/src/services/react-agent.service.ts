@@ -9,6 +9,7 @@ import { preferCurrentPartNumbers } from './part-supersession';
 import { chooseCandidateLocally } from './chat-reliability';
 import { withTransientAIRetry } from '../utils/ai-retry';
 import { recordAiTelemetry } from '../utils/ai-telemetry';
+import { canUseInteractiveAi, consumeInteractiveAiBudget } from './interactive-ai-budget';
 
 const INTERACTIVE_AI_TIMEOUT_MS = 8_000;
 
@@ -113,39 +114,31 @@ export class ReActAgentService {
       };
     }
 
+    // Só usa o modelo generativo quando as regras locais realmente ficaram
+    // empatadas. Se a franquia diária estiver no limite, pedimos mais contexto
+    // em vez de gastar tokens ou escolher uma peça insegura.
+    if (!(await canUseInteractiveAi(tenantId))) {
+      return {
+        status: 'AMBIGUOUS',
+        explanation: 'Há mais de uma peça tecnicamente plausível. Informe PNC, posição, vista ou número de série para eu resolver sem depender da IA generativa.',
+        candidates,
+      };
+    }
+
     const ai = await getGeminiClient();
-    const candidatesSummary = candidates.slice(0, 10).map((c, index) => {
-      return `Opção ${index + 1}:
-ID: ${c.id}
-Nome: ${c.name}
-Código: ${c.partNumber}
-Modelo: ${c.model}
-PNC: ${c.pnc || 'Qualquer'}
-Seção: ${c.section || 'N/A'}
-Posição: ${c.position || 'N/A'}
-Mercado/Notas: ${c.notes || 'Universal'}
-Score de Recuperação: ${c.distance} (menor é melhor)`;
-    }).join('\n\n');
+    const candidatesSummary = candidates.slice(0, 6).map((c, index) => {
+      return `#${index + 1} id=${c.id}; nome=${c.name}; codigo=${c.partNumber}; modelo=${c.model}; pnc=${c.pnc || 'qualquer'}; secao=${c.section || 'N/A'}; posicao=${c.position || 'N/A'}; notas=${c.notes || 'N/A'}; score=${c.distance}; acordo=${c.retrievalAgreement || 0}`;
+    }).join('\n');
 
     const decisionPrompt = `Você é um especialista em catálogo de peças Husqvarna.
-O usuário perguntou: "${question}"
+Pergunta: "${question}"
 
-Resultados da busca no banco de dados (IPLs):
+Candidatos já encontrados no IPL:
 ${candidatesSummary}
 
-Instruções:
-1. Analise cuidadosamente a pergunta do usuário e os candidatos.
-2. Priorize estritamente opções para o mercado regional (Brasil / América Latina / South America). Se houver indicação de substituição oficial vigente, preserve o código atualizado.
-3. Identifique qual é a peça exata que o usuário deseja com base em modelo, seção, posição e descrição técnica.
-4. Para cortadores Giro Zero (ex: Z248F, Z254F, Z448, Z454, Z460, Z560X) e seus motores acoplados (Kawasaki FR691V, FX730V, FX921V, Husqvarna HV764, etc.), correlacione peças internas de motor com o motor correspondente e peças de deck/chassi com a máquina.
-5. Se houver uma peça claramente correta no mercado regional, escolha-a.
-6. Se não houver uma peça claramente correta, retorne ambiguous = true.
-7. Explique seu raciocínio técnico.
+Escolha SOMENTE entre esses IDs. Priorize Brasil/América Latina, modelo, PNC, seção, posição e descrição. Preserve substituição oficial vigente. Se duas opções continuarem plausíveis, marque ambiguous=true. Não invente aplicação nem código.
 
-Retorne um JSON com:
-- chosenId: O ID da peça escolhida (ou null se ambíguo/não encontrado)
-- explanation: A explicação do seu raciocínio técnico
-- ambiguous: Booleano indicando se a resposta é incerta`;
+Retorne JSON com chosenId, explanation e ambiguous.`;
 
     try {
       const decisionResponse = await withTransientAIRetry(
@@ -170,6 +163,7 @@ Retorne um JSON com:
       );
 
       recordAiTelemetry(tenantId, 'REACT_AGENT_DECISION', decisionResponse);
+      consumeInteractiveAiBudget(tenantId, (decisionResponse as any)?.usage?.total_tokens);
 
       const rawText = String((decisionResponse as any).output_text || '').trim();
       const cleanedText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();

@@ -4,11 +4,19 @@ import { HusqvarnaLivePartService } from './husqvarna-live-part.service';
 import { HusqvarnaOfficialDetailService } from './husqvarna-official-detail.service';
 import { HusqvarnaReplacementHistoryService, parseSparePartReplacementHistory } from './husqvarna-replacement-history.service';
 import { HusqvarnaScraperService } from './husqvarna-scraper.service';
+import { buildOfficialSourceCacheKey, OfficialSourceCacheService } from './official-source-cache.service';
 
 const detail = {
   partNumber: '516572700', name: 'TENSOR DA FAIXA', description: 'BELT TENSIONER',
   commercialReference: null, url: null, imageUrl: null, specifications: { netWeight: '170 g' }, fitsTo: [],
 };
+
+async function clearLivePartCache(...codes: string[]) {
+  await Promise.all(codes.map(code => OfficialSourceCacheService.invalidate(
+    buildOfficialSourceCacheKey('HUSQVARNA', 'LIVE_PART', code.replace(/\D/g, '')),
+  )));
+}
+
 function setup(t: TestContext) {
   const direct = t.mock.method(HusqvarnaOfficialDetailService, 'getSparePartDetails', async () => detail);
   const history = t.mock.method(HusqvarnaReplacementHistoryService, 'getReplacementHistory', async (code: string) =>
@@ -20,6 +28,7 @@ function setup(t: TestContext) {
 }
 
 test('legacy live-data response uses the official replacement without scraping', async t => {
+  await clearLivePartCache('516572700');
   const mocks = setup(t);
   const result = await HusqvarnaLivePartService.getPart('516 57 27-00');
   assert.equal(result?.name, 'TENSOR DA FAIXA');
@@ -30,6 +39,7 @@ test('legacy live-data response uses the official replacement without scraping',
 });
 
 test('official latest code overrides stale replacement even when detail needs HTML', async t => {
+  await clearLivePartCache('533040223');
   const mocks = setup(t);
   mocks.direct.mock.mockImplementation(async () => null);
   mocks.scraper.mock.mockImplementation(async () => ({ name: 'TENSOR', originalPartUrl: '', replacedBy: '516572700' }));
@@ -40,6 +50,7 @@ test('official latest code overrides stale replacement even when detail needs HT
 });
 
 test('unavailable official history preserves HTML fallback and direct applications', async t => {
+  await clearLivePartCache('516572700');
   const mocks = setup(t);
   mocks.direct.mock.mockImplementation(async () => ({ ...detail, fitsTo: ['Official model'] }));
   mocks.history.mock.mockImplementation(async () => null);
@@ -51,6 +62,7 @@ test('unavailable official history preserves HTML fallback and direct applicatio
 });
 
 test('missing detail in both sources returns null and invalid codes do not call upstream', async t => {
+  await clearLivePartCache('516572700');
   const mocks = setup(t);
   mocks.direct.mock.mockImplementation(async () => null);
   assert.equal(await HusqvarnaLivePartService.getPart('516572700'), null);

@@ -13,6 +13,69 @@ export class ApiError extends Error {
   }
 }
 
+let apiReadyUntil = 0;
+let apiWarmupPromise: Promise<boolean> | null = null;
+
+function markApiReady() {
+  apiReadyUntil = Date.now() + 60_000;
+}
+
+function wait(ms: number) {
+  return new Promise<void>(resolve => window.setTimeout(resolve, ms));
+}
+
+export function isApiRecentlyReady() {
+  return Date.now() < apiReadyUntil;
+}
+
+/**
+ * Acorda preventivamente a API hospedada em infraestrutura que pode entrar em
+ * suspensão. Não envia credenciais e não altera o timeout das operações normais.
+ */
+export function ensureApiReady(maxWaitMs = 75_000): Promise<boolean> {
+  if (isApiRecentlyReady()) return Promise.resolve(true);
+  if (apiWarmupPromise) return apiWarmupPromise;
+
+  apiWarmupPromise = (async () => {
+    const deadline = Date.now() + Math.max(5_000, maxWaitMs);
+    let attempt = 0;
+
+    while (Date.now() < deadline) {
+      const controller = new AbortController();
+      const remaining = deadline - Date.now();
+      const probeTimeout = Math.min(12_000, Math.max(2_000, remaining));
+      const timer = window.setTimeout(() => controller.abort(), probeTimeout);
+
+      try {
+        const response = await fetch(`${API_URL}/health/live`, {
+          method: 'HEAD',
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        if (response.ok) {
+          markApiReady();
+          return true;
+        }
+      } catch {
+        // Cold start e indisponibilidade temporária são tratados pelo retry abaixo.
+      } finally {
+        window.clearTimeout(timer);
+      }
+
+      attempt += 1;
+      const delay = Math.min(3_000, 700 + attempt * 350);
+      if (Date.now() + delay >= deadline) break;
+      await wait(delay);
+    }
+
+    return false;
+  })().finally(() => {
+    apiWarmupPromise = null;
+  });
+
+  return apiWarmupPromise;
+}
+
 export function getToken() { return localStorage.getItem('cognivault_token') || ''; }
 export function clearSession() {
   ['cognivault_token','cognivault_tenant','cognivault_role','cognivault_email'].forEach(k => localStorage.removeItem(k));
@@ -42,6 +105,7 @@ export async function api(path: string, init: ApiRequestInit = {}) {
       headers,
       signal: controller.signal,
     });
+    markApiReady();
 
     if (response.status === 401 && token) {
       clearSession();
@@ -127,7 +191,6 @@ export function formatEngineOrCatalogModel(model?: string | null, manufacturer?:
     baseModel = raw ? `Motor Briggs ${raw}` : 'Motor Briggs';
   }
 
-  // Detecta se faz parte de alguma máquina Husqvarna conhecida (ex: J55SL, LC121P)
   const hay = `${rawFile} ${raw}`.toUpperCase();
   if (hay.includes('J55SL') && !baseModel.toUpperCase().includes('J55SL')) {
     baseModel = `${baseModel} (Cortador J55SL)`;
@@ -189,5 +252,3 @@ export function classifyPartKind(name?: string | null, section?: string | null, 
     description: 'Item avulso / componente individual',
   };
 }
-
-

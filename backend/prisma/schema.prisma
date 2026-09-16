@@ -476,3 +476,23 @@ model AiBenchmarkRun {
   @@index([tenantId, createdAt])
   @@index([userId, createdAt])
 }
+
+model OfficialSourceCache {
+  key                 String   @id
+  source              String
+  resourceType        String
+  resourceId          String
+  payload             Json
+  fingerprint         String
+  previousFingerprint String?
+  fetchedAt           DateTime
+  freshUntil          DateTime
+  staleUntil          DateTime
+  changedAt           DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([source, resourceType, resourceId])
+  @@index([changedAt])
+  @@index([freshUntil])
+}

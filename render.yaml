@@ -22,6 +22,8 @@ services:
         value: gemini-3.7-flash
       - key: GEMINI_REQUEST_TIMEOUT_MS
         value: "180000"
+      - key: AI_INTERACTIVE_DAILY_TOKEN_BUDGET
+        value: "120000"
       - key: ENABLE_SEMANTIC_INDEXING
         value: "false"
       - key: SEMANTIC_PARTS_PER_DOCUMENT
@@ -38,6 +40,10 @@ services:
         value: "false"
       - key: OFFICIAL_VERIFICATION_CACHE_DAYS
         value: "90"
+      - key: HUSQVARNA_CACHE_FRESH_MINUTES
+        value: "180"
+      - key: HUSQVARNA_CACHE_STALE_DAYS
+        value: "7"
       - key: VISUAL_RETRY_COOLDOWN_HOURS
         value: "20"
       - key: VISUAL_RETRY_SCAN_MINUTES
