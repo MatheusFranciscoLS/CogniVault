@@ -62,9 +62,15 @@ async function main() {
     throw new Error('Informe --tenant=<tenantId> ou BENCHMARK_TENANT_ID para executar o benchmark contra o catálogo importado.');
   }
 
-  const full = process.argv.includes('--full') || enabled(process.env.BENCHMARK_FULL);
-  const requestedTarget = Number(argValue('limit') || process.env.BENCHMARK_CASE_LIMIT || (full ? '500' : '50'));
-  const target = Number.isFinite(requestedTarget) ? Math.max(1, Math.min(500, Math.trunc(requestedTarget))) : (full ? 500 : 50);
+  const portfolio = process.argv.includes('--portfolio') || enabled(process.env.BENCHMARK_PORTFOLIO);
+  const full = !portfolio && (process.argv.includes('--full') || enabled(process.env.BENCHMARK_FULL));
+  const defaultTarget = portfolio ? 10_000 : full ? 500 : 50;
+  const maxTarget = portfolio ? 10_000 : 500;
+  const requestedTarget = Number(argValue('limit') || process.env.BENCHMARK_CASE_LIMIT || String(defaultTarget));
+  const target = Number.isFinite(requestedTarget)
+    ? Math.max(1, Math.min(maxTarget, Math.trunc(requestedTarget)))
+    : defaultTarget;
+
   const catalogCases = await buildCatalogBenchmarkCases(tenantId, target);
   const coreCases = uniqueCases([...HUSQVARNA_CRITICAL_BENCHMARK, ...catalogCases]).slice(0, target);
   const tenantFeedbackCases = await feedbackCases(tenantId);
@@ -73,7 +79,7 @@ async function main() {
 
   console.log(`\n🧪 CogniVault benchmark: ${cases.length} casos`);
   console.log(`   Cobertura principal: ${coreCases.length}/${target} · críticos curados: ${HUSQVARNA_CRITICAL_BENCHMARK.length} · correções reais: ${tenantFeedbackCases.length}`);
-  console.log(`   Modo: ${full ? 'FULL PORTFOLIO (até 500)' : 'SMOKE (até 50)'}`);
+  console.log(`   Modo: ${portfolio ? 'PORTFOLIO (até 10.000 casos únicos)' : full ? 'REGRESSÃO AMPLA (até 500)' : 'CRÍTICO/SMOKE (até 50)'}`);
   console.log('   Gemini: não utilizado pelo benchmark de recuperação');
   console.log('   Métricas: Top-1, Recall@5, MRR, NDCG@5 e hard negatives\n');
 
@@ -99,9 +105,9 @@ async function main() {
     const hardNegativeWon = hardRank >= 0 && (correctRank < 0 || hardRank < correctRank);
     const status = hardNegativeWon ? '🛑 Hard negative venceu' : expected.has(top) ? '✅ Top-1' : hitAt5 ? '🟡 Top-5' : '❌ Falhou';
 
-    console.log(`${String(index + 1).padStart(3, '0')}. ${status} · ${benchmarkCase.id} · ${benchmarkCase.family || 'sem família'}`);
-    console.log(`     ${benchmarkCase.query}`);
-    console.log(`     esperado: ${benchmarkCase.expectedPartNumbers.join(' / ')} · retornado: ${returnedPartNumbers.slice(0, 5).join(', ') || 'nenhum'}`);
+    console.log(`${String(index + 1).padStart(4, '0')}. ${status} · ${benchmarkCase.id} · ${benchmarkCase.family || 'sem família'}`);
+    console.log(`      ${benchmarkCase.query}`);
+    console.log(`      esperado: ${benchmarkCase.expectedPartNumbers.join(' / ')} · retornado: ${returnedPartNumbers.slice(0, 5).join(', ') || 'nenhum'}`);
   }
 
   const metrics = evaluatePartBenchmark(cases, observations);
