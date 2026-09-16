@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - 'feature/**'
+      - 'feat/**'
       - 'fix/**'
   pull_request:
     branches:
@@ -43,6 +44,7 @@ jobs:
       GEMINI_API_KEY: ci-placeholder
       SUPABASE_URL: https://example.supabase.co
       SUPABASE_SECRET_KEY: ci-placeholder
+      ENABLE_SEMANTIC_INDEXING: 'false'
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -59,6 +61,8 @@ jobs:
       - name: Apply full migration chain on clean PostgreSQL
         run: npx prisma migrate deploy
       - run: npm test
+      - name: Gate 50 deterministic search cases
+        run: npm run benchmark:parts:ci
       - name: Smoke-test compiled Gemini loader
         run: node -e "require('./dist/config/gemini.js').getGeminiClient().then(() => console.log('Gemini ESM loader OK'))"
 
@@ -81,9 +85,93 @@ jobs:
       - run: npm run lint
       - run: npm run build
 
+  e2e:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.6-pg17
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: cognivault_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d cognivault_e2e"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://user:password@localhost:5432/cognivault_e2e
+      JWT_SECRET: e2e-only-secret-not-used-in-production
+      NODE_ENV: test
+      E2E_SEED_ALLOWED: 'true'
+      E2E_PASSWORD: CogniVault-E2E-2026!
+      GEMINI_API_KEY: ci-placeholder
+      SUPABASE_URL: https://example.supabase.co
+      SUPABASE_SECRET_KEY: ci-placeholder
+      ENABLE_SEMANTIC_INDEXING: 'false'
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up backend Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Prepare E2E backend
+        working-directory: backend
+        run: |
+          npm ci
+          npx prisma generate
+          npx prisma migrate deploy
+          npm run seed:e2e
+          nohup npm start >/tmp/cognivault-backend.log 2>&1 &
+      - name: Wait for E2E backend
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://localhost:3333/health/live >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/cognivault-backend.log || true
+          exit 1
+      - name: Set up frontend Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Prepare Playwright and frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --no-package-lock @playwright/test@1.55.0
+          npx playwright install --with-deps chromium
+          nohup npm run dev -- --host 0.0.0.0 >/tmp/cognivault-frontend.log 2>&1 &
+      - name: Wait for E2E frontend
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://localhost:5173/login >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/cognivault-frontend.log || true
+          exit 1
+      - name: Run browser E2E
+        working-directory: frontend
+        run: npx playwright test -c e2e/playwright.config.mjs
+      - name: Print service logs on failure
+        if: failure()
+        run: |
+          echo '--- backend ---'
+          cat /tmp/cognivault-backend.log || true
+          echo '--- frontend ---'
+          cat /tmp/cognivault-frontend.log || true
+
   production-smoke:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [backend, frontend]
+    needs: [backend, frontend, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -107,10 +195,12 @@ jobs:
           echo "::error::Render did not publish revision $expected within the smoke-test window."
           exit 1
 
-      - name: Smoke-test production frontend routes
+      - name: Smoke-test production frontend routes and same-origin API proxy
         run: |
           set -euo pipefail
           for path in / /login /dashboard /husqvarna; do
             curl --silent --show-error --fail --location --max-time 15 "https://cognivault-murex.vercel.app${path}" >/dev/null
             echo "OK https://cognivault-murex.vercel.app${path}"
           done
+          curl --silent --show-error --fail --max-time 15 "https://cognivault-murex.vercel.app/health/live" >/dev/null
+          echo "OK same-origin /health/live proxy"
