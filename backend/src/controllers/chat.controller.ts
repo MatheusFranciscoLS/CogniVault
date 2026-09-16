@@ -3,6 +3,7 @@ import { prisma } from '../config/prisma';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { ChatService, type ChatSearchResult } from '../services/chat.service';
 import { buildFallbackIntent, extractLikelyPartNumber } from '../services/chat-reliability';
+import { enforceFinalApplicationCompatibility } from '../services/final-answer-compatibility';
 import { OfficialPartVerificationService, type OfficialVerificationView } from '../services/official-part-verification.service';
 import { requiresSerialConfirmation, type SerialGuidanceCandidate } from '../services/serial-guidance';
 import { normalizeIdentifier } from '../utils/normalize';
@@ -91,10 +92,9 @@ function serialCandidates(result: ChatSearchResult): SerialGuidanceCandidate[] {
 }
 
 /**
- * Última barreira antes de devolver a resposta ao cliente. Mesmo que algum
- * recuperador/ranker coloque uma variante em primeiro, o código é removido se a
- * própria base demonstra troca por S/N no mesmo PNC/vista/posição e o usuário
- * ainda não informou o número de série.
+ * Última barreira local antes da validação oficial. Mesmo que algum recuperador
+ * coloque uma variante em primeiro, o código é removido quando a própria base
+ * demonstra troca por S/N na mesma PNC/vista/posição.
  */
 function enforceSerialConfirmation(result: ChatSearchResult, question: string, manualSelection: boolean): GuidedChatSearchResult {
     if (manualSelection || result.status === 'PNC_REQUIRED' || result.status === 'MODEL_REQUIRED') return result;
@@ -245,6 +245,24 @@ export class ChatController {
                 console.warn(
                     '⚠️ Verificação oficial indisponível nesta consulta; mantendo resultado técnico original.',
                     verificationError instanceof Error ? verificationError.message : verificationError,
+                );
+            }
+
+            // Gate final de aplicação: cobre também respostas diretas, cacheadas e
+            // resultados alterados por supersession. Ausência de resposta do Portal
+            // nunca é convertida em “não serve”; apenas impede uma afirmação ampla.
+            try {
+                result = await enforceFinalApplicationCompatibility({
+                    tenantId: req.user.tenantId,
+                    question: cleanQuestion,
+                    explicitPnc: cleanPnc,
+                    manualSelection: Boolean(cleanSelectedPartId),
+                    result,
+                });
+            } catch (compatibilityError) {
+                console.warn(
+                    '⚠️ Gate final de compatibilidade indisponível; mantendo as barreiras locais.',
+                    compatibilityError instanceof Error ? compatibilityError.message : compatibilityError,
                 );
             }
 

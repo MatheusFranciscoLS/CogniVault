@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { interactiveAiBudgetStatus } from './interactive-ai-budget';
+import { buildPortfolioCoverage } from './portfolio-coverage';
 
 type CacheCountRow = { purpose: string; count: bigint | number };
 
@@ -26,7 +27,7 @@ function startOfUtcDay(): Date {
 export class AssistantObservabilityService {
   static async snapshot(tenantId: string) {
     const since = startOfUtcDay();
-    const [logs, budget, cacheRows, officialCacheCount] = await Promise.all([
+    const [logs, budget, cacheRows, officialCacheCount, portfolio] = await Promise.all([
       prisma.auditLog.findMany({
         where: {
           tenantId,
@@ -45,6 +46,7 @@ export class AssistantObservabilityService {
         ORDER BY "purpose"
       `.catch(() => [] as CacheCountRow[]),
       prisma.officialSourceCache.count({ where: { source: 'HUSQVARNA', staleUntil: { gt: new Date() } } }),
+      buildPortfolioCoverage(tenantId).catch(() => null),
     ]);
 
     const byAction = new Map<string, ActionMetrics>();
@@ -76,6 +78,13 @@ export class AssistantObservabilityService {
       .filter(item => interactiveActions.has(item.action))
       .reduce((acc, item) => ({ calls: acc.calls + item.calls, totalTokens: acc.totalTokens + item.totalTokens }), { calls: 0, totalTokens: 0 });
 
+    const portfolioCoverage = portfolio ? {
+      totalModels: portfolio.total,
+      localIplModels: portfolio.localIpl,
+      withoutLocalIpl: portfolio.unverified,
+      localCoveragePercent: portfolio.total ? Math.round((portfolio.localIpl / portfolio.total) * 1000) / 10 : 0,
+    } : null;
+
     return {
       window: { since: since.toISOString(), timezone: 'UTC' },
       totals,
@@ -89,6 +98,7 @@ export class AssistantObservabilityService {
       actions,
       reusableDecisionCache: cacheRows.map(row => ({ purpose: row.purpose, entries: Number(row.count) })),
       officialHusqvarnaCacheEntries: officialCacheCount,
+      portfolioCoverage,
     };
   }
 }

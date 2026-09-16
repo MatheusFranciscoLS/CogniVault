@@ -4,6 +4,9 @@ import ReloadPrompt from './components/ReloadPrompt';
 import QuickQuoteCart from './components/QuickQuoteCart';
 import QuoteCartOverlayLifecycle from './components/QuoteCartOverlayLifecycle';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { QuoteCartProvider } from './context/QuoteCartContext';
+import { CounterSessionProvider } from './context/CounterSessionProvider';
+import { activateQuoteStorageScope, quoteStorageScopeFromSession } from './lib/quote-storage-scope';
 
 const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -31,10 +34,14 @@ function RouteScopedQuoteExperience() {
   );
 }
 
-export default function App() {
+function SessionScopedApplication() {
+  useLocation();
+  const storageScope = quoteStorageScopeFromSession();
+  activateQuoteStorageScope(storageScope);
+
   return (
-    <ErrorBoundary>
-      <BrowserRouter>
+    <QuoteCartProvider key={`quote:${storageScope}`}>
+      <CounterSessionProvider key={`counter:${storageScope}`}>
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
@@ -46,6 +53,16 @@ export default function App() {
         </Suspense>
         <RouteScopedQuoteExperience />
         <ReloadPrompt />
+      </CounterSessionProvider>
+    </QuoteCartProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <BrowserRouter>
+        <SessionScopedApplication />
       </BrowserRouter>
     </ErrorBoundary>
   );
