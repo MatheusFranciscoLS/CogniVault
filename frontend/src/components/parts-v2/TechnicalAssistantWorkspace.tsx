@@ -6,7 +6,7 @@ import { playCopySound } from '../../lib/sound';
 import { useCounterSession } from '../../context/CounterSessionContext';
 import { useQuoteCart } from '../../context/QuoteCartContext';
 import type { OfficialVerification, PartDetail } from '../../types';
-import PartVerificationDialog, { effectivePartNumber, isSupersededForCode, looksLikePartNumber, normalizePartCode } from '../PartVerificationDialog';
+import PartVerificationDialog, { isSupersededForCode, looksLikePartNumber, normalizePartCode } from '../PartVerificationDialog';
 import CrossReferenceDialog from '../CrossReferenceDialog';
 import ChatPanel from '../ChatPanel';
 import CounterSessionBar from '../CounterSessionBar';
