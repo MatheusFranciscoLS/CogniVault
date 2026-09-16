@@ -5,9 +5,13 @@ import { AiDecisionCacheService } from './ai-decision-cache.service';
 
 const tenantId = '00000000-0000-0000-0000-000000000111';
 
+async function clearTestCache() {
+  await prisma.$executeRaw`DELETE FROM "AiDecisionCache" WHERE "tenantId" = ${tenantId}`;
+}
+
 test('cache persistente reutiliza identidade canônica sem misturar decisões', async t => {
-  await prisma.aiDecisionCache.deleteMany({ where: { tenantId } });
-  t.after(() => prisma.aiDecisionCache.deleteMany({ where: { tenantId } }));
+  await clearTestCache();
+  t.after(clearTestCache);
 
   await AiDecisionCacheService.set(tenantId, 'TEST_DECISION', { query: 'filtro', context: { model: '143RII', pnc: '967332904' } }, { value: 'A' }, 60_000);
 
