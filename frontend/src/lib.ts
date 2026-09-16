@@ -1,5 +1,8 @@
-const configuredApiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3333').replace(/\/$/, '');
-export const API_URL = import.meta.env.PROD ? '' : configuredApiUrl;
+const configuredApiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+// Mesmo domínio é o caminho padrão: Vite faz proxy em desenvolvimento e Vercel
+// faz rewrite em produção. VITE_API_URL continua disponível para diagnóstico ou
+// ambientes especiais que precisem chamar a API diretamente.
+export const API_URL = configuredApiUrl;
 export const SESSION_EXPIRED_EVENT = 'cognivault:session-expired';
 
 export type ApiRequestInit = RequestInit & { timeoutMs?: number };
@@ -78,6 +81,7 @@ export function ensureApiReady(maxWaitMs = 75_000): Promise<boolean> {
   return apiWarmupPromise;
 }
 
+/** @deprecated Compatibilidade apenas para sessões Bearer abertas antes da migração. */
 export function getToken() { return localStorage.getItem('cognivault_token') || ''; }
 export function clearSession() {
   ['cognivault_token','cognivault_tenant','cognivault_role','cognivault_email'].forEach(k => localStorage.removeItem(k));
