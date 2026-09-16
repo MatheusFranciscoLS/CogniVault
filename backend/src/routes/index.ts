@@ -27,6 +27,7 @@ import { PartDetailController } from '../controllers/part-detail.controller';
 import { AdminOverviewController } from '../controllers/admin-overview.controller';
 import { CatalogListController } from '../controllers/catalog-list.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
+import { chatSessionContextMiddleware } from '../middleware/chat-session-context.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
 import { uploadConcurrencyMiddleware } from '../middleware/upload-concurrency.middleware';
 import { searchSingleFlightMiddleware } from '../middleware/search-single-flight.middleware';
@@ -150,7 +151,7 @@ router.post('/documents/:id/reprocess', authMiddleware, adminOnly, validateEntit
 router.post('/documents/:id/refresh-health', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.refreshHealth(req, res));
 router.delete('/documents/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.remove(req, res));
 
-router.post('/chat', authMiddleware, (req, res) => chatController.ask(req, res));
+router.post('/chat', authMiddleware, chatSessionContextMiddleware, (req, res) => chatController.ask(req, res));
 router.post('/feedback', authMiddleware, invalidateAdminOverviewAfterMutation, (req, res) => feedbackController.create(req, res));
 router.patch('/feedback/:id', authMiddleware, validateEntityIdParam, (req, res) => feedbackController.update(req, res));
 
