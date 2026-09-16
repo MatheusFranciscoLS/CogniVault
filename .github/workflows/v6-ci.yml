@@ -4,10 +4,6 @@ on:
   push:
     branches:
       - main
-      - 'feature/**'
-      - 'feat/**'
-      - 'fix/**'
-      - 'ci/**'
   pull_request:
     branches:
       - main
@@ -148,7 +144,8 @@ jobs:
         working-directory: frontend
         run: |
           npm ci
-          npm install --no-save --no-package-lock @playwright/test@1.55.0
+          npm install --no-save --no-package-lock @playwright/test@1.63.0
+          npm audit --audit-level=high
           npx playwright install --with-deps chromium
           nohup npm run dev -- --host 0.0.0.0 >/tmp/cognivault-frontend.log 2>&1 &
       - name: Wait for E2E frontend
