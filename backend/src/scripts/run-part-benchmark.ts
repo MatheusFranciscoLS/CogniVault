@@ -3,7 +3,7 @@ import { prisma } from '../config/prisma';
 import { buildFallbackIntent } from '../services/chat-reliability';
 import { buildFeedbackBenchmarkCases } from '../services/feedback-benchmark';
 import { HUSQVARNA_CRITICAL_BENCHMARK } from '../services/part-benchmark-cases';
-import { benchmarkCoverageByFamily, buildCatalogBenchmarkCases } from '../services/catalog-benchmark';
+import { benchmarkCoverageByFamily, benchmarkCoverageByModel, buildCatalogBenchmarkCases } from '../services/catalog-benchmark';
 import { evaluatePartBenchmark, formatBenchmarkPercent, type PartBenchmarkCase } from '../services/part-benchmark';
 import { PartSearchService } from '../services/part-search.service';
 
@@ -63,9 +63,10 @@ async function main() {
   }
 
   const portfolio = process.argv.includes('--portfolio') || enabled(process.env.BENCHMARK_PORTFOLIO);
-  const full = !portfolio && (process.argv.includes('--full') || enabled(process.env.BENCHMARK_FULL));
-  const defaultTarget = portfolio ? 10_000 : full ? 500 : 50;
-  const maxTarget = portfolio ? 10_000 : 500;
+  const release = !portfolio && (process.argv.includes('--release') || enabled(process.env.BENCHMARK_RELEASE));
+  const full = !portfolio && !release && (process.argv.includes('--full') || enabled(process.env.BENCHMARK_FULL));
+  const defaultTarget = portfolio ? 50_000 : release ? 2_000 : full ? 500 : 50;
+  const maxTarget = portfolio ? 50_000 : release ? 2_000 : full ? 500 : 50;
   const requestedTarget = Number(argValue('limit') || process.env.BENCHMARK_CASE_LIMIT || String(defaultTarget));
   const target = Number.isFinite(requestedTarget)
     ? Math.max(1, Math.min(maxTarget, Math.trunc(requestedTarget)))
@@ -79,13 +80,18 @@ async function main() {
 
   console.log(`\n🧪 CogniVault benchmark: ${cases.length} casos`);
   console.log(`   Cobertura principal: ${coreCases.length}/${target} · críticos curados: ${HUSQVARNA_CRITICAL_BENCHMARK.length} · correções reais: ${tenantFeedbackCases.length}`);
-  console.log(`   Modo: ${portfolio ? 'PORTFOLIO (até 10.000 casos únicos)' : full ? 'REGRESSÃO AMPLA (até 500)' : 'CRÍTICO/SMOKE (até 50)'}`);
+  console.log(`   Modo: ${portfolio ? 'PORTFÓLIO COMPLETO (até 50.000 casos únicos)' : release ? 'HOMOLOGAÇÃO/RELEASE (até 2.000)' : full ? 'REGRESSÃO AMPLA (até 500)' : 'CRÍTICO/SMOKE (até 50)'}`);
   console.log('   Gemini: não utilizado pelo benchmark de recuperação');
   console.log('   Métricas: Top-1, Recall@5, MRR, NDCG@5 e hard negatives\n');
 
-  const coverage = benchmarkCoverageByFamily(coreCases);
+  const familyCoverage = benchmarkCoverageByFamily(coreCases);
   console.log('📚 Cobertura por família:');
-  for (const item of coverage) console.log(`   ${item.family}: ${item.count}`);
+  for (const item of familyCoverage) console.log(`   ${item.family}: ${item.count}`);
+
+  const modelCoverage = benchmarkCoverageByModel(coreCases);
+  console.log(`\n🧩 Modelos representados: ${modelCoverage.length}`);
+  for (const item of modelCoverage.slice(0, 25)) console.log(`   ${item.model}: ${item.count}`);
+  if (modelCoverage.length > 25) console.log(`   ... +${modelCoverage.length - 25} modelos`);
   console.log('');
 
   for (const [index, benchmarkCase] of cases.entries()) {
