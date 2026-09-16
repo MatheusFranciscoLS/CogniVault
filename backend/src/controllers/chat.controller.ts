@@ -5,6 +5,7 @@ import { ChatService, type ChatSearchResult } from '../services/chat.service';
 import { buildFallbackIntent, extractLikelyPartNumber } from '../services/chat-reliability';
 import { OfficialPartVerificationService, type OfficialVerificationView } from '../services/official-part-verification.service';
 import { requiresSerialConfirmation, type SerialGuidanceCandidate } from '../services/serial-guidance';
+import { HusqvarnaVariantCompatibilityService } from '../services/husqvarna-variant-compatibility.service';
 import { normalizeIdentifier } from '../utils/normalize';
 
 const MAX_CHAT_QUESTION_LENGTH = 1_000;
@@ -123,6 +124,141 @@ function enforceSerialConfirmation(result: ChatSearchResult, question: string, m
     };
 }
 
+function seedPncsFromResult(result: ChatSearchResult): string[] {
+    const values = [result.part?.pnc, ...(result.part?.applications || []).map(application => application.pnc)];
+    return [...new Set(values
+        .map(value => normalizeIdentifier(value || ''))
+        .filter(value => /^\d{8,14}$/.test(value)))];
+}
+
+async function enforceOfficialVariantCompatibility(
+    result: GuidedChatSearchResult,
+    question: string,
+    explicitPnc: string | undefined,
+    manualSelection: boolean,
+): Promise<GuidedChatSearchResult> {
+    if (manualSelection || result.status !== 'FOUND' || !result.part) return result;
+    if (extractLikelyPartNumber(question)) return result;
+
+    const fallback = buildFallbackIntent(question);
+    const requestedPnc = normalizeIdentifier(explicitPnc || fallback.pnc);
+    if (requestedPnc) return result;
+
+    const manufacturer = normalizeIdentifier(result.part.manufacturer || '');
+    if (manufacturer && !manufacturer.includes('HUSQVARNA')) return result;
+
+    const decision = await HusqvarnaVariantCompatibilityService.evaluate({
+        model: result.part.model,
+        partNumber: result.part.partNumber,
+        section: result.part.section,
+        position: result.part.position,
+        seedPncs: seedPncsFromResult(result),
+    });
+
+    if (decision.status === 'ALL_VARIANTS') {
+        const evidence = decision.variantPncs.length > 1
+            ? `Portal Husqvarna: mesmo código confirmado na mesma vista/posição em ${decision.variantPncs.length} variantes oficiais.`
+            : 'Portal Husqvarna: código confirmado na variante oficial consultável deste modelo.';
+        return {
+            ...result,
+            part: {
+                ...result.part,
+                pnc: 'Qualquer um',
+                universalAcrossPnc: true,
+                applications: decision.variantPncs.length
+                    ? decision.variantPncs.map(pnc => ({ model: result.part!.model, pnc }))
+                    : result.part.applications,
+            },
+            match: result.match ? {
+                ...result.match,
+                explanation: `${result.match.explanation} ${evidence}`,
+                evidence: [...(result.match.evidence || []), evidence],
+            } : result.match,
+            technicalReasoningSteps: [
+                ...(result.technicalReasoningSteps || []),
+                {
+                    step: (result.technicalReasoningSteps?.length || 0) + 1,
+                    title: 'Compatibilidade entre variantes',
+                    detail: decision.reason,
+                    status: 'SUCCESS',
+                },
+            ],
+        };
+    }
+
+    const serialSplit = Object.values(decision.variantCodes).some(codes => codes.length > 1);
+    if (decision.status === 'VARIES' && serialSplit) {
+        return {
+            ...result,
+            status: 'AMBIGUOUS',
+            serialRequired: true,
+            part: undefined,
+            options: undefined,
+            feedbackOptions: undefined,
+            answer: 'A fonte oficial mostra mais de um código na mesma vista/posição conforme a variante/faixa da máquina. Informe o PNC e, se disponível, o S/N para eu liberar o código correto.',
+            match: result.match ? {
+                ...result.match,
+                level: 'REVIEW',
+                explanation: `${result.match.explanation} O Portal Husqvarna impediu uma afirmação universal porque existem códigos distintos na mesma ocorrência técnica.`,
+                evidence: [...(result.match.evidence || []), decision.reason],
+            } : result.match,
+            guidance: {
+                title: 'PNC/S/N necessário',
+                description: 'A mesma ocorrência técnica varia oficialmente. O CogniVault bloqueou o código para evitar uma aplicação errada.',
+                tips: ['Informe primeiro o PNC da etiqueta.', 'Se ainda houver mais de um código, informe também o S/N.'],
+            },
+        };
+    }
+
+    if (decision.status === 'VARIES') {
+        return {
+            ...result,
+            status: 'PNC_REQUIRED',
+            requiresPnc: true,
+            pncOptions: decision.variantPncs,
+            part: undefined,
+            options: undefined,
+            feedbackOptions: undefined,
+            answer: 'Esse modelo possui variantes oficiais com códigos diferentes nessa mesma vista/posição. Informe o PNC da máquina para eu escolher a peça correta.',
+            match: result.match ? {
+                ...result.match,
+                level: 'REVIEW',
+                explanation: `${result.match.explanation} O Portal Husqvarna confirmou variação por PNC; o código foi bloqueado até identificar a variante.`,
+                evidence: [...(result.match.evidence || []), decision.reason],
+            } : result.match,
+            guidance: {
+                title: 'PNC necessário',
+                description: 'A aplicação varia entre versões oficiais do mesmo modelo.',
+                tips: ['Localize o PNC na etiqueta da máquina.', 'O PNC normalmente possui 9 ou 11 dígitos.'],
+            },
+        };
+    }
+
+    const localClaimWasBroad = result.part.universalAcrossPnc || result.part.pnc === 'Qualquer um' || !normalizeIdentifier(result.part.pnc);
+    const knownVariants = decision.variantPncs.length > 1;
+    if (!localClaimWasBroad && !knownVariants) return result;
+
+    return {
+        ...result,
+        status: 'AMBIGUOUS',
+        part: undefined,
+        options: undefined,
+        feedbackOptions: undefined,
+        answer: 'Encontrei uma peça plausível no catálogo, mas não consegui comprovar que o mesmo código vale para todas as variantes deste modelo. Prefiro não liberar o código sem PNC/S/N ou evidência oficial suficiente.',
+        match: result.match ? {
+            ...result.match,
+            level: 'REVIEW',
+            explanation: `${result.match.explanation} A compatibilidade ampla não foi tratada como fato porque a fonte oficial ficou inconclusiva.`,
+            evidence: [...(result.match.evidence || []), decision.reason],
+        } : result.match,
+        guidance: {
+            title: 'Compatibilidade ainda não comprovada',
+            description: 'Ausência de restrição no catálogo local não é prova de que a peça sirva em todas as variantes.',
+            tips: ['Se tiver PNC ou S/N, informe para restringir a aplicação.', 'Sem esses dados, confira a vista/posição no Portal Husqvarna antes de concluir.'],
+        },
+    };
+}
+
 export class ChatController {
     async ask(req: AuthenticatedRequest, res: Response): Promise<void> {
         try {
@@ -171,9 +307,7 @@ export class ChatController {
                         orderBy: { createdAt: 'desc' },
                         select: { resultModel: true },
                     });
-                    if (recent?.resultModel) {
-                        fallbackModel = recent.resultModel;
-                    }
+                    if (recent?.resultModel) fallbackModel = recent.resultModel;
                 } catch {
                     // Histórico indisponível não deve bloquear
                 }
@@ -194,6 +328,14 @@ export class ChatController {
 
             let result: GuidedChatSearchResult = await chatPromise;
             result = enforceSerialConfirmation(result, cleanQuestion, Boolean(cleanSelectedPartId));
+            try {
+                result = await enforceOfficialVariantCompatibility(result, cleanQuestion, cleanPnc, Boolean(cleanSelectedPartId));
+            } catch (compatibilityError) {
+                console.warn(
+                    '⚠️ Comparação oficial de variantes indisponível; mantendo as barreiras locais de segurança.',
+                    compatibilityError instanceof Error ? compatibilityError.message : compatibilityError,
+                );
+            }
 
             try {
                 const verificationCode = requestedCode || (result.status === 'FOUND' ? result.part?.partNumber || '' : '');
