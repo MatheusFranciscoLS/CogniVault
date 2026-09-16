@@ -1,4 +1,5 @@
 import { normalizeIdentifier } from '../utils/normalize';
+import { buildOfficialSourceCacheKey, OfficialSourceCacheService } from './official-source-cache.service';
 
 const HUSQVARNA_GRAPHQL_URL = 'https://portal.husqvarnagroup.com/hbd/graphql?';
 const HUSQVARNA_PORTAL_ORIGIN = 'https://portal.husqvarnagroup.com';
@@ -382,39 +383,64 @@ export function extractProductDetailsSummary(payload: unknown, pncInput: string)
   };
 }
 
-async function postGraphql<T>(operationName: string, query: string, variables: Record<string, unknown>): Promise<T | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), GRAPHQL_TIMEOUT_MS);
+async function postGraphql<T>(
+  operationName: string,
+  query: string,
+  variables: Record<string, unknown>,
+  resourceId: string,
+): Promise<T | null> {
+  const key = buildOfficialSourceCacheKey('HUSQVARNA', `GRAPHQL_${operationName}`, variables);
+  const result = await OfficialSourceCacheService.get<T>(
+    key,
+    {
+      source: 'HUSQVARNA',
+      resourceType: `GRAPHQL_${operationName}`,
+      resourceId,
+      freshMs: 6 * 60 * 60 * 1000,
+    },
+    async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), GRAPHQL_TIMEOUT_MS);
 
-  try {
-    const response = await fetch(HUSQVARNA_GRAPHQL_URL, {
-      method: 'POST',
-      redirect: 'follow',
-      signal: controller.signal,
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.7',
-        Origin: HUSQVARNA_PORTAL_ORIGIN,
-        Referer: `${HUSQVARNA_PORTAL_ORIGIN}/br/`,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36',
-      },
-      body: JSON.stringify({ operationName, query, variables }),
-    });
+      try {
+        const response = await fetch(HUSQVARNA_GRAPHQL_URL, {
+          method: 'POST',
+          redirect: 'follow',
+          signal: controller.signal,
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.7',
+            Origin: HUSQVARNA_PORTAL_ORIGIN,
+            Referer: `${HUSQVARNA_PORTAL_ORIGIN}/br/`,
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36',
+          },
+          body: JSON.stringify({ operationName, query, variables }),
+        });
 
-    if (!response.ok) {
-      console.warn(`[Husqvarna GraphQL] ${operationName} retornou HTTP ${response.status}.`);
-      return null;
-    }
+        if (!response.ok) {
+          console.warn(`[Husqvarna GraphQL] ${operationName} retornou HTTP ${response.status}.`);
+          return null;
+        }
 
-    return await response.json() as T;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.warn(`[Husqvarna GraphQL] Falha em ${operationName}: ${message}`);
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
+        const payload = await response.json() as T;
+        const errors = (payload as { errors?: Array<{ message?: string }> }).errors;
+        if (errors?.length) {
+          console.warn(`[Husqvarna GraphQL] ${operationName} retornou erro GraphQL: ${errors.map(error => error.message || 'erro').join('; ')}`);
+          return null;
+        }
+        return payload;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`[Husqvarna GraphQL] Falha em ${operationName}: ${message}`);
+        return null;
+      } finally {
+        clearTimeout(timeout);
+      }
+    },
+  );
+
+  return result.value;
 }
 
 export class HusqvarnaPortalGraphqlService {
@@ -432,14 +458,9 @@ export class HusqvarnaPortalGraphqlService {
       statuses: null,
       skip: 0,
       take: 5,
-    });
+    }, pnc);
     if (!payload) {
       console.log(`[Husqvarna GraphQL] PNC ${pnc}: busca de produto sem payload utilizável.`);
-      return null;
-    }
-
-    if (payload.errors?.length) {
-      console.warn(`[Husqvarna GraphQL] Busca por PNC ${pnc} retornou erro GraphQL: ${payload.errors.map(error => error.message || 'erro').join('; ')}`);
       return null;
     }
 
@@ -474,13 +495,8 @@ export class HusqvarnaPortalGraphqlService {
     const payload = await postGraphql<GraphqlProductDetailsResponse>('getProductDetailsSections', PRODUCT_DETAILS_QUERY, {
       siteName: HUSQVARNA_BR_SITE,
       articleId: pnc,
-    });
+    }, pnc);
     if (!payload) return null;
-
-    if (payload.errors?.length) {
-      console.warn(`[Husqvarna GraphQL] Detalhes do PNC ${pnc} retornaram erro GraphQL: ${payload.errors.map(error => error.message || 'erro').join('; ')}`);
-      return null;
-    }
 
     const details = extractProductDetailsSummary(payload, pnc);
     if (details) {
