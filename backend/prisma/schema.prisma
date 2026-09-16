@@ -179,208 +179,85 @@ model DocumentChunk {
 }
 
 model Part {
-  id         String   @id @default(uuid())
-  documentId String
-  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-
-  manufacturer           String?
-  normalizedManufacturer String?
-
-  model           String
-  normalizedModel String
-
+  id                 String  @id @default(uuid())
+  name               String
+  partNumber         String
+  normalizedPartNumber String @default("")
+  manufacturer       String?
+  model              String
+  normalizedModel    String  @default("")
   pnc                String?
   normalizedPnc      String?
   universalAcrossPnc Boolean @default(false)
-
-  section          String?
-  position         String?
-  positionStatus   PartPositionStatus @default(POSITIONED)
-  positionEvidence String?
-  name             String
-  normalizedName   String
-  alternativeNames String[] @default([])
-
-  partNumber           String
-  normalizedPartNumber String
-  page                 Int?
-  notes                String?
-  searchText           String
-  embedding            Unsupported("vector(768)")?
-  sourceKey            String?
-  active               Boolean                     @default(true)
-  retiredAt            DateTime?
-  extractionRevision   Int                         @default(1)
-  embeddingRevision    Int                         @default(0)
-
-  feedbackResults     SearchFeedback[] @relation("FeedbackResultPart")
+  section            String?
+  position           String?
+  page               Int?
+  notes              String?
+  searchText         String  @default("")
+  active             Boolean @default(true)
+  revision           Int     @default(1)
+  positionStatus     PartPositionStatus @default(POSITIONED)
+  embeddingRevision  Int     @default(0)
+  embedding          Unsupported("vector(768)")?
+  documentId         String
+  document           Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  favorites          Favorite[] @relation("FavoritePart")
+  feedbackResults    SearchFeedback[] @relation("FeedbackResultPart")
   feedbackCorrections SearchFeedback[] @relation("FeedbackCorrectedPart")
-  historyResults      SearchHistory[]  @relation("HistoryResultPart")
-  favorites           Favorite[]       @relation("FavoritePart")
-
-  createdAt DateTime @default(now())
+  histories          SearchHistory[]
+  locations          PartLocation[]
+  quoteUsages        QuoteUsage[]
+  createdAt          DateTime @default(now())
 
   @@index([documentId])
-  @@index([documentId, active])
-  @@index([documentId, sourceKey])
+  @@index([normalizedPartNumber])
   @@index([normalizedModel])
-  @@index([normalizedModel, active])
   @@index([normalizedModel, normalizedPnc])
-  @@index([partNumber])
-  @@index([normalizedPartNumber, active])
-}
-
-model MasterPart {
-  id               String              @id @default(uuid())
-  tenantId         String
-  tenant           Tenant              @relation(fields: [tenantId], references: [id])
-  partNumber       String
-  normalizedNumber String
-  name             String
-  description      String?
-  price            Float?
-  ncm              String?
-  ean              String?
-  category         String?
-  brand            String?
-  sections         MasterPartSection[]
-  updatedAt        DateTime            @default(now())
-
-  @@unique([tenantId, normalizedNumber])
-  @@index([tenantId, normalizedNumber])
-}
-
-model MasterPartSection {
-  id               String     @id @default(uuid())
-  tenantId         String
-  normalizedNumber String
-  section          String
-  application      String?
-  applicationKey   String     @default("")
-  reference        String?
-  productCategory  String?
-  itemType         String?
-  groupCode        String?
-  sourceSheet      String
-  updatedAt        DateTime   @default(now())
-  masterPart       MasterPart @relation(fields: [tenantId, normalizedNumber], references: [tenantId, normalizedNumber], onDelete: Cascade)
-
-  @@unique([tenantId, normalizedNumber, section, applicationKey])
-  @@index([tenantId, section])
-  @@index([tenantId, application])
-  @@index([tenantId, applicationKey])
-  @@index([tenantId, normalizedNumber])
-}
-
-model PartLocation {
-  id                   String   @id @default(uuid())
-  tenantId             String
-  tenant               Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  normalizedPartNumber String
-  partNumber           String
-  location             String
-  note                 String?
-  updatedById          String?
-  updatedBy            User?    @relation("PartLocationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  @@unique([tenantId, normalizedPartNumber])
-  @@index([tenantId, normalizedPartNumber])
-  @@index([updatedById])
-}
-
-model QuoteUsage {
-  id                   String   @id @default(uuid())
-  tenantId             String
-  tenant               Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  userId               String?
-  user                 User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  sessionId            String
-  normalizedPartNumber String
-  partNumber           String
-  model                String?
-  createdAt            DateTime @default(now())
-
-  @@unique([tenantId, sessionId, normalizedPartNumber])
-  @@index([tenantId, normalizedPartNumber, createdAt])
-  @@index([tenantId, model, createdAt])
-  @@index([tenantId, sessionId])
-  @@index([userId, createdAt])
-}
-
-model CommercialImportRun {
-  id              String    @id @default(uuid())
-  tenantId        String
-  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sourceFilename  String
-  sourceHash      String
-  priceDivisor    Float
-  occurrenceCount Int       @default(0)
-  masterCount     Int       @default(0)
-  sectionCount    Int       @default(0)
-  status          String    @default("RUNNING")
-  error           String?
-  startedAt       DateTime  @default(now())
-  completedAt     DateTime?
-
-  @@index([tenantId, startedAt])
-  @@index([tenantId, sourceHash])
+  @@index([active])
+  @@index([positionStatus])
 }
 
 model SearchFeedback {
-  id       String @id @default(uuid())
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-
+  id              String   @id @default(uuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   query           String
   normalizedQuery String
-  model           String?
-  normalizedModel String?
   pnc             String?
-  normalizedPnc   String?
-
-  resultPartId String
-  resultPart   Part   @relation("FeedbackResultPart", fields: [resultPartId], references: [id], onDelete: Cascade)
-
+  resultPartId    String?
+  resultPart      Part?    @relation("FeedbackResultPart", fields: [resultPartId], references: [id], onDelete: SetNull)
   correct         Boolean
   reason          String?
   correctedPartId String?
-  correctedPart   Part?   @relation("FeedbackCorrectedPart", fields: [correctedPartId], references: [id], onDelete: SetNull)
+  correctedPart   Part?    @relation("FeedbackCorrectedPart", fields: [correctedPartId], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
 
-  queryEmbedding Unsupported("vector(768)")?
-  createdAt      DateTime                    @default(now())
-
+  @@index([tenantId, normalizedQuery])
   @@index([tenantId, createdAt])
-  @@index([tenantId, normalizedModel, normalizedPnc])
+  @@index([userId, createdAt])
   @@index([resultPartId])
   @@index([correctedPartId])
-  @@index([userId])
 }
 
 model SearchHistory {
-  id       String @id @default(uuid())
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  userId   String
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  query  String
-  pnc    String?
-  status String
-
+  id             String   @id @default(uuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  query          String
+  pnc            String?
+  status         String
   resultPartId   String?
-  resultPart     Part?   @relation("HistoryResultPart", fields: [resultPartId], references: [id], onDelete: SetNull)
+  resultPart     Part?    @relation(fields: [resultPartId], references: [id], onDelete: SetNull)
   resultLabel    String?
   resultCode     String?
   resultModel    String?
   resultPnc      String?
   sourceFilename String?
-
-  createdAt DateTime @default(now())
+  createdAt      DateTime @default(now())
 
   @@index([tenantId, createdAt])
   @@index([userId, createdAt])
@@ -388,47 +265,113 @@ model SearchHistory {
 }
 
 model Favorite {
-  id       String @id @default(uuid())
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  userId   String
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  kind      String
-  label     String
-  reference String?
-  model     String?
-  pnc       String?
-
+  id         String    @id @default(uuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   partId     String?
-  part       Part?     @relation("FavoritePart", fields: [partId], references: [id], onDelete: SetNull)
+  part       Part?     @relation("FavoritePart", fields: [partId], references: [id], onDelete: Cascade)
   documentId String?
-  document   Document? @relation("FavoriteDocument", fields: [documentId], references: [id], onDelete: SetNull)
-
-  createdAt DateTime @default(now())
+  document   Document? @relation("FavoriteDocument", fields: [documentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
 
   @@unique([userId, partId])
   @@unique([userId, documentId])
-  @@index([tenantId, userId, createdAt])
-  @@index([partId])
-  @@index([documentId])
+  @@index([tenantId, userId])
 }
 
 model AuditLog {
-  id       String @id @default(uuid())
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   action     String
-  targetType String
+  targetType String?
   targetId   String?
   metadata   Json?
   createdAt  DateTime @default(now())
 
   @@index([tenantId, createdAt])
+  @@index([tenantId, action, createdAt])
+  @@index([userId, createdAt])
+}
+
+model MasterPart {
+  id               String   @id @default(uuid())
+  tenantId         String
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  partNumber       String
+  normalizedNumber String
+  description      String
+  searchText       String   @default("")
+  brand            String?
+  category         String?
+  price            Decimal? @db.Decimal(12, 2)
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  sections         MasterPartSection[]
+
+  @@unique([tenantId, normalizedNumber])
+  @@index([tenantId, normalizedNumber])
+  @@index([tenantId, active])
+}
+
+model MasterPartSection {
+  id           String     @id @default(uuid())
+  masterPartId String
+  masterPart   MasterPart @relation(fields: [masterPartId], references: [id], onDelete: Cascade)
+  section      String
+  createdAt    DateTime   @default(now())
+
+  @@index([masterPartId])
+}
+
+model CommercialImportRun {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  filename   String
+  rows       Int
+  created    Int
+  updated    Int
+  deactivated Int
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+}
+
+model PartLocation {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  partNumber  String
+  location    String
+  updatedById String?
+  updatedBy   User?    @relation("PartLocationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, partNumber])
+  @@index([tenantId, updatedAt])
+}
+
+model QuoteUsage {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  partNumber String
+  model      String?
+  quantity   Int      @default(1)
+  event      String
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, partNumber, createdAt])
   @@index([userId, createdAt])
 }
 
@@ -495,4 +438,17 @@ model OfficialSourceCache {
   @@index([source, resourceType, resourceId])
   @@index([changedAt])
   @@index([freshUntil])
+}
+
+model AiDecisionCache {
+  key       String   @id
+  tenantId  String
+  purpose   String
+  payload   Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, purpose, expiresAt])
+  @@index([expiresAt])
 }
