@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ShellV2 from '../components/ShellV2';
-import HomePanel from '../components/HomePanel';
 import PartSearchWorkspace from '../components/parts-v2/PartSearchWorkspace';
 import CatalogsPanel from '../components/CatalogsPanel';
 import { apiJson, clearSession, getToken, SESSION_EXPIRED_EVENT } from '../lib';
@@ -41,8 +40,8 @@ export default function Dashboard() {
   const [section, setSection] = useState<Section>(() => {
     if (initialQueryParam) return 'parts';
     if (initialCatalogParam) return 'catalogs';
-    if (initialSectionParam) return initialSectionParam;
-    return 'home';
+    if (initialSectionParam && initialSectionParam !== 'home' && initialSectionParam !== 'assistant') return initialSectionParam;
+    return 'parts';
   });
   const [globalQuery, setGlobalQuery] = useState(initialQueryParam);
   const [searchVersion, setSearchVersion] = useState(0);
@@ -53,7 +52,7 @@ export default function Dashboard() {
     try {
       const params = new URLSearchParams();
 
-      if (newTab !== 'home') params.set('tab', newTab);
+      if (newTab !== 'parts') params.set('tab', newTab);
       if (queryParam) params.set('q', queryParam);
       if (catalogParam) params.set('catalog', catalogParam);
 
@@ -112,20 +111,10 @@ export default function Dashboard() {
     updateUrl('parts', query || undefined);
   };
 
-  const openCatalogs = (filter?: string) => {
-    const clean = filter && filter.trim() !== 'null' && filter.trim() !== 'undefined'
-      ? filter.trim()
-      : '';
-
-    setCatalogFilter(clean);
-    setSection('catalogs');
-    updateUrl('catalogs', undefined, clean || undefined);
-  };
-
   const handleSectionChange = (next: Section) => {
     if (next !== 'catalogs') setCatalogFilter('');
 
-    const targetSection = next === 'assistant' ? 'parts' : next;
+    const targetSection = next === 'assistant' || next === 'home' ? 'parts' : next;
     setSection(targetSection);
     updateUrl(targetSection);
   };
@@ -163,9 +152,7 @@ export default function Dashboard() {
       onLogout={logout}
       onSearch={search}
     >
-      {section === 'home' && <HomePanel onCatalogs={openCatalogs} />}
-
-      {(section === 'parts' || section === 'assistant') && (
+      {(section === 'parts' || section === 'assistant' || section === 'home') && (
         <PartSearchWorkspace
           key={`${searchVersion}:${globalQuery || 'empty-search'}`}
           initialQuery={globalQuery}
