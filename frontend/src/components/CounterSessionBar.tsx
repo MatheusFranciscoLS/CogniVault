@@ -20,7 +20,7 @@ export default function CounterSessionBar() {
   const { session, hasContext, updateSession, clearSession } = useCounterSession();
   const quoteCart = useQuoteCart();
   const [expanded, setExpanded] = useState(false);
-  const hasAnything = Boolean(session.customerName.trim() || session.machineModel.trim() || session.pnc.trim() || quoteCart.totalItems);
+  const hasAnything = Boolean(session.customerName.trim() || session.machineModel.trim() || session.pnc.trim() || session.serial.trim() || quoteCart.totalItems);
 
   const endSession = () => {
     if (!hasAnything) return;
@@ -44,7 +44,8 @@ export default function CounterSessionBar() {
               {session.customerName && <span className="font-semibold text-slate-700 dark:text-slate-200">{session.customerName}</span>}
               {session.machineModel && <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">{session.machineModel}</span>}
               {session.pnc && <span className="font-medium text-slate-500 dark:text-slate-400">PNC {session.pnc}</span>}
-              {!session.customerName && !session.machineModel && !session.pnc && <span className="font-semibold text-slate-500 dark:text-slate-400">Sem contexto técnico</span>}
+              {session.serial && <span className="font-medium text-slate-500 dark:text-slate-400">S/N {session.serial}</span>}
+              {!session.customerName && !session.machineModel && !session.pnc && !session.serial && <span className="font-semibold text-slate-500 dark:text-slate-400">Sem contexto técnico</span>}
             </div>
           </div>
         </div>
@@ -59,10 +60,11 @@ export default function CounterSessionBar() {
       </div>
 
       {expanded && (
-        <div className="grid gap-3 border-t border-slate-100 bg-slate-50/70 px-4 py-4 sm:grid-cols-3 dark:border-slate-800 dark:bg-slate-950/40">
+        <div className="grid gap-3 border-t border-slate-100 bg-slate-50/70 px-4 py-4 sm:grid-cols-2 xl:grid-cols-4 dark:border-slate-800 dark:bg-slate-950/40">
           <Field label="Cliente · opcional" value={session.customerName} placeholder="Nome do cliente" onChange={value => updateSession({ customerName: value })} />
           <Field label="Máquina / modelo" value={session.machineModel} placeholder="Ex.: 143RII" onChange={value => updateSession({ machineModel: value })} />
           <Field label="PNC" value={session.pnc} placeholder="Ex.: 967 17 65-01" onChange={value => updateSession({ pnc: value })} />
+          <Field label="S/N · quando necessário" value={session.serial} placeholder="Número de série" onChange={value => updateSession({ serial: value })} />
         </div>
       )}
     </section>
