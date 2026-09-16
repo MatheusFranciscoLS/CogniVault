@@ -8,7 +8,7 @@ const reasonLabel: Record<string, string> = {
   WRONG_MODEL: 'Modelo incorreto',
   WRONG_PART: 'Peça incorreta',
   OTHER: 'Outro motivo',
-  TREINAMENTO_INICIAL: 'Treinamento inicial de alto giro',
+  TREINAMENTO_INICIAL: 'Sinal inicial de alto giro',
 };
 
 export default function AdminFeedbackPanel() {
@@ -23,17 +23,7 @@ export default function AdminFeedbackPanel() {
     reasons: Record<string, number>;
     learningLevel: 'COLD_START' | 'LEARNING' | 'ESTABLISHED';
     nextMilestone: number | null;
-  }>({
-    total: 0,
-    uniqueSignals: 0,
-    positive: 0,
-    corrected: 0,
-    negativeWithoutCorrection: 0,
-    accuracy: null,
-    reasons: {},
-    learningLevel: 'COLD_START',
-    nextMilestone: 5,
-  });
+  }>({ total: 0, uniqueSignals: 0, positive: 0, corrected: 0, negativeWithoutCorrection: 0, accuracy: null, reasons: {}, learningLevel: 'COLD_START', nextMilestone: 5 });
   const [filter, setFilter] = useState<'all' | 'positive' | 'negative'>('all');
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
@@ -57,225 +47,91 @@ export default function AdminFeedbackPanel() {
 
   useEffect(() => {
     let active = true;
-    void (async () => {
-      try {
-        const data = await json<{ summary: typeof summary; feedback: AdminFeedback[] }>(await api('/api/admin/feedback'));
-        if (active) {
-          setSummary(data.summary);
-          setItems(data.feedback);
-        }
-      } catch (requestError) {
-        if (active) setError(requestError instanceof Error ? requestError.message : 'Não foi possível carregar os feedbacks.');
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
+    void api('/api/admin/feedback')
+      .then(response => json<{ summary: typeof summary; feedback: AdminFeedback[] }>(response))
+      .then(data => { if (active) { setSummary(data.summary); setItems(data.feedback); } })
+      .catch(requestError => { if (active) setError(requestError instanceof Error ? requestError.message : 'Não foi possível carregar os feedbacks.'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, []);
 
   async function seedKnowledge() {
-    if (!window.confirm('Deseja inicializar o treinamento com as peças de alto giro (carburadores, velas, filtros, correias, sabres, pistões) encontradas nos seus catálogos?')) return;
-    setSeeding(true);
-    setError('');
-    setNotice('');
+    if (!window.confirm('Inicializar sinais verificados com peças de alto giro encontradas nos catálogos?')) return;
+    setSeeding(true); setError(''); setNotice('');
     try {
-      const res = await json<{ message: string; createdCount: number }>(await api('/api/admin/feedback/seed-knowledge', {
-        method: 'POST',
-      }));
-      setNotice(res.message);
+      const response = await json<{ message: string; createdCount: number }>(await api('/api/admin/feedback/seed-knowledge', { method: 'POST' }));
+      setNotice(response.message);
       await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao inicializar treinamento.');
-    } finally {
-      setSeeding(false);
-    }
+    } catch (seedError) {
+      setError(seedError instanceof Error ? seedError.message : 'Erro ao inicializar sinais.');
+    } finally { setSeeding(false); }
   }
 
   async function deleteFeedback(id: string) {
     if (!window.confirm('Deseja excluir este registro de feedback?')) return;
-    setDeletingId(id);
-    setError('');
-    setNotice('');
+    setDeletingId(id); setError(''); setNotice('');
     try {
-      await json<{ message: string }>(await api(`/api/admin/feedback/${id}`, {
-        method: 'DELETE',
-      }));
+      await json<{ message: string }>(await api(`/api/admin/feedback/${id}`, { method: 'DELETE' }));
       setNotice('Feedback removido com sucesso.');
       await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao excluir feedback.');
-    } finally {
-      setDeletingId(null);
-    }
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Erro ao excluir feedback.');
+    } finally { setDeletingId(null); }
   }
 
-  const visible = useMemo(
-    () => items.filter((item) => filter === 'all' || (filter === 'positive' ? item.correct : !item.correct)),
-    [items, filter],
-  );
+  const visible = useMemo(() => items.filter(item => filter === 'all' || (filter === 'positive' ? item.correct : !item.correct)), [items, filter]);
   const topReason = Object.entries(summary.reasons).sort((a, b) => b[1] - a[1])[0];
-  const learningLabel = summary.learningLevel === 'ESTABLISHED' ? 'Base estabelecida' : summary.learningLevel === 'LEARNING' ? 'Aprendendo' : 'Primeiros sinais';
+  const learningLabel = summary.learningLevel === 'ESTABLISHED' ? 'Estabelecida' : summary.learningLevel === 'LEARNING' ? 'Em aprendizado' : 'Inicial';
 
   return (
-    <section>
-      <div className="cv-page-heading">
+    <section className="mx-auto max-w-[1400px] space-y-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="cv-kicker">Aprendizado com o balcão</p>
-          <h1 className="cv-page-title">Aprendizado da busca</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
-            Veja o que a equipe já confirmou ou corrigiu e como esses sinais influenciam a ordem dos próximos resultados.
-          </p>
+          <div className="text-[10px] font-black uppercase tracking-[.15em] text-[#1d4f91] dark:text-blue-300">Qualidade da busca</div>
+          <h1 className="mt-1 text-2xl font-black tracking-[-.03em] text-slate-950 dark:text-white">Feedback</h1>
+          <p className="mt-1 max-w-2xl text-sm text-slate-500 dark:text-slate-400">Confirmações e correções do balcão que ajudam o ranking a priorizar resultados mais confiáveis.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            disabled={seeding || loading}
-            onClick={() => void seedKnowledge()}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 text-xs font-semibold shadow-sm transition disabled:opacity-50"
-            title="Gera sinais verificados para peças essenciais dos modelos indexados"
-          >
-            <span>✦ {seeding ? 'Treinando IA…' : 'Treinar IA com Peças de Alto Giro'}</span>
-          </button>
-          <button type="button" disabled={loading} onClick={() => void load()} className="cv-secondary px-3 py-2 text-xs font-semibold">
-            {loading ? 'Atualizando…' : 'Atualizar dados'}
-          </button>
-        </div>
-      </div>
-
-      <div className="rounded-[20px] border border-blue-200 dark:border-blue-600/80 bg-blue-50 dark:bg-[#123867]/70 p-4 text-xs leading-5 text-blue-950">
-        <b>Como funciona:</b> “Sim” reforça o resultado para consultas parecidas; “Não” registra o erro e, quando uma correção é escolhida, favorece a peça certa. Isso ajusta o ranking interno de acordo com os catálogos oficiais.
-      </div>
-
-      {notice && (
-        <div role="status" className="mt-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300 font-medium">
-          {notice}
-        </div>
-      )}
-
-      {error && (
-        <div role="alert" className="mt-4 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 px-4 py-3 text-sm text-rose-700 dark:text-rose-300">
-          {error}
-        </div>
-      )}
-
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="cv-surface rounded-[22px] p-5">
-          <div className="text-xs uppercase tracking-[.1em] text-slate-400">Sinais independentes</div>
-          <div className="mt-2 text-3xl font-semibold">{loading ? '…' : summary.uniqueSignals}</div>
-          <div className="mt-1 text-xs text-slate-400">{loading ? 'Conferindo avaliações' : `${summary.total} avaliações registradas`}</div>
-        </div>
-        <div className="cv-surface rounded-[22px] p-5">
-          <div className="text-xs uppercase tracking-[.1em] text-slate-400">Confirmados</div>
-          <div className="mt-2 text-3xl font-semibold text-emerald-700 dark:text-emerald-300">{loading ? '…' : summary.positive}</div>
-          <div className="mt-1 text-xs text-slate-400">A equipe aprovou o resultado</div>
-        </div>
-        <div className="cv-surface rounded-[22px] p-5">
-          <div className="text-xs uppercase tracking-[.1em] text-slate-400">Corrigidos</div>
-          <div className="mt-2 text-3xl font-semibold text-blue-700 dark:text-blue-300">{loading ? '…' : summary.corrected}</div>
-          <div className="mt-1 text-xs text-slate-400">Peça correta informada no “Não”</div>
-        </div>
-        <div className="cv-surface rounded-[22px] p-5">
-          <div className="text-xs uppercase tracking-[.1em] text-slate-400">Estágio</div>
-          <div className="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-100">{loading ? 'Carregando…' : learningLabel}</div>
-          <div className="mt-1 text-xs text-slate-400">
-            {loading ? 'Calculando consenso' : summary.nextMilestone ? `Próximo estágio com ${summary.nextMilestone} sinais` : 'Consenso já estabelecido'}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-4 rounded-[18px] border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 px-4 py-3 text-xs leading-5 text-slate-600 dark:text-slate-400">
-        Um voto isolado tem peso pequeno. Repetições do mesmo usuário não são contadas como novo consenso técnico; confirmações independentes e correções explícitas recebem mais peso, sempre com um limite seguro.{' '}
-        {topReason ? `Motivo de erro mais frequente: ${reasonLabel[topReason[0]] || topReason[0]} (${topReason[1]}).` : ''}
-      </div>
-
-      <div className="cv-surface mt-5 rounded-[22px] p-4">
         <div className="flex flex-wrap gap-2">
-          {(
-            [
-              ['all', 'Todos'],
-              ['positive', 'Corretos'],
-              ['negative', 'Incorretos'],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              onClick={() => setFilter(id)}
-              className={`rounded-xl px-3 py-2 text-xs font-semibold ${
-                filter === id
-                  ? 'bg-[#1d4f91] text-white'
-                  : 'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 transition hover:bg-slate-50 dark:hover:bg-slate-800/50'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+          <button type="button" disabled={seeding || loading} onClick={() => void seedKnowledge()} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition hover:border-blue-300 hover:text-[#1d4f91] disabled:opacity-50 dark:border-slate-700 dark:text-slate-300">{seeding ? 'Inicializando…' : 'Inicializar alto giro'}</button>
+          <button type="button" disabled={loading} onClick={() => void load()} className="rounded-lg bg-[#123867] px-3 py-2 text-xs font-black text-white disabled:opacity-50">{loading ? 'Atualizando…' : 'Atualizar'}</button>
         </div>
       </div>
 
-      <div className="cv-surface mt-4 overflow-hidden rounded-[22px]">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800/50 text-left text-[11px] uppercase tracking-[.08em] text-slate-400">
-              <tr>
-                <th className="p-4">Consulta</th>
-                <th>Resultado</th>
-                <th>Avaliação</th>
-                <th>Usuário</th>
-                <th className="p-4">Data</th>
-                <th className="p-4 text-right">Ação</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((item) => (
-                <tr key={item.id} className="border-t border-slate-100 dark:border-slate-800/60 align-top transition hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                  <td className="p-4">
-                    <div className="max-w-[340px] font-medium text-slate-800 dark:text-slate-200">{item.query}</div>
-                    <div className="mt-1 text-xs text-slate-400">PNC {item.pnc || 'não informado'}</div>
-                  </td>
-                  <td className="pt-4">
-                    <div className="font-semibold text-slate-700 dark:text-slate-300">{item.resultPart?.partNumber || '—'}</div>
-                    <div className="mt-1 text-xs text-slate-400">{item.resultPart?.name || 'Peça indisponível'}</div>
-                    {item.correctedPart && (
-                      <div className="mt-2 rounded-lg bg-blue-50 dark:bg-blue-900/30 px-2 py-1 text-xs text-blue-700 dark:text-blue-300">
-                        Correta: {item.correctedPart.partNumber} · {item.correctedPart.name}
-                      </div>
-                    )}
-                  </td>
-                  <td className="pt-4">
-                    {item.correct ? (
-                      <span className="rounded-full bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">Correto</span>
-                    ) : (
-                      <>
-                        <span className="rounded-full bg-rose-50 dark:bg-rose-900/30 px-2 py-1 text-xs font-semibold text-rose-700 dark:text-rose-300">Incorreto</span>
-                        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">{item.reason ? reasonLabel[item.reason] || item.reason : 'Sem motivo informado'}</div>
-                      </>
-                    )}
-                  </td>
-                  <td className="pt-4 text-xs text-slate-500 dark:text-slate-400">{item.user?.email || 'Sistema'}</td>
-                  <td className="p-4 text-xs text-slate-500 dark:text-slate-400">{fmtDate(item.createdAt)}</td>
-                  <td className="p-4 text-right">
-                    <button
-                      type="button"
-                      disabled={deletingId === item.id}
-                      onClick={() => void deleteFeedback(item.id)}
-                      className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-200 dark:hover:border-rose-800/60 transition disabled:opacity-50"
-                      title="Excluir este feedback de teste"
-                    >
-                      {deletingId === item.id ? 'Excluindo…' : 'Excluir'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {loading ? (
-            <div className="p-10 text-center text-sm text-slate-400">Carregando feedbacks salvos…</div>
-          ) : !visible.length ? (
-            <div className="p-10 text-center text-sm text-slate-400">Nenhum feedback neste filtro.</div>
-          ) : null}
+      {notice && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">{notice}</div>}
+      {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">{error}</div>}
+
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div className="grid divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4 dark:divide-slate-800">
+          <div className="px-4 py-4"><div className="text-[10px] font-black uppercase tracking-[.1em] text-slate-400">Sinais independentes</div><div className="mt-2 text-2xl font-black">{loading ? '—' : summary.uniqueSignals}</div><div className="mt-1 text-[11px] text-slate-400">{summary.total} avaliações registradas</div></div>
+          <div className="px-4 py-4"><div className="text-[10px] font-black uppercase tracking-[.1em] text-slate-400">Confirmados</div><div className="mt-2 text-2xl font-black text-emerald-700 dark:text-emerald-300">{loading ? '—' : summary.positive}</div><div className="mt-1 text-[11px] text-slate-400">Resultados aprovados</div></div>
+          <div className="px-4 py-4"><div className="text-[10px] font-black uppercase tracking-[.1em] text-slate-400">Corrigidos</div><div className="mt-2 text-2xl font-black text-[#123867] dark:text-blue-300">{loading ? '—' : summary.corrected}</div><div className="mt-1 text-[11px] text-slate-400">Peça correta informada</div></div>
+          <div className="px-4 py-4"><div className="text-[10px] font-black uppercase tracking-[.1em] text-slate-400">Base</div><div className="mt-2 text-lg font-black text-slate-900 dark:text-white">{loading ? '—' : learningLabel}</div><div className="mt-1 text-[11px] text-slate-400">{summary.nextMilestone ? `Próximo estágio: ${summary.nextMilestone} sinais` : 'Consenso estabelecido'}</div></div>
         </div>
+        <div className="border-t border-slate-100 px-4 py-3 text-[11px] leading-5 text-slate-500 dark:border-slate-800 dark:text-slate-400">Um voto isolado tem peso pequeno; confirmações independentes e correções explícitas ganham mais peso dentro de limites seguros.{topReason ? ` Motivo mais frequente: ${reasonLabel[topReason[0]] || topReason[0]} (${topReason[1]}).` : ''}</div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex gap-1.5">{([['all','Todos'],['positive','Corretos'],['negative','Incorretos']] as const).map(([id,label]) => <button key={id} type="button" onClick={() => setFilter(id)} className={`rounded-lg px-3 py-2 text-xs font-bold ${filter === id ? 'bg-[#123867] text-white' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'}`}>{label}</button>)}</div>
+        <span className="text-xs font-semibold text-slate-400">{visible.length} registros</span>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <table className="w-full min-w-[980px] text-sm">
+          <thead className="border-b border-slate-100 bg-slate-50/70 text-left text-[10px] font-black uppercase tracking-[.1em] text-slate-400 dark:border-slate-800 dark:bg-slate-800/50"><tr><th className="px-4 py-3">Consulta</th><th>Resultado</th><th>Avaliação</th><th>Usuário</th><th>Data</th><th className="px-4 text-right">Ação</th></tr></thead>
+          <tbody>
+            {visible.map(item => (
+              <tr key={item.id} className="border-b border-slate-100 align-top last:border-0 hover:bg-slate-50/70 dark:border-slate-800 dark:hover:bg-slate-800/40">
+                <td className="px-4 py-3"><div className="max-w-[320px] font-semibold text-slate-800 dark:text-slate-100">{item.query}</div><div className="mt-1 text-[11px] text-slate-400">PNC {item.pnc || 'não informado'}</div></td>
+                <td className="py-3"><div className="font-mono text-xs font-black text-[#123867] dark:text-blue-300">{item.resultPart?.partNumber || '—'}</div><div className="mt-1 max-w-[250px] text-[11px] text-slate-400">{item.resultPart?.name || 'Peça indisponível'}</div>{item.correctedPart && <div className="mt-1 text-[11px] font-semibold text-blue-700 dark:text-blue-300">Correta: {item.correctedPart.partNumber} · {item.correctedPart.name}</div>}</td>
+                <td className="py-3"><span className={`text-xs font-bold ${item.correct ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}`}>{item.correct ? 'Correto' : 'Incorreto'}</span>{!item.correct && <div className="mt-1 text-[11px] text-slate-400">{item.reason ? reasonLabel[item.reason] || item.reason : 'Sem motivo'}</div>}</td>
+                <td className="py-3 text-xs text-slate-500 dark:text-slate-400">{item.user?.email || 'Sistema'}</td>
+                <td className="py-3 text-xs text-slate-400">{fmtDate(item.createdAt)}</td>
+                <td className="px-4 py-3 text-right"><button type="button" disabled={deletingId === item.id} onClick={() => void deleteFeedback(item.id)} className="rounded-lg px-2.5 py-2 text-xs font-bold text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50 dark:hover:bg-rose-950/30">{deletingId === item.id ? 'Excluindo…' : 'Excluir'}</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {loading ? <div className="p-10 text-center text-sm text-slate-400">Carregando feedbacks…</div> : !visible.length ? <div className="p-10 text-center text-sm text-slate-400">Nenhum feedback neste filtro.</div> : null}
       </div>
     </section>
   );
