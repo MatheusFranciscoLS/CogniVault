@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { HUSQVARNA_GOLDEN_BENCHMARK } from './part-benchmark-cases';
+import { HUSQVARNA_CRITICAL_BENCHMARK, HUSQVARNA_GOLDEN_BENCHMARK } from './part-benchmark-cases';
 import { evaluatePartBenchmark } from './part-benchmark';
 
 test('benchmark calcula Top-1, Recall@5, MRR, NDCG@5 e hard negatives', () => {
@@ -37,18 +37,24 @@ test('hard negative que aparece depois do correto não é contado como vitória'
   assert.equal(metrics.hardNegativeWinRate, 0);
 });
 
-test('golden set tem IDs únicos e sempre aponta para código e fonte comprovada', () => {
-  assert.ok(HUSQVARNA_GOLDEN_BENCHMARK.length >= 30);
-  const ids = new Set(HUSQVARNA_GOLDEN_BENCHMARK.map(item => item.id));
-  assert.equal(ids.size, HUSQVARNA_GOLDEN_BENCHMARK.length);
+test('conjunto crítico curado permanece pequeno, diverso e baseado em fontes comprovadas', () => {
+  // O alvo de 50 do smoke benchmark é completado por casos reais derivados dos IPLs
+  // ativos. Este array contém somente os casos manualmente curados de maior risco;
+  // não deve ser inflado com paráfrases sintéticas apenas para atingir um número.
+  assert.ok(HUSQVARNA_CRITICAL_BENCHMARK.length >= 15);
+  assert.equal(HUSQVARNA_GOLDEN_BENCHMARK, HUSQVARNA_CRITICAL_BENCHMARK);
+
+  const ids = new Set(HUSQVARNA_CRITICAL_BENCHMARK.map(item => item.id));
+  assert.equal(ids.size, HUSQVARNA_CRITICAL_BENCHMARK.length);
+  assert.ok(new Set(HUSQVARNA_CRITICAL_BENCHMARK.map(item => item.family)).size >= 5);
 
   let hardNegativeCases = 0;
-  for (const benchmarkCase of HUSQVARNA_GOLDEN_BENCHMARK) {
+  for (const benchmarkCase of HUSQVARNA_CRITICAL_BENCHMARK) {
     assert.ok(benchmarkCase.query.trim().length > 5, benchmarkCase.id);
     assert.ok(benchmarkCase.model.trim(), benchmarkCase.id);
     assert.ok(benchmarkCase.expectedPartNumbers.length > 0, benchmarkCase.id);
     assert.ok(benchmarkCase.expectedPartNumbers.every(code => /^\d{6,}$/.test(code)), benchmarkCase.id);
-    assert.ok(benchmarkCase.source.includes('.pdf') || benchmarkCase.source.includes('Golden Set 500'), benchmarkCase.id);
+    assert.ok(benchmarkCase.source.includes('.pdf'), benchmarkCase.id);
 
     const expected = new Set(benchmarkCase.expectedPartNumbers);
     for (const hardNegative of benchmarkCase.hardNegativePartNumbers || []) {

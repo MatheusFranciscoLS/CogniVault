@@ -6,6 +6,8 @@ export type PartBenchmarkCase = {
   expectedPartNumbers: string[];
   hardNegativePartNumbers?: string[];
   source: string;
+  family?: string;
+  queryType?: 'MODEL_PART' | 'PNC_PART' | 'POSITIONED_CATALOG' | 'CRITICAL_MANUAL' | 'FEEDBACK';
 };
 
 export type PartBenchmarkObservation = {
@@ -81,16 +83,12 @@ export function evaluatePartBenchmark(
     if (rank !== null) reciprocalRank += 1 / rank;
     else misses += 1;
 
-    // Com relevância binária e pelo menos um código esperado, o DCG ideal do
-    // primeiro acerto é 1. Assim NDCG@5 vira 1/log2(rank+1) para o primeiro acerto.
     if (rank !== null && rank <= 5) ndcg += 1 / Math.log2(rank + 1);
 
     if (hardNegatives.size) {
       hardNegativeCases += 1;
       const hardRank = firstRelevantRank(hardNegatives, returned);
       if (returned[0] && hardNegatives.has(returned[0])) hardNegativeTop1 += 1;
-      // Um hard negative "vence" quando aparece antes do primeiro código correto,
-      // ou quando ele aparece e o correto nem foi recuperado.
       if (hardRank !== null && (rank === null || hardRank < rank)) hardNegativeWins += 1;
     }
   }
