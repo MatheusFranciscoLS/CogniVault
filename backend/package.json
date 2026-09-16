@@ -8,6 +8,7 @@
     "build": "tsc",
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
     "benchmark:parts": "npm run build && node dist/scripts/run-part-benchmark.js",
+    "benchmark:parts:full": "npm run build && node dist/scripts/run-part-benchmark.js --full",
     "import:price-list": "tsx src/scripts/import-price-list-with-history.ts",
     "import:price-list:core": "tsx src/scripts/import-price-list.ts",
     "audit:catalogs": "tsx src/scripts/audit-catalog-integrity.ts",
