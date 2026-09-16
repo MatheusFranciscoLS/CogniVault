@@ -28,11 +28,14 @@ function readStoredSession(storageKey: string): CounterSession {
 }
 
 export function CounterSessionProvider({ children }: { children: ReactNode }) {
-  const storageKey = useMemo(() => counterSessionStorageKey(), []);
-  const [session, setSession] = useState<CounterSession>(() => readStoredSession(storageKey));
+  const [session, setSession] = useState<CounterSession>(() => readStoredSession(counterSessionStorageKey()));
 
   useEffect(() => {
     try {
+      // Resolve a chave no momento da gravação. O Provider é montado antes do
+      // login, então memorizar a chave na montagem faria o primeiro atendimento
+      // continuar usando o storage global até um reload da página.
+      const storageKey = counterSessionStorageKey();
       const hasValue = Boolean(session.customerName.trim() || session.machineModel.trim() || session.pnc.trim() || session.serial.trim());
       if (hasValue) {
         localStorage.setItem(storageKey, JSON.stringify(session));
@@ -43,7 +46,7 @@ export function CounterSessionProvider({ children }: { children: ReactNode }) {
     } catch {
       // Contexto de atendimento é conveniência local; falhas de storage não bloqueiam a operação.
     }
-  }, [session, storageKey]);
+  }, [session]);
 
   const value = useMemo<CounterSessionContextValue>(() => ({
     session,
