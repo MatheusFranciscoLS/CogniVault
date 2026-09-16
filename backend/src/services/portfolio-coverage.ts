@@ -19,12 +19,27 @@ const NOISE_TOKENS = new Set([
 ]);
 
 /**
+ * Aplicações comerciais antigas usam bastante abreviação encadeada, por exemplo
+ * `323R/LD/5/7LDx/HE/P5x`. Sem uma fonte técnica não é seguro reconstruir esses
+ * fragmentos como `323LD`, `325...` etc. Para descoberta automática de cobertura,
+ * só aceitamos tokens com formato forte de modelo completo. Modelos presentes em
+ * IPL local entram no inventário independentemente desta heurística.
+ */
+export function hasStrongCommercialModelShape(value: string): boolean {
+  const normalized = normalizeIdentifier(value);
+  if (normalized.length < 4 || normalized.length > 24) return false;
+  if (!/[A-Z]/i.test(normalized)) return false;
+  const digitCount = (normalized.match(/\d/g) || []).length;
+  return digitCount >= 2;
+}
+
+/**
  * Extrai modelos prováveis das aplicações comerciais. A lista comercial é usada
  * somente para descobrir o universo que merece cobertura; nunca como prova de
  * compatibilidade PNC/serial.
  */
 export function extractCommercialModels(applicationInput: string): string[] {
-  let application = String(applicationInput || '')
+  const application = String(applicationInput || '')
     .normalize('NFKC')
     .replace(/\b([A-Z]{1,3})\s+(\d{2,4}[A-Z][A-Z0-9_-]*)\b/gi, '$1$2')
     .replace(/\b(?:ROC|MS|MOTOSSERRA|ROCADEIRA|ROÇADEIRA|SOPRADOR|TRATOR|CORTADOR|PODADOR|ATOM|SPRAYER|PULVERIZADOR)\.?\s*/gi, ' ')
@@ -36,14 +51,13 @@ export function extractCommercialModels(applicationInput: string): string[] {
     .split(/[\/,;|]+|\s+E\s+/i)
     .flatMap(segment => segment.match(/\b[A-Z0-9][A-Z0-9._-]{1,23}\b/gi) || [])
     .map(value => value.replace(/^[._-]+|[._-]+$/g, ''))
-    .filter(value => /[A-Z]/i.test(value) && /\d/.test(value))
     .filter(value => !/^\d{8,14}$/.test(normalizeIdentifier(value)))
-    .filter(value => !NOISE_TOKENS.has(value.toUpperCase()));
+    .filter(value => !NOISE_TOKENS.has(value.toUpperCase()))
+    .filter(hasStrongCommercialModelShape);
 
   const unique = new Map<string, string>();
   for (const candidate of candidates) {
     const normalized = normalizeIdentifier(candidate);
-    if (normalized.length < 2 || normalized.length > 24) continue;
     if (!unique.has(normalized)) unique.set(normalized, candidate);
   }
   return [...unique.values()];
