@@ -120,7 +120,7 @@ async function foundFromDecision(
       status: 'PNC_REQUIRED',
       explanation: variantSafety.note,
       suggestedPnc: chosenCandidate.pnc || undefined,
-      candidates: [],
+      candidates,
     };
   }
 
@@ -185,7 +185,7 @@ export class ReActAgentService {
       const single = candidates[0];
       const variantSafety = await verifyVariantSafety(single, explicitPnc);
       if (!variantSafety.safe) {
-        return { status: 'PNC_REQUIRED', explanation: variantSafety.note, suggestedPnc: single.pnc || undefined, candidates: [] };
+        return { status: 'PNC_REQUIRED', explanation: variantSafety.note, suggestedPnc: single.pnc || undefined, candidates };
       }
       const supersessionNotice = single.notes?.includes('Substituição oficial') ? ` [Substituição oficial ativa: ${single.partNumber}]` : '';
       return {
@@ -216,7 +216,7 @@ export class ReActAgentService {
       if (top) {
         const variantSafety = await verifyVariantSafety(top, explicitPnc);
         if (!variantSafety.safe) {
-          return { status: 'PNC_REQUIRED', explanation: variantSafety.note, suggestedPnc: top.pnc || undefined, candidates: [] };
+          return { status: 'PNC_REQUIRED', explanation: variantSafety.note, suggestedPnc: top.pnc || undefined, candidates };
         }
         const supersessionNotice = top.notes?.includes('Substituição oficial') ? ` [Substituição oficial ativa: ${top.partNumber}]` : '';
         return {
@@ -233,7 +233,7 @@ export class ReActAgentService {
     if (top.distance <= 0.22 && (second.distance - top.distance >= 0.25 || (top.retrievalAgreement && top.retrievalAgreement >= 2))) {
       const variantSafety = await verifyVariantSafety(top, explicitPnc);
       if (!variantSafety.safe) {
-        return { status: 'PNC_REQUIRED', explanation: variantSafety.note, suggestedPnc: top.pnc || undefined, candidates: [] };
+        return { status: 'PNC_REQUIRED', explanation: variantSafety.note, suggestedPnc: top.pnc || undefined, candidates };
       }
       const supersessionNotice = top.notes?.includes('Substituição oficial') ? ` [Substituição oficial ativa: ${top.partNumber}]` : '';
       return {
