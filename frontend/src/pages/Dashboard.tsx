@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ShellV2 from '../components/ShellV2';
 import TechnicalAssistantWorkspace from '../components/parts-v2/TechnicalAssistantWorkspace';
-import CatalogsPanel from '../components/CatalogsPanel';
+import CatalogsWorkspace from '../components/CatalogsWorkspace';
 import { apiJson, clearSession, getToken, SESSION_EXPIRED_EVENT } from '../lib';
 import type { Section, SessionUser } from '../types';
 import '../assistant.css';
@@ -166,7 +166,7 @@ export default function Dashboard() {
       )}
 
       {section === 'catalogs' && (
-        <CatalogsPanel
+        <CatalogsWorkspace
           key={catalogFilter || 'all-catalogs'}
           initialSearch={catalogFilter}
           admin={user.role === 'ADMIN'}
