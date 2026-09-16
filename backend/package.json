@@ -18,6 +18,7 @@
     "audit:catalogs": "tsx src/scripts/audit-catalog-integrity.ts",
     "audit:portfolio": "tsx src/scripts/audit-portfolio-coverage.ts",
     "audit:portfolio:portal": "tsx src/scripts/audit-portfolio-coverage.ts --portal",
+    "audit:recovery": "tsx src/scripts/check-recovery-readiness.ts",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate:deploy": "prisma migrate deploy"
