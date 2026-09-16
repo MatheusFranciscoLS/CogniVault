@@ -10,6 +10,7 @@ import '../admin-polish.css';
 import '../quality-polish.css';
 
 const OverviewPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.OverviewPanel })));
+const AssistantObservabilityPanel = lazy(() => import('../components/AssistantObservabilityPanel'));
 const UsersPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.UsersPanel })));
 const AuditPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.AuditPanel })));
 const AdminFeedbackPanel = lazy(() => import('../components/AdminFeedbackPanel'));
@@ -181,7 +182,12 @@ export default function Dashboard() {
         {section === 'quotes' && <SavedQuotesPanel />}
         {section === 'history' && <HistoryWorkspace onSearch={search} />}
         {section === 'favorites' && <FavoritesWorkspace onSearch={search} />}
-        {section === 'overview' && user.role === 'ADMIN' && <OverviewPanel />}
+        {section === 'overview' && user.role === 'ADMIN' && (
+          <>
+            <OverviewPanel />
+            <AssistantObservabilityPanel />
+          </>
+        )}
         {section === 'users' && user.role === 'ADMIN' && <UsersPanel />}
         {section === 'feedback' && user.role === 'ADMIN' && <AdminFeedbackPanel />}
         {section === 'quality' && user.role === 'ADMIN' && <div className="cv-quality-workspace"><QualityPanel onSearch={search} /></div>}
