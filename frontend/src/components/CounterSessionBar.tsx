@@ -60,11 +60,16 @@ export default function CounterSessionBar() {
       </div>
 
       {expanded && (
-        <div className="grid gap-3 border-t border-slate-100 bg-slate-50/70 px-4 py-4 sm:grid-cols-2 xl:grid-cols-4 dark:border-slate-800 dark:bg-slate-950/40">
-          <Field label="Cliente · opcional" value={session.customerName} placeholder="Nome do cliente" onChange={value => updateSession({ customerName: value })} />
-          <Field label="Máquina / modelo" value={session.machineModel} placeholder="Ex.: 143RII" onChange={value => updateSession({ machineModel: value })} />
-          <Field label="PNC" value={session.pnc} placeholder="Ex.: 967 17 65-01" onChange={value => updateSession({ pnc: value })} />
-          <Field label="S/N · quando necessário" value={session.serial} placeholder="Número de série" onChange={value => updateSession({ serial: value })} />
+        <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-4 dark:border-slate-800 dark:bg-slate-950/40">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Field label="Cliente · opcional" value={session.customerName} placeholder="Nome do cliente" onChange={value => updateSession({ customerName: value })} />
+            <Field label="Máquina / modelo" value={session.machineModel} placeholder="Ex.: 143RII" onChange={value => updateSession({ machineModel: value })} />
+            <Field label="PNC · se disponível" value={session.pnc} placeholder="Ex.: 967 17 65-01" onChange={value => updateSession({ pnc: value })} />
+            <Field label="S/N · se disponível" value={session.serial} placeholder="Número de série" onChange={value => updateSession({ serial: value })} />
+          </div>
+          <p className="mt-2.5 text-[10px] font-medium text-slate-400 dark:text-slate-500">
+            Não tem PNC ou número de série? Pode deixar em branco. O CogniVault só pede essa identificação quando encontra uma variação que muda a segurança do código.
+          </p>
         </div>
       )}
     </section>
