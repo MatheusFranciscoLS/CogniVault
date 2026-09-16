@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import { formatHusqvarnaPartNumber } from '../lib';
 import { useCounterSession } from '../context/CounterSessionContext';
 import { useQuoteCart } from '../context/QuoteCartContext';
@@ -10,6 +11,16 @@ export default function CounterQuoteRail() {
   const quoteCart = useQuoteCart();
   const { session } = useCounterSession();
   if (!quoteCart.items.length) return null;
+
+  const copyErpItems = async () => {
+    const lines = quoteCart.items.map(item => `${item.effectiveCode || item.partNumber}\t${item.quantity}`);
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      toast.success(`${quoteCart.items.length} ${quoteCart.items.length === 1 ? 'item copiado' : 'itens copiados'} para o ERP.`);
+    } catch {
+      toast.error('Não foi possível copiar os itens para o ERP.');
+    }
+  };
 
   return (
     <aside className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -54,8 +65,9 @@ export default function CounterQuoteRail() {
         ))}
       </div>
 
-      <div className="border-t border-slate-100 p-3 dark:border-slate-800">
-        <button type="button" onClick={() => quoteCart.setIsOpen(true)} className="h-9 w-full rounded-lg bg-[#123867] text-[11px] font-black text-white transition hover:bg-[#0d2c52]">Revisar orçamento</button>
+      <div className="grid grid-cols-2 gap-2 border-t border-slate-100 p-3 dark:border-slate-800">
+        <button type="button" onClick={copyErpItems} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-[10px] font-black text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">Copiar para ERP</button>
+        <button type="button" onClick={() => quoteCart.setIsOpen(true)} className="h-9 rounded-lg bg-[#123867] px-3 text-[11px] font-black text-white transition hover:bg-[#0d2c52]">Revisar orçamento</button>
       </div>
     </aside>
   );
