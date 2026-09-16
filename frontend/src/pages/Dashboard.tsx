@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ShellV2 from '../components/ShellV2';
-import PartSearchWorkspace from '../components/parts-v2/PartSearchWorkspace';
+import TechnicalAssistantWorkspace from '../components/parts-v2/TechnicalAssistantWorkspace';
 import CatalogsPanel from '../components/CatalogsPanel';
 import { apiJson, clearSession, getToken, SESSION_EXPIRED_EVENT } from '../lib';
 import type { Section, SessionUser } from '../types';
@@ -51,11 +51,9 @@ export default function Dashboard() {
   const updateUrl = (newTab: string, queryParam?: string, catalogParam?: string) => {
     try {
       const params = new URLSearchParams();
-
       if (newTab !== 'parts') params.set('tab', newTab);
       if (queryParam) params.set('q', queryParam);
       if (catalogParam) params.set('catalog', catalogParam);
-
       const value = params.toString();
       const newUrl = value ? `${window.location.pathname}?${value}` : window.location.pathname;
       window.history.replaceState(null, '', newUrl);
@@ -66,7 +64,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     let active = true;
-
     if (!getToken()) {
       navigate('/login', { replace: true });
       return;
@@ -113,7 +110,6 @@ export default function Dashboard() {
 
   const handleSectionChange = (next: Section) => {
     if (next !== 'catalogs') setCatalogFilter('');
-
     const targetSection = next === 'assistant' || next === 'home' ? 'parts' : next;
     setSection(targetSection);
     updateUrl(targetSection);
@@ -153,7 +149,7 @@ export default function Dashboard() {
       onSearch={search}
     >
       {(section === 'parts' || section === 'assistant' || section === 'home') && (
-        <PartSearchWorkspace
+        <TechnicalAssistantWorkspace
           key={`${searchVersion}:${globalQuery || 'empty-search'}`}
           initialQuery={globalQuery}
           onQueryChange={updatePartQuery}
