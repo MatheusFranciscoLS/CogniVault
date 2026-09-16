@@ -11,6 +11,7 @@ export type PortfolioCoverageItem = {
   status: PortfolioCoverageStatus;
   source: string | null;
   pnc: string | null;
+  commercialSignals: number;
 };
 
 const NOISE_TOKENS = new Set([
@@ -84,6 +85,18 @@ async function mapWithConcurrency<T, R>(items: T[], concurrency: number, worker:
   return results;
 }
 
+export function rankPortfolioCoverageGaps(items: PortfolioCoverageItem[], limit = 12) {
+  return items
+    .filter(item => item.status === 'UNVERIFIED')
+    .sort((a, b) => b.commercialSignals - a.commercialSignals || a.model.localeCompare(b.model))
+    .slice(0, Math.max(0, limit))
+    .map(item => ({
+      model: item.model,
+      normalizedModel: item.normalizedModel,
+      commercialSignals: item.commercialSignals,
+    }));
+}
+
 export async function buildPortfolioCoverage(tenantId: string, options: { verifyPortal?: boolean; concurrency?: number } = {}) {
   const [localRows, commercialRows] = await Promise.all([
     prisma.part.findMany({
@@ -101,28 +114,46 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
   ]);
 
   const localByModel = new Map(localRows.map(row => [row.normalizedModel, row]));
-  const commercialModels = new Map<string, string>();
+  const commercialModels = new Map<string, { model: string; signals: number }>();
   for (const row of commercialRows) {
     if (!row.application) continue;
     for (const model of extractCommercialModels(row.application)) {
       const key = normalizeIdentifier(model);
-      if (!commercialModels.has(key)) commercialModels.set(key, model);
+      const current = commercialModels.get(key);
+      if (current) current.signals += 1;
+      else commercialModels.set(key, { model, signals: 1 });
     }
   }
 
   // O universo inclui também modelos que já estão tecnicamente cadastrados, mesmo
   // que ainda não apareçam na planilha comercial atual.
   for (const row of localRows) {
-    if (!commercialModels.has(row.normalizedModel)) commercialModels.set(row.normalizedModel, row.model);
+    if (!commercialModels.has(row.normalizedModel)) {
+      commercialModels.set(row.normalizedModel, { model: row.model, signals: 0 });
+    }
   }
 
   const baseItems: PortfolioCoverageItem[] = [...commercialModels.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([normalizedModel, model]) => {
+    .map(([normalizedModel, commercial]) => {
       const local = localByModel.get(normalizedModel);
       return local
-        ? { model: local.model, normalizedModel, status: 'LOCAL_IPL' as const, source: local.document.filename, pnc: null }
-        : { model, normalizedModel, status: 'UNVERIFIED' as const, source: null, pnc: null };
+        ? {
+            model: local.model,
+            normalizedModel,
+            status: 'LOCAL_IPL' as const,
+            source: local.document.filename,
+            pnc: null,
+            commercialSignals: commercial.signals,
+          }
+        : {
+            model: commercial.model,
+            normalizedModel,
+            status: 'UNVERIFIED' as const,
+            source: null,
+            pnc: null,
+            commercialSignals: commercial.signals,
+          };
     });
 
   if (!options.verifyPortal) return summarizePortfolioCoverage(baseItems);
