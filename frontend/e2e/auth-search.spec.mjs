@@ -7,7 +7,7 @@ const MECHANIC_EMAIL = 'mecanico.e2e@cognivault.local';
 async function login(page, email) {
   await page.goto('/login');
   await page.getByLabel('E-mail').fill(email);
-  await page.getByLabel('Senha').fill(PASSWORD);
+  await page.locator('#login-password').fill(PASSWORD);
   await page.getByRole('button', { name: 'Entrar no CogniVault' }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   await expect(page.getByRole('heading', { name: 'Encontre a peça certa. Entenda por quê.' })).toBeVisible();
