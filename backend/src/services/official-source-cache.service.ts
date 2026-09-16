@@ -211,6 +211,15 @@ export class OfficialSourceCacheService {
     return pending;
   }
 
+  /**
+   * Remove uma entrada específica para permitir revalidação forçada e testes
+   * isolados. Não apaga dados em massa nem altera a política normal de SWR.
+   */
+  static async invalidate(key: string): Promise<void> {
+    inflight.delete(key);
+    await prisma.officialSourceCache.deleteMany({ where: { key } });
+  }
+
   static async recentChanges(limit = 8) {
     return prisma.officialSourceCache.findMany({
       where: { changedAt: { not: null } },
