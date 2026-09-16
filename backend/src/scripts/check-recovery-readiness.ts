@@ -12,7 +12,8 @@ async function main() {
     auditLogs,
     verifications,
     missingStorage,
-    failedMigrations,
+    activeFailedMigrations,
+    rolledBackMigrations,
     appliedMigrations,
   ] = await Promise.all([
     prisma.tenant.count(),
@@ -33,7 +34,12 @@ async function main() {
     prisma.$queryRaw<Array<{ count: bigint }>>`
       SELECT COUNT(*)::bigint AS count
       FROM "_prisma_migrations"
-      WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL
+      WHERE finished_at IS NULL AND rolled_back_at IS NULL
+    `,
+    prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*)::bigint AS count
+      FROM "_prisma_migrations"
+      WHERE rolled_back_at IS NOT NULL
     `,
     prisma.$queryRaw<Array<{ count: bigint }>>`
       SELECT COUNT(*)::bigint AS count
@@ -42,14 +48,16 @@ async function main() {
     `,
   ]);
 
-  const failed = Number(failedMigrations[0]?.count || 0n);
+  const activeFailed = Number(activeFailedMigrations[0]?.count || 0n);
+  const rolledBack = Number(rolledBackMigrations[0]?.count || 0n);
   const applied = Number(appliedMigrations[0]?.count || 0n);
-  const status = failed === 0 && missingStorage === 0 ? 'READY' : 'ATTENTION';
+  const status = activeFailed === 0 && missingStorage === 0 ? 'READY' : 'ATTENTION';
 
   console.log('\n🛟 CogniVault · prontidão de recuperação');
   console.log(`   Status:                         ${status}`);
   console.log(`   Migrations aplicadas:           ${applied}`);
-  console.log(`   Migrations incompletas/falhas:  ${failed}`);
+  console.log(`   Falhas de migration ativas:     ${activeFailed}`);
+  console.log(`   Rollbacks históricos:           ${rolledBack}`);
   console.log(`   Tenants:                        ${tenants}`);
   console.log(`   Usuários:                       ${users}`);
   console.log(`   Documentos:                     ${documents}`);
@@ -60,10 +68,11 @@ async function main() {
   console.log(`   Verificações oficiais:          ${verifications}`);
   console.log(`   PDFs ativos sem storagePath:    ${missingStorage}`);
   console.log('');
+  console.log('Rollbacks históricos já resolvidos são informativos e não bloqueiam READY.');
   console.log('Este comando valida consistência mínima; ele NÃO substitui um backup nem um restore drill.');
   console.log('Banco PostgreSQL e bucket privado de PDFs devem ser protegidos e testados separadamente.\n');
 
-  if (failed > 0) process.exitCode = 2;
+  if (activeFailed > 0) process.exitCode = 2;
   else if (missingStorage > 0) process.exitCode = 3;
 }
 
