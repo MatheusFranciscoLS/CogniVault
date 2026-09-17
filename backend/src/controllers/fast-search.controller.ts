@@ -224,7 +224,9 @@ export class FastSearchController {
 
       res.set('X-CogniVault-Search-Path', result.path);
       res.set('X-CogniVault-Cache', result.cache);
-      res.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=240');
+      // O resultado é tenant-scoped. O cache de minutos continua no processo
+      // Node, sem permitir que o browser reutilize dados após troca de sessão.
+      res.set('Cache-Control', 'private, no-store');
       res.json(result.payload);
     } catch (error) {
       console.warn('⚠️ Caminho rápido de código indisponível; usando busca completa.', error);
