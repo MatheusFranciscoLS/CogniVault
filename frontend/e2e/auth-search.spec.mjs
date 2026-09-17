@@ -54,3 +54,32 @@ test('sessão usa cookie HttpOnly, sobrevive a reload e isola orçamento por usu
   await searchCarburettor(page);
   await expect(page.getByRole('button', { name: '+ Orçamento' }).first()).toBeVisible();
 });
+
+test('qualidade compartilha uma única fonte de dados sob StrictMode', async ({ page }) => {
+  await login(page, ADMIN_EMAIL);
+
+  let qualityRequests = 0;
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (request.method() === 'GET' && url.pathname.endsWith('/api/admin/quality')) {
+      qualityRequests += 1;
+    }
+  });
+
+  const qualityResponse = page.waitForResponse(response => {
+    const url = new URL(response.url());
+    return response.request().method() === 'GET' && url.pathname.endsWith('/api/admin/quality');
+  });
+
+  await page.goto('/dashboard?tab=quality');
+  expect((await qualityResponse).ok()).toBe(true);
+
+  await expect(page.getByRole('heading', { name: 'Cobertura do portfólio BR' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Confiabilidade' })).toBeVisible();
+
+  // O E2E usa Vite dev + React StrictMode. Em desenvolvimento, o React remonta
+  // efeitos uma vez para detectar efeitos colaterais, então uma única fonte lógica
+  // de fetch produz exatamente 2 requests. Duas fontes independentes voltariam a 4.
+  await page.waitForTimeout(500);
+  expect(qualityRequests).toBe(2);
+});
