@@ -1,2 +1,0 @@
-export const CURRENT_EXTRACTION_REVISION = 4;
-export const CURRENT_QUALITY_REVISION = 2;

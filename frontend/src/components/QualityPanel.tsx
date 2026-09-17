@@ -3,6 +3,7 @@ import { apiJson, fmtDate } from '../lib';
 import type { AiQualityData, BenchmarkRun, QualityCatalog, SearchRadarItem } from '../types';
 import PortfolioCoveragePanel from './PortfolioCoveragePanel';
 import type { PortfolioCoverage } from './PortfolioCoveragePanel';
+import OfficialVerificationApprovalPanel from './OfficialVerificationApprovalPanel';
 
 function fetchQuality() {
   return apiJson<{ quality: AiQualityData; portfolioCoverage: PortfolioCoverage }>('/api/admin/quality');
@@ -291,9 +292,9 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
           className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all ${activeTab === 'acao' ? 'bg-white dark:bg-slate-700 text-[#1d4f91] dark:text-white shadow' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'}`}
         >
           Fila de Ação
-          {(data.summary.needsReview > 0 || data.searchRadar.length > 0) && (
+          {(data.summary.needsReview > 0 || data.searchRadar.length > 0 || data.officialVerification.pending > 0) && (
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/50 text-[10px] font-bold text-rose-600 dark:text-rose-300">
-              {data.summary.needsReview + data.searchRadar.length}
+              {data.summary.needsReview + data.searchRadar.length + data.officialVerification.pending}
             </span>
           )}
         </button>
@@ -497,6 +498,12 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
               </div>
             </div>)}</div>}
           </div>
+
+          {/* O card "Portal oficial" na Visão Geral já mostrava quantas conferências
+              estavam aguardando aprovação, e a notificação do sininho já apontava
+              pra cá — mas não existia nenhuma tela em que um admin pudesse de fato
+              aprovar ou rejeitar. Esse painel fecha esse ciclo. */}
+          <OfficialVerificationApprovalPanel onChanged={() => void load()} />
         </div>
       )}
 
