@@ -4,6 +4,7 @@ import { HusqvarnaOfficialDetailService } from './husqvarna-official-detail.serv
 import { HusqvarnaProductSearchService } from './husqvarna-product-search.service';
 
 export type PortfolioCoverageStatus = 'LOCAL_IPL' | 'PORTAL_IPL' | 'UNVERIFIED';
+export type PortalVerificationState = 'NOT_CHECKED' | 'VERIFIED' | 'NO_EXACT_MATCH' | 'NO_IPL' | 'INCONCLUSIVE';
 
 export type PortfolioCoverageItem = {
   model: string;
@@ -13,11 +14,29 @@ export type PortfolioCoverageItem = {
   pnc: string | null;
   commercialSignals: number;
   commercialEvidence: string[];
+  portalVerification?: PortalVerificationState;
+  portalVerificationNote?: string | null;
+};
+
+type PortalVerificationOutcome = {
+  state: PortalVerificationState;
+  pnc: string | null;
+  source: string | null;
+  note: string;
 };
 
 const NOISE_TOKENS = new Set([
   'HONDA', 'HUSQVARNA', 'BRIGGS', 'STRATTON', 'KAWASAKI', 'KOHLER', 'MOTOR', 'ENGINE',
 ]);
+
+const PORTAL_GRAPHQL_URL = 'https://portal.husqvarnagroup.com/hbd/graphql?';
+const PORTAL_ORIGIN = 'https://portal.husqvarnagroup.com';
+const PORTAL_SITE = 'b2b-br-pt-br';
+const PORTAL_PROBE_TIMEOUT_MS = 4_000;
+const PORTAL_PROBE_TTL_MS = 30_000;
+
+let portalProbeCache: { available: boolean; expiresAt: number } | null = null;
+let portalProbePending: Promise<boolean> | null = null;
 
 /**
  * Aplicações comerciais antigas usam bastante abreviação encadeada, por exemplo
@@ -105,20 +124,145 @@ export function portalResultMatchesModel(title: string, model: string): boolean 
   return false;
 }
 
-async function verifyPortalIpl(model: string): Promise<{ pnc: string; source: string } | null> {
-  const results = await HusqvarnaProductSearchService.search(model);
-  const products = results.filter(result => result.kind === 'PRODUCT' && result.pnc && portalResultMatchesModel(result.title, model));
-  for (const product of products.slice(0, 4)) {
+/**
+ * A busca oficial legada retorna [] tanto para uma busca válida sem resultados quanto
+ * para indisponibilidade upstream. Este probe é usado somente quando precisamos
+ * distinguir as duas situações na fila de homologação. Ele nunca é prova de IPL.
+ */
+async function probePortalAvailability(): Promise<boolean> {
+  const now = Date.now();
+  if (portalProbeCache && portalProbeCache.expiresAt > now) return portalProbeCache.available;
+  if (portalProbePending) return portalProbePending;
+
+  portalProbePending = (async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), PORTAL_PROBE_TIMEOUT_MS);
     try {
-      const details = await HusqvarnaOfficialDetailService.getProductDetails(product.pnc!);
-      if (details?.iplSections.some(section => section.parts.length > 0)) {
-        return { pnc: product.pnc!, source: product.portalUrl || `Portal Husqvarna · ${product.title}` };
-      }
+      const response = await fetch(PORTAL_GRAPHQL_URL, {
+        method: 'POST',
+        signal: controller.signal,
+        redirect: 'follow',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.7',
+          Origin: PORTAL_ORIGIN,
+          Referer: `${PORTAL_ORIGIN}/br/`,
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0 Safari/537.36',
+        },
+        body: JSON.stringify({
+          operationName: 'coverageProbe',
+          query: 'query coverageProbe($site: String!) { site(name: $site) { __typename } }',
+          variables: { site: PORTAL_SITE },
+        }),
+      });
+      if (!response.ok) return false;
+      const payload = await response.json() as any;
+      return !payload?.errors?.length && Boolean(payload?.data?.site);
     } catch {
-      // Falha de consulta é inconclusiva e não significa ausência de IPL.
+      return false;
+    } finally {
+      clearTimeout(timeout);
     }
+  })();
+
+  try {
+    const available = await portalProbePending;
+    portalProbeCache = { available, expiresAt: Date.now() + PORTAL_PROBE_TTL_MS };
+    return available;
+  } finally {
+    portalProbePending = null;
   }
-  return null;
+}
+
+async function verifyPortalIpl(model: string): Promise<PortalVerificationOutcome> {
+  try {
+    const results = await HusqvarnaProductSearchService.search(model);
+    if (!results.length) {
+      const portalAvailable = await probePortalAvailability();
+      return portalAvailable
+        ? {
+            state: 'NO_EXACT_MATCH',
+            pnc: null,
+            source: null,
+            note: 'Consulta concluída, sem produto exato retornado pelo Portal.',
+          }
+        : {
+            state: 'INCONCLUSIVE',
+            pnc: null,
+            source: null,
+            note: 'O Portal não respondeu ao controle de disponibilidade; a ausência de resultado não foi tratada como ausência de IPL.',
+          };
+    }
+
+    const products = results.filter(result => result.kind === 'PRODUCT' && result.pnc && portalResultMatchesModel(result.title, model));
+    if (!products.length) {
+      return {
+        state: 'NO_EXACT_MATCH',
+        pnc: null,
+        source: null,
+        note: 'O Portal respondeu, mas nenhum dos resultados retornados corresponde exatamente ao modelo.',
+      };
+    }
+
+    let unresolvedDetail = false;
+    let resolvedDetail = false;
+    let lastPnc: string | null = null;
+
+    for (const product of products.slice(0, 4)) {
+      lastPnc = product.pnc!;
+      try {
+        const details = await HusqvarnaOfficialDetailService.getProductDetails(product.pnc!);
+        if (!details) {
+          unresolvedDetail = true;
+          continue;
+        }
+        resolvedDetail = true;
+        if (details.iplSections.some(section => section.parts.length > 0)) {
+          return {
+            state: 'VERIFIED',
+            pnc: product.pnc!,
+            source: product.portalUrl || `Portal Husqvarna · ${product.title}`,
+            note: 'PNC confirmado no Portal com IPL contendo peças.',
+          };
+        }
+      } catch {
+        unresolvedDetail = true;
+      }
+    }
+
+    if (unresolvedDetail) {
+      return {
+        state: 'INCONCLUSIVE',
+        pnc: lastPnc,
+        source: null,
+        note: 'Foi encontrado produto compatível, mas ao menos uma consulta de detalhes não pôde ser confirmada. Nenhuma ausência de IPL foi inferida.',
+      };
+    }
+
+    if (resolvedDetail) {
+      return {
+        state: 'NO_IPL',
+        pnc: lastPnc,
+        source: null,
+        note: 'Produto exato confirmado no Portal, porém os detalhes retornados não continham IPL com peças.',
+      };
+    }
+
+    return {
+      state: 'INCONCLUSIVE',
+      pnc: lastPnc,
+      source: null,
+      note: 'A homologação não obteve detalhes suficientes para concluir a cobertura.',
+    };
+  } catch {
+    return {
+      state: 'INCONCLUSIVE',
+      pnc: null,
+      source: null,
+      note: 'A consulta ao Portal falhou antes de produzir evidência técnica verificável.',
+    };
+  }
 }
 
 async function mapWithConcurrency<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>): Promise<R[]> {
@@ -146,6 +290,8 @@ export function rankPortfolioCoverageGaps(items: PortfolioCoverageItem[], limit 
       status: item.status,
       commercialSignals: item.commercialSignals,
       commercialEvidence: item.commercialEvidence,
+      portalVerification: item.portalVerification || 'NOT_CHECKED',
+      portalVerificationNote: item.portalVerificationNote || null,
     }));
 }
 
@@ -205,6 +351,8 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
             pnc: null,
             commercialSignals: commercial.signals,
             commercialEvidence: commercial.evidence,
+            portalVerification: 'NOT_CHECKED' as const,
+            portalVerificationNote: null,
           }
         : {
             model: commercial.model,
@@ -214,6 +362,8 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
             pnc: null,
             commercialSignals: commercial.signals,
             commercialEvidence: commercial.evidence,
+            portalVerification: 'NOT_CHECKED' as const,
+            portalVerificationNote: null,
           };
     });
 
@@ -224,13 +374,19 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
     item,
     portal: await verifyPortalIpl(item.model),
   }));
-  const portalByModel = new Map(portalChecks.filter(result => result.portal).map(result => [result.item.normalizedModel, result.portal!]));
+  const portalByModel = new Map(portalChecks.map(result => [result.item.normalizedModel, result.portal]));
 
   const verifiedItems = baseItems.map(item => {
     const portal = portalByModel.get(item.normalizedModel);
-    return portal
-      ? { ...item, status: 'PORTAL_IPL' as const, source: portal.source, pnc: portal.pnc }
-      : item;
+    if (!portal) return item;
+    return {
+      ...item,
+      status: portal.state === 'VERIFIED' ? 'PORTAL_IPL' as const : item.status,
+      source: portal.state === 'VERIFIED' ? portal.source : item.source,
+      pnc: portal.pnc || item.pnc,
+      portalVerification: portal.state,
+      portalVerificationNote: portal.note,
+    };
   });
   return summarizePortfolioCoverage(verifiedItems);
 }
