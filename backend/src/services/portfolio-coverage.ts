@@ -64,10 +64,25 @@ export function extractCommercialModels(applicationInput: string): string[] {
   return [...unique.values()];
 }
 
-function portalResultMatchesModel(title: string, model: string): boolean {
+/**
+ * O Portal pode retornar famílias próximas para uma busca (ex.: 236, 236RS e 236R).
+ * Cobertura técnica não pode promover um prefixo de modelo como prova do modelo pedido.
+ * Por isso aceitamos somente título que termina no identificador completo. A única
+ * equivalência textual deliberada é a nomenclatura histórica `445 e-series` -> `445E`
+ * (e o mesmo padrão para outros modelos terminados em E).
+ */
+export function portalResultMatchesModel(title: string, model: string): boolean {
   const titleKey = normalizeIdentifier(title);
   const modelKey = normalizeIdentifier(model);
-  return Boolean(modelKey && (titleKey.includes(modelKey) || modelKey.includes(titleKey.replace(/^HUSQVARNA/, ''))));
+  if (!titleKey || !modelKey) return false;
+  if (titleKey.endsWith(modelKey)) return true;
+
+  if (modelKey.endsWith('E')) {
+    const baseModel = modelKey.slice(0, -1);
+    if (baseModel && titleKey.includes(`${baseModel}ESERIES`)) return true;
+  }
+
+  return false;
 }
 
 async function verifyPortalIpl(model: string): Promise<{ pnc: string; source: string } | null> {
