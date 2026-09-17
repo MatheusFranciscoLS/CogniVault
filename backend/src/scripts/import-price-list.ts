@@ -3,13 +3,13 @@ import { randomUUID } from 'crypto';
 import path from 'path';
 import { Prisma, PrismaClient } from '@prisma/client';
 import * as XLSX from 'xlsx';
+import { COMMERCIAL_MARKUP_PERCENT, COMMERCIAL_PRICE_DIVISOR, commercialPrice } from './price-list-rules';
 
 const prisma = new PrismaClient();
 
 const BASE_SHEET = 'BASE_DADOS CADASTRAIS';
 const EAN_SHEET = 'EAN';
 const BATCH_SIZE = 400;
-const COMMERCIAL_PRICE_DIVISOR = 0.92;
 
 const PRICE_SECTIONS = [
   { sheet: 'LISTA_DE_PEÇAS', section: 'PEÇAS DE REPOSIÇÃO GERAL' },
@@ -79,11 +79,6 @@ function numberValue(input: unknown): number | null {
 
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-function commercialPrice(input: number | null): number | null {
-  if (input === null) return null;
-  return Math.round((input / COMMERCIAL_PRICE_DIVISOR) * 100) / 100;
 }
 
 function normalizeIdentifier(input: unknown): string {
@@ -398,7 +393,7 @@ async function run(): Promise<void> {
   console.log('\nCogniVault · Importação do catálogo comercial');
   console.log(`Arquivo de entrada: ${filePath}`);
   console.log('O Excel será usado somente nesta ingestão. As buscas posteriores usam o PostgreSQL.');
-  console.log(`Regra comercial de preço: valor da planilha ÷ ${COMMERCIAL_PRICE_DIVISOR}, arredondado em 2 casas.\n`);
+  console.log(`Regra comercial de preço: +${COMMERCIAL_MARKUP_PERCENT}% sobre o valor da planilha (÷ ${COMMERCIAL_PRICE_DIVISOR.toFixed(6)}), arredondado em 2 casas.\n`);
 
   const workbook = XLSX.readFile(filePath, { cellDates: false });
   const tenant = await resolveTenant();
