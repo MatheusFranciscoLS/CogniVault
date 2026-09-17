@@ -2,8 +2,6 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import ShellV2 from '../components/ShellV2';
 import TechnicalAssistantWorkspace from '../components/parts-v2/TechnicalAssistantWorkspace';
-import CatalogsWorkspace from '../components/CatalogsWorkspace';
-import MachinesWorkspace from '../components/machines/MachinesWorkspace';
 import { api, apiJson, clearSession, SESSION_EXPIRED_EVENT } from '../lib';
 import { activateQuoteStorageScope } from '../lib/quote-storage-scope';
 import type { Section, SessionUser } from '../types';
@@ -11,6 +9,11 @@ import '../assistant.css';
 import '../admin-polish.css';
 import '../quality-polish.css';
 
+// Só uma dessas três telas está visível por vez, e "parts" é a tela padrão no
+// login — então só ela precisa vir no primeiro pacote de JS. Catálogos e
+// Máquinas entram sob demanda, no clique da aba.
+const CatalogsWorkspace = lazy(() => import('../components/CatalogsWorkspace'));
+const MachinesWorkspace = lazy(() => import('../components/machines/MachinesWorkspace'));
 const OverviewPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.OverviewPanel })));
 const AssistantObservabilityPanel = lazy(() => import('../components/AssistantObservabilityPanel'));
 const UsersPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.UsersPanel })));
@@ -207,7 +210,7 @@ export default function Dashboard() {
     return (
       <main className="grid min-h-screen place-items-center bg-[#f5f7fb] p-6 dark:bg-slate-950">
         <div className="text-center">
-          <img src="/vardao-logo-transparent.png" alt="Vardão Máquinas" className="mx-auto w-40" />
+          <img src="/vardao-logo-transparent.webp" alt="Vardão Máquinas" className="mx-auto w-40" />
           <div className="mx-auto mt-6 h-1 w-28 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
             <div className="h-full w-1/2 animate-pulse rounded-full bg-[#1d4f91]" />
           </div>
@@ -240,27 +243,28 @@ export default function Dashboard() {
 
       {machinesMounted && (
         <div className={section === 'machines' ? undefined : 'hidden'}>
-          <MachinesWorkspace
-            initialPnc={machinePnc}
-            initialSearch={initialMachineSearchParam}
-            onStateChange={handleMachineState}
-            onSearchPart={search}
-            storageScope={user.id}
-          />
+          <Suspense fallback={<PanelLoading />}>
+            <MachinesWorkspace
+              initialPnc={machinePnc}
+              initialSearch={initialMachineSearchParam}
+              onStateChange={handleMachineState}
+              onSearchPart={search}
+              storageScope={user.id}
+            />
+          </Suspense>
         </div>
       )}
 
-      {section === 'catalogs' && (
-        <CatalogsWorkspace
-          key={catalogFilter || 'all-catalogs'}
-          initialSearch={catalogFilter}
-          admin={user.role === 'ADMIN'}
-          onQuality={user.role === 'ADMIN' ? () => setSection('quality') : undefined}
-          onSearch={search}
-        />
-      )}
-
       <Suspense fallback={<PanelLoading />}>
+        {section === 'catalogs' && (
+          <CatalogsWorkspace
+            key={catalogFilter || 'all-catalogs'}
+            initialSearch={catalogFilter}
+            admin={user.role === 'ADMIN'}
+            onQuality={user.role === 'ADMIN' ? () => setSection('quality') : undefined}
+            onSearch={search}
+          />
+        )}
         {section === 'quotes' && <SavedQuotesPanel />}
         {section === 'history' && <HistoryWorkspace onSearch={search} />}
         {section === 'favorites' && <FavoritesWorkspace onSearch={search} />}

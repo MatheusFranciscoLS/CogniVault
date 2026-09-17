@@ -112,7 +112,7 @@ export default function Login() {
           <div className="w-full max-w-[440px]">
             <div className="mb-4 text-center sm:mb-5">
               <img
-                src="/vardao-logo-transparent.png"
+                src="/vardao-logo-transparent.webp"
                 alt="Vardão Máquinas"
                 className="mx-auto h-12 w-auto max-w-[190px] object-contain opacity-90 dark:brightness-0 dark:invert"
               />

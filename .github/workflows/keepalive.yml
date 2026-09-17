@@ -1,0 +1,28 @@
+name: Keepalive
+
+# O plano gratuito do Render "dorme" o serviço depois de ~15 minutos sem
+# tráfego HTTP, e a primeira requisição depois disso paga um cold start de
+# dezenas de segundos — é o atendente no balcão esperando a página carregar.
+# Este workflow mantém o processo acordado sem custo: repositório público
+# tem minutos de Actions ilimitados, e o próprio backend já expõe um
+# endpoint leve para isso.
+on:
+  schedule:
+    - cron: '*/10 6-23 * * *' # a cada 10 min, 06:00–23:59 UTC (03:00–20:59 em Brasília)
+  workflow_dispatch: {}
+
+concurrency:
+  group: cognivault-keepalive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Acordar a API antes que ela durma
+        run: |
+          set -euo pipefail
+          curl --silent --show-error --fail --max-time 45 \
+            "https://cognivault-api.onrender.com/api/cron/keepalive" \
+            && echo "OK cognivault-api respondendo"
