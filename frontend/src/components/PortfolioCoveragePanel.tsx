@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { apiJson } from '../lib';
 
 type PortfolioCoverageGap = {
@@ -46,13 +46,16 @@ export default function PortfolioCoveragePanel({
   onRefresh?: () => void | Promise<void>;
   refreshing?: boolean;
 }) {
-  const [displayCoverage, setDisplayCoverage] = useState(coverage);
+  const [portalCoverage, setPortalCoverage] = useState<PortfolioCoverage | null>(null);
   const [checkingPortal, setCheckingPortal] = useState(false);
   const [portalError, setPortalError] = useState('');
+  const displayCoverage = portalCoverage ?? coverage;
 
-  useEffect(() => {
-    setDisplayCoverage(coverage);
-  }, [coverage]);
+  const refreshLocal = async () => {
+    setPortalCoverage(null);
+    setPortalError('');
+    await onRefresh?.();
+  };
 
   const checkPortal = async () => {
     setCheckingPortal(true);
@@ -62,7 +65,7 @@ export default function PortfolioCoveragePanel({
         method: 'POST',
         timeoutMs: 120_000,
       });
-      setDisplayCoverage(result);
+      setPortalCoverage(result);
     } catch (error) {
       setPortalError(error instanceof Error ? error.message : 'Não foi possível consultar o Portal Husqvarna Brasil agora.');
     } finally {
@@ -88,7 +91,7 @@ export default function PortfolioCoveragePanel({
           </div>
           <div className="flex flex-wrap gap-2">
             {onRefresh && (
-              <button type="button" disabled={refreshing || checkingPortal} onClick={() => void onRefresh()} className="cv-secondary px-3 py-2 text-xs font-semibold disabled:opacity-50">
+              <button type="button" disabled={refreshing || checkingPortal} onClick={() => void refreshLocal()} className="cv-secondary px-3 py-2 text-xs font-semibold disabled:opacity-50">
                 {refreshing ? 'Recarregando…' : 'Recarregar base local'}
               </button>
             )}
