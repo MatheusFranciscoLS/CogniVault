@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "verify:production-origin": "node scripts/verify-production-api-origin.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },
