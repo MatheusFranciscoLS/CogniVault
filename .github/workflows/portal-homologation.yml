@@ -1,0 +1,68 @@
+name: Portal Homologation
+
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 'Comma-separated models to audit against the official Husqvarna Portal'
+        required: true
+        default: '323R,P12597,LT151,343R,241R,235R,445E,225R'
+        type: string
+      concurrency:
+        description: 'Portal request concurrency (1-4)'
+        required: true
+        default: '2'
+        type: choice
+        options:
+          - '1'
+          - '2'
+          - '3'
+          - '4'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cognivault-portal-homologation
+  cancel-in-progress: false
+
+jobs:
+  audit-portal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Audit requested models against official Portal
+        run: >-
+          npx tsx src/scripts/audit-portal-models.ts
+          --models="${{ inputs.models }}"
+          --concurrency="${{ inputs.concurrency }}"
+          --output=portal-homologation.json
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-homologation-${{ github.run_id }}
+          path: backend/portal-homologation.json
+          if-no-files-found: warn
+          retention-days: 14
