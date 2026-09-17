@@ -62,6 +62,9 @@ jobs:
         run: npm run benchmark:parts:ci
       - name: Smoke-test compiled Gemini loader
         run: node -e "require('./dist/config/gemini.js').getGeminiClient().then(() => console.log('Gemini ESM loader OK'))"
+      - name: Read-only Portal homologation diagnostic
+        if: github.head_ref == 'diagnostic/portal-homologation'
+        run: npx tsx src/scripts/diagnose-portal-coverage.ts
 
   frontend:
     runs-on: ubuntu-latest
