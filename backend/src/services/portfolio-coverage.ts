@@ -64,18 +64,38 @@ export function extractCommercialModels(applicationInput: string): string[] {
   return [...unique.values()];
 }
 
+function hasDistinctShortCodePrefix(title: string, modelKey: string): boolean {
+  const tokens = title
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .match(/[A-Z0-9]+/g) || [];
+
+  let suffix = '';
+  let consumed = 0;
+  for (let index = tokens.length - 1; index >= 0 && suffix.length < modelKey.length; index -= 1) {
+    suffix = `${tokens[index]}${suffix}`;
+    consumed += 1;
+  }
+  if (suffix !== modelKey) return false;
+
+  const prefix = tokens[tokens.length - consumed - 1] || '';
+  return /^[A-Z]{1,3}$/.test(prefix) && prefix !== 'HUSQVARNA';
+}
+
 /**
  * O Portal pode retornar famílias próximas para uma busca (ex.: 236, 236RS e 236R).
  * Cobertura técnica não pode promover um prefixo de modelo como prova do modelo pedido.
- * Por isso aceitamos somente título que termina no identificador completo. A única
- * equivalência textual deliberada é a nomenclatura histórica `445 e-series` -> `445E`
- * (e o mesmo padrão para outros modelos terminados em E).
+ * Também rejeitamos um código curto imediatamente anterior ao modelo solicitado
+ * (ex.: `PW 235R` não comprova `235R`). A única equivalência textual deliberada é a
+ * nomenclatura histórica `445 e-series` -> `445E` (e o mesmo padrão para outros
+ * modelos terminados em E).
  */
 export function portalResultMatchesModel(title: string, model: string): boolean {
   const titleKey = normalizeIdentifier(title);
   const modelKey = normalizeIdentifier(model);
   if (!titleKey || !modelKey) return false;
-  if (titleKey.endsWith(modelKey)) return true;
+  if (titleKey.endsWith(modelKey) && !hasDistinctShortCodePrefix(title, modelKey)) return true;
 
   if (modelKey.endsWith('E')) {
     const baseModel = modelKey.slice(0, -1);
