@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiJson, ensureApiReady, isApiRecentlyReady } from '../lib';
+import { activateQuoteStorageScope } from '../lib/quote-storage-scope';
 
 type SessionUser = {
   id: string;
@@ -67,6 +68,11 @@ export default function Login() {
       localStorage.setItem('cognivault_tenant', session.user.tenantId);
       localStorage.setItem('cognivault_role', session.user.role);
       localStorage.setItem('cognivault_email', session.user.email);
+
+      // A troca de usuário também precisa trocar imediatamente o carrinho local.
+      // Não dependemos apenas de um rerender de rota para isolar orçamentos em
+      // computadores compartilhados no balcão.
+      activateQuoteStorageScope(session.user.email.trim().toLocaleLowerCase('pt-BR'));
       navigate('/dashboard', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro inesperado.');
