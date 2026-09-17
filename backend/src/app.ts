@@ -106,15 +106,6 @@ app.head('/health/live', (_req, res) => {
   res.set('Cache-Control', 'no-store').status(200).end();
 });
 
-app.get('/api/cron/keepalive', (_req, res) => {
-  res.status(200).set('Cache-Control', 'no-store').json({
-    ok: true,
-    message: 'CogniVault keepalive OK',
-    uptimeSeconds: Math.round(process.uptime()),
-    timestamp: new Date().toISOString(),
-  });
-});
-
 app.use('/api', portalCoverageRoutes);
 app.use('/api', routes);
 
