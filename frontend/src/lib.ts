@@ -1,10 +1,8 @@
-const configuredApiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-
-// Produção deve ser sempre same-origin: Vercel encaminha /api e /health ao Render.
-// Isso é uma garantia de sessão, não apenas uma preferência de configuração.
-// Mesmo que exista uma VITE_API_URL antiga no painel da Vercel, ela não pode
-// transformar o cookie HttpOnly em uma sessão cross-site.
-export const API_URL = import.meta.env.PROD ? '' : configuredApiUrl;
+// O frontend sempre usa caminhos relativos. Em desenvolvimento o Vite faz proxy
+// para o backend local; em produção a Vercel reescreve /api e /health para o Render.
+// Não existe override de origem no navegador: isso mantém o cookie HttpOnly sempre
+// same-origin e impede regressões de autenticação causadas por variáveis de ambiente.
+export const API_URL = '';
 export const SESSION_EXPIRED_EVENT = 'cognivault:session-expired';
 
 export type ApiRequestInit = RequestInit & { timeoutMs?: number };
