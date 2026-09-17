@@ -17,6 +17,37 @@ function code(value: string): string { return normalizeIdentifier(value); }
 
 function percent(value: number): number { return Math.round(value * 10_000) / 100; }
 
+type PartQualityMetricsRow = {
+  total: bigint;
+  withoutEmbedding: bigint;
+  withoutPage: bigint;
+  withoutSection: bigint;
+};
+
+async function partQualityMetrics(tenantId: string) {
+  const [row] = await prisma.$queryRaw<PartQualityMetricsRow[]>`
+    SELECT
+      COUNT(*)::bigint AS "total",
+      COUNT(*) FILTER (WHERE p."embeddingRevision" = 0)::bigint AS "withoutEmbedding",
+      COUNT(*) FILTER (WHERE p."page" IS NULL)::bigint AS "withoutPage",
+      COUNT(*) FILTER (WHERE p."section" IS NULL)::bigint AS "withoutSection"
+    FROM "Part" p
+    INNER JOIN "Document" d ON d."id" = p."documentId"
+    WHERE p."active" = true
+      AND d."tenantId" = ${tenantId}
+      AND d."archivedAt" IS NULL
+      AND d."status" = 'COMPLETED'
+      AND d."processingStage" <> 'REMOVED'
+  `;
+
+  return {
+    total: Number(row?.total || 0),
+    withoutEmbedding: Number(row?.withoutEmbedding || 0),
+    withoutPage: Number(row?.withoutPage || 0),
+    withoutSection: Number(row?.withoutSection || 0),
+  };
+}
+
 // Registros históricos de desenvolvimento sem PDF processado, metadado ou peça.
 // Eles permanecem no banco/auditoria, porém não podem reduzir artificialmente a
 // saúde da biblioteca nem aparecer como catálogos que exigem revisão técnica.
@@ -56,7 +87,7 @@ export class AiQualityService {
       }
     }
 
-    const [documents, partCount, chunks, noEmbedding, noPage, noSection, archived, removed, legacyEmpty, latestRuns, searchRadar] = await Promise.all([
+    const [documents, partMetrics, chunks, archived, removed, legacyEmpty, latestRuns, searchRadar] = await Promise.all([
       prisma.document.findMany({
         where: {
           tenantId,
@@ -73,11 +104,8 @@ export class AiQualityService {
           _count: { select: { parts: { where: { active: true } }, chunks: true } },
         },
       }),
-      prisma.part.count({ where: { active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED', processingStage: { not: 'REMOVED' } } } }),
+      partQualityMetrics(tenantId),
       prisma.documentChunk.count({ where: { document: { tenantId, archivedAt: null, status: 'COMPLETED', processingStage: { not: 'REMOVED' } } } }),
-      prisma.part.count({ where: { active: true, embeddingRevision: 0, document: { tenantId, archivedAt: null, status: 'COMPLETED', processingStage: { not: 'REMOVED' } } } }),
-      prisma.part.count({ where: { active: true, page: null, document: { tenantId, archivedAt: null, status: 'COMPLETED', processingStage: { not: 'REMOVED' } } } }),
-      prisma.part.count({ where: { active: true, section: null, document: { tenantId, archivedAt: null, status: 'COMPLETED', processingStage: { not: 'REMOVED' } } } }),
       prisma.document.count({ where: { tenantId, archivedAt: { not: null }, processingStage: { not: 'REMOVED' } } }),
       prisma.document.count({ where: { tenantId, processingStage: 'REMOVED' } }),
       prisma.document.count({ where: { tenantId, archivedAt: null, ...LEGACY_EMPTY_DOCUMENT } }),
@@ -164,13 +192,13 @@ export class AiQualityService {
         readyCatalogs: active.length,
         needsReview: needsReview.length,
         averageHealth,
-        parts: partCount,
+        parts: partMetrics.total,
         technicalMemoryChunks: chunks,
         modelIssues: active.filter(document => document.modelNeedsReview).length,
         catalogsWithoutConfirmedPnc: active.filter(document => !isLikelyHusqvarnaPnc(document.pnc) && !documentsWithConfirmedPnc.has(document.id)).length,
-        partsWithoutEmbedding: noEmbedding,
-        partsWithoutPage: noPage,
-        partsWithoutSection: noSection,
+        partsWithoutEmbedding: partMetrics.withoutEmbedding,
+        partsWithoutPage: partMetrics.withoutPage,
+        partsWithoutSection: partMetrics.withoutSection,
       },
       runtime: {
         generativeModel: GEMINI_GENERATIVE_MODEL,
