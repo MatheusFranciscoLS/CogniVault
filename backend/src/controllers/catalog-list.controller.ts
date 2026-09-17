@@ -47,6 +47,7 @@ const select = {
 type CatalogRecord = Prisma.DocumentGetPayload<{ select: typeof select }>;
 type CatalogPayload = { documents: ReturnType<typeof toListItem>[]; categories: readonly string[] };
 type CacheEntry = { payload: CatalogPayload; refreshedAt: number };
+type CatalogPncRow = { documentId: string; pnc: string | null };
 
 const cache = new LRUCache<string, CacheEntry>({ max: 300, ttl: LIST_STALE_MS });
 const refreshes = new Map<string, Promise<CatalogPayload>>();
@@ -159,16 +160,18 @@ async function loadCatalogs(tenantId: string, includeArchived: boolean): Promise
   });
 
   const pncRows = documents.length
-    ? await prisma.part.findMany({
-        where: {
-          documentId: { in: documents.map(document => document.id) },
-          active: true,
-          pnc: { not: null },
-          document: { tenantId },
-        },
-        distinct: ['documentId', 'pnc'],
-        select: { documentId: true, pnc: true },
-      })
+    ? await prisma.$queryRaw<CatalogPncRow[]>(Prisma.sql`
+        SELECT DISTINCT
+          p."documentId" AS "documentId",
+          p."pnc" AS "pnc"
+        FROM "Part" p
+        INNER JOIN "Document" d ON d."id" = p."documentId"
+        WHERE p."documentId" IN (${Prisma.join(documents.map(document => document.id))})
+          AND p."active" = TRUE
+          AND p."pnc" IS NOT NULL
+          AND d."tenantId" = ${tenantId}
+        ORDER BY p."documentId", p."pnc"
+      `)
     : [];
 
   const pncsByDocument = new Map<string, string[]>();
