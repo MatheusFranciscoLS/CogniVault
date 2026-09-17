@@ -30,16 +30,18 @@ export function qualityOverviewCacheMiddleware(
     return;
   }
 
+  // O cache vive somente no processo Node. O navegador deve voltar ao servidor
+  // em toda leitura para passar novamente por auth/admin, inclusive após logout/login.
+  res.set('Cache-Control', 'private, no-store');
+
   const cached = qualityOverviewCache.get(tenantId);
   if (cached) {
     res.set('X-CogniVault-Cache', 'HIT');
-    res.set('Cache-Control', 'private, max-age=10');
     res.json(cached);
     return;
   }
 
   res.set('X-CogniVault-Cache', 'MISS');
-  res.set('Cache-Control', 'private, max-age=10');
 
   const originalJson = res.json.bind(res);
   res.json = ((payload: QualityOverviewPayload) => {
