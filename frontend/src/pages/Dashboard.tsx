@@ -4,6 +4,7 @@ import ShellV2 from '../components/ShellV2';
 import TechnicalAssistantWorkspace from '../components/parts-v2/TechnicalAssistantWorkspace';
 import CatalogsWorkspace from '../components/CatalogsWorkspace';
 import { api, apiJson, clearSession, SESSION_EXPIRED_EVENT } from '../lib';
+import { activateQuoteStorageScope } from '../lib/quote-storage-scope';
 import type { Section, SessionUser } from '../types';
 import '../assistant.css';
 import '../admin-polish.css';
@@ -78,6 +79,7 @@ export default function Dashboard() {
       })
       .catch(requestError => {
         if (!active) return;
+        activateQuoteStorageScope('anonymous');
         clearSession();
         const message = requestError instanceof Error ? requestError.message : 'Sessão inválida';
         if (!/sessão|token|autentica/i.test(message)) setError(message);
@@ -90,15 +92,21 @@ export default function Dashboard() {
   }, [navigate]);
 
   useEffect(() => {
-    const expired = () => navigate('/login', { replace: true });
+    const expired = () => {
+      activateQuoteStorageScope('anonymous');
+      clearSession();
+      navigate('/login', { replace: true });
+    };
     window.addEventListener(SESSION_EXPIRED_EVENT, expired);
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, expired);
   }, [navigate]);
 
   const logout = () => {
-    // Limpa a sessão no servidor (cookie HttpOnly) e sempre remove o contexto
-    // não sensível local, mesmo se a API estiver temporariamente indisponível.
+    // Salva o carrinho no escopo do usuário atual e troca para o contexto
+    // anônimo antes de limpar a sessão. Assim um próximo login no mesmo PC
+    // nunca herda orçamento ou histórico de outra pessoa.
     void api('/api/logout', { method: 'POST', timeoutMs: 8_000 }).catch(() => undefined).finally(() => {
+      activateQuoteStorageScope('anonymous');
       clearSession();
       navigate('/login', { replace: true });
     });
