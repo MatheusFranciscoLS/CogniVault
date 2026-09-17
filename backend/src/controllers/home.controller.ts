@@ -28,7 +28,9 @@ const homeCache = new LRUCache<string, HomeCacheEntry>({
 const refreshes = new Map<string, Promise<HomePayload>>();
 
 function cacheHeaders(res: Response, status: 'HIT' | 'MISS' | 'STALE'): void {
-  res.set('Cache-Control', 'private, max-age=15, stale-while-revalidate=60');
+  // O payload contém histórico e favoritos do usuário. O cache continua no
+  // processo Node, mas o browser não deve reutilizar JSON após troca de sessão.
+  res.set('Cache-Control', 'private, no-store');
   res.set('X-CogniVault-Cache', status);
 }
 
