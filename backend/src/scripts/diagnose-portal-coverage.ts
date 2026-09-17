@@ -3,7 +3,7 @@ import { normalizeIdentifier } from '../utils/normalize';
 import { HusqvarnaOfficialDetailService } from '../services/husqvarna-official-detail.service';
 import { HusqvarnaProductSearchService } from '../services/husqvarna-product-search.service';
 
-const MODELS = ['323R', 'P12597', 'LT151', '343R', '241R', '235R', '445E', '225R'];
+const MODELS = ['LT1597', 'LT131', '245R', 'J55S', '236R', '323LD', '132R', '143R', 'LTH1842', 'W3612', '232R', '240RBD', '541RB', 'LT125B', 'CTH160', 'ZTH6125'];
 
 function portalResultMatchesModel(title: string, model: string): boolean {
   const titleKey = normalizeIdentifier(title);
