@@ -154,19 +154,6 @@ export function commercialCodePrefixUpperBound(value: string): string {
   return `${normalized.slice(0, lastIndex)}${nextChar}`;
 }
 
-export function invalidateCommercialSearchCache(tenantId?: string): void {
-  if (!tenantId) {
-    sectionCache.clear();
-    searchResponseCache.clear();
-    return;
-  }
-
-  sectionCache.delete(tenantId);
-  for (const key of searchResponseCache.keys()) {
-    if (key.startsWith(`${tenantId}:`)) searchResponseCache.delete(key);
-  }
-}
-
 async function availableSections(tenantId: string): Promise<CommercialSection[]> {
   const cached = sectionCache.get(tenantId);
   if (cached) return cached;
