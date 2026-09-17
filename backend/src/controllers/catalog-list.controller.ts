@@ -228,7 +228,7 @@ export class CatalogListController {
 
     if (cached) {
       const age = Date.now() - cached.refreshedAt;
-      res.set('Cache-Control', 'private, max-age=2, stale-while-revalidate=10');
+      res.set('Cache-Control', 'private, no-store');
       if (age <= LIST_FRESH_MS) {
         res.set('X-CogniVault-Cache', 'HIT');
       } else {
@@ -244,7 +244,7 @@ export class CatalogListController {
     try {
       const payload = await refresh(key, req.user.tenantId, includeArchived);
       res.set('X-CogniVault-Cache', 'MISS');
-      res.set('Cache-Control', 'private, max-age=2, stale-while-revalidate=10');
+      res.set('Cache-Control', 'private, no-store');
       res.status(200).json(payload);
     } catch (error) {
       console.error('❌ Erro ao listar catálogos:', error);
