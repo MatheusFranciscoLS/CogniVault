@@ -11,6 +11,7 @@ import { rebuildTenantTechnicalKnowledge } from '../services/knowledge-maintenan
 import { indexNextSemanticBatch } from '../services/semantic-index-maintenance.service';
 import { retryEligibleVisualCatalogs } from '../services/visual-catalog-retry.service';
 import { SearchIntelligenceService } from '../services/search-intelligence.service';
+import { buildPortfolioCoverage, rankPortfolioCoverageGaps } from '../services/portfolio-coverage';
 
 const documentService = new DocumentService();
 
@@ -39,7 +40,25 @@ export class QualityController {
   async overview(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.user) return;
-      res.json({ quality: await AiQualityService.overview(req.user.tenantId) });
+      const tenantId = req.user.tenantId;
+      const [quality, portfolio] = await Promise.all([
+        AiQualityService.overview(tenantId),
+        buildPortfolioCoverage(tenantId),
+      ]);
+      res.json({
+        quality,
+        portfolioCoverage: {
+          scope: 'BR_LOCAL',
+          portalChecked: false,
+          total: portfolio.total,
+          localIpl: portfolio.localIpl,
+          portalIpl: portfolio.portalIpl,
+          unverified: portfolio.unverified,
+          covered: portfolio.covered,
+          coverageRate: portfolio.coverageRate,
+          gaps: rankPortfolioCoverageGaps(portfolio.items, 20),
+        },
+      });
     } catch (error) {
       console.error('❌ Erro ao carregar qualidade da IA:', error);
       res.status(500).json({ error: 'Não foi possível carregar o painel de qualidade.' });
