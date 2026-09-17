@@ -66,6 +66,7 @@ model User {
   id                            String                     @id @default(uuid())
   email                         String                     @unique
   password                      String
+  sessionVersion                Int                        @default(0)
   role                          Role                       @default(MECHANIC)
   status                        UserStatus                 @default(PENDING)
   tenantId                      String
@@ -300,7 +301,7 @@ model QuoteUsage {
   normalizedPartNumber String
   partNumber           String
   model                String?
-  createdAt            DateTime @default(now())
+  createdAt             DateTime @default(now())
 
   @@unique([tenantId, sessionId, normalizedPartNumber])
   @@index([tenantId, normalizedPartNumber, createdAt])

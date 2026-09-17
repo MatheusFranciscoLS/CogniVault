@@ -2,7 +2,13 @@ import 'dotenv/config';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import jwt from 'jsonwebtoken';
-import { adminOnly, authMiddleware, invalidateUserAuthCache, type AuthenticatedRequest } from './auth.middleware';
+import {
+    adminOnly,
+    authMiddleware,
+    invalidateUserAuthCache,
+    normalizeTokenSessionVersion,
+    type AuthenticatedRequest,
+} from './auth.middleware';
 
 test('adminOnly allows users with ADMIN role', () => {
     let nextCalled = false;
@@ -118,6 +124,19 @@ test('authMiddleware rejects tokens signed with an algorithm other than HS256', 
         if (previousSecret === undefined) delete process.env.JWT_SECRET;
         else process.env.JWT_SECRET = previousSecret;
     }
+});
+
+test('tokens antigos sem sessionVersion continuam equivalendo à versão zero', () => {
+    assert.equal(normalizeTokenSessionVersion(undefined), 0);
+    assert.equal(normalizeTokenSessionVersion(0), 0);
+    assert.equal(normalizeTokenSessionVersion(3), 3);
+});
+
+test('sessionVersion malformada é rejeitada', () => {
+    assert.equal(normalizeTokenSessionVersion(-1), null);
+    assert.equal(normalizeTokenSessionVersion(1.5), null);
+    assert.equal(normalizeTokenSessionVersion('1'), null);
+    assert.equal(normalizeTokenSessionVersion(null), null);
 });
 
 test('invalidateUserAuthCache runs safely with specific id and full clear', () => {

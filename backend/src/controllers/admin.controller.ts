@@ -163,6 +163,7 @@ export class AdminController {
                     role: role ?? undefined,
                     status: status ?? undefined,
                     password: password ? await bcrypt.hash(password, 10) : undefined,
+                    sessionVersion: password ? { increment: 1 } : undefined,
                 },
                 select: { id: true, email: true, role: true, status: true, createdAt: true },
             });
@@ -180,6 +181,7 @@ export class AdminController {
                     role: updated.role,
                     status: updated.status,
                     passwordChanged: Boolean(password),
+                    sessionsRevoked: Boolean(password),
                 },
             });
 

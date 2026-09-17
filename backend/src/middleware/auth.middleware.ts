@@ -33,6 +33,7 @@ interface JwtPayload {
     id: string;
     role: 'ADMIN' | 'MECHANIC';
     tenantId: string;
+    sessionVersion?: number;
 }
 
 interface CachedUser {
@@ -43,6 +44,7 @@ interface CachedUser {
     status: string;
     createdAt: Date;
     tenantName: string;
+    sessionVersion: number;
 }
 
 const DEFAULT_AUTH_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -54,10 +56,16 @@ const authCacheTtlMs = Number.isFinite(configuredAuthCacheTtlMs)
 const userAuthCache = new LRUCache<string, CachedUser>({
     max: 500,
     // A validação do JWT continua em toda requisição. Somente a releitura de
-    // status/role/tenant no PostgreSQL fica em cache; alterações feitas pelo
-    // painel invalidam o usuário imediatamente via invalidateUserAuthCache.
+    // status/role/tenant/sessionVersion no PostgreSQL fica em cache; alterações
+    // feitas pelo painel invalidam o usuário imediatamente.
     ttl: authCacheTtlMs,
 });
+
+export function normalizeTokenSessionVersion(value: unknown): number | null {
+    if (value === undefined) return 0;
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) return null;
+    return value;
+}
 
 export function invalidateUserAuthCache(userId?: string): void {
     if (userId) {
@@ -105,6 +113,12 @@ export async function authMiddleware(
             return;
         }
 
+        const tokenSessionVersion = normalizeTokenSessionVersion(decoded.sessionVersion);
+        if (tokenSessionVersion === null) {
+            res.status(401).json({ error: 'Token possui dados inválidos.' });
+            return;
+        }
+
         const payload = decoded as JwtPayload;
 
         let currentUser = userAuthCache.get(payload.id);
@@ -118,6 +132,7 @@ export async function authMiddleware(
                     role: true,
                     status: true,
                     createdAt: true,
+                    sessionVersion: true,
                     tenant: { select: { name: true } },
                 },
             });
@@ -135,12 +150,18 @@ export async function authMiddleware(
                 status: dbUser.status,
                 createdAt: dbUser.createdAt,
                 tenantName: dbUser.tenant.name,
+                sessionVersion: dbUser.sessionVersion,
             };
             userAuthCache.set(payload.id, currentUser);
         }
 
         if (currentUser.tenantId !== payload.tenantId) {
             res.status(401).json({ error: 'Usuário não encontrado ou sessão inválida.' });
+            return;
+        }
+
+        if (currentUser.sessionVersion !== tokenSessionVersion) {
+            res.status(401).json({ error: 'Sua sessão foi encerrada. Faça login novamente.' });
             return;
         }
 
