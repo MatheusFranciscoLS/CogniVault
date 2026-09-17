@@ -49,7 +49,9 @@ export function invalidateNotificationCache(tenantId?: string): void {
 }
 
 function cacheHeaders(res: Response, status: 'HIT' | 'MISS' | 'STALE'): void {
-  res.set('Cache-Control', 'private, max-age=30, stale-while-revalidate=60');
+  // O cache continua no processo Node; o browser não deve reutilizar notificações
+  // de outro tenant ou perfil após logout/login na mesma URL.
+  res.set('Cache-Control', 'private, no-store');
   res.set('X-CogniVault-Cache', status);
 }
 
