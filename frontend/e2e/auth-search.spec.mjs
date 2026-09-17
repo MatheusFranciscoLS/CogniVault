@@ -54,3 +54,29 @@ test('sessão usa cookie HttpOnly, sobrevive a reload e isola orçamento por usu
   await searchCarburettor(page);
   await expect(page.getByRole('button', { name: '+ Orçamento' }).first()).toBeVisible();
 });
+
+test('qualidade carrega diagnóstico e cobertura com uma única chamada', async ({ page }) => {
+  await login(page, ADMIN_EMAIL);
+
+  let qualityRequests = 0;
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (request.method() === 'GET' && url.pathname.endsWith('/api/admin/quality')) {
+      qualityRequests += 1;
+    }
+  });
+
+  const qualityResponse = page.waitForResponse(response => {
+    const url = new URL(response.url());
+    return response.request().method() === 'GET' && url.pathname.endsWith('/api/admin/quality');
+  });
+
+  await page.goto('/dashboard?tab=quality');
+  expect((await qualityResponse).ok()).toBe(true);
+
+  await expect(page.getByRole('heading', { name: 'Cobertura do portfólio BR' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Confiabilidade' })).toBeVisible();
+
+  await page.waitForTimeout(500);
+  expect(qualityRequests).toBe(1);
+});
