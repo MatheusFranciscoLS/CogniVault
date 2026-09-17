@@ -33,6 +33,8 @@ export type CachedPortalCoverageOutcome = {
   cacheState: OfficialSourceCacheState;
 };
 
+export type PortalCoverageCacheSummary = Record<OfficialSourceCacheState, number>;
+
 type PortalAuditLoader = (model: string) => Promise<PortalModelAudit>;
 
 export function portalAuditToCoverageOutcome(audit: PortalModelAudit): PortalCoverageVerificationOutcome {
@@ -101,6 +103,16 @@ export function portalAuditToCoverageOutcome(audit: PortalModelAudit): PortalCov
 
 export function isCacheablePortalCoverageOutcome(outcome: PortalCoverageVerificationOutcome): boolean {
   return outcome.state !== 'INCONCLUSIVE';
+}
+
+export function portalCoverageRequestCacheState(
+  cache: PortalCoverageCacheSummary,
+): OfficialSourceCacheState | null {
+  if (cache.FALLBACK > 0) return 'FALLBACK';
+  if (cache.MISS > 0) return 'MISS';
+  if (cache.STALE > 0) return 'STALE';
+  if (cache.HIT > 0) return 'HIT';
+  return null;
 }
 
 export function buildPortalCoverageCacheKey(model: string, site = PORTAL_BR_SITE): string {
@@ -198,7 +210,7 @@ export async function buildBoundedPortalCoverage(
     resolved.map((result, index) => [normalizeIdentifier(candidates[index].model), result.outcome]),
   );
 
-  const cacheStates = resolved.reduce<Record<OfficialSourceCacheState, number>>(
+  const cacheStates = resolved.reduce<PortalCoverageCacheSummary>(
     (summary, result) => {
       summary[result.cacheState] += 1;
       return summary;
