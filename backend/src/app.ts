@@ -2,6 +2,7 @@ import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import routes from './routes';
+import portalCoverageRoutes from './routes/portal-coverage.routes';
 import { prisma } from './config/prisma';
 import { allowedCorsOrigins, isAllowedCorsOrigin } from './config/cors';
 import { rabbitMQ } from './queues/connection';
@@ -114,6 +115,7 @@ app.get('/api/cron/keepalive', (_req, res) => {
   });
 });
 
+app.use('/api', portalCoverageRoutes);
 app.use('/api', routes);
 
 app.get('/health', async (_req, res) => {
