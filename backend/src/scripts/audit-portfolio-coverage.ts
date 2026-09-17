@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { prisma } from '../config/prisma';
-import { buildPortfolioCoverage } from '../services/portfolio-coverage';
+import { buildPortfolioCoverage, rankPortfolioCoverageGaps } from '../services/portfolio-coverage';
 
 function argValue(name: string): string {
   const prefix = `--${name}=`;
@@ -16,21 +16,33 @@ async function main() {
   const concurrency = Number.isFinite(requestedConcurrency) ? Math.max(1, Math.min(4, Math.trunc(requestedConcurrency))) : 2;
   const coverage = await buildPortfolioCoverage(tenantId, { verifyPortal, concurrency });
 
-  console.log('\n🧭 Cobertura do portfólio CogniVault');
-  console.log(`   Universo de modelos conhecidos: ${coverage.total}`);
-  console.log(`   IPL local:                     ${coverage.localIpl}`);
-  console.log(`   IPL oficial no Portal:         ${coverage.portalIpl}`);
-  console.log(`   Ainda não comprovados:         ${coverage.unverified}`);
-  console.log(`   Cobertura técnica:              ${(coverage.coverageRate * 100).toFixed(1)}%`);
-  console.log(`   Portal consultado:              ${verifyPortal ? 'sim' : 'não'}`);
-  console.log('   Observação: cadastro comercial descobre modelos; somente IPL local/Portal conta como cobertura técnica.\n');
+  console.log('\n🧭 Cobertura do portfólio CogniVault — escopo Brasil/local');
+  console.log(`   Modelos citados nas fontes locais: ${coverage.total}`);
+  console.log(`   IPL local cadastrada:              ${coverage.localIpl}`);
+  console.log(`   IPL oficial no Portal BR:          ${coverage.portalIpl}`);
+  console.log(`   Sem fonte técnica comprovada:      ${coverage.unverified}`);
+  console.log(`   Cobertura técnica:                 ${(coverage.coverageRate * 100).toFixed(1)}%`);
+  console.log(`   Portal BR consultado:              ${verifyPortal ? 'sim' : 'não'}`);
+  console.log('   Escopo técnico: somente IPL local cadastrada e Portal Husqvarna Brasil.');
+  console.log('   Aplicações da lista comercial brasileira servem apenas para descobrir demanda/modelos; não comprovam compatibilidade técnica.\n');
 
-  const gaps = coverage.items.filter(item => item.status === 'UNVERIFIED');
+  const gaps = rankPortfolioCoverageGaps(coverage.items, 20);
   if (gaps.length) {
-    console.log('⚠️ Modelos/aplicações ainda sem fonte técnica comprovada:');
-    for (const item of gaps) console.log(`   - ${item.model}`);
+    console.log('⚠️ Prioridades locais sem IPL técnica comprovada:');
+    for (const item of gaps) {
+      const portalState = item.portalVerification || 'NOT_CHECKED';
+      console.log(`   - ${item.model}: ${item.commercialSignals} referência(s) comercial(is) · Portal ${portalState}`);
+      if (item.commercialEvidence.length) {
+        console.log(`     Ex.: ${item.commercialEvidence[0]}`);
+      }
+      if (item.portalVerificationNote) {
+        console.log(`     Diagnóstico: ${item.portalVerificationNote}`);
+      }
+    }
+    console.log('\n   Interpretação: esses modelos não possuem IPL local ativa no CogniVault.');
+    console.log('   Ação correta: cadastrar uma IPL usada pela revenda ou homologar no Portal BR; não buscar catálogos internacionais para elevar cobertura.');
   } else {
-    console.log('✅ Todos os modelos descobertos possuem uma fonte IPL comprovada.');
+    console.log('✅ Todos os modelos descobertos localmente possuem uma fonte IPL comprovada no escopo Brasil/local.');
   }
 }
 
