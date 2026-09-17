@@ -59,16 +59,32 @@ test('resumo de cobertura diferencia IPL local, Portal e lacuna', () => {
   assert.equal(summary.coverageRate, 2 / 3);
 });
 
-test('prioriza lacunas com mais sinais comerciais e preserva evidência para homologação', () => {
+test('prioriza lacunas e preserva evidência e diagnóstico da homologação', () => {
   const gaps = rankPortfolioCoverageGaps([
     { model: '143RII', normalizedModel: '143RII', status: 'LOCAL_IPL', source: '143RII.pdf', pnc: null, commercialSignals: 20, commercialEvidence: ['ROC.143RII'] },
-    { model: 'Z248F', normalizedModel: 'Z248F', status: 'UNVERIFIED', source: null, pnc: null, commercialSignals: 8, commercialEvidence: ['TRATOR Z 248F'] },
-    { model: 'LC353AWD', normalizedModel: 'LC353AWD', status: 'UNVERIFIED', source: null, pnc: null, commercialSignals: 12, commercialEvidence: ['LC353AWD/LC353V'] },
+    {
+      model: 'Z248F', normalizedModel: 'Z248F', status: 'UNVERIFIED', source: null, pnc: null,
+      commercialSignals: 8, commercialEvidence: ['TRATOR Z 248F'], portalVerification: 'INCONCLUSIVE',
+      portalVerificationNote: 'Portal indisponível durante a consulta.',
+    },
+    {
+      model: 'LC353AWD', normalizedModel: 'LC353AWD', status: 'UNVERIFIED', source: null, pnc: null,
+      commercialSignals: 12, commercialEvidence: ['LC353AWD/LC353V'], portalVerification: 'NO_EXACT_MATCH',
+      portalVerificationNote: 'Nenhum produto exato retornado.',
+    },
     { model: '125B', normalizedModel: '125B', status: 'PORTAL_IPL', source: 'Portal', pnc: '952711902', commercialSignals: 30, commercialEvidence: ['125B'] },
   ], 2);
 
   assert.deepEqual(gaps, [
-    { model: 'LC353AWD', normalizedModel: 'LC353AWD', status: 'UNVERIFIED', commercialSignals: 12, commercialEvidence: ['LC353AWD/LC353V'] },
-    { model: 'Z248F', normalizedModel: 'Z248F', status: 'UNVERIFIED', commercialSignals: 8, commercialEvidence: ['TRATOR Z 248F'] },
+    {
+      model: 'LC353AWD', normalizedModel: 'LC353AWD', status: 'UNVERIFIED', commercialSignals: 12,
+      commercialEvidence: ['LC353AWD/LC353V'], portalVerification: 'NO_EXACT_MATCH',
+      portalVerificationNote: 'Nenhum produto exato retornado.',
+    },
+    {
+      model: 'Z248F', normalizedModel: 'Z248F', status: 'UNVERIFIED', commercialSignals: 8,
+      commercialEvidence: ['TRATOR Z 248F'], portalVerification: 'INCONCLUSIVE',
+      portalVerificationNote: 'Portal indisponível durante a consulta.',
+    },
   ]);
 });
