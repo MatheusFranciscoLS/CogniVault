@@ -37,7 +37,23 @@ export default function CommercialPartRow({ part, selected = false, onSelect, on
         </button>
 
         <div className="min-w-0">
-          {part.price != null ? <div className="text-[11px] font-black text-slate-700 dark:text-slate-200">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(part.price)}</div> : <div className="text-[10px] text-slate-400">Preço não informado</div>}
+          {part.price != null ? (
+            <div className="text-[11px] font-black text-slate-700 dark:text-slate-200">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(part.price)}</div>
+          ) : (
+            <div>
+              <div className="text-[10px] text-slate-400">Preço não informado</div>
+              {/* Sem login automático: copia o código pro clipboard e abre o portal
+                  numa aba nova, já logado do jeito do atendente — o preço aparece
+                  na hora que ele clica na peça, sem nada guardado no servidor. */}
+              <button
+                type="button"
+                onClick={() => { onCopy(code); window.open('https://parceirohusqvarna.com/Product/Index', '_blank', 'noopener,noreferrer'); }}
+                className="mt-0.5 text-[9px] font-bold text-[#1d4f91] underline decoration-dotted underline-offset-2 hover:text-[#123867] dark:text-blue-300 dark:hover:text-blue-200"
+              >
+                Consultar no Parceiro ↗
+              </button>
+            </div>
+          )}
           {part.priceSections[0] && <div className="mt-1 truncate text-[9px] font-bold text-slate-400">{part.priceSections[0]}</div>}
         </div>
 

@@ -26,7 +26,6 @@ import { FastSearchController } from '../controllers/fast-search.controller';
 import { PartDetailController } from '../controllers/part-detail.controller';
 import { AdminOverviewController } from '../controllers/admin-overview.controller';
 import { CatalogListController } from '../controllers/catalog-list.controller';
-import { ParceiroHusqvarnaController } from '../controllers/parceiro-husqvarna.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 import { chatSessionContextMiddleware } from '../middleware/chat-session-context.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
@@ -86,7 +85,6 @@ const fastSearchController = new FastSearchController();
 const partDetailController = new PartDetailController();
 const adminOverviewController = new AdminOverviewController();
 const catalogListController = new CatalogListController();
-const parceiroHusqvarnaController = new ParceiroHusqvarnaController();
 
 const upload = multer({
   dest: 'uploads/',
@@ -179,7 +177,5 @@ router.post('/admin/quality/clear-semantics', authMiddleware, adminOnly, tenantO
 router.post('/admin/quality/retry-visual-catalogs', authMiddleware, adminOnly, validateVisualCatalogRetryRequest, tenantOperationSingleFlight('visual-catalog-retry'), invalidateQualityAfterMutation, (req, res) => qualityController.retryVisualCatalogs(req, res));
 router.patch('/admin/quality/catalogs/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => qualityController.reviewDocument(req, res));
 router.post('/admin/quality/radar/resolve', authMiddleware, adminOnly, validateQualityRadarResolution, invalidateQualityAfterMutation, (req, res) => qualityController.resolveRadar(req, res));
-
-router.get('/admin/parceiro-husqvarna/price', authMiddleware, adminOnly, (req, res) => parceiroHusqvarnaController.checkPrice(req, res));
 
 export default router;
