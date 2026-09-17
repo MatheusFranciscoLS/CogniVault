@@ -18,6 +18,12 @@ on:
           - '2'
           - '3'
           - '4'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/portal-homologation.yml'
+      - 'backend/src/scripts/audit-portal-models.ts'
 
 permissions:
   contents: read
@@ -52,10 +58,13 @@ jobs:
         run: npx prisma generate
 
       - name: Audit requested models against official Portal
+        env:
+          MODELS: ${{ inputs.models || '323R,P12597,LT151,343R,241R,235R,445E,225R' }}
+          PORTAL_CONCURRENCY: ${{ inputs.concurrency || '2' }}
         run: >-
           npx tsx src/scripts/audit-portal-models.ts
-          --models="${{ inputs.models }}"
-          --concurrency="${{ inputs.concurrency }}"
+          --models="$MODELS"
+          --concurrency="$PORTAL_CONCURRENCY"
           --output=portal-homologation.json
 
       - name: Upload audit report
