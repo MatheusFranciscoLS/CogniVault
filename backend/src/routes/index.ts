@@ -32,6 +32,7 @@ import { loginLimiter } from '../middleware/rate-limit.middleware';
 import { uploadConcurrencyMiddleware } from '../middleware/upload-concurrency.middleware';
 import { searchSingleFlightMiddleware } from '../middleware/search-single-flight.middleware';
 import { tenantOperationSingleFlight } from '../middleware/tenant-operation-single-flight.middleware';
+import { qualityOverviewCacheMiddleware } from '../middleware/quality-overview-cache.middleware';
 import {
   validateEntityIdParam,
   validateFavoriteMutationBody,
@@ -53,6 +54,7 @@ import {
   invalidateFavoriteCachesAfterMutation,
   invalidateHomeAfterSearch,
   invalidateNotificationsAfterMutation,
+  invalidateQualityAfterMutation,
   invalidateWorkContextAfterLocation,
   invalidateWorkContextAfterQuoteUsage,
 } from '../middleware/cache-invalidation.middleware';
@@ -139,8 +141,8 @@ router.get('/notifications', authMiddleware, (req, res) => notificationControlle
 router.get('/part-verifications', authMiddleware, (req, res) => officialPartVerificationController.list(req, res));
 router.get('/part-verifications/pending', authMiddleware, adminOnly, (req, res) => officialPartVerificationController.pending(req, res));
 router.get('/part-verifications/:code/history', authMiddleware, validatePartCodeParam, (req, res) => officialPartVerificationController.history(req, res));
-router.post('/part-verifications', authMiddleware, invalidateNotificationsAfterMutation, (req, res) => officialPartVerificationController.create(req, res));
-router.patch('/part-verifications/:id/decision', authMiddleware, adminOnly, validateEntityIdParam, invalidateNotificationsAfterMutation, (req, res) => officialPartVerificationController.decision(req, res));
+router.post('/part-verifications', authMiddleware, invalidateNotificationsAfterMutation, invalidateQualityAfterMutation, (req, res) => officialPartVerificationController.create(req, res));
+router.patch('/part-verifications/:id/decision', authMiddleware, adminOnly, validateEntityIdParam, invalidateNotificationsAfterMutation, invalidateQualityAfterMutation, (req, res) => officialPartVerificationController.decision(req, res));
 
 router.get('/documents', authMiddleware, (req, res) => catalogListController.list(req, res));
 router.get('/documents/:id/access', authMiddleware, validateEntityIdParam, (req, res) => documentAccessController.access(req, res));
@@ -153,8 +155,8 @@ router.post('/documents/:id/refresh-health', authMiddleware, adminOnly, validate
 router.delete('/documents/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.remove(req, res));
 
 router.post('/chat', authMiddleware, chatSessionContextMiddleware, (req, res) => chatController.ask(req, res));
-router.post('/feedback', authMiddleware, invalidateAdminOverviewAfterMutation, (req, res) => feedbackController.create(req, res));
-router.patch('/feedback/:id', authMiddleware, validateEntityIdParam, (req, res) => feedbackController.update(req, res));
+router.post('/feedback', authMiddleware, invalidateAdminOverviewAfterMutation, invalidateQualityAfterMutation, (req, res) => feedbackController.create(req, res));
+router.patch('/feedback/:id', authMiddleware, validateEntityIdParam, invalidateQualityAfterMutation, (req, res) => feedbackController.update(req, res));
 
 router.get('/admin/overview', authMiddleware, adminOnly, (req, res) => adminOverviewController.get(req, res));
 router.get('/admin/performance', authMiddleware, adminOnly, (req, res) => performanceController.overview(req, res));
@@ -163,17 +165,17 @@ router.get('/admin/users', authMiddleware, adminOnly, (req, res) => adminControl
 router.post('/admin/users', authMiddleware, adminOnly, invalidateAdminOverviewAfterMutation, (req, res) => adminController.createUser(req, res));
 router.patch('/admin/users/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateAdminOverviewAfterMutation, (req, res) => adminController.updateUser(req, res));
 router.get('/admin/feedback', authMiddleware, adminOnly, (req, res) => adminFeedbackSummaryController.list(req, res));
-router.delete('/admin/feedback/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateAdminOverviewAfterMutation, (req, res) => adminFeedbackController.delete(req, res));
-router.post('/admin/feedback/seed-knowledge', authMiddleware, adminOnly, tenantOperationSingleFlight('feedback-seed-knowledge'), invalidateAdminOverviewAfterMutation, (req, res) => adminFeedbackController.seedKnowledge(req, res));
+router.delete('/admin/feedback/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateAdminOverviewAfterMutation, invalidateQualityAfterMutation, (req, res) => adminFeedbackController.delete(req, res));
+router.post('/admin/feedback/seed-knowledge', authMiddleware, adminOnly, tenantOperationSingleFlight('feedback-seed-knowledge'), invalidateAdminOverviewAfterMutation, invalidateQualityAfterMutation, (req, res) => adminFeedbackController.seedKnowledge(req, res));
 router.get('/admin/audit', authMiddleware, adminOnly, (req, res) => adminController.audit(req, res));
-router.get('/admin/quality', authMiddleware, adminOnly, (req, res) => qualityController.overview(req, res));
+router.get('/admin/quality', authMiddleware, adminOnly, qualityOverviewCacheMiddleware, (req, res) => qualityController.overview(req, res));
 router.get('/admin/quality/search-intelligence', authMiddleware, adminOnly, (req, res) => qualityController.searchIntelligence(req, res));
-router.post('/admin/quality/benchmark', authMiddleware, adminOnly, tenantOperationSingleFlight('quality-benchmark'), (req, res) => qualityController.benchmark(req, res));
-router.post('/admin/quality/rebuild-knowledge', authMiddleware, adminOnly, tenantOperationSingleFlight('quality-rebuild-knowledge'), (req, res) => qualityController.rebuildKnowledge(req, res));
-router.post('/admin/quality/index-semantics', authMiddleware, adminOnly, tenantOperationSingleFlight('semantic-maintenance'), (req, res) => qualityController.indexSemantics(req, res));
-router.post('/admin/quality/clear-semantics', authMiddleware, adminOnly, tenantOperationSingleFlight('semantic-maintenance'), (req, res) => qualityController.clearSemantics(req, res));
-router.post('/admin/quality/retry-visual-catalogs', authMiddleware, adminOnly, validateVisualCatalogRetryRequest, tenantOperationSingleFlight('visual-catalog-retry'), (req, res) => qualityController.retryVisualCatalogs(req, res));
+router.post('/admin/quality/benchmark', authMiddleware, adminOnly, tenantOperationSingleFlight('quality-benchmark'), invalidateQualityAfterMutation, (req, res) => qualityController.benchmark(req, res));
+router.post('/admin/quality/rebuild-knowledge', authMiddleware, adminOnly, tenantOperationSingleFlight('quality-rebuild-knowledge'), invalidateQualityAfterMutation, (req, res) => qualityController.rebuildKnowledge(req, res));
+router.post('/admin/quality/index-semantics', authMiddleware, adminOnly, tenantOperationSingleFlight('semantic-maintenance'), invalidateQualityAfterMutation, (req, res) => qualityController.indexSemantics(req, res));
+router.post('/admin/quality/clear-semantics', authMiddleware, adminOnly, tenantOperationSingleFlight('semantic-maintenance'), invalidateQualityAfterMutation, (req, res) => qualityController.clearSemantics(req, res));
+router.post('/admin/quality/retry-visual-catalogs', authMiddleware, adminOnly, validateVisualCatalogRetryRequest, tenantOperationSingleFlight('visual-catalog-retry'), invalidateQualityAfterMutation, (req, res) => qualityController.retryVisualCatalogs(req, res));
 router.patch('/admin/quality/catalogs/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => qualityController.reviewDocument(req, res));
-router.post('/admin/quality/radar/resolve', authMiddleware, adminOnly, validateQualityRadarResolution, (req, res) => qualityController.resolveRadar(req, res));
+router.post('/admin/quality/radar/resolve', authMiddleware, adminOnly, validateQualityRadarResolution, invalidateQualityAfterMutation, (req, res) => qualityController.resolveRadar(req, res));
 
 export default router;

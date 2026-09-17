@@ -76,6 +76,11 @@ export class AdminOverviewController {
     const tenantName = req.user.tenantName || 'Empresa';
     const cached = cache.get(tenantId);
 
+    // O cache administrativo vive apenas no servidor. O browser precisa
+    // revalidar autenticação em toda leitura para não reaproveitar dados de uma
+    // sessão/tenant anterior após logout/login no mesmo dispositivo.
+    res.set('Cache-Control', 'private, no-store');
+
     if (cached) {
       if (Date.now() - cached.refreshedAt <= FRESH_MS) {
         res.set('X-CogniVault-Cache', 'HIT');
@@ -85,7 +90,6 @@ export class AdminOverviewController {
           console.warn('⚠️ Não foi possível atualizar overview administrativo em segundo plano:', error);
         });
       }
-      res.set('Cache-Control', 'private, max-age=15, stale-while-revalidate=60');
       res.json(cached.payload);
       return;
     }
@@ -93,7 +97,6 @@ export class AdminOverviewController {
     try {
       const payload = await refresh(tenantId, tenantId, tenantName);
       res.set('X-CogniVault-Cache', 'MISS');
-      res.set('Cache-Control', 'private, max-age=15, stale-while-revalidate=60');
       res.json(payload);
     } catch (error) {
       console.error('❌ Erro ao carregar visão geral administrativa:', error);
