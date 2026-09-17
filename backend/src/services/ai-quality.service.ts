@@ -24,6 +24,11 @@ type PartQualityMetricsRow = {
   withoutSection: bigint;
 };
 
+type DocumentPncRow = {
+  documentId: string;
+  pnc: string;
+};
+
 async function partQualityMetrics(tenantId: string) {
   const [row] = await prisma.$queryRaw<PartQualityMetricsRow[]>`
     SELECT
@@ -46,6 +51,23 @@ async function partQualityMetrics(tenantId: string) {
     withoutPage: Number(row?.withoutPage || 0),
     withoutSection: Number(row?.withoutSection || 0),
   };
+}
+
+async function distinctDocumentPncs(tenantId: string): Promise<DocumentPncRow[]> {
+  return prisma.$queryRaw<DocumentPncRow[]>`
+    SELECT DISTINCT
+      p."documentId" AS "documentId",
+      p."pnc" AS "pnc"
+    FROM "Part" p
+    INNER JOIN "Document" d ON d."id" = p."documentId"
+    WHERE p."active" = true
+      AND p."pnc" IS NOT NULL
+      AND d."tenantId" = ${tenantId}
+      AND d."archivedAt" IS NULL
+      AND d."status" = 'COMPLETED'
+      AND d."processingStage" <> 'REMOVED'
+    ORDER BY p."documentId", p."pnc"
+  `;
 }
 
 // Registros históricos de desenvolvimento sem PDF processado, metadado ou peça.
@@ -87,7 +109,7 @@ export class AiQualityService {
       }
     }
 
-    const [documents, partMetrics, chunks, archived, removed, legacyEmpty, latestRuns, searchRadar] = await Promise.all([
+    const [documents, partMetrics, pncRows, chunks, archived, removed, legacyEmpty, latestRuns, searchRadar] = await Promise.all([
       prisma.document.findMany({
         where: {
           tenantId,
@@ -105,6 +127,7 @@ export class AiQualityService {
         },
       }),
       partQualityMetrics(tenantId),
+      distinctDocumentPncs(tenantId),
       prisma.documentChunk.count({ where: { document: { tenantId, archivedAt: null, status: 'COMPLETED', processingStage: { not: 'REMOVED' } } } }),
       prisma.document.count({ where: { tenantId, archivedAt: { not: null }, processingStage: { not: 'REMOVED' } } }),
       prisma.document.count({ where: { tenantId, processingStage: 'REMOVED' } }),
@@ -116,15 +139,6 @@ export class AiQualityService {
       SearchIntelligenceService.identifyCatalogGaps(tenantId, 10),
     ]);
 
-    const pncRows = await prisma.part.findMany({
-      where: {
-        active: true,
-        pnc: { not: null },
-        document: { tenantId, archivedAt: null, status: 'COMPLETED', processingStage: { not: 'REMOVED' } },
-      },
-      distinct: ['documentId', 'pnc'],
-      select: { documentId: true, pnc: true },
-    });
     const documentsWithConfirmedPnc = new Set(pncRows.filter(row => isLikelyHusqvarnaPnc(row.pnc)).map(row => row.documentId));
     const effectiveDocuments = documents.map(document => {
       const isBriggsModel = /^Motor\s+Briggs\b/i.test(document.model || '') ||
