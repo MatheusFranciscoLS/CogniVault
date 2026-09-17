@@ -25,6 +25,16 @@ type PortalVerificationOutcome = {
   note: string;
 };
 
+type LocalCoverageRow = {
+  model: string;
+  normalizedModel: string;
+  filename: string;
+};
+
+type CommercialApplicationRow = {
+  application: string;
+};
+
 const NOISE_TOKENS = new Set([
   'HONDA', 'HUSQVARNA', 'BRIGGS', 'STRATTON', 'KAWASAKI', 'KOHLER', 'MOTOR', 'ENGINE',
 ]);
@@ -296,19 +306,32 @@ export function rankPortfolioCoverageGaps(items: PortfolioCoverageItem[], limit 
 }
 
 export async function buildPortfolioCoverage(tenantId: string, options: { verifyPortal?: boolean; concurrency?: number } = {}) {
+  // Prisma implementa `distinct` em memória em alguns caminhos de findMany. Aqui o
+  // universo bruto já passa de dezenas de milhares de linhas, enquanto a tela precisa
+  // somente de modelos/aplicações únicas. Fazemos o DISTINCT no PostgreSQL para não
+  // transportar e deduplicar esse volume no processo Node.
   const [localRows, commercialRows] = await Promise.all([
-    prisma.part.findMany({
-      where: { active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED', processingStage: { not: 'REMOVED' } } },
-      distinct: ['normalizedModel'],
-      select: { model: true, normalizedModel: true, document: { select: { filename: true } } },
-      orderBy: { normalizedModel: 'asc' },
-    }),
-    prisma.masterPartSection.findMany({
-      where: { tenantId, application: { not: null } },
-      distinct: ['application'],
-      select: { application: true },
-      orderBy: { application: 'asc' },
-    }),
+    prisma.$queryRaw<LocalCoverageRow[]>`
+      SELECT DISTINCT ON (p."normalizedModel")
+        p.model AS "model",
+        p."normalizedModel" AS "normalizedModel",
+        d.filename AS "filename"
+      FROM "Part" p
+      INNER JOIN "Document" d ON d.id = p."documentId"
+      WHERE p.active = TRUE
+        AND d."tenantId" = ${tenantId}
+        AND d."archivedAt" IS NULL
+        AND d.status = 'COMPLETED'
+        AND d."processingStage" <> 'REMOVED'
+      ORDER BY p."normalizedModel" ASC
+    `,
+    prisma.$queryRaw<CommercialApplicationRow[]>`
+      SELECT DISTINCT mps.application AS "application"
+      FROM "MasterPartSection" mps
+      WHERE mps."tenantId" = ${tenantId}
+        AND mps.application IS NOT NULL
+      ORDER BY mps.application ASC
+    `,
   ]);
 
   const localByModel = new Map(localRows.map(row => [row.normalizedModel, row]));
@@ -347,7 +370,7 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
             model: local.model,
             normalizedModel,
             status: 'LOCAL_IPL' as const,
-            source: local.document.filename,
+            source: local.filename,
             pnc: null,
             commercialSignals: commercial.signals,
             commercialEvidence: commercial.evidence,
