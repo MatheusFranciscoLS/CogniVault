@@ -234,7 +234,6 @@ export default function Dashboard() {
             key={searchVersion}
             initialQuery={globalQuery}
             onQueryChange={updatePartQuery}
-            admin={user.role === 'ADMIN'}
             storageScope={user.id}
             onOpenMachine={openMachine}
           />

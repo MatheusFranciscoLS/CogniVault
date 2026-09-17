@@ -199,10 +199,6 @@ export type HusqvarnaOfficialSearchResult = {
   productCount: number | null;
 };
 
-// Kept as an alias for older callers while the official search now returns
-// products, accessories, spare parts, documents and categories.
-export type HusqvarnaProductSearchResult = HusqvarnaOfficialSearchResult;
-
 export type PdfPreview = { url: string; page: number | null; title: string };
 
 export type WorkContext = {

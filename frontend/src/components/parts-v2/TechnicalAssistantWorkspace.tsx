@@ -18,7 +18,7 @@ import PartResultRow from './PartResultRow';
 import SourceBadge from './SourceBadge';
 import type { CommercialPart, HusqvarnaLivePart, OfficialFallbackResult, PdfPreview, PriceSection, SearchDocument, SearchResultPart, SearchStreamMessage } from './types';
 
-type Props = { initialQuery: string; onQueryChange: (query: string) => void; admin?: boolean; storageScope?: string; onOpenMachine?: (pnc: string) => void };
+type Props = { initialQuery: string; onQueryChange: (query: string) => void; storageScope?: string; onOpenMachine?: (pnc: string) => void };
 type Selection = { kind: 'technical' | 'commercial'; id: string } | null;
 
 const examples = [
