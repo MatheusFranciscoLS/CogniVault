@@ -80,7 +80,12 @@ jobs:
       - name: Block high-severity dependency vulnerabilities
         run: npm audit --prefix . --workspaces=false --audit-level=high
       - run: npm run lint
-      - run: npm run build
+      - name: Build production bundle with hostile API override
+        env:
+          VITE_API_URL: https://cognivault-api.onrender.com
+        run: npm run build
+      - name: Enforce same-origin production API
+        run: npm run verify:production-origin
 
   e2e:
     needs: [backend, frontend]
