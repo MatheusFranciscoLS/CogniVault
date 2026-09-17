@@ -37,14 +37,42 @@ type AssistantPerformance = {
   };
 };
 
+type RoutePerformance = {
+  route: string;
+  requests: number;
+  samples: number;
+  avgMs: number;
+  p95Ms: number;
+  maxMs: number;
+  lastMs: number;
+  errors: number;
+  errorRate: number;
+  cacheHits: number;
+  cacheMisses: number;
+  cacheStales: number;
+  cacheFallbacks: number;
+  cacheHitRate: number | null;
+  lastStatus: number;
+  updatedAt: string;
+};
+
 type PerformanceResponse = {
   performance: {
     assistant: AssistantPerformance;
+    routes: RoutePerformance[];
+    runtime: {
+      uptimeSeconds: number;
+    };
   };
 };
 
 function number(value: number) {
   return new Intl.NumberFormat('pt-BR').format(value || 0);
+}
+
+function duration(value: number) {
+  if (value >= 1000) return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(value / 1000)} s`;
+  return `${Math.round(value)} ms`;
 }
 
 function metricLabel(action: string) {
@@ -65,7 +93,7 @@ function Stat({ label, value, detail }: { label: string; value: string; detail: 
 }
 
 export default function AssistantObservabilityPanel() {
-  const [data, setData] = useState<AssistantPerformance | null>(null);
+  const [performance, setPerformance] = useState<PerformanceResponse['performance'] | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -73,7 +101,7 @@ export default function AssistantObservabilityPanel() {
     void apiJson<PerformanceResponse>('/api/admin/performance')
       .then(response => {
         if (!active) return;
-        setData(response.performance.assistant);
+        setPerformance(response.performance);
         setError('');
       })
       .catch(requestError => {
@@ -83,6 +111,8 @@ export default function AssistantObservabilityPanel() {
     return () => { active = false; };
   }, []);
 
+  const data = performance?.assistant ?? null;
+  const portalRoute = performance?.routes.find(item => item.route === 'POST /api/admin/quality/portal-coverage') ?? null;
   const cachedDecisions = useMemo(
     () => data?.reusableDecisionCache.reduce((sum, item) => sum + item.entries, 0) || 0,
     [data],
@@ -92,7 +122,7 @@ export default function AssistantObservabilityPanel() {
     return <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300">Observabilidade indisponível agora: {error}</div>;
   }
 
-  if (!data) {
+  if (!data || !performance) {
     return <div className="mt-5 rounded-xl border border-slate-200 bg-white px-4 py-4 text-xs text-slate-400 dark:border-slate-800 dark:bg-slate-900">Carregando operação do assistente…</div>;
   }
 
@@ -124,6 +154,26 @@ export default function AssistantObservabilityPanel() {
           value={portfolio ? `${portfolio.localCoveragePercent}%` : '—'}
           detail={portfolio ? `${portfolio.localIplModels} de ${portfolio.totalModels} modelos descobertos` : 'Inventário indisponível'}
         />
+      </div>
+
+      <div className="mx-4 mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-[11px] text-slate-500 dark:border-slate-800 dark:bg-slate-950/30 dark:text-slate-400">
+        <span className="font-black uppercase tracking-[.08em] text-slate-700 dark:text-slate-200">Portal BR · rota</span>
+        {portalRoute ? (
+          <>
+            <span><b className="text-slate-700 dark:text-slate-200">{number(portalRoute.requests)}</b> execuções</span>
+            <span><b className="text-slate-700 dark:text-slate-200">{portalRoute.cacheHitRate ?? 0}%</b> integralmente cacheadas</span>
+            <span>p95 <b className="text-slate-700 dark:text-slate-200">{duration(portalRoute.p95Ms)}</b></span>
+            <span>última <b className="text-slate-700 dark:text-slate-200">{duration(portalRoute.lastMs)}</b></span>
+            {portalRoute.cacheFallbacks > 0 && (
+              <span className="font-bold text-amber-700 dark:text-amber-300">{number(portalRoute.cacheFallbacks)} fallback{portalRoute.cacheFallbacks === 1 ? '' : 's'}</span>
+            )}
+            {portalRoute.errors > 0 && (
+              <span className="font-bold text-rose-700 dark:text-rose-300">{number(portalRoute.errors)} erro{portalRoute.errors === 1 ? '' : 's'} 5xx</span>
+            )}
+          </>
+        ) : (
+          <span>Sem amostras desde o último deploy. A rota só aparece depois de uma consulta manual ao Portal.</span>
+        )}
       </div>
 
       <div className="grid gap-4 border-t border-slate-100 p-4 lg:grid-cols-[1.2fr_.8fr] dark:border-slate-800">
