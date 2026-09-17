@@ -31,7 +31,7 @@ test('preserva modelos completos antigos encontrados na homologação comercial'
   assert.deepEqual(extractCommercialModels('W3612/3/4814/5/iZ4821T/LZ6125T'), ['W3612', 'iZ4821T', 'LZ6125T']);
 });
 
-test('match do Portal exige modelo completo e rejeita família ou sufixo diferente', () => {
+test('match do Portal exige modelo completo e rejeita família, sufixo ou prefixo de outro modelo', () => {
   assert.equal(portalResultMatchesModel('HUSQVARNA 445', '445E'), false);
   assert.equal(portalResultMatchesModel('HUSQVARNA 445 e-series TrioBrake', '445E'), true);
   assert.equal(portalResultMatchesModel('HUSQVARNA 236', '236R'), false);
@@ -43,6 +43,9 @@ test('match do Portal exige modelo completo e rejeita família ou sufixo diferen
   assert.equal(portalResultMatchesModel('Husqvarna 143R', '143R'), true);
   assert.equal(portalResultMatchesModel('HUSQVARNA Roçadeira Husqvarna 143R II', '143RII'), true);
   assert.equal(portalResultMatchesModel('HUSQVARNA 343FR', '343R'), false);
+  assert.equal(portalResultMatchesModel('HUSQVARNA PW 235R', '235R'), false);
+  assert.equal(portalResultMatchesModel('PW 235R', '235R'), false);
+  assert.equal(portalResultMatchesModel('HUSQVARNA K 770', 'K770'), true);
 });
 
 test('resumo de cobertura diferencia IPL local, Portal e lacuna', () => {
