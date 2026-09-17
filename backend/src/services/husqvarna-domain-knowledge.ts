@@ -647,10 +647,6 @@ export function domainIndexAliases(
   return [...values].filter(Boolean).slice(0, 60);
 }
 
-export function familySystems(family: EquipmentFamily): string[] {
-  return [...FAMILY_SYSTEMS[family]];
-}
-
 export function isEngineInternalQuery(question: string): boolean {
   return containsAny(question, ENGINE_INTERNAL_TERMS);
 }

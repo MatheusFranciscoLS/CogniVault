@@ -206,8 +206,6 @@ const VOCABULARY: VocabularyEntry[] = [
   { key: 'filter', terms: ['filtro', 'filter'] },
 ];
 
-const ENTRY_BY_KEY = new Map(VOCABULARY.map(entry => [entry.key, entry]));
-
 function searchable(value: string): string {
   return normalizeText(value).replace(/[^a-z0-9]+/g, ' ').trim();
 }
@@ -514,7 +512,3 @@ export function focusCandidatesByDescription<
   return directMatches.length ? directMatches.map(item => item.candidate) : candidates;
 }
 
-export function vocabularyEntry(key: string): SearchGroup | null {
-  const entry = ENTRY_BY_KEY.get(key);
-  return entry ? { key: entry.key, variants: normalizedVariants(entry) } : null;
-}
