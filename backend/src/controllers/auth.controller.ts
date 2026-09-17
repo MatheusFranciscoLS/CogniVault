@@ -80,7 +80,8 @@ export class AuthController {
                 {
                     id: user.id,
                     role: user.role,
-                    tenantId: user.tenantId
+                    tenantId: user.tenantId,
+                    sessionVersion: user.sessionVersion,
                 },
                 getJwtSecret(),
                 {
