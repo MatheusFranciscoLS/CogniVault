@@ -7,6 +7,7 @@ import { useQuoteCart } from '../context/QuoteCartContext';
 import { useCounterSession } from '../context/CounterSessionContext';
 import { useTheme } from './ThemeProvider';
 import { isSoundEnabled, toggleSound } from '../lib/sound';
+import { Icon, type IconName } from './icons/Icon';
 
 type Props = {
   user: SessionUser;
@@ -18,7 +19,6 @@ type Props = {
 };
 
 type NavItem = { id: Section; label: string; icon: IconName };
-type IconName = 'search'|'machine'|'catalog'|'quote'|'history'|'favorite'|'dashboard'|'users'|'feedback'|'quality'|'audit'|'bell'|'sun'|'moon'|'sound'|'mute'|'logout'|'menu'|'close'|'chevron';
 
 const primaryNav: NavItem[] = [
   { id: 'parts', label: 'Atendimento', icon: 'search' },
@@ -47,32 +47,6 @@ const sectionTitle = new Map<Section, string>([
   ['home', 'Atendimento'],
   ['assistant', 'Atendimento'],
 ]);
-
-function Icon({ name, className = 'h-5 w-5' }: { name: IconName; className?: string }) {
-  const common = { viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:1.8, strokeLinecap:'round' as const, strokeLinejoin:'round' as const, className, 'aria-hidden':true };
-  switch (name) {
-    case 'search': return <svg {...common}><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>;
-    case 'machine': return <svg {...common}><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M16.9 16.9l2.2 2.2M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>;
-    case 'catalog': return <svg {...common}><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5z"/></svg>;
-    case 'quote': return <svg {...common}><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>;
-    case 'history': return <svg {...common}><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>;
-    case 'favorite': return <svg {...common}><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"/></svg>;
-    case 'dashboard': return <svg {...common}><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>;
-    case 'users': return <svg {...common}><circle cx="9" cy="8" r="3"/><path d="M3 20c.5-4 2.5-6 6-6s5.5 2 6 6"/><path d="M16 5.5a3 3 0 0 1 0 5.5M17 14c2.3.6 3.7 2.6 4 6"/></svg>;
-    case 'feedback': return <svg {...common}><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>;
-    case 'quality': return <svg {...common}><path d="m12 3 2.3 4.7 5.2.8-3.8 3.7.9 5.2-4.6-2.5-4.6 2.5.9-5.2-3.8-3.7 5.2-.8z"/></svg>;
-    case 'audit': return <svg {...common}><path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>;
-    case 'bell': return <svg {...common}><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>;
-    case 'sun': return <svg {...common}><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2"/></svg>;
-    case 'moon': return <svg {...common}><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg>;
-    case 'sound': return <svg {...common}><path d="M5 9v6h4l5 4V5L9 9z"/><path d="M17 9.5a4 4 0 0 1 0 5"/></svg>;
-    case 'mute': return <svg {...common}><path d="M5 9v6h4l5 4V5L9 9z"/><path d="m17 9 4 4M21 9l-4 4"/></svg>;
-    case 'logout': return <svg {...common}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>;
-    case 'menu': return <svg {...common}><path d="M4 6h16M4 12h16M4 18h16"/></svg>;
-    case 'close': return <svg {...common}><path d="m6 6 12 12M18 6 6 18"/></svg>;
-    case 'chevron': return <svg {...common}><path d="m9 18 6-6-6-6"/></svg>;
-  }
-}
 
 function NavButton({ item, active, onSelect }: { item: NavItem; active: boolean; onSelect: (section: Section) => void }) {
   return <button type="button" onClick={() => onSelect(item.id)} aria-current={active ? 'page' : undefined} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition ${active ? 'bg-[#eef4fb] text-[#123867] dark:bg-blue-950/40 dark:text-blue-200' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'}`}><Icon name={item.icon} className="h-[17px] w-[17px] shrink-0"/><span className="truncate">{item.label}</span></button>;
