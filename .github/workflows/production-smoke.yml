@@ -1,6 +1,9 @@
 name: Production Smoke
 
 on:
+  workflow_run:
+    workflows: ['CogniVault CI']
+    types: [completed]
   workflow_dispatch:
     inputs:
       expected_sha:
@@ -17,17 +20,23 @@ concurrency:
 
 jobs:
   production-smoke:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+      }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Wait for Render to serve expected commit
         env:
           INPUT_SHA: ${{ inputs.expected_sha }}
+          AUTO_SHA: ${{ github.event.workflow_run.head_sha }}
           REF_SHA: ${{ github.sha }}
           HEALTH_URL: https://cognivault-api.onrender.com/health/live
         run: |
           set -euo pipefail
-          expected_full="${INPUT_SHA:-$REF_SHA}"
+          expected_full="${INPUT_SHA:-${AUTO_SHA:-$REF_SHA}}"
           expected="${expected_full:0:12}"
           echo "Expecting production revision $expected"
 
