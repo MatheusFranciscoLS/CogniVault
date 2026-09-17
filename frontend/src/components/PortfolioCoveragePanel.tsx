@@ -1,6 +1,3 @@
-import { useEffect, useState } from 'react';
-import { apiJson } from '../lib';
-
 type PortfolioCoverageGap = {
   model: string;
   normalizedModel: string;
@@ -11,7 +8,7 @@ type PortfolioCoverageGap = {
   portalVerificationNote: string | null;
 };
 
-type PortfolioCoverage = {
+export type PortfolioCoverage = {
   scope: 'BR_LOCAL';
   portalChecked: boolean;
   total: number;
@@ -23,61 +20,19 @@ type PortfolioCoverage = {
   gaps: PortfolioCoverageGap[];
 };
 
-async function fetchPortfolioCoverage() {
-  return apiJson<{ portfolioCoverage: PortfolioCoverage }>('/api/admin/quality');
-}
-
 function signalLabel(count: number) {
   return `${count} referência${count === 1 ? '' : 's'} comercial${count === 1 ? '' : 'is'}`;
 }
 
-export default function PortfolioCoveragePanel() {
-  const [coverage, setCoverage] = useState<PortfolioCoverage | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  const load = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const response = await fetchPortfolioCoverage();
-      setCoverage(response.portfolioCoverage);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Não foi possível carregar a cobertura do portfólio.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    let active = true;
-    void fetchPortfolioCoverage()
-      .then(response => {
-        if (active) setCoverage(response.portfolioCoverage);
-      })
-      .catch(loadError => {
-        if (active) setError(loadError instanceof Error ? loadError.message : 'Não foi possível carregar a cobertura do portfólio.');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => { active = false; };
-  }, []);
-
-  if (loading) {
-    return <div className="cv-surface mb-5 rounded-[24px] p-6 text-sm text-slate-500 dark:text-slate-400">Conferindo a cobertura do portfólio brasileiro…</div>;
-  }
-
-  if (error || !coverage) {
-    return (
-      <div className="mb-5 rounded-[24px] border border-rose-200 bg-rose-50/70 p-5 dark:border-rose-800 dark:bg-rose-900/20">
-        <div className="text-sm font-semibold text-rose-800 dark:text-rose-300">Cobertura do portfólio indisponível</div>
-        <p className="mt-1 text-xs text-rose-700/80 dark:text-rose-300/80">{error || 'Não foi possível carregar este diagnóstico.'}</p>
-        <button type="button" onClick={() => void load()} className="cv-secondary mt-3 px-3 py-2 text-xs font-semibold">Tentar novamente</button>
-      </div>
-    );
-  }
-
+export default function PortfolioCoveragePanel({
+  coverage,
+  onRefresh,
+  refreshing = false,
+}: {
+  coverage: PortfolioCoverage;
+  onRefresh?: () => void | Promise<void>;
+  refreshing?: boolean;
+}) {
   const coveragePercent = Math.round(coverage.coverageRate * 100);
   const gaps = coverage.gaps.slice(0, 8);
 
@@ -94,7 +49,11 @@ export default function PortfolioCoveragePanel() {
               Mostra quais modelos citados na lista comercial brasileira já têm IPL técnica local. Aplicações comerciais servem apenas para priorizar investigação e nunca comprovam compatibilidade de peça, PNC ou número de série.
             </p>
           </div>
-          <button type="button" onClick={() => void load()} className="cv-secondary px-3 py-2 text-xs font-semibold">Atualizar cobertura</button>
+          {onRefresh && (
+            <button type="button" disabled={refreshing} onClick={() => void onRefresh()} className="cv-secondary px-3 py-2 text-xs font-semibold disabled:opacity-50">
+              {refreshing ? 'Atualizando…' : 'Atualizar cobertura'}
+            </button>
+          )}
         </div>
       </div>
 

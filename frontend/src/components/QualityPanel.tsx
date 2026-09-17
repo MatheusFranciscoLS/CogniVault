@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiJson, fmtDate } from '../lib';
 import type { AiQualityData, BenchmarkRun, QualityCatalog, SearchRadarItem } from '../types';
+import PortfolioCoveragePanel from './PortfolioCoveragePanel';
+import type { PortfolioCoverage } from './PortfolioCoveragePanel';
 
 function fetchQuality() {
-  return apiJson<{ quality: AiQualityData }>('/api/admin/quality');
+  return apiJson<{ quality: AiQualityData; portfolioCoverage: PortfolioCoverage }>('/api/admin/quality');
 }
 
 function healthTone(score: number) {
@@ -46,11 +48,13 @@ function latestBenchmark(data: AiQualityData | null): BenchmarkRun | null {
 
 export default function QualityPanel({ onSearch }: { onSearch?: (query: string) => void }) {
   const [data, setData] = useState<AiQualityData | null>(null);
+  const [coverage, setCoverage] = useState<PortfolioCoverage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [benchmarking, setBenchmarking] = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
+  const [refreshingCoverage, setRefreshingCoverage] = useState(false);
   const [clearingSemantics, setClearingSemantics] = useState(false);
   const [retryingVisual, setRetryingVisual] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -63,17 +67,33 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
   const load = async () => {
     const response = await fetchQuality();
     setData(response.quality);
+    setCoverage(response.portfolioCoverage);
     setError('');
   };
 
   useEffect(() => {
     let active = true;
     void fetchQuality()
-      .then(response => { if (active) setData(response.quality); })
+      .then(response => {
+        if (!active) return;
+        setData(response.quality);
+        setCoverage(response.portfolioCoverage);
+      })
       .catch(loadError => { if (active) setError(loadError instanceof Error ? loadError.message : 'Não foi possível carregar o diagnóstico.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
+
+  const refreshCoverage = async () => {
+    setRefreshingCoverage(true); setError('');
+    try {
+      await load();
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Não foi possível atualizar a cobertura do portfólio.');
+    } finally {
+      setRefreshingCoverage(false);
+    }
+  };
 
   const runBenchmark = async () => {
     setBenchmarking(true); setError(''); setNotice('');
@@ -255,6 +275,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
     {notice && <div role="status" className="mb-5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 p-3 text-sm text-emerald-700 dark:text-emerald-300">{notice}</div>}
     {error && <div role="alert" className="mb-5 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 p-3 text-sm text-rose-700 dark:text-rose-300">{error}</div>}
     {loading && <div className="cv-surface rounded-[22px] p-8 text-sm text-slate-500 dark:text-slate-400">Conferindo a base técnica…</div>}
+    {data && coverage && <PortfolioCoveragePanel coverage={coverage} onRefresh={refreshCoverage} refreshing={refreshingCoverage} />}
 
     {data && <>
       {/* NAVEGAÇÃO DE ABAS */}
