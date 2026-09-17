@@ -4,6 +4,7 @@ import {
   buildPortalCoverageCacheKey,
   isCacheablePortalCoverageOutcome,
   portalAuditToCoverageOutcome,
+  portalCoverageRequestCacheState,
   resolvePortalCoverageOutcome,
 } from './bounded-portal-coverage.service';
 import { OfficialSourceCacheService } from './official-source-cache.service';
@@ -96,6 +97,14 @@ test('só conclui NO_IPL quando o detalhe exato resolveu sem peças estruturadas
   assert.equal(outcome.state, 'NO_IPL');
   assert.equal(outcome.pnc, '965083236');
   assert.equal(isCacheablePortalCoverageOutcome(outcome), true);
+});
+
+test('resume o estado da requisição priorizando degradação e consulta externa', () => {
+  assert.equal(portalCoverageRequestCacheState({ HIT: 8, STALE: 0, MISS: 0, FALLBACK: 0 }), 'HIT');
+  assert.equal(portalCoverageRequestCacheState({ HIT: 6, STALE: 1, MISS: 0, FALLBACK: 0 }), 'STALE');
+  assert.equal(portalCoverageRequestCacheState({ HIT: 6, STALE: 0, MISS: 2, FALLBACK: 0 }), 'MISS');
+  assert.equal(portalCoverageRequestCacheState({ HIT: 5, STALE: 0, MISS: 2, FALLBACK: 1 }), 'FALLBACK');
+  assert.equal(portalCoverageRequestCacheState({ HIT: 0, STALE: 0, MISS: 0, FALLBACK: 0 }), null);
 });
 
 test('cache key normaliza o modelo e permanece preso ao Portal BR', () => {

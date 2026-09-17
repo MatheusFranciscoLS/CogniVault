@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { authMiddleware, adminOnly, type AuthenticatedRequest } from '../middleware/auth.middleware';
 import { tenantOperationSingleFlight } from '../middleware/tenant-operation-single-flight.middleware';
-import { buildBoundedPortalCoverage } from '../services/bounded-portal-coverage.service';
+import {
+  buildBoundedPortalCoverage,
+  portalCoverageRequestCacheState,
+} from '../services/bounded-portal-coverage.service';
 import { rankPortfolioCoverageGaps } from '../services/portfolio-coverage';
 
 const router = Router();
@@ -23,12 +26,15 @@ router.post(
         limit: 8,
         concurrency: 2,
       });
+      const cacheState = portalCoverageRequestCacheState(portfolio.portalCache);
+      if (cacheState) res.set('X-CogniVault-Cache', cacheState);
 
       res.json({
         scope: 'BR_LOCAL',
         portalChecked: true,
         checkedCount: portfolio.checkedCount,
         checkedModels: portfolio.checkedModels,
+        portalCache: portfolio.portalCache,
         total: portfolio.total,
         localIpl: portfolio.localIpl,
         portalIpl: portfolio.portalIpl,

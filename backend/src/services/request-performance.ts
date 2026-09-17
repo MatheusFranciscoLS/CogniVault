@@ -17,6 +17,7 @@ type RouteStats = {
   cacheHits: number;
   cacheMisses: number;
   cacheStales: number;
+  cacheFallbacks: number;
   updatedAt: string;
 };
 
@@ -76,6 +77,7 @@ export function requestPerformanceMiddleware(req: Request, res: Response, next: 
       cacheHits: 0,
       cacheMisses: 0,
       cacheStales: 0,
+      cacheFallbacks: 0,
       updatedAt: new Date().toISOString(),
     };
 
@@ -92,6 +94,7 @@ export function requestPerformanceMiddleware(req: Request, res: Response, next: 
     if (cacheStatus === 'HIT') current.cacheHits += 1;
     else if (cacheStatus === 'MISS') current.cacheMisses += 1;
     else if (cacheStatus === 'STALE') current.cacheStales += 1;
+    else if (cacheStatus === 'FALLBACK') current.cacheFallbacks += 1;
 
     stats.set(key, current);
 
@@ -106,7 +109,7 @@ export function requestPerformanceMiddleware(req: Request, res: Response, next: 
 export function performanceSnapshot() {
   const routes = [...stats.entries()].map(([route, item]) => {
     const total = item.samples.reduce((sum, value) => sum + value, 0);
-    const cacheRequests = item.cacheHits + item.cacheMisses + item.cacheStales;
+    const cacheRequests = item.cacheHits + item.cacheMisses + item.cacheStales + item.cacheFallbacks;
     return {
       route,
       requests: item.requests,
@@ -120,6 +123,7 @@ export function performanceSnapshot() {
       cacheHits: item.cacheHits,
       cacheMisses: item.cacheMisses,
       cacheStales: item.cacheStales,
+      cacheFallbacks: item.cacheFallbacks,
       cacheHitRate: cacheRequests ? rounded((item.cacheHits / cacheRequests) * 100) : null,
       lastStatus: item.lastStatus,
       updatedAt: item.updatedAt,
