@@ -1,8 +1,8 @@
-const configuredApiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-// Mesmo domínio é o caminho padrão: Vite faz proxy em desenvolvimento e Vercel
-// faz rewrite em produção. VITE_API_URL continua disponível para diagnóstico ou
-// ambientes especiais que precisem chamar a API diretamente.
-export const API_URL = configuredApiUrl;
+// O frontend sempre usa caminhos relativos. Em desenvolvimento o Vite faz proxy
+// para o backend local; em produção a Vercel reescreve /api e /health para o Render.
+// Não existe override de origem no navegador: isso mantém o cookie HttpOnly sempre
+// same-origin e impede regressões de autenticação causadas por variáveis de ambiente.
+export const API_URL = '';
 export const SESSION_EXPIRED_EVENT = 'cognivault:session-expired';
 
 export type ApiRequestInit = RequestInit & { timeoutMs?: number };
@@ -116,7 +116,9 @@ export async function api(path: string, init: ApiRequestInit = {}) {
     });
     markApiReady();
 
-    if (response.status === 401) {
+    const method = (requestInit.method || 'GET').toUpperCase();
+    const isCredentialCheck = method === 'POST' && path === '/api/login';
+    if (response.status === 401 && !isCredentialCheck) {
       clearSession();
       window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
     }
