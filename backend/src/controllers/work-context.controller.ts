@@ -73,7 +73,9 @@ function contextCacheKey(tenantId: string, normalizedPartNumber: string, model: 
 }
 
 function cacheHeaders(res: Response, status: 'HIT' | 'MISS' | 'STALE'): void {
-  res.set('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
+  // O contexto contém localização e inteligência operacional do tenant. O cache
+  // continua no Node, mas o browser revalida a sessão em toda leitura.
+  res.set('Cache-Control', 'private, no-store');
   res.set('X-CogniVault-Cache', status);
 }
 
