@@ -32,15 +32,33 @@ export function invalidateAdminOverviewCache(tenantId?: string): void {
 }
 
 async function load(tenantId: string, tenantName: string): Promise<OverviewPayload> {
-  const [users, activeDocuments, processingDocuments, failedDocuments, parts, feedbackTotal, feedbackCorrect] = await Promise.all([
+  const [users, documentCounts, parts, feedbackCounts] = await Promise.all([
     prisma.user.count({ where: { tenantId, status: 'APPROVED' } }),
-    prisma.document.count({ where: { tenantId, archivedAt: null, status: 'COMPLETED' } }),
-    prisma.document.count({ where: { tenantId, archivedAt: null, status: { in: ['PENDING', 'PROCESSING'] } } }),
-    prisma.document.count({ where: { tenantId, archivedAt: null, status: 'FAILED' } }),
+    prisma.document.groupBy({
+      by: ['status'],
+      where: {
+        tenantId,
+        archivedAt: null,
+        status: { in: ['COMPLETED', 'PENDING', 'PROCESSING', 'FAILED'] },
+      },
+      _count: { _all: true },
+    }),
     prisma.part.count({ where: { active: true, document: { tenantId, archivedAt: null, status: 'COMPLETED' } } }),
-    prisma.searchFeedback.count({ where: { tenantId } }),
-    prisma.searchFeedback.count({ where: { tenantId, correct: true } }),
+    prisma.searchFeedback.groupBy({
+      by: ['correct'],
+      where: { tenantId },
+      _count: { _all: true },
+    }),
   ]);
+
+  const documentCount = (status: string): number =>
+    documentCounts.find(row => row.status === status)?._count._all ?? 0;
+  const activeDocuments = documentCount('COMPLETED');
+  const processingDocuments = documentCount('PENDING') + documentCount('PROCESSING');
+  const failedDocuments = documentCount('FAILED');
+
+  const feedbackTotal = feedbackCounts.reduce((sum, row) => sum + row._count._all, 0);
+  const feedbackCorrect = feedbackCounts.find(row => row.correct)?._count._all ?? 0;
 
   return {
     overview: {
