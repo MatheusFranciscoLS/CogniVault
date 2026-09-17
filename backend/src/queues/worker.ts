@@ -9,6 +9,7 @@ import { invalidateFastSearchCaches } from '../controllers/fast-search.controlle
 import { invalidateCatalogListCache } from '../controllers/catalog-list.controller';
 import { invalidateNotificationCache } from '../controllers/notification.controller';
 import { invalidateAdminOverviewCache } from '../controllers/admin-overview.controller';
+import { invalidateQualityOverviewCache } from '../middleware/quality-overview-cache.middleware';
 import { nextDocumentRetry } from '../utils/document-retry';
 import { readableProcessingError } from '../utils/processing-error';
 import { DOCUMENT_PROCESSING_QUEUE, DOCUMENT_RETRY_QUEUE, rabbitMQ } from './connection';
@@ -32,6 +33,7 @@ function invalidateCatalogRuntimeCaches(tenantId: string): void {
     invalidateCatalogListCache(tenantId);
     invalidateNotificationCache(tenantId);
     invalidateAdminOverviewCache(tenantId);
+    invalidateQualityOverviewCache(tenantId);
 }
 
 async function buildAuxiliaryCatalogKnowledge(documentId: string, tenantId: string): Promise<void> {
