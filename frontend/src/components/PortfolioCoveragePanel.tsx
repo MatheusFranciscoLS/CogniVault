@@ -51,7 +51,7 @@ export default function PortfolioCoveragePanel({
           </div>
           {onRefresh && (
             <button type="button" disabled={refreshing} onClick={() => void onRefresh()} className="cv-secondary px-3 py-2 text-xs font-semibold disabled:opacity-50">
-              {refreshing ? 'Atualizando…' : 'Atualizar cobertura'}
+              {refreshing ? 'Recarregando…' : 'Recarregar base local'}
             </button>
           )}
         </div>
@@ -80,9 +80,13 @@ export default function PortfolioCoveragePanel({
           <div className="h-full rounded-full bg-[#1d4f91] transition-all duration-500" style={{ width: `${coveragePercent}%` }} />
         </div>
 
-        {!coverage.portalChecked && (
+        {!coverage.portalChecked ? (
           <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50/60 px-4 py-3 text-xs leading-5 text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
-            O Portal Husqvarna Brasil não é consultado automaticamente nesta tela. Um modelo pendente aqui significa apenas <b>sem IPL local confirmada</b>; não significa que a IPL não exista no Portal BR.
+            Esta ação recarrega somente a base técnica local. O Portal Husqvarna Brasil não é consultado automaticamente nesta tela. Um modelo pendente aqui significa apenas <b>sem IPL local confirmada</b>; não significa que a IPL não exista no Portal BR.
+          </div>
+        ) : (
+          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-xs leading-5 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
+            A cobertura exibida inclui homologações consultadas no Portal Husqvarna Brasil. Resultados do Portal continuam sendo tratados como evidência técnica oficial, separados da lista comercial.
           </div>
         )}
 
