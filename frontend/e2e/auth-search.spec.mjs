@@ -71,6 +71,14 @@ test('sessão usa cookie HttpOnly, sobrevive a reload e isola orçamento por usu
   await expect(page.getByRole('button', { name: '+ Orçamento' }).first()).toBeVisible();
 });
 
+test('visão geral mantém telemetria compacta da rota do Portal BR', async ({ page }) => {
+  await login(page, ADMIN_EMAIL);
+  await page.goto('/dashboard?tab=overview');
+
+  await expect(page.getByRole('heading', { name: 'Uso, cache e cobertura técnica' })).toBeVisible();
+  await expect(page.getByText('Portal BR · rota', { exact: true })).toBeVisible();
+});
+
 test('qualidade compartilha uma única fonte de dados sob StrictMode', async ({ page }) => {
   await login(page, ADMIN_EMAIL);
 
