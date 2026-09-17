@@ -14,6 +14,7 @@ const AssistantObservabilityPanel = lazy(() => import('../components/AssistantOb
 const UsersPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.UsersPanel })));
 const AuditPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.AuditPanel })));
 const AdminFeedbackPanel = lazy(() => import('../components/AdminFeedbackPanel'));
+const PortfolioCoveragePanel = lazy(() => import('../components/PortfolioCoveragePanel'));
 const QualityPanel = lazy(() => import('../components/QualityPanel'));
 const HistoryWorkspace = lazy(() => import('../components/HistoryWorkspace'));
 const FavoritesWorkspace = lazy(() => import('../components/FavoritesWorkspace'));
@@ -192,7 +193,12 @@ export default function Dashboard() {
         )}
         {section === 'users' && user.role === 'ADMIN' && <UsersPanel />}
         {section === 'feedback' && user.role === 'ADMIN' && <AdminFeedbackPanel />}
-        {section === 'quality' && user.role === 'ADMIN' && <div className="cv-quality-workspace"><QualityPanel onSearch={search} /></div>}
+        {section === 'quality' && user.role === 'ADMIN' && (
+          <div className="cv-quality-workspace">
+            <PortfolioCoveragePanel />
+            <QualityPanel onSearch={search} />
+          </div>
+        )}
         {section === 'audit' && user.role === 'ADMIN' && <AuditPanel />}
       </Suspense>
     </ShellV2>
