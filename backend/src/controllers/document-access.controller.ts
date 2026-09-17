@@ -39,9 +39,12 @@ export class DocumentAccessController {
     const key = accessCacheKey(req.user.tenantId, documentId, mode);
     const cached = accessUrlCache.get(key);
 
+    // A URL assinada pode continuar reutilizada pelo cache seguro do servidor,
+    // mas nunca deve ser persistida pelo browser após logout/troca de sessão.
+    res.set('Cache-Control', 'private, no-store');
+
     if (cached) {
       res.set('X-CogniVault-Cache', 'HIT');
-      res.set('Cache-Control', 'private, max-age=30');
       res.status(200).json({ url: cached, mode });
       return;
     }
@@ -55,7 +58,6 @@ export class DocumentAccessController {
 
       accessUrlCache.set(key, url);
       res.set('X-CogniVault-Cache', 'MISS');
-      res.set('Cache-Control', 'private, max-age=30');
       res.status(200).json({ url, mode });
     } catch (error) {
       const message = error instanceof Error ? error.message : '';

@@ -45,7 +45,9 @@ export class PartDetailController {
     const cached = detailResponseCache.get(cacheKey);
     if (cached) {
       res.set('X-CogniVault-Cache', 'HIT');
-      res.set('Cache-Control', 'private, max-age=20, stale-while-revalidate=30');
+      // O payload inclui estado pessoal de favorito. Reutilizamos apenas o LRU
+      // do servidor; o navegador precisa revalidar a sessão em toda leitura.
+      res.set('Cache-Control', 'private, no-store');
       res.json(cached);
       return;
     }
@@ -201,7 +203,7 @@ export class PartDetailController {
 
       detailResponseCache.set(cacheKey, payload);
       res.set('X-CogniVault-Cache', 'MISS');
-      res.set('Cache-Control', 'private, max-age=20, stale-while-revalidate=30');
+      res.set('Cache-Control', 'private, no-store');
       res.json(payload);
     } catch (error) {
       console.error(`❌ Erro ao buscar detalhe da peça ${id}:`, error);
