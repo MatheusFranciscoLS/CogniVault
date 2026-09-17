@@ -11,11 +11,19 @@ type PortfolioCoverageGap = {
   portalVerificationNote: string | null;
 };
 
+type PortalCacheSummary = {
+  HIT: number;
+  STALE: number;
+  MISS: number;
+  FALLBACK: number;
+};
+
 export type PortfolioCoverage = {
   scope: 'BR_LOCAL';
   portalChecked: boolean;
   checkedCount?: number;
   checkedModels?: string[];
+  portalCache?: PortalCacheSummary;
   total: number;
   localIpl: number;
   portalIpl: number;
@@ -35,6 +43,16 @@ function portalDiagnostic(state: PortfolioCoverageGap['portalVerification']) {
   if (state === 'INCONCLUSIVE') return 'Consulta ao Portal inconclusiva';
   if (state === 'VERIFIED') return 'IPL confirmada no Portal BR';
   return 'Portal não consultado';
+}
+
+function portalCacheLabel(cache?: PortalCacheSummary) {
+  if (!cache) return null;
+  const parts: string[] = [];
+  if (cache.HIT) parts.push(`${cache.HIT} reaproveitado${cache.HIT === 1 ? '' : 's'}`);
+  if (cache.MISS) parts.push(`${cache.MISS} consulta${cache.MISS === 1 ? '' : 's'} nova${cache.MISS === 1 ? '' : 's'}`);
+  if (cache.STALE) parts.push(`${cache.STALE} em revalidação`);
+  if (cache.FALLBACK) parts.push(`${cache.FALLBACK} fallback${cache.FALLBACK === 1 ? '' : 's'}`);
+  return parts.length ? parts.join(' · ') : null;
 }
 
 export default function PortfolioCoveragePanel({
@@ -75,6 +93,7 @@ export default function PortfolioCoveragePanel({
 
   const coveragePercent = Math.round(displayCoverage.coverageRate * 100);
   const gaps = displayCoverage.gaps.slice(0, 8);
+  const cacheLabel = portalCacheLabel(displayCoverage.portalCache);
 
   return (
     <section className="cv-surface mb-5 overflow-hidden rounded-[24px]">
@@ -150,6 +169,11 @@ export default function PortfolioCoveragePanel({
         ) : (
           <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-xs leading-5 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
             Portal Husqvarna Brasil consultado para <b>{displayCoverage.checkedCount ?? 0} modelo(s)</b> priorizado(s). Uma consulta inconclusiva nunca é tratada como ausência de IPL, e a lista comercial continua separada da evidência técnica oficial.
+            {cacheLabel && (
+              <div className="mt-1 text-[11px] font-semibold text-emerald-700/80 dark:text-emerald-300/80">
+                Cache do Portal: {cacheLabel}.
+              </div>
+            )}
           </div>
         )}
 
