@@ -16,11 +16,16 @@ function Field({ label, value, placeholder, onChange }: { label: string; value: 
   );
 }
 
-export default function CounterSessionBar() {
+type Props = { onOpenMachine?: (pnc: string) => void };
+
+export default function CounterSessionBar({ onOpenMachine }: Props) {
   const { session, hasContext, updateSession, clearSession } = useCounterSession();
   const quoteCart = useQuoteCart();
   const [expanded, setExpanded] = useState(false);
   const hasAnything = Boolean(session.customerName.trim() || session.machineModel.trim() || session.pnc.trim() || session.serial.trim() || quoteCart.totalItems);
+  // A vista explodida vive na Husqvarna e é endereçada pelo PNC; sem um PNC
+  // plausível o atalho só levaria o balcão a um erro.
+  const machinePnc = /^\d{8,14}$/.test(session.pnc.replace(/\D/g, '')) ? session.pnc.replace(/\D/g, '') : '';
 
   const endSession = () => {
     if (!hasAnything) return;
@@ -52,6 +57,11 @@ export default function CounterSessionBar() {
 
         <div className="flex items-center gap-2">
           {hasContext && <span className="hidden text-[10px] font-bold text-emerald-600 xl:inline dark:text-emerald-400">Contexto aplicado à busca</span>}
+          {onOpenMachine && machinePnc && (
+            <button type="button" onClick={() => onOpenMachine(machinePnc)} className="h-8 rounded-lg border border-[#1d4f91] bg-[#eef4fb] px-3 text-[10px] font-black text-[#123867] transition hover:bg-[#dfeaf7] dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
+              Ver vista explodida
+            </button>
+          )}
           <button type="button" onClick={() => setExpanded(value => !value)} className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[10px] font-black text-slate-600 transition hover:border-blue-200 hover:text-[#1d4f91] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
             {expanded ? 'Ocultar dados' : hasAnything ? 'Editar contexto' : 'Adicionar contexto'}
           </button>

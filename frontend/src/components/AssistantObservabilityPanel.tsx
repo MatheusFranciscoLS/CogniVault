@@ -213,7 +213,7 @@ export default function AssistantObservabilityPanel() {
                       {portfolio.priorityGaps.slice(0, 6).map(item => (
                         <Link
                           key={item.normalizedModel}
-                          to={`/husqvarna?search=${encodeURIComponent(item.model)}`}
+                          to={`/dashboard?tab=machines&search=${encodeURIComponent(item.model)}`}
                           className="flex items-center justify-between gap-3 rounded-md border border-slate-100 px-2.5 py-2 text-xs transition hover:border-blue-200 hover:bg-blue-50/50 dark:border-slate-800 dark:hover:border-blue-900 dark:hover:bg-blue-950/20"
                         >
                           <span className="min-w-0 truncate font-bold text-slate-700 dark:text-slate-200">{item.model}</span>

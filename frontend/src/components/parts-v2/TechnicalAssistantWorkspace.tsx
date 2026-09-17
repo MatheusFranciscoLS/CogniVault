@@ -18,7 +18,7 @@ import PartResultRow from './PartResultRow';
 import SourceBadge from './SourceBadge';
 import type { CommercialPart, HusqvarnaLivePart, OfficialFallbackResult, PdfPreview, PriceSection, SearchDocument, SearchResultPart, SearchStreamMessage } from './types';
 
-type Props = { initialQuery: string; onQueryChange: (query: string) => void; admin?: boolean; storageScope?: string };
+type Props = { initialQuery: string; onQueryChange: (query: string) => void; admin?: boolean; storageScope?: string; onOpenMachine?: (pnc: string) => void };
 type Selection = { kind: 'technical' | 'commercial'; id: string } | null;
 
 const examples = [
@@ -109,7 +109,7 @@ function LoadingRows() {
   );
 }
 
-export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChange, storageScope }: Props) {
+export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChange, storageScope, onOpenMachine }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const quoteCart = useQuoteCart();
   const { session, hasContext } = useCounterSession();
@@ -447,7 +447,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
 
   return (
     <section className="space-y-4">
-      <CounterSessionBar />
+      <CounterSessionBar onOpenMachine={onOpenMachine} />
 
       <div className="px-1">
         <div className="text-[10px] font-black uppercase tracking-[.15em] text-[#1d4f91] dark:text-blue-300">Assistência técnica</div>

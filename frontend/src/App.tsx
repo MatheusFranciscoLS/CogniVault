@@ -10,7 +10,6 @@ import { activateQuoteStorageScope, quoteStorageScopeFromSession } from './lib/q
 
 const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
-const HusqvarnaOfficialPage = lazy(() => import('./pages/HusqvarnaOfficialPage'));
 
 function RouteLoading() {
   return (
@@ -21,6 +20,19 @@ function RouteLoading() {
       </div>
     </div>
   );
+}
+
+function LegacyHusqvarnaRedirect() {
+  // A consulta oficial deixou de ser uma página solta: hoje ela é a seção
+  // Máquinas do balcão. Links antigos continuam funcionando com o mesmo PNC.
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  const next = new URLSearchParams({ tab: 'machines' });
+  const pnc = (params.get('pnc') || '').replace(/\D/g, '');
+  const query = (params.get('search') || '').trim();
+  if (pnc) next.set('pnc', pnc);
+  if (query) next.set('search', query);
+  return <Navigate to={`/dashboard?${next.toString()}`} replace />;
 }
 
 function RouteScopedQuoteExperience() {
@@ -47,7 +59,7 @@ function SessionScopedApplication() {
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/husqvarna" element={<HusqvarnaOfficialPage />} />
+            <Route path="/husqvarna" element={<LegacyHusqvarnaRedirect />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Suspense>

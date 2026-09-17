@@ -18,10 +18,11 @@ type Props = {
 };
 
 type NavItem = { id: Section; label: string; icon: IconName };
-type IconName = 'search'|'catalog'|'quote'|'history'|'favorite'|'dashboard'|'users'|'feedback'|'quality'|'audit'|'bell'|'sun'|'moon'|'sound'|'mute'|'logout'|'menu'|'close'|'chevron';
+type IconName = 'search'|'machine'|'catalog'|'quote'|'history'|'favorite'|'dashboard'|'users'|'feedback'|'quality'|'audit'|'bell'|'sun'|'moon'|'sound'|'mute'|'logout'|'menu'|'close'|'chevron';
 
 const primaryNav: NavItem[] = [
   { id: 'parts', label: 'Atendimento', icon: 'search' },
+  { id: 'machines', label: 'Máquinas', icon: 'machine' },
   { id: 'catalogs', label: 'Catálogos', icon: 'catalog' },
   { id: 'quotes', label: 'Orçamentos', icon: 'quote' },
 ];
@@ -51,6 +52,7 @@ function Icon({ name, className = 'h-5 w-5' }: { name: IconName; className?: str
   const common = { viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:1.8, strokeLinecap:'round' as const, strokeLinejoin:'round' as const, className, 'aria-hidden':true };
   switch (name) {
     case 'search': return <svg {...common}><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>;
+    case 'machine': return <svg {...common}><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M16.9 16.9l2.2 2.2M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>;
     case 'catalog': return <svg {...common}><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5z"/></svg>;
     case 'quote': return <svg {...common}><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>;
     case 'history': return <svg {...common}><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>;

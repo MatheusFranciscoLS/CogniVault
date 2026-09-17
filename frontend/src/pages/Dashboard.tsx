@@ -1,8 +1,9 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ShellV2 from '../components/ShellV2';
 import TechnicalAssistantWorkspace from '../components/parts-v2/TechnicalAssistantWorkspace';
 import CatalogsWorkspace from '../components/CatalogsWorkspace';
+import MachinesWorkspace from '../components/machines/MachinesWorkspace';
 import { api, apiJson, clearSession, SESSION_EXPIRED_EVENT } from '../lib';
 import { activateQuoteStorageScope } from '../lib/quote-storage-scope';
 import type { Section, SessionUser } from '../types';
@@ -42,9 +43,12 @@ export default function Dashboard() {
   const initialSectionParam = initialParams.get('tab') as Section | null;
   const initialQueryParam = cleanNavigationValue(initialParams.get('code') || initialParams.get('part') || initialParams.get('q'));
   const initialCatalogParam = cleanNavigationValue(initialParams.get('catalog'));
+  const initialPncParam = cleanNavigationValue(initialParams.get('pnc')).replace(/\D/g, '');
+  const initialMachineSearchParam = cleanNavigationValue(initialParams.get('search'));
 
   const [user, setUser] = useState<SessionUser | null>(null);
   const [section, setSection] = useState<Section>(() => {
+    if (initialPncParam || initialMachineSearchParam) return 'machines';
     if (initialQueryParam) return 'parts';
     if (initialCatalogParam) return 'catalogs';
     if (initialSectionParam && initialSectionParam !== 'home' && initialSectionParam !== 'assistant') return initialSectionParam;
@@ -54,6 +58,17 @@ export default function Dashboard() {
   const [searchVersion, setSearchVersion] = useState(0);
   const [catalogFilter, setCatalogFilter] = useState(initialCatalogParam);
   const [error, setError] = useState('');
+  // As vistas oficiais custam uma consulta externa, então o workspace de
+  // máquinas continua montado depois da primeira visita: voltar do atendimento
+  // não pode obrigar o balcão a carregar a mesma máquina de novo.
+  const [machinesMounted, setMachinesMounted] = useState(section === 'machines');
+  const [machinePnc, setMachinePnc] = useState(initialPncParam);
+  const [machineSearch, setMachineSearch] = useState(initialMachineSearchParam);
+  const sectionRef = useRef(section);
+
+  useEffect(() => {
+    sectionRef.current = section;
+  }, [section]);
 
   const updateUrl = (newTab: string, queryParam?: string, catalogParam?: string) => {
     try {
@@ -126,11 +141,55 @@ export default function Dashboard() {
     updateUrl('parts', clean || undefined);
   };
 
+  const writeMachineUrl = useCallback((state: { pnc: string; search: string }) => {
+    try {
+      const params = new URLSearchParams();
+      params.set('tab', 'machines');
+      if (state.pnc) params.set('pnc', state.pnc);
+      if (state.search) params.set('search', state.search);
+      window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+    } catch {
+      // Navegador restrito ou ambiente de teste.
+    }
+  }, []);
+
+  const handleMachineState = useCallback((state: { pnc: string; search: string }) => {
+    // Guardar o que está aberto aqui mantém a URL correta mesmo quando o balcão
+    // sai para o atendimento e volta pela navegação lateral.
+    setMachinePnc(state.pnc);
+    setMachineSearch(state.search);
+    if (sectionRef.current !== 'machines') return;
+    writeMachineUrl(state);
+  }, [writeMachineUrl]);
+
   const handleSectionChange = (next: Section) => {
     if (next !== 'catalogs') setCatalogFilter('');
     const targetSection = next === 'assistant' || next === 'home' ? 'parts' : next;
+    if (targetSection === 'machines') {
+      setMachinesMounted(true);
+      setSection(targetSection);
+      writeMachineUrl({ pnc: machinePnc, search: machineSearch });
+      return;
+    }
     setSection(targetSection);
     updateUrl(targetSection);
+  };
+
+  const openMachine = (pnc: string) => {
+    const clean = pnc.replace(/\D/g, '');
+    if (!clean) return;
+    // Primeira visita: o workspace monta já lendo este PNC. Visita seguinte: ele
+    // continua montado, então o evento é o que troca a máquina aberta. O aviso
+    // só sai depois do render para não chegar antes do listener existir.
+    setMachinePnc(clean);
+    setMachinesMounted(true);
+    setSection('machines');
+    try {
+      window.history.replaceState(null, '', `${window.location.pathname}?tab=machines&pnc=${encodeURIComponent(clean)}`);
+    } catch {
+      // Navegador restrito ou ambiente de teste.
+    }
+    window.setTimeout(() => window.dispatchEvent(new CustomEvent<string>('cognivault:open-machine', { detail: clean })), 0);
   };
 
   if (error) {
@@ -173,6 +232,19 @@ export default function Dashboard() {
             initialQuery={globalQuery}
             onQueryChange={updatePartQuery}
             admin={user.role === 'ADMIN'}
+            storageScope={user.id}
+            onOpenMachine={openMachine}
+          />
+        </div>
+      )}
+
+      {machinesMounted && (
+        <div className={section === 'machines' ? undefined : 'hidden'}>
+          <MachinesWorkspace
+            initialPnc={machinePnc}
+            initialSearch={initialMachineSearchParam}
+            onStateChange={handleMachineState}
+            onSearchPart={search}
             storageScope={user.id}
           />
         </div>
