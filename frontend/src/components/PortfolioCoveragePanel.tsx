@@ -22,7 +22,6 @@ export type PortfolioCoverage = {
   scope: 'BR_LOCAL';
   portalChecked: boolean;
   checkedCount?: number;
-  checkedModels?: string[];
   portalCache?: PortalCacheSummary;
   total: number;
   localIpl: number;
