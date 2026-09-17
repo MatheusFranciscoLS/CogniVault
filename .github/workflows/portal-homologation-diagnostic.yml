@@ -1,0 +1,31 @@
+name: Portal Homologation Diagnostic
+
+on:
+  push:
+    branches:
+      - diagnostic/portal-homologation
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci --prefix . --workspaces=false
+      - run: npx tsx src/scripts/diagnose-portal-coverage.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portal-homologation
+          path: backend/portal-homologation.json
+          if-no-files-found: error
