@@ -258,22 +258,42 @@ export class ChatService {
     }
 
     const reactResult = await ReActAgentService.execute(tenantId, question, intent.pnc || undefined, intent);
-    
-    if (reactResult.status === 'FOUND' && reactResult.chosenPartId) {
-       const chosen = await PartSearchService.byId(tenantId, reactResult.chosenPartId);
-       if (chosen) {
-         const decision = evaluateAnswerConfidence({
-           question, chosen, runnerUp: undefined, selectionConfidence: 0.9, exactCode: false,
-           catalog: await this.catalogConfidenceContext(tenantId, chosen.documentId)
-         });
-         
-         const result = this.found(chosen, 0.9, chosen.universalAcrossPnc ? 'Qualquer um' : (chosen.pnc || intent.pnc || 'Não informado'), [chosen], decision);
-         // Attach reasoning explanation to the match
-         if (result.match) result.match.explanation += `\nReAct Reasoning: ${reactResult.explanation}`;
-         return this.withContext(await this.enrichWithTechnicalContext(tenantId, question, chosen, result), intent);
-       }
+
+    // A verificação oficial de variantes é mais conservadora do que o fallback
+    // local. Se ela exigir PNC, não podemos reutilizar os mesmos candidatos e
+    // permitir que uma inferência local rebaixe essa trava para FOUND.
+    if (reactResult.status === 'PNC_REQUIRED') {
+      const localPncs = resolvedNormalizedModel
+        ? await PartSearchService.availablePncs(tenantId, resolvedNormalizedModel)
+        : [];
+      const suggestedPnc = normalizeIdentifier(reactResult.suggestedPnc || '');
+      const pncOptions = [...new Set([
+        ...localPncs,
+        ...(/^\d{8,14}$/.test(suggestedPnc) ? [suggestedPnc] : []),
+      ])];
+      return this.withContext({
+        status: 'PNC_REQUIRED',
+        requiresPnc: true,
+        pncOptions,
+        answer: reactResult.explanation || 'A peça pode variar entre versões deste modelo. Informe o PNC para eu liberar o código com segurança.',
+      }, intent);
     }
-    
+
+    if (reactResult.status === 'FOUND' && reactResult.chosenPartId) {
+      const chosen = await PartSearchService.byId(tenantId, reactResult.chosenPartId);
+      if (chosen) {
+        const decision = evaluateAnswerConfidence({
+          question, chosen, runnerUp: undefined, selectionConfidence: 0.9, exactCode: false,
+          catalog: await this.catalogConfidenceContext(tenantId, chosen.documentId),
+        });
+
+        const result = this.found(chosen, 0.9, chosen.universalAcrossPnc ? 'Qualquer um' : (chosen.pnc || intent.pnc || 'Não informado'), [chosen], decision);
+        // Attach reasoning explanation to the match
+        if (result.match) result.match.explanation += `\nReAct Reasoning: ${reactResult.explanation}`;
+        return this.withContext(await this.enrichWithTechnicalContext(tenantId, question, chosen, result), intent);
+      }
+    }
+
     // Fallback to local logic if ReAct fails or is ambiguous.
     // Reutiliza os candidatos já obtidos pelo ReAct para evitar consulta semântica/banco duplicada.
     const candidates = reactResult.candidates !== undefined
