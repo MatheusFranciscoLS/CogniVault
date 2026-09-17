@@ -27,6 +27,22 @@ test('rota protegida rejeita navegador sem sessão', async ({ page }) => {
   await expect(page).toHaveURL(/\/login/);
 });
 
+test('login cabe inteiro em viewport desktop sem scroll vertical', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto('/login');
+
+  await expect(page.getByRole('heading', { name: 'Bem-vindo ao CogniVault' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Entrar no CogniVault' })).toBeVisible();
+  await expect(page.getByAltText('Vardão Máquinas')).toBeVisible();
+
+  const viewport = await page.evaluate(() => ({
+    scrollHeight: document.documentElement.scrollHeight,
+    clientHeight: document.documentElement.clientHeight,
+  }));
+
+  expect(viewport.scrollHeight).toBeLessThanOrEqual(viewport.clientHeight + 1);
+});
+
 test('sessão usa cookie HttpOnly, sobrevive a reload e isola orçamento por usuário', async ({ page, context }) => {
   await login(page, ADMIN_EMAIL);
 
