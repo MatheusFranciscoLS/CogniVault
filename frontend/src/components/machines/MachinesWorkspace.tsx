@@ -5,7 +5,8 @@ import { apiJson } from '../../lib';
 import { useCounterSession } from '../../context/CounterSessionContext';
 import OfficialHusqvarnaPanel from '../parts-v2/OfficialHusqvarnaPanel';
 import MaintenanceKitPanel from './MaintenanceKitPanel';
-import type { HusqvarnaOfficialSearchKind, HusqvarnaOfficialSearchResult, OfficialFallbackResult } from '../parts-v2/types';
+import { Icon } from '../icons/Icon';
+import type { HusqvarnaOfficialSearchKind, HusqvarnaOfficialSearchResult, HusqvarnaPortalDocument, OfficialFallbackResult } from '../parts-v2/types';
 
 type Props = {
   initialPnc: string;
@@ -86,6 +87,56 @@ function normalizeOfficialSearchResults(value: unknown): HusqvarnaOfficialSearch
     }
     return [];
   });
+}
+
+const DOCUMENT_TYPE_LABEL: Record<string, string> = {
+  OM: 'Manual do operador',
+  IPL: 'Lista / vista de peças',
+};
+
+/**
+ * Atalho para os documentos oficiais da máquina.
+ *
+ * Os links já vêm na mesma resposta da consulta rápida (e do cache do Portal),
+ * então mostrar aqui não custa requisição nenhuma. O painel oficial abaixo
+ * continua tendo o acervo completo, com data e "mais recente"; esta faixa existe
+ * porque no balcão o manual e a vista explodida são o que se abre toda hora, e
+ * antes exigiam abrir o painel e trocar de aba.
+ */
+function OfficialDocumentShortcuts({ documents }: { documents: HusqvarnaPortalDocument[] }) {
+  if (!documents.length) return null;
+
+  return (
+    <section className="rounded-card border border-ink-200 bg-white p-3 shadow-card dark:border-ink-800 dark:bg-ink-850">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="text-eyebrow uppercase text-accent-700 dark:text-accent-300">Documentos oficiais</h2>
+        <span className="text-[10px] text-ink-500">direto da Husqvarna</span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {documents.slice(0, 6).map(document => (
+          <a
+            key={document.url}
+            href={document.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="cv-touch-target flex min-w-0 max-w-full items-center gap-2 rounded-card border border-ink-200 bg-ink-50 px-3 text-xs font-semibold text-ink-900 transition hover:border-brand-200 hover:bg-brand-50 dark:border-ink-800 dark:bg-ink-900 dark:text-white dark:hover:border-brand-400/50"
+          >
+            <Icon name="pdf" className="h-4 w-4 shrink-0 text-accent-700 dark:text-accent-300" />
+            <span className="min-w-0">
+              <span className="block truncate">{document.title}</span>
+              <span className="block truncate text-[10px] font-normal text-ink-500">
+                {[
+                  DOCUMENT_TYPE_LABEL[document.type] || document.type,
+                  document.languages.join(', '),
+                  document.fileFormat,
+                ].filter(Boolean).join(' · ')}
+              </span>
+            </span>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function resultMeta(item: HusqvarnaOfficialSearchResult) {
@@ -232,29 +283,29 @@ export default function MachinesWorkspace({ initialPnc, initialSearch, onStateCh
   return (
     <section className="space-y-4">
       <div className="px-1">
-        <div className="text-[10px] font-black uppercase tracking-[.15em] text-[#1d4f91] dark:text-blue-300">Máquinas</div>
-        <h1 className="mt-1 text-2xl font-black tracking-[-.03em] text-slate-950 dark:text-white">Vista explodida na tela, sem abrir PDF.</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Busque a máquina por modelo ou PNC e clique direto na posição da vista para pegar o código e mandar para o orçamento.</p>
+        <div className="text-[10px] font-black uppercase tracking-[.15em] text-brand-600 dark:text-brand-300">Máquinas</div>
+        <h1 className="mt-1 text-2xl font-black tracking-[-.03em] text-ink-950 dark:text-white">Vista explodida na tela, sem abrir PDF.</h1>
+        <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">Busque a máquina por modelo ou PNC e clique direto na posição da vista para pegar o código e mandar para o orçamento.</p>
       </div>
 
-      <form onSubmit={submit} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <form onSubmit={submit} className="overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm dark:border-ink-800 dark:bg-ink-900">
         <div className="flex flex-col gap-2 p-2 md:flex-row">
           <div className="relative min-w-0 flex-1">
-            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">⌕</span>
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-400">⌕</span>
             <input
               value={query}
               onChange={event => setQuery(event.target.value)}
               placeholder="Modelo da máquina ou PNC da etiqueta. Ex.: 143RII ou 967 17 65-01"
               autoComplete="off"
-              className="h-12 w-full rounded-lg border-0 bg-slate-50 pl-10 pr-4 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-800"
+              className="h-12 w-full rounded-lg border-0 bg-ink-50 pl-10 pr-4 text-sm font-semibold text-ink-900 outline-none transition placeholder:text-ink-400 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:bg-ink-800 dark:text-white dark:focus:bg-ink-800"
             />
           </div>
-          <button type="submit" disabled={query.trim().length < 2} className="h-12 rounded-lg bg-[#123867] px-5 text-sm font-black text-white transition hover:bg-[#0d2c52] disabled:opacity-50">
+          <button type="submit" disabled={query.trim().length < 2} className="h-12 rounded-lg bg-ink-900 px-5 text-sm font-black text-white transition hover:bg-ink-950 disabled:opacity-50">
             {searchLoading || machineLoading ? 'Consultando…' : 'Abrir máquina'}
           </button>
         </div>
-        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-4 py-2 dark:border-slate-800">
-          <span className="text-[10px] font-semibold text-slate-400">PNC abre a máquina direto · texto pesquisa no catálogo oficial Husqvarna.</span>
+        <div className="flex flex-wrap items-center gap-2 border-t border-ink-100 px-4 py-2 dark:border-ink-800">
+          <span className="text-[10px] font-semibold text-ink-400">PNC abre a máquina direto · texto pesquisa no catálogo oficial Husqvarna.</span>
           {canUseContext && (
             <button type="button" onClick={() => openMachine(contextPnc)} className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700 transition hover:border-emerald-300 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
               Abrir PNC do atendimento · {session.pnc}
@@ -269,14 +320,14 @@ export default function MachinesWorkspace({ initialPnc, initialSearch, onStateCh
 
       {recent.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 px-1">
-          <span className="text-[10px] font-black uppercase tracking-[.12em] text-slate-400">Máquinas recentes</span>
+          <span className="text-[10px] font-black uppercase tracking-[.12em] text-ink-400">Máquinas recentes</span>
           {recent.map(item => (
             <button
               key={item.pnc}
               type="button"
               onClick={() => openMachine(item.pnc)}
               title={item.meta || `PNC ${item.pnc}`}
-              className={`max-w-[240px] truncate rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${item.pnc === pnc ? 'border-[#1d4f91] bg-[#eef4fb] text-[#123867] dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-200' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-[#1d4f91] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
+              className={`max-w-[240px] truncate rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${item.pnc === pnc ? 'border-brand-600 bg-brand-50 text-ink-900 dark:border-brand-700 dark:bg-brand-950/40 dark:text-brand-200' : 'border-ink-200 bg-white text-ink-600 hover:border-brand-300 hover:text-brand-600 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300'}`}
             >
               {item.name}
             </button>
@@ -285,7 +336,7 @@ export default function MachinesWorkspace({ initialPnc, initialSearch, onStateCh
       )}
 
       {machineLoading && (
-        <div className="rounded-xl border border-slate-200 bg-white px-5 py-8 text-center text-sm font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+        <div className="rounded-xl border border-ink-200 bg-white px-5 py-8 text-center text-sm font-semibold text-ink-500 dark:border-ink-800 dark:bg-ink-900 dark:text-ink-400">
           Abrindo as vistas oficiais desta máquina…
         </div>
       )}
@@ -295,6 +346,8 @@ export default function MachinesWorkspace({ initialPnc, initialSearch, onStateCh
           {machineError}
         </div>
       )}
+
+      {!machineLoading && machine && <OfficialDocumentShortcuts documents={machine.documents ?? []} />}
 
       {!machineLoading && machine && (
         <>
@@ -322,10 +375,10 @@ export default function MachinesWorkspace({ initialPnc, initialSearch, onStateCh
             const items = grouped.get(kind) ?? [];
             if (!items.length) return null;
             return (
-              <section key={kind} className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5 dark:border-slate-800">
-                  <h2 className="text-[10px] font-black uppercase tracking-[.1em] text-slate-500 dark:text-slate-400">{SEARCH_KIND_LABELS[kind]}</h2>
-                  <span className="text-[10px] font-bold text-slate-400">{items.length}</span>
+              <section key={kind} className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
+                <div className="flex items-center justify-between border-b border-ink-100 px-4 py-2.5 dark:border-ink-800">
+                  <h2 className="text-[10px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">{SEARCH_KIND_LABELS[kind]}</h2>
+                  <span className="text-[10px] font-bold text-ink-400">{items.length}</span>
                 </div>
                 <div>
                   {items.map(item => {
@@ -334,23 +387,23 @@ export default function MachinesWorkspace({ initialPnc, initialSearch, onStateCh
                         <div className="flex min-w-0 items-center gap-3">
                           {item.imageUrl && <img src={item.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-lg bg-white object-contain" loading="lazy" />}
                           <div className="min-w-0">
-                            <div className="truncate text-sm font-black text-slate-900 dark:text-white">{item.title}</div>
-                            <div className="mt-1 truncate text-[11px] text-slate-400">{resultMeta(item)}</div>
+                            <div className="truncate text-sm font-black text-ink-900 dark:text-white">{item.title}</div>
+                            <div className="mt-1 truncate text-[11px] text-ink-400">{resultMeta(item)}</div>
                           </div>
                         </div>
                         <div className="flex items-center gap-5">
                           <div className="hidden text-right md:block">
-                            {item.pnc && <div className="font-mono text-xs font-black text-[#123867] dark:text-blue-300">PNC {item.pnc}</div>}
-                            {item.partNumber && <div className="font-mono text-xs font-black text-[#123867] dark:text-blue-300">{item.partNumber}</div>}
+                            {item.pnc && <div className="font-mono text-xs font-black text-ink-900 dark:text-brand-300">PNC {item.pnc}</div>}
+                            {item.partNumber && <div className="font-mono text-xs font-black text-ink-900 dark:text-brand-300">{item.partNumber}</div>}
                           </div>
-                          <span className="shrink-0 text-xs font-black text-[#1d4f91] dark:text-blue-300">
+                          <span className="shrink-0 text-xs font-black text-brand-600 dark:text-brand-300">
                             {item.kind === 'PRODUCT' && item.pnc ? 'Abrir vistas' : item.kind === 'SPARE_PART' && item.partNumber ? 'Consultar peça' : 'Abrir na Husqvarna ↗'}
                           </span>
                         </div>
                       </>
                     );
-                    const base = 'grid w-full gap-3 border-b border-slate-100 px-4 py-3.5 text-left transition last:border-0 md:grid-cols-[minmax(0,1fr)_auto] md:items-center dark:border-slate-800';
-                    const interactive = `${base} hover:bg-slate-50/80 dark:hover:bg-slate-800/45`;
+                    const base = 'grid w-full gap-3 border-b border-ink-100 px-4 py-3.5 text-left transition last:border-0 md:grid-cols-[minmax(0,1fr)_auto] md:items-center dark:border-ink-800';
+                    const interactive = `${base} hover:bg-ink-50/80 dark:hover:bg-ink-800/45`;
 
                     if (item.kind === 'PRODUCT' && item.pnc) {
                       return <button key={`${item.kind}-${item.id}`} type="button" onClick={() => selectMachine(item)} className={interactive}>{content}</button>;
@@ -371,9 +424,9 @@ export default function MachinesWorkspace({ initialPnc, initialSearch, onStateCh
       )}
 
       {!machineLoading && !machine && !searchLoading && !results.length && !searchError && !machineError && (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white px-5 py-10 text-center dark:border-slate-700 dark:bg-slate-900">
-          <div className="text-sm font-bold text-slate-700 dark:text-slate-200">Comece pela máquina do cliente</div>
-          <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-slate-400">
+        <div className="rounded-xl border border-dashed border-ink-300 bg-white px-5 py-10 text-center dark:border-ink-700 dark:bg-ink-900">
+          <div className="text-sm font-bold text-ink-700 dark:text-ink-200">Comece pela máquina do cliente</div>
+          <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-ink-400">
             Digite o modelo ou o PNC da etiqueta. A vista explodida abre aqui dentro, com código, preço e botão de orçamento em cada posição.
           </p>
         </div>

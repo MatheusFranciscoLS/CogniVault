@@ -1,4 +1,5 @@
 import { normalizeIdentifier } from '../utils/normalize';
+import { safeHusqvarnaAssetUrl } from '../utils/husqvarna-url';
 import { buildOfficialSourceCacheKey, OfficialSourceCacheService } from './official-source-cache.service';
 
 const HUSQVARNA_GRAPHQL_URL = 'https://portal.husqvarnagroup.com/hbd/graphql?';
@@ -208,6 +209,21 @@ export type HusqvarnaIplSectionSummary = {
   referenceWidth: string | null;
 };
 
+/**
+ * Documento oficial na forma enxuta que a consulta rápida precisa: link, título
+ * e formato. Sem `lastUpdated`/`isLatest` de propósito — a query desta rota não
+ * pede a data, e "qual é o mais recente" é trabalho do painel completo
+ * (`husqvarna-official-detail.service.ts`), que busca o conjunto inteiro.
+ */
+export type HusqvarnaQuickDocument = {
+  title: string;
+  /** `OM` = manual do operador, `IPL` = lista/vista de peças, senão o que vier. */
+  type: string;
+  languages: string[];
+  fileFormat: string | null;
+  url: string;
+};
+
 export type HusqvarnaProductDetailsSummary = {
   pnc: string;
   productName: string;
@@ -217,6 +233,13 @@ export type HusqvarnaProductDetailsSummary = {
   iplSections: HusqvarnaIplSectionSummary[];
   productDocumentCount: number;
   iplDocumentCount: number;
+  /**
+   * Os links de verdade. Antes desta versão só a *contagem* acima sobrevivia à
+   * extração, e a resposta da consulta rápida mandava `documents: []` mesmo com
+   * a carga já em cache — o balcão tinha que abrir o painel oficial só para
+   * chegar no manual.
+   */
+  documents: HusqvarnaQuickDocument[];
 };
 
 export type HusqvarnaVerifiedProductIdentity = {
@@ -380,7 +403,53 @@ export function extractProductDetailsSummary(payload: unknown, pncInput: string)
     iplSections,
     productDocumentCount: Array.isArray(article.product?.productDocuments) ? article.product!.productDocuments!.length : 0,
     iplDocumentCount: Array.isArray(article.iplDocuments) ? article.iplDocuments.length : 0,
+    documents: quickDocuments(article),
   };
+}
+
+/**
+ * Junta os documentos do produto com os das vistas explodidas, na ordem em que
+ * o balcão quer: português primeiro, manual do operador antes da lista de
+ * peças. Quem atende não quer navegar num acervo — quer o manual em PT no topo.
+ */
+function quickDocuments(article: GraphqlArticleDetails): HusqvarnaQuickDocument[] {
+  const documents: HusqvarnaQuickDocument[] = [];
+
+  for (const raw of article.product?.productDocuments || []) {
+    const url = safeHusqvarnaAssetUrl(raw?.url);
+    if (!url) continue;
+    documents.push({
+      title: String(raw?.publicationTitle || 'Documento Husqvarna').trim(),
+      type: String(raw?.publicationType || 'OTHER').trim().toUpperCase(),
+      languages: Array.isArray(raw?.languages) ? raw.languages.map(language => String(language).toUpperCase()) : [],
+      fileFormat: raw?.fileFormat ? String(raw.fileFormat) : null,
+      url,
+    });
+  }
+
+  for (const raw of article.iplDocuments || []) {
+    const url = safeHusqvarnaAssetUrl(raw?.url);
+    if (!url) continue;
+    documents.push({
+      title: String(raw?.publicationTitle || 'Lista de peças').trim(),
+      type: 'IPL',
+      languages: [],
+      fileFormat: null,
+      url,
+    });
+  }
+
+  // Um mesmo PDF pode aparecer nas duas listas; a URL é a identidade.
+  const unique = [...new Map(documents.map(document => [document.url, document])).values()];
+
+  const typeOrder = (type: string) => (type === 'OM' ? 0 : type === 'IPL' ? 1 : 2);
+  return unique.sort((left, right) => {
+    const leftPt = left.languages.includes('PT') ? 0 : 1;
+    const rightPt = right.languages.includes('PT') ? 0 : 1;
+    if (leftPt !== rightPt) return leftPt - rightPt;
+    const byType = typeOrder(left.type) - typeOrder(right.type);
+    return byType || left.title.localeCompare(right.title, 'pt-BR');
+  });
 }
 
 async function postGraphql<T>(

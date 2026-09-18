@@ -321,3 +321,75 @@ test('detalhes GraphQL não podem validar um artigo diferente do PNC consultado'
 
   assert.equal(extractProductDetailsSummary(payload, '965195201'), null);
 });
+
+test('documentos oficiais sobrevivem à extração, em ordem útil ao balcão', () => {
+  const payload = {
+    data: {
+      site: {
+        articles: {
+          byIds: [
+            {
+              id: '967332904',
+              name: { productName: '143RII' },
+              product: {
+                category: { name: 'Roçadeiras' },
+                productDocuments: [
+                  // Fora de ordem de propósito: o esperado é PT primeiro e
+                  // manual do operador (OM) antes da lista de peças (IPL).
+                  { url: 'https://cdn-portal.husqvarnagroup.com/ipl-en.pdf', publicationType: 'IPL', publicationTitle: 'Parts list', languages: ['EN'], fileFormat: 'PDF' },
+                  { url: 'https://cdn-portal.husqvarnagroup.com/om-pt.pdf', publicationType: 'OM', publicationTitle: 'Manual do operador', languages: ['PT'], fileFormat: 'PDF' },
+                  { url: 'https://cdn-portal.husqvarnagroup.com/outro.pdf', publicationType: 'SPEC', publicationTitle: 'Ficha técnica', languages: ['EN'], fileFormat: 'PDF' },
+                  // Domínio de terceiro: não pode virar href no balcão.
+                  { url: 'https://atacante.net/malicioso.pdf', publicationType: 'OM', publicationTitle: 'Falso', languages: ['PT'] },
+                ],
+              },
+              iplDocuments: [
+                { documentId: 'D1', publicationTitle: 'Vista explodida', url: 'https://cdn-portal.husqvarnagroup.com/vista.pdf' },
+                // Mesma URL já vinda de productDocuments: identidade é a URL.
+                { documentId: 'D2', publicationTitle: 'Parts list', url: 'https://cdn-portal.husqvarnagroup.com/ipl-en.pdf' },
+              ],
+              ipls: [],
+            },
+          ],
+        },
+      },
+    },
+  };
+
+  const result = extractProductDetailsSummary(payload, '967332904');
+  assert.ok(result);
+
+  const urls = result.documents.map(document => document.url);
+  assert.equal(urls.includes('https://atacante.net/malicioso.pdf'), false, 'domínio de terceiro deve ser descartado');
+  assert.equal(new Set(urls).size, urls.length, 'não deve repetir a mesma URL');
+
+  assert.equal(result.documents[0].title, 'Manual do operador');
+  assert.equal(result.documents[0].type, 'OM');
+  assert.equal(result.documents[0].fileFormat, 'PDF');
+
+  // Depois do PT vêm os demais, com IPL antes de outros tipos.
+  const typesAfterFirst = result.documents.slice(1).map(document => document.type);
+  assert.deepEqual(typesAfterFirst, ['IPL', 'IPL', 'SPEC']);
+
+  // A contagem antiga continua sendo a do payload cru, não a da lista saneada.
+  assert.equal(result.productDocumentCount, 4);
+  assert.equal(result.iplDocumentCount, 2);
+});
+
+test('artigo sem documento devolve lista vazia, não undefined', () => {
+  const payload = {
+    data: {
+      site: {
+        articles: {
+          byIds: [
+            { id: '965195201', name: { productName: '327P5x' }, product: { category: { name: 'X' } }, ipls: [] },
+          ],
+        },
+      },
+    },
+  };
+
+  const result = extractProductDetailsSummary(payload, '965195201');
+  assert.ok(result);
+  assert.deepEqual(result.documents, []);
+});
