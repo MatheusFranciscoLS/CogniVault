@@ -38,7 +38,18 @@ export interface HusqvarnaIplComment {
   engineBrand: EngineBrand | null;
   /** Código do artigo do motor entre parênteses, quando existe. */
   engineArticle: string | null;
-  /** O item é vendido em pacote fechado ("MULTIPACK: 10"). */
+  /**
+   * O item é vendido em pacote fechado ("MULTIPACK: 10").
+   *
+   * Correção do dono, e ela importa: isto vale **só para o item que traz o
+   * texto**, e não descreve kit nem conteúdo de outra peça. No HS 608 o
+   * carburador (posição 3) e a junta são itens SEPARADOS na vista — o
+   * carburador **não vem com a junta**. Ler "CARBURETTOR GASKET - MULTIPACK: 10"
+   * como "o carburador acompanha 10 juntas" seria vender errado.
+   *
+   * O que este campo diz é uma coisa só: quem pedir ESTA peça leva um pacote
+   * de N unidades, não uma.
+   */
   multipackQuantity: number | null;
   /** O texto avisa que o motor tem catálogo próprio. */
   hasSeparateEngineIpl: boolean;
