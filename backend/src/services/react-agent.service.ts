@@ -5,7 +5,7 @@ import { ChatIntentService } from './chat-intent.service';
 import { filterCandidatesByMarket } from './catalog-market';
 import { findPartConcepts } from './part-vocabulary';
 import { retrieveTechnicalContext } from './document-memory';
-import { preferCurrentPartNumbers } from './part-supersession';
+import { getVerifiedSupersession, preferCurrentPartNumbers } from './part-supersession';
 import { chooseCandidateLocally } from './chat-reliability';
 import { withTransientAIRetry } from '../utils/ai-retry';
 import { extractAiUsage, recordAiTelemetry } from '../utils/ai-telemetry';
@@ -134,7 +134,7 @@ async function foundFromDecision(
     if (hits.length) contextEvidence = hits.map(hit => hit.content).join('\n');
   } catch {}
 
-  const supersessionNotice = chosenCandidate.notes?.includes('Substituição oficial')
+  const supersessionNotice = getVerifiedSupersession(chosenCandidate.partNumber)
     ? ` [Substituição oficial ativa: ${chosenCandidate.partNumber}]`
     : '';
   return {
@@ -187,7 +187,7 @@ export class ReActAgentService {
       if (!variantSafety.safe) {
         return { status: 'PNC_REQUIRED', explanation: variantSafety.note, suggestedPnc: single.pnc || undefined, candidates };
       }
-      const supersessionNotice = single.notes?.includes('Substituição oficial') ? ` [Substituição oficial ativa: ${single.partNumber}]` : '';
+      const supersessionNotice = getVerifiedSupersession(single.partNumber) ? ` [Substituição oficial ativa: ${single.partNumber}]` : '';
       return {
         status: 'FOUND',
         chosenPartId: single.id,
@@ -218,7 +218,7 @@ export class ReActAgentService {
         if (!variantSafety.safe) {
           return { status: 'PNC_REQUIRED', explanation: variantSafety.note, suggestedPnc: top.pnc || undefined, candidates };
         }
-        const supersessionNotice = top.notes?.includes('Substituição oficial') ? ` [Substituição oficial ativa: ${top.partNumber}]` : '';
+        const supersessionNotice = getVerifiedSupersession(top.partNumber) ? ` [Substituição oficial ativa: ${top.partNumber}]` : '';
         return {
           status: 'FOUND',
           chosenPartId: top.id,
@@ -235,7 +235,7 @@ export class ReActAgentService {
       if (!variantSafety.safe) {
         return { status: 'PNC_REQUIRED', explanation: variantSafety.note, suggestedPnc: top.pnc || undefined, candidates };
       }
-      const supersessionNotice = top.notes?.includes('Substituição oficial') ? ` [Substituição oficial ativa: ${top.partNumber}]` : '';
+      const supersessionNotice = getVerifiedSupersession(top.partNumber) ? ` [Substituição oficial ativa: ${top.partNumber}]` : '';
       return {
         status: 'FOUND',
         chosenPartId: top.id,
