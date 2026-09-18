@@ -9,6 +9,7 @@ import type { FavoriteItem, OfficialVerification, PartDetail, SearchHistoryItem 
 import PartVerificationDialog, { isSupersededForCode, looksLikePartNumber, normalizePartCode } from '../PartVerificationDialog';
 import CrossReferenceDialog from '../CrossReferenceDialog';
 import ChatPanel from '../ChatPanel';
+import { Icon } from '../icons/Icon';
 import CounterSessionBar from '../CounterSessionBar';
 import CounterQuoteRail from '../CounterQuoteRail';
 import CommercialPartRow from './CommercialPartRow';
@@ -89,47 +90,64 @@ function Starter({
   onReplay: (value: string) => void;
 }) {
   return (
+    /* Antes: uma faixa de 132px (17% da tela) com o texto a esquerda e quatro
+       botoes de 11px se empilhando a direita, numa tela em que 45% do espaco
+       estava vazio. Os tres atalhos e os favoritos sao o que o atendente
+       realmente usa para comecar, entao ganharam a area que sobrava, em corpo
+       legivel a distancia de braco — nada de novo foi inventado aqui, so
+       deixou de ser miniatura. */
     <div className="space-y-3">
-      <div className="rounded-xl border border-ink-200 bg-white px-4 py-4 dark:border-ink-800 dark:bg-ink-900">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="text-xs font-black text-ink-800 dark:text-ink-100">Pesquise como você falaria no balcão</div>
-            <p className="mt-1 max-w-2xl text-[11px] leading-5 text-ink-400">
-              {hasContext
-                ? 'Modelo, PNC e S/N disponíveis no atendimento serão considerados automaticamente. Você pode digitar só a peça, o código ou fazer uma pergunta.'
-                : 'Código, descrição, modelo ou uma pergunta técnica. O CogniVault escolhe a melhor combinação entre catálogo, cadastro, fonte oficial e assistência por IA.'}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {lastSearch && (
-              <button type="button" onClick={() => onReplay(replayQuery(lastSearch))} className="cv-touch-target rounded-lg border border-brand-200 bg-brand-50/60 px-3 py-2 text-left transition hover:border-brand-300 hover:bg-brand-50 dark:border-brand-800 dark:bg-brand-950/20 dark:hover:bg-brand-950/30">
-                <span className="block text-[9px] font-black uppercase tracking-[.1em] text-brand-600 dark:text-brand-300">Retomar última busca</span>
-                <span className="mt-0.5 block max-w-[220px] truncate text-[11px] font-semibold text-ink-700 dark:text-ink-200">{lastSearch.resultLabel || lastSearch.query}</span>
-              </button>
-            )}
-            {examples.map(example => (
-              <button key={example.label} type="button" onClick={() => onExample(example.value)} className="cv-touch-target rounded-lg border border-ink-200 bg-white px-3 py-2 text-left transition hover:border-brand-200 hover:bg-brand-50/50 dark:border-ink-700 dark:bg-ink-900 dark:hover:border-brand-800 dark:hover:bg-brand-950/20">
-                <span className="block text-[9px] font-black uppercase tracking-[.1em] text-ink-400">{example.label}</span>
-                <span className="mt-0.5 block text-[11px] font-semibold text-ink-700 dark:text-ink-200">{example.value}</span>
-              </button>
-            ))}
-          </div>
+      {lastSearch && (
+        <button
+          type="button"
+          onClick={() => onReplay(replayQuery(lastSearch))}
+          className="group flex w-full items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-left transition hover:border-brand-400 dark:border-brand-800 dark:bg-brand-950/30 dark:hover:border-brand-600"
+        >
+          <Icon name="history" className="h-5 w-5 shrink-0 text-brand-700 dark:text-brand-300" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[10px] font-black uppercase tracking-[.1em] text-brand-700 dark:text-brand-300">Retomar última busca</span>
+            <span className="mt-0.5 block truncate text-sm font-bold text-ink-900 dark:text-white">{lastSearch.resultLabel || lastSearch.query}</span>
+          </span>
+          <span className="shrink-0 text-xs font-bold text-brand-700 opacity-0 transition group-hover:opacity-100 dark:text-brand-300">Abrir →</span>
+        </button>
+      )}
+
+      <div className="rounded-xl border border-ink-200 bg-white p-4 dark:border-ink-800 dark:bg-ink-900 tablet:p-5">
+        <div className="text-sm font-black text-ink-900 dark:text-white">Pesquise como você falaria no balcão</div>
+        <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-500 dark:text-ink-400">
+          {hasContext
+            ? 'Modelo, PNC e S/N do atendimento já entram na busca. Digite só a peça, o código ou faça a pergunta.'
+            : 'Código, descrição, modelo ou uma pergunta técnica — o CogniVault escolhe entre catálogo, cadastro, fonte oficial e assistência por IA.'}
+        </p>
+
+        <div className="mt-4 grid gap-2 md:grid-cols-3">
+          {examples.map(example => (
+            <button
+              key={example.label}
+              type="button"
+              onClick={() => onExample(example.value)}
+              className="cv-touch-target flex flex-col justify-center rounded-lg border border-ink-200 bg-ink-50 px-3 py-3 text-left transition hover:border-accent-300 hover:bg-accent-50 dark:border-ink-700 dark:bg-ink-850 dark:hover:border-accent-700 dark:hover:bg-accent-950/20"
+            >
+              <span className="block text-[10px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">{example.label}</span>
+              <span className="mt-1 block truncate text-sm font-bold text-ink-900 dark:text-white">{example.value}</span>
+            </button>
+          ))}
         </div>
       </div>
 
       {favorites.length > 0 && (
-        <div className="rounded-xl border border-ink-200 bg-white px-4 py-3 dark:border-ink-800 dark:bg-ink-900">
-          <div className="text-[9px] font-black uppercase tracking-[.1em] text-ink-400">Seus favoritos</div>
-          <div className="mt-2 flex flex-wrap gap-2">
+        <div className="rounded-xl border border-ink-200 bg-white p-4 dark:border-ink-800 dark:bg-ink-900">
+          <div className="text-[10px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">Seus favoritos</div>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2 tablet:grid-cols-3">
             {favorites.map(favorite => (
               <button
                 key={favorite.id}
                 type="button"
                 onClick={() => onExample(favorite.reference as string)}
-                className="cv-touch-target rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-left transition hover:border-amber-300 hover:bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20 dark:hover:bg-amber-950/30"
+                className="cv-touch-target flex flex-col justify-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-left transition hover:border-amber-400 dark:border-amber-900 dark:bg-amber-950/20 dark:hover:border-amber-700"
               >
-                <span className="block max-w-[180px] truncate text-[11px] font-black text-ink-900 dark:text-white">{favorite.label}</span>
-                <span className="mt-0.5 block font-mono text-[10px] font-bold text-ink-500 dark:text-ink-400">{favorite.reference}</span>
+                <span className="block truncate text-xs font-black text-ink-900 dark:text-white">{favorite.label}</span>
+                <span className="mt-0.5 block font-mono text-[11px] font-bold text-ink-600 dark:text-ink-300">{favorite.reference}</span>
               </button>
             ))}
           </div>
@@ -584,7 +602,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   const detailVerification = detail ? verifications[normalizePartCode(detail.partNumber)] : undefined;
 
   return (
-    <section className="space-y-4">
+    <section className="flex flex-1 flex-col gap-4">
       <CounterSessionBar onOpenMachine={onOpenMachine} />
 
       {/* O título grande "Encontre a peça certa. Entenda por quê." saiu daqui.
@@ -623,7 +641,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
               aria-expanded={suggestionsOpen && suggestions.length > 0}
               aria-controls="parts-search-suggestions"
               aria-autocomplete="list"
-              className="h-12 w-full rounded-lg border-0 bg-ink-50 pl-10 pr-4 text-sm font-semibold text-ink-900 outline-none transition placeholder:text-ink-400 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:bg-ink-800 dark:text-white dark:focus:bg-ink-800"
+              className="h-[52px] w-full rounded-lg border-0 bg-ink-50 pl-10 pr-4 sm:h-12 text-sm font-semibold text-ink-900 outline-none transition placeholder:text-ink-400 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:bg-ink-800 dark:text-white dark:focus:bg-ink-800"
             />
             {suggestionsOpen && suggestions.length > 0 && (
               <div id="parts-search-suggestions">
@@ -631,21 +649,21 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
               </div>
             )}
           </div>
-          {query && <button type="button" onClick={clearSearch} className="hidden h-10 rounded-lg px-3 text-xs font-bold text-ink-400 hover:text-ink-700 sm:block dark:hover:text-ink-200">Limpar</button>}
-          <button type="submit" disabled={loading} className="h-12 rounded-lg bg-ink-900 px-5 text-sm font-black text-white transition hover:bg-ink-950 disabled:opacity-60">{loading ? 'Analisando…' : 'Buscar'}</button>
+          {query && <button type="button" onClick={clearSearch} className="hidden h-10 shrink-0 rounded-lg px-3 text-xs font-bold text-ink-500 hover:text-ink-800 sm:block dark:text-ink-400 dark:hover:text-ink-200">Limpar</button>}
+          <button type="submit" disabled={loading} className="cv-touch-target h-[52px] shrink-0 rounded-lg bg-accent-700 px-6 sm:h-12 text-sm font-black text-white transition hover:bg-accent-800 disabled:opacity-60">{loading ? 'Analisando…' : 'Buscar'}</button>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink-100 px-4 py-2 text-[10px] text-ink-400 dark:border-ink-800">
-          <span>Busca direta para códigos e peças · perguntas naturais recebem assistência técnica automaticamente.</span>
-          {hasContext && <span className="font-bold text-emerald-600 dark:text-emerald-400">Contexto: {session.machineModel || 'modelo'}{session.pnc ? ` · PNC ${session.pnc}` : ''}{session.serial ? ` · S/N ${session.serial}` : ''}</span>}
-        </div>
+        {hasContext && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-ink-100 px-4 py-2 text-xs dark:border-ink-800">
+            <span className="font-bold text-emerald-700 dark:text-emerald-400">Contexto aplicado: {session.machineModel || 'modelo'}{session.pnc ? ` · PNC ${session.pnc}` : ''}{session.serial ? ` · S/N ${session.serial}` : ''}</span>
+          </div>
+        )}
       </form>
 
       {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">{error}</div>}
 
-      {!hasSearched && <Starter hasContext={hasContext} onExample={beginSearch} favorites={quickFavorites} lastSearch={lastSearch} onReplay={beginSearch} />}
-
-      <div className={showSideRail ? 'grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]' : ''}>
+      <div className={showSideRail ? 'grid flex-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]' : 'flex-1'}>
         <div className="min-w-0 space-y-5">
+          {!hasSearched && <Starter hasContext={hasContext} onExample={beginSearch} favorites={quickFavorites} lastSearch={lastSearch} onReplay={beginSearch} />}
           {loading && !hasLocalResults ? <LoadingRows /> : null}
 
           {parts.length > 0 && (

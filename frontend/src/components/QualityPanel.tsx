@@ -264,7 +264,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
   return <section>
     <div className="cv-page-heading">
       <div>
-        <p className="cv-kicker">Confiabilidade operacional</p>
+        <p className="cv-kicker">O que exige ação</p>
         <h1 className="cv-page-title">Confiabilidade</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-500 dark:text-ink-400">Uma fila simples do que realmente exige ação: catálogos incompletos, perguntas sem resposta, aprendizado do balcão e conferências oficiais.</p>
       </div>

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useCounterSession } from '../context/CounterSessionContext';
+import type { CounterSession } from '../context/CounterSessionContext';
 import { useQuoteCart } from '../context/QuoteCartContext';
 
 function Field({ label, value, placeholder, onChange }: { label: string; value: string; placeholder: string; onChange: (value: string) => void }) {
   return (
     <label className="min-w-0 flex-1">
-      <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[.13em] text-ink-400">{label}</span>
+      <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[.13em] text-ink-500 dark:text-ink-400">{label}</span>
       <input
         value={value}
         onChange={event => onChange(event.target.value)}
@@ -16,12 +17,24 @@ function Field({ label, value, placeholder, onChange }: { label: string; value: 
   );
 }
 
+function ContextFields({ session, updateSession }: { session: CounterSession; updateSession: (patch: Partial<CounterSession>) => void }) {
+  return (
+        <div className="grid gap-3 border-t border-ink-100 bg-ink-50/70 px-4 py-4 sm:grid-cols-2 xl:grid-cols-4 dark:border-ink-800 dark:bg-ink-950/40">
+          <Field label="Cliente · opcional" value={session.customerName} placeholder="Nome do cliente" onChange={value => updateSession({ customerName: value })} />
+          <Field label="Máquina / modelo" value={session.machineModel} placeholder="Ex.: 143RII" onChange={value => updateSession({ machineModel: value })} />
+          <Field label="PNC" value={session.pnc} placeholder="Ex.: 967 17 65-01" onChange={value => updateSession({ pnc: value })} />
+          <Field label="S/N · quando necessário" value={session.serial} placeholder="Número de série" onChange={value => updateSession({ serial: value })} />
+        </div>
+  );
+}
+
 type Props = { onOpenMachine?: (pnc: string) => void };
 
 export default function CounterSessionBar({ onOpenMachine }: Props) {
   const { session, hasContext, updateSession, clearSession } = useCounterSession();
   const quoteCart = useQuoteCart();
   const [expanded, setExpanded] = useState(false);
+  const temContexto = Boolean(session.customerName.trim() || session.machineModel.trim() || session.pnc.trim() || session.serial.trim());
   const hasAnything = Boolean(session.customerName.trim() || session.machineModel.trim() || session.pnc.trim() || session.serial.trim() || quoteCart.totalItems);
   // A vista explodida vive na Husqvarna e é endereçada pelo PNC; sem um PNC
   // plausível o atalho só levaria o balcão a um erro.
@@ -38,11 +51,46 @@ export default function CounterSessionBar({ onOpenMachine }: Props) {
     setExpanded(false);
   };
 
+  // Sem NADA preenchido, esta barra dizia "Sem contexto técnico" com um ponto
+  // VERDE ao lado e um "Encerrar" — porque o ponto e o Encerrar olhavam a
+  // CESTA, não o contexto. Ou seja: anunciava um estado que não existia e
+  // oferecia encerrar o que não tinha começado. Uma barra inteira para dizer
+  // que não havia nada.
+  //
+  // Com a tela vazia agora é uma linha só: o convite para informar a máquina.
+  // Os quatro campos continuam valendo o espaço quando existem — modelo, PNC e
+  // S/N entram na busca (é o "Contexto aplicado" que aparece sob o campo) e o
+  // cliente vai para o orçamento —, mas só aparecem quando o atendente pede.
+  if (!temContexto) {
+    return (
+      <section className="overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm dark:border-ink-800 dark:bg-ink-900">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5">
+          <button
+            type="button"
+            onClick={() => setExpanded(value => !value)}
+            className="cv-touch-target flex items-center gap-2 rounded-lg px-2 text-xs font-bold text-brand-700 transition hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-950/30"
+          >
+            <span className="text-base leading-none">{expanded ? '−' : '+'}</span>
+            Informar máquina, PNC e cliente
+            <span className="hidden font-medium text-ink-500 sm:inline dark:text-ink-400">— deixa a busca mais precisa</span>
+          </button>
+          {quoteCart.totalItems > 0 && (
+            <button type="button" onClick={endSession} className="cv-touch-target rounded-lg px-3 text-xs font-bold text-ink-500 transition hover:bg-rose-50 hover:text-rose-700 dark:text-ink-400 dark:hover:bg-rose-950/30 dark:hover:text-rose-300">
+              Limpar orçamento
+            </button>
+          )}
+        </div>
+        {expanded && <ContextFields session={session} updateSession={updateSession} />}
+      </section>
+    );
+  }
+
   return (
     <section className="overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm dark:border-ink-800 dark:bg-ink-900">
       <div className="flex min-h-12 flex-wrap items-center gap-3 px-4 py-2.5">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <span className={`h-2 w-2 shrink-0 rounded-full ${hasAnything ? 'bg-emerald-500' : 'bg-ink-300 dark:bg-ink-600'}`} />
+          {/* O ponto reflete o CONTEXTO, não a cesta. */}
+          <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
           <div className="min-w-0">
             {/* Sem repetir "Atendimento" aqui: o cabeçalho do app já nomeia a
                 seção. Esta barra existe para mostrar o contexto técnico da
@@ -52,33 +100,31 @@ export default function CounterSessionBar({ onOpenMachine }: Props) {
               {session.machineModel && <span className="rounded-md bg-ink-100 px-1.5 py-0.5 font-black text-ink-700 dark:bg-ink-800 dark:text-ink-200">{session.machineModel}</span>}
               {session.pnc && <span className="font-medium text-ink-500 dark:text-ink-400">PNC {session.pnc}</span>}
               {session.serial && <span className="font-medium text-ink-500 dark:text-ink-400">S/N {session.serial}</span>}
-              {!session.customerName && !session.machineModel && !session.pnc && !session.serial && <span className="font-semibold text-ink-500 dark:text-ink-400">Sem contexto técnico</span>}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {hasContext && <span className="hidden text-[10px] font-bold text-emerald-600 xl:inline dark:text-emerald-400">Contexto aplicado à busca</span>}
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {hasContext && (
+            <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 xl:inline-flex dark:bg-emerald-950/30 dark:text-emerald-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+              Contexto aplicado à busca
+            </span>
+          )}
+          {hasContext && <span className="hidden h-6 w-px bg-ink-200 xl:block dark:bg-ink-700" aria-hidden="true" />}
           {onOpenMachine && machinePnc && (
-            <button type="button" onClick={() => onOpenMachine(machinePnc)} className="h-8 rounded-lg border border-brand-600 bg-brand-50 px-3 text-[10px] font-black text-ink-900 transition hover:bg-brand-100 dark:border-brand-700 dark:bg-brand-950/40 dark:text-brand-200">
+            <button type="button" onClick={() => onOpenMachine(machinePnc)} className="cv-touch-target rounded-lg border border-brand-600 bg-brand-50 px-3.5 text-xs font-bold text-brand-800 transition hover:bg-brand-100 dark:border-brand-600 dark:bg-brand-950/40 dark:text-brand-200">
               Ver vista explodida
             </button>
           )}
-          <button type="button" onClick={() => setExpanded(value => !value)} className="h-8 rounded-lg border border-ink-200 bg-white px-3 text-[10px] font-black text-ink-600 transition hover:border-brand-200 hover:text-brand-600 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300">
-            {expanded ? 'Ocultar dados' : hasAnything ? 'Editar contexto' : 'Adicionar contexto'}
+          <button type="button" onClick={() => setExpanded(value => !value)} className="cv-touch-target rounded-lg border border-ink-200 bg-white px-3.5 text-xs font-bold text-ink-700 transition hover:border-brand-300 hover:text-brand-700 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-200">
+            {expanded ? 'Ocultar dados' : 'Editar contexto'}
           </button>
-          {hasAnything && <button type="button" onClick={endSession} className="h-8 rounded-lg px-2 text-[10px] font-bold text-ink-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30">Encerrar</button>}
+          <button type="button" onClick={endSession} className="cv-touch-target rounded-lg px-3 text-xs font-bold text-ink-500 transition hover:bg-rose-50 hover:text-rose-700 dark:text-ink-400 dark:hover:bg-rose-950/30 dark:hover:text-rose-300">Encerrar atendimento</button>
         </div>
       </div>
 
-      {expanded && (
-        <div className="grid gap-3 border-t border-ink-100 bg-ink-50/70 px-4 py-4 sm:grid-cols-2 xl:grid-cols-4 dark:border-ink-800 dark:bg-ink-950/40">
-          <Field label="Cliente · opcional" value={session.customerName} placeholder="Nome do cliente" onChange={value => updateSession({ customerName: value })} />
-          <Field label="Máquina / modelo" value={session.machineModel} placeholder="Ex.: 143RII" onChange={value => updateSession({ machineModel: value })} />
-          <Field label="PNC" value={session.pnc} placeholder="Ex.: 967 17 65-01" onChange={value => updateSession({ pnc: value })} />
-          <Field label="S/N · quando necessário" value={session.serial} placeholder="Número de série" onChange={value => updateSession({ serial: value })} />
-        </div>
-      )}
+      {expanded && <ContextFields session={session} updateSession={updateSession} />}
     </section>
   );
 }

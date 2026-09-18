@@ -69,7 +69,6 @@ interface QuoteCartContextType {
   totalItems: number;
   totalPrice: number;
   generateWhatsAppText: (optionsOrModel?: string | QuoteTextOptions) => string;
-  copyQuoteToClipboard: (optionsOrModel?: string | QuoteTextOptions) => Promise<void>;
   openWhatsApp: (optionsOrModel?: string | QuoteTextOptions) => void;
   generatePdfQuote: (optionsOrModel?: string | QuoteTextOptions) => Promise<void>;
   savedQuotes: SavedQuote[];
@@ -654,27 +653,6 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     return text;
   }, [draftOptions, items, totalPrice]);
 
-  const copyQuoteToClipboard = useCallback(async (optionsOrModel?: string | QuoteTextOptions) => {
-    const text = generateWhatsAppText(optionsOrModel);
-    if (!text) {
-      toast.error('A cesta de orçamento está vazia.');
-      return;
-    }
-
-    const saving = saveCurrentQuote(typeof optionsOrModel === 'object' ? optionsOrModel : undefined);
-
-    try {
-      // A escrita no clipboard precisa acontecer no mesmo gesto do usuário; por
-      // isso vem antes do await do arquivamento.
-      await navigator.clipboard.writeText(text);
-      toast.success('Orçamento copiado para o WhatsApp com sucesso!');
-    } catch {
-      toast.error('Não foi possível copiar automaticamente.');
-    }
-
-    await saving;
-  }, [generateWhatsAppText, saveCurrentQuote]);
-
   const openWhatsApp = useCallback((optionsOrModel?: string | QuoteTextOptions) => {
     const text = generateWhatsAppText(optionsOrModel);
     if (!text) return;
@@ -865,7 +843,6 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     totalItems,
     totalPrice,
     generateWhatsAppText,
-    copyQuoteToClipboard,
     openWhatsApp,
     generatePdfQuote,
     savedQuotes,
@@ -878,7 +855,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     draftOptions,
     setDraftOptions,
   }), [
-    addItem, addItems, clearCart, clearSavedQuotes, copyQuoteToClipboard, deleteSavedQuote,
+    addItem, addItems, clearCart, clearSavedQuotes, deleteSavedQuote,
     draftOptions, generatePdfQuote, generateWhatsAppText, isOpen, items, openWhatsApp,
     refreshSavedQuotes, removeItem, restoreQuote, saveCurrentQuote, savedQuotes, setDraftOptions,
     syncState, totalItems, totalPrice, updateQuantity, updateUnitPrice,
