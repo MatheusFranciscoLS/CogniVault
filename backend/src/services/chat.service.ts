@@ -1,5 +1,7 @@
 import { prisma } from '../config/prisma';
 import { normalizeIdentifier } from '../utils/normalize';
+
+const HUSQVARNA_SPARE_PARTS_URL = 'https://www.husqvarna.com/br/pecas-sobressalentes/';
 import { LRUCache } from 'lru-cache';
 import { ChatIntentService } from './chat-intent.service';
 import { buildFallbackIntent, extractLikelyPartNumber } from './chat-reliability';
@@ -86,6 +88,16 @@ export interface ChatSearchResult {
   };
   technicalReasoningSteps?: TechnicalReasoningStep[];
   diagramHighlight?: DiagramHighlight;
+  // Toda resposta que NAO entrega um codigo precisa entregar um caminho. As
+  // dicas antigas eram "tente uma descricao mais curta" e "informe o modelo e
+  // o PNC" — instrucoes para o atendente tentar de novo, com o cliente na
+  // frente. Aqui vem o que o app pode fazer por ele: abrir o catalogo do
+  // modelo na tela e o link da fonte oficial.
+  manualFallback?: {
+    catalogs: Array<{ documentId: string; filename: string; model: string | null; pnc: string | null; partCount: number }>;
+    officialUrl: string | null;
+    officialLabel: string | null;
+  };
 }
 
 function unique<T>(items: T[]): T[] { return [...new Set(items)]; }
@@ -137,7 +149,7 @@ export class ChatService {
     if (selectedPartId) {
       const selected = await PartSearchService.byId(tenantId, selectedPartId);
       const selectionIntent = buildFallbackIntent(question);
-      if (!selected) return this.withContext({ status: 'NOT_FOUND', answer: 'A peça selecionada não está mais disponível em um catálogo ativo.' }, selectionIntent);
+      if (!selected) return this.withContext(tenantId, { status: 'NOT_FOUND', answer: 'A peça selecionada não está mais disponível em um catálogo ativo.' }, selectionIntent);
       const manualDecision: ConfidenceDecision = {
         safe: true,
         confidence: 1,
@@ -146,7 +158,7 @@ export class ChatService {
         reason: 'Seleção explícita do usuário.',
       };
       const result = this.found(selected, 1, selected.universalAcrossPnc ? 'Qualquer um' : (selected.pnc || explicitPnc || 'Não informado'), [selected], manualDecision);
-      return this.withContext(await this.enrichWithTechnicalContext(tenantId, question, selected, result), selectionIntent);
+      return this.withContext(tenantId, await this.enrichWithTechnicalContext(tenantId, question, selected, result), selectionIntent);
     }
 
     const likelyCode = extractLikelyPartNumber(question);
@@ -165,7 +177,7 @@ export class ChatService {
           this.found(chosen, 1, chosen.universalAcrossPnc ? 'Qualquer um' : (chosen.pnc || (direct.length > 1 ? 'Várias aplicações' : 'Não informado')), direct),
           likelyCode,
         );
-        return this.withContext(directResult, localIntent);
+        return this.withContext(tenantId, directResult, localIntent);
       }
     }
 
@@ -182,7 +194,7 @@ export class ChatService {
           ? direct.find(d => normalizeIdentifier(d.model).includes(normModel) || normModel.includes(normalizeIdentifier(d.model)))
           : undefined;
         const chosen = matchingModel || direct[0];
-        return this.withContext(this.withSupersessionNotice(
+        return this.withContext(tenantId, this.withSupersessionNotice(
           this.found(chosen, 1, chosen.universalAcrossPnc ? 'Qualquer um' : (chosen.pnc || (direct.length > 1 ? 'Várias aplicações' : 'Não informado')), direct),
           intent.partNumber,
         ), intent);
@@ -195,13 +207,13 @@ export class ChatService {
         if (applications.length === 1 || (intent.pnc && applications.some(a => a.machinePnc))) {
           const app = applications.find(a => !intent.pnc || !a.machinePnc || normalizeIdentifier(a.machinePnc) === normalizeIdentifier(intent.pnc)) || applications[0];
           const articleInfo = app.engineArticle ? ` (artigo oficial ${app.engineArticle})` : '';
-          return this.withContext({
+          return this.withContext(tenantId, {
             status: 'FOUND',
             answer: `O equipamento Husqvarna ${app.machineModel} utiliza o motor ${app.engineModel}${articleInfo}. Esse motor está vinculado tecnicamente ao equipamento no sistema para consulta de todas as suas peças internas (filtros, velas, juntas, carburador, virabrequim, etc.).`,
           }, intent);
         } else {
           const summary = applications.map(a => `${a.machinePnc ? `PNC ${a.machinePnc}: ` : ''}${a.engineModel}${a.engineArticle ? ` (${a.engineArticle})` : ''}`).join(' | ');
-          return this.withContext({
+          return this.withContext(tenantId, {
             status: 'PNC_REQUIRED',
             requiresPnc: true,
             pncOptions: [...new Set(applications.map(a => a.machinePnc).filter((p): p is string => Boolean(p)))],
@@ -213,7 +225,7 @@ export class ChatService {
 
     const partGroups = buildSearchGroups(intent.partDescription || question, [intent.manufacturer, intent.model, intent.pnc]);
     if (!partGroups.length) {
-      return this.withContext({
+      return this.withContext(tenantId, {
         status: 'PART_REQUIRED',
         answer: intent.model
           ? `Entendi o modelo ${intent.model}, mas falta dizer qual peça você procura. Por exemplo: “carburador”, “filtro de ar” ou “embreagem”.`
@@ -238,7 +250,7 @@ export class ChatService {
       }
       if (!exactCount) {
         const engineFallback = await this.tryEngineCatalogFallback(tenantId, question, intent);
-        if (engineFallback) return this.withContext(engineFallback, intent);
+        if (engineFallback) return this.withContext(tenantId, engineFallback, intent);
 
         const options = await PartSearchService.similarModels(tenantId, resolvedNormalizedModel);
         // Se encontrou exatamente 1 modelo parecido e ele corresponde ao modelo pesquisado, adota sem travar o atendimento
@@ -246,7 +258,7 @@ export class ChatService {
           intent.model = options[0];
           resolvedNormalizedModel = normalizeIdentifier(options[0]);
         } else {
-          return this.withContext({
+          return this.withContext(tenantId, {
             status: options.length ? 'MODEL_REQUIRED' : 'NOT_FOUND',
             modelOptions: options,
             answer: options.length
@@ -271,7 +283,7 @@ export class ChatService {
         ...localPncs,
         ...(/^\d{8,14}$/.test(suggestedPnc) ? [suggestedPnc] : []),
       ])];
-      return this.withContext({
+      return this.withContext(tenantId, {
         status: 'PNC_REQUIRED',
         requiresPnc: true,
         pncOptions,
@@ -290,7 +302,7 @@ export class ChatService {
         const result = this.found(chosen, 0.9, chosen.universalAcrossPnc ? 'Qualquer um' : (chosen.pnc || intent.pnc || 'Não informado'), [chosen], decision);
         // Attach reasoning explanation to the match
         if (result.match) result.match.explanation += `\nReAct Reasoning: ${reactResult.explanation}`;
-        return this.withContext(await this.enrichWithTechnicalContext(tenantId, question, chosen, result), intent);
+        return this.withContext(tenantId, await this.enrichWithTechnicalContext(tenantId, question, chosen, result), intent);
       }
     }
 
@@ -302,18 +314,18 @@ export class ChatService {
 
     if (!candidates.length) {
       const engineFallback = await this.tryEngineCatalogFallback(tenantId, question, intent);
-      if (engineFallback) return this.withContext(engineFallback, intent);
-      return this.withContext({ status: 'NOT_FOUND', answer: 'Não encontrei uma peça com evidência suficiente. Prefiro não sugerir um código sem segurança.' }, intent);
+      if (engineFallback) return this.withContext(tenantId, engineFallback, intent);
+      return this.withContext(tenantId, { status: 'NOT_FOUND', answer: 'Não encontrei uma peça com evidência suficiente. Prefiro não sugerir um código sem segurança.' }, intent);
     }
 
     if (!resolvedNormalizedModel) {
       const models = unique(candidates.slice(0, 15).map(candidate => candidate.model));
       if (models.length > 1) {
-        return this.withContext({ status: 'MODEL_REQUIRED', modelOptions: models.slice(0, 8), answer: `Encontrei essa descrição em mais de um equipamento (${models.slice(0, 8).join(', ')}). Informe o modelo exato.` }, intent);
+        return this.withContext(tenantId, { status: 'MODEL_REQUIRED', modelOptions: models.slice(0, 8), answer: `Encontrei essa descrição em mais de um equipamento (${models.slice(0, 8).join(', ')}). Informe o modelo exato.` }, intent);
       }
     }
 
-    return this.withContext(await this.resolvePncOrAmbiguity(
+    return this.withContext(tenantId, await this.resolvePncOrAmbiguity(
       tenantId, question, intent.partDescription || question, intent.pnc, candidates, undefined,
     ), intent);
   }
@@ -322,12 +334,36 @@ export class ChatService {
     const route = resolveEngineCatalogRoute(intent.model, intent.pnc, question);
     if (!route) return null;
     if (route.status === 'PNC_REQUIRED') {
+      // Aqui estava o defeito que o balcao encontrou: a lista oferecida vinha de
+      // `availablePncs`, que sao TODOS os PNCs do modelo no catalogo — no TS142,
+      // dez. Só DOIS deles têm motor mapeado. O atendente escolhia um dos outros
+      // oito e caía em "nenhum código seguro encontrado", sem entender por quê.
+      //
+      // Oferecer uma opção que não pode funcionar é pior do que oferecer menos:
+      // agora a lista é a dos PNCs que resolvem. `availablePncs` entra só para
+      // confirmar quais desses existem de fato no catálogo deste tenant.
       const availablePncs = await PartSearchService.availablePncs(tenantId, normalizeIdentifier(route.machineModel));
-      return {
+      const availableSet = new Set(availablePncs.map(normalizeIdentifier));
+      const resolvable = route.knownPncs.filter(pnc => availableSet.has(normalizeIdentifier(pnc)));
+      const options = resolvable.length ? resolvable : route.knownPncs;
+      return this.withWayOut(tenantId, [route.machineModel], {
         status: 'PNC_REQUIRED', requiresPnc: true,
-        pncOptions: availablePncs.length ? availablePncs : route.knownPncs,
-        answer: `O catálogo do ${route.machineModel} indica motores diferentes conforme a versão/PNC. Informe o PNC antes de eu entrar no IPL do motor e escolher uma peça interna.`,
-      };
+        pncOptions: options,
+        answer: `O ${route.machineModel} sai com motores diferentes conforme a versão, e a peça interna muda com o motor. Confirme o PNC da etiqueta — ${options.length === 1 ? 'só um' : `sÃ£o ${options.length}`} dos PNCs deste modelo leva a um IPL de motor que eu consigo ler.`,
+      });
+    }
+
+    if (route.status === 'PNC_UNMAPPED') {
+      // O PNC existe no catálogo da máquina, mas não está entre os que apontam
+      // para um motor. Dizer QUAL serve é a diferença entre um beco sem saída e
+      // um próximo passo.
+      return this.withWayOut(tenantId, [route.machineModel], {
+        status: 'PNC_REQUIRED', requiresPnc: true,
+        pncOptions: route.knownPncs,
+        answer: route.knownPncs.length
+          ? `O PNC ${route.requestedPnc} existe no catálogo do ${route.machineModel}, mas não é um dos que apontam para um IPL de motor aqui. Os que apontam são: ${route.knownPncs.join(', ')}. Confira a etiqueta — e se o PNC da máquina for mesmo ${route.requestedPnc}, abra o catálogo abaixo para conferir a peça na vista.`
+          : `O PNC ${route.requestedPnc} existe no catálogo do ${route.machineModel}, mas nenhum PNC deste modelo está ligado a um IPL de motor aqui. Abra o catálogo abaixo para conferir a peça na vista.`,
+      });
     }
 
     const targetModel = normalizeIdentifier(route.engineModel);
@@ -348,7 +384,10 @@ export class ChatService {
       select: { model: true, normalizedModel: true },
     });
     if (!enginePart) {
-      return { status: 'NOT_FOUND', answer: `O catálogo do ${route.machineModel} referencia o motor ${route.engineModel}, mas o IPL desse motor ainda não está processado neste tenant. Não vou inventar a peça interna sem esse catálogo.` };
+      return this.withWayOut(tenantId, [route.machineModel, route.engineModel], {
+        status: 'NOT_FOUND',
+        answer: `O ${route.machineModel} usa o motor ${route.engineModel}, e o IPL desse motor ainda não está nesta base. Não vou inventar a peça interna sem o catálogo — abra o que existe abaixo, ou a fonte oficial, para pegar o código na vista.`,
+      });
     }
 
     const effectiveEngineModel = enginePart.model;
@@ -360,7 +399,10 @@ export class ChatService {
     const engineQuestion = `${bridgeDescription} ${effectiveEngineModel}`.trim();
     const engineCandidates = await PartSearchService.semantic(tenantId, engineQuestion, engineIntent);
     if (!engineCandidates.length) {
-      return { status: 'NOT_FOUND', answer: `O ${route.machineModel} referencia o motor ${route.engineModel}, mas não encontrei essa peça interna com evidência suficiente no IPL do motor.` };
+      return this.withWayOut(tenantId, [route.machineModel, route.engineModel], {
+        status: 'NOT_FOUND',
+        answer: `O ${route.machineModel} usa o motor ${route.engineModel}, mas não achei essa peça interna com evidência suficiente no IPL dele. Abra o catálogo abaixo na vista explodida: o código está lá, eu só não consigo garantir qual é.`,
+      });
     }
 
     const resolved = await this.resolvePncOrAmbiguity(tenantId, engineQuestion, bridgeDescription, '', engineCandidates, undefined);
@@ -628,6 +670,63 @@ export class ChatService {
     }
   }
 
+  // O codigo SEMPRE existe: esta no catalogo, impresso na vista explodida.
+  // Quando o app nao consegue garantir QUAL e, o minimo e colocar esse catalogo
+  // na mao do atendente em vez de pedir que ele reformule a pergunta.
+  private static async wayOut(tenantId: string, models: string[]): Promise<ChatSearchResult['manualFallback']> {
+    const normalized = [...new Set(models.map(normalizeIdentifier).filter(Boolean))];
+    const officialUrl = HUSQVARNA_SPARE_PARTS_URL;
+    const officialLabel = 'Peças sobressalentes Husqvarna';
+    if (!normalized.length) return { catalogs: [], officialUrl, officialLabel };
+
+    try {
+      // Pelo lado de Part e nao de Document: garante que o catalogo oferecido
+      // realmente contem peca daquele modelo, e ja da a contagem real.
+      const grouped = await prisma.part.groupBy({
+        by: ['documentId'],
+        where: {
+          active: true,
+          normalizedModel: { in: normalized },
+          document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+        },
+        _count: { _all: true },
+        orderBy: { _count: { documentId: 'desc' } },
+        take: 4,
+      });
+      if (!grouped.length) return { catalogs: [], officialUrl, officialLabel };
+
+      const documents = await prisma.document.findMany({
+        where: { id: { in: grouped.map(row => row.documentId) } },
+        select: { id: true, filename: true, model: true, pnc: true },
+      });
+      const byId = new Map(documents.map(document => [document.id, document]));
+
+      return {
+        catalogs: grouped.flatMap(row => {
+          const document = byId.get(row.documentId);
+          if (!document) return [];
+          return [{
+            documentId: document.id,
+            filename: document.filename,
+            model: document.model,
+            pnc: document.pnc,
+            partCount: row._count._all,
+          }];
+        }),
+        officialUrl,
+        officialLabel,
+      };
+    } catch (error) {
+      // A saida e um extra: se a consulta falhar, a resposta principal continua.
+      console.warn('⚠️ Não foi possível montar os catálogos de saída manual.', error instanceof Error ? error.message : error);
+      return { catalogs: [], officialUrl, officialLabel };
+    }
+  }
+
+  private static async withWayOut(tenantId: string, models: string[], result: ChatSearchResult): Promise<ChatSearchResult> {
+    return { ...result, manualFallback: await this.wayOut(tenantId, models) };
+  }
+
   private static options(candidates: PartCandidate[]) {
     const seen = new Set<string>();
     return candidates.filter(candidate => {
@@ -653,7 +752,7 @@ export class ChatService {
     };
   }
 
-  private static withContext(result: ChatSearchResult, intent: SearchIntent): ChatSearchResult {
+  private static async withContext(tenantId: string, result: ChatSearchResult, intent: SearchIntent): Promise<ChatSearchResult> {
     const guidance: Record<SearchStatus, ChatSearchResult['guidance']> = {
       FOUND: {
         title: 'Código localizado',
@@ -662,8 +761,8 @@ export class ChatService {
       },
       PNC_REQUIRED: {
         title: 'Falta confirmar o PNC',
-        description: 'O mesmo modelo possui variações e não é seguro escolher o código sem o PNC.',
-        tips: ['Localize o PNC na etiqueta da máquina.', 'Selecione uma das opções cadastradas.'],
+        description: 'O mesmo modelo possui variações e a peça muda entre elas.',
+        tips: ['O PNC está na etiqueta da máquina, junto do número de série.', 'Só os PNCs listados abaixo levam a um catálogo que eu consigo ler.', 'Sem a etiqueta em mãos, abra o catálogo e confira a peça na vista explodida.'],
       },
       MODEL_REQUIRED: {
         title: 'Falta confirmar o modelo',
@@ -676,16 +775,23 @@ export class ChatService {
         tips: ['Digite um nome curto, como carburador ou filtro de ar.', 'Você também pode informar a posição da vista explodida.'],
       },
       AMBIGUOUS: {
-        title: 'Confirmação necessária',
-        description: 'O sistema encontrou candidato(s), mas recusou liberar um código sem separação suficiente das alternativas.',
-        tips: ['Compare descrição, lado, medida e posição na vista.', 'Informe o PNC quando existir.', 'Abra o catálogo se necessário.'],
+        title: 'Duas peças plausíveis — confirme qual',
+        description: 'Achei mais de um candidato e nenhum se separa dos outros com folga. Prefiro perguntar a mandar o código errado.',
+        tips: ['Compare lado, medida e posição na vista explodida.', 'O PNC da etiqueta normalmente decide entre as opções.', 'Escolha nas opções acima ou abra o catálogo abaixo.'],
       },
       NOT_FOUND: {
-        title: 'Nenhum código seguro encontrado',
-        description: 'A IA não inventou um código quando a base técnica não forneceu evidência suficiente.',
-        tips: ['Tente uma descrição mais curta.', 'Informe o modelo e o PNC.', 'Pesquise o código sem espaços ou hífens.'],
+        title: 'Não vou chutar o código',
+        description: 'O código existe e está no catálogo — eu é que não consigo garantir qual é. Errar aqui é devolução no balcão.',
+        tips: ['Abra o catálogo abaixo e confira a peça na vista explodida: o código está impresso lá.', 'Informar o modelo e o PNC costuma resolver na hora.', 'Se o cliente trouxe a peça, pesquise o código dela sem espaços nem hífens.'],
       },
     };
+    // Nenhuma resposta sem código sai daqui sem um caminho. Quem já montou a
+    // própria saída (a rota de motor sabe o modelo do motor, e portanto acha o
+    // catálogo certo) é respeitado: só preenche quem veio sem nada.
+    const manualFallback = result.status === 'FOUND' || result.manualFallback
+      ? result.manualFallback
+      : await this.wayOut(tenantId, [intent.model, result.part?.model, ...(result.options || []).map(option => option.model)].filter((value): value is string => Boolean(value)));
+
     return {
       ...result,
       interpreted: {
@@ -696,6 +802,7 @@ export class ChatService {
         partNumber: intent.partNumber || null,
       },
       guidance: guidance[result.status],
+      manualFallback,
     };
   }
 }

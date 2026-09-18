@@ -44,6 +44,14 @@ export interface ChatResponse {
   b2bPortal?: { success: boolean; stockStatus: string; supersededBy?: string; };
   technicalReasoningSteps?: Array<{ step: number; title: string; detail: string; status: 'SUCCESS' | 'INFO' | 'NOTICE' }>;
   diagramHighlight?: { documentId: string; filename: string; page: number | null; position: string | null; section: string | null };
+  // Caminho de saída quando não há código seguro: os catálogos que o atendente
+  // pode abrir na hora e a fonte oficial. O código está impresso na vista
+  // explodida — o app não pode deixar de entregar esse caminho.
+  manualFallback?: {
+    catalogs: Array<{ documentId: string; filename: string; model: string | null; pnc: string | null; partCount: number }>;
+    officialUrl: string | null;
+    officialLabel: string | null;
+  };
 }
 export interface Overview { tenantName:string; users:number; activeDocuments:number; processingDocuments:number; failedDocuments:number; parts:number; feedbackTotal:number; feedbackAccuracy:number|null; }
 export interface AdminUser { id:string; email:string; role:Role; status:'PENDING'|'APPROVED'|'REJECTED'; createdAt:string; feedbackCount:number; }

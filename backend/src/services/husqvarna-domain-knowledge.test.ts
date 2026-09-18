@@ -112,6 +112,29 @@ test('relações máquina → motor só são ativadas quando comprovadas e respe
 
   assert.equal(resolveEngineCatalogRoute('TS148', '', 'qual o defletor lateral do TS148?'), null);
 
+  // Caso real trazido pelo balcão: "carburador do ts142". O TS142 tem dez PNCs
+  // no catálogo e só DOIS apontam para um IPL de motor. Escolhendo um dos
+  // outros oito, a função devolvia `null`, a rota do motor nem rodava e a
+  // resposta virava "nenhum código seguro encontrado" — sem dizer o porquê nem
+  // oferecer saída. Agora devolve PNC_UNMAPPED com os PNCs que resolvem, e
+  // quem responde consegue dizer qual serve.
+  assert.deepEqual(resolveEngineCatalogRoute('TS142', '96043034500', 'carburador do ts142'), {
+    status: 'PNC_UNMAPPED',
+    machineModel: 'TS142',
+    requestedPnc: '96043034500',
+    knownPncs: ['96041043000', '96041044000'],
+  });
+
+  // A forma da pergunta não muda a rota: sem "qual o código", com, ou só a peça
+  // e o modelo — o atendente escreve como fala.
+  for (const pergunta of ['carburador do ts142', 'qual o código do carburador do ts142', 'carburador ts142']) {
+    assert.deepEqual(
+      resolveEngineCatalogRoute('TS142', '96041044000', pergunta),
+      { status: 'ROUTE', machineModel: 'TS142', engineModel: 'HS608', engineArticle: '598693901' },
+      `a rota do motor mudou com a forma da pergunta: "${pergunta}"`,
+    );
+  }
+
   // Giro Zero (Zero Turn) -> Motores Kawasaki
   assert.deepEqual(resolveEngineCatalogRoute('Z248F', '', 'qual o virabrequim do Z248F?'), {
     status: 'ROUTE', machineModel: 'Z248F', engineModel: 'FR691V', engineArticle: '548448013',
