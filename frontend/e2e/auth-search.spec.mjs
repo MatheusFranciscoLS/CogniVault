@@ -8,7 +8,7 @@ async function login(page, email) {
   await page.goto('/login');
   await page.getByLabel('E-mail').fill(email);
   await page.locator('#login-password').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Entrar no CogniVault' }).click();
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   await expect(page.getByRole('heading', { name: 'Encontre a peça certa. Entenda por quê.' })).toBeVisible();
 }
@@ -31,9 +31,17 @@ test('login cabe inteiro em viewport desktop sem scroll vertical', async ({ page
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto('/login');
 
-  await expect(page.getByRole('heading', { name: 'Bem-vindo ao CogniVault' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Entrar no CogniVault' })).toBeVisible();
-  await expect(page.getByAltText('Vardão Máquinas')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Entrar no CogniVault' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Entrar', exact: true })).toBeVisible();
+
+  // O logo da Vardão existe duas vezes no DOM (painel da marca em desktop e
+  // cabeçalho compacto em telas menores), e só um renderiza por vez. A asserção
+  // é escopada ao painel para não cair no modo estrito do Playwright.
+  const brandPanel = page.locator('main > aside');
+  await expect(brandPanel.getByAltText('Vardão Máquinas')).toBeVisible();
+  // Selo de revenda autorizada: foi pedido explicitamente pelo proprietário.
+  await expect(brandPanel.getByAltText('Husqvarna')).toBeVisible();
+  await expect(brandPanel.getByText('Revenda Autorizada Ouro')).toBeVisible();
 
   const viewport = await page.evaluate(() => ({
     scrollHeight: document.documentElement.scrollHeight,
