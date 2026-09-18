@@ -5,7 +5,7 @@ import { useQuoteCart } from '../context/QuoteCartContext';
 function Field({ label, value, placeholder, onChange }: { label: string; value: string; placeholder: string; onChange: (value: string) => void }) {
   return (
     <label className="min-w-0 flex-1">
-      <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[.13em] text-ink-400">{label}</span>
+      <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[.13em] text-ink-500 dark:text-ink-400">{label}</span>
       <input
         value={value}
         onChange={event => onChange(event.target.value)}
@@ -57,17 +57,23 @@ export default function CounterSessionBar({ onOpenMachine }: Props) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {hasContext && <span className="hidden text-[10px] font-bold text-emerald-600 xl:inline dark:text-emerald-400">Contexto aplicado à busca</span>}
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {hasContext && (
+            <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 xl:inline-flex dark:bg-emerald-950/30 dark:text-emerald-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+              Contexto aplicado à busca
+            </span>
+          )}
+          {hasContext && <span className="hidden h-6 w-px bg-ink-200 xl:block dark:bg-ink-700" aria-hidden="true" />}
           {onOpenMachine && machinePnc && (
-            <button type="button" onClick={() => onOpenMachine(machinePnc)} className="h-8 rounded-lg border border-brand-600 bg-brand-50 px-3 text-[10px] font-black text-ink-900 transition hover:bg-brand-100 dark:border-brand-700 dark:bg-brand-950/40 dark:text-brand-200">
+            <button type="button" onClick={() => onOpenMachine(machinePnc)} className="cv-touch-target rounded-lg border border-brand-600 bg-brand-50 px-3.5 text-xs font-bold text-brand-800 transition hover:bg-brand-100 dark:border-brand-600 dark:bg-brand-950/40 dark:text-brand-200">
               Ver vista explodida
             </button>
           )}
-          <button type="button" onClick={() => setExpanded(value => !value)} className="h-8 rounded-lg border border-ink-200 bg-white px-3 text-[10px] font-black text-ink-600 transition hover:border-brand-200 hover:text-brand-600 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300">
+          <button type="button" onClick={() => setExpanded(value => !value)} className="cv-touch-target rounded-lg border border-ink-200 bg-white px-3.5 text-xs font-bold text-ink-700 transition hover:border-brand-300 hover:text-brand-700 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-200">
             {expanded ? 'Ocultar dados' : hasAnything ? 'Editar contexto' : 'Adicionar contexto'}
           </button>
-          {hasAnything && <button type="button" onClick={endSession} className="h-8 rounded-lg px-2 text-[10px] font-bold text-ink-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30">Encerrar</button>}
+          {hasAnything && <button type="button" onClick={endSession} className="cv-touch-target rounded-lg px-3 text-xs font-bold text-ink-500 transition hover:bg-rose-50 hover:text-rose-700 dark:text-ink-400 dark:hover:bg-rose-950/30 dark:hover:text-rose-300">Encerrar</button>}
         </div>
       </div>
 

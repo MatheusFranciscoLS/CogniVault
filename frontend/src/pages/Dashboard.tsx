@@ -5,7 +5,6 @@ import TechnicalAssistantWorkspace from '../components/parts-v2/TechnicalAssista
 import { api, apiJson, clearSession, SESSION_EXPIRED_EVENT } from '../lib';
 import { activateQuoteStorageScope } from '../lib/quote-storage-scope';
 import type { Section, SessionUser } from '../types';
-import '../assistant.css';
 import '../admin-polish.css';
 import '../quality-polish.css';
 
@@ -297,7 +296,7 @@ export default function Dashboard() {
       onSearch={search}
     >
       {(section === 'parts' || section === 'assistant' || section === 'home') && (
-        <div className="cv-assistant-workspace">
+        <div className="w-full">
           <TechnicalAssistantWorkspace
             key={searchVersion}
             initialQuery={globalQuery}
