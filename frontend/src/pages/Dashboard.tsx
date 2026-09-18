@@ -221,7 +221,7 @@ export default function Dashboard() {
           className="w-full max-w-[460px] rounded-panel border border-ink-200 bg-white p-6 shadow-raised dark:border-ink-800 dark:bg-ink-900"
         >
           <img
-            src="/vardao-logo-transparent.webp"
+            src="/brand/vardao-horizontal-azul.png"
             alt="Vardão Máquinas"
             className="h-7 w-auto max-w-[150px] object-contain dark:brightness-0 dark:invert"
           />
@@ -270,7 +270,7 @@ export default function Dashboard() {
       <main className="grid min-h-[100dvh] place-items-center bg-ink-100 p-6 dark:bg-ink-950">
         <div aria-busy="true" className="w-full max-w-[320px] text-center">
           <img
-            src="/vardao-logo-transparent.webp"
+            src="/brand/vardao-horizontal-azul.png"
             alt="Vardão Máquinas"
             className="mx-auto h-10 w-auto max-w-[190px] object-contain dark:brightness-0 dark:invert"
           />

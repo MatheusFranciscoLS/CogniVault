@@ -10,8 +10,11 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'apple-touch-icon.png'],
       manifest: {
-        name: 'CogniVault',
-        short_name: 'CogniVault',
+        // Mesmo motivo do <title>: instalado no tablet do balcão, este app fica
+        // ao lado do Vardão CRM. O nome curto é o que aparece sob o ícone, e
+        // "Peças" separa na hora.
+        name: 'CogniVault Peças · Vardão Máquinas',
+        short_name: 'Peças',
         description: 'Inteligência de Peças e Catálogos',
         theme_color: '#273a60',
         background_color: '#273a60',
