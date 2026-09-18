@@ -22,6 +22,7 @@ model Tenant {
   masterParts           MasterPart[]
   partLocations         PartLocation[]
   quoteUsages           QuoteUsage[]
+  quotes                Quote[]
   commercialImportRuns  CommercialImportRun[]
   createdAt             DateTime                   @default(now())
 }
@@ -81,6 +82,7 @@ model User {
   benchmarkRuns                 AiBenchmarkRun[]
   partLocationsUpdated          PartLocation[]             @relation("PartLocationUpdatedBy")
   quoteUsages                   QuoteUsage[]
+  quotes                        Quote[]
   createdAt                     DateTime                    @default(now())
 
   @@index([tenantId])
@@ -113,6 +115,16 @@ model Document {
   processingError    String?
   extractionSnapshot Json?
   extractionMethod   String?
+  /// Por que a leitura textual recusou este PDF e o processamento caiu para a
+  /// IA (`DeterministicDeclineReason` em services/catalog-extractor.ts).
+  /// Nulo quando a extração determinística funcionou. Existe para responder
+  /// "vale estender o parser ou esse PDF é mesmo caso de leitura visual?" sem
+  /// ter que baixar e reprocessar catálogo por catálogo.
+  extractionFallbackReason String?
+  /// Quantas linhas foram recusadas na gravação por terem código implausível
+  /// (ver utils/part-number.ts). Serve para o descarte não ser silencioso: se
+  /// esse número for alto, o catálogo foi lido errado e precisa de revisão.
+  extractionRejectedParts  Int     @default(0)
   extractedAt        DateTime?
 
   manufacturer String?
@@ -308,6 +320,90 @@ model QuoteUsage {
   @@index([tenantId, model, createdAt])
   @@index([tenantId, sessionId])
   @@index([userId, createdAt])
+}
+
+enum QuoteStatus {
+  // Cesta aberta do atendente. Exatamente uma por usuário, garantida por índice
+  // parcial único criado na migration (Prisma não expressa índice parcial).
+  DRAFT
+  // Orçamento arquivado: o que o dono vê no painel e o balcão retoma depois.
+  SAVED
+}
+
+/// Orçamento de balcão. Até 2026-09 isso vivia só no localStorage do navegador
+/// de cada atendente — trocar de aparelho ou limpar o navegador apagava tudo e
+/// o dono não tinha visão consolidada. Agora o navegador é só cache offline.
+///
+/// Dinheiro é `Float` aqui de propósito: `MasterPart.price` (a origem do preço)
+/// também é Float, e o orçamento é explicitamente uma estimativa de balcão, não
+/// um documento fiscal. Todo valor é arredondado a centavos no servidor
+/// (`roundMoney` em services/quote.service.ts) antes de gravar, para não
+/// acumular erro de ponto flutuante entre subtotal, desconto e total.
+model Quote {
+  id       String      @id @default(uuid())
+  tenantId String
+  tenant   Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Histórico de negócio sobrevive à remoção do atendente.
+  userId   String?
+  user     User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status   QuoteStatus @default(DRAFT)
+
+  customerName       String?
+  customerPhone      String?
+  paymentMethod      String?
+  machineModel       String?
+  notes              String?
+  discountPercentage Float   @default(0)
+
+  totalItems     Int   @default(0)
+  grossTotal     Float @default(0)
+  discountAmount Float @default(0)
+  netTotal       Float @default(0)
+
+  items QuoteItem[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  savedAt   DateTime?
+
+  @@index([tenantId, status, savedAt])
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model QuoteItem {
+  id      String @id @default(uuid())
+  quoteId String
+  quote   Quote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  // Ordem em que o atendente montou a cesta: o PDF e a ficha de separação
+  // precisam sair na mesma ordem da tela.
+  sortOrder Int   @default(0)
+
+  partNumber           String
+  normalizedPartNumber String
+  effectiveCode        String?
+  name                 String
+  model                String?
+  pnc                  String?
+  section              String?
+  position             String?
+  filename             String?
+  page                 Int?
+  isSuperseded         Boolean @default(false)
+  originalCode         String?
+  notes                String?
+  // Mão de obra, revisão, óleo avulso: entra no total mas nunca em métrica de
+  // peça cotada nem em cobertura de catálogo.
+  isService            Boolean @default(false)
+
+  quantity  Int    @default(1)
+  unitPrice Float?
+
+  createdAt DateTime @default(now())
+
+  @@index([quoteId, sortOrder])
+  @@index([normalizedPartNumber])
 }
 
 model CommercialImportRun {

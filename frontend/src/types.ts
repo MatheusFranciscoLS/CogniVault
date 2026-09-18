@@ -1,5 +1,5 @@
 export type Role = 'ADMIN' | 'MECHANIC';
-export type Section = 'home' | 'overview' | 'assistant' | 'parts' | 'machines' | 'catalogs' | 'quotes' | 'history' | 'favorites' | 'users' | 'feedback' | 'quality' | 'audit';
+export type Section = 'home' | 'overview' | 'business' | 'assistant' | 'parts' | 'machines' | 'catalogs' | 'quotes' | 'history' | 'favorites' | 'users' | 'feedback' | 'quality' | 'audit';
 export type SearchStatus = 'FOUND' | 'PNC_REQUIRED' | 'MODEL_REQUIRED' | 'PART_REQUIRED' | 'AMBIGUOUS' | 'NOT_FOUND';
 export type OfficialVerificationState = 'UNVERIFIED' | 'VERIFIED' | 'SUPERSEDED' | 'REVIEW';
 export type OfficialVerificationApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -13,7 +13,11 @@ export interface DocumentItem {
   archivedAt?:string|null; processingActive?:boolean; processingStage?:string; processingCurrent?:number; processingTotal?:number; processingError?:string|null;
   healthScore?:number; reviewStatus?:CatalogReviewStatus; reviewReasons?:string[]; qualityCheckedAt?:string|null; extractionMethod?:string|null;
   applications?:Array<{ machineModel:string; machinePnc?:string; label:string }>;
-  engineApplications?:Array<{ engineModel:string; engineArticle?:string; label:string }>;
+  engineApplications?:Array<{ engineModel:string; engineArticle?:string; label:string; briggsManualsUrl?:string|null }>;
+  // Link de busca oficial da Briggs (manual/vista explodida), só quando este
+  // catálogo é de um motor Briggs. Não é integração — é link de busca, mesmo
+  // padrão do botão manual do Portal Parceiro Husqvarna. Ver utils/engine-model.ts.
+  briggsManualsUrl?:string|null;
 }
 export interface FeedbackOption { id:string; name:string; partNumber:string; model:string; pnc:string|null; section:string|null; position:string|null; notes?:string|null; }
 export interface OfficialVerification {
@@ -147,11 +151,49 @@ export interface BenchmarkMetrics {
 export interface BenchmarkRun { id:string; caseCount:number; metrics:BenchmarkMetrics; details:unknown; createdAt:string; }
 export interface AiQualityData {
   summary:{catalogs:number;readyCatalogs:number;needsReview:number;averageHealth:number;parts:number;technicalMemoryChunks:number;partsWithoutEmbedding:number;partsWithoutPage:number;partsWithoutSection:number;modelIssues:number;catalogsWithoutConfirmedPnc:number};
-  runtime:{generativeModel:string;extraction:{geminiCatalogs:number;parserCatalogs:number;unknownCatalogs:number}};
+  runtime:{generativeModel:string;extraction:{geminiCatalogs:number;parserCatalogs:number;unknownCatalogs:number;
+    // Por que cada catálogo caiu na leitura visual. Chave = DeterministicDeclineReason
+    // do backend (ou UNKNOWN para os processados antes deste registro existir).
+    fallbackReasons:Record<string,number>;
+    // Linhas barradas por código implausível (utils/part-number.ts no backend).
+    rejectedParts:number; catalogsWithRejectedParts:number}};
   learning:{total:number;uniqueSignals:number;positive:number;corrected:number;negativeWithoutCorrection:number;level:'COLD_START'|'LEARNING'|'ESTABLISHED';nextMilestone:number|null};
   semanticIndex:{enabled:boolean;indexedParts:number;totalParts:number;indexedChunks:number;totalChunks:number;batchLimit:number;runsToday:number;dailyRuns:number;canRun:boolean};
   visualRetry:{candidates:number;eligible:number;coolingDown:number;cooldownHours:number;documents:Array<{id:string;filename:string}>};
   officialVerification:{approved:number;pending:number;stale:number;cacheDays:number};
   searchRadar:SearchRadarItem[]; reviewQueue:QualityCatalog[]; catalogs:QualityCatalog[];
   hygiene:{archivedRecords:number;removedHistoricalRecords:number;legacyEmptyRecords:number;note:string}; benchmarkRuns:BenchmarkRun[];
+}
+
+// Indicadores comerciais do painel do dono (GET /api/admin/business-insights).
+// Separado de `Overview`, que é saúde técnica do catálogo e uso de IA.
+export type BusinessBucketGranularity = 'day' | 'week' | 'month';
+
+export interface BusinessQuoteBucket { bucket:string; quotes:number; items:number; grossTotal:number; netTotal:number; }
+
+export interface BusinessTopPart {
+  normalizedPartNumber:string; partNumber:string; name:string; quotedQuantity:number; quoteCount:number;
+  lastQuotedAt:string|null; registeredPrice:number|null; averageQuotedPrice:number|null;
+}
+
+export interface BusinessUnpricedPart {
+  normalizedPartNumber:string; partNumber:string; name:string; quoteCount:number; quotedQuantity:number;
+  lastQuotedAt:string|null; inPriceList:boolean;
+}
+
+export interface BusinessAttendant {
+  userId:string|null; email:string; quotes:number; items:number; netTotal:number; averageTicket:number; lastQuoteAt:string|null;
+}
+
+export interface BusinessInsights {
+  range:{ from:string; to:string; granularity:BusinessBucketGranularity };
+  summary:{
+    quotes:number; items:number; grossTotal:number; discountTotal:number; netTotal:number; averageTicket:number;
+    quotesWithPrice:number; quotesWithoutPrice:number; previousQuotes:number; previousNetTotal:number;
+  };
+  buckets:BusinessQuoteBucket[];
+  topParts:BusinessTopPart[];
+  unpricedParts:BusinessUnpricedPart[];
+  attendants:BusinessAttendant[];
+  priceListCoverage:{ masterParts:number; masterPartsWithoutPrice:number };
 }
