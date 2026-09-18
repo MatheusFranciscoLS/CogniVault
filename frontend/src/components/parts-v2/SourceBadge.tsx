@@ -11,6 +11,13 @@ const sourceConfig: Record<SourceKind, { label: string; className: string; title
 };
 
 export default function SourceBadge({ source, detail, compact = false }: Props) {
-  const config = sourceConfig[source];
-  return <span title={detail ? `${config.title} ${detail}` : config.title} className={`inline-flex items-center rounded-full border font-black tracking-[.08em] ${config.className} ${compact ? 'px-2 py-0.5 text-[8px]' : 'px-2.5 py-1 text-[9px]'}`}>{config.label}</span>;
+  // `source` vem da API. Sem a guarda, um tipo que o servidor mande e este
+  // mapa nao conhece derrubava a TELA INTEIRA do detalhe da peca: o acesso
+  // era direto ao `.title` de um undefined, e o ErrorBoundary trocava o
+  // atendimento por "Nao foi possivel carregar esta tela". Aconteceu de
+  // verdade aqui, com um tipo escrito errado em teste — no balcao seria um
+  // deploy de backend na frente do cliente. Desconhecido cai em REVISAR,
+  // que e justamente "confira antes de confiar".
+  const config = sourceConfig[source] ?? sourceConfig.REVIEW;
+  return <span title={detail ? `${config.title} ${detail}` : config.title} className={`inline-flex items-center rounded-full border font-black tracking-[.08em] ${config.className} ${compact ? 'px-2 py-0.5 text-[9px]' : 'px-2.5 py-1 text-[10px]'}`}>{config.label}</span>;
 }
