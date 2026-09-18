@@ -584,7 +584,7 @@ export class ChatService {
           return [`${application.model}|${application.pnc}`, application] as const;
         })).values()].slice(0, 12),
       },
-      b2bPortal: (candidate.notes?.includes('Substituição oficial') || getVerifiedSupersession(candidate.partNumber)) ? {
+      b2bPortal: getVerifiedSupersession(candidate.partNumber) ? {
         stockStatus: 'Código oficial ativo no Portal Husqvarna',
         supersededBy: getVerifiedSupersession(candidate.partNumber)?.currentPartNumber !== candidate.partNumber ? getVerifiedSupersession(candidate.partNumber)?.currentPartNumber : undefined,
         success: true,
