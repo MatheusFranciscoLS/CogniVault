@@ -21,6 +21,12 @@ import type { CommercialPart, HusqvarnaLivePart, OfficialFallbackResult, PdfPrev
 type Props = { initialQuery: string; onQueryChange: (query: string) => void; storageScope?: string; onOpenMachine?: (pnc: string) => void };
 type Selection = { kind: 'technical' | 'commercial'; id: string } | null;
 
+// Mesmo limite de backend/src/controllers/commercial-search.controller.ts
+// (loadCommercialSearch corta em .slice(0, 50)). Não há pacote compartilhado
+// entre frontend/backend neste monorepo; só espelha o número para decidir
+// quando mostrar o aviso de "pode haver mais resultados".
+const COMMERCIAL_RESULTS_CAP = 50;
+
 const examples = [
   { label: 'Código exato', value: '587106701' },
   { label: 'Peça + modelo', value: 'carburador 143RII' },
@@ -680,6 +686,11 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
               </div>
               <div className="overflow-hidden rounded-xl border border-ink-200 dark:border-ink-800">
                 {commercialParts.map(part => <CommercialPartRow key={part.id} part={part} selected={selection?.kind === 'commercial' && selection.id === part.id} onSelect={() => setSelection({ kind: 'commercial', id: part.id })} onCopy={code => void copyCode(code)} onOfficial={item => void consultOfficial(item.partNumber)} />)}
+                {commercialParts.length === COMMERCIAL_RESULTS_CAP && (
+                  <div className="border-t border-ink-100 bg-ink-50/60 px-4 py-2.5 text-[10px] font-semibold text-ink-500 dark:border-ink-800 dark:bg-ink-800/40 dark:text-ink-400">
+                    Mostrando os {COMMERCIAL_RESULTS_CAP} primeiros resultados por relevância. Pode haver mais — use a seção ao lado ou refine a busca (marca, categoria, parte do código) para ver os demais.
+                  </div>
+                )}
               </div>
             </section>
           )}
