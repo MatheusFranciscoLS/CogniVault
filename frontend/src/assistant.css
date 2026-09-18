@@ -9,14 +9,14 @@
 
 /* A busca é a ação principal da estação de balcão. */
 .cv-assistant-workspace > section > form {
-  border-color: rgba(29, 79, 145, 0.2);
-  box-shadow: 0 12px 30px rgba(15, 35, 72, 0.055);
+  border-color: rgba(39, 58, 96, 0.2);
+  box-shadow: 0 12px 30px rgba(30, 30, 29, 0.055);
   transition: border-color 180ms ease, box-shadow 180ms ease;
 }
 
 .cv-assistant-workspace > section > form:focus-within {
-  border-color: rgba(29, 79, 145, 0.48);
-  box-shadow: 0 16px 38px rgba(15, 35, 72, 0.09), 0 0 0 3px rgba(29, 79, 145, 0.07);
+  border-color: rgba(39, 58, 96, 0.48);
+  box-shadow: 0 16px 38px rgba(30, 30, 29, 0.09), 0 0 0 3px rgba(39, 58, 96, 0.07);
 }
 
 .cv-assistant-workspace > section > form > div:first-child {

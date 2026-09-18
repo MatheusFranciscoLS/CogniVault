@@ -455,16 +455,16 @@ export default function ChatPanel({
       {!messages.length ? (
         <div className="py-6 px-2 text-center">
           <div className="mx-auto max-w-lg">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-xl text-[#1d4f91] dark:text-blue-400 shadow-xs">✦</div>
-            <h2 className="mt-3 font-semibold text-slate-900 dark:text-white">Dúvida sobre uma peça ou equipamento?</h2>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 dark:bg-brand-900/20 text-xl text-brand-600 dark:text-brand-400 shadow-xs">✦</div>
+            <h2 className="mt-3 font-semibold text-ink-900 dark:text-white">Dúvida sobre uma peça ou equipamento?</h2>
+            <p className="mt-1 text-xs text-ink-500 dark:text-ink-400">
               Digite o código, modelo ou sintoma para consultar os catálogos oficiais da Husqvarna.
             </p>
 
             <div className="mt-5 space-y-3 text-left">
               {quickPromptCategories.map(category => (
-                <div key={category.title} className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 p-3">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+                <div key={category.title} className="rounded-2xl border border-ink-200/80 dark:border-ink-800 bg-ink-50/50 dark:bg-ink-800/30 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-ink-400 dark:text-ink-500 mb-2">
                     {category.title}
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -476,7 +476,7 @@ export default function ChatPanel({
                           setQuestion(item.query);
                           questionRef.current?.focus();
                         }}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 transition hover:border-[#1d4f91] dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-[#1d4f91] dark:hover:text-blue-300 shadow-2xs active:scale-95"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 px-2.5 py-1.5 text-xs font-medium text-ink-700 dark:text-ink-300 transition hover:border-brand-600 dark:hover:border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-950/40 hover:text-brand-600 dark:hover:text-brand-300 shadow-2xs active:scale-95"
                       >
                         {item.icon && <span>{item.icon}</span>}
                         <span>{item.label}</span>
@@ -498,7 +498,7 @@ export default function ChatPanel({
           transition={{ duration: 0.3, ease: 'easeOut' }}
           className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}
         >
-          <div className={`max-w-[94%] rounded-2xl px-4 py-3 text-sm shadow-sm ${message.role === 'user' ? 'bg-[#1d4f91] text-white rounded-br-sm' : 'bg-white dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 rounded-bl-sm border border-slate-200/60 dark:border-slate-700/50'}`}>
+          <div className={`max-w-[94%] rounded-2xl px-4 py-3 text-sm shadow-sm ${message.role === 'user' ? 'bg-brand-600 text-white rounded-br-sm' : 'bg-white dark:bg-ink-800/80 text-ink-800 dark:text-ink-200 rounded-bl-sm border border-ink-200/60 dark:border-ink-700/50'}`}>
             {message.role === 'user' ? <div>{message.text}</div> : (
               <>
                 {message.response ? <Guidance response={message.response} /> : null}
@@ -517,15 +517,15 @@ export default function ChatPanel({
                   />
                 ) : null}
 
-                {message.response?.pncOptions?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600 dark:text-slate-400">Selecione o PNC da etiqueta</div><div className="flex flex-wrap gap-2">{message.response.pncOptions.map(option => <button type="button" key={option} onClick={() => choosePnc(message, option)} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs hover:border-[#1d4f91] hover:text-[#1d4f91] dark:text-blue-300 transition">PNC {option}</button>)}</div></motion.div> : null}
-                {message.response?.modelOptions?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3"><div className="mb-2 text-xs font-semibold text-slate-600 dark:text-slate-400">Confirmar modelo</div><div className="flex flex-wrap gap-2">{message.response.modelOptions.map(option => <button type="button" key={option} onClick={() => chooseModel(message, option)} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs hover:border-[#1d4f91] hover:text-[#1d4f91] dark:text-blue-300 transition">{option}</button>)}</div></motion.div> : null}
+                {message.response?.pncOptions?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3"><div className="mb-2 text-xs font-semibold text-ink-600 dark:text-ink-400">Selecione o PNC da etiqueta</div><div className="flex flex-wrap gap-2">{message.response.pncOptions.map(option => <button type="button" key={option} onClick={() => choosePnc(message, option)} className="rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 px-2.5 py-1.5 text-xs hover:border-brand-600 hover:text-brand-600 dark:text-brand-300 transition">PNC {option}</button>)}</div></motion.div> : null}
+                {message.response?.modelOptions?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3"><div className="mb-2 text-xs font-semibold text-ink-600 dark:text-ink-400">Confirmar modelo</div><div className="flex flex-wrap gap-2">{message.response.modelOptions.map(option => <button type="button" key={option} onClick={() => chooseModel(message, option)} className="rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 px-2.5 py-1.5 text-xs hover:border-brand-600 hover:text-brand-600 dark:text-brand-300 transition">{option}</button>)}</div></motion.div> : null}
                 {message.response?.serialRequired ? <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}><SerialFollowUp disabled={loading} onSubmit={nextSerial => continueWithSerial(message, nextSerial)} /></motion.div> : null}
-                {message.response?.status === 'AMBIGUOUS' && message.response.options?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3"><div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Qual item da vista corresponde à peça?</div><div className="mt-2 grid gap-2">{message.response.options.map(option => <button type="button" key={option.id} onClick={() => chooseAmbiguousOption(message, option)} className="rounded-lg border border-slate-200 dark:border-slate-700 p-2 text-left text-xs hover:bg-slate-50 dark:bg-slate-800/50 transition"><b>{option.name}</b><span className="mt-0.5 block font-semibold text-[#1d4f91] dark:text-blue-300">Código {option.partNumber}</span><span className="block text-slate-500 dark:text-slate-400">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span>{option.section ? <span className="mt-1 block text-slate-500 dark:text-slate-400">Vista: {option.section}</span> : null}{option.notes ? <span className="mt-1 block font-semibold text-amber-700 dark:text-amber-300">Aplicação: {option.notes}</span> : null}</button>)}</div></motion.div> : null}
+                {message.response?.status === 'AMBIGUOUS' && message.response.options?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 rounded-xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-3"><div className="text-xs font-semibold text-ink-700 dark:text-ink-300">Qual item da vista corresponde à peça?</div><div className="mt-2 grid gap-2">{message.response.options.map(option => <button type="button" key={option.id} onClick={() => chooseAmbiguousOption(message, option)} className="rounded-lg border border-ink-200 dark:border-ink-700 p-2 text-left text-xs hover:bg-ink-50 dark:bg-ink-800/50 transition"><b>{option.name}</b><span className="mt-0.5 block font-semibold text-brand-600 dark:text-brand-300">Código {option.partNumber}</span><span className="block text-ink-500 dark:text-ink-400">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span>{option.section ? <span className="mt-1 block text-ink-500 dark:text-ink-400">Vista: {option.section}</span> : null}{option.notes ? <span className="mt-1 block font-semibold text-amber-700 dark:text-amber-300">Aplicação: {option.notes}</span> : null}</button>)}</div></motion.div> : null}
 
-                {message.response?.part && !message.feedback ? <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 dark:border-slate-700 pt-3"><span className="text-xs text-slate-500 dark:text-slate-400">Este resultado ajudou?</span><button type="button" disabled={message.feedbackPending} onClick={() => void positiveFeedback(index)} className="rounded-lg bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 text-emerald-700 dark:text-emerald-300 transition hover:bg-emerald-100 disabled:opacity-50">👍 Sim</button><button type="button" disabled={message.feedbackPending} onClick={() => void startNegative(index)} className="rounded-lg bg-rose-50 dark:bg-rose-900/30 px-2 py-1 text-rose-700 dark:text-rose-300 transition hover:bg-rose-100 disabled:opacity-50">👎 Não</button>{message.feedbackPending ? <span className="text-xs text-slate-400">Salvando…</span> : null}</div> : null}
-                {message.showReasons ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3"><div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Feedback negativo salvo. O que estava errado?</div><div className="mt-1 text-[11px] text-slate-400">Detalhar é opcional e ajuda o ranking das próximas buscas.</div><div className="mt-2 flex flex-wrap gap-2">{reasons.map(([reason, label]) => <button type="button" disabled={message.feedbackPending} key={reason} onClick={() => void chooseReason(index, reason)} className="rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-800/50 disabled:opacity-50 transition">{label}</button>)}</div><button type="button" onClick={() => setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, showReasons: false } : item))} className="mt-2 text-xs font-semibold text-slate-400 underline">Concluir sem detalhar</button></motion.div> : null}
-                {message.showCorrections ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3"><div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Selecione a peça correta, se ela aparecer abaixo.</div><div className="mt-2 grid gap-2">{message.response?.feedbackOptions?.filter(option => option.id !== message.response?.part?.id).map(option => <button type="button" key={option.id} onClick={() => void negativeFeedback(index, option)} className="rounded-lg border border-slate-200 dark:border-slate-700 p-2 text-left text-xs transition hover:bg-slate-50 dark:bg-slate-800/50"><b>{option.name}</b><span className="block font-semibold text-[#1d4f91] dark:text-blue-300">{option.partNumber}</span><span className="block text-slate-500 dark:text-slate-400">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span>{option.notes ? <span className="mt-1 block font-semibold text-amber-700 dark:text-amber-300">Aplicação: {option.notes}</span> : null}</button>)}</div><button type="button" onClick={() => void negativeFeedback(index)} className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400 underline">Nenhuma dessas / apenas registrar o erro</button></motion.div> : null}
-                {message.feedback && !message.showReasons && !message.showCorrections ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-2 text-xs text-slate-500 dark:text-slate-400">{message.feedback === 'correct' ? '✓ Confirmação salva e considerada no ranking' : message.feedback === 'corrected' ? '✓ Correção salva e considerada no ranking' : '✓ Feedback salvo e considerado no ranking'}</motion.div> : null}
+                {message.response?.part && !message.feedback ? <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-ink-200 dark:border-ink-700 pt-3"><span className="text-xs text-ink-500 dark:text-ink-400">Este resultado ajudou?</span><button type="button" disabled={message.feedbackPending} onClick={() => void positiveFeedback(index)} className="rounded-lg bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 text-emerald-700 dark:text-emerald-300 transition hover:bg-emerald-100 disabled:opacity-50">👍 Sim</button><button type="button" disabled={message.feedbackPending} onClick={() => void startNegative(index)} className="rounded-lg bg-rose-50 dark:bg-rose-900/30 px-2 py-1 text-rose-700 dark:text-rose-300 transition hover:bg-rose-100 disabled:opacity-50">👎 Não</button>{message.feedbackPending ? <span className="text-xs text-ink-400">Salvando…</span> : null}</div> : null}
+                {message.showReasons ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 rounded-xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-3"><div className="text-xs font-semibold text-ink-700 dark:text-ink-300">Feedback negativo salvo. O que estava errado?</div><div className="mt-1 text-[11px] text-ink-400">Detalhar é opcional e ajuda o ranking das próximas buscas.</div><div className="mt-2 flex flex-wrap gap-2">{reasons.map(([reason, label]) => <button type="button" disabled={message.feedbackPending} key={reason} onClick={() => void chooseReason(index, reason)} className="rounded-lg border border-ink-200 dark:border-ink-700 px-2.5 py-1.5 text-xs text-ink-600 dark:text-ink-400 hover:bg-ink-50 dark:bg-ink-800/50 disabled:opacity-50 transition">{label}</button>)}</div><button type="button" onClick={() => setMessages(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, showReasons: false } : item))} className="mt-2 text-xs font-semibold text-ink-400 underline">Concluir sem detalhar</button></motion.div> : null}
+                {message.showCorrections ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 rounded-xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-3"><div className="text-xs font-semibold text-ink-700 dark:text-ink-300">Selecione a peça correta, se ela aparecer abaixo.</div><div className="mt-2 grid gap-2">{message.response?.feedbackOptions?.filter(option => option.id !== message.response?.part?.id).map(option => <button type="button" key={option.id} onClick={() => void negativeFeedback(index, option)} className="rounded-lg border border-ink-200 dark:border-ink-700 p-2 text-left text-xs transition hover:bg-ink-50 dark:bg-ink-800/50"><b>{option.name}</b><span className="block font-semibold text-brand-600 dark:text-brand-300">{option.partNumber}</span><span className="block text-ink-500 dark:text-ink-400">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span>{option.notes ? <span className="mt-1 block font-semibold text-amber-700 dark:text-amber-300">Aplicação: {option.notes}</span> : null}</button>)}</div><button type="button" onClick={() => void negativeFeedback(index)} className="mt-2 text-xs font-semibold text-ink-500 dark:text-ink-400 underline">Nenhuma dessas / apenas registrar o erro</button></motion.div> : null}
+                {message.feedback && !message.showReasons && !message.showCorrections ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-2 text-xs text-ink-500 dark:text-ink-400">{message.feedback === 'correct' ? '✓ Confirmação salva e considerada no ranking' : message.feedback === 'corrected' ? '✓ Correção salva e considerada no ranking' : '✓ Feedback salvo e considerado no ranking'}</motion.div> : null}
                 {message.feedbackError ? <div role="alert" className="mt-2 text-xs font-medium text-rose-600">{message.feedbackError}</div> : null}
               </>
             )}
@@ -538,11 +538,11 @@ export default function ChatPanel({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           role="status"
-          className="flex items-center gap-3 rounded-xl border border-blue-100 dark:border-blue-900/50 bg-blue-50/70 dark:bg-blue-950/30 px-4 py-3 text-sm text-blue-900 dark:text-blue-200"
+          className="flex items-center gap-3 rounded-xl border border-brand-100 dark:border-brand-900/50 bg-brand-50/70 dark:bg-brand-950/30 px-4 py-3 text-sm text-brand-900 dark:text-brand-200"
         >
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-blue-200 dark:border-blue-700 border-t-[#1d4f91] dark:border-t-blue-400" />
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-200 dark:border-brand-700 border-t-brand-600 dark:border-t-brand-400" />
           <span className="font-medium text-xs sm:text-sm">Consultando catálogo e portal Husqvarna…</span>
-          <button type="button" onClick={cancel} className="ml-auto text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 underline">
+          <button type="button" onClick={cancel} className="ml-auto text-xs font-semibold text-ink-500 hover:text-ink-800 dark:text-ink-400 dark:hover:text-ink-200 underline">
             Cancelar
           </button>
         </motion.div>
@@ -552,7 +552,7 @@ export default function ChatPanel({
   );
 
   const formContent = (
-    <form onSubmit={submit} className="flex gap-2 sm:gap-3 border-t border-slate-200 dark:border-slate-800/60 p-3 sm:p-4">
+    <form onSubmit={submit} className="flex gap-2 sm:gap-3 border-t border-ink-200 dark:border-ink-800/60 p-3 sm:p-4">
       <label htmlFor="assistant-question" className="sr-only">Digite a peça, descrição ou código</label>
       <input
         ref={questionRef}
@@ -562,13 +562,13 @@ export default function ChatPanel({
         placeholder="Digite a dúvida sobre a peça…"
         minLength={2}
         required
-        className="rounded-xl border-none bg-slate-100/50 dark:bg-slate-800/40 px-3.5 py-2.5 sm:px-4 sm:py-3 text-sm outline-none transition-all focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-[#1d4f91]/20 dark:focus:ring-blue-500/30 min-w-0 flex-1"
+        className="rounded-xl border-none bg-ink-100/50 dark:bg-ink-800/40 px-3.5 py-2.5 sm:px-4 sm:py-3 text-sm outline-none transition-all focus:bg-white dark:focus:bg-ink-800 focus:ring-2 focus:ring-brand-600/20 dark:focus:ring-brand-500/30 min-w-0 flex-1"
       />
       {question ? (
         <button
           type="button"
           onClick={() => { setQuestion(''); questionRef.current?.focus(); }}
-          className="flex items-center rounded-xl px-2 text-xs font-semibold text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:text-slate-300"
+          className="flex items-center rounded-xl px-2 text-xs font-semibold text-ink-400 transition hover:bg-ink-100 dark:hover:bg-ink-700 hover:text-ink-700 dark:text-ink-300"
         >
           Limpar
         </button>
@@ -580,16 +580,16 @@ export default function ChatPanel({
   );
 
   const pdfModal = pdf ? (
-    <div onMouseDown={e => { if (e.target === e.currentTarget) setPdf(null); }} className="fixed inset-0 z-[90] bg-slate-950/90 p-3 md:p-6">
-      <div role="dialog" aria-modal="true" aria-labelledby="assistant-pdf-title" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white dark:bg-slate-800">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 px-4 py-3">
+    <div onMouseDown={e => { if (e.target === e.currentTarget) setPdf(null); }} className="fixed inset-0 z-[90] bg-ink-950/90 p-3 md:p-6">
+      <div role="dialog" aria-modal="true" aria-labelledby="assistant-pdf-title" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white dark:bg-ink-800">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200 dark:border-ink-700 px-4 py-3">
           <div>
             <div id="assistant-pdf-title" className="text-sm font-semibold">{pdf.title}</div>
-            <div className="text-xs text-slate-400">{pdf.page ? `Página ${pdf.page}` : 'Visualização do catálogo'}</div>
+            <div className="text-xs text-ink-400">{pdf.page ? `Página ${pdf.page}` : 'Visualização do catálogo'}</div>
           </div>
           <div className="flex gap-2">
-            <a href={pdfPageUrl(pdf.url, pdf.page)} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-[#1d4f91] dark:text-blue-300">Nova aba</a>
-            <button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-slate-400">Esc</span></button>
+            <a href={pdfPageUrl(pdf.url, pdf.page)} target="_blank" rel="noreferrer" className="rounded-xl border border-ink-200 dark:border-ink-700 px-3 py-2 text-xs font-semibold text-brand-600 dark:text-brand-300">Nova aba</a>
+            <button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-ink-200 dark:border-ink-700 px-3 py-2 text-sm">Fechar <span className="ml-1 text-[10px] text-ink-400">Esc</span></button>
           </div>
         </div>
         <iframe title={pdf.title} src={pdfPageUrl(pdf.url, pdf.page)} className="h-full w-full border-0" />
@@ -599,16 +599,16 @@ export default function ChatPanel({
 
   if (isDrawer) {
     return (
-      <section className="flex h-full flex-col overflow-hidden bg-white dark:bg-slate-900">
-        {notice ? <div role="status" aria-live="polite" className="fixed right-5 top-20 z-[100] rounded-xl bg-slate-900 px-4 py-2.5 text-sm text-white shadow-lg">{notice}</div> : null}
+      <section className="flex h-full flex-col overflow-hidden bg-white dark:bg-ink-900">
+        {notice ? <div role="status" aria-live="polite" className="fixed right-5 top-20 z-[100] rounded-xl bg-ink-900 px-4 py-2.5 text-sm text-white shadow-lg">{notice}</div> : null}
 
         {/* Drawer Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-800/90 px-4 py-3 backdrop-blur">
+        <div className="flex items-center justify-between border-b border-ink-200 dark:border-ink-800 bg-ink-50/90 dark:bg-ink-800/90 px-4 py-3 backdrop-blur">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-blue-100 dark:bg-blue-900/60 text-[#1d4f91] dark:text-blue-300 font-bold text-sm">✦</span>
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-brand-100 dark:bg-brand-900/60 text-brand-600 dark:text-brand-300 font-bold text-sm">✦</span>
             <div>
-              <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">Assistente IA de Peças</div>
-              <div className="text-[10px] text-slate-400">Dúvidas técnicas e compatibilidade</div>
+              <div className="text-sm font-semibold text-ink-800 dark:text-ink-100">Assistente IA de Peças</div>
+              <div className="text-[10px] text-ink-400">Dúvidas técnicas e compatibilidade</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -617,7 +617,7 @@ export default function ChatPanel({
                 type="button"
                 onClick={newConversation}
                 title="Limpar conversa"
-                className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                className="rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 px-2.5 py-1 text-xs font-semibold text-ink-500 hover:text-ink-800 dark:text-ink-400 dark:hover:text-ink-200"
               >
                 Limpar
               </button>
@@ -627,7 +627,7 @@ export default function ChatPanel({
                 type="button"
                 onClick={onClose}
                 aria-label="Fechar assistente"
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 transition"
+                className="rounded-lg p-1.5 text-ink-400 hover:bg-ink-200 dark:hover:bg-ink-700 hover:text-ink-700 dark:hover:text-ink-200 transition"
               >
                 ✕
               </button>
@@ -641,7 +641,7 @@ export default function ChatPanel({
         </div>
 
         {/* Drawer Form */}
-        <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="border-t border-ink-200 dark:border-ink-800 bg-white dark:bg-ink-900">
           {formContent}
         </div>
 
@@ -652,39 +652,39 @@ export default function ChatPanel({
 
   return (
     <section>
-      {notice ? <div role="status" aria-live="polite" className="fixed right-5 top-20 z-[100] rounded-xl bg-slate-900 px-4 py-2.5 text-sm text-white shadow-lg">{notice}</div> : null}
+      {notice ? <div role="status" aria-live="polite" className="fixed right-5 top-20 z-[100] rounded-xl bg-ink-900 px-4 py-2.5 text-sm text-white shadow-lg">{notice}</div> : null}
 
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="cv-kicker">Assistente técnico</p>
           <h1 className="cv-page-title">Encontre o código certo com segurança</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">O assistente interpreta a solicitação, mas somente retorna códigos existentes nos catálogos técnicos da empresa.</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-500 dark:text-ink-400">O assistente interpreta a solicitação, mas somente retorna códigos existentes nos catálogos técnicos da empresa.</p>
         </div>
-        {messages.length ? <button type="button" onClick={newConversation} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 transition hover:border-blue-200 dark:border-blue-600 hover:text-[#1d4f91] dark:text-blue-300">Nova conversa</button> : null}
+        {messages.length ? <button type="button" onClick={newConversation} className="rounded-xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 px-3 py-2 text-xs font-semibold text-ink-500 dark:text-ink-400 transition hover:border-brand-200 dark:border-brand-600 hover:text-brand-600 dark:text-brand-300">Nova conversa</button> : null}
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_330px]">
         <div className="cv-surface overflow-hidden rounded-[24px]">
-          <div className="grid gap-4 border-b border-slate-200 dark:border-slate-800/60 bg-transparent p-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 border-b border-ink-200 dark:border-ink-800/60 bg-transparent p-5 sm:grid-cols-2 lg:grid-cols-4">
             <label className="group flex flex-col gap-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 transition-colors group-focus-within:text-[#1d4f91] dark:group-focus-within:text-blue-400">Fabricante</span>
-              <input value={manufacturer} onChange={event => setManufacturer(event.target.value)} placeholder="Ex.: Husqvarna" className="rounded-xl border-none bg-slate-100/50 dark:bg-slate-800/40 px-3 py-2.5 text-sm outline-none transition-all focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-[#1d4f91]/20 dark:focus:ring-blue-500/30" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-ink-400 dark:text-ink-500 transition-colors group-focus-within:text-brand-600 dark:group-focus-within:text-brand-400">Fabricante</span>
+              <input value={manufacturer} onChange={event => setManufacturer(event.target.value)} placeholder="Ex.: Husqvarna" className="rounded-xl border-none bg-ink-100/50 dark:bg-ink-800/40 px-3 py-2.5 text-sm outline-none transition-all focus:bg-white dark:focus:bg-ink-800 focus:ring-2 focus:ring-brand-600/20 dark:focus:ring-brand-500/30" />
             </label>
             <label className="group flex flex-col gap-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 transition-colors group-focus-within:text-[#1d4f91] dark:group-focus-within:text-blue-400">Modelo</span>
-              <input value={model} onChange={event => setModel(event.target.value)} placeholder="Ex.: 143RS" className="rounded-xl border-none bg-slate-100/50 dark:bg-slate-800/40 px-3 py-2.5 text-sm outline-none transition-all focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-[#1d4f91]/20 dark:focus:ring-blue-500/30" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-ink-400 dark:text-ink-500 transition-colors group-focus-within:text-brand-600 dark:group-focus-within:text-brand-400">Modelo</span>
+              <input value={model} onChange={event => setModel(event.target.value)} placeholder="Ex.: 143RS" className="rounded-xl border-none bg-ink-100/50 dark:bg-ink-800/40 px-3 py-2.5 text-sm outline-none transition-all focus:bg-white dark:focus:bg-ink-800 focus:ring-2 focus:ring-brand-600/20 dark:focus:ring-brand-500/30" />
             </label>
             <label className="group flex flex-col gap-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 transition-colors group-focus-within:text-[#1d4f91] dark:group-focus-within:text-blue-400">PNC</span>
-              <input value={pnc} onChange={event => setPnc(event.target.value)} placeholder="Ex.: 967 33 26-01" className="rounded-xl border-none bg-slate-100/50 dark:bg-slate-800/40 px-3 py-2.5 text-sm outline-none transition-all focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-[#1d4f91]/20 dark:focus:ring-blue-500/30" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-ink-400 dark:text-ink-500 transition-colors group-focus-within:text-brand-600 dark:group-focus-within:text-brand-400">PNC</span>
+              <input value={pnc} onChange={event => setPnc(event.target.value)} placeholder="Ex.: 967 33 26-01" className="rounded-xl border-none bg-ink-100/50 dark:bg-ink-800/40 px-3 py-2.5 text-sm outline-none transition-all focus:bg-white dark:focus:bg-ink-800 focus:ring-2 focus:ring-brand-600/20 dark:focus:ring-brand-500/30" />
             </label>
             <label className="group flex flex-col gap-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 transition-colors group-focus-within:text-[#1d4f91] dark:group-focus-within:text-blue-400 flex justify-between">S/N <span className="normal-case tracking-normal opacity-60">opcional</span></span>
-              <input inputMode="numeric" autoComplete="off" value={serial} onChange={event => setSerial(event.target.value.replace(/\D/g, '').slice(0, 16))} placeholder="Ex.: 20240200001" className="rounded-xl border-none bg-slate-100/50 dark:bg-slate-800/40 px-3 py-2.5 text-sm outline-none transition-all focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-[#1d4f91]/20 dark:focus:ring-blue-500/30" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-ink-400 dark:text-ink-500 transition-colors group-focus-within:text-brand-600 dark:group-focus-within:text-brand-400 flex justify-between">S/N <span className="normal-case tracking-normal opacity-60">opcional</span></span>
+              <input inputMode="numeric" autoComplete="off" value={serial} onChange={event => setSerial(event.target.value.replace(/\D/g, '').slice(0, 16))} placeholder="Ex.: 20240200001" className="rounded-xl border-none bg-ink-100/50 dark:bg-ink-800/40 px-3 py-2.5 text-sm outline-none transition-all focus:bg-white dark:focus:bg-ink-800 focus:ring-2 focus:ring-brand-600/20 dark:focus:ring-brand-500/30" />
             </label>
             <div className="flex flex-wrap items-center gap-2 sm:col-span-2 lg:col-span-4 mt-1">
-              <button type="button" onClick={saveEquipment} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 px-3 py-1.5 text-[11px] font-semibold transition-colors hover:bg-white dark:hover:bg-slate-700">☆ Salvar para próximas buscas</button>
-              {(manufacturer || model || pnc || serial) ? <button type="button" onClick={() => { setManufacturer(''); setModel(''); setPnc(''); setSerial(''); }} className="rounded-xl px-3 py-1.5 text-[11px] font-medium text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">Limpar campos</button> : null}
+              <button type="button" onClick={saveEquipment} className="rounded-xl border border-ink-200 dark:border-ink-700 bg-white/50 dark:bg-ink-800/50 px-3 py-1.5 text-[11px] font-semibold transition-colors hover:bg-white dark:hover:bg-ink-700">☆ Salvar para próximas buscas</button>
+              {(manufacturer || model || pnc || serial) ? <button type="button" onClick={() => { setManufacturer(''); setModel(''); setPnc(''); setSerial(''); }} className="rounded-xl px-3 py-1.5 text-[11px] font-medium text-ink-500 hover:text-ink-700 dark:hover:text-ink-300">Limpar campos</button> : null}
             </div>
           </div>
 
@@ -698,29 +698,29 @@ export default function ChatPanel({
         <aside className="space-y-4">
           <div className="cv-surface rounded-[22px] p-5">
             <div className="text-sm font-semibold">Equipamentos salvos</div>
-            <p className="mt-1 text-xs text-slate-400">Reaplique modelo, PNC e S/N usados com frequência nesta estação.</p>
+            <p className="mt-1 text-xs text-ink-400">Reaplique modelo, PNC e S/N usados com frequência nesta estação.</p>
             <div className="mt-4 grid gap-2">
-              {!equipment.length ? <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3 text-xs text-slate-400">Nenhum equipamento salvo.</div> : null}
-              {equipment.map(item => <div key={item.id} className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 p-2"><button type="button" onClick={() => { setManufacturer(item.manufacturer); setModel(item.model); setPnc(item.pnc); setSerial(item.serial || ''); notify('Equipamento aplicado.'); }} className="min-w-0 flex-1 rounded-lg p-1 text-left text-xs hover:bg-slate-50 dark:bg-slate-800/50"><b className="block truncate text-slate-700 dark:text-slate-300">{item.label}</b><span className="mt-1 block text-slate-400">Usar nesta busca</span></button><button type="button" onClick={() => removeEquipment(item.id)} aria-label={`Remover ${item.label}`} title="Remover equipamento" className="rounded-lg px-2 py-1 text-slate-400 hover:bg-rose-50 dark:bg-rose-900/30 hover:text-rose-600">×</button></div>)}
+              {!equipment.length ? <div className="rounded-xl bg-ink-50 dark:bg-ink-800/50 p-3 text-xs text-ink-400">Nenhum equipamento salvo.</div> : null}
+              {equipment.map(item => <div key={item.id} className="flex items-center gap-2 rounded-xl border border-ink-200 dark:border-ink-700 p-2"><button type="button" onClick={() => { setManufacturer(item.manufacturer); setModel(item.model); setPnc(item.pnc); setSerial(item.serial || ''); notify('Equipamento aplicado.'); }} className="min-w-0 flex-1 rounded-lg p-1 text-left text-xs hover:bg-ink-50 dark:bg-ink-800/50"><b className="block truncate text-ink-700 dark:text-ink-300">{item.label}</b><span className="mt-1 block text-ink-400">Usar nesta busca</span></button><button type="button" onClick={() => removeEquipment(item.id)} aria-label={`Remover ${item.label}`} title="Remover equipamento" className="rounded-lg px-2 py-1 text-ink-400 hover:bg-rose-50 dark:bg-rose-900/30 hover:text-rose-600">×</button></div>)}
             </div>
           </div>
 
           <div className="cv-surface rounded-[22px] p-5">
             <div className="text-sm font-semibold">Buscas rápidas</div>
-            <p className="mt-1 text-xs text-slate-400">Atalhos locais desta estação; o histórico completo fica salvo no sistema.</p>
+            <p className="mt-1 text-xs text-ink-400">Atalhos locais desta estação; o histórico completo fica salvo no sistema.</p>
             <div className="mt-4 grid gap-2">
-              {!recent.length ? <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3 text-xs text-slate-400">As novas buscas aparecerão aqui.</div> : null}
+              {!recent.length ? <div className="rounded-xl bg-ink-50 dark:bg-ink-800/50 p-3 text-xs text-ink-400">As novas buscas aparecerão aqui.</div> : null}
               {recent.map(item => {
                 const itemSerial = item.serial || extractSerialFromQuery(item.query);
                 const context = [item.pnc ? `PNC ${item.pnc}` : '', itemSerial ? `S/N ${itemSerial}` : ''].filter(Boolean).join(' · ') || 'Sem PNC/S/N informado';
-                return <button type="button" key={item.id} onClick={() => { setPnc(item.pnc); setSerial(itemSerial); void ask(item.query, item.pnc, false); }} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 text-left text-xs hover:bg-slate-50 dark:bg-slate-800/50"><b className="block text-slate-700 dark:text-slate-300">{item.query}</b><span className="mt-1 block text-slate-400">{context}</span></button>;
+                return <button type="button" key={item.id} onClick={() => { setPnc(item.pnc); setSerial(itemSerial); void ask(item.query, item.pnc, false); }} className="rounded-xl border border-ink-200 dark:border-ink-700 p-3 text-left text-xs hover:bg-ink-50 dark:bg-ink-800/50"><b className="block text-ink-700 dark:text-ink-300">{item.query}</b><span className="mt-1 block text-ink-400">{context}</span></button>;
               })}
             </div>
           </div>
 
-          <div className="rounded-[22px] bg-[#0d2348] p-5 text-white">
+          <div className="rounded-[22px] bg-ink-900 p-5 text-white">
             <div className="text-xs font-bold text-amber-200">REGRA DE SEGURANÇA</div>
-            <p className="mt-2 text-sm leading-6 text-slate-300">O assistente nunca cria códigos. Quando a IA externa estiver indisponível, o CogniVault tenta uma busca textual segura e avisa que o resultado exige conferência.</p>
+            <p className="mt-2 text-sm leading-6 text-ink-300">O assistente nunca cria códigos. Quando a IA externa estiver indisponível, o CogniVault tenta uma busca textual segura e avisa que o resultado exige conferência.</p>
           </div>
         </aside>
       </div>

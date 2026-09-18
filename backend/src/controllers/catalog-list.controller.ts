@@ -17,6 +17,7 @@ import {
   formatBriggsEngineModel,
   inferEquipmentFamily,
 } from '../services/husqvarna-domain-knowledge';
+import { briggsManualsSearchUrl } from '../utils/engine-model';
 
 const LIST_FRESH_MS = Math.max(2_000, Number(process.env.CATALOG_LIST_CACHE_FRESH_MS || '5000') || 5_000);
 const LIST_STALE_MS = Math.max(LIST_FRESH_MS, Number(process.env.CATALOG_LIST_CACHE_STALE_MS || '30000') || 30_000);
@@ -91,6 +92,14 @@ function toListItem(document: CatalogRecord, partPncs: string[] = []) {
     || /^(?:motor|engine|kawasaki\s+f[rsx]|kohler|briggs)\b/i.test(effectiveModel)
     || /\b(?:motor\s+briggs|kawasaki\s+engine|kohler\s+engine)\b/i.test(filename);
 
+  // Link para a busca oficial de manual/vista explodida da Briggs. Não é uma
+  // integração (sem API pública, sem catálogo em português) — é só o link de
+  // busca deles, já no formato que o site exige. O balcão abre e lê por
+  // conta própria; ver utils/engine-model.ts.
+  const briggsManualsUrl = isEngineCatalog && isBriggsModel
+    ? briggsManualsSearchUrl(effectiveModel)
+    : null;
+
   const applications = isEngineCatalog
     ? findMachinesForEngine(effectiveModel, filename).map(app => {
         const family = inferEquipmentFamily('', app.machineModel);
@@ -114,6 +123,7 @@ function toListItem(document: CatalogRecord, partPncs: string[] = []) {
           engineModel,
           engineArticle: app.engineArticle,
           label: `Motor ${engineModel}`,
+          briggsManualsUrl: briggsManualsSearchUrl(engineModel),
         };
       })
     : [];
@@ -131,6 +141,7 @@ function toListItem(document: CatalogRecord, partPncs: string[] = []) {
     category,
     applications,
     engineApplications,
+    briggsManualsUrl,
     createdAt: document.createdAt,
     partCount: document._count.parts,
     archivedAt: document.archivedAt,

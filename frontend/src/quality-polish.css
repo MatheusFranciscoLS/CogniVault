@@ -28,11 +28,11 @@
 .cv-quality-workspace .bg-\[\#10284d\] {
   border-color: #e2e8f0 !important;
   background: #fff !important;
-  color: #0f172a !important;
+  color: #1e1e1d !important;
 }
 
 .cv-quality-workspace .bg-\[\#10284d\] [class*="text-white"] {
-  color: #0f172a !important;
+  color: #1e1e1d !important;
 }
 
 .cv-quality-workspace .cv-surface {
@@ -51,7 +51,7 @@
 
 .dark .cv-quality-workspace .bg-\[\#10284d\] {
   border-color: #1e293b !important;
-  background: #0f172a !important;
+  background: #1e1e1d !important;
   color: #fff !important;
 }
 

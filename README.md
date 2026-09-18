@@ -30,6 +30,7 @@ A plataforma combina dados estruturados, documentos privados, regras técnicas e
 | Problema | Resposta do produto |
 | :--- | :--- |
 | Catálogos e conhecimento espalhados em diferentes fontes. | Biblioteca central com busca por peça, código, modelo, PNC e número de série. |
+| Tempo perdido abrindo PDF de vista explodida para achar uma posição. | Vista explodida oficial aberta dentro do atendimento, com posição clicável e código pronto para o orçamento. |
 | Documentos técnicos sensíveis. | Storage privado, URLs assinadas e autorização aplicada pelo backend. |
 | Risco de uma resposta de IA parecer correta sem possuir evidência. | Part Numbers originados de registros estruturados, restrições técnicas e rastreabilidade de fontes. |
 | Processamento de PDFs sujeito a falhas e operações demoradas. | Filas, reprocessamento controlado, estados de saúde e rotinas de recuperação. |
@@ -48,6 +49,8 @@ A plataforma combina dados estruturados, documentos privados, regras técnicas e
 
 - Assistente de IA com respostas baseadas em evidências.
 - Busca por peça, código, modelo, PNC e número de série.
+- Vista explodida oficial interativa por máquina, com posições clicáveis, preço e envio direto ao orçamento.
+- Kit de manutenção sugerido por modelo a partir do catálogo interno.
 - Histórico, favoritos, detalhes e compatibilidade.
 - Confirmação e correção de resultados por feedback.
 - Leitor interno para visualizar e baixar catálogos processados.

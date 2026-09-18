@@ -9,6 +9,7 @@ import { invalidateCatalogListCache } from '../controllers/catalog-list.controll
 import { invalidateFastSearchCaches } from '../controllers/fast-search.controller';
 import { invalidateNotificationCache } from '../controllers/notification.controller';
 import { invalidateAdminOverviewCache } from '../controllers/admin-overview.controller';
+import { invalidateBusinessInsightsCache } from '../controllers/business-insights.controller';
 import { invalidateQualityOverviewCache } from './quality-overview-cache.middleware';
 
 function successful(status: number): boolean {
@@ -155,6 +156,22 @@ export function invalidateDocumentAccessAfterMutation(
     invalidateNotificationCache(tenantId);
     invalidateAdminOverviewCache(tenantId);
     invalidateQualityOverviewCache(tenantId);
+  });
+
+  next();
+}
+
+export function invalidateBusinessInsightsAfterQuoteMutation(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+): void {
+  const tenantId = req.user?.tenantId;
+
+  res.once('finish', () => {
+    if (!tenantId || !successful(res.statusCode)) return;
+    // Salvar/editar/excluir orçamento muda direto o que o painel do dono soma.
+    invalidateBusinessInsightsCache(tenantId);
   });
 
   next();

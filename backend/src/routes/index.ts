@@ -26,6 +26,9 @@ import { FastSearchController } from '../controllers/fast-search.controller';
 import { PartDetailController } from '../controllers/part-detail.controller';
 import { AdminOverviewController } from '../controllers/admin-overview.controller';
 import { CatalogListController } from '../controllers/catalog-list.controller';
+import { QuoteController } from '../controllers/quote.controller';
+import { BusinessInsightsController } from '../controllers/business-insights.controller';
+import { ExportController } from '../controllers/export.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 import { chatSessionContextMiddleware } from '../middleware/chat-session-context.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
@@ -57,6 +60,7 @@ import {
   invalidateQualityAfterMutation,
   invalidateWorkContextAfterLocation,
   invalidateWorkContextAfterQuoteUsage,
+  invalidateBusinessInsightsAfterQuoteMutation,
 } from '../middleware/cache-invalidation.middleware';
 
 const router = Router();
@@ -85,6 +89,9 @@ const fastSearchController = new FastSearchController();
 const partDetailController = new PartDetailController();
 const adminOverviewController = new AdminOverviewController();
 const catalogListController = new CatalogListController();
+const quoteController = new QuoteController();
+const businessInsightsController = new BusinessInsightsController();
+const exportController = new ExportController();
 
 const upload = multer({
   dest: 'uploads/',
@@ -138,6 +145,18 @@ router.post('/favorites', authMiddleware, validateFavoriteMutationBody, invalida
 router.delete('/favorites/:id', authMiddleware, validateEntityIdParam, invalidateFavoriteCachesAfterMutation, (req, res) => operationalController.removeFavorite(req, res));
 router.get('/notifications', authMiddleware, (req, res) => notificationController.list(req, res));
 
+// Orçamento de balcão persistido. A cesta aberta (`/quotes/draft`) é por
+// atendente; o arquivo (`/quotes`) é do próprio atendente para o Balcão e da
+// loja inteira para o Admin — não existe terceiro papel.
+router.get('/quotes/draft', authMiddleware, (req, res) => quoteController.getDraft(req, res));
+router.put('/quotes/draft', authMiddleware, (req, res) => quoteController.putDraft(req, res));
+router.delete('/quotes/draft', authMiddleware, (req, res) => quoteController.clearDraft(req, res));
+router.get('/quotes', authMiddleware, (req, res) => quoteController.list(req, res));
+router.post('/quotes', authMiddleware, invalidateBusinessInsightsAfterQuoteMutation, (req, res) => quoteController.create(req, res));
+router.get('/quotes/:id', authMiddleware, validateEntityIdParam, (req, res) => quoteController.get(req, res));
+router.patch('/quotes/:id', authMiddleware, validateEntityIdParam, invalidateBusinessInsightsAfterQuoteMutation, (req, res) => quoteController.update(req, res));
+router.delete('/quotes/:id', authMiddleware, validateEntityIdParam, invalidateBusinessInsightsAfterQuoteMutation, (req, res) => quoteController.remove(req, res));
+
 router.get('/part-verifications', authMiddleware, (req, res) => officialPartVerificationController.list(req, res));
 router.get('/part-verifications/pending', authMiddleware, adminOnly, (req, res) => officialPartVerificationController.pending(req, res));
 router.get('/part-verifications/:code/history', authMiddleware, validatePartCodeParam, (req, res) => officialPartVerificationController.history(req, res));
@@ -159,6 +178,9 @@ router.post('/feedback', authMiddleware, invalidateAdminOverviewAfterMutation, i
 router.patch('/feedback/:id', authMiddleware, validateEntityIdParam, invalidateQualityAfterMutation, (req, res) => feedbackController.update(req, res));
 
 router.get('/admin/overview', authMiddleware, adminOnly, (req, res) => adminOverviewController.get(req, res));
+router.get('/admin/business-insights', authMiddleware, adminOnly, (req, res) => businessInsightsController.get(req, res));
+router.get('/admin/exports/price-list.csv', authMiddleware, adminOnly, (req, res) => exportController.priceList(req, res));
+router.get('/admin/exports/quotes.csv', authMiddleware, adminOnly, (req, res) => exportController.quotes(req, res));
 router.get('/admin/performance', authMiddleware, adminOnly, (req, res) => performanceController.overview(req, res));
 router.get('/admin/commercial-imports', authMiddleware, adminOnly, (req, res) => commercialImportController.list(req, res));
 router.get('/admin/users', authMiddleware, adminOnly, (req, res) => adminController.users(req, res));

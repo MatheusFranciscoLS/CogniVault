@@ -12,7 +12,7 @@ interface FastSearchPayload {
   documents: Array<Record<string, unknown>>;
 }
 
-type SearchPath = 'DIRECT_CODE' | 'CODE_PREFIX';
+type SearchPath = 'DIRECT_CODE' | 'CODE_PREFIX' | 'FUZZY_CODE';
 type CacheStatus = 'HIT' | 'MISS';
 type FastSearchResolution = {
   payload: FastSearchPayload;
@@ -30,10 +30,16 @@ const prefixSearchCache = new LRUCache<string, FastSearchPayload>({
   ttl: 3 * 60 * 1000,
 });
 
+const fuzzySearchCache = new LRUCache<string, FastSearchPayload>({
+  max: 1200,
+  ttl: 3 * 60 * 1000,
+});
+
 export function invalidateFastSearchCaches(tenantId?: string): void {
   if (!tenantId) {
     exactSearchCache.clear();
     prefixSearchCache.clear();
+    fuzzySearchCache.clear();
     return;
   }
 
@@ -42,6 +48,9 @@ export function invalidateFastSearchCaches(tenantId?: string): void {
   }
   for (const key of prefixSearchCache.keys()) {
     if (key.startsWith(`${tenantId}:`)) prefixSearchCache.delete(key);
+  }
+  for (const key of fuzzySearchCache.keys()) {
+    if (key.startsWith(`${tenantId}:`)) fuzzySearchCache.delete(key);
   }
 }
 
@@ -196,10 +205,33 @@ async function prefixPayload(tenantId: string, query: string): Promise<FastSearc
   return { payload, path: 'CODE_PREFIX', cache: 'MISS' };
 }
 
+/**
+ * Só é tentado depois que o código exato e o prefixo técnico já não acharam
+ * nada — cobre erro de digitação (dígito trocado, tecla vizinha, duplicado
+ * ou faltando) num código que, de resto, parece certo.
+ */
+async function fuzzyPayload(tenantId: string, query: string): Promise<FastSearchResolution | null> {
+  if (!looksLikeExactPartCode(query)) return null;
+  const normalized = normalizeIdentifier(query);
+  const key = `${tenantId}:${normalized}`;
+  const cached = fuzzySearchCache.get(key);
+  if (cached) return { payload: cached, path: 'FUZZY_CODE', cache: 'HIT' };
+
+  const candidates = await PartSearchService.byFuzzyCode(tenantId, query);
+  if (!candidates.length) return null;
+
+  const currentCandidates = preferCurrentPartNumbers(candidates);
+  const payload = await enrichCandidates(tenantId, currentCandidates);
+  fuzzySearchCache.set(key, payload);
+  return { payload, path: 'FUZZY_CODE', cache: 'MISS' };
+}
+
 async function resolveFastSearch(tenantId: string, query: string): Promise<FastSearchResolution | null> {
   const exact = await exactPayload(tenantId, query);
   if (exact) return exact;
-  return prefixPayload(tenantId, query);
+  const prefix = await prefixPayload(tenantId, query);
+  if (prefix) return prefix;
+  return fuzzyPayload(tenantId, query);
 }
 
 function isFastSearchCandidate(query: string): boolean {

@@ -1,3 +1,4 @@
+import { isPlausiblePartNumber } from '../utils/part-number';
 import { prisma } from '../config/prisma';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { isLikelyHusqvarnaPnc, isPlausibleCatalogModel } from './catalog-extractor';
@@ -320,8 +321,10 @@ export function diagnoseCatalogStructure(
     }
     const code = normalizeIdentifier(part.normalizedPartNumber);
     if (allowedDocumentPncs.has(code)) pncAsPartNumberCount += 1;
-    const digitCount = code.replace(/\D/g, '').length;
-    if (code.length < 4 || code.length > 18 || digitCount < 3) malformedPartNumberCount += 1;
+    // Mesmo critério de sempre, agora compartilhado com o gate de gravação em
+    // ai.service.ts — a nota de saúde e o que entra no catálogo não podem
+    // divergir sobre o que é um código plausível.
+    if (!isPlausiblePartNumber(code)) malformedPartNumberCount += 1;
   }
 
   let conflictingOccurrenceCount = 0;

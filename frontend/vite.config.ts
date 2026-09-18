@@ -8,13 +8,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['favicon.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'CogniVault',
         short_name: 'CogniVault',
         description: 'Inteligência de Peças e Catálogos',
-        theme_color: '#0b1d3a',
-        background_color: '#0b1d3a',
+        theme_color: '#273a60',
+        background_color: '#273a60',
         display: 'standalone',
         icons: [
           {

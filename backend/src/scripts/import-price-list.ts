@@ -3,13 +3,13 @@ import { randomUUID } from 'crypto';
 import path from 'path';
 import { Prisma, PrismaClient } from '@prisma/client';
 import * as XLSX from 'xlsx';
+import { COMMERCIAL_PRICE_DIVISOR, commercialPrice } from './price-list-rules';
 
 const prisma = new PrismaClient();
 
 const BASE_SHEET = 'BASE_DADOS CADASTRAIS';
 const EAN_SHEET = 'EAN';
 const BATCH_SIZE = 400;
-const COMMERCIAL_PRICE_DIVISOR = 0.92;
 
 const PRICE_SECTIONS = [
   { sheet: 'LISTA_DE_PEÇAS', section: 'PEÇAS DE REPOSIÇÃO GERAL' },
@@ -79,11 +79,6 @@ function numberValue(input: unknown): number | null {
 
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-function commercialPrice(input: number | null): number | null {
-  if (input === null) return null;
-  return Math.round((input / COMMERCIAL_PRICE_DIVISOR) * 100) / 100;
 }
 
 function normalizeIdentifier(input: unknown): string {

@@ -1,5 +1,6 @@
 import { LRUCache } from 'lru-cache';
 import { normalizeIdentifier } from '../utils/normalize';
+import { isHostOrSubdomain } from '../utils/husqvarna-url';
 
 const GRAPHQL_URL = 'https://portal.husqvarnagroup.com/hbd/graphql?';
 const PORTAL_ORIGIN = 'https://portal.husqvarnagroup.com';
@@ -169,12 +170,6 @@ export type HusqvarnaOfficialSearchResult = {
 
 type SearchCacheEntry = { results: HusqvarnaOfficialSearchResult[] };
 const cache = new LRUCache<string, SearchCacheEntry>({ max: 300, ttl: 15 * 60 * 1000 });
-
-function isHostOrSubdomain(host: string, domain: string): boolean {
-  const normalizedHost = host.toLowerCase().replace(/\.$/, '');
-  const normalizedDomain = domain.toLowerCase().replace(/\.$/, '');
-  return normalizedHost === normalizedDomain || normalizedHost.endsWith(`.${normalizedDomain}`);
-}
 
 function safePortalUrl(value: unknown, pnc?: string | null): string | null {
   const raw = String(value || '').trim();

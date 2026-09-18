@@ -228,7 +228,10 @@ export class WorkIntelligenceController {
                 categoryName: sameDetails?.categoryName || productMatch?.category?.name || null,
                 articleDescription: sameDetails?.articleDescription || null,
                 iplSections,
-                documents: [],
+                // Manual do operador e vista explodida em PDF, já presentes na
+                // carga em cache do Portal. Antes isto ia vazio e obrigava o
+                // balcão a abrir o painel oficial só para chegar no manual.
+                documents: sameDetails?.documents || [],
                 portalUrl: directUrl,
                 url: workspaceUrl,
                 directProductUrl: Boolean(directUrl),

@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { GEMINI_EMBEDDING_MODEL, getGeminiClient } from '../config/gemini';
 import { normalizeIdentifier } from '../utils/normalize';
+import { engineModelVariants } from '../utils/engine-model';
 import type { SearchIntent } from './chat-intent.service';
 import {
   buildSearchGroups,
@@ -13,6 +14,7 @@ import {
 import { relationSpecificityBonus, stripExplicitSerialContext } from './candidate-specificity';
 import { applyFeedbackLearning, type FeedbackLearningSignal } from './feedback-learning';
 import { allRelatedPartNumbers, preferCurrentPartNumbers, resolveCurrentPartNumber } from './part-supersession';
+import { fuzzyNormalizePartCode } from '../utils/fuzzy-code';
 import { normalizedReciprocalRankFusionScores } from './retrieval-fusion';
 import { fullTextPartCandidates, fuzzyPartCandidates, type HybridTextCandidateRow } from './hybrid-part-retrieval';
 import { LRUCache } from 'lru-cache';
@@ -36,6 +38,11 @@ const feedbackCache = new LRUCache<string, FeedbackLearningSignal[]>({
 });
 
 const directCodeCache = new LRUCache<string, PartCandidate[]>({
+  max: 1000,
+  ttl: 5 * 60 * 1000, // 5 minutes
+});
+
+const fuzzyCodeCache = new LRUCache<string, PartCandidate[]>({
   max: 1000,
   ttl: 5 * 60 * 1000, // 5 minutes
 });
@@ -71,6 +78,9 @@ export function invalidatePartSearchCaches(tenantId?: string): void {
     for (const key of directCodeCache.keys()) {
       if (key.startsWith(`${tenantId}:`)) directCodeCache.delete(key);
     }
+    for (const key of fuzzyCodeCache.keys()) {
+      if (key.startsWith(`${tenantId}:`)) fuzzyCodeCache.delete(key);
+    }
     for (const key of semanticResultCache.keys()) {
       if (key.startsWith(`${tenantId}:`)) semanticResultCache.delete(key);
     }
@@ -78,6 +88,7 @@ export function invalidatePartSearchCaches(tenantId?: string): void {
     pncsCache.clear();
     modelsCache.clear();
     directCodeCache.clear();
+    fuzzyCodeCache.clear();
     semanticResultCache.clear();
   }
 }
@@ -309,6 +320,44 @@ export class PartSearchService {
     return candidates;
   }
 
+  /**
+   * Só entra em ação quando directByCode não acha nada: tenta variações
+   * anti-erro-de-digitação (dígitos trocados, tecla vizinha, duplicado,
+   * faltando) geradas por fuzzyNormalizePartCode. Resultado marcado como
+   * RetrievalSource 'FUZZY' — confidence-gate.ts já limita a confiança
+   * desses casos e exige evidência independente antes de tratar como certo.
+   */
+  static async byFuzzyCode(tenantId: string, partNumber: string): Promise<PartCandidate[]> {
+    const { primary, fuzzyVariations } = fuzzyNormalizePartCode(partNumber);
+    if (!fuzzyVariations.length) return [];
+
+    const cacheKey = `${tenantId}:${primary}`;
+    const cached = fuzzyCodeCache.get(cacheKey);
+    if (cached) return cached;
+
+    const rows = await prisma.part.findMany({
+      where: {
+        normalizedPartNumber: { in: fuzzyVariations },
+        active: true,
+        document: { tenantId, archivedAt: null, status: 'COMPLETED' },
+      },
+      include: { document: { select: { filename: true, pnc: true } } },
+    });
+    const candidates = preferCurrentPartNumbers(deduplicatePartCandidates(rows.map(p => ({
+      id: p.id, documentId: p.documentId, filename: p.document.filename,
+      manufacturer: p.manufacturer, model: p.model, normalizedModel: p.normalizedModel,
+      pnc: p.pnc || p.document.pnc,
+      normalizedPnc: p.normalizedPnc || normalizeIdentifier(p.document.pnc) || null,
+      universalAcrossPnc: p.document.pnc ? false : p.universalAcrossPnc,
+      section: p.section, position: p.position, name: p.name, alternativeNames: p.alternativeNames,
+      partNumber: p.partNumber, normalizedPartNumber: p.normalizedPartNumber,
+      page: p.page, notes: p.notes, distance: 0, feedbackScore: 0, searchMethod: 'LEXICAL' as const,
+      retrievalSources: ['FUZZY'] as RetrievalSource[], retrievalAgreement: 1,
+    }))));
+    fuzzyCodeCache.set(cacheKey, candidates);
+    return candidates;
+  }
+
   static async availablePncs(tenantId: string, normalizedModel: string): Promise<string[]> {
     const key = `${tenantId}:${normalizedModel}`;
     const cached = pncsCache.get(key);
@@ -452,7 +501,7 @@ export class PartSearchService {
         active: true,
         embeddingRevision: { gt: 0 },
         document: { tenantId, archivedAt: null, status: 'COMPLETED' },
-        ...(model ? { normalizedModel: model } : {}),
+        ...(model ? { normalizedModel: { in: engineModelVariants(model) } } : {}),
         ...(availabilityFilters.length ? { AND: availabilityFilters } : {}),
       },
       select: { id: true },
@@ -484,7 +533,7 @@ export class PartSearchService {
       Prisma.sql`p."active" = true`,
       Prisma.sql`p."embedding" IS NOT NULL`,
     ];
-    if (model) filters.push(Prisma.sql`p."normalizedModel" = ${model}`);
+    if (model) filters.push(Prisma.sql`p."normalizedModel" IN (${Prisma.join(engineModelVariants(model))})`);
     if (manufacturer) filters.push(Prisma.sql`(p."normalizedManufacturer" = ${manufacturer} OR p."normalizedManufacturer" IS NULL)`);
     if (pnc) filters.push(Prisma.sql`(p."normalizedPnc" = ${pnc} OR p."universalAcrossPnc" = true)`);
 
@@ -539,7 +588,7 @@ export class PartSearchService {
     const baseWhere: Prisma.PartWhereInput = {
       active: true,
       document: { tenantId, archivedAt: null, status: 'COMPLETED' },
-      ...(normalizedModel ? { normalizedModel } : {}),
+      ...(normalizedModel ? { normalizedModel: { in: engineModelVariants(normalizedModel) } } : {}),
     };
     let rows = await prisma.part.findMany({
       where: { ...baseWhere, AND: [...groupFilters, ...contextFilters] },

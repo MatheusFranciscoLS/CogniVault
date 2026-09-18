@@ -61,12 +61,15 @@ export type HusqvarnaLivePart = {
   };
 };
 
+// Espelha HusqvarnaQuickDocument do backend. `type` é string livre porque o
+// Portal usa mais rótulos que OM/IPL (SPEC, DOC…), e travar a união fazia o
+// tipo mentir sobre o que a API devolve.
 export type HusqvarnaPortalDocument = {
   title: string;
-  type: 'IPL' | 'OM' | 'OTHER';
+  type: string;
+  languages: string[];
+  fileFormat: string | null;
   url: string;
-  date: string | null;
-  language: string | null;
 };
 
 export type HusqvarnaIplSectionSummary = {
@@ -198,10 +201,6 @@ export type HusqvarnaOfficialSearchResult = {
   lastUpdated: string | null;
   productCount: number | null;
 };
-
-// Kept as an alias for older callers while the official search now returns
-// products, accessories, spare parts, documents and categories.
-export type HusqvarnaProductSearchResult = HusqvarnaOfficialSearchResult;
 
 export type PdfPreview = { url: string; page: number | null; title: string };
 

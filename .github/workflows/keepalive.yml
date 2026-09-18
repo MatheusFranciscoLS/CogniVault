@@ -1,0 +1,40 @@
+name: Keepalive
+
+# O plano gratuito do Render "dorme" o serviço depois de ~15 minutos sem
+# tráfego HTTP, e a primeira requisição depois disso paga um cold start de
+# dezenas de segundos — é o atendente no balcão esperando a página carregar.
+# Este workflow mantém o processo acordado sem custo: repositório público
+# tem minutos de Actions ilimitados.
+#
+# Usa /health (não /api/cron/keepalive) de propósito: /health consulta o
+# Postgres de verdade. O Supabase gratuito pausa o projeto depois de ~7 dias
+# sem nenhuma consulta ao banco — um ping que só acorda o Render, sem tocar
+# no banco, não evitaria essa pausa numa baixa longa (feriado, férias).
+on:
+  schedule:
+    - cron: '*/10 6-23 * * *' # a cada 10 min, 06:00–23:59 UTC (03:00–20:59 em Brasília)
+  workflow_dispatch: {}
+
+concurrency:
+  group: cognivault-keepalive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Acordar a API e o banco antes que durmam
+        run: |
+          set -euo pipefail
+          # Sem --fail: /health responde 503 quando só o RabbitMQ está
+          # degradado, e isso não deve derrubar o workflow — o job já
+          # cumpriu o objetivo (bateu no Postgres) só de fazer a chamada.
+          status="$(curl --silent --show-error --max-time 45 --output /dev/null \
+            --write-out '%{http_code}' \
+            "https://cognivault-api.onrender.com/health")"
+          echo "cognivault-api respondeu HTTP $status"
+          if [ "$status" != "200" ] && [ "$status" != "503" ]; then
+            echo "::error::Resposta inesperada ($status) — API pode estar fora do ar."
+            exit 1
+          fi

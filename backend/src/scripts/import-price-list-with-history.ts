@@ -4,9 +4,9 @@ import { createReadStream } from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { PrismaClient } from '@prisma/client';
+import { COMMERCIAL_PRICE_DIVISOR } from './price-list-rules';
 
 const prisma = new PrismaClient();
-const COMMERCIAL_PRICE_DIVISOR = 0.92;
 
 function resolveExcelPath(): string {
   const fileArg = process.argv.slice(2).find(argument => !argument.startsWith('--'));

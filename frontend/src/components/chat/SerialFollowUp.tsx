@@ -12,9 +12,9 @@ export default function SerialFollowUp({ disabled, onSubmit }: { disabled: boole
   };
 
   return (
-    <form onSubmit={submitSerial} className="mt-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-slate-800 p-3">
-      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300" htmlFor="guided-serial-number">Digite o número de série da etiqueta</label>
-      <p className="mt-1 text-[11px] leading-4 text-slate-400">Não é preciso repetir peça, modelo ou PNC. O CogniVault continuará a consulta anterior com este S/N.</p>
+    <form onSubmit={submitSerial} className="mt-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-ink-800 p-3">
+      <label className="block text-xs font-semibold text-ink-700 dark:text-ink-300" htmlFor="guided-serial-number">Digite o número de série da etiqueta</label>
+      <p className="mt-1 text-[11px] leading-4 text-ink-400">Não é preciso repetir peça, modelo ou PNC. O CogniVault continuará a consulta anterior com este S/N.</p>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         <input
           id="guided-serial-number"

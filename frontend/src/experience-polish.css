@@ -1,7 +1,7 @@
 /* Quote drawer: keep the existing business flow, reduce visual noise and make it mobile-safe. */
 button[aria-label^="Ver orçamento com"] {
   border-radius: .75rem !important;
-  background: #123867 !important;
+  background: #1f2742 !important;
   background-image: none !important;
   box-shadow: 0 8px 24px rgba(15, 23, 42, .18) !important;
   transform: none !important;
@@ -10,7 +10,7 @@ button[aria-label^="Ver orçamento com"] {
 button[aria-label^="Ver orçamento com"]:hover,
 button[aria-label^="Ver orçamento com"]:active {
   transform: none !important;
-  background: #0d2c52 !important;
+  background: #161c2f !important;
 }
 
 aside[aria-label="Cesta de Orçamento de Balcão"] {

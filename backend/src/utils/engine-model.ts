@@ -1,0 +1,103 @@
+import { normalizeIdentifier } from './normalize';
+
+/**
+ * Formas equivalentes de um mesmo número de modelo de motor.
+ *
+ * Regra do fabricante, da página "Find Your Manual or Parts List" da Briggs &
+ * Stratton (print enviado pelo proprietário em 2026-09-18):
+ *
+ *   Engine:  0XXXXX-XXXX   (modelo de 5 dígitos)*
+ *            XXXXXX-XXXX   (modelo de 6 dígitos + tipo)
+ *            XXXXXX-XXXX-XX (modelo + tipo + código)
+ *   * "5-digit model numbers will have a leading zero."
+ *   "Dashes are required after first 6 digits when entering model number."
+ *
+ * Os traços já não são problema: `normalizeIdentifier` remove separador, então
+ * `103M02-0027-H1`, `103M02 0027 H1` e `103M020027H1` (a forma que aparece na
+ * URL do IPL) caem todos em `103M020027H1`.
+ *
+ * O **zero à esquerda**, sim: a busca de peça filtra `normalizedModel` por
+ * igualdade exata, então `9D9020027H1` e `09D9020027H1` são o mesmo motor e não
+ * se encontram. Quem digita a etiqueta sem o zero não acha o catálogo gravado
+ * com ele, e vice-versa.
+ *
+ * A expansão só **acrescenta** candidato — nenhuma variante remove resultado.
+ * Por isso uma variante que não exista no catálogo é inofensiva: ela
+ * simplesmente não casa com nada.
+ */
+
+/**
+ * Prefixo de 5 ou 6 caracteres começando por dígito, seguido do tipo de 4
+ * dígitos e, opcionalmente, do código de 2 caracteres.
+ *
+ * O `{4,5}` com retrocesso é o que separa os dois casos: em `103M020027H1` o
+ * prefixo fecha com 6 (`103M02`), e em `9D9020027H1` o motor de 4 dígitos
+ * obriga o prefixo a recuar para 5 (`9D902`).
+ */
+const ENGINE_MODEL_SHAPE = /^([0-9][0-9A-Z]{4,5})([0-9]{4})([0-9A-Z]{2})?$/;
+
+export function engineModelVariants(value: string | null | undefined): string[] {
+  const model = normalizeIdentifier(value);
+  if (!model) return [];
+
+  const match = ENGINE_MODEL_SHAPE.exec(model);
+  if (!match) return [model];
+
+  const [, prefix, type, code = ''] = match;
+
+  // Modelo de 5 dígitos digitado sem o zero que o fabricante usa.
+  if (prefix.length === 5) return [model, `0${prefix}${type}${code}`];
+
+  // Guardado com o zero; alguém pode procurar sem ele.
+  if (prefix.startsWith('0')) return [model, `${prefix.slice(1)}${type}${code}`];
+
+  return [model];
+}
+
+/**
+ * Formata um modelo de motor Briggs no formato que o site oficial exige na
+ * busca de manual/vista explodida (`briggsandstratton.com/en-us/support/manuals`,
+ * print do proprietário de 2026-09-18): traço depois dos 6 primeiros
+ * caracteres, e zero à esquerda obrigatório para modelo de 5 dígitos.
+ *
+ * Aceita tanto o texto guardado no catálogo ("Motor Briggs 104M02-0002-F1",
+ * às vezes com sufixo "(Cortador X)") quanto o código cru. Devolve `null`
+ * quando a entrada não tem o formato de modelo Briggs — nunca um link
+ * formatado errado, porque link quebrado no balcão é pior que nenhum.
+ */
+export function formatBriggsModelForSearch(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+
+  const stripped = raw
+    .replace(/^\s*motor\s+briggs\s*(?:&|and)?\s*(?:stratton)?\s*/i, '')
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .trim();
+  const normalized = normalizeIdentifier(stripped);
+
+  const match = ENGINE_MODEL_SHAPE.exec(normalized);
+  if (!match) return null;
+
+  const [, prefix, type, code = ''] = match;
+  // O site categoriza como "5-digit model" o que aqui é um prefixo de 5: por
+  // isso o zero é sempre adicionado nesse caso, nunca deixado a critério de
+  // como o balcão digitou.
+  const canonicalPrefix = prefix.length === 5 ? `0${prefix}` : prefix;
+  return code ? `${canonicalPrefix}-${type}-${code}` : `${canonicalPrefix}-${type}`;
+}
+
+/**
+ * Link para a busca oficial de manual/vista explodida da Briggs & Stratton.
+ *
+ * Não existe API pública da Briggs equivalente ao GraphQL da Husqvarna, e o
+ * catálogo deles não tem português (inglês ou, como no exemplo real do
+ * proprietário, chinês) — por isso este é só um link de busca, não uma
+ * integração: mesmo padrão do botão manual do Portal Parceiro Husqvarna
+ * (abrir em nova aba, sem scraping, sem login automatizado). O balcão abre e
+ * lê a vista explodida por conta própria; o app não tenta interpretar peça
+ * nenhuma desse catálogo.
+ */
+export function briggsManualsSearchUrl(raw: string | null | undefined): string | null {
+  const formatted = formatBriggsModelForSearch(raw);
+  if (!formatted) return null;
+  return `https://www.briggsandstratton.com/en-us/support/manuals/results?search=${encodeURIComponent(formatted)}`;
+}
