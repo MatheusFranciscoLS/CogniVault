@@ -55,11 +55,24 @@ export default function FavoritesWorkspace({ onSearch }: { onSearch: (query: str
       .some(value => value?.toLocaleLowerCase('pt-BR').includes(normalized));
   }), [items, kind, normalized]);
 
+  const restore = async (item: FavoriteItem) => {
+    try {
+      const body = item.kind === 'PART' ? { partId: item.partId } : { documentId: item.documentId };
+      await apiJson('/api/favorites', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await apiJson<{ favorites: FavoriteItem[] }>('/api/favorites');
+      setItems(data.favorites);
+      toast.success('Favorito restaurado.');
+    } catch {
+      toast.error('Não foi possível restaurar o favorito.');
+    }
+  };
+
   const remove = async (id: string) => {
+    const item = items.find(entry => entry.id === id);
     try {
       await json(await api(`/api/favorites/${id}`, { method: 'DELETE' }));
-      setItems(current => current.filter(item => item.id !== id));
-      toast.success('Favorito removido.');
+      setItems(current => current.filter(entry => entry.id !== id));
+      toast.success('Favorito removido.', item ? { action: { label: 'Desfazer', onClick: () => void restore(item) } } : undefined);
     } catch (removeError) {
       toast.error(removeError instanceof Error ? removeError.message : 'Não foi possível remover o favorito.');
     }

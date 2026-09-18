@@ -725,7 +725,10 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
 
           {documents.length > 0 && (
             <section>
-              <div className="mb-2 px-1 text-[10px] font-black uppercase tracking-[.14em] text-ink-400">Catálogos relacionados</div>
+              <div className="mb-2 flex items-center justify-between gap-3 px-1">
+                <div className="text-[10px] font-black uppercase tracking-[.14em] text-ink-400">Catálogos relacionados</div>
+                {documents.length > 4 && <div className="text-[10px] text-ink-400">+{documents.length - 4} outro{documents.length - 4 === 1 ? '' : 's'}</div>}
+              </div>
               <div className="grid gap-2 md:grid-cols-2">
                 {documents.slice(0, 4).map(document => <button key={document.id} type="button" onClick={() => void accessPdf(document.id, null, document.filename)} className="rounded-xl border border-ink-200 bg-white p-3 text-left transition hover:border-brand-300 dark:border-ink-800 dark:bg-ink-900"><div className="truncate text-xs font-black text-ink-800 dark:text-ink-100">{document.filename}</div><div className="mt-1 text-[10px] text-ink-400">{document.model || 'Modelo não informado'} · {document.partCount} peças</div></button>)}
               </div>
