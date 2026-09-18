@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { toast } from 'sonner';
-import { apiJson, fmtDate, formatHusqvarnaPartNumber } from '../lib';
+import { apiJson, fmtDate, formatHusqvarnaPartNumber, replayQuery } from '../lib';
 import type { SearchHistoryItem, SearchStatus } from '../types';
 import { useQuoteCart } from '../context/QuoteCartContext';
 
@@ -13,13 +13,6 @@ const statusLabels: Record<SearchStatus, string> = {
   AMBIGUOUS: 'Ambígua',
   NOT_FOUND: 'Sem resultado',
 };
-
-function replayQuery(item: SearchHistoryItem) {
-  if (!item.pnc) return item.query;
-  const queryDigits = item.query.replace(/\D/g, '');
-  const pncDigits = item.pnc.replace(/\D/g, '');
-  return pncDigits && queryDigits.includes(pncDigits) ? item.query : `${item.query} · PNC ${item.pnc}`;
-}
 
 function tone(status: SearchStatus) {
   if (status === 'FOUND') return 'text-emerald-700 dark:text-emerald-300';

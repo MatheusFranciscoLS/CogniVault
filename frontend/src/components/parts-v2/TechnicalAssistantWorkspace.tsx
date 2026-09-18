@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { toast } from 'sonner';
-import { api, apiJson, cleanErpCode } from '../../lib';
+import { api, apiJson, cleanErpCode, replayQuery } from '../../lib';
 import { playCopySound } from '../../lib/sound';
 import { useCounterSession } from '../../context/CounterSessionContext';
 import { useQuoteCart } from '../../context/QuoteCartContext';
-import type { OfficialVerification, PartDetail } from '../../types';
+import type { FavoriteItem, OfficialVerification, PartDetail, SearchHistoryItem } from '../../types';
 import PartVerificationDialog, { isSupersededForCode, looksLikePartNumber, normalizePartCode } from '../PartVerificationDialog';
 import CrossReferenceDialog from '../CrossReferenceDialog';
 import ChatPanel from '../ChatPanel';
@@ -69,27 +69,66 @@ async function consumeSearchStream(response: Response, signal: AbortSignal | und
   }
 }
 
-function Starter({ hasContext, onExample }: { hasContext: boolean; onExample: (value: string) => void }) {
+function Starter({
+  hasContext,
+  onExample,
+  favorites,
+  lastSearch,
+  onReplay,
+}: {
+  hasContext: boolean;
+  onExample: (value: string) => void;
+  favorites: FavoriteItem[];
+  lastSearch: SearchHistoryItem | null;
+  onReplay: (value: string) => void;
+}) {
   return (
-    <div className="rounded-xl border border-ink-200 bg-white px-4 py-4 dark:border-ink-800 dark:bg-ink-900">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="text-xs font-black text-ink-800 dark:text-ink-100">Pesquise como você falaria no balcão</div>
-          <p className="mt-1 max-w-2xl text-[11px] leading-5 text-ink-400">
-            {hasContext
-              ? 'Modelo, PNC e S/N disponíveis no atendimento serão considerados automaticamente. Você pode digitar só a peça, o código ou fazer uma pergunta.'
-              : 'Código, descrição, modelo ou uma pergunta técnica. O CogniVault escolhe a melhor combinação entre catálogo, cadastro, fonte oficial e assistência por IA.'}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {examples.map(example => (
-            <button key={example.label} type="button" onClick={() => onExample(example.value)} className="rounded-lg border border-ink-200 bg-white px-3 py-2 text-left transition hover:border-brand-200 hover:bg-brand-50/50 dark:border-ink-700 dark:bg-ink-900 dark:hover:border-brand-800 dark:hover:bg-brand-950/20">
-              <span className="block text-[9px] font-black uppercase tracking-[.1em] text-ink-400">{example.label}</span>
-              <span className="mt-0.5 block text-[11px] font-semibold text-ink-700 dark:text-ink-200">{example.value}</span>
-            </button>
-          ))}
+    <div className="space-y-3">
+      <div className="rounded-xl border border-ink-200 bg-white px-4 py-4 dark:border-ink-800 dark:bg-ink-900">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="text-xs font-black text-ink-800 dark:text-ink-100">Pesquise como você falaria no balcão</div>
+            <p className="mt-1 max-w-2xl text-[11px] leading-5 text-ink-400">
+              {hasContext
+                ? 'Modelo, PNC e S/N disponíveis no atendimento serão considerados automaticamente. Você pode digitar só a peça, o código ou fazer uma pergunta.'
+                : 'Código, descrição, modelo ou uma pergunta técnica. O CogniVault escolhe a melhor combinação entre catálogo, cadastro, fonte oficial e assistência por IA.'}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {lastSearch && (
+              <button type="button" onClick={() => onReplay(replayQuery(lastSearch))} className="cv-touch-target rounded-lg border border-brand-200 bg-brand-50/60 px-3 py-2 text-left transition hover:border-brand-300 hover:bg-brand-50 dark:border-brand-800 dark:bg-brand-950/20 dark:hover:bg-brand-950/30">
+                <span className="block text-[9px] font-black uppercase tracking-[.1em] text-brand-600 dark:text-brand-300">Retomar última busca</span>
+                <span className="mt-0.5 block max-w-[220px] truncate text-[11px] font-semibold text-ink-700 dark:text-ink-200">{lastSearch.resultLabel || lastSearch.query}</span>
+              </button>
+            )}
+            {examples.map(example => (
+              <button key={example.label} type="button" onClick={() => onExample(example.value)} className="cv-touch-target rounded-lg border border-ink-200 bg-white px-3 py-2 text-left transition hover:border-brand-200 hover:bg-brand-50/50 dark:border-ink-700 dark:bg-ink-900 dark:hover:border-brand-800 dark:hover:bg-brand-950/20">
+                <span className="block text-[9px] font-black uppercase tracking-[.1em] text-ink-400">{example.label}</span>
+                <span className="mt-0.5 block text-[11px] font-semibold text-ink-700 dark:text-ink-200">{example.value}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+
+      {favorites.length > 0 && (
+        <div className="rounded-xl border border-ink-200 bg-white px-4 py-3 dark:border-ink-800 dark:bg-ink-900">
+          <div className="text-[9px] font-black uppercase tracking-[.1em] text-ink-400">Seus favoritos</div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {favorites.map(favorite => (
+              <button
+                key={favorite.id}
+                type="button"
+                onClick={() => onExample(favorite.reference as string)}
+                className="cv-touch-target rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-left transition hover:border-amber-300 hover:bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20 dark:hover:bg-amber-950/30"
+              >
+                <span className="block max-w-[180px] truncate text-[11px] font-black text-ink-900 dark:text-white">{favorite.label}</span>
+                <span className="mt-0.5 block font-mono text-[10px] font-bold text-ink-500 dark:text-ink-400">{favorite.reference}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -166,6 +205,19 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
   const suggestionsAbortRef = useRef<AbortController | null>(null);
+  const [quickFavorites, setQuickFavorites] = useState<FavoriteItem[]>([]);
+  const [lastSearch, setLastSearch] = useState<SearchHistoryItem | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void apiJson<{ favorites: FavoriteItem[] }>('/api/favorites')
+      .then(data => { if (active) setQuickFavorites(data.favorites.filter(item => item.kind === 'PART' && item.reference).slice(0, 6)); })
+      .catch(() => undefined);
+    void apiJson<{ history: SearchHistoryItem[] }>('/api/history')
+      .then(data => { if (active) setLastSearch(data.history[0] || null); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   const loadVerifications = useCallback(async (items: Array<{ partNumber: string }>, replace = false) => {
     if (!items.length) {
@@ -584,7 +636,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
 
       {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">{error}</div>}
 
-      {!hasSearched && <Starter hasContext={hasContext} onExample={beginSearch} />}
+      {!hasSearched && <Starter hasContext={hasContext} onExample={beginSearch} favorites={quickFavorites} lastSearch={lastSearch} onReplay={beginSearch} />}
 
       <div className={showSideRail ? 'grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]' : ''}>
         <div className="min-w-0 space-y-5">
