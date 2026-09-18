@@ -133,6 +133,10 @@ const MODEL_FAMILIES: ModelFamilyEntry[] = [
   { model: 'TS254G', family: 'GARDEN_TRACTOR' },
   { model: 'TS354D', family: 'GARDEN_TRACTOR' },
   { model: 'LTH1738', family: 'GARDEN_TRACTOR' },
+  // LT125: confirmado por catálogo real do motor ("Motor Briggs 28R707-1151-E1
+  // - LT125 HUSQVARNA.pdf", pasta do proprietário, 2026-09-18). Família
+  // GARDEN_TRACTOR por convenção de nome (LT = Lawn Tractor, como LTH1738).
+  { model: 'LT125', family: 'GARDEN_TRACTOR' },
 
   // Cortadores Manuais
   { model: 'HU725AWD', family: 'WALK_MOWER' },
@@ -142,6 +146,12 @@ const MODEL_FAMILIES: ModelFamilyEntry[] = [
   { model: 'LB256SP', family: 'WALK_MOWER' },
   { model: 'LC121P', family: 'WALK_MOWER' },
   { model: 'LC140S', family: 'WALK_MOWER' },
+  // LC140 (sem "S"): catálogo real do proprietário nomeia o arquivo assim
+  // ("Motor Briggs 08P502-0087-H1 LC140.pdf", 2026-09-18). Mantido como
+  // modelo distinto de LC140S de propósito — não há evidência de que sejam a
+  // mesma máquina, e unificar os dois seria supor código de peça igual entre
+  // catálogos diferentes. Confirmar com o dono antes de mesclar.
+  { model: 'LC140', family: 'WALK_MOWER' },
   { model: 'LC151', family: 'WALK_MOWER' },
   { model: 'LC151S', family: 'WALK_MOWER' },
   { model: 'LC153S', family: 'WALK_MOWER' },
@@ -400,10 +410,26 @@ export const ENGINE_APPLICATIONS: EngineApplication[] = [
   { machineModel: 'LC121P', engineModel: '104M02-0002-F1' },
   { machineModel: 'LC121P', engineModel: '104M02' },
 
-  // Outros cortadores de grama populares com motor Briggs
-  { machineModel: 'LB155S', engineModel: 'Motor Briggs 675' },
-  { machineModel: 'HU725AWD', engineModel: 'Motor Briggs 725EXi' },
-  { machineModel: 'HU550FH', engineModel: 'Motor Briggs 550' },
+  // Outros cortadores de grama populares com motor Briggs. As entradas
+  // originais aqui eram o nome comercial da série do motor ("675", "725EXi",
+  // "550" — impresso na tampa do cilindro), sem evidência de arquivo real por
+  // trás. Substituídas pelo modelo de catálogo verdadeiro, confirmado pelos
+  // arquivos reais na pasta do proprietário (2026-09-18): é o que
+  // `briggsManualsSearchUrl` exige (o nome comercial nunca bateu no formato) e
+  // o que `resolveEngineCatalogRoute` usa para rotear direto — **não
+  // acrescente uma segunda entrada sem PNC para a mesma máquina**: a função só
+  // resolve direto quando há exatamente uma aplicação incondicional; duas
+  // fazem ela cair em PNC_REQUIRED sem PNC nenhum cadastrado, um beco sem
+  // saída (foi exatamente o bug encontrado e corrigido aqui).
+  { machineModel: 'LB155S', engineModel: 'Motor Briggs 103M02-0027-H1' }, // ex.: MOTOR BRIGGS 103M02-0027-H1 LB155S.pdf
+  { machineModel: 'HU725AWD', engineModel: 'Motor Briggs 104M02-0002-F1' }, // ex.: MOTOR BRIGGS 104M02-0002-F1 HU725AWD.pdf — mesmo motor do LC121P
+  { machineModel: 'HU550FH', engineModel: 'Motor Briggs 09P702-0212-F1' }, // ex.: MOTOR BRIGGS 09P702-0212-F1 HU550FH.pdf
+
+  // LC140: novo, sem entrada prévia. ex.: MOTOR BRIGGS 08P502-0087-H1 LC140.pdf
+  { machineModel: 'LC140', engineModel: 'Motor Briggs 08P502-0087-H1' },
+
+  // LT125: trator, novo. ex.: MOTOR BRIGGS 28R707-1151-E1 - LT125 HUSQVARNA.pdf
+  { machineModel: 'LT125', engineModel: 'Motor Briggs 28R707-1151-E1' },
 ];
 
 const ENGINE_INTERNAL_TERMS = [

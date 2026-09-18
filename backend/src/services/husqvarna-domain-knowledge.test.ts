@@ -292,3 +292,47 @@ test('retorna os 4 itens do combo de revisão básica preventiva', () => {
 });
 
 
+
+test('LB155S, HU725AWD, HU550FH, LC140 e LT125 resolvem motor Briggs direto, sem pedir PNC', () => {
+  // Regressão real: adicionar uma segunda aplicação sem PNC para a mesma
+  // máquina (o código de catálogo verificado, ao lado do nome comercial do
+  // motor) fez resolveEngineCatalogRoute cair em PNC_REQUIRED com
+  // knownPncs:[] — beco sem saída, porque nenhuma dessas máquinas tem PNC
+  // cadastrado. Corrigido substituindo em vez de acrescentar; este teste trava
+  // que isso não volte a acontecer se alguém expandir a lista de novo.
+  const casos: Array<[string, string]> = [
+    ['LB155S', 'Motor Briggs 103M02-0027-H1'],
+    ['HU725AWD', 'Motor Briggs 104M02-0002-F1'],
+    ['HU550FH', 'Motor Briggs 09P702-0212-F1'],
+    ['LC140', 'Motor Briggs 08P502-0087-H1'],
+    ['LT125', 'Motor Briggs 28R707-1151-E1'],
+  ];
+
+  for (const [machine, engineModel] of casos) {
+    const route = resolveEngineCatalogRoute(machine, '', `qual o virabrequim do ${machine}?`);
+    assert.deepEqual(route, { status: 'ROUTE', machineModel: machine, engineModel, engineArticle: null }, machine);
+  }
+});
+
+test('HU725AWD e LC121P confirmam o mesmo motor Briggs 104M02-0002-F1 (evidência: dois catálogos reais com o mesmo código)', () => {
+  const shared = findMachinesForEngine('Motor Briggs 104M02-0002-F1');
+  assert.ok(shared.some(m => m.machineModel === 'HU725AWD'));
+  assert.ok(shared.some(m => m.machineModel === 'LC121P'));
+});
+
+test('LC140 é modelo distinto de LC140S — nenhuma peça de um se mistura na busca do outro', () => {
+  assert.equal(inferEquipmentFamily('', 'LC140'), 'WALK_MOWER');
+  assert.equal(inferEquipmentFamily('', 'LC140S'), 'WALK_MOWER');
+  // findEngineApplications('LC140') não deve trazer nada associado a LC140S
+  // por engano (normalizeIdentifier não pode confundir os dois).
+  const lc140 = findEngineApplications('LC140');
+  assert.ok(lc140.every(app => app.machineModel === 'LC140'));
+});
+
+test('detecta LC140 e LT125 dinamicamente pelo nome do arquivo, como já acontece com J55SL/LC121P', () => {
+  const lc140 = findMachinesForEngine('08P502-0087-H1', 'Motor Briggs 08P502-0087-H1 LC140.pdf');
+  assert.ok(lc140.some(m => m.machineModel === 'LC140'), 'Deveria detectar LC140 dinamicamente pelo nome do arquivo');
+
+  const lt125 = findMachinesForEngine('28R707-1151-E1', 'Motor Briggs 28R707-1151-E1 - LT125 HUSQVARNA.pdf');
+  assert.ok(lt125.some(m => m.machineModel === 'LT125'), 'Deveria detectar LT125 dinamicamente pelo nome do arquivo');
+});

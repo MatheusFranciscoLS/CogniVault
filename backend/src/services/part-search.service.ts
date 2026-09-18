@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { GEMINI_EMBEDDING_MODEL, getGeminiClient } from '../config/gemini';
 import { normalizeIdentifier } from '../utils/normalize';
+import { engineModelVariants } from '../utils/engine-model';
 import type { SearchIntent } from './chat-intent.service';
 import {
   buildSearchGroups,
@@ -500,7 +501,7 @@ export class PartSearchService {
         active: true,
         embeddingRevision: { gt: 0 },
         document: { tenantId, archivedAt: null, status: 'COMPLETED' },
-        ...(model ? { normalizedModel: model } : {}),
+        ...(model ? { normalizedModel: { in: engineModelVariants(model) } } : {}),
         ...(availabilityFilters.length ? { AND: availabilityFilters } : {}),
       },
       select: { id: true },
@@ -532,7 +533,7 @@ export class PartSearchService {
       Prisma.sql`p."active" = true`,
       Prisma.sql`p."embedding" IS NOT NULL`,
     ];
-    if (model) filters.push(Prisma.sql`p."normalizedModel" = ${model}`);
+    if (model) filters.push(Prisma.sql`p."normalizedModel" IN (${Prisma.join(engineModelVariants(model))})`);
     if (manufacturer) filters.push(Prisma.sql`(p."normalizedManufacturer" = ${manufacturer} OR p."normalizedManufacturer" IS NULL)`);
     if (pnc) filters.push(Prisma.sql`(p."normalizedPnc" = ${pnc} OR p."universalAcrossPnc" = true)`);
 
@@ -587,7 +588,7 @@ export class PartSearchService {
     const baseWhere: Prisma.PartWhereInput = {
       active: true,
       document: { tenantId, archivedAt: null, status: 'COMPLETED' },
-      ...(normalizedModel ? { normalizedModel } : {}),
+      ...(normalizedModel ? { normalizedModel: { in: engineModelVariants(normalizedModel) } } : {}),
     };
     let rows = await prisma.part.findMany({
       where: { ...baseWhere, AND: [...groupFilters, ...contextFilters] },
