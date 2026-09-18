@@ -283,7 +283,10 @@ export class CommercialSearchController {
     if (cached) {
       res.set('X-CogniVault-Cache', 'HIT');
       res.set('X-CogniVault-Search-Path', cached.path);
-      res.set('Cache-Control', 'private, max-age=20');
+      // O resultado continua em cache no processo Node, mas o browser não deve
+      // reutilizar dados de outro tenant/perfil após logout/login (mesmo risco
+      // e mesma correção do catalog-list, PR #156).
+      res.set('Cache-Control', 'private, no-store');
       res.json(cached.payload);
       return;
     }
@@ -305,7 +308,7 @@ export class CommercialSearchController {
       const result = await pending;
       res.set('X-CogniVault-Cache', 'MISS');
       res.set('X-CogniVault-Search-Path', result.path);
-      res.set('Cache-Control', 'private, max-age=20');
+      res.set('Cache-Control', 'private, no-store');
       res.json(result.payload);
     } catch (error) {
       console.error('❌ Erro ao pesquisar cadastro comercial:', error);
