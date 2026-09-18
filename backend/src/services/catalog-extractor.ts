@@ -9,6 +9,52 @@ export interface CatalogExtraction { manufacturer:string; models:string[]; pncs:
 export interface CatalogHints { manufacturer?:string|null; model?:string|null; pnc?:string|null; filename?:string|null; }
 export interface DeterministicExtraction { extraction:CatalogExtraction; method:'HUSQVARNA_IPL_TEXT'; }
 
+/**
+ * Por que a leitura textual recusou o PDF e o processamento caiu para a IA.
+ *
+ * Recusar é uma decisão de projeto, não defeito: tabela pequena ou PDF sem
+ * assinatura de IPL viram falso positivo com facilidade, e um catálogo extraído
+ * errado envenena a busca inteira. O que faltava era saber *qual* porta fechou
+ * em cada catálogo — sem isso não dá para decidir se vale estender o parser ou
+ * se aquele PDF é mesmo caso de leitura visual.
+ *
+ * - `NO_SIGNATURE`: o texto não parece um IPL/lista de peças.
+ * - `NO_MODEL`: é um IPL, mas nem o texto nem o nome do arquivo revelam o modelo.
+ * - `NO_ROWS`: assinatura e modelo achados, nenhuma linha de peça reconhecida.
+ * - `TOO_FEW_OCCURRENCES`: linhas reconhecidas, mas abaixo do piso de confiança.
+ * - `NO_TEXT_LAYER`: PDF sem camada de texto (digitalizado/imagem).
+ */
+export type DeterministicDeclineReason =
+  | 'NO_SIGNATURE'
+  | 'NO_MODEL'
+  | 'NO_ROWS'
+  | 'TOO_FEW_OCCURRENCES'
+  | 'NO_TEXT_LAYER';
+
+export interface DeterministicDecline {
+  reason:DeterministicDeclineReason;
+  /** O que o parser conseguiu apurar antes de desistir — pista para estendê-lo. */
+  detail:{ model?:string; manufacturer?:string; occurrences?:number; pages?:number; textLength?:number };
+}
+
+export type DeterministicResult =
+  | { ok:true; extraction:CatalogExtraction; method:'HUSQVARNA_IPL_TEXT' }
+  | { ok:false; decline:DeterministicDecline };
+
+/** Piso de confiança da leitura textual. Ver `DeterministicDeclineReason`. */
+export const MIN_CATALOG_OCCURRENCES = 10;
+
+export function describeDecline(decline:DeterministicDecline):string{
+  const d=decline.detail;
+  switch(decline.reason){
+    case 'NO_TEXT_LAYER':return 'PDF sem camada de texto (digitalizado). Só leitura visual resolve.';
+    case 'NO_SIGNATURE':return `Texto não reconhecido como lista de peças (${d.textLength ?? 0} caracteres lidos).`;
+    case 'NO_MODEL':return 'Lista de peças reconhecida, mas o modelo não aparece no texto nem no nome do arquivo.';
+    case 'NO_ROWS':return `Modelo ${d.model || '?'} reconhecido, mas nenhuma linha de peça foi lida em ${d.pages ?? 0} página(s).`;
+    case 'TOO_FEW_OCCURRENCES':return `Apenas ${d.occurrences ?? 0} peça(s) distinta(s) lidas, abaixo do mínimo de ${MIN_CATALOG_OCCURRENCES}.`;
+  }
+}
+
 const SPACED_PART_NUMBER_PATTERN='\\d{3}[\\s\\u00a0]+\\d{2}[\\s\\u00a0]+\\d{2}-\\d{2}';
 const CONTIGUOUS_PART_NUMBER_PATTERN='\\d{8,12}';
 const PART_NUMBER_PATTERN=`(?:${SPACED_PART_NUMBER_PATTERN}|${CONTIGUOUS_PART_NUMBER_PATTERN})`;
@@ -163,8 +209,15 @@ function parseFlexiblePage(lines:string[]):{rows:ParsedRow[];section:string}|nul
 function isGenericSection(v:string){return GENERIC_SECTIONS.has(comparable(v));}
 function technicalSectionFromPage(text:string){for(const line of text.split(/\r?\n/).map(normalizedLine).filter(Boolean)){if(isNoiseLine(line)||!TECHNICAL_SECTION_PATTERN.test(line)||FLEXIBLE_ROW_START.test(line)||line.length>90)continue;const letters=line.replace(/[^A-Za-z]/g,'');if(!letters)continue;const upper=letters.replace(/[^A-Z]/g,'');if(upper.length/letters.length>=.8)return line;}return'';}
 
-export function parseHusqvarnaIplText(text:string,hints:CatalogHints={}):CatalogExtraction|null{
-  if(!hasCatalogSignature(text,hints))return null;const model=detectModel(text,hints),manufacturer=detectManufacturer(text,hints);if(!model||!manufacturer)return null;
+/**
+ * Mesma decisão de sempre, agora dizendo por que recusou. `parseHusqvarnaIplText`
+ * continua sendo a porta de entrada simples (extração ou `null`); quem precisa
+ * do diagnóstico — o processamento, para registrar a queda para IA — usa esta.
+ */
+export function analyzeHusqvarnaIplText(text:string,hints:CatalogHints={}):DeterministicResult{
+  if(!hasCatalogSignature(text,hints))return{ok:false,decline:{reason:'NO_SIGNATURE',detail:{textLength:text.length}}};
+  const model=detectModel(text,hints),manufacturer=detectManufacturer(text,hints);
+  if(!model||!manufacturer)return{ok:false,decline:{reason:'NO_MODEL',detail:{model:model||undefined,manufacturer:manufacturer||undefined,textLength:text.length}}};
   const hintedPnc=normalizeHusqvarnaPnc(hints.pnc),knownPncs=collectPncs(text,hints),parts:ExtractedPart[]=[];const pages=textPages(text),sectionHints=pages.map(p=>technicalSectionFromPage(p.text));
   for(let pageIndex=0;pageIndex<pages.length;pageIndex++){
     const page=pages[pageIndex],lines=page.text.split(/\r?\n/).map(normalizedLine).filter(Boolean),parsed=parseLegacyPage(lines)||parseFlexiblePage(lines);if(!parsed)continue;
@@ -175,7 +228,27 @@ export function parseHusqvarnaIplText(text:string,hints:CatalogHints={}):Catalog
       else parts.push({...partBase,pnc:'',universalAcrossPnc:application.universal});
     }
   }
-  const deduped=[...new Map(parts.map(p=>[[p.model,p.pnc,p.page,p.section,p.position,p.partNumber].join('|'),p])).values()];const occurrences=new Set(deduped.map(p=>[p.page,p.position,p.partNumber].join('|'))).size;if(occurrences<10)return null;return{manufacturer,models:[model],pncs:knownPncs,parts:deduped};
+  const deduped=[...new Map(parts.map(p=>[[p.model,p.pnc,p.page,p.section,p.position,p.partNumber].join('|'),p])).values()];
+  const occurrences=new Set(deduped.map(p=>[p.page,p.position,p.partNumber].join('|'))).size;
+  if(!deduped.length)return{ok:false,decline:{reason:'NO_ROWS',detail:{model,manufacturer,pages:pages.length}}};
+  if(occurrences<MIN_CATALOG_OCCURRENCES)return{ok:false,decline:{reason:'TOO_FEW_OCCURRENCES',detail:{model,manufacturer,occurrences,pages:pages.length}}};
+  return{ok:true,method:'HUSQVARNA_IPL_TEXT',extraction:{manufacturer,models:[model],pncs:knownPncs,parts:deduped}};
 }
 
-export async function extractCatalogDeterministically(filePath:string,hints:CatalogHints={}):Promise<DeterministicExtraction|null>{const parser=new PDFParse({data:await readFile(filePath)});try{const result=await parser.getText();const extraction=parseHusqvarnaIplText(result.text,hints);return extraction?{extraction,method:'HUSQVARNA_IPL_TEXT'}:null;}finally{await parser.destroy();}}
+export function parseHusqvarnaIplText(text:string,hints:CatalogHints={}):CatalogExtraction|null{
+  const result=analyzeHusqvarnaIplText(text,hints);
+  return result.ok?result.extraction:null;
+}
+
+export async function extractCatalogDeterministically(filePath:string,hints:CatalogHints={}):Promise<DeterministicResult>{
+  const parser=new PDFParse({data:await readFile(filePath)});
+  try{
+    const result=await parser.getText();
+    const text=result.text||'';
+    // PDF digitalizado não tem texto para casar regex nenhuma; distinguir isso
+    // de "texto lido mas não reconhecido" muda a conclusão: um é caso legítimo
+    // de leitura visual, o outro é lacuna do parser.
+    if(text.trim().length<40)return{ok:false,decline:{reason:'NO_TEXT_LAYER',detail:{textLength:text.length}}};
+    return analyzeHusqvarnaIplText(text,hints);
+  }finally{await parser.destroy();}
+}

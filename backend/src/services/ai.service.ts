@@ -9,11 +9,13 @@ import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { countDistinctPartOccurrences, hasSafeExtractionCoverage, matchExistingPartIds } from '../utils/part-identity';
 import { shouldForceCatalogReextraction } from '../utils/document-processing-intent';
 import { withTransientAIRetry } from '../utils/ai-retry';
+import { describePartNumberRejection, isPlausiblePartNumber } from '../utils/part-number';
 import { resolvePositionProvenance, type PositionStatus } from '../utils/position-provenance';
 import {
     type CatalogExtraction,
     type ExtractedPart,
     extractCatalogDeterministically,
+    describeDecline,
     inferCatalogModelFromFilename,
     isPlausibleCatalogModel,
     normalizeHusqvarnaPnc,
@@ -188,6 +190,11 @@ export class AIService {
                 console.log(`♻️ Extração persistida reutilizada (${extraction.parts.length} peças).`);
             } else {
                 await updateDocumentForJob(documentId, jobId, { processingStage: 'EXTRACTING' });
+                // Guardado para o painel: quando o catálogo cai na leitura visual,
+                // o motivo é o que diz se vale estender o parser textual (grátis e
+                // exato) ou se aquele PDF é mesmo caso de IA.
+                let fallbackReason: string | null = null;
+                let fallbackDescription = 'Tabela textual não reconhecida; iniciando leitura visual assistida.';
                 try {
                     const deterministic = await extractCatalogDeterministically(localFilePath, {
                         manufacturer: document.manufacturer,
@@ -195,19 +202,26 @@ export class AIService {
                         pnc: document.pnc,
                         filename: document.filename,
                     });
-                    if (deterministic) {
+                    if (deterministic.ok) {
                         extraction = deterministic.extraction;
                         extractionMethod = deterministic.method;
                         console.log(`📋 Extração determinística concluída com ${extraction.parts.length} peças.`);
+                    } else {
+                        fallbackReason = deterministic.decline.reason;
+                        fallbackDescription = describeDecline(deterministic.decline);
+                        console.log(`📄 Leitura textual recusou o PDF (${fallbackReason}): ${fallbackDescription}`);
                     }
                 } catch (error) {
+                    fallbackReason = 'READ_ERROR';
+                    fallbackDescription = 'Falha ao ler o texto do PDF; usando leitura visual assistida.';
                     console.warn('⚠️ Leitura textual do PDF indisponível; usando extração por IA.', error);
                 }
 
                 if (!extraction) {
                     await updateDocumentForJob(documentId, jobId, {
                         processingStage: 'AI_EXTRACTION',
-                        processingError: 'Tabela textual não reconhecida; iniciando leitura visual assistida.',
+                        processingError: fallbackDescription,
+                        extractionFallbackReason: fallbackReason,
                     });
                     const gemini = await getGeminiClient();
                     ai = gemini;
@@ -325,6 +339,10 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 await updateDocumentForJob(documentId, jobId, {
                     extractionSnapshot: extraction as unknown as Prisma.InputJsonValue,
                     extractionMethod,
+                    // Reprocessamento que passou a funcionar na leitura textual
+                    // precisa apagar o motivo antigo, senão o painel continua
+                    // acusando uma queda para IA que não existe mais.
+                    extractionFallbackReason: fallbackReason,
                     extractedAt: new Date(),
                 });
             }
@@ -343,6 +361,8 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
             const trustedDocumentModel = isPlausibleCatalogModel(document.model) ? cleanString(document.model) : '';
             const trustedDocumentPnc = normalizeHusqvarnaPnc(document.pnc);
             const preparedParts: PreparedPart[] = [];
+            // Descarte nunca silencioso: o total vai para o documento e o painel.
+            const rejectedPartNumbers: string[] = [];
 
             for (const rawPart of extraction.parts) {
                 const name = cleanString(rawPart.name);
@@ -353,6 +373,15 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     || (models.length === 1 ? models[0] : '')
                     || inferCatalogModelFromFilename(document.filename);
                 if (!name || !partNumber || !model) continue;
+
+                // O código é o campo onde errar custa devolução no balcão, e na
+                // leitura visual ele vem de um modelo de linguagem. Barra aqui o
+                // que a própria base já classifica como malformado — tipicamente
+                // a posição (KEY/REF) ou a quantidade lida como se fosse código.
+                if (!isPlausiblePartNumber(partNumber)) {
+                    rejectedPartNumbers.push(partNumber);
+                    continue;
+                }
 
                 const manufacturer = cleanString(rawPart.manufacturer)
                     || document.manufacturer
@@ -456,6 +485,20 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                 && existingParts.filter((part) => part.active).length === preparedParts.length
                 && identifiedParts.every((part) => Boolean(part.existingId));
             const revision = canResumeRevision ? document.catalogRevision : document.catalogRevision + 1;
+            // Descarte por código implausível nunca é silencioso: vai para o log
+            // com amostra e para o documento, onde o painel de Qualidade mostra.
+            if (rejectedPartNumbers.length) {
+                const amostra = rejectedPartNumbers.slice(0, 5)
+                    .map(code => `"${code}" (${describePartNumberRejection(code)})`)
+                    .join('; ');
+                console.warn(
+                    `🚫 ${rejectedPartNumbers.length} linha(s) recusada(s) por código implausível em ${documentId}. Amostra: ${amostra}`,
+                );
+            }
+            await updateDocumentForJob(documentId, jobId, {
+                extractionRejectedParts: rejectedPartNumbers.length,
+            });
+
             let activePartIds: string[];
 
             if (canResumeRevision) {

@@ -121,6 +121,7 @@ export class AiQualityService {
         select: {
           id: true, filename: true, manufacturer: true, model: true, pnc: true, status: true,
           processingStage: true, processingError: true, extractionMethod: true, extractedAt: true,
+          extractionFallbackReason: true, extractionRejectedParts: true,
           healthScore: true, reviewStatus: true, reviewReasons: true, qualityCheckedAt: true,
           metadataReviewedAt: true, category: { select: { name: true } },
           _count: { select: { parts: { where: { active: true } }, chunks: true } },
@@ -167,6 +168,15 @@ export class AiQualityService {
     const geminiCatalogs = active.filter(document => document.extractionMethod?.toUpperCase().startsWith('GEMINI')).length;
     const parserCatalogs = active.filter(document => document.extractionMethod && !document.extractionMethod.toUpperCase().startsWith('GEMINI')).length;
     const unknownExtractionCatalogs = active.filter(document => !document.extractionMethod).length;
+    // Só interessa o motivo de quem realmente caiu para a IA. Catálogo lido pelo
+    // parser tem motivo nulo, e catálogo antigo (processado antes do registro do
+    // motivo) entra como UNKNOWN em vez de sumir da conta.
+    const fallbackReasons = active.reduce<Record<string, number>>((counts, document) => {
+      if (!document.extractionMethod?.toUpperCase().startsWith('GEMINI')) return counts;
+      const reason = document.extractionFallbackReason || 'UNKNOWN';
+      counts[reason] = (counts[reason] || 0) + 1;
+      return counts;
+    }, {});
     const [semanticIndex, visualRetry, feedbackSignals, pendingOfficial, approvedOfficial, staleOfficial] = await Promise.all([
       semanticIndexStatus(tenantId),
       visualCatalogRetryStatus(tenantId),
@@ -220,6 +230,11 @@ export class AiQualityService {
           geminiCatalogs,
           parserCatalogs,
           unknownCatalogs: unknownExtractionCatalogs,
+          fallbackReasons,
+          // Linhas barradas na gravação por código implausível. Alto aqui
+          // significa catálogo lido errado, precisando de revisão humana.
+          rejectedParts: active.reduce((sum, document) => sum + (document.extractionRejectedParts || 0), 0),
+          catalogsWithRejectedParts: active.filter(document => (document.extractionRejectedParts || 0) > 0).length,
         },
       },
       learning: {
