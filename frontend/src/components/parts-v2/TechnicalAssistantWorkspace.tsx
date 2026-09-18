@@ -109,6 +109,29 @@ function LoadingRows() {
   );
 }
 
+function SuggestionsDropdown({ suggestions, activeIndex, onPick }: { suggestions: SearchResultPart[]; activeIndex: number; onPick: (part: SearchResultPart) => void }) {
+  return (
+    <div role="listbox" className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-ink-200 bg-white shadow-lg dark:border-ink-700 dark:bg-ink-900">
+      {suggestions.map((part, index) => (
+        <button
+          key={part.id}
+          type="button"
+          role="option"
+          aria-selected={index === activeIndex}
+          onMouseDown={event => { event.preventDefault(); onPick(part); }}
+          className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition ${index === activeIndex ? 'bg-brand-50 dark:bg-brand-950/25' : 'hover:bg-ink-50 dark:hover:bg-ink-800/50'}`}
+        >
+          <span className="min-w-0">
+            <span className="block truncate text-[13px] font-black text-ink-900 dark:text-white">{part.name}</span>
+            <span className="mt-0.5 block truncate text-[10px] text-ink-400">{part.model}{part.pnc ? ` · PNC ${part.pnc}` : ''}</span>
+          </span>
+          <span className="shrink-0 font-mono text-[12px] font-black text-ink-700 dark:text-brand-300">{part.partNumber}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChange, storageScope, onOpenMachine }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const quoteCart = useQuoteCart();
@@ -139,6 +162,10 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   const [crossReference, setCrossReference] = useState<{ code: string; name: string } | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
+  const [suggestions, setSuggestions] = useState<SearchResultPart[]>([]);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [activeSuggestion, setActiveSuggestion] = useState(-1);
+  const suggestionsAbortRef = useRef<AbortController | null>(null);
 
   const loadVerifications = useCallback(async (items: Array<{ partNumber: string }>, replace = false) => {
     if (!items.length) {
@@ -309,6 +336,53 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     return () => window.clearTimeout(timer);
   }, [hasSearched, lastQuery, runSearch, session.machineModel, session.pnc, session.serial]);
 
+  useEffect(() => {
+    const trimmed = query.trim();
+    suggestionsAbortRef.current?.abort();
+    if (!looksLikePartNumber(trimmed) || trimmed === lastQuery) {
+      const clearTimer = window.setTimeout(() => {
+        setSuggestions([]);
+        setActiveSuggestion(-1);
+      }, 0);
+      return () => window.clearTimeout(clearTimer);
+    }
+    const controller = new AbortController();
+    suggestionsAbortRef.current = controller;
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await api(`/api/search/stream?q=${encodeURIComponent(trimmed)}`, { signal: controller.signal, timeoutMs: 8_000 });
+        if (controller.signal.aborted || !response.ok) return;
+        let found: SearchResultPart[] = [];
+        await consumeSearchStream(response, controller.signal, message => {
+          if (message.type === 'lexical' && !message.error) found = (message.parts ?? []).slice(0, 6).map(part => ({ ...part, source: 'CATALOG' as const }));
+        });
+        if (controller.signal.aborted) return;
+        setSuggestions(found);
+        setActiveSuggestion(-1);
+        setSuggestionsOpen(found.length > 0);
+      } catch {
+        // Sugestão instantânea é conveniência, não a busca em si; falha aqui não deve incomodar o atendente.
+      }
+    }, 220);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query, lastQuery]);
+
+  const closeSuggestions = useCallback(() => {
+    suggestionsAbortRef.current?.abort();
+    setSuggestionsOpen(false);
+    setActiveSuggestion(-1);
+  }, []);
+
+  const selectSuggestion = useCallback((part: SearchResultPart) => {
+    closeSuggestions();
+    setQuery(part.partNumber);
+    if (part.partNumber.trim() !== initialQuery.trim()) onQueryChange(part.partNumber);
+    else void runSearch(part.partNumber);
+  }, [closeSuggestions, initialQuery, onQueryChange, runSearch]);
+
   const selectedTechnical = useMemo(() => selection?.kind === 'technical' ? parts.find(part => part.id === selection.id) : undefined, [parts, selection]);
   const selectedCommercial = useMemo(() => selection?.kind === 'commercial' ? commercialParts.find(part => part.id === selection.id) : undefined, [commercialParts, selection]);
   const selectedVerification = selectedTechnical ? verifications[normalizePartCode(selectedTechnical.partNumber)] : undefined;
@@ -334,14 +408,19 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   const beginSearch = useCallback((value: string) => {
     const clean = value.trim();
     if (clean.length < 2) return;
+    closeSuggestions();
     setQuery(clean);
     if (looksLikeQuestion(clean)) openAi(buildTechnicalQuery(clean));
     if (clean !== initialQuery.trim()) onQueryChange(clean);
     else void runSearch(clean);
-  }, [buildTechnicalQuery, initialQuery, onQueryChange, openAi, runSearch]);
+  }, [buildTechnicalQuery, closeSuggestions, initialQuery, onQueryChange, openAi, runSearch]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (activeSuggestion >= 0 && suggestions[activeSuggestion]) {
+      selectSuggestion(suggestions[activeSuggestion]);
+      return;
+    }
     if (query.trim().length < 2) {
       setError('Digite ao menos 2 caracteres.');
       inputRef.current?.focus();
@@ -351,6 +430,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   };
 
   const clearSearch = () => {
+    closeSuggestions();
     setQuery('');
     setLastQuery('');
     setParts([]);
@@ -463,10 +543,35 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
               ref={inputRef}
               value={query}
               onChange={event => setQuery(event.target.value)}
+              onFocus={() => { if (suggestions.length > 0) setSuggestionsOpen(true); }}
+              onBlur={() => setSuggestionsOpen(false)}
+              onKeyDown={event => {
+                if (!suggestionsOpen || !suggestions.length) return;
+                if (event.key === 'ArrowDown') {
+                  event.preventDefault();
+                  setActiveSuggestion(current => (current + 1) % suggestions.length);
+                } else if (event.key === 'ArrowUp') {
+                  event.preventDefault();
+                  setActiveSuggestion(current => (current <= 0 ? suggestions.length - 1 : current - 1));
+                } else if (event.key === 'Escape') {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  closeSuggestions();
+                }
+              }}
               placeholder={hasContext ? 'Peça, código ou pergunta sobre este equipamento…' : 'Código, peça, modelo ou descreva o que você precisa…'}
               autoComplete="off"
+              role="combobox"
+              aria-expanded={suggestionsOpen && suggestions.length > 0}
+              aria-controls="parts-search-suggestions"
+              aria-autocomplete="list"
               className="h-12 w-full rounded-lg border-0 bg-ink-50 pl-10 pr-4 text-sm font-semibold text-ink-900 outline-none transition placeholder:text-ink-400 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:bg-ink-800 dark:text-white dark:focus:bg-ink-800"
             />
+            {suggestionsOpen && suggestions.length > 0 && (
+              <div id="parts-search-suggestions">
+                <SuggestionsDropdown suggestions={suggestions} activeIndex={activeSuggestion} onPick={selectSuggestion} />
+              </div>
+            )}
           </div>
           {query && <button type="button" onClick={clearSearch} className="hidden h-10 rounded-lg px-3 text-xs font-bold text-ink-400 hover:text-ink-700 sm:block dark:hover:text-ink-200">Limpar</button>}
           <button type="submit" disabled={loading} className="h-12 rounded-lg bg-ink-900 px-5 text-sm font-black text-white transition hover:bg-ink-950 disabled:opacity-60">{loading ? 'Analisando…' : 'Buscar'}</button>
