@@ -1,5 +1,6 @@
 import { LRUCache } from 'lru-cache';
 import { normalizeIdentifier } from '../utils/normalize';
+import { husqvarnaArticleIdCandidates } from '../utils/husqvarna-article-id';
 import { isHostOrSubdomain } from '../utils/husqvarna-url';
 
 const GRAPHQL_URL = 'https://portal.husqvarnagroup.com/hbd/graphql?';
@@ -716,11 +717,26 @@ export class HusqvarnaOfficialDetailService {
     const cached = productCache.get(pnc);
     if (cached) return cached;
 
-    const data = await postGraphql<any>('getProductDetailsSections', PRODUCT_DETAILS_QUERY, {
-      siteName: SITE,
-      articleId: pnc,
-    });
-    const result = parseOfficialProductDetails(data, pnc);
+    // O portal identifica máquina por artigo de 9 dígitos; a etiqueta traz um
+    // número mais longo que a API não indexa. Sem truncar, todo trator devolvia
+    // vazio e o painel oficial sumia sem dizer por quê.
+    let data: any = null;
+    let usedId = pnc;
+    for (const candidate of husqvarnaArticleIdCandidates(pnc)) {
+      data = await postGraphql<any>('getProductDetailsSections', PRODUCT_DETAILS_QUERY, {
+        siteName: SITE,
+        articleId: candidate,
+      });
+      if (data) {
+        const parsed = parseOfficialProductDetails(data, candidate);
+        if (parsed) {
+          productCache.set(pnc, parsed);
+          return parsed;
+        }
+      }
+      usedId = candidate;
+    }
+    const result = parseOfficialProductDetails(data, usedId);
     if (result) productCache.set(pnc, result);
     return result;
   }
