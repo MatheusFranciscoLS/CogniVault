@@ -1,4 +1,5 @@
 import { normalizeIdentifier } from '../utils/normalize';
+import { husqvarnaArticleIdCandidates } from '../utils/husqvarna-article-id';
 import { safeHusqvarnaAssetUrl } from '../utils/husqvarna-url';
 import { buildOfficialSourceCacheKey, OfficialSourceCacheService } from './official-source-cache.service';
 
@@ -520,21 +521,32 @@ export class HusqvarnaPortalGraphqlService {
     const pnc = normalizeIdentifier(pncInput);
     if (!/^\d{8,14}$/.test(pnc)) return null;
 
-    const payload = await postGraphql<GraphqlSearchResponse>('searchForProducts', SEARCH_PRODUCTS_QUERY, {
-      site: HUSQVARNA_BR_SITE,
-      searchTerm: pnc,
-      brands: null,
-      statuses: null,
-      skip: 0,
-      take: 5,
-    }, pnc);
+    // O portal indexa a máquina pelo artigo de 9 dígitos. Buscar pelo número
+    // longo da etiqueta devolvia lista VAZIA — medido na API real:
+    // searchTerm '96041044000' -> nada; '960410440' -> TS 142.
+    let payload: GraphqlSearchResponse | null = null;
+    let searchedId = pnc;
+    for (const candidate of husqvarnaArticleIdCandidates(pnc)) {
+      payload = await postGraphql<GraphqlSearchResponse>('searchForProducts', SEARCH_PRODUCTS_QUERY, {
+        site: HUSQVARNA_BR_SITE,
+        searchTerm: candidate,
+        brands: null,
+        statuses: null,
+        skip: 0,
+        take: 5,
+      }, candidate);
+      if (payload) {
+        searchedId = candidate;
+        break;
+      }
+    }
     if (!payload) {
       console.log(`[Husqvarna GraphQL] PNC ${pnc}: busca de produto sem payload utilizável.`);
       return null;
     }
 
     try {
-      const exactMatch = extractExactProductMatch(payload, pnc);
+      const exactMatch = extractExactProductMatch(payload, searchedId);
       if (exactMatch) {
         console.log(`[Husqvarna GraphQL] PNC ${pnc} confirmado como ${exactMatch.productName}.`);
         return exactMatch;
@@ -561,13 +573,22 @@ export class HusqvarnaPortalGraphqlService {
     const pnc = normalizeIdentifier(pncInput);
     if (!/^\d{8,14}$/.test(pnc)) return null;
 
-    const payload = await postGraphql<GraphqlProductDetailsResponse>('getProductDetailsSections', PRODUCT_DETAILS_QUERY, {
-      siteName: HUSQVARNA_BR_SITE,
-      articleId: pnc,
-    }, pnc);
+    // Mesmo motivo da busca: articleId de 11 dígitos devolve null.
+    let payload: GraphqlProductDetailsResponse | null = null;
+    let usedId = pnc;
+    for (const candidate of husqvarnaArticleIdCandidates(pnc)) {
+      payload = await postGraphql<GraphqlProductDetailsResponse>('getProductDetailsSections', PRODUCT_DETAILS_QUERY, {
+        siteName: HUSQVARNA_BR_SITE,
+        articleId: candidate,
+      }, candidate);
+      if (payload) {
+        usedId = candidate;
+        break;
+      }
+    }
     if (!payload) return null;
 
-    const details = extractProductDetailsSummary(payload, pnc);
+    const details = extractProductDetailsSummary(payload, usedId);
     if (details) {
       console.log(`[Husqvarna GraphQL] PNC ${pnc} confirmado nos detalhes como ${details.productName}; ${details.iplSections.length} vista(s) explodida(s).`);
     } else {

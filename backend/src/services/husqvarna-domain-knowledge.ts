@@ -50,6 +50,16 @@ export type EngineCatalogRoute =
       status: 'PNC_REQUIRED';
       machineModel: string;
       knownPncs: string[];
+    }
+  // O PNC informado existe no catálogo da máquina, mas não está entre os que
+  // têm motor mapeado. Antes isso virava `null`, a rota do motor nem rodava e
+  // o atendente caía em "nenhum código seguro encontrado" — um beco sem saída
+  // com o cliente na frente. Agora a resposta diz QUAIS PNCs resolvem.
+  | {
+      status: 'PNC_UNMAPPED';
+      machineModel: string;
+      requestedPnc: string;
+      knownPncs: string[];
     };
 
 type EngineApplication = {
@@ -687,10 +697,19 @@ export function resolveEngineCatalogRoute(
   const applications = ENGINE_APPLICATIONS.filter(item => normalizeIdentifier(item.machineModel) === machineModel);
   if (!applications.length) return null;
 
+  const knownPncs = [...new Set(applications.map(item => item.machinePnc).filter((value): value is string => Boolean(value)))];
+
   const normalizedPnc = normalizeIdentifier(pnc);
   if (normalizedPnc) {
     const match = applications.find(item => !item.machinePnc || normalizeIdentifier(item.machinePnc) === normalizedPnc);
-    if (!match) return null;
+    if (!match) {
+      return {
+        status: 'PNC_UNMAPPED',
+        machineModel: applications[0].machineModel,
+        requestedPnc: pnc,
+        knownPncs,
+      };
+    }
     return {
       status: 'ROUTE',
       machineModel: match.machineModel,
@@ -713,7 +732,7 @@ export function resolveEngineCatalogRoute(
   return {
     status: 'PNC_REQUIRED',
     machineModel: applications[0].machineModel,
-    knownPncs: [...new Set(applications.map(item => item.machinePnc).filter((value): value is string => Boolean(value)))],
+    knownPncs,
   };
 }
 

@@ -7,6 +7,7 @@ import type { ChatResponse, FavoriteItem, FeedbackOption } from '../types';
 
 import Guidance from './chat/Guidance';
 import SerialFollowUp from './chat/SerialFollowUp';
+import PncFollowUp from './chat/PncFollowUp';
 import Interpretation from './chat/Interpretation';
 import ReliabilityDetails from './chat/ReliabilityDetails';
 import ResultCard from './chat/ResultCard';
@@ -517,8 +518,58 @@ export default function ChatPanel({
                   />
                 ) : null}
 
-                {message.response?.pncOptions?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3"><div className="mb-2 text-xs font-semibold text-ink-600 dark:text-ink-400">Selecione o PNC da etiqueta</div><div className="flex flex-wrap gap-2">{message.response.pncOptions.map(option => <button type="button" key={option} onClick={() => choosePnc(message, option)} className="rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 px-2.5 py-1.5 text-xs hover:border-brand-600 hover:text-brand-600 dark:text-brand-300 transition">PNC {option}</button>)}</div></motion.div> : null}
+                {message.response?.pncOptions?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3"><div className="mb-2 text-xs font-semibold text-ink-700 dark:text-ink-300">Selecione o PNC da etiqueta</div><div className="flex flex-wrap gap-2">{message.response.pncOptions.map(option => <button type="button" key={option} onClick={() => choosePnc(message, option)} className="cv-touch-target rounded-lg border border-ink-200 bg-white px-3 text-xs font-bold text-ink-800 transition hover:border-brand-600 hover:text-brand-700 dark:border-ink-700 dark:bg-ink-800 dark:text-brand-300 transition">PNC {option}</button>)}</div><PncFollowUp disabled={loading} onSubmit={next => choosePnc(message, next)} /></motion.div> : null}
+                {message.response?.requiresPnc && !message.response?.pncOptions?.length ? (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3">
+                    <div className="mb-1 text-xs font-semibold text-ink-700 dark:text-ink-300">Informe o PNC da etiqueta</div>
+                    <PncFollowUp disabled={loading} onSubmit={next => choosePnc(message, next)} />
+                  </motion.div>
+                ) : null}
+
                 {message.response?.modelOptions?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3"><div className="mb-2 text-xs font-semibold text-ink-600 dark:text-ink-400">Confirmar modelo</div><div className="flex flex-wrap gap-2">{message.response.modelOptions.map(option => <button type="button" key={option} onClick={() => chooseModel(message, option)} className="rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 px-2.5 py-1.5 text-xs hover:border-brand-600 hover:text-brand-600 dark:text-brand-300 transition">{option}</button>)}</div></motion.div> : null}
+                {/* A saída manual. Antes, quando a IA não garantia o código, a
+                    resposta terminava em dicas do tipo "tente uma descrição mais
+                    curta" — instrução para o atendente tentar de novo, com o
+                    cliente na frente. O código está impresso na vista explodida
+                    do catálogo, e o catálogo está aqui: agora ele abre em um
+                    toque. */}
+                {message.response && message.response.status !== 'FOUND' && (message.response.manualFallback?.catalogs.length || message.response.manualFallback?.officialUrl) ? (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 rounded-xl border border-brand-200 bg-brand-50/60 p-3 dark:border-brand-800 dark:bg-brand-950/25">
+                    <div className="text-xs font-bold text-brand-800 dark:text-brand-200">Pegue o código na vista explodida</div>
+                    <p className="mt-0.5 text-[11px] leading-5 text-ink-600 dark:text-ink-300">O código existe e está impresso no catálogo. Abra e confira a posição da peça.</p>
+                    {message.response.manualFallback?.catalogs.length ? (
+                      <div className="mt-2 grid gap-1.5">
+                        {message.response.manualFallback.catalogs.map(catalog => (
+                          <button
+                            key={catalog.documentId}
+                            type="button"
+                            onClick={() => void access(catalog.documentId, 'view', null, catalog.filename)}
+                            className="cv-touch-target flex items-center justify-between gap-3 rounded-lg border border-ink-200 bg-white px-3 text-left transition hover:border-brand-400 dark:border-ink-700 dark:bg-ink-800 dark:hover:border-brand-500"
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate text-xs font-bold text-ink-900 dark:text-white">{catalog.filename}</span>
+                              <span className="block text-[10px] text-ink-500 dark:text-ink-400">{catalog.model || 'Modelo não informado'}{catalog.pnc ? ' · PNC ' + catalog.pnc : ''} · {catalog.partCount} peças</span>
+                            </span>
+                            <span className="shrink-0 text-[11px] font-bold text-brand-700 dark:text-brand-300">Abrir →</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-[11px] text-ink-500 dark:text-ink-400">Nenhum catálogo deste modelo está processado nesta base.</p>
+                    )}
+                    {message.response.manualFallback?.officialUrl ? (
+                      <a
+                        href={message.response.manualFallback.officialUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-block text-[11px] font-bold text-brand-700 underline dark:text-brand-300"
+                      >
+                        {message.response.manualFallback.officialLabel || 'Fonte oficial Husqvarna'} ↗
+                      </a>
+                    ) : null}
+                  </motion.div>
+                ) : null}
+
                 {message.response?.serialRequired ? <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}><SerialFollowUp disabled={loading} onSubmit={nextSerial => continueWithSerial(message, nextSerial)} /></motion.div> : null}
                 {message.response?.status === 'AMBIGUOUS' && message.response.options?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 rounded-xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-3"><div className="text-xs font-semibold text-ink-700 dark:text-ink-300">Qual item da vista corresponde à peça?</div><div className="mt-2 grid gap-2">{message.response.options.map(option => <button type="button" key={option.id} onClick={() => chooseAmbiguousOption(message, option)} className="rounded-lg border border-ink-200 dark:border-ink-700 p-2 text-left text-xs hover:bg-ink-50 dark:bg-ink-800/50 transition"><b>{option.name}</b><span className="mt-0.5 block font-semibold text-brand-600 dark:text-brand-300">Código {option.partNumber}</span><span className="block text-ink-500 dark:text-ink-400">{option.model} · PNC {option.pnc || 'não informado'} · posição {option.position || '—'}</span>{option.section ? <span className="mt-1 block text-ink-500 dark:text-ink-400">Vista: {option.section}</span> : null}{option.notes ? <span className="mt-1 block font-semibold text-amber-700 dark:text-amber-300">Aplicação: {option.notes}</span> : null}</button>)}</div></motion.div> : null}
 
