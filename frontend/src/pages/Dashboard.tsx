@@ -30,12 +30,29 @@ function cleanNavigationValue(value: string | null | undefined) {
   return clean === 'null' || clean === 'undefined' ? '' : clean;
 }
 
+/**
+ * Esqueleto no formato do conteúdo que vem, em vez de um spinner no meio do
+ * vazio: no balcão o atendente percebe que a tela está montando, e não que
+ * travou. O `aria-busy` + `sr-only` mantêm o anúncio para leitor de tela.
+ */
 function PanelLoading() {
   return (
-    <div className="flex min-h-[300px] items-center justify-center">
-      <div className="flex items-center gap-3 text-xs text-ink-400">
-        <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink-300 border-t-brand-600 dark:border-ink-600 dark:border-t-brand-400" />
-        Carregando painel…
+    <div aria-busy="true" className="space-y-4">
+      <span className="sr-only">Carregando painel…</span>
+      <div className="h-8 w-56 animate-pulse rounded-card bg-ink-200 dark:bg-ink-800" />
+      <div className="grid gap-3 sm:grid-cols-2 tablet:grid-cols-4">
+        {[0, 1, 2, 3].map(item => (
+          <div key={item} className="h-24 animate-pulse rounded-card border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900" />
+        ))}
+      </div>
+      <div className="overflow-hidden rounded-card border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
+        {[0, 1, 2, 3, 4].map(item => (
+          <div key={item} className="flex items-center gap-4 border-b border-ink-100 p-4 last:border-0 dark:border-ink-800">
+            <div className="h-4 w-28 animate-pulse rounded bg-ink-200 dark:bg-ink-800" />
+            <div className="h-4 flex-1 animate-pulse rounded bg-ink-100 dark:bg-ink-850" />
+            <div className="h-8 w-24 animate-pulse rounded-card bg-ink-100 dark:bg-ink-850" />
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -198,10 +215,51 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <main className="grid min-h-screen place-items-center bg-ink-100 p-6 dark:bg-ink-950">
-        <div role="alert" className="max-w-md rounded-2xl border border-rose-200 bg-white p-6 text-center shadow-xl shadow-ink-900/5 dark:border-rose-900 dark:bg-ink-900">
-          <div className="text-sm font-black text-rose-700 dark:text-rose-300">Não foi possível abrir o CogniVault</div>
-          <p className="mt-2 text-xs leading-5 text-ink-500 dark:text-ink-400">{error}</p>
+      <main className="grid min-h-[100dvh] place-items-center bg-ink-100 p-6 dark:bg-ink-950">
+        <div
+          role="alert"
+          className="w-full max-w-[460px] rounded-panel border border-ink-200 bg-white p-6 shadow-raised dark:border-ink-800 dark:bg-ink-900"
+        >
+          <img
+            src="/vardao-logo-transparent.webp"
+            alt="Vardão Máquinas"
+            className="h-7 w-auto max-w-[150px] object-contain dark:brightness-0 dark:invert"
+          />
+          <div className="mt-5 flex items-start gap-3">
+            <span aria-hidden="true" className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-card bg-rose-50 text-base font-black text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+              !
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-base font-bold text-ink-950 dark:text-white">Não foi possível abrir o CogniVault</h1>
+              <p className="mt-1.5 text-sm leading-6 text-ink-500 dark:text-ink-400">{error}</p>
+            </div>
+          </div>
+
+          {/* A tela antiga mostrava o erro e parava aí: o atendente ficava sem
+              saída, com o cliente esperando. Agora tem as duas ações que
+              resolvem na prática — tentar de novo (Render free dorme e volta)
+              ou entrar novamente. */}
+          <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="cv-primary cv-touch-target flex-1 px-4 text-sm"
+            >
+              Tentar de novo
+            </button>
+            <button
+              type="button"
+              onClick={logout}
+              className="cv-secondary cv-touch-target flex-1 px-4 text-sm"
+            >
+              Entrar novamente
+            </button>
+          </div>
+
+          <p className="mt-4 text-[11px] leading-5 text-ink-500 dark:text-ink-400">
+            Se acabou de abrir o sistema, o servidor pode estar iniciando: aguarde alguns
+            segundos e toque em <strong>Tentar de novo</strong>.
+          </p>
         </div>
       </main>
     );
@@ -209,13 +267,22 @@ export default function Dashboard() {
 
   if (!user) {
     return (
-      <main className="grid min-h-screen place-items-center bg-ink-100 p-6 dark:bg-ink-950">
-        <div className="text-center">
-          <img src="/vardao-logo-transparent.webp" alt="Vardão Máquinas" className="mx-auto w-40" />
-          <div className="mx-auto mt-6 h-1 w-28 overflow-hidden rounded-full bg-ink-200 dark:bg-ink-700">
-            <div className="h-full w-1/2 animate-pulse rounded-full bg-brand-600" />
+      <main className="grid min-h-[100dvh] place-items-center bg-ink-100 p-6 dark:bg-ink-950">
+        <div aria-busy="true" className="w-full max-w-[320px] text-center">
+          <img
+            src="/vardao-logo-transparent.webp"
+            alt="Vardão Máquinas"
+            className="mx-auto h-10 w-auto max-w-[190px] object-contain dark:brightness-0 dark:invert"
+          />
+          <div className="mx-auto mt-6 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-ink-200 dark:bg-ink-800">
+            {/* Barra indeterminada de verdade: a anterior era um pulso parado
+                em 50%, que em rede lenta parecia progresso travado. */}
+            <div className="h-full w-1/3 animate-cv-indeterminate rounded-full bg-brand-600 dark:bg-brand-400" />
           </div>
-          <p className="mt-3 text-xs font-medium text-ink-400">Preparando sua área de trabalho…</p>
+          <p className="mt-4 text-sm font-semibold text-ink-600 dark:text-ink-300">Preparando o atendimento…</p>
+          <p className="mt-1 text-xs leading-5 text-ink-500 dark:text-ink-400">
+            Carregando catálogo, cadastro comercial e sua cesta de orçamento.
+          </p>
         </div>
       </main>
     );
