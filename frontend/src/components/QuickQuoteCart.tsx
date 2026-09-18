@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { useCounterSession } from '../context/CounterSessionContext';
 import { useQuoteCart } from '../context/QuoteCartContext';
 import type { QuoteCartItem, QuoteSyncState, QuoteTextOptions, SavedQuote } from '../context/QuoteCartContext';
 import { formatHusqvarnaPartNumber, cleanErpCode } from '../lib';
@@ -389,9 +390,15 @@ function CartItemRow({
             onChange={e => onUpdateUnitPrice(e.target.value === '' ? undefined : Number(e.target.value))}
             className="cv-field h-11 w-[5.5rem] py-0 text-right text-sm font-bold tabular-nums"
           />
+          {/* Subtotal da linha em cinza e rotulado. Antes era verde e negrito,
+              igual ao total do orçamento na barra fixa — e com um item só na
+              cesta os dois mostram o MESMO número (2 × 378,26 = 756,52 = total),
+              o que fazia a tela parecer ter valor repetido. Verde grande fica
+              reservado para o total do pedido. */}
           {subtotal > 0 && (
-            <span className="shrink-0 text-right text-sm font-bold text-emerald-700 tabular-nums dark:text-emerald-400">
-              {money(subtotal)}
+            <span className="shrink-0 text-right">
+              <span className="block text-[9px] font-bold uppercase tracking-[.08em] text-ink-400">Subtotal</span>
+              <span className="block text-sm font-bold text-ink-800 tabular-nums dark:text-ink-100">{money(subtotal)}</span>
             </span>
           )}
         </div>
@@ -451,13 +458,22 @@ export default function QuickQuoteCart() {
     setDraftOptions,
   } = useQuoteCart();
 
+  const { session } = useCounterSession();
+
   const [activeTab, setActiveTab] = useState<'cart' | 'history'>('cart');
   const [showCustomItemForm, setShowCustomItemForm] = useState(false);
 
   // Cliente, telefone, pagamento e desconto moram no rascunho persistido, não
   // em estado local: antes, recarregar a página perdia o nome do cliente mesmo
   // com os itens intactos.
-  const customerName = draftOptions.customerName || '';
+  //
+  // O nome do cliente era pedido em DOIS lugares que não se falavam: a barra de
+  // atendimento (session.customerName, no localStorage) e este campo
+  // (draftOptions.customerName, no rascunho do servidor). Nada ligava os dois,
+  // então quem preenchia só na barra mandava o orçamento SEM nome do cliente —
+  // o PDF e o texto do WhatsApp leem daqui. Agora a barra é a origem quando
+  // este campo está vazio, e digitar aqui continua valendo por cima.
+  const customerName = draftOptions.customerName || session.customerName || '';
   const customerPhone = draftOptions.customerPhone || '';
   const paymentMethod = draftOptions.paymentMethod || 'A Combinar no Balcão';
   const discountPercentage = draftOptions.discountPercentage || 0;
