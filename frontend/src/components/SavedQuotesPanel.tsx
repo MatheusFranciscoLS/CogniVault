@@ -313,7 +313,7 @@ export default function SavedQuotesPanel() {
             <p className="mt-1 text-xs text-ink-500">
               {hasFilters
                 ? 'Ajuste o cliente, telefone, código, modelo ou o período.'
-                : 'Ao enviar no WhatsApp, baixar o PDF ou clicar em Salvar durante o atendimento, o orçamento aparece aqui.'}
+                : 'Ao enviar no WhatsApp ou gerar o PDF durante o atendimento, o orçamento é arquivado aqui.'}
             </p>
           </div>
         )}
