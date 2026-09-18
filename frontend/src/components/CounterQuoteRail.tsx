@@ -48,11 +48,14 @@ export default function CounterQuoteRail() {
           <div key={item.id} className="border-b border-ink-100 px-1 py-2.5 last:border-0 dark:border-ink-800">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[11px] font-bold text-ink-800 dark:text-ink-100" title={item.name}>{item.name}</div>
-                <div className="mt-0.5 flex items-center gap-2">
-                  <span className="font-mono text-[10px] font-black text-ink-900 dark:text-brand-300">{formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)}</span>
+                {/* Código antes do nome e em corpo legível: é o que o balcão
+                    confere na peça física. Estava em 10px, menor que a
+                    descrição. */}
+                <div className="flex items-center gap-2">
+                  <span className="rounded bg-brand-50 px-1.5 py-0.5 font-mono text-xs font-black text-brand-700 dark:bg-brand-950/40 dark:text-brand-300">{formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)}</span>
                   {item.unitPrice != null && <span className="text-[10px] text-ink-400">{formatMoney(item.unitPrice * item.quantity)}</span>}
                 </div>
+                <div className="mt-1 truncate text-[11px] font-bold text-ink-800 dark:text-ink-100" title={item.name}>{item.name}</div>
               </div>
               <button type="button" onClick={() => quoteCart.removeItem(item.id)} className="shrink-0 text-xs font-bold text-ink-300 transition hover:text-rose-500" aria-label={`Remover ${item.name}`}>×</button>
             </div>

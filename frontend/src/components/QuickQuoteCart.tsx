@@ -326,20 +326,21 @@ function CartItemRow({
   const subtotal = item.unitPrice ? item.quantity * item.unitPrice : 0;
 
   return (
-    <div className="rounded-card border border-ink-200 bg-white p-3.5 shadow-card transition hover:border-brand-200 dark:border-ink-800 dark:bg-ink-850 dark:hover:border-brand-400/50">
+    <div className="rounded-card border-2 border-ink-200 bg-white p-3.5 shadow-card transition hover:border-brand-300 dark:border-ink-800 dark:bg-ink-850 dark:hover:border-brand-400/50">
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className="truncate text-sm font-bold text-ink-900 dark:text-white" title={item.name}>
-            {item.name}
-          </h3>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+        <div className="min-w-0 flex-1">
+          {/* Código primeiro: é o que o balcão procura na peça física e no ERP
+              — a peça mais importante da linha não pode ser a menos visível. */}
+          <div className="flex flex-wrap items-center gap-1.5">
             {isServiceItem ? (
-              <span className="flex items-center gap-1 rounded-full bg-accent-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[.06em] text-accent-700 dark:bg-accent-500/15 dark:text-accent-300">
-                <Icon name="wrench" className="h-3 w-3" /> Serviço / balcão
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-accent-500 px-2.5 py-1.5 text-xs font-black uppercase tracking-[.04em] text-white">
+                <Icon name="wrench" className="h-3.5 w-3.5" /> Serviço / balcão
               </span>
             ) : (
-              <div className="flex items-center gap-1.5">
-                <span className="font-mono text-sm font-bold text-brand-600 dark:text-brand-300">{formattedCode}</span>
+              <>
+                <span className="inline-flex items-center rounded-lg bg-brand-50 px-2.5 py-1.5 font-mono text-base font-black tracking-[-.01em] text-brand-700 dark:bg-brand-950/40 dark:text-brand-300">
+                  {formattedCode}
+                </span>
                 <button
                   type="button"
                   onClick={() => {
@@ -349,20 +350,23 @@ function CartItemRow({
                     toast.success(`Código ERP copiado: ${clean}`);
                   }}
                   title="Copiar código puro sem formatação para colar no ERP"
-                  className="flex items-center gap-1 rounded-full bg-ink-100 px-2 py-1 text-[10px] font-bold text-ink-700 transition hover:bg-brand-50 hover:text-brand-600 dark:bg-ink-900 dark:text-ink-300"
+                  aria-label="Copiar código para o ERP"
+                  className="cv-touch-target grid place-items-center rounded-lg bg-ink-100 text-ink-600 transition hover:bg-brand-50 hover:text-brand-600 dark:bg-ink-900 dark:text-ink-300"
                 >
-                  <Icon name="clipboard" className="h-3 w-3" />
-                  <span>ERP</span>
+                  <Icon name="clipboard" className="h-3.5 w-3.5" />
                 </button>
-              </div>
+              </>
             )}
             {item.isSuperseded && (
-              <span className="flex items-center gap-1 text-[10px] font-semibold text-gold-800 dark:text-gold-300">
+              <span className="inline-flex items-center gap-1 rounded-full bg-gold-100 px-2 py-1 text-[10px] font-bold text-gold-800 dark:bg-gold-500/15 dark:text-gold-300">
                 <Icon name="warning" className="h-3 w-3" /> Substituição
               </span>
             )}
           </div>
-          <div className="mt-1 truncate text-[11px] text-ink-500">
+          <h3 className="mt-1.5 truncate text-sm font-bold text-ink-900 dark:text-white" title={item.name}>
+            {item.name}
+          </h3>
+          <div className="mt-0.5 truncate text-[11px] text-ink-500">
             {isServiceItem ? (item.model || 'Balcão') : `${item.model}${item.pnc ? ` · PNC ${item.pnc}` : ''}${item.position ? ` · Pos. ${item.position}` : ''}`}
           </div>
         </div>
@@ -376,54 +380,50 @@ function CartItemRow({
         </button>
       </div>
 
-      {/* Quantidade e preço em linha única no tablet: em 10" há largura sobrando,
-          e duas linhas separadas faziam o atendente rolar dentro do próprio item. */}
-      <div className="mt-3 grid gap-2.5 border-t border-ink-200 pt-3 dark:border-ink-800 tablet:grid-cols-2 tablet:items-center">
-        <div className="flex items-center justify-between gap-2 tablet:justify-start">
-          <span className="text-[11px] font-semibold uppercase tracking-[.06em] text-ink-500">Qtd.</span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => onUpdateQuantity(-1)}
-              aria-label="Diminuir quantidade"
-              className="cv-touch-target grid place-items-center rounded-card border border-ink-200 bg-ink-100 text-ink-700 transition hover:bg-ink-200 active:scale-95 dark:border-ink-800 dark:bg-ink-900 dark:text-ink-300"
-            >
-              <Icon name="minus" className="h-4 w-4" />
-            </button>
-            <span className="min-w-10 text-center text-base font-bold text-ink-900 tabular-nums dark:text-white">{item.quantity}</span>
-            <button
-              type="button"
-              onClick={() => onUpdateQuantity(1)}
-              aria-label="Aumentar quantidade"
-              className="cv-touch-target grid place-items-center rounded-card border border-ink-200 bg-ink-100 text-ink-700 transition hover:bg-ink-200 active:scale-95 dark:border-ink-800 dark:bg-ink-900 dark:text-ink-300"
-            >
-              <Icon name="plus" className="h-4 w-4" />
-            </button>
-          </div>
+      {/* Controles em UMA linha, sem rótulos de texto (ficam em aria-label).
+          Medido: com "Qtd." e "Unit. R$" empilhados, o cartão ia a 244px e não
+          cabia inteiro na área visível do drawer em tela curta — o atendente
+          tinha de rolar dentro de cada peça. Os alvos de toque continuam em
+          44px (.cv-touch-target). */}
+      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-ink-200 pt-2.5 dark:border-ink-800">
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onUpdateQuantity(-1)}
+            aria-label={`Diminuir quantidade de ${item.name}`}
+            className="cv-touch-target grid place-items-center rounded-card border border-ink-200 bg-ink-100 text-ink-700 transition hover:bg-ink-200 active:scale-95 dark:border-ink-800 dark:bg-ink-900 dark:text-ink-300"
+          >
+            <Icon name="minus" className="h-4 w-4" />
+          </button>
+          <span className="min-w-9 text-center text-base font-bold text-ink-900 tabular-nums dark:text-white">{item.quantity}</span>
+          <button
+            type="button"
+            onClick={() => onUpdateQuantity(1)}
+            aria-label={`Aumentar quantidade de ${item.name}`}
+            className="cv-touch-target grid place-items-center rounded-card border border-ink-200 bg-ink-100 text-ink-700 transition hover:bg-ink-200 active:scale-95 dark:border-ink-800 dark:bg-ink-900 dark:text-ink-300"
+          >
+            <Icon name="plus" className="h-4 w-4" />
+          </button>
         </div>
 
-        <div className="flex items-center justify-between gap-2 tablet:justify-end">
-          <label htmlFor={`price-${item.id}`} className="text-[11px] font-semibold uppercase tracking-[.06em] text-ink-500">
-            Unit. R$
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              id={`price-${item.id}`}
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step={0.5}
-              placeholder="0,00"
-              value={item.unitPrice ?? ''}
-              onChange={e => onUpdateUnitPrice(e.target.value === '' ? undefined : Number(e.target.value))}
-              className="cv-field h-11 w-24 py-0 text-right text-sm font-bold tabular-nums"
-            />
-            {subtotal > 0 && (
-              <span className="min-w-[5.5rem] text-right text-sm font-bold text-emerald-700 tabular-nums dark:text-emerald-400">
-                {money(subtotal)}
-              </span>
-            )}
-          </div>
+        <div className="flex min-w-0 items-center justify-end gap-2">
+          <input
+            id={`price-${item.id}`}
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step={0.5}
+            placeholder="R$ un."
+            aria-label={`Preço unitário de ${item.name}`}
+            value={item.unitPrice ?? ''}
+            onChange={e => onUpdateUnitPrice(e.target.value === '' ? undefined : Number(e.target.value))}
+            className="cv-field h-11 w-[5.5rem] py-0 text-right text-sm font-bold tabular-nums"
+          />
+          {subtotal > 0 && (
+            <span className="shrink-0 text-right text-sm font-bold text-emerald-700 tabular-nums dark:text-emerald-400">
+              {money(subtotal)}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -581,7 +581,12 @@ export default function QuickQuoteCart() {
                quantidade e preço entram na mesma linha. */
             className="relative flex h-full w-full max-w-none flex-col border-l border-ink-200 bg-white shadow-raised dark:border-ink-800 dark:bg-ink-950 sm:max-w-[440px] tablet:max-w-[520px] lg:max-w-[600px] xl:max-w-[680px]"
           >
-            <div className="border-b border-brand-800 bg-brand-600 px-4 pb-3 pt-4 text-white tablet:px-6 tablet:pt-5">
+            {/* Cabeçalho enxuto: medido em 170px de 436px (39% da tela) no
+                laptop do balcão, e repetia o total que a barra fixa já mostra.
+                O selo de sincronização subiu para a mesma linha do título e a
+                linha do total saiu — o espaço devolvido vai para a lista de
+                peças. */}
+            <div className="border-b border-brand-800 bg-brand-600 px-4 pb-2.5 pt-3 text-white tablet:px-6 tablet:pt-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="grid h-10 w-10 shrink-0 place-items-center rounded-card bg-white/12">
@@ -589,7 +594,10 @@ export default function QuickQuoteCart() {
                   </div>
                   <div className="min-w-0">
                     <h2 className="text-base font-bold tracking-tight text-white">Orçamento de balcão</h2>
-                    <p className="truncate text-xs text-brand-100/80">Vardão Máquinas · Peças originais Husqvarna</p>
+                    <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="truncate text-xs text-brand-100/80">Vardão Máquinas · Peças originais Husqvarna</span>
+                      <SyncBadge state={syncState} />
+                    </div>
                   </div>
                 </div>
                 <button
@@ -602,14 +610,7 @@ export default function QuickQuoteCart() {
                 </button>
               </div>
 
-              <div className="mt-3 flex items-center justify-between gap-2">
-                <SyncBadge state={syncState} />
-                {totalPrice > 0 && (
-                  <span className="text-sm font-bold text-gold-300 tabular-nums">{money(netTotalPrice)}</span>
-                )}
-              </div>
-
-              <div className="mt-3 flex rounded-card bg-white/10 p-1 text-xs font-bold">
+              <div className="mt-2.5 flex rounded-card bg-white/10 p-1 text-xs font-bold">
                 <button
                   type="button"
                   onClick={() => setActiveTab('cart')}
@@ -640,155 +641,185 @@ export default function QuickQuoteCart() {
                 onClearAll={handleClearHistory}
               />
             ) : (
-              <>
-                <div className="space-y-2.5 border-b border-ink-200 bg-ink-100 p-3.5 dark:border-ink-800 dark:bg-ink-900 tablet:px-6">
-                  <div className="grid gap-2.5 tablet:grid-cols-3">
-                    <div className="tablet:col-span-1">
-                      <label htmlFor="quote-customer-name" className="block text-[10px] font-bold uppercase tracking-[.08em] text-ink-500">
-                        Cliente / máquina
-                      </label>
-                      <input
-                        id="quote-customer-name"
-                        type="text"
-                        value={customerName}
-                        onChange={e => patchOptions({ customerName: e.target.value })}
-                        placeholder="Ex.: Sr. Carlos (143RII)"
-                        className="cv-field mt-1 h-11 py-0 text-sm"
-                      />
-                    </div>
-                    <div className="tablet:col-span-1">
-                      <label htmlFor="quote-customer-phone" className="block text-[10px] font-bold uppercase tracking-[.08em] text-ink-500">
-                        WhatsApp (opcional)
-                      </label>
-                      <input
-                        id="quote-customer-phone"
-                        type="tel"
-                        inputMode="tel"
-                        value={customerPhone}
-                        onChange={e => patchOptions({ customerPhone: e.target.value })}
-                        placeholder="(19) 99999-9999"
-                        className="cv-field mt-1 h-11 py-0 text-sm tabular-nums"
-                      />
-                    </div>
-                    <div className="tablet:col-span-1">
-                      <label htmlFor="quote-payment-method" className="block text-[10px] font-bold uppercase tracking-[.08em] text-ink-500">
-                        Condição de pagamento
-                      </label>
-                      <select
-                        id="quote-payment-method"
-                        value={paymentMethod}
-                        onChange={e => patchOptions({ paymentMethod: e.target.value })}
-                        className="cv-field mt-1 h-11 py-0 text-sm font-semibold"
+              <div className="flex min-h-0 flex-1 flex-col">
+                {/* Uma única região rolável para tudo, e a barra fixa reduzida
+                    ao essencial (total + WhatsApp).
+
+                    O bug que isso corrige, medido no navegador: o rodapé antigo
+                    tinha ~220px fixos (desconto + total + WhatsApp + 6 ações +
+                    créditos). Numa tela curta ou com zoom alto — laptop do
+                    balcão — sobravam ~44px para a lista de peças, que era o
+                    único bloco elástico da coluna. Resultado: o código e o nome
+                    da peça, a informação mais importante da tela, eram os
+                    primeiros a desaparecer, e o atendente via só os totais.
+
+                    Peças vêm primeiro no fluxo: é o que se confere com o
+                    cliente na frente. Cliente/pagamento, desconto e ações
+                    secundárias continuam acessíveis rolando. */}
+                <div className="cv-scrollbar min-h-0 flex-1 overflow-y-auto">
+                  <div className="space-y-3 p-4 tablet:px-6">
+                    {items.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-16 text-center text-ink-500">
+                        <Icon name="cart" className="h-9 w-9" />
+                        <div className="mt-3 text-sm font-bold text-ink-700 dark:text-ink-300">Sua cesta está vazia</div>
+                        <p className="mt-1 max-w-[240px] text-xs">
+                          Clique em &quot;+ Orçamento&quot; em qualquer peça na busca para montar a lista.
+                        </p>
+                      </div>
+                    ) : (
+                      items.map(item => (
+                        <CartItemRow
+                          key={item.id}
+                          item={item}
+                          onUpdateQuantity={delta => updateQuantity(item.id, delta)}
+                          onUpdateUnitPrice={value => updateUnitPrice(item.id, value)}
+                          onRemove={() => removeItem(item.id)}
+                        />
+                      ))
+                    )}
+                  </div>
+
+                  <div className="border-y border-ink-200 bg-white px-3.5 py-2.5 dark:border-ink-800 dark:bg-ink-850 tablet:px-6">
+                    {!showCustomItemForm ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomItemForm(true)}
+                        className="cv-touch-target flex w-full items-center justify-center gap-1.5 rounded-card border border-dashed border-accent-300 bg-accent-50 text-sm font-bold text-accent-700 transition hover:bg-accent-100 active:scale-[.99] dark:border-accent-500/40 dark:bg-accent-500/10 dark:text-accent-300"
                       >
-                        {PAYMENT_METHODS.map(method => (
-                          <option key={method} value={method}>{method}</option>
-                        ))}
-                      </select>
+                        <Icon name="wrench" className="h-4 w-4" />
+                        <span>Adicionar serviço ou item avulso</span>
+                      </button>
+                    ) : (
+                      <CustomItemForm onAdd={handleAddCustomItem} onClose={() => setShowCustomItemForm(false)} />
+                    )}
+                  </div>
+
+                  <div className="space-y-2.5 border-b border-ink-200 bg-ink-100 p-3.5 dark:border-ink-800 dark:bg-ink-900 tablet:px-6">
+                    <div className="grid gap-2.5 tablet:grid-cols-3">
+                      <div className="tablet:col-span-1">
+                        <label htmlFor="quote-customer-name" className="block text-[10px] font-bold uppercase tracking-[.08em] text-ink-500">
+                          Cliente / máquina
+                        </label>
+                        <input
+                          id="quote-customer-name"
+                          type="text"
+                          value={customerName}
+                          onChange={e => patchOptions({ customerName: e.target.value })}
+                          placeholder="Ex.: Sr. Carlos (143RII)"
+                          className="cv-field mt-1 h-11 py-0 text-sm"
+                        />
+                      </div>
+                      <div className="tablet:col-span-1">
+                        <label htmlFor="quote-customer-phone" className="block text-[10px] font-bold uppercase tracking-[.08em] text-ink-500">
+                          WhatsApp (opcional)
+                        </label>
+                        <input
+                          id="quote-customer-phone"
+                          type="tel"
+                          inputMode="tel"
+                          value={customerPhone}
+                          onChange={e => patchOptions({ customerPhone: e.target.value })}
+                          placeholder="(19) 99999-9999"
+                          className="cv-field mt-1 h-11 py-0 text-sm tabular-nums"
+                        />
+                      </div>
+                      <div className="tablet:col-span-1">
+                        <label htmlFor="quote-payment-method" className="block text-[10px] font-bold uppercase tracking-[.08em] text-ink-500">
+                          Condição de pagamento
+                        </label>
+                        <select
+                          id="quote-payment-method"
+                          value={paymentMethod}
+                          onChange={e => patchOptions({ paymentMethod: e.target.value })}
+                          className="cv-field mt-1 h-11 py-0 text-sm font-semibold"
+                        >
+                          {PAYMENT_METHODS.map(method => (
+                            <option key={method} value={method}>{method}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="border-b border-ink-200 bg-white px-3.5 py-2.5 dark:border-ink-800 dark:bg-ink-850 tablet:px-6">
-                  {!showCustomItemForm ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowCustomItemForm(true)}
-                      className="cv-touch-target flex w-full items-center justify-center gap-1.5 rounded-card border border-dashed border-accent-300 bg-accent-50 text-sm font-bold text-accent-700 transition hover:bg-accent-100 active:scale-[.99] dark:border-accent-500/40 dark:bg-accent-500/10 dark:text-accent-300"
-                    >
-                      <Icon name="wrench" className="h-4 w-4" />
-                      <span>Adicionar serviço ou item avulso</span>
-                    </button>
-                  ) : (
-                    <CustomItemForm onAdd={handleAddCustomItem} onClose={() => setShowCustomItemForm(false)} />
-                  )}
-                </div>
-
-                <div className="cv-scrollbar flex-1 space-y-3 overflow-y-auto p-4 tablet:px-6">
-                  {items.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 text-center text-ink-500">
-                      <Icon name="cart" className="h-9 w-9" />
-                      <div className="mt-3 text-sm font-bold text-ink-700 dark:text-ink-300">Sua cesta está vazia</div>
-                      <p className="mt-1 max-w-[240px] text-xs">
-                        Clique em &quot;+ Orçamento&quot; em qualquer peça na busca para montar a lista.
-                      </p>
-                    </div>
-                  ) : (
-                    items.map(item => (
-                      <CartItemRow
-                        key={item.id}
-                        item={item}
-                        onUpdateQuantity={delta => updateQuantity(item.id, delta)}
-                        onUpdateUnitPrice={value => updateUnitPrice(item.id, value)}
-                        onRemove={() => removeItem(item.id)}
-                      />
-                    ))
-                  )}
-                </div>
-
-                {items.length > 0 && (
-                  <div className="space-y-2.5 border-t border-ink-200 bg-ink-100 p-4 dark:border-ink-800 dark:bg-ink-900 tablet:px-6">
-                    {totalPrice > 0 && (
-                      <div className="rounded-card border border-ink-200 bg-white p-2.5 shadow-card dark:border-ink-800 dark:bg-ink-850">
-                        <div className="mb-2 flex items-center justify-between text-xs">
-                          <span className="font-bold text-ink-700 dark:text-ink-300">Desconto comercial</span>
-                          <span className="text-[11px] font-semibold text-accent-700 dark:text-accent-300">
-                            {discountPercentage > 0 ? `-${discountPercentage}% aplicado` : 'Sem desconto'}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-4 gap-1.5">
-                          {DISCOUNT_PRESETS.map(disc => (
-                            <button
-                              key={disc.value}
-                              type="button"
-                              onClick={() => patchOptions({ discountPercentage: disc.value })}
-                              className={`cv-touch-target rounded-card px-1.5 text-center text-xs font-bold transition active:scale-95 ${
-                                discountPercentage === disc.value
-                                  ? 'bg-brand-600 text-white'
-                                  : 'bg-ink-100 text-ink-700 hover:bg-ink-200 dark:bg-ink-900 dark:text-ink-300'
-                              }`}
-                            >
-                              {disc.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {totalPrice > 0 && (
-                      <div className="space-y-1 rounded-card border border-emerald-500/25 bg-emerald-500/10 px-3.5 py-2.5 dark:bg-emerald-950/30">
-                        {discountPercentage > 0 ? (
-                          <>
-                            <div className="flex items-center justify-between text-xs text-ink-500">
-                              <span>Subtotal bruto</span>
-                              <span className="font-mono">{money(totalPrice)}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-xs font-semibold text-accent-700 dark:text-accent-300">
-                              <span>Desconto ({discountPercentage}%)</span>
-                              <span className="font-mono">-{money(discountAmount)}</span>
-                            </div>
-                            <div className="flex items-center justify-between border-t border-emerald-500/25 pt-1">
-                              <span className="text-[11px] font-bold uppercase tracking-[.08em] text-emerald-800 dark:text-emerald-300">Total líquido estimado</span>
-                              <span className="font-mono text-lg font-bold text-emerald-700 dark:text-emerald-400">{money(netTotalPrice)}</span>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-bold uppercase tracking-[.08em] text-emerald-800 dark:text-emerald-300">Valor total estimado</span>
-                            <span className="font-mono text-lg font-bold text-emerald-700 dark:text-emerald-400">{money(totalPrice)}</span>
+                  {items.length > 0 && (
+                    <div className="space-y-2.5 p-4 dark:bg-ink-900 tablet:px-6">
+                      {totalPrice > 0 && (
+                        <div className="rounded-card border border-ink-200 bg-white p-2.5 shadow-card dark:border-ink-800 dark:bg-ink-850">
+                          <div className="mb-2 flex items-center justify-between text-xs">
+                            <span className="font-bold text-ink-700 dark:text-ink-300">Desconto comercial</span>
+                            <span className="text-[11px] font-semibold text-accent-700 dark:text-accent-300">
+                              {discountPercentage > 0 ? `-${discountPercentage}% aplicado` : 'Sem desconto'}
+                            </span>
                           </div>
-                        )}
+                          <div className="grid grid-cols-4 gap-1.5">
+                            {DISCOUNT_PRESETS.map(disc => (
+                              <button
+                                key={disc.value}
+                                type="button"
+                                onClick={() => patchOptions({ discountPercentage: disc.value })}
+                                className={`cv-touch-target rounded-card px-1.5 text-center text-xs font-bold transition active:scale-95 ${
+                                  discountPercentage === disc.value
+                                    ? 'bg-brand-600 text-white'
+                                    : 'bg-ink-100 text-ink-700 hover:bg-ink-200 dark:bg-ink-900 dark:text-ink-300'
+                                }`}
+                              >
+                                {disc.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {totalPrice > 0 && discountPercentage > 0 && (
+                        <div className="space-y-1 rounded-card border border-ink-200 bg-white px-3.5 py-2.5 dark:border-ink-800 dark:bg-ink-850">
+                          <div className="flex items-center justify-between text-xs text-ink-500">
+                            <span>Subtotal bruto</span>
+                            <span className="font-mono">{money(totalPrice)}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs font-semibold text-accent-700 dark:text-accent-300">
+                            <span>Desconto ({discountPercentage}%)</span>
+                            <span className="font-mono">-{money(discountAmount)}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {syncState === 'offline' && (
+                        <div className="flex items-start gap-2 rounded-card border border-gold-500/40 bg-gold-100 px-3 py-2 text-[11px] font-semibold leading-relaxed text-gold-800 dark:bg-gold-500/10 dark:text-gold-300">
+                          <Icon name="cloudOff" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                          <span>Sem conexão com o servidor. Esta cesta está só neste aparelho — o envio no WhatsApp e o PDF funcionam, mas o arquivamento vai falhar até a conexão voltar.</span>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-3 gap-2 tablet:grid-cols-6">
+                        <ActionButton icon="clipboard" label="Copiar" onClick={() => void copyQuoteToClipboard(quoteOptions)} />
+                        <ActionButton icon="pdf" label="PDF" onClick={() => generatePdfQuote(quoteOptions)} />
+                        <ActionButton icon="catalog" label="ERP" onClick={handleCopyErpList} />
+                        <ActionButton icon="printer" label="Imprimir" onClick={() => window.print()} />
+                        <ActionButton icon="save" label="Salvar" onClick={handleSaveQuote} />
+                        <ActionButton icon="trash" label="Esvaziar" onClick={clearCart} tone="danger" />
+                      </div>
+
+                      <div className="pt-1 text-center text-[10px] text-ink-500">Vardão Máquinas · CogniVault</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Barra fixa enxuta: o total e a ação que fecha o atendimento.
+                    Tudo o que não é decisão final saiu daqui para a área
+                    rolável — era esse bloco que engolia a lista de peças. */}
+                {items.length > 0 && (
+                  <div className="shrink-0 space-y-2 border-t border-ink-200 bg-white p-3 shadow-[0_-4px_12px_-8px_rgba(15,23,42,.35)] dark:border-ink-800 dark:bg-ink-850 tablet:px-6">
+                    {totalPrice > 0 && (
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[11px] font-bold uppercase tracking-[.08em] text-ink-500">
+                          {discountPercentage > 0 ? `Total líquido (-${discountPercentage}%)` : 'Valor total estimado'}
+                        </span>
+                        <span className="font-mono text-xl font-bold text-emerald-700 tabular-nums dark:text-emerald-400">
+                          {money(netTotalPrice)}
+                        </span>
                       </div>
                     )}
 
-                    {syncState === 'offline' && (
-                      <div className="flex items-start gap-2 rounded-card border border-gold-500/40 bg-gold-100 px-3 py-2 text-[11px] font-semibold leading-relaxed text-gold-800 dark:bg-gold-500/10 dark:text-gold-300">
-                        <Icon name="cloudOff" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                        <span>Sem conexão com o servidor. Esta cesta está só neste aparelho — o envio no WhatsApp e o PDF funcionam, mas o arquivamento vai falhar até a conexão voltar.</span>
-                      </div>
-                    )}
-
-                    {/* Ações em grade no tablet: as seis ações em duas linhas de
-                        três viravam alvo apertado em 10". */}
                     <button
                       type="button"
                       onClick={() => openWhatsApp(quoteOptions)}
@@ -797,20 +828,9 @@ export default function QuickQuoteCart() {
                       <Icon name="whatsapp" className="h-5 w-5" />
                       <span>{customerPhone ? `Enviar no WhatsApp (${customerPhone})` : 'Enviar no WhatsApp'}</span>
                     </button>
-
-                    <div className="grid grid-cols-3 gap-2 tablet:grid-cols-6">
-                      <ActionButton icon="clipboard" label="Copiar" onClick={() => void copyQuoteToClipboard(quoteOptions)} />
-                      <ActionButton icon="pdf" label="PDF" onClick={() => generatePdfQuote(quoteOptions)} />
-                      <ActionButton icon="catalog" label="ERP" onClick={handleCopyErpList} />
-                      <ActionButton icon="printer" label="Imprimir" onClick={() => window.print()} />
-                      <ActionButton icon="save" label="Salvar" onClick={handleSaveQuote} />
-                      <ActionButton icon="trash" label="Esvaziar" onClick={clearCart} tone="danger" />
-                    </div>
-
-                    <div className="pt-1 text-center text-[10px] text-ink-500">Vardão Máquinas · CogniVault</div>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </aside>
         </div>

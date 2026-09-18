@@ -544,7 +544,20 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
   }, [applyItems]);
 
   const removeItem = useCallback((id: string) => {
-    applyItems(current => current.filter(item => item.id !== id));
+    let removed: QuoteCartItem | undefined;
+    applyItems(current => {
+      removed = current.find(item => item.id === id);
+      return current.filter(item => item.id !== id);
+    });
+    if (removed) {
+      const item = removed;
+      toast.success(`Peça "${item.name}" removida do orçamento.`, {
+        action: {
+          label: 'Desfazer',
+          onClick: () => applyItems(current => current.some(existing => existing.id === item.id) ? current : [...current, item]),
+        },
+      });
+    }
   }, [applyItems]);
 
   const updateQuantity = useCallback((id: string, delta: number) => {

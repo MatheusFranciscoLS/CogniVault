@@ -155,6 +155,13 @@ export async function apiJson<T>(path: string, init: ApiRequestInit = {}): Promi
   return json<T>(await api(path, init));
 }
 
+export function replayQuery(item: { query: string; pnc: string | null }): string {
+  if (!item.pnc) return item.query;
+  const queryDigits = item.query.replace(/\D/g, '');
+  const pncDigits = item.pnc.replace(/\D/g, '');
+  return pncDigits && queryDigits.includes(pncDigits) ? item.query : `${item.query} · PNC ${item.pnc}`;
+}
+
 export function fmtDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Data indisponível';
