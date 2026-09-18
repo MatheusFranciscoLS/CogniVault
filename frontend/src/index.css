@@ -366,6 +366,17 @@ input[type="number"],
    acertam alvo de 28px — 44px é o piso das diretrizes de toque. */
 .cv-touch-target { min-height: 44px; min-width: 44px; }
 
+/* Barra de progresso indeterminada do boot pós-login. O `animate-pulse` que
+   havia antes ficava parado em 50% da barra, e em rede lenta de loja parecia
+   progresso travado em vez de carregamento em andamento. O bloco de
+   prefers-reduced-motion abaixo já neutraliza esta animação. */
+@keyframes cv-indeterminate {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(320%); }
+}
+
+.animate-cv-indeterminate { animation: cv-indeterminate 1.25s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
