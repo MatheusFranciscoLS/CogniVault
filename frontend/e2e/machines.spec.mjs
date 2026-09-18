@@ -74,7 +74,7 @@ async function login(page, email) {
   await page.goto('/login');
   await page.getByLabel('E-mail').fill(email);
   await page.locator('#login-password').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Entrar no CogniVault' }).click();
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   await expect(page.getByRole('heading', { name: 'Encontre a peça certa. Entenda por quê.' })).toBeVisible();
 }
