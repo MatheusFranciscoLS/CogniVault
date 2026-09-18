@@ -136,10 +136,12 @@ export async function api(path: string, init: ApiRequestInit = {}) {
 }
 export async function json<T>(response: Response): Promise<T> {
   const contentType = response.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
   let data: Record<string, unknown> = {};
+  let parseFailed = false;
 
-  if (contentType.includes('application/json')) {
-    try { data = await response.json() as Record<string, unknown>; } catch { data = {}; }
+  if (isJson) {
+    try { data = await response.json() as Record<string, unknown>; } catch { parseFailed = true; }
   }
 
   if (!response.ok) {
@@ -148,6 +150,28 @@ export async function json<T>(response: Response): Promise<T> {
       : `Não foi possível concluir a operação (${response.status}).`;
     throw new ApiError(message, response.status);
   }
+
+  // 204 e corpo vazio são respostas legítimas: DELETE de favorito, encerrar
+  // contexto de atendimento e logout respondem assim de propósito.
+  const semCorpo = response.status === 204 || response.headers.get('content-length') === '0';
+  if (semCorpo) return {} as T;
+
+  // Resposta 200 que NÃO é JSON era devolvida como objeto vazio, e quem chamou
+  // ia direto ler um campo dela. Foi o bug que o balcão viu na tela de
+  // Máquinas: "Cannot read properties of undefined (reading 'status')" — texto
+  // de erro de programação na frente do cliente.
+  //
+  // O caso real neste deploy: o frontend fala com a API pelo mesmo domínio
+  // (rewrite da Vercel) e o backend é Render free, que dorme. Enquanto ele
+  // acorda, o rewrite devolve página de erro em HTML — e HTML com status 200
+  // passava direto por aqui.
+  if (!isJson || parseFailed) {
+    throw new ApiError(
+      'O servidor respondeu em um formato inesperado. Isso costuma ser o servidor acordando: aguarde alguns segundos e tente de novo.',
+      response.status,
+    );
+  }
+
   return data as T;
 }
 

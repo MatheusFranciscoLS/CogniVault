@@ -23,11 +23,14 @@ const DISCOUNT_PRESETS = [
   { label: '15% Especial', value: 15 },
 ];
 
+// Um atalho só, por decisão do dono. Os outros três saíram pelo que eles são,
+// não por espaço na tela:
+//   - "Limpeza e regulagem" e "Graxa de transmissão" já estão dentro da mão de
+//     obra; cobrar à parte seria cobrar duas vezes pelo mesmo serviço.
+//   - "Óleo 2T Pro 1L" é PEÇA, não serviço, e lubrificante é acessório — este
+//     produto é focado em peça. Entra pelo cadastro ou como item avulso digitado.
 const CUSTOM_ITEM_PRESETS = [
-  'Mão de obra / Revisão',
-  'Limpeza e regulagem',
-  'Óleo 2T Pro 1L',
-  'Graxa de transmissão',
+  'Mão de obra / Revisão Geral',
 ];
 
 function money(value: number): string {
