@@ -299,7 +299,7 @@ function CartItemRow({
     <div className="rounded-card border-2 border-ink-200 bg-white p-3.5 shadow-card transition hover:border-brand-300 dark:border-ink-800 dark:bg-ink-850 dark:hover:border-brand-400/50">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          {/* Código primeiro: é o que o balcão procura na peça física e no ERP
+          {/* Código primeiro: é o que o balcão procura na peça física
               — a peça mais importante da linha não pode ser a menos visível. */}
           <div className="flex flex-wrap items-center gap-1.5">
             {isServiceItem ? (
@@ -317,10 +317,10 @@ function CartItemRow({
                     const clean = cleanErpCode(item.effectiveCode || item.partNumber);
                     void navigator.clipboard.writeText(clean);
                     playCopySound();
-                    toast.success(`Código ERP copiado: ${clean}`);
+                    toast.success(`Código ${clean} copiado.`);
                   }}
-                  title="Copiar código puro sem formatação para colar no ERP"
-                  aria-label="Copiar código para o ERP"
+                  title="Copiar o código sem espaços nem hífen"
+                  aria-label={`Copiar o código ${formattedCode}`}
                   className="cv-touch-target grid place-items-center rounded-lg bg-ink-100 text-ink-600 transition hover:bg-brand-50 hover:text-brand-600 dark:bg-ink-900 dark:text-ink-300"
                 >
                   <Icon name="clipboard" className="h-3.5 w-3.5" />
@@ -541,20 +541,6 @@ export default function QuickQuoteCart() {
   const handleClearHistory = () => {
     if (!confirm('Remover os orçamentos recentes do histórico? Esta ação não pode ser desfeita.')) return;
     void clearSavedQuotes();
-  };
-
-  const handleCopyErpList = () => {
-    const erpLines = items
-      .filter(i => !i.partNumber.startsWith('SRV-'))
-      .map(i => `${cleanErpCode(i.effectiveCode || i.partNumber)}\t${i.quantity}`)
-      .join('\n');
-    if (!erpLines) {
-      toast.error('Nenhuma peça com código cadastrado para exportar.');
-      return;
-    }
-    void navigator.clipboard.writeText(erpLines);
-    playCopySound();
-    toast.success(`${items.length} itens copiados para colar no ERP (código + qtd).`);
   };
 
   return (
@@ -786,7 +772,7 @@ export default function QuickQuoteCart() {
 
                       {/* Eram seis botões de mesmo peso. Ficaram os dois que
                           têm função própria e sem sobreposição — PDF (documento
-                          do cliente) e ERP (código + qtd para faturar). O resto
+                          do cliente). O resto
                           foi para "Mais", a um toque de distância.
 
                           "Salvar" saiu de vez: openWhatsApp, generatePdfQuote e
@@ -796,7 +782,6 @@ export default function QuickQuoteCart() {
                           era gravado. */}
                       <div className="grid grid-cols-3 gap-2">
                         <ActionButton icon="pdf" label="PDF" onClick={() => generatePdfQuote(quoteOptions)} />
-                        <ActionButton icon="catalog" label="ERP" onClick={handleCopyErpList} />
                         <ActionButton
                           icon={moreActionsOpen ? 'close' : 'plus'}
                           label={moreActionsOpen ? 'Fechar' : 'Mais'}

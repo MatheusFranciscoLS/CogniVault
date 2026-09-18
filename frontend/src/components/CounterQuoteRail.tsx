@@ -1,4 +1,3 @@
-import { toast } from 'sonner';
 import { formatHusqvarnaPartNumber } from '../lib';
 import { useCounterSession } from '../context/CounterSessionContext';
 import { useQuoteCart } from '../context/QuoteCartContext';
@@ -11,16 +10,6 @@ export default function CounterQuoteRail() {
   const quoteCart = useQuoteCart();
   const { session } = useCounterSession();
   if (!quoteCart.items.length) return null;
-
-  const copyErpItems = async () => {
-    const lines = quoteCart.items.map(item => `${item.effectiveCode || item.partNumber}\t${item.quantity}`);
-    try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      toast.success(`${quoteCart.items.length} ${quoteCart.items.length === 1 ? 'item copiado' : 'itens copiados'} para o ERP.`);
-    } catch {
-      toast.error('Não foi possível copiar os itens para o ERP.');
-    }
-  };
 
   return (
     <aside className="overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm dark:border-ink-800 dark:bg-ink-900">
@@ -68,9 +57,16 @@ export default function CounterQuoteRail() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-2 border-t border-ink-100 p-3 dark:border-ink-800">
-        <button type="button" onClick={copyErpItems} className="h-9 rounded-lg border border-ink-200 bg-white px-3 text-[10px] font-black text-ink-600 transition hover:bg-ink-50 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300 dark:hover:bg-ink-800">Copiar para ERP</button>
-        <button type="button" onClick={() => quoteCart.setIsOpen(true)} className="h-9 rounded-lg bg-ink-900 px-3 text-[11px] font-black text-white transition hover:bg-ink-950">Revisar orçamento</button>
+      {/* Só a ação que leva adiante. O "Copiar para ERP" saiu: o dono confirmou
+          que exportar a cesta para o ERP não serve para nada no fluxo dele. */}
+      <div className="border-t border-ink-100 p-3 dark:border-ink-800">
+        <button
+          type="button"
+          onClick={() => quoteCart.setIsOpen(true)}
+          className="cv-touch-target w-full rounded-lg bg-ink-900 px-3 text-[11px] font-black text-white transition hover:bg-ink-950"
+        >
+          Revisar orçamento
+        </button>
       </div>
     </aside>
   );
