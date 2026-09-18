@@ -7,6 +7,7 @@ import type { ChatResponse, FavoriteItem, FeedbackOption } from '../types';
 
 import Guidance from './chat/Guidance';
 import SerialFollowUp from './chat/SerialFollowUp';
+import PncFollowUp from './chat/PncFollowUp';
 import Interpretation from './chat/Interpretation';
 import ReliabilityDetails from './chat/ReliabilityDetails';
 import ResultCard from './chat/ResultCard';
@@ -517,7 +518,14 @@ export default function ChatPanel({
                   />
                 ) : null}
 
-                {message.response?.pncOptions?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3"><div className="mb-2 text-xs font-semibold text-ink-600 dark:text-ink-400">Selecione o PNC da etiqueta</div><div className="flex flex-wrap gap-2">{message.response.pncOptions.map(option => <button type="button" key={option} onClick={() => choosePnc(message, option)} className="rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 px-2.5 py-1.5 text-xs hover:border-brand-600 hover:text-brand-600 dark:text-brand-300 transition">PNC {option}</button>)}</div></motion.div> : null}
+                {message.response?.pncOptions?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3"><div className="mb-2 text-xs font-semibold text-ink-700 dark:text-ink-300">Selecione o PNC da etiqueta</div><div className="flex flex-wrap gap-2">{message.response.pncOptions.map(option => <button type="button" key={option} onClick={() => choosePnc(message, option)} className="cv-touch-target rounded-lg border border-ink-200 bg-white px-3 text-xs font-bold text-ink-800 transition hover:border-brand-600 hover:text-brand-700 dark:border-ink-700 dark:bg-ink-800 dark:text-brand-300 transition">PNC {option}</button>)}</div><PncFollowUp disabled={loading} onSubmit={next => choosePnc(message, next)} /></motion.div> : null}
+                {message.response?.requiresPnc && !message.response?.pncOptions?.length ? (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3">
+                    <div className="mb-1 text-xs font-semibold text-ink-700 dark:text-ink-300">Informe o PNC da etiqueta</div>
+                    <PncFollowUp disabled={loading} onSubmit={next => choosePnc(message, next)} />
+                  </motion.div>
+                ) : null}
+
                 {message.response?.modelOptions?.length ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3"><div className="mb-2 text-xs font-semibold text-ink-600 dark:text-ink-400">Confirmar modelo</div><div className="flex flex-wrap gap-2">{message.response.modelOptions.map(option => <button type="button" key={option} onClick={() => chooseModel(message, option)} className="rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 px-2.5 py-1.5 text-xs hover:border-brand-600 hover:text-brand-600 dark:text-brand-300 transition">{option}</button>)}</div></motion.div> : null}
                 {/* A saída manual. Antes, quando a IA não garantia o código, a
                     resposta terminava em dicas do tipo "tente uma descrição mais

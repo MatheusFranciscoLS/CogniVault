@@ -31,7 +31,7 @@ export interface OfficialVerificationSubmission {
   verifiedAt:string; createdAt:string; submittedBy:string; reviewedBy:string|null; reviewedAt:string|null; reviewNote:string|null;
 }
 export interface ChatResponse {
-  status:SearchStatus; answer:string; pncOptions?:string[]; modelOptions?:string[]; serialRequired?:boolean; confidence?:number;
+  status:SearchStatus; answer:string; requiresPnc?:boolean; pncOptions?:string[]; modelOptions?:string[]; serialRequired?:boolean; confidence?:number;
   interpreted?:{partDescription:string;manufacturer:string|null;model:string|null;pnc:string|null;partNumber:string|null};
   match?:{
     method:'DIRECT_CODE'|'SEMANTIC'|'LEXICAL';level:'EXACT'|'HIGH'|'REVIEW';explanation:string;
