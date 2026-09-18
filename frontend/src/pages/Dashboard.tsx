@@ -15,6 +15,7 @@ import '../quality-polish.css';
 const CatalogsWorkspace = lazy(() => import('../components/CatalogsWorkspace'));
 const MachinesWorkspace = lazy(() => import('../components/machines/MachinesWorkspace'));
 const OverviewPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.OverviewPanel })));
+const BusinessPanel = lazy(() => import('../components/BusinessPanel'));
 const AssistantObservabilityPanel = lazy(() => import('../components/AssistantObservabilityPanel'));
 const UsersPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.UsersPanel })));
 const AuditPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.AuditPanel })));
@@ -32,8 +33,8 @@ function cleanNavigationValue(value: string | null | undefined) {
 function PanelLoading() {
   return (
     <div className="flex min-h-[300px] items-center justify-center">
-      <div className="flex items-center gap-3 text-xs text-slate-400">
-        <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-[#1d4f91] dark:border-slate-600 dark:border-t-blue-400" />
+      <div className="flex items-center gap-3 text-xs text-ink-400">
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink-300 border-t-brand-600 dark:border-ink-600 dark:border-t-brand-400" />
         Carregando painel…
       </div>
     </div>
@@ -197,10 +198,10 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#f5f7fb] p-6 dark:bg-slate-950">
-        <div role="alert" className="max-w-md rounded-2xl border border-rose-200 bg-white p-6 text-center shadow-xl shadow-slate-900/5 dark:border-rose-900 dark:bg-slate-900">
+      <main className="grid min-h-screen place-items-center bg-ink-100 p-6 dark:bg-ink-950">
+        <div role="alert" className="max-w-md rounded-2xl border border-rose-200 bg-white p-6 text-center shadow-xl shadow-ink-900/5 dark:border-rose-900 dark:bg-ink-900">
           <div className="text-sm font-black text-rose-700 dark:text-rose-300">Não foi possível abrir o CogniVault</div>
-          <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{error}</p>
+          <p className="mt-2 text-xs leading-5 text-ink-500 dark:text-ink-400">{error}</p>
         </div>
       </main>
     );
@@ -208,13 +209,13 @@ export default function Dashboard() {
 
   if (!user) {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#f5f7fb] p-6 dark:bg-slate-950">
+      <main className="grid min-h-screen place-items-center bg-ink-100 p-6 dark:bg-ink-950">
         <div className="text-center">
           <img src="/vardao-logo-transparent.webp" alt="Vardão Máquinas" className="mx-auto w-40" />
-          <div className="mx-auto mt-6 h-1 w-28 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-            <div className="h-full w-1/2 animate-pulse rounded-full bg-[#1d4f91]" />
+          <div className="mx-auto mt-6 h-1 w-28 overflow-hidden rounded-full bg-ink-200 dark:bg-ink-700">
+            <div className="h-full w-1/2 animate-pulse rounded-full bg-brand-600" />
           </div>
-          <p className="mt-3 text-xs font-medium text-slate-400">Preparando sua área de trabalho…</p>
+          <p className="mt-3 text-xs font-medium text-ink-400">Preparando sua área de trabalho…</p>
         </div>
       </main>
     );
@@ -273,6 +274,7 @@ export default function Dashboard() {
             <AssistantObservabilityPanel />
           </>
         )}
+        {section === 'business' && user.role === 'ADMIN' && <BusinessPanel />}
         {section === 'users' && user.role === 'ADMIN' && <UsersPanel />}
         {section === 'feedback' && user.role === 'ADMIN' && <AdminFeedbackPanel />}
         {section === 'quality' && user.role === 'ADMIN' && <div className="cv-quality-workspace"><QualityPanel onSearch={search} /></div>}

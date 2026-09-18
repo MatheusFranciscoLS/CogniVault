@@ -3,7 +3,9 @@ export type IconName =
   | 'dashboard' | 'users' | 'feedback' | 'quality' | 'audit' | 'bell'
   | 'sun' | 'moon' | 'sound' | 'mute' | 'logout' | 'menu' | 'close' | 'chevron'
   | 'cart' | 'trash' | 'plus' | 'minus' | 'whatsapp' | 'printer' | 'save'
-  | 'pdf' | 'wrench' | 'clipboard' | 'warning' | 'phone';
+  | 'pdf' | 'wrench' | 'clipboard' | 'warning' | 'phone'
+  | 'cloud' | 'cloudOff' | 'check' | 'download' | 'trendUp' | 'trendDown'
+  | 'money' | 'calendar' | 'tag' | 'spark' | 'refresh' | 'edit';
 
 export function Icon({ name, className = 'h-5 w-5' }: { name: IconName; className?: string }) {
   const common = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, className, 'aria-hidden': true };
@@ -40,5 +42,17 @@ export function Icon({ name, className = 'h-5 w-5' }: { name: IconName; classNam
     case 'wrench': return <svg {...common}><path d="M14.7 6.3a4 4 0 0 0-5.4 5l-6 6 2.4 2.4 6-6a4 4 0 0 0 5-5.4l-2.6 2.6-2-2z"/></svg>;
     case 'clipboard': return <svg {...common}><rect x="6" y="4" width="12" height="17" rx="1.5"/><path d="M9 4V3h6v1"/><path d="M9 11h6M9 15h4"/></svg>;
     case 'warning': return <svg {...common}><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/></svg>;
+    case 'cloud': return <svg {...common}><path d="M7 18a4 4 0 0 1-.4-8A5.5 5.5 0 0 1 17 9.5a3.5 3.5 0 0 1 .5 7z"/><path d="m9.5 14.5 2 2 3.5-3.5"/></svg>;
+    case 'cloudOff': return <svg {...common}><path d="M7 18a4 4 0 0 1-.4-8A5.5 5.5 0 0 1 14 7.3"/><path d="M17 10a3.5 3.5 0 0 1 .5 7H12"/><path d="m3 3 18 18"/></svg>;
+    case 'check': return <svg {...common}><path d="m4 12.5 5 5L20 6.5"/></svg>;
+    case 'download': return <svg {...common}><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/></svg>;
+    case 'trendUp': return <svg {...common}><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>;
+    case 'trendDown': return <svg {...common}><path d="m3 7 6 6 4-4 8 8"/><path d="M15 17h6v-6"/></svg>;
+    case 'money': return <svg {...common}><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>;
+    case 'calendar': return <svg {...common}><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>;
+    case 'tag': return <svg {...common}><path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.3"/></svg>;
+    case 'spark': return <svg {...common}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/></svg>;
+    case 'refresh': return <svg {...common}><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg>;
+    case 'edit': return <svg {...common}><path d="M4 20h4l10-10-4-4L4 16z"/><path d="m14 6 4 4"/></svg>;
   }
 }

@@ -71,11 +71,11 @@ async function consumeSearchStream(response: Response, signal: AbortSignal | und
 
 function Starter({ hasContext, onExample }: { hasContext: boolean; onExample: (value: string) => void }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900">
+    <div className="rounded-xl border border-ink-200 bg-white px-4 py-4 dark:border-ink-800 dark:bg-ink-900">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <div className="text-xs font-black text-slate-800 dark:text-slate-100">Pesquise como você falaria no balcão</div>
-          <p className="mt-1 max-w-2xl text-[11px] leading-5 text-slate-400">
+          <div className="text-xs font-black text-ink-800 dark:text-ink-100">Pesquise como você falaria no balcão</div>
+          <p className="mt-1 max-w-2xl text-[11px] leading-5 text-ink-400">
             {hasContext
               ? 'Modelo, PNC e S/N disponíveis no atendimento serão considerados automaticamente. Você pode digitar só a peça, o código ou fazer uma pergunta.'
               : 'Código, descrição, modelo ou uma pergunta técnica. O CogniVault escolhe a melhor combinação entre catálogo, cadastro, fonte oficial e assistência por IA.'}
@@ -83,9 +83,9 @@ function Starter({ hasContext, onExample }: { hasContext: boolean; onExample: (v
         </div>
         <div className="flex flex-wrap gap-2">
           {examples.map(example => (
-            <button key={example.label} type="button" onClick={() => onExample(example.value)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-left transition hover:border-blue-200 hover:bg-blue-50/50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-800 dark:hover:bg-blue-950/20">
-              <span className="block text-[9px] font-black uppercase tracking-[.1em] text-slate-400">{example.label}</span>
-              <span className="mt-0.5 block text-[11px] font-semibold text-slate-700 dark:text-slate-200">{example.value}</span>
+            <button key={example.label} type="button" onClick={() => onExample(example.value)} className="rounded-lg border border-ink-200 bg-white px-3 py-2 text-left transition hover:border-brand-200 hover:bg-brand-50/50 dark:border-ink-700 dark:bg-ink-900 dark:hover:border-brand-800 dark:hover:bg-brand-950/20">
+              <span className="block text-[9px] font-black uppercase tracking-[.1em] text-ink-400">{example.label}</span>
+              <span className="mt-0.5 block text-[11px] font-semibold text-ink-700 dark:text-ink-200">{example.value}</span>
             </button>
           ))}
         </div>
@@ -96,13 +96,13 @@ function Starter({ hasContext, onExample }: { hasContext: boolean; onExample: (v
 
 function LoadingRows() {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+    <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
       {[0, 1, 2].map(item => (
-        <div key={item} className="grid animate-pulse gap-3 border-b border-slate-100 px-4 py-4 last:border-0 dark:border-slate-800 lg:grid-cols-[145px_minmax(0,1fr)_170px_auto]">
-          <div className="h-4 w-28 rounded bg-slate-100 dark:bg-slate-800" />
-          <div className="h-4 w-3/5 rounded bg-slate-100 dark:bg-slate-800" />
-          <div className="h-4 w-24 rounded bg-slate-100 dark:bg-slate-800" />
-          <div className="h-8 w-28 rounded bg-slate-100 dark:bg-slate-800" />
+        <div key={item} className="grid animate-pulse gap-3 border-b border-ink-100 px-4 py-4 last:border-0 dark:border-ink-800 lg:grid-cols-[145px_minmax(0,1fr)_170px_auto]">
+          <div className="h-4 w-28 rounded bg-ink-100 dark:bg-ink-800" />
+          <div className="h-4 w-3/5 rounded bg-ink-100 dark:bg-ink-800" />
+          <div className="h-4 w-24 rounded bg-ink-100 dark:bg-ink-800" />
+          <div className="h-8 w-28 rounded bg-ink-100 dark:bg-ink-800" />
         </div>
       ))}
     </div>
@@ -450,28 +450,28 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       <CounterSessionBar onOpenMachine={onOpenMachine} />
 
       <div className="px-1">
-        <div className="text-[10px] font-black uppercase tracking-[.15em] text-[#1d4f91] dark:text-blue-300">Assistência técnica</div>
-        <h1 className="mt-1 text-2xl font-black tracking-[-.03em] text-slate-950 dark:text-white">Encontre a peça certa. Entenda por quê.</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Catálogo técnico, cadastro comercial, fonte oficial e IA baseada em evidências no mesmo fluxo.</p>
+        <div className="text-[10px] font-black uppercase tracking-[.15em] text-brand-600 dark:text-brand-300">Assistência técnica</div>
+        <h1 className="mt-1 text-2xl font-black tracking-[-.03em] text-ink-950 dark:text-white">Encontre a peça certa. Entenda por quê.</h1>
+        <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">Catálogo técnico, cadastro comercial, fonte oficial e IA baseada em evidências no mesmo fluxo.</p>
       </div>
 
-      <form onSubmit={submit} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <form onSubmit={submit} className="overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm dark:border-ink-800 dark:bg-ink-900">
         <div className="flex items-center gap-2 p-2">
           <div className="relative min-w-0 flex-1">
-            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">⌕</span>
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-400">⌕</span>
             <input
               ref={inputRef}
               value={query}
               onChange={event => setQuery(event.target.value)}
               placeholder={hasContext ? 'Peça, código ou pergunta sobre este equipamento…' : 'Código, peça, modelo ou descreva o que você precisa…'}
               autoComplete="off"
-              className="h-12 w-full rounded-lg border-0 bg-slate-50 pl-10 pr-4 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-800"
+              className="h-12 w-full rounded-lg border-0 bg-ink-50 pl-10 pr-4 text-sm font-semibold text-ink-900 outline-none transition placeholder:text-ink-400 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:bg-ink-800 dark:text-white dark:focus:bg-ink-800"
             />
           </div>
-          {query && <button type="button" onClick={clearSearch} className="hidden h-10 rounded-lg px-3 text-xs font-bold text-slate-400 hover:text-slate-700 sm:block dark:hover:text-slate-200">Limpar</button>}
-          <button type="submit" disabled={loading} className="h-12 rounded-lg bg-[#123867] px-5 text-sm font-black text-white transition hover:bg-[#0d2c52] disabled:opacity-60">{loading ? 'Analisando…' : 'Buscar'}</button>
+          {query && <button type="button" onClick={clearSearch} className="hidden h-10 rounded-lg px-3 text-xs font-bold text-ink-400 hover:text-ink-700 sm:block dark:hover:text-ink-200">Limpar</button>}
+          <button type="submit" disabled={loading} className="h-12 rounded-lg bg-ink-900 px-5 text-sm font-black text-white transition hover:bg-ink-950 disabled:opacity-60">{loading ? 'Analisando…' : 'Buscar'}</button>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-2 text-[10px] text-slate-400 dark:border-slate-800">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink-100 px-4 py-2 text-[10px] text-ink-400 dark:border-ink-800">
           <span>Busca direta para códigos e peças · perguntas naturais recebem assistência técnica automaticamente.</span>
           {hasContext && <span className="font-bold text-emerald-600 dark:text-emerald-400">Contexto: {session.machineModel || 'modelo'}{session.pnc ? ` · PNC ${session.pnc}` : ''}{session.serial ? ` · S/N ${session.serial}` : ''}</span>}
         </div>
@@ -488,10 +488,10 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           {parts.length > 0 && (
             <section>
               <div className="mb-2 flex items-center justify-between gap-3 px-1">
-                <div className="flex items-center gap-2"><SourceBadge source="CATALOG" /><span className="text-xs font-black text-slate-700 dark:text-slate-200">Evidência técnica</span></div>
-                <span className="text-[10px] text-slate-400">{parts.length} resultado{parts.length === 1 ? '' : 's'} em catálogo</span>
+                <div className="flex items-center gap-2"><SourceBadge source="CATALOG" /><span className="text-xs font-black text-ink-700 dark:text-ink-200">Evidência técnica</span></div>
+                <span className="text-[10px] text-ink-400">{parts.length} resultado{parts.length === 1 ? '' : 's'} em catálogo</span>
               </div>
-              <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+              <div className="overflow-hidden rounded-xl border border-ink-200 dark:border-ink-800">
                 {parts.map(part => (
                   <PartResultRow
                     key={part.id}
@@ -513,43 +513,43 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           {(commercialParts.length > 0 || commercialLoading || priceSections.length > 0) && (
             <section>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-3 px-1">
-                <div className="flex items-center gap-2"><SourceBadge source="PRICE_LIST" /><span className="text-xs font-black text-slate-700 dark:text-slate-200">Cadastro comercial</span><span className="text-[10px] text-slate-400">{commercialLoading ? 'Consultando…' : `${commercialParts.length} resultado${commercialParts.length === 1 ? '' : 's'}`}</span></div>
+                <div className="flex items-center gap-2"><SourceBadge source="PRICE_LIST" /><span className="text-xs font-black text-ink-700 dark:text-ink-200">Cadastro comercial</span><span className="text-[10px] text-ink-400">{commercialLoading ? 'Consultando…' : `${commercialParts.length} resultado${commercialParts.length === 1 ? '' : 's'}`}</span></div>
                 {priceSections.length > 1 && (
-                  <select value={priceSection} onChange={event => changePriceSection(event.target.value)} className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[10px] font-bold text-slate-600 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                  <select value={priceSection} onChange={event => changePriceSection(event.target.value)} className="h-8 rounded-lg border border-ink-200 bg-white px-2 text-[10px] font-bold text-ink-600 outline-none dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300">
                     <option value="">Todas as seções</option>
                     {priceSections.map(section => <option key={section.name} value={section.name}>{section.name} · {section.count}</option>)}
                   </select>
                 )}
               </div>
-              <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+              <div className="overflow-hidden rounded-xl border border-ink-200 dark:border-ink-800">
                 {commercialParts.map(part => <CommercialPartRow key={part.id} part={part} selected={selection?.kind === 'commercial' && selection.id === part.id} onSelect={() => setSelection({ kind: 'commercial', id: part.id })} onCopy={code => void copyCode(code)} onOfficial={item => void consultOfficial(item.partNumber)} />)}
               </div>
             </section>
           )}
 
           {hasSearched && !loading && !commercialLoading && !hasLocalResults && (
-            <section className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+            <section className="rounded-xl border border-ink-200 bg-white p-5 dark:border-ink-800 dark:bg-ink-900">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <SourceBadge source={officialResult?.status === 'FOUND' ? 'OFFICIAL' : 'REVIEW'} />
                   {officialLoading ? (
-                    <div className="mt-3 text-sm font-semibold text-slate-500">Consultando fonte oficial…</div>
+                    <div className="mt-3 text-sm font-semibold text-ink-500">Consultando fonte oficial…</div>
                   ) : officialResult?.status === 'FOUND' ? (
                     <>
-                      <h2 className="mt-3 text-base font-black text-slate-900 dark:text-white">{officialResult.name}</h2>
-                      {officialResult.partNumber && <div className="mt-1 font-mono text-xl font-black text-[#123867] dark:text-blue-300">{cleanErpCode(officialResult.partNumber)}</div>}
-                      {officialResult.message && <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">{officialResult.message}</p>}
+                      <h2 className="mt-3 text-base font-black text-ink-900 dark:text-white">{officialResult.name}</h2>
+                      {officialResult.partNumber && <div className="mt-1 font-mono text-xl font-black text-ink-900 dark:text-brand-300">{cleanErpCode(officialResult.partNumber)}</div>}
+                      {officialResult.message && <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500 dark:text-ink-400">{officialResult.message}</p>}
                     </>
                   ) : (
                     <>
-                      <h2 className="mt-3 text-base font-black text-slate-900 dark:text-white">Não há evidência suficiente nas fontes locais</h2>
-                      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">{officialResult?.message || 'A consulta não retornou uma peça segura. Use a assistência técnica para entender o que precisa ser confirmado.'}</p>
+                      <h2 className="mt-3 text-base font-black text-ink-900 dark:text-white">Não há evidência suficiente nas fontes locais</h2>
+                      <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500 dark:text-ink-400">{officialResult?.message || 'A consulta não retornou uma peça segura. Use a assistência técnica para entender o que precisa ser confirmado.'}</p>
                     </>
                   )}
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
-                  {officialResult?.partNumber && <button type="button" onClick={() => void copyCode(officialResult.partNumber!)} className="rounded-lg bg-[#123867] px-3 py-2 text-xs font-black text-white">Copiar código</button>}
-                  <button type="button" onClick={() => openAi(buildTechnicalQuery(lastQuery))} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:border-blue-200 hover:text-[#1d4f91] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">Pedir orientação</button>
+                  {officialResult?.partNumber && <button type="button" onClick={() => void copyCode(officialResult.partNumber!)} className="rounded-lg bg-ink-900 px-3 py-2 text-xs font-black text-white">Copiar código</button>}
+                  <button type="button" onClick={() => openAi(buildTechnicalQuery(lastQuery))} className="rounded-lg border border-ink-200 bg-white px-3 py-2 text-xs font-black text-ink-600 transition hover:border-brand-200 hover:text-brand-600 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300">Pedir orientação</button>
                 </div>
               </div>
             </section>
@@ -557,9 +557,9 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
 
           {documents.length > 0 && (
             <section>
-              <div className="mb-2 px-1 text-[10px] font-black uppercase tracking-[.14em] text-slate-400">Catálogos relacionados</div>
+              <div className="mb-2 px-1 text-[10px] font-black uppercase tracking-[.14em] text-ink-400">Catálogos relacionados</div>
               <div className="grid gap-2 md:grid-cols-2">
-                {documents.slice(0, 4).map(document => <button key={document.id} type="button" onClick={() => void accessPdf(document.id, null, document.filename)} className="rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-blue-300 dark:border-slate-800 dark:bg-slate-900"><div className="truncate text-xs font-black text-slate-800 dark:text-slate-100">{document.filename}</div><div className="mt-1 text-[10px] text-slate-400">{document.model || 'Modelo não informado'} · {document.partCount} peças</div></button>)}
+                {documents.slice(0, 4).map(document => <button key={document.id} type="button" onClick={() => void accessPdf(document.id, null, document.filename)} className="rounded-xl border border-ink-200 bg-white p-3 text-left transition hover:border-brand-300 dark:border-ink-800 dark:bg-ink-900"><div className="truncate text-xs font-black text-ink-800 dark:text-ink-100">{document.filename}</div><div className="mt-1 text-[10px] text-ink-400">{document.model || 'Modelo não informado'} · {document.partCount} peças</div></button>)}
               </div>
             </section>
           )}
@@ -588,9 +588,9 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       {crossReference && <CrossReferenceDialog partCode={crossReference.code} partName={crossReference.name} onClose={() => setCrossReference(null)} />}
 
       {pdf && (
-        <div className="fixed inset-0 z-[90] bg-slate-950/90 p-3 md:p-5">
-          <div className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-2xl bg-white dark:bg-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800"><div className="truncate text-sm font-black">{pdf.title}</div><button type="button" onClick={() => setPdf(null)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold dark:border-slate-700">Fechar</button></div>
+        <div className="fixed inset-0 z-[90] bg-ink-950/90 p-3 md:p-5">
+          <div className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-2xl bg-white dark:bg-ink-900">
+            <div className="flex items-center justify-between border-b border-ink-200 px-4 py-3 dark:border-ink-800"><div className="truncate text-sm font-black">{pdf.title}</div><button type="button" onClick={() => setPdf(null)} className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-bold dark:border-ink-700">Fechar</button></div>
             <iframe title={pdf.title} src={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} className="h-full w-full border-0" />
           </div>
         </div>
@@ -598,8 +598,8 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
 
       {aiOpen && (
         <div className="fixed inset-0 z-[80] flex justify-end">
-          <button type="button" aria-label="Fechar assistente" onClick={() => setAiOpen(false)} className="absolute inset-0 bg-slate-950/45 backdrop-blur-[1px]" />
-          <div className="relative z-10 h-full w-full max-w-[600px] bg-white shadow-2xl dark:bg-slate-900"><ChatPanel storageScope={storageScope || 'balcao-v3'} initialPrompt={aiPrompt} onClose={() => setAiOpen(false)} isDrawer /></div>
+          <button type="button" aria-label="Fechar assistente" onClick={() => setAiOpen(false)} className="absolute inset-0 bg-ink-950/45 backdrop-blur-[1px]" />
+          <div className="relative z-10 h-full w-full max-w-[600px] bg-white shadow-2xl dark:bg-ink-900"><ChatPanel storageScope={storageScope || 'balcao-v3'} initialPrompt={aiPrompt} onClose={() => setAiOpen(false)} isDrawer /></div>
         </div>
       )}
     </section>

@@ -3,7 +3,7 @@
 }
 
 .cv-kicker {
-  color: #1d4f91;
+  color: #273a60;
   font-size: .625rem;
   font-weight: 900;
   letter-spacing: .15em;
@@ -12,7 +12,7 @@
 
 .cv-page-title {
   margin-top: .25rem;
-  color: #0f172a;
+  color: #1e1e1d;
   font-size: 1.5rem;
   font-weight: 900;
   letter-spacing: -.03em;
@@ -42,7 +42,7 @@
   transform: none;
   border-color: #93c5fd;
   background: #f8fafc;
-  color: #1d4f91;
+  color: #273a60;
   box-shadow: none;
 }
 
@@ -55,20 +55,20 @@
 }
 
 .cv-field:focus {
-  border-color: #1d4f91;
+  border-color: #273a60;
   background: #fff;
-  box-shadow: 0 0 0 4px rgba(29, 79, 145, .1);
+  box-shadow: 0 0 0 4px rgba(39, 58, 96, .1);
 }
 
 .cv-primary {
   border-radius: .5rem;
-  background: #123867;
+  background: #1f2742;
   box-shadow: none;
 }
 
 .cv-primary:hover:not(:disabled) {
   transform: none;
-  background: #0d2c52;
+  background: #161c2f;
   box-shadow: none;
 }
 
@@ -79,7 +79,7 @@
 .dark .cv-surface,
 .dark .cv-secondary {
   border-color: #1e293b;
-  background: #0f172a;
+  background: #1e1e1d;
 }
 
 .dark .cv-secondary {
@@ -87,7 +87,7 @@
 }
 
 .dark .cv-secondary:hover:not(:disabled) {
-  border-color: #1d4f91;
+  border-color: #273a60;
   background: #172033;
   color: #bfdbfe;
 }

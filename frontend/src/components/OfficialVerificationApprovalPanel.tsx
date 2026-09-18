@@ -61,46 +61,46 @@ export default function OfficialVerificationApprovalPanel({ onChanged }: Props) 
   if (!loading && !items.length && !notice && !error) return null;
 
   return (
-    <div className="cv-surface mt-5 overflow-hidden rounded-[22px] border border-blue-100 dark:border-blue-700">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 dark:border-slate-800 bg-blue-50 dark:bg-[#123867]/40 p-4">
+    <div className="cv-surface mt-5 overflow-hidden rounded-[22px] border border-brand-100 dark:border-brand-700">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-ink-100 dark:border-ink-800 bg-brand-50 dark:bg-ink-900/40 p-4">
         <div>
-          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Conferências aguardando aprovação</div>
-          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">O Balcão já conferiu no Portal. Abra a fonte oficial e aprove ou rejeite. Enquanto estiver pendente, nada muda nas buscas.</p>
+          <div className="text-sm font-semibold text-ink-900 dark:text-ink-100">Conferências aguardando aprovação</div>
+          <p className="mt-1 text-xs leading-5 text-ink-500 dark:text-ink-400">O Balcão já conferiu no Portal. Abra a fonte oficial e aprove ou rejeite. Enquanto estiver pendente, nada muda nas buscas.</p>
         </div>
-        {!loading && <span className="rounded-full bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-semibold text-[#1d4f91] dark:text-blue-300 ring-1 ring-blue-100">{items.length} pendente{items.length === 1 ? '' : 's'}</span>}
+        {!loading && <span className="rounded-full bg-white dark:bg-ink-800 px-2.5 py-1 text-xs font-semibold text-brand-600 dark:text-brand-300 ring-1 ring-brand-100">{items.length} pendente{items.length === 1 ? '' : 's'}</span>}
       </div>
 
       {notice && <div role="status" className="m-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 p-3 text-xs text-emerald-700 dark:text-emerald-300">{notice}</div>}
       {error && <div role="alert" className="m-4 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 p-3 text-xs text-rose-700 dark:text-rose-300">{error}</div>}
-      {loading && <div className="p-5 text-sm text-slate-400">Carregando conferências…</div>}
+      {loading && <div className="p-5 text-sm text-ink-400">Carregando conferências…</div>}
 
       {!loading && items.length > 0 && (
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-ink-100">
           {items.map(item => {
             const changed = item.queriedPartNumber.replace(/\W/g, '') !== item.currentPartNumber.replace(/\W/g, '');
             return (
               <div key={item.id} className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_310px]">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${changed ? 'bg-blue-50 dark:bg-[#123867] text-blue-700 dark:text-blue-300' : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'}`}>{statusLabel(item)}</span>
-                    <span className="text-[11px] text-slate-400">{fmtDate(item.verifiedAt)} · {item.submittedBy}</span>
+                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${changed ? 'bg-brand-50 dark:bg-ink-900 text-brand-700 dark:text-brand-300' : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'}`}>{statusLabel(item)}</span>
+                    <span className="text-[11px] text-ink-400">{fmtDate(item.verifiedAt)} · {item.submittedBy}</span>
                   </div>
-                  <div className="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-200">{item.description || 'Peça sem descrição informada'}</div>
-                  <div className="mt-1 text-lg font-bold tracking-tight text-[#1d4f91] dark:text-blue-300">
-                    {changed ? <><span className="text-slate-400 line-through">{item.queriedPartNumber}</span> → {item.currentPartNumber}</> : item.currentPartNumber}
+                  <div className="mt-2 text-sm font-semibold text-ink-800 dark:text-ink-200">{item.description || 'Peça sem descrição informada'}</div>
+                  <div className="mt-1 text-lg font-bold tracking-tight text-brand-600 dark:text-brand-300">
+                    {changed ? <><span className="text-ink-400 line-through">{item.queriedPartNumber}</span> → {item.currentPartNumber}</> : item.currentPartNumber}
                   </div>
-                  {item.note && <div className="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3 text-xs leading-5 text-slate-600 dark:text-slate-400">{item.note}</div>}
-                  <a href={item.officialUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-xl border border-blue-200 dark:border-blue-600 bg-blue-50 dark:bg-[#123867] px-3 py-2 text-xs font-semibold text-[#1d4f91] dark:text-blue-300">Conferir no Portal Husqvarna →</a>
+                  {item.note && <div className="mt-2 rounded-xl bg-ink-50 dark:bg-ink-800/50 p-3 text-xs leading-5 text-ink-600 dark:text-ink-400">{item.note}</div>}
+                  <a href={item.officialUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-xl border border-brand-200 dark:border-brand-600 bg-brand-50 dark:bg-ink-900 px-3 py-2 text-xs font-semibold text-brand-600 dark:text-brand-300">Conferir no Portal Husqvarna →</a>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800 p-3">
-                  <label className="text-[10px] font-bold uppercase tracking-[.08em] text-slate-400">
+                <div className="rounded-2xl border border-ink-200 dark:border-ink-700 bg-ink-50/70 dark:bg-ink-800 p-3">
+                  <label className="text-[10px] font-bold uppercase tracking-[.08em] text-ink-400">
                     Observação da revisão
-                    <textarea value={notes[item.id] || ''} onChange={event => setNotes(current => ({ ...current, [item.id]: event.target.value }))} maxLength={1000} rows={2} placeholder="Opcional" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-xs font-normal normal-case tracking-normal text-slate-700 dark:text-slate-300" />
+                    <textarea value={notes[item.id] || ''} onChange={event => setNotes(current => ({ ...current, [item.id]: event.target.value }))} maxLength={1000} rows={2} placeholder="Opcional" className="mt-1 w-full rounded-xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-2.5 text-xs font-normal normal-case tracking-normal text-ink-700 dark:text-ink-300" />
                   </label>
                   <div className="mt-3 flex gap-2">
                     <button type="button" disabled={busyId === item.id} onClick={() => void decide(item, 'APPROVE')} className="flex-1 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{busyId === item.id ? 'Salvando…' : 'Aprovar'}</button>
-                    <button type="button" disabled={busyId === item.id} onClick={() => void decide(item, 'REJECT')} className="flex-1 rounded-xl border border-rose-200 dark:border-rose-800 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-rose-700 dark:text-rose-300 disabled:opacity-50">Rejeitar</button>
+                    <button type="button" disabled={busyId === item.id} onClick={() => void decide(item, 'REJECT')} className="flex-1 rounded-xl border border-rose-200 dark:border-rose-800 bg-white dark:bg-ink-800 px-3 py-2 text-xs font-semibold text-rose-700 dark:text-rose-300 disabled:opacity-50">Rejeitar</button>
                   </div>
                 </div>
               </div>

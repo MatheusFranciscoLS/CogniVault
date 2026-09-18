@@ -13,8 +13,8 @@ export default defineConfig({
         name: 'CogniVault',
         short_name: 'CogniVault',
         description: 'Inteligência de Peças e Catálogos',
-        theme_color: '#0b1d3a',
-        background_color: '#0b1d3a',
+        theme_color: '#273a60',
+        background_color: '#273a60',
         display: 'standalone',
         icons: [
           {

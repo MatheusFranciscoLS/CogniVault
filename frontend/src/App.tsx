@@ -13,9 +13,9 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 
 function RouteLoading() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500 dark:bg-slate-950 dark:text-slate-400">
+    <div className="flex min-h-screen items-center justify-center bg-ink-50 text-sm text-ink-500 dark:bg-ink-950 dark:text-ink-400">
       <div className="flex items-center gap-3">
-        <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-[#1d4f91] dark:border-slate-700 dark:border-t-blue-400" />
+        <span className="h-5 w-5 animate-spin rounded-full border-2 border-ink-300 border-t-brand-600 dark:border-ink-700 dark:border-t-brand-400" />
         Carregando…
       </div>
     </div>
