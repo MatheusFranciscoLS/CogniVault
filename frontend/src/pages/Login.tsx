@@ -169,13 +169,17 @@ export default function Login() {
         {/* Marca de fundo: a coroa oficial da Husqvarna, recortada do lockup
             branco de vardaomaquinas.com.br/brand. Substitui os dois círculos
             decorativos que havia aqui — círculo não diz nada, e a autorização
-            Husqvarna é justamente o que dá autoridade à tela. Sangra pela
-            borda como marca d'água, atrás do conteúdo. */}
+            Husqvarna é justamente o que dá autoridade à tela.
+
+            Centralizada e grande, e não no canto: no canto ela lia como um
+            adesivo solto: assim o painel inteiro se apoia nela, que é o efeito
+            do CRM. Opacidade baixa (5%) porque atrás dela passa texto —
+            headline, parágrafo e os três itens. */}
         <img
           src="/brand/husqvarna-simbolo-branco.png"
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute -bottom-16 -right-16 w-[300px] select-none opacity-[0.07] xl:w-[360px]"
+          className="pointer-events-none absolute left-1/2 top-1/2 w-[min(78%,560px)] -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.05]"
         />
 
         <div className="relative">

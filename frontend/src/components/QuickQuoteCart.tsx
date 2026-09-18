@@ -77,36 +77,6 @@ function SyncBadge({ state }: { state: QuoteSyncState }) {
   );
 }
 
-function FloatingButton({ totalItems, totalPrice, historyCount, syncState, onOpen }: { totalItems: number; totalPrice: number; historyCount: number; syncState: QuoteSyncState; onOpen: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-label={`Ver orçamento com ${totalItems} itens`}
-      className="fixed bottom-5 right-5 z-50 flex min-h-[56px] items-center gap-3 rounded-panel bg-brand-600 px-4 py-3 text-white shadow-raised transition hover:bg-brand-700 active:scale-[.98] tablet:bottom-6 tablet:right-6"
-    >
-      <div className="relative grid h-9 w-9 place-items-center rounded-card bg-white/12">
-        <Icon name="cart" className="h-4 w-4" />
-        {totalItems > 0 && (
-          <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-500 px-1 text-[11px] font-bold text-white">
-            {totalItems}
-          </span>
-        )}
-      </div>
-      <div className="text-left">
-        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-gold-300">
-          Orçamento de balcão
-          {syncState === 'offline' && <Icon name="cloudOff" className="h-3 w-3 text-gold-300" />}
-        </div>
-        <div className="text-sm font-semibold tabular-nums">
-          {totalItems > 0
-            ? `${totalItems} ${totalItems === 1 ? 'peça' : 'peças'}${totalPrice > 0 ? ` · ${money(totalPrice)}` : ''}`
-            : `${historyCount} no histórico`}
-        </div>
-      </div>
-    </button>
-  );
-}
 
 function SavedQuoteCard({ quote, onRestore, onRestoreAndCopy, onDelete }: { quote: SavedQuote; onRestore: () => void; onRestoreAndCopy: () => void; onDelete: () => void }) {
   const dateFormatted = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(quote.createdAt));
@@ -197,7 +167,7 @@ function HistoryTab({
             <Icon name="history" className="h-9 w-9" />
             <div className="mt-3 text-sm font-bold text-ink-700 dark:text-ink-300">Nenhum orçamento salvo</div>
             <p className="mt-1 max-w-[260px] text-xs">
-              Ao enviar no WhatsApp, baixar o PDF ou clicar em Salvar, o orçamento é arquivado no servidor e aparece aqui.
+              Ao enviar no WhatsApp ou gerar o PDF, o orçamento é arquivado no servidor e aparece aqui.
             </p>
           </div>
         ) : (
@@ -457,6 +427,43 @@ function ActionButton({
   );
 }
 
+/**
+ * Ação secundária do menu "Mais": linha larga com o que a ação faz embaixo.
+ * Copiar texto, imprimir ficha e esvaziar não são óbvios por um ícone de 16px,
+ * e era isso que enchia a barra de seis botões iguais.
+ */
+function MoreAction({
+  icon,
+  label,
+  hint,
+  onClick,
+  tone = 'neutral',
+}: {
+  icon: IconName;
+  label: string;
+  hint: string;
+  onClick: () => void;
+  tone?: 'neutral' | 'danger';
+}) {
+  const toneClass = tone === 'danger'
+    ? 'text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30'
+    : 'text-ink-800 hover:bg-ink-100 dark:text-ink-200 dark:hover:bg-ink-900';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`cv-touch-target flex w-full items-center gap-3 rounded-card px-2.5 text-left transition ${toneClass}`}
+    >
+      <Icon name={icon} className="h-4 w-4 shrink-0" />
+      <span className="min-w-0">
+        <span className="block text-xs font-bold">{label}</span>
+        <span className="mt-0.5 block text-[10px] leading-4 text-ink-500 dark:text-ink-400">{hint}</span>
+      </span>
+    </button>
+  );
+}
+
 export default function QuickQuoteCart() {
   const {
     items,
@@ -472,7 +479,6 @@ export default function QuickQuoteCart() {
     openWhatsApp,
     generatePdfQuote,
     savedQuotes,
-    saveCurrentQuote,
     restoreQuote,
     deleteSavedQuote,
     clearSavedQuotes,
@@ -484,6 +490,7 @@ export default function QuickQuoteCart() {
 
   const [activeTab, setActiveTab] = useState<'cart' | 'history'>('cart');
   const [showCustomItemForm, setShowCustomItemForm] = useState(false);
+  const [moreActionsOpen, setMoreActionsOpen] = useState(false);
 
   // Cliente, telefone, pagamento e desconto moram no rascunho persistido, não
   // em estado local: antes, recarregar a página perdia o nome do cliente mesmo
@@ -531,12 +538,6 @@ export default function QuickQuoteCart() {
     });
   };
 
-  const handleSaveQuote = () => {
-    void saveCurrentQuote(quoteOptions).then(saved => {
-      if (saved) toast.success('Orçamento arquivado no servidor.');
-    });
-  };
-
   const handleClearHistory = () => {
     if (!confirm('Remover os orçamentos recentes do histórico? Esta ação não pode ser desfeita.')) return;
     void clearSavedQuotes();
@@ -558,16 +559,9 @@ export default function QuickQuoteCart() {
 
   return (
     <>
-      {!isOpen && (totalItems > 0 || savedQuotes.length > 0) && (
-        <FloatingButton
-          totalItems={totalItems}
-          totalPrice={totalPrice}
-          historyCount={savedQuotes.length}
-          syncState={syncState}
-          onOpen={() => setIsOpen(true)}
-        />
-      )}
-
+      {/* Não existe mais botão flutuante de orçamento. O cabeçalho do app já
+          tem o botão "Orçamento" com o contador, sempre visível, e o balcão
+          via a mesma informação em dois lugares na mesma tela. */}
       {isOpen && (
         <div className="fixed inset-0 z-[80] flex justify-end bg-brand-900/45">
           <div className="fixed inset-0" onClick={() => setIsOpen(false)} aria-hidden="true" />
@@ -790,16 +784,53 @@ export default function QuickQuoteCart() {
                         </div>
                       )}
 
-                      <div className="grid grid-cols-3 gap-2 tablet:grid-cols-6">
-                        <ActionButton icon="clipboard" label="Copiar" onClick={() => void copyQuoteToClipboard(quoteOptions)} />
+                      {/* Eram seis botões de mesmo peso. Ficaram os dois que
+                          têm função própria e sem sobreposição — PDF (documento
+                          do cliente) e ERP (código + qtd para faturar). O resto
+                          foi para "Mais", a um toque de distância.
+
+                          "Salvar" saiu de vez: openWhatsApp, generatePdfQuote e
+                          copyQuoteToClipboard já chamam saveCurrentQuote, então
+                          o orçamento é arquivado sozinho em todo caminho que
+                          importa — o botão dava a impressão de que sem ele nada
+                          era gravado. */}
+                      <div className="grid grid-cols-3 gap-2">
                         <ActionButton icon="pdf" label="PDF" onClick={() => generatePdfQuote(quoteOptions)} />
                         <ActionButton icon="catalog" label="ERP" onClick={handleCopyErpList} />
-                        <ActionButton icon="printer" label="Imprimir" onClick={() => window.print()} />
-                        <ActionButton icon="save" label="Salvar" onClick={handleSaveQuote} />
-                        <ActionButton icon="trash" label="Esvaziar" onClick={clearCart} tone="danger" />
+                        <ActionButton
+                          icon={moreActionsOpen ? 'close' : 'plus'}
+                          label={moreActionsOpen ? 'Fechar' : 'Mais'}
+                          onClick={() => setMoreActionsOpen(value => !value)}
+                        />
                       </div>
 
-                      <div className="pt-1 text-center text-[10px] text-ink-500">Vardão Máquinas · CogniVault</div>
+                      {moreActionsOpen && (
+                        <div className="space-y-1.5 rounded-card border border-ink-200 bg-white p-2 dark:border-ink-800 dark:bg-ink-850">
+                          <MoreAction
+                            icon="clipboard"
+                            label="Copiar texto do orçamento"
+                            hint="Mesmo texto do WhatsApp, para colar em outro canal"
+                            onClick={() => void copyQuoteToClipboard(quoteOptions)}
+                          />
+                          <MoreAction
+                            icon="printer"
+                            label="Imprimir ficha de separação"
+                            hint="Folha com caixas de conferência para buscar as peças no estoque"
+                            onClick={() => window.print()}
+                          />
+                          <MoreAction
+                            icon="trash"
+                            label="Esvaziar cesta"
+                            hint="Remove todas as peças deste atendimento"
+                            onClick={clearCart}
+                            tone="danger"
+                          />
+                        </div>
+                      )}
+
+                      <p className="text-center text-[10px] leading-4 text-ink-500 dark:text-ink-400">
+                        Enviar no WhatsApp ou gerar o PDF já arquiva este orçamento no histórico.
+                      </p>
                     </div>
                   )}
                 </div>
