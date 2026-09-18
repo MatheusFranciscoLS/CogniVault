@@ -44,8 +44,10 @@ export default function CounterSessionBar({ onOpenMachine }: Props) {
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <span className={`h-2 w-2 shrink-0 rounded-full ${hasAnything ? 'bg-emerald-500' : 'bg-ink-300 dark:bg-ink-600'}`} />
           <div className="min-w-0">
-            <div className="text-[9px] font-black uppercase tracking-[.13em] text-ink-400">Atendimento</div>
-            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+            {/* Sem repetir "Atendimento" aqui: o cabeçalho do app já nomeia a
+                seção. Esta barra existe para mostrar o contexto técnico da
+                consulta, e é isso que fica em evidência. */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
               {session.customerName && <span className="font-semibold text-ink-700 dark:text-ink-200">{session.customerName}</span>}
               {session.machineModel && <span className="rounded-md bg-ink-100 px-1.5 py-0.5 font-black text-ink-700 dark:bg-ink-800 dark:text-ink-200">{session.machineModel}</span>}
               {session.pnc && <span className="font-medium text-ink-500 dark:text-ink-400">PNC {session.pnc}</span>}

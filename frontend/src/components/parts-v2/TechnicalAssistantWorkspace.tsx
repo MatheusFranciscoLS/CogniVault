@@ -587,12 +587,12 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     <section className="space-y-4">
       <CounterSessionBar onOpenMachine={onOpenMachine} />
 
-      <div className="px-1">
-        <div className="text-[10px] font-black uppercase tracking-[.15em] text-brand-600 dark:text-brand-300">Assistência técnica</div>
-        <h1 className="mt-1 text-2xl font-black tracking-[-.03em] text-ink-950 dark:text-white">Encontre a peça certa. Entenda por quê.</h1>
-        <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">Catálogo técnico, cadastro comercial, fonte oficial e IA baseada em evidências no mesmo fluxo.</p>
-      </div>
-
+      {/* O título grande "Encontre a peça certa. Entenda por quê." saiu daqui.
+          Eram três cabeçalhos empilhados dizendo a mesma coisa antes da busca:
+          o do app ("Atendimento"), o da barra de sessão e este. Numa tela de
+          trabalho o rótulo da seção já vem do cabeçalho do app, e o campo de
+          busca se explica sozinho — o espaço devolvido é o que faltava acima
+          da dobra no laptop do balcão. */}
       <form onSubmit={submit} className="overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm dark:border-ink-800 dark:bg-ink-900">
         <div className="flex items-center gap-2 p-2">
           <div className="relative min-w-0 flex-1">

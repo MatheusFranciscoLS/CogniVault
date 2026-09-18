@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { useCounterSession } from '../context/CounterSessionContext';
 import { useQuoteCart } from '../context/QuoteCartContext';
 import type { QuoteCartItem, QuoteSyncState, QuoteTextOptions, SavedQuote } from '../context/QuoteCartContext';
 import { formatHusqvarnaPartNumber, cleanErpCode } from '../lib';
@@ -77,36 +78,6 @@ function SyncBadge({ state }: { state: QuoteSyncState }) {
   );
 }
 
-function FloatingButton({ totalItems, totalPrice, historyCount, syncState, onOpen }: { totalItems: number; totalPrice: number; historyCount: number; syncState: QuoteSyncState; onOpen: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-label={`Ver orçamento com ${totalItems} itens`}
-      className="fixed bottom-5 right-5 z-50 flex min-h-[56px] items-center gap-3 rounded-panel bg-brand-600 px-4 py-3 text-white shadow-raised transition hover:bg-brand-700 active:scale-[.98] tablet:bottom-6 tablet:right-6"
-    >
-      <div className="relative grid h-9 w-9 place-items-center rounded-card bg-white/12">
-        <Icon name="cart" className="h-4 w-4" />
-        {totalItems > 0 && (
-          <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-500 px-1 text-[11px] font-bold text-white">
-            {totalItems}
-          </span>
-        )}
-      </div>
-      <div className="text-left">
-        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-gold-300">
-          Orçamento de balcão
-          {syncState === 'offline' && <Icon name="cloudOff" className="h-3 w-3 text-gold-300" />}
-        </div>
-        <div className="text-sm font-semibold tabular-nums">
-          {totalItems > 0
-            ? `${totalItems} ${totalItems === 1 ? 'peça' : 'peças'}${totalPrice > 0 ? ` · ${money(totalPrice)}` : ''}`
-            : `${historyCount} no histórico`}
-        </div>
-      </div>
-    </button>
-  );
-}
 
 function SavedQuoteCard({ quote, onRestore, onRestoreAndCopy, onDelete }: { quote: SavedQuote; onRestore: () => void; onRestoreAndCopy: () => void; onDelete: () => void }) {
   const dateFormatted = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(quote.createdAt));
@@ -197,7 +168,7 @@ function HistoryTab({
             <Icon name="history" className="h-9 w-9" />
             <div className="mt-3 text-sm font-bold text-ink-700 dark:text-ink-300">Nenhum orçamento salvo</div>
             <p className="mt-1 max-w-[260px] text-xs">
-              Ao enviar no WhatsApp, baixar o PDF ou clicar em Salvar, o orçamento é arquivado no servidor e aparece aqui.
+              Ao enviar no WhatsApp ou gerar o PDF, o orçamento é arquivado no servidor e aparece aqui.
             </p>
           </div>
         ) : (
@@ -329,7 +300,7 @@ function CartItemRow({
     <div className="rounded-card border-2 border-ink-200 bg-white p-3.5 shadow-card transition hover:border-brand-300 dark:border-ink-800 dark:bg-ink-850 dark:hover:border-brand-400/50">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          {/* Código primeiro: é o que o balcão procura na peça física e no ERP
+          {/* Código primeiro: é o que o balcão procura na peça física
               — a peça mais importante da linha não pode ser a menos visível. */}
           <div className="flex flex-wrap items-center gap-1.5">
             {isServiceItem ? (
@@ -347,10 +318,10 @@ function CartItemRow({
                     const clean = cleanErpCode(item.effectiveCode || item.partNumber);
                     void navigator.clipboard.writeText(clean);
                     playCopySound();
-                    toast.success(`Código ERP copiado: ${clean}`);
+                    toast.success(`Código ${clean} copiado.`);
                   }}
-                  title="Copiar código puro sem formatação para colar no ERP"
-                  aria-label="Copiar código para o ERP"
+                  title="Copiar o código sem espaços nem hífen"
+                  aria-label={`Copiar o código ${formattedCode}`}
                   className="cv-touch-target grid place-items-center rounded-lg bg-ink-100 text-ink-600 transition hover:bg-brand-50 hover:text-brand-600 dark:bg-ink-900 dark:text-ink-300"
                 >
                   <Icon name="clipboard" className="h-3.5 w-3.5" />
@@ -419,9 +390,15 @@ function CartItemRow({
             onChange={e => onUpdateUnitPrice(e.target.value === '' ? undefined : Number(e.target.value))}
             className="cv-field h-11 w-[5.5rem] py-0 text-right text-sm font-bold tabular-nums"
           />
+          {/* Subtotal da linha em cinza e rotulado. Antes era verde e negrito,
+              igual ao total do orçamento na barra fixa — e com um item só na
+              cesta os dois mostram o MESMO número (2 × 378,26 = 756,52 = total),
+              o que fazia a tela parecer ter valor repetido. Verde grande fica
+              reservado para o total do pedido. */}
           {subtotal > 0 && (
-            <span className="shrink-0 text-right text-sm font-bold text-emerald-700 tabular-nums dark:text-emerald-400">
-              {money(subtotal)}
+            <span className="shrink-0 text-right">
+              <span className="block text-[9px] font-bold uppercase tracking-[.08em] text-ink-400">Subtotal</span>
+              <span className="block text-sm font-bold text-ink-800 tabular-nums dark:text-ink-100">{money(subtotal)}</span>
             </span>
           )}
         </div>
@@ -472,7 +449,6 @@ export default function QuickQuoteCart() {
     openWhatsApp,
     generatePdfQuote,
     savedQuotes,
-    saveCurrentQuote,
     restoreQuote,
     deleteSavedQuote,
     clearSavedQuotes,
@@ -482,13 +458,22 @@ export default function QuickQuoteCart() {
     setDraftOptions,
   } = useQuoteCart();
 
+  const { session } = useCounterSession();
+
   const [activeTab, setActiveTab] = useState<'cart' | 'history'>('cart');
   const [showCustomItemForm, setShowCustomItemForm] = useState(false);
 
   // Cliente, telefone, pagamento e desconto moram no rascunho persistido, não
   // em estado local: antes, recarregar a página perdia o nome do cliente mesmo
   // com os itens intactos.
-  const customerName = draftOptions.customerName || '';
+  //
+  // O nome do cliente era pedido em DOIS lugares que não se falavam: a barra de
+  // atendimento (session.customerName, no localStorage) e este campo
+  // (draftOptions.customerName, no rascunho do servidor). Nada ligava os dois,
+  // então quem preenchia só na barra mandava o orçamento SEM nome do cliente —
+  // o PDF e o texto do WhatsApp leem daqui. Agora a barra é a origem quando
+  // este campo está vazio, e digitar aqui continua valendo por cima.
+  const customerName = draftOptions.customerName || session.customerName || '';
   const customerPhone = draftOptions.customerPhone || '';
   const paymentMethod = draftOptions.paymentMethod || 'A Combinar no Balcão';
   const discountPercentage = draftOptions.discountPercentage || 0;
@@ -531,43 +516,16 @@ export default function QuickQuoteCart() {
     });
   };
 
-  const handleSaveQuote = () => {
-    void saveCurrentQuote(quoteOptions).then(saved => {
-      if (saved) toast.success('Orçamento arquivado no servidor.');
-    });
-  };
-
   const handleClearHistory = () => {
     if (!confirm('Remover os orçamentos recentes do histórico? Esta ação não pode ser desfeita.')) return;
     void clearSavedQuotes();
   };
 
-  const handleCopyErpList = () => {
-    const erpLines = items
-      .filter(i => !i.partNumber.startsWith('SRV-'))
-      .map(i => `${cleanErpCode(i.effectiveCode || i.partNumber)}\t${i.quantity}`)
-      .join('\n');
-    if (!erpLines) {
-      toast.error('Nenhuma peça com código cadastrado para exportar.');
-      return;
-    }
-    void navigator.clipboard.writeText(erpLines);
-    playCopySound();
-    toast.success(`${items.length} itens copiados para colar no ERP (código + qtd).`);
-  };
-
   return (
     <>
-      {!isOpen && (totalItems > 0 || savedQuotes.length > 0) && (
-        <FloatingButton
-          totalItems={totalItems}
-          totalPrice={totalPrice}
-          historyCount={savedQuotes.length}
-          syncState={syncState}
-          onOpen={() => setIsOpen(true)}
-        />
-      )}
-
+      {/* Não existe mais botão flutuante de orçamento. O cabeçalho do app já
+          tem o botão "Orçamento" com o contador, sempre visível, e o balcão
+          via a mesma informação em dois lugares na mesma tela. */}
       {isOpen && (
         <div className="fixed inset-0 z-[80] flex justify-end bg-brand-900/45">
           <div className="fixed inset-0" onClick={() => setIsOpen(false)} aria-hidden="true" />
@@ -790,16 +748,40 @@ export default function QuickQuoteCart() {
                         </div>
                       )}
 
-                      <div className="grid grid-cols-3 gap-2 tablet:grid-cols-6">
-                        <ActionButton icon="clipboard" label="Copiar" onClick={() => void copyQuoteToClipboard(quoteOptions)} />
-                        <ActionButton icon="pdf" label="PDF" onClick={() => generatePdfQuote(quoteOptions)} />
-                        <ActionButton icon="catalog" label="ERP" onClick={handleCopyErpList} />
-                        <ActionButton icon="printer" label="Imprimir" onClick={() => window.print()} />
-                        <ActionButton icon="save" label="Salvar" onClick={handleSaveQuote} />
-                        <ActionButton icon="trash" label="Esvaziar" onClick={clearCart} tone="danger" />
+                      {/* Sem menu "Mais": esconder duas ações atrás de um toque,
+                          ao lado de um único botão visível, custa mais do que
+                          mostrar as duas. Ficaram as que geram um documento, em
+                          par e com o nome por extenso.
+
+                          O que saiu e por quê:
+                          - "Salvar": openWhatsApp, generatePdfQuote e
+                            copyQuoteToClipboard já chamam saveCurrentQuote, então
+                            o orçamento é arquivado sozinho em todo caminho que
+                            importa. O botão dava a impressão contrária.
+                          - "ERP": o dono confirmou que não usa.
+                          - "Copiar texto": é o mesmo texto que o botão do
+                            WhatsApp já leva pronto. */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <ActionButton icon="pdf" label="PDF do orçamento" onClick={() => generatePdfQuote(quoteOptions)} />
+                        <ActionButton icon="printer" label="Ficha de separação" onClick={() => window.print()} />
                       </div>
 
-                      <div className="pt-1 text-center text-[10px] text-ink-500">Vardão Máquinas · CogniVault</div>
+                      <p className="text-center text-[10px] leading-4 text-ink-500 dark:text-ink-400">
+                        Enviar no WhatsApp ou gerar o PDF já arquiva este orçamento no histórico.
+                      </p>
+
+                      {/* Ação destrutiva nunca como par das de envio: fica
+                          discreta, no fim. O "Encerrar" da barra de atendimento
+                          já limpa a cesta junto com o contexto; este serve para
+                          limpar só as peças e seguir com o mesmo cliente. */}
+                      <button
+                        type="button"
+                        onClick={clearCart}
+                        className="cv-touch-target mx-auto flex items-center justify-center gap-1.5 rounded-card px-3 text-[11px] font-bold text-ink-500 transition hover:bg-rose-50 hover:text-rose-700 dark:text-ink-400 dark:hover:bg-rose-950/30 dark:hover:text-rose-300"
+                      >
+                        <Icon name="trash" className="h-3.5 w-3.5" />
+                        Esvaziar cesta
+                      </button>
                     </div>
                   )}
                 </div>

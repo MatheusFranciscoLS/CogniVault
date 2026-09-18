@@ -76,7 +76,10 @@ async function login(page, email) {
   await page.locator('#login-password').fill(PASSWORD);
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard/);
-  await expect(page.getByRole('heading', { name: 'Encontre a peça certa. Entenda por quê.' })).toBeVisible();
+  // Âncora pós-login: o campo de busca, que é o elemento funcional da tela.
+  // O título decorativo que servia de âncora saiu — três cabeçalhos empilhados
+  // diziam a mesma coisa antes da busca.
+  await expect(page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/)).toBeVisible();
 }
 
 test.beforeEach(async ({ page }) => {

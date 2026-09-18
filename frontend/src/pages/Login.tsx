@@ -42,35 +42,45 @@ function GoldSeal() {
 }
 
 /**
- * Bloco de autorização: o logo da Husqvarna é um tile quadrado que já vem com
- * fundo azul-marinho próprio, então ele fica sobre uma superfície clara em vez
- * de ser recolorido — marca de terceiro não se altera.
+ * Bloco de autorização com o lockup oficial da Husqvarna (coroa + palavra),
+ * baixado de vardaomaquinas.com.br/brand — o mesmo arquivo que o site da loja
+ * usa. Antes era um tile quadrado com fundo azul-marinho próprio, que obrigava
+ * a apoiar a marca sobre um retângulo branco; o lockup oficial é transparente e
+ * existe nas duas cores, então cada fundo recebe a versão certa em vez de um
+ * filtro CSS por cima da marca de terceiro.
  */
 function AuthorizedByHusqvarna({ tone }: { tone: 'onBrand' | 'onLight' }) {
   const onBrand = tone === 'onBrand';
   return (
     <div
-      className={`flex items-center gap-3 rounded-card border p-3 ${
+      className={`flex items-center gap-4 rounded-card border p-3.5 ${
         onBrand
-          ? 'border-white/15 bg-white/10'
+          ? 'border-white/15 bg-white/[0.07]'
           : 'border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900'
       }`}
     >
       <img
-        src="/husqvarna-logo.webp"
+        src={onBrand ? '/brand/husqvarna-horizontal-branco.png' : '/brand/husqvarna-horizontal-azul.png'}
         alt="Husqvarna"
-        className="h-11 w-11 shrink-0 rounded-card bg-white object-contain"
+        className={`h-5 w-auto shrink-0 object-contain ${onBrand ? '' : 'dark:hidden'}`}
       />
-      <div className="min-w-0">
-        <div
-          className={`text-[11px] font-bold uppercase tracking-[.1em] ${
-            onBrand ? 'text-brand-100/80' : 'text-ink-500'
-          }`}
-        >
-          Revenda autorizada
-        </div>
-        <div className={`mt-0.5 text-sm font-bold ${onBrand ? 'text-white' : 'text-ink-950 dark:text-white'}`}>
+      {!onBrand && (
+        <img
+          src="/brand/husqvarna-horizontal-branco.png"
+          alt=""
+          aria-hidden="true"
+          className="hidden h-5 w-auto shrink-0 object-contain dark:block"
+        />
+      )}
+      {/* Sem repetir "Revenda Autorizada Ouro" aqui: o selo dourado ao lado já
+          diz isso, e o e2e casa esse texto por substring sem diferenciar
+          maiúsculas — duas ocorrências violariam o modo estrito do Playwright. */}
+      <div className={`min-w-0 border-l pl-4 ${onBrand ? 'border-white/15' : 'border-ink-200 dark:border-ink-800'}`}>
+        <div className={`text-sm font-bold ${onBrand ? 'text-white' : 'text-ink-950 dark:text-white'}`}>
           Peças e catálogo originais
+        </div>
+        <div className={`mt-0.5 text-[11px] ${onBrand ? 'text-brand-100/70' : 'text-ink-500 dark:text-ink-400'}`}>
+          Direto da fonte oficial da fábrica
         </div>
       </div>
     </div>
@@ -155,16 +165,30 @@ export default function Login() {
             página no tema escuro. Terminando ali, o canto do painel ficava
             pixel a pixel igual ao fundo e o painel parecia cortado no meio. */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand-600 via-brand-700 to-brand-800" />
-        <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full border border-white/10" />
-        <div aria-hidden="true" className="pointer-events-none absolute -bottom-32 -left-20 h-80 w-80 rounded-full border border-white/10" />
+
+        {/* Marca de fundo: a coroa oficial da Husqvarna, recortada do lockup
+            branco de vardaomaquinas.com.br/brand. Substitui os dois círculos
+            decorativos que havia aqui — círculo não diz nada, e a autorização
+            Husqvarna é justamente o que dá autoridade à tela.
+
+            Centralizada e grande, e não no canto: no canto ela lia como um
+            adesivo solto: assim o painel inteiro se apoia nela, que é o efeito
+            do CRM. Opacidade baixa (5%) porque atrás dela passa texto —
+            headline, parágrafo e os três itens. */}
+        <img
+          src="/brand/husqvarna-simbolo-branco.png"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-1/2 w-[min(78%,560px)] -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.05]"
+        />
 
         <div className="relative">
           <img
-            src="/vardao-logo-transparent.webp"
+            src="/brand/vardao-horizontal-branco.png"
             alt="Vardão Máquinas"
-            /* O logo é azul-marinho sobre transparente; no painel escuro ele
-               precisa virar branco. */
-            className="h-9 w-auto max-w-[220px] object-contain brightness-0 invert"
+            /* Versão branca oficial da loja, em vez de inverter o logo
+               azul-marinho com filtro CSS. */
+            className="h-9 w-auto max-w-[230px] object-contain"
           />
           <div className="mt-2 text-[11px] font-bold uppercase tracking-[.16em] text-brand-100/70">
             Máquinas e peças · Limeira/SP
@@ -207,7 +231,7 @@ export default function Login() {
             aparece: o atendente ainda precisa ver de quem é o sistema. */}
         <header className="flex items-center justify-between gap-3 px-5 pb-2 pt-5 lg:hidden">
           <img
-            src="/vardao-logo-transparent.webp"
+            src="/brand/vardao-horizontal-azul.png"
             alt="Vardão Máquinas"
             className="h-7 w-auto max-w-[150px] object-contain dark:brightness-0 dark:invert"
           />
