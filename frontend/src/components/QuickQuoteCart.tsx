@@ -427,43 +427,6 @@ function ActionButton({
   );
 }
 
-/**
- * Ação secundária do menu "Mais": linha larga com o que a ação faz embaixo.
- * Copiar texto, imprimir ficha e esvaziar não são óbvios por um ícone de 16px,
- * e era isso que enchia a barra de seis botões iguais.
- */
-function MoreAction({
-  icon,
-  label,
-  hint,
-  onClick,
-  tone = 'neutral',
-}: {
-  icon: IconName;
-  label: string;
-  hint: string;
-  onClick: () => void;
-  tone?: 'neutral' | 'danger';
-}) {
-  const toneClass = tone === 'danger'
-    ? 'text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30'
-    : 'text-ink-800 hover:bg-ink-100 dark:text-ink-200 dark:hover:bg-ink-900';
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`cv-touch-target flex w-full items-center gap-3 rounded-card px-2.5 text-left transition ${toneClass}`}
-    >
-      <Icon name={icon} className="h-4 w-4 shrink-0" />
-      <span className="min-w-0">
-        <span className="block text-xs font-bold">{label}</span>
-        <span className="mt-0.5 block text-[10px] leading-4 text-ink-500 dark:text-ink-400">{hint}</span>
-      </span>
-    </button>
-  );
-}
-
 export default function QuickQuoteCart() {
   const {
     items,
@@ -490,7 +453,6 @@ export default function QuickQuoteCart() {
 
   const [activeTab, setActiveTab] = useState<'cart' | 'history'>('cart');
   const [showCustomItemForm, setShowCustomItemForm] = useState(false);
-  const [moreActionsOpen, setMoreActionsOpen] = useState(false);
 
   // Cliente, telefone, pagamento e desconto moram no rascunho persistido, não
   // em estado local: antes, recarregar a página perdia o nome do cliente mesmo
@@ -770,52 +732,40 @@ export default function QuickQuoteCart() {
                         </div>
                       )}
 
-                      {/* Eram seis botões de mesmo peso. Ficaram os dois que
-                          têm função própria e sem sobreposição — PDF (documento
-                          do cliente). O resto
-                          foi para "Mais", a um toque de distância.
+                      {/* Sem menu "Mais": esconder duas ações atrás de um toque,
+                          ao lado de um único botão visível, custa mais do que
+                          mostrar as duas. Ficaram as que geram um documento, em
+                          par e com o nome por extenso.
 
-                          "Salvar" saiu de vez: openWhatsApp, generatePdfQuote e
-                          copyQuoteToClipboard já chamam saveCurrentQuote, então
-                          o orçamento é arquivado sozinho em todo caminho que
-                          importa — o botão dava a impressão de que sem ele nada
-                          era gravado. */}
-                      <div className="grid grid-cols-3 gap-2">
-                        <ActionButton icon="pdf" label="PDF" onClick={() => generatePdfQuote(quoteOptions)} />
-                        <ActionButton
-                          icon={moreActionsOpen ? 'close' : 'plus'}
-                          label={moreActionsOpen ? 'Fechar' : 'Mais'}
-                          onClick={() => setMoreActionsOpen(value => !value)}
-                        />
+                          O que saiu e por quê:
+                          - "Salvar": openWhatsApp, generatePdfQuote e
+                            copyQuoteToClipboard já chamam saveCurrentQuote, então
+                            o orçamento é arquivado sozinho em todo caminho que
+                            importa. O botão dava a impressão contrária.
+                          - "ERP": o dono confirmou que não usa.
+                          - "Copiar texto": é o mesmo texto que o botão do
+                            WhatsApp já leva pronto. */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <ActionButton icon="pdf" label="PDF do orçamento" onClick={() => generatePdfQuote(quoteOptions)} />
+                        <ActionButton icon="printer" label="Ficha de separação" onClick={() => window.print()} />
                       </div>
-
-                      {moreActionsOpen && (
-                        <div className="space-y-1.5 rounded-card border border-ink-200 bg-white p-2 dark:border-ink-800 dark:bg-ink-850">
-                          <MoreAction
-                            icon="clipboard"
-                            label="Copiar texto do orçamento"
-                            hint="Mesmo texto do WhatsApp, para colar em outro canal"
-                            onClick={() => void copyQuoteToClipboard(quoteOptions)}
-                          />
-                          <MoreAction
-                            icon="printer"
-                            label="Imprimir ficha de separação"
-                            hint="Folha com caixas de conferência para buscar as peças no estoque"
-                            onClick={() => window.print()}
-                          />
-                          <MoreAction
-                            icon="trash"
-                            label="Esvaziar cesta"
-                            hint="Remove todas as peças deste atendimento"
-                            onClick={clearCart}
-                            tone="danger"
-                          />
-                        </div>
-                      )}
 
                       <p className="text-center text-[10px] leading-4 text-ink-500 dark:text-ink-400">
                         Enviar no WhatsApp ou gerar o PDF já arquiva este orçamento no histórico.
                       </p>
+
+                      {/* Ação destrutiva nunca como par das de envio: fica
+                          discreta, no fim. O "Encerrar" da barra de atendimento
+                          já limpa a cesta junto com o contexto; este serve para
+                          limpar só as peças e seguir com o mesmo cliente. */}
+                      <button
+                        type="button"
+                        onClick={clearCart}
+                        className="cv-touch-target mx-auto flex items-center justify-center gap-1.5 rounded-card px-3 text-[11px] font-bold text-ink-500 transition hover:bg-rose-50 hover:text-rose-700 dark:text-ink-400 dark:hover:bg-rose-950/30 dark:hover:text-rose-300"
+                      >
+                        <Icon name="trash" className="h-3.5 w-3.5" />
+                        Esvaziar cesta
+                      </button>
                     </div>
                   )}
                 </div>
