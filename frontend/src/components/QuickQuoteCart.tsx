@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useCounterSession } from '../context/CounterSessionContext';
 import { useQuoteCart } from '../context/QuoteCartContext';
-import type { QuoteCartItem, QuoteSyncState, QuoteTextOptions, SavedQuote } from '../context/QuoteCartContext';
+import type { QuoteCartItem, QuoteSyncState, QuoteTextOptions } from '../context/QuoteCartContext';
 import { formatHusqvarnaPartNumber, cleanErpCode } from '../lib';
 import { playCopySound } from '../lib/sound';
 import { toast } from 'sonner';
@@ -78,123 +78,6 @@ function SyncBadge({ state }: { state: QuoteSyncState }) {
   );
 }
 
-
-function SavedQuoteCard({ quote, onRestore, onRestoreAndCopy, onDelete }: { quote: SavedQuote; onRestore: () => void; onRestoreAndCopy: () => void; onDelete: () => void }) {
-  const dateFormatted = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(quote.createdAt));
-
-  return (
-    <div className="rounded-card border border-ink-200 bg-white p-3.5 shadow-card transition hover:border-brand-200 dark:border-ink-800 dark:bg-ink-850 dark:hover:border-brand-400/50">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-bold text-brand-600 dark:text-white">{quote.customerName || 'Cliente Balcão'}</span>
-            <span className="font-mono text-[10px] text-ink-500">{dateFormatted}</span>
-          </div>
-          {quote.customerPhone && (
-            <div className="mt-0.5 flex items-center gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
-              <Icon name="phone" className="h-3 w-3" /> {quote.customerPhone}
-            </div>
-          )}
-          <div className="mt-1 text-xs text-ink-500 tabular-nums">
-            {quote.totalItems} {quote.totalItems === 1 ? 'peça' : 'peças'}
-            {quote.totalPrice > 0 ? ` · ${money(quote.totalPrice)}` : ''}
-          </div>
-          {quote.attendantEmail && (
-            <div className="mt-0.5 truncate text-[10px] text-ink-500">Atendido por {quote.attendantEmail}</div>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={onDelete}
-          aria-label="Excluir este orçamento do histórico"
-          className="cv-touch-target grid place-items-center rounded-card text-ink-500 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30"
-        >
-          <Icon name="trash" className="h-4 w-4" />
-        </button>
-      </div>
-
-      <div className="mt-2.5 space-y-1 rounded-card bg-ink-100 p-2 text-[11px] dark:bg-ink-900">
-        {quote.items.slice(0, 3).map((item, idx) => (
-          <div key={idx} className="flex items-center justify-between gap-2 text-ink-700 dark:text-ink-300">
-            <span className="truncate">{item.quantity}x {item.name}</span>
-            <span className="shrink-0 font-mono font-bold text-brand-600 dark:text-brand-300">
-              {formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)}
-            </span>
-          </div>
-        ))}
-        {quote.items.length > 3 && (
-          <div className="pt-0.5 text-[10px] italic text-ink-500">+ {quote.items.length - 3} outra(s) peça(s)…</div>
-        )}
-      </div>
-
-      <div className="mt-3 flex items-center gap-2">
-        <button type="button" onClick={onRestore} className="cv-brand-button cv-touch-target flex-1 px-3 text-xs">
-          Retomar atendimento
-        </button>
-        <button
-          type="button"
-          onClick={onRestoreAndCopy}
-          className="cv-secondary cv-touch-target grid w-11 place-items-center"
-          title="Retomar e copiar o texto de WhatsApp"
-          aria-label="Retomar e copiar o texto de WhatsApp"
-        >
-          <Icon name="clipboard" className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function HistoryTab({
-  savedQuotes,
-  onRestore,
-  onRestoreAndCopy,
-  onDelete,
-  onClearAll,
-}: {
-  savedQuotes: SavedQuote[];
-  onRestore: (quote: SavedQuote) => void;
-  onRestoreAndCopy: (quote: SavedQuote) => void;
-  onDelete: (id: string) => void;
-  onClearAll: () => void;
-}) {
-  return (
-    <div className="flex flex-1 flex-col overflow-hidden bg-ink-100 dark:bg-ink-950">
-      {/* Em tablet/desktop o histórico abre em duas colunas: com 10 orçamentos
-          arquivados, uma coluna única obriga o atendente a rolar demais. */}
-      <div className="cv-scrollbar flex-1 space-y-3 overflow-y-auto p-4 tablet:grid tablet:grid-cols-2 tablet:gap-3 tablet:space-y-0 tablet:content-start">
-        {savedQuotes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center text-ink-500 tablet:col-span-2">
-            <Icon name="history" className="h-9 w-9" />
-            <div className="mt-3 text-sm font-bold text-ink-700 dark:text-ink-300">Nenhum orçamento salvo</div>
-            <p className="mt-1 max-w-[260px] text-xs">
-              Ao enviar no WhatsApp ou gerar o PDF, o orçamento é arquivado no servidor e aparece aqui.
-            </p>
-          </div>
-        ) : (
-          savedQuotes.map(quote => (
-            <SavedQuoteCard
-              key={quote.id}
-              quote={quote}
-              onRestore={() => onRestore(quote)}
-              onRestoreAndCopy={() => onRestoreAndCopy(quote)}
-              onDelete={() => onDelete(quote.id)}
-            />
-          ))
-        )}
-      </div>
-
-      {savedQuotes.length > 0 && (
-        <div className="flex items-center justify-between border-t border-ink-200 bg-white p-3 dark:border-ink-800 dark:bg-ink-850">
-          <button type="button" onClick={onClearAll} className="text-xs font-bold text-rose-600 hover:underline dark:text-rose-400">
-            Limpar histórico recente
-          </button>
-          <span className="text-[11px] text-ink-500 tabular-nums">{savedQuotes.length} arquivados</span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function CustomItemForm({ onAdd, onClose }: { onAdd: (name: string, price: number | undefined, qty: number) => void; onClose: () => void }) {
   const [name, setName] = useState('');
@@ -445,13 +328,8 @@ export default function QuickQuoteCart() {
     updateUnitPrice,
     removeItem,
     clearCart,
-    copyQuoteToClipboard,
     openWhatsApp,
     generatePdfQuote,
-    savedQuotes,
-    restoreQuote,
-    deleteSavedQuote,
-    clearSavedQuotes,
     addItem,
     syncState,
     draftOptions,
@@ -460,7 +338,6 @@ export default function QuickQuoteCart() {
 
   const { session } = useCounterSession();
 
-  const [activeTab, setActiveTab] = useState<'cart' | 'history'>('cart');
   const [showCustomItemForm, setShowCustomItemForm] = useState(false);
 
   // Cliente, telefone, pagamento e desconto moram no rascunho persistido, não
@@ -484,7 +361,7 @@ export default function QuickQuoteCart() {
   const discountAmount = totalPrice > 0 && discountPercentage > 0 ? (totalPrice * discountPercentage) / 100 : 0;
   const netTotalPrice = totalPrice - discountAmount;
 
-  if (totalItems === 0 && savedQuotes.length === 0 && !isOpen) {
+  if (totalItems === 0 && !isOpen) {
     return null;
   }
 
@@ -498,27 +375,6 @@ export default function QuickQuoteCart() {
     });
     setShowCustomItemForm(false);
     toast.success(`"${name}" adicionado ao orçamento.`);
-  };
-
-  const handleRestoreFromHistory = (quote: SavedQuote) => {
-    restoreQuote(quote);
-    setActiveTab('cart');
-  };
-
-  const handleRestoreAndCopy = (quote: SavedQuote) => {
-    restoreQuote(quote);
-    setActiveTab('cart');
-    void copyQuoteToClipboard({
-      customerName: quote.customerName,
-      customerPhone: quote.customerPhone,
-      paymentMethod: quote.paymentMethod,
-      discountPercentage: quote.discountPercentage,
-    });
-  };
-
-  const handleClearHistory = () => {
-    if (!confirm('Remover os orçamentos recentes do histórico? Esta ação não pode ser desfeita.')) return;
-    void clearSavedQuotes();
   };
 
   return (
@@ -567,39 +423,9 @@ export default function QuickQuoteCart() {
                   <Icon name="close" className="h-4 w-4" />
                 </button>
               </div>
-
-              <div className="mt-2.5 flex rounded-card bg-white/10 p-1 text-xs font-bold">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('cart')}
-                  className={`flex min-h-[40px] flex-1 items-center justify-center gap-1.5 rounded-[6px] px-3 transition ${activeTab === 'cart' ? 'bg-white text-brand-700' : 'text-brand-100 hover:bg-white/10'}`}
-                >
-                  <Icon name="cart" className="h-4 w-4" />
-                  <span>Cesta atual</span>
-                  {totalItems > 0 && <span className="rounded-full bg-accent-500 px-1.5 text-[10px] font-bold text-white tabular-nums">{totalItems}</span>}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('history')}
-                  className={`flex min-h-[40px] flex-1 items-center justify-center gap-1.5 rounded-[6px] px-3 transition ${activeTab === 'history' ? 'bg-white text-brand-700' : 'text-brand-100 hover:bg-white/10'}`}
-                >
-                  <Icon name="history" className="h-4 w-4" />
-                  <span>Histórico</span>
-                  {savedQuotes.length > 0 && <span className="rounded-full bg-white/20 px-1.5 text-[10px] font-bold tabular-nums">{savedQuotes.length}</span>}
-                </button>
-              </div>
             </div>
 
-            {activeTab === 'history' ? (
-              <HistoryTab
-                savedQuotes={savedQuotes}
-                onRestore={handleRestoreFromHistory}
-                onRestoreAndCopy={handleRestoreAndCopy}
-                onDelete={id => void deleteSavedQuote(id)}
-                onClearAll={handleClearHistory}
-              />
-            ) : (
-              <div className="flex min-h-0 flex-1 flex-col">
+            <div className="flex min-h-0 flex-1 flex-col">
                 {/* Uma única região rolável para tudo, e a barra fixa reduzida
                     ao essencial (total + WhatsApp).
 
@@ -620,8 +446,15 @@ export default function QuickQuoteCart() {
                       <div className="flex flex-col items-center justify-center py-16 text-center text-ink-500">
                         <Icon name="cart" className="h-9 w-9" />
                         <div className="mt-3 text-sm font-bold text-ink-700 dark:text-ink-300">Sua cesta está vazia</div>
-                        <p className="mt-1 max-w-[240px] text-xs">
+                        <p className="mt-1 max-w-[260px] text-xs">
                           Clique em &quot;+ Orçamento&quot; em qualquer peça na busca para montar a lista.
+                        </p>
+                        {/* A gaveta não tem mais aba de histórico: a lista de
+                            arquivados vive na seção "Orçamentos", que filtra por
+                            cliente, telefone, código e período. Sem esta linha, o
+                            atendente não tem como saber para onde ela foi. */}
+                        <p className="mt-3 max-w-[260px] text-[11px] text-ink-400">
+                          Orçamentos já enviados ficam na seção <strong className="font-bold text-ink-600 dark:text-ink-300">Orçamentos</strong>, no menu lateral.
                         </p>
                       </div>
                     ) : (
@@ -754,16 +587,19 @@ export default function QuickQuoteCart() {
                           par e com o nome por extenso.
 
                           O que saiu e por quê:
-                          - "Salvar": openWhatsApp, generatePdfQuote e
-                            copyQuoteToClipboard já chamam saveCurrentQuote, então
-                            o orçamento é arquivado sozinho em todo caminho que
-                            importa. O botão dava a impressão contrária.
+                          - "Salvar": openWhatsApp e generatePdfQuote já chamam
+                            saveCurrentQuote, então o orçamento é arquivado
+                            sozinho em todo caminho que importa. O botão dava a
+                            impressão contrária.
                           - "ERP": o dono confirmou que não usa.
-                          - "Copiar texto": é o mesmo texto que o botão do
-                            WhatsApp já leva pronto. */}
+                          - "Copiar texto": o botão do WhatsApp leva o mesmo
+                            texto pronto, e sem telefone ele abre em
+                            wa.me/?text=, deixando o atendente escolher o
+                            contato. Copiar não cobria caso nenhum a mais, e a
+                            função ficou sem uso — saiu do contexto também. */}
                       <div className="grid grid-cols-2 gap-2">
                         <ActionButton icon="pdf" label="PDF do orçamento" onClick={() => generatePdfQuote(quoteOptions)} />
-                        <ActionButton icon="printer" label="Ficha de separação" onClick={() => window.print()} />
+                        <ActionButton icon="printer" label="Imprimir" onClick={() => window.print()} />
                       </div>
 
                       <p className="text-center text-[10px] leading-4 text-ink-500 dark:text-ink-400">
@@ -813,7 +649,6 @@ export default function QuickQuoteCart() {
                   </div>
                 )}
               </div>
-            )}
           </aside>
         </div>
       )}
@@ -824,7 +659,7 @@ export default function QuickQuoteCart() {
             <div>
               <h1 className="text-xl font-bold uppercase tracking-wide text-brand-600">VARDÃO MÁQUINAS</h1>
               <p className="text-xs font-bold text-ink-900">Revenda Autorizada Ouro &amp; Peças Originais Husqvarna</p>
-              <p className="text-[11px] text-ink-500">CogniVault · Ficha de separação / orçamento de balcão</p>
+              <p className="text-[11px] text-ink-500">CogniVault · Orçamento de balcão</p>
             </div>
             <div className="text-right text-xs">
               <p><strong>Data:</strong> {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
@@ -832,7 +667,6 @@ export default function QuickQuoteCart() {
               {customerPhone && <p className="text-ink-700"><strong>WhatsApp:</strong> {customerPhone}</p>}
               {paymentMethod && <p className="text-ink-700"><strong>Condição:</strong> {paymentMethod}</p>}
               <p className="mt-0.5 text-ink-500">Total de itens: {totalItems}</p>
-              {totalPrice > 0 && <p className="mt-1 text-sm font-bold text-ink-900">Total geral: {money(totalPrice)}</p>}
             </div>
           </div>
         </div>
@@ -840,7 +674,6 @@ export default function QuickQuoteCart() {
         <table className="mb-8 w-full border-collapse text-left text-xs">
           <thead>
             <tr className="border-b-2 border-brand-600 text-ink-900">
-              <th className="w-12 py-2.5 text-center font-bold">Conf.</th>
               <th className="w-16 py-2.5 text-center font-bold">Qtd.</th>
               <th className="w-36 py-2.5 font-bold">Código oficial</th>
               <th className="py-2.5 font-bold">Descrição da peça</th>
@@ -852,9 +685,6 @@ export default function QuickQuoteCart() {
           <tbody>
             {items.map(item => (
               <tr key={item.id} className="border-b border-ink-200">
-                <td className="py-2.5 text-center">
-                  <span className="inline-block h-4 w-4 rounded-sm border border-ink-900"></span>
-                </td>
                 <td className="py-2.5 text-center font-bold text-ink-900 tabular-nums">{item.quantity}x</td>
                 <td className="py-2.5 font-mono font-bold text-ink-900">
                   {formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)}
@@ -883,17 +713,17 @@ export default function QuickQuoteCart() {
               {discountPercentage > 0 && (
                 <>
                   <tr className="border-t-2 border-ink-700 text-ink-700">
-                    <td colSpan={5} className="py-1.5 text-right text-xs uppercase tracking-wide">Subtotal bruto:</td>
+                    <td colSpan={4} className="py-1.5 text-right text-xs uppercase tracking-wide">Subtotal bruto:</td>
                     <td colSpan={2} className="py-1.5 text-right font-mono text-xs font-semibold">{money(totalPrice)}</td>
                   </tr>
                   <tr className="border-b border-ink-700 text-ink-700">
-                    <td colSpan={5} className="py-1.5 text-right text-xs uppercase tracking-wide">Desconto comercial ({discountPercentage}%):</td>
+                    <td colSpan={4} className="py-1.5 text-right text-xs uppercase tracking-wide">Desconto comercial ({discountPercentage}%):</td>
                     <td colSpan={2} className="py-1.5 text-right font-mono text-xs font-semibold">-{money(discountAmount)}</td>
                   </tr>
                 </>
               )}
               <tr className="border-t-2 border-brand-600 font-bold">
-                <td colSpan={5} className="py-3 text-right text-xs uppercase tracking-wide">
+                <td colSpan={4} className="py-3 text-right text-xs uppercase tracking-wide">
                   {discountPercentage > 0 ? 'Total líquido do orçamento:' : 'Total geral do orçamento:'}
                 </td>
                 <td colSpan={2} className="py-3 text-right font-mono text-sm font-bold text-ink-900">{money(netTotalPrice)}</td>
@@ -909,7 +739,6 @@ export default function QuickQuoteCart() {
           </div>
           <div className="flex flex-col justify-end text-center">
             <div className="border-t border-ink-900 pt-1 font-semibold text-ink-900">Assinatura do atendente</div>
-            <div className="mt-1 text-[10px] text-ink-500">Conferência de retirada de peças no estoque</div>
           </div>
         </div>
       </div>
