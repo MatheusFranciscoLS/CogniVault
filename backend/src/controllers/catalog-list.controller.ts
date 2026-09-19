@@ -17,7 +17,7 @@ import {
   formatBriggsEngineModel,
   inferEquipmentFamily,
 } from '../services/husqvarna-domain-knowledge';
-import { briggsManualsSearchUrl } from '../utils/engine-model';
+import { briggsManualsSearchUrl, formatBriggsModelForSearch } from '../utils/engine-model';
 
 const LIST_FRESH_MS = Math.max(2_000, Number(process.env.CATALOG_LIST_CACHE_FRESH_MS || '5000') || 5_000);
 const LIST_STALE_MS = Math.max(LIST_FRESH_MS, Number(process.env.CATALOG_LIST_CACHE_STALE_MS || '30000') || 30_000);
@@ -92,10 +92,18 @@ function toListItem(document: CatalogRecord, partPncs: string[] = []) {
     || /^(?:motor|engine|kawasaki\s+f[rsx]|kohler|briggs)\b/i.test(effectiveModel)
     || /\b(?:motor\s+briggs|kawasaki\s+engine|kohler\s+engine)\b/i.test(filename);
 
-  // Link para a busca oficial de manual/vista explodida da Briggs. Não é uma
-  // integração (sem API pública, sem catálogo em português) — é só o link de
-  // busca deles, já no formato que o site exige. O balcão abre e lê por
-  // conta própria; ver utils/engine-model.ts.
+  // Dois caminhos para o motor Briggs, e a diferença importa:
+  //
+  // `briggsEngineModel` é o modelo já no formato que a Briggs exige. Com ele a
+  // tela monta `/api/briggs/parts-manuals/open`, que resolve a LISTA DE PEÇAS
+  // pela API da Briggs e abre o PDF direto, inglês primeiro.
+  //
+  // `briggsManualsUrl` continua sendo a busca de manuais deles, agora como saída
+  // secundária ("ver todos os manuais"). Ela sozinha era o problema: soltava o
+  // atendente numa lista de 16 itens quase idênticos com os PARTS MANUAL no fim.
+  const briggsEngineModel = isEngineCatalog && isBriggsModel
+    ? formatBriggsModelForSearch(effectiveModel)
+    : null;
   const briggsManualsUrl = isEngineCatalog && isBriggsModel
     ? briggsManualsSearchUrl(effectiveModel)
     : null;
@@ -123,6 +131,7 @@ function toListItem(document: CatalogRecord, partPncs: string[] = []) {
           engineModel,
           engineArticle: app.engineArticle,
           label: `Motor ${engineModel}`,
+          briggsEngineModel: formatBriggsModelForSearch(engineModel),
           briggsManualsUrl: briggsManualsSearchUrl(engineModel),
         };
       })
@@ -141,6 +150,7 @@ function toListItem(document: CatalogRecord, partPncs: string[] = []) {
     category,
     applications,
     engineApplications,
+    briggsEngineModel,
     briggsManualsUrl,
     createdAt: document.createdAt,
     partCount: document._count.parts,

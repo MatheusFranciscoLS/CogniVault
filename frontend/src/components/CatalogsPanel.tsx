@@ -176,17 +176,67 @@ function failureGuidance(document: DocumentItem): FailureGuidance | null {
  * padrão do botão manual do Portal Parceiro Husqvarna. Nada é raspado nem
  * interpretado pelo app.
  */
-function BriggsManualsLink({ url, compact = false }: { url: string; compact?: boolean }) {
+/**
+ * Lista de peças do motor Briggs.
+ *
+ * **Ação principal**: abre o PDF da lista de peças direto, pela rota do próprio
+ * servidor, que consulta a API da Briggs e escolhe o inglês quando existe.
+ * Pedido do dono com estas palavras: *"Se eu escrevi o código 12J902-0118-01,
+ * eu vou entrar em: PARTS MANUAL - 12J902-0118-01, Idioma: English. E é aí que
+ * eu vejo a página."*
+ *
+ * O link antigo (busca de manuais) continua como saída secundária. Ele sozinho
+ * era o defeito: soltava o atendente numa lista de 16 itens quase idênticos,
+ * com os dois PARTS MANUAL no fim e sem nada que os distinguisse.
+ *
+ * É um `<a target="_blank">`, não `fetch` + `window.open`: assim a aba abre no
+ * clique do balcão, e não depois de um `await` — o que o navegador trataria
+ * como pop-up não solicitado.
+ */
+function BriggsManualsLink({ url, model, compact = false }: { url?: string | null; model?: string | null; compact?: boolean }) {
+  const base = `inline-flex items-center gap-1 rounded border font-semibold transition cursor-pointer ${compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-1 text-[10px]'}`;
+
+  if (model) {
+    return (
+      <span className="inline-flex flex-wrap items-center gap-1">
+        <a
+          href={`/api/briggs/parts-manuals/open?model=${encodeURIComponent(model)}`}
+          target="_blank"
+          rel="noreferrer noopener"
+          title={`Abrir a lista de peças oficial do motor ${model} — inglês quando a Briggs publica; senão, o idioma disponível`}
+          className={`${base} border-red-300 bg-red-100 text-red-800 hover:bg-red-200 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200 dark:hover:bg-red-900/50`}
+        >
+          <span>📕</span>
+          <span>Lista de peças Briggs</span>
+          <span className="opacity-60">↗</span>
+        </a>
+        {url && (
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer noopener"
+            title="Todos os manuais deste motor no site da Briggs (inclui manual do operador)"
+            className={`${base} border-ink-200 bg-white text-ink-600 hover:bg-ink-50 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300`}
+          >
+            todos ↗
+          </a>
+        )}
+      </span>
+    );
+  }
+
+  if (!url) return null;
+
   return (
     <a
       href={url}
       target="_blank"
       rel="noreferrer noopener"
-      title="Abrir manual / vista explodida oficial no site da Briggs & Stratton (inglês ou chinês)"
-      className={`inline-flex items-center gap-1 rounded border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 font-semibold text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition cursor-pointer ${compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-1 text-[10px]'}`}
+      title="Abrir manuais oficiais no site da Briggs & Stratton"
+      className={`${base} border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-900/40`}
     >
       <span>📕</span>
-      <span>Vista explodida Briggs</span>
+      <span>Manuais Briggs</span>
       <span className="opacity-60">↗</span>
     </a>
   );
@@ -803,7 +853,7 @@ export default function CatalogsPanel({
                       </div>
                       {document.briggsManualsUrl && (
                         <div className="mt-1.5">
-                          <BriggsManualsLink url={document.briggsManualsUrl} />
+                          <BriggsManualsLink url={document.briggsManualsUrl} model={document.briggsEngineModel} />
                         </div>
                       )}
                     </div>
@@ -885,7 +935,7 @@ export default function CatalogsPanel({
                               .filter((app): app is typeof app & { briggsManualsUrl: string } => Boolean(app.briggsManualsUrl))
                               .map(app => [app.briggsManualsUrl, app]),
                             ).values()].map((app, idx) => (
-                              <BriggsManualsLink key={idx} url={app.briggsManualsUrl} compact />
+                              <BriggsManualsLink key={idx} url={app.briggsManualsUrl} model={app.briggsEngineModel} compact />
                             ))}
                           </div>
                         )}
@@ -1029,7 +1079,7 @@ export default function CatalogsPanel({
                         {document.suggestedModel && <div className="mt-1 text-[10px] font-semibold text-brand-700 dark:text-brand-300">Sugestão: {document.suggestedModel}</div>}
                         {document.briggsManualsUrl && (
                           <div className="mt-1">
-                            <BriggsManualsLink url={document.briggsManualsUrl} compact />
+                            <BriggsManualsLink url={document.briggsManualsUrl} model={document.briggsEngineModel} compact />
                           </div>
                         )}
                         {document.applications && document.applications.length > 0 && (
@@ -1072,7 +1122,7 @@ export default function CatalogsPanel({
                               .filter((app): app is typeof app & { briggsManualsUrl: string } => Boolean(app.briggsManualsUrl))
                               .map(app => [app.briggsManualsUrl, app]),
                             ).values()].map((app, idx) => (
-                              <BriggsManualsLink key={idx} url={app.briggsManualsUrl} compact />
+                              <BriggsManualsLink key={idx} url={app.briggsManualsUrl} model={app.briggsEngineModel} compact />
                             ))}
                           </div>
                         )}
