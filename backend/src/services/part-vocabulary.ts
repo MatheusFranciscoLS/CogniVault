@@ -1,4 +1,5 @@
 import { normalizeText } from '../utils/normalize';
+import { isHeadNounMatch, isQualifierOnlyMatch } from '../utils/part-head-noun';
 import {
   applyDomainSearchKnowledge,
   domainCandidateBonus,
@@ -473,6 +474,49 @@ function conceptStrength(
   return strength;
 }
 
+/**
+ * Teto de pontuação para quem só casa como QUALIFICADOR.
+ *
+ * Abaixo dos 0.85 que `focusCandidatesByDescription` usa para "casou direto",
+ * e abaixo do que o gate de confiança trata como resposta segura. O efeito é
+ * exatamente o que o dono pediu: a junta do carburador continua aparecendo na
+ * lista, mas nunca **responde** por quem pediu o carburador.
+ *
+ * Rebaixar e não apagar é decisão de projeto: se nenhum candidato tem o
+ * substantivo certo, é melhor o balcão ver a junta rotulada do que ver uma
+ * tela vazia.
+ */
+const QUALIFIER_ONLY_SCORE_CAP = 0.42;
+
+/**
+ * A peça que a busca está pedindo aparece no candidato apenas como
+ * qualificador?
+ *
+ * `GASKET,CARBURETOR` menciona carburador, mas é JUNTA. Sem este teto, ela
+ * pontuava como se fosse o carburador — o erro que o dono encontrou e que
+ * custa devolução no balcão.
+ *
+ * O apelido é consultado junto do nome de propósito: catálogo traduzido grava
+ * `CARBURADOR` como apelido de `CARBURETTOR`, e ignorar isso esconderia peça
+ * legítima. O que não vale é apelido salvar um candidato cujo nome diz
+ * claramente outra peça.
+ */
+function qualifierOnlyForQuery(
+  query: string,
+  candidate: { name: string; aliases?: string[] },
+): boolean {
+  const relation = inferPartQueryRelation(query);
+  const primary = relation?.primary ?? findPartConcepts(query)[0];
+  if (!primary) return false;
+
+  const terms = [primary.key, ...primary.variants];
+  if (!isQualifierOnlyMatch(terms, candidate.name)) return false;
+
+  // Algum apelido nomeia a peça pedida como substantivo principal? Então o
+  // candidato é ela, e o nome do catálogo é que está incompleto.
+  return !(candidate.aliases || []).some(alias => isHeadNounMatch(terms, alias) === true);
+}
+
 export function scorePartText(
   query: string,
   candidate: { name: string; section?: string | null; aliases?: string[]; notes?: string | null },
@@ -486,14 +530,22 @@ export function scorePartText(
   const regularScore = Math.max(0, Math.min(1, total / groups.length + domainBonus));
 
   const relation = inferPartQueryRelation(query);
-  if (!relation) return regularScore;
+  const score = (() => {
+    if (!relation) return regularScore;
 
-  const primary = nameStrength(relation.primary, candidate);
-  const context = contextStrength(relation.context, candidate);
-  if (primary < 0.6 || context < 0.2) return regularScore;
+    const primary = nameStrength(relation.primary, candidate);
+    const context = contextStrength(relation.context, candidate);
+    if (primary < 0.6 || context < 0.2) return regularScore;
 
-  const relationScore = primary * 0.72 + context * 0.28 + domainBonus;
-  return Math.max(regularScore, Math.max(0, Math.min(1, relationScore)));
+    const relationScore = primary * 0.72 + context * 0.28 + domainBonus;
+    return Math.max(regularScore, Math.max(0, Math.min(1, relationScore)));
+  })();
+
+  // O teto entra por último, depois de toda a pontuação: nenhum bônus pode
+  // promover a junta a resposta de quem pediu o carburador.
+  return qualifierOnlyForQuery(query, candidate)
+    ? Math.min(score, QUALIFIER_ONLY_SCORE_CAP)
+    : score;
 }
 
 export function focusCandidatesByDescription<

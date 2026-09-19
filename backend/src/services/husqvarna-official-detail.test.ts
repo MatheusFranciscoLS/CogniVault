@@ -154,3 +154,97 @@ test('gera URL pública de suporte sem depender da categoria do Portal', () => {
   assert.equal(buildHusqvarnaPublicSupportUrl('HUSQVARNA 120 Mark II'), 'https://www.husqvarna.com/br/suporte/120-mark-ii/');
   assert.equal(buildHusqvarnaPublicSupportUrl('HUSQVARNA 327P5x'), 'https://www.husqvarna.com/br/suporte/327p5x/');
 });
+
+test('o campo comment da vista vira informação pronta para o balcão', () => {
+  // Textos reais da API: TS 142 (artigo 960410440) e motor HS 608.
+  const payload = {
+    site: {
+      articles: {
+        byIds: [{
+          id: '960410440',
+          name: { productName: 'HUSQVARNA TS 142' },
+          product: { category: { name: 'Tratores de jardim' } },
+          ipls: [{
+            id: 'HVA_PL-TS142-MOTOR',
+            name: 'MOTOR',
+            referenceWidth: 900,
+            referenceHeight: 620,
+            articles: [
+              { id: '598693901', number: 1, name: 'MOTOR', comment: 'For 96041044000. HUSQVARNA MODEL NO. HS608 (COMPLETE IPL AVAILABLE SEPARATELY).' },
+              { id: '593230101', number: 1, name: 'MOTOR', comment: 'For 96041043000. HUSQVARNA MODEL NO. HS608 (COMPLETE IPL AVAILABLE SEPARATELY).' },
+              { id: '587333501', number: 1, name: 'DUMMY PART', comment: 'For 96041036800, 96041036801. Engine Briggs Model No. 31R577-0027-B1 (587333501).' },
+              { id: '599349078', number: 6, name: 'JUNTA', comment: 'CARBURETTOR GASKET - MULTIPACK: 10' },
+              { id: '590645301', number: 2, name: 'SILENCIADOR', comment: null },
+            ],
+          }],
+        }],
+      },
+    },
+  };
+
+  // Consulta feita com o artigo de 9 dígitos, como o portal identifica.
+  const result = parseOfficialProductDetails(payload, '960410440');
+  assert.ok(result, 'detalhes deveriam ser aceitos');
+  const parts = result!.iplSections[0].parts;
+  const byId = (id: string) => parts.find(p => p.partNumber === id)!;
+
+  // Quem serve ESTE PNC: o texto escreve 11 dígitos, a consulta usa 9.
+  assert.equal(byId('598693901').servesThisPnc, true, 'For 96041044000 atende o artigo 960410440');
+  assert.equal(byId('593230101').servesThisPnc, false, 'For 96041043000 é a OUTRA variante');
+  assert.equal(byId('587333501').servesThisPnc, false);
+  // Sem "For ..." a peça vale para todas as variantes — recusar esconderia peça.
+  assert.equal(byId('590645301').servesThisPnc, true);
+
+  // Pacote fechado: o balcão promete uma e o cliente recebe dez.
+  assert.equal(byId('599349078').multipackQuantity, 10);
+  assert.equal(byId('590645301').multipackQuantity, null);
+
+  // Elo máquina -> motor, que o balcão percorria à mão no site.
+  assert.equal(byId('598693901').engine?.model, 'HS608');
+  assert.equal(byId('598693901').engine?.brand, 'HUSQVARNA');
+  assert.equal(byId('598693901').engine?.hasSeparateIpl, true);
+  // Husqvarna não tem busca de manual de terceiro: sem link inventado.
+  assert.equal(byId('598693901').engine?.manualUrl, null);
+
+  // Briggs dá modelo E artigo, e aí o link do manual existe de verdade.
+  const briggs = byId('587333501').engine!;
+  assert.equal(briggs.brand, 'BRIGGS');
+  assert.equal(briggs.model, '31R577-0027-B1');
+  assert.equal(briggs.article, '587333501');
+  assert.equal(briggs.manualUrl, 'https://www.briggsandstratton.com/pt-br/support/manuals/results?search=31R577-0027-B1');
+
+  // Peça sem declaração de motor não ganha objeto de motor.
+  assert.equal(byId('590645301').engine, null);
+  assert.equal(byId('599349078').engine, null);
+});
+
+test('Kawasaki: o portal manda ler a plaqueta, e é isso que a tela recebe', () => {
+  const payload = {
+    site: {
+      articles: {
+        byIds: [{
+          id: '967984802',
+          name: { productName: 'Cortador Giro Zero Husqvarna Z460' },
+          product: { category: { name: 'Cortadores de grama giro zero' } },
+          ipls: [{
+            id: 'HVA_PL-Z460-PLACA',
+            name: 'PLACA DO MOTOR',
+            referenceWidth: 900,
+            referenceHeight: 620,
+            articles: [
+              { id: '900000002', number: 1, name: 'DUMMY PART', comment: 'Kawasaki - See Engine Model & Spec.' },
+            ],
+          }],
+        }],
+      },
+    },
+  };
+
+  const result = parseOfficialProductDetails(payload, '967984802');
+  const motor = result!.iplSections[0].parts[0].engine!;
+  assert.equal(motor.brand, 'KAWASAKI');
+  assert.equal(motor.model, null, 'o portal não informa o modelo Kawasaki');
+  assert.equal(motor.modelOnPlate, true, 'a tela precisa pedir a plaqueta');
+  // Sem modelo, o link cai no localizador — nunca num endereço que abre vazio.
+  assert.equal(motor.manualUrl, 'https://kawasakienginesusa.com/parts-lookup?aribrand=kwe');
+});
