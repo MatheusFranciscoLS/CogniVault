@@ -21,6 +21,7 @@ import {
 } from '../services/husqvarna-domain-knowledge';
 import { HusqvarnaLivePartService } from '../services/husqvarna-live-part.service';
 import { resolveMaintenanceKitMatches } from '../services/maintenance-kit.service';
+import { machineQueryHint } from '../utils/machine-query';
 
 interface CachedSearchResult {
     parts: any[];
@@ -614,6 +615,16 @@ export class OperationalController {
 
         const q = String(req.query.q || '').trim();
 
+        // O que o atendente DIGITOU, separado do que a tela enriqueceu.
+        //
+        // `q` chega com o contexto do atendimento anexado (modelo e PNC da
+        // sessão), porque é isso que melhora a busca de peça. Mas a decisão de
+        // consultar máquina tem que olhar o texto original: com o contexto
+        // anexado, "967 33 29-04" virava "967 33 29-04 Husqvarna 143R-II" e
+        // deixava de ser reconhecido como PNC de etiqueta — medido no
+        // navegador, não suposto.
+        const typed = String(req.query.typed || q).trim();
+
         res.setHeader(
             'Content-Type',
             'text/event-stream; charset=utf-8'
@@ -750,6 +761,41 @@ export class OperationalController {
                 documents:
                     capturedPayload.documents,
             });
+
+            if (clientClosed) {
+                return;
+            }
+
+            // Máquinas na MESMA busca: o balcão escreve num campo só e recebe
+            // peça e máquina juntas. Antes eram duas abas e o atendente tinha
+            // que adivinhar em qual procurar.
+            //
+            // Esta fase só ANUNCIA — ela não consulta o Portal. O servidor diz
+            // "este texto tem cara de máquina, e o identificador é este"; quem
+            // busca é a tela, pela rota de produto que já existe e já tem
+            // cache. Duas razões concretas:
+            //
+            // 1. O `done` do stream não pode esperar o Portal. O teto de lá é
+            //    8s e a peça já está na tela desde a fase léxica — travar o
+            //    "Analisando…" por 8s para oferecer a máquina é a troca errada
+            //    no balcão, com o cliente esperando.
+            // 2. A tela de máquinas já consulta a MESMA rota com a MESMA chave
+            //    de cache. Buscar aqui pagaria a chamada externa duas vezes
+            //    para o mesmo modelo.
+            //
+            // `machineQueryHint` é o que mantém isso em custo zero nas buscas
+            // comuns: "carburador" e "junta" não produzem anúncio nenhum.
+            const machineHint = machineQueryHint(typed);
+
+            if (machineHint.pnc || machineHint.model) {
+                send({
+                    type: 'machines',
+                    // PNC da etiqueta é resposta, não busca: a tela abre a
+                    // máquina direto com esse número.
+                    machinePnc: machineHint.pnc ?? undefined,
+                    machineTerm: machineHint.model ?? undefined,
+                });
+            }
 
             if (clientClosed) {
                 return;

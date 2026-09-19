@@ -108,3 +108,15 @@ test('visual catalog retry accepts only integer limits between one and three', (
   assert.equal(run(validateVisualCatalogRetryRequest, { body: { limit: 4 } } as any).statusCode, 400);
   assert.equal(run(validateVisualCatalogRetryRequest, { body: { limit: { value: 1 } } } as any).statusCode, 400);
 });
+
+test('typed é validado como q, porque decide uma chamada externa de máquina', () => {
+  // `typed` é o texto digitado pelo atendente, e é ele que decide se a busca
+  // consulta o Portal Husqvarna. Sem teto, um valor gigante entraria na
+  // tokenização; sem a checagem de tipo, `?typed=a&typed=b` chegaria como
+  // array e quebraria o parse.
+  assert.equal(run(validateSearchQuery, { query: { q: 'carburador', typed: 'x'.repeat(501) } as any }).statusCode, 400);
+  assert.equal(run(validateSearchQuery, { query: { q: 'carburador', typed: ['a', 'b'] } as any }).statusCode, 400);
+  assert.equal(run(validateSearchQuery, { query: { q: 'carburador 143RII', typed: 'carburador 143RII' } as any }).nextCalled, true);
+  // Ausente continua valendo: a rota cai no `q` quando a tela não manda.
+  assert.equal(run(validateSearchQuery, { query: { q: 'carburador' } as any }).nextCalled, true);
+});

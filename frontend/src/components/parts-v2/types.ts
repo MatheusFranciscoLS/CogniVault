@@ -42,9 +42,20 @@ export type SearchDocument = {
 };
 
 export type SearchStreamMessage = {
-  type: 'lexical' | 'semantic' | 'done';
+  type: 'lexical' | 'semantic' | 'machines' | 'done';
   parts?: SearchResultPart[];
   documents?: SearchDocument[];
+  /**
+   * Máquinas da MESMA busca, para o balcão não ter que adivinhar em qual aba
+   * procurar. O servidor só consulta o Portal quando o texto traz modelo ou PNC
+   * (ver `utils/machine-query.ts` no backend), então a maioria das buscas de
+   * peça nunca recebe esta mensagem.
+   */
+  machines?: HusqvarnaOfficialSearchResult[];
+  /** Termo de modelo que o servidor reconheceu e usou na consulta. */
+  machineTerm?: string;
+  /** PNC lido da máscara de etiqueta: abre a máquina direto, sem lista. */
+  machinePnc?: string;
   error?: string;
 };
 
