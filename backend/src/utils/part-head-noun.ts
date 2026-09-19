@@ -196,13 +196,34 @@ function headOfSegment(segment: string, from: 'start' | 'end' = 'end'): string |
  * O substantivo principal da descrição, ou `null` quando não dá para afirmar.
  */
 export function partHeadNoun(description: string | null | undefined): string | null {
+  return partHeadNounDetailed(description).head;
+}
+
+/**
+ * Como a regra chegou ao principal — e é isso que decide se ela pode PUNIR.
+ *
+ * `explicit`: o catálogo separou (vírgula, ponto, hífen) ou a ligação em
+ * português apontou, ou só uma palavra da frase é peça conhecida. Aqui dá para
+ * afirmar, e rebaixar quem só casa como qualificador é seguro.
+ *
+ * `positional`: sobrou o palpite de posição. E ele é **ambíguo em inglês**, o
+ * que uma regressão provou: `CARBURETTOR GASKET` nomeia a junta na ÚLTIMA
+ * palavra, mas `Screw Clutch shoe` nomeia o parafuso na PRIMEIRA. Mesma
+ * estrutura, principais opostos. Por isso `positional` não autoriza punição:
+ * palpite não pode esconder a peça certa do balcão.
+ */
+export type HeadNounBasis = 'explicit' | 'positional';
+
+export function partHeadNounDetailed(
+  description: string | null | undefined,
+): { head: string | null; basis: HeadNounBasis } {
   const text = normalizeText(description || '');
-  if (!text) return null;
+  if (!text) return { head: null, basis: 'positional' };
 
   // 1) Convenção de catálogo: "PEÇA,QUALIFICADOR".
   if (text.includes(',')) {
     const head = headOfSegment(text.split(',')[0]);
-    if (head) return head;
+    if (head) return { head, basis: 'explicit' };
   }
 
   // 2) Português: a ligação ("DE", "DO", "DA") marca que a frase nomeia a peça
@@ -214,11 +235,11 @@ export function partHeadNoun(description: string | null | undefined): string | n
     .sort((a, b) => a.at - b.at)[0];
   if (prepositionAt) {
     const head = headOfSegment(text.slice(0, prepositionAt.at), 'start');
-    if (head) return head;
+    if (head) return { head, basis: 'explicit' };
     // "CONJUNTO DE JUNTA" / "CONJ DO DEPOSITO DE COMBUSTIVEL": o que vem antes
     // era só embalagem, então o principal é a primeira peça depois da ligação.
     const after = headOfSegment(text.slice(prepositionAt.at + prepositionAt.preposition.length), 'start');
-    if (after) return after;
+    if (after) return { head: after, basis: 'explicit' };
   }
 
   // 3) Convenção de catálogo com hífen: "CARBURETOR-ASSY", "VALVE-THROTTLE".
@@ -229,11 +250,11 @@ export function partHeadNoun(description: string | null | undefined): string | n
     const prefix = before.trim().split(/\s+/).pop() || '';
     if (!COMPOUND_PREFIXES.has(prefix)) {
       const head = headOfSegment(before);
-      if (head) return head;
+      if (head) return { head, basis: 'explicit' };
     } else if (rest.length) {
       // "MICRO-INTERRUPTOR": a peça é o que vem depois do prefixo.
       const afterPrefix = headOfSegment(rest.join('-'), 'start');
-      if (afterPrefix && PART_NOUNS.has(afterPrefix)) return afterPrefix;
+      if (afterPrefix && PART_NOUNS.has(afterPrefix)) return { head: afterPrefix, basis: 'explicit' };
     }
   }
 
@@ -241,10 +262,12 @@ export function partHeadNoun(description: string | null | undefined): string | n
   //    de posição nem de idioma. Resolve "PORCA SEXTAVADA", "MOLA ESPIRAL",
   //    "EIXO MOTRIZ" e "PARAFUSO IHSCT", que a regra posicional errava.
   const conhecidas = meaningfulWords(text).filter(word => PART_NOUNS.has(word));
-  if (conhecidas.length === 1) return conhecidas[0];
+  if (conhecidas.length === 1) return { head: conhecidas[0], basis: 'explicit' };
 
-  // 5) Frase solta: o principal fica no fim, pulando embalagem.
-  return headOfSegment(text);
+  // 5) Frase solta: sobra o palpite de posição, e ele é ambíguo em inglês.
+  //    Devolve o principal para quem quiser exibir, mas marcado como palpite,
+  //    para que nenhuma punição de ranking se apoie nele.
+  return { head: headOfSegment(text), basis: 'positional' };
 }
 
 /**
@@ -305,6 +328,13 @@ export function isQualifierOnlyMatch(
   const mentioned = terms.some(termHead => tokens.some(w =>
     w === termHead || (w.length > 3 && termHead.length > 3 && (w.startsWith(termHead) || termHead.startsWith(w)))));
   if (!mentioned) return false;
+
+  // Só afirma "é só qualificador" quando o principal veio de sinal explícito
+  // do catálogo. Com palpite de posição, responde `false` — porque em inglês o
+  // palpite erra: `Screw Clutch shoe` nomeia o PARAFUSO na primeira palavra e
+  // `CARBURETTOR GASKET` nomeia a JUNTA na última. Uma regressão na suíte
+  // mostrou isso rebaixando a peça certa de "parafuso da embreagem".
+  if (partHeadNounDetailed(description).basis !== 'explicit') return false;
 
   return isHeadNounMatch(queryTerms, description) === false;
 }
