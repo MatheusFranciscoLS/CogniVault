@@ -43,10 +43,37 @@ Render, e de brinde avisa por e-mail se a API cair.
    | URL | `https://cognivault-api.onrender.com/health` |
    | Monitoring Interval | `5 minutes` |
 
-4. Em **Advanced**, aceitar `200` e `503` como "up". O `/health` responde 503
-   quando só a fila está degradada, e o objetivo do ping (acordar a API e tocar
-   o Postgres) já foi cumprido de qualquer forma.
+4. Em **Advanced settings**, subir o **Request timeout** de 30s para **60s**.
 5. Salvar. Pronto — não há nada a fazer no código.
+
+### Não aceite 503 como "up"
+
+Esta seção dizia para aceitar `200` e `503`, "porque o `/health` responde 503
+quando só a fila está degradada". **Lido no código (`app.ts`), é o contrário:**
+
+    res.status(databaseReady ? 200 : 503)
+
+Fila degradada responde **200** com `status: 'degraded'` no corpo. O 503 sai
+**só quando o Postgres não responde** — que é exatamente o caso em que você quer
+receber o e-mail. Deixe o padrão do UptimeRobot (só 2xx é "up").
+
+### O HTTP method pode ficar em HEAD
+
+O UptimeRobot sugere `HEAD` por ser mais leve, e aqui ele serve. Não existe
+`app.head('/health')`, mas o Express manda HEAD para o handler do GET: o
+handler roda inteiro, inclusive a consulta ao Postgres. A prova é o próprio
+código de status — 200 contra 503 é decidido por essa consulta, então um HEAD
+que volta 200 só pode ter consultado o banco.
+
+Medido em 2026-09-19 contra a API de produção:
+
+    HEAD /health  -> 200 em 22,0s   (servidor dormindo: cold start)
+    GET  /health  -> 200 em  0,28s  ("uptimeSeconds": 13)
+
+Os 22 segundos são o "Preparando o servidor" que o atendente vê — o servidor
+estava dormindo naquele momento. E são o motivo do timeout de 60s: 22s passa
+nos 30s padrão, mas sem folga nenhuma, e um cold start mais lento (ou um deploy
+em andamento) marcaria a API como fora do ar sem ela estar.
 
 ### Por que `/health` e não `/health/live`
 
