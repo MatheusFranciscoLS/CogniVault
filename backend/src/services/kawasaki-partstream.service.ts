@@ -7,9 +7,11 @@ import {
   parseKawasakiAssemblies,
   parseKawasakiAutocomplete,
   parseKawasakiModelIds,
+  parseKawasakiAssemblyView,
   parseKawasakiParts,
   resolveKawasakiModel,
   type KawasakiAssembly,
+  type KawasakiHotspot,
   type KawasakiPart,
 } from '../utils/kawasaki-partstream';
 import { formatKawasakiModelForSearch } from '../utils/engine-model';
@@ -55,6 +57,29 @@ export type KawasakiModelCatalog = {
    * outro motor. O spec está na plaqueta, ao lado da série.
    */
   needsSpec: string[];
+};
+
+/**
+ * Um conjunto aberto: a tabela de peças E o desenho com as posições.
+ *
+ * As duas coisas juntas de propósito — é a regra do dono, *"se você não deu um
+ * retorno com o código, pelo menos dê um retorno com a vista explodida"*. Aqui
+ * dá os dois, e é o que põe a Kawasaki no nível da Husqvarna.
+ */
+export type KawasakiAssemblyDetail = {
+  parts: KawasakiPart[];
+  imageUrl: string | null;
+  referenceWidth: number | null;
+  referenceHeight: number | null;
+  hotspots: KawasakiHotspot[];
+};
+
+const EMPTY_DETAIL: KawasakiAssemblyDetail = {
+  parts: [],
+  imageUrl: null,
+  referenceWidth: null,
+  referenceHeight: null,
+  hotspots: [],
 };
 
 const EMPTY = (model: string): KawasakiModelCatalog => ({
@@ -149,33 +174,92 @@ export class KawasakiPartStreamService {
   }
 
   /**
-   * Peças de um conjunto.
+   * Altura do desenho, lida do CABEÇALHO da imagem.
+   *
+   * O HTML do ARI traz `origWidth` mas não a altura, e sem ela não há como
+   * converter o `y` das coordenadas em porcentagem. Hotspot no lugar errado é
+   * pior que hotspot nenhum: o atendente leria o número de outra peça.
+   *
+   * Custa **64 bytes** — um GET com `Range`, suficiente para os 24 primeiros
+   * bytes do PNG (largura no 16, altura no 20). Conferido contra o arquivo
+   * inteiro: 2192x2867 nos dois casos.
+   */
+  private static async imageHeight(imageUrl: string): Promise<number | null> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      const response = await fetch(imageUrl, {
+        signal: controller.signal,
+        headers: { Range: 'bytes=0-63', Referer: KAWASAKI_ORIGIN },
+      });
+      if (!response.ok) return null;
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.length < 24) return null;
+      // Assinatura PNG. Os desenhos do ARI são PNG (verificado); outro formato
+      // devolve null e o desenho abre sem posições clicáveis, em vez de com
+      // posições erradas.
+      if (buffer.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') return null;
+      const height = buffer.readUInt32BE(20);
+      return height > 0 && height < 20000 ? height : null;
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /**
+   * Um conjunto aberto: a tabela de peças **e** o desenho com as posições.
    *
    * O `slug` vem da resposta de `forModel`, nunca montado à mão: ele carrega os
    * GUIDs do modelo e do conjunto, e inventá-los abriria outro motor.
    */
-  static async partsForAssembly(slug: string): Promise<KawasakiPart[]> {
+  static async assemblyDetail(slug: string): Promise<KawasakiAssemblyDetail> {
     const clean = String(slug || '').trim();
     // Guarda de forma antes de a chave entrar no cache ou na URL: só caminho de
     // motor Kawasaki, nada de `..` nem de outro host.
-    if (!clean.startsWith('/Kawasaki_Engine/') || clean.includes('..') || /[<>"'\s]/.test(clean)) return [];
+    if (!clean.startsWith('/Kawasaki_Engine/') || clean.includes('..') || /[<>"'\s]/.test(clean)) return EMPTY_DETAIL;
 
     const key = buildOfficialSourceCacheKey('KAWASAKI', 'ASSEMBLY_PARTS', clean);
 
-    const loader = async (): Promise<KawasakiPart[] | null> => {
+    const loader = async (): Promise<KawasakiAssemblyDetail | null> => {
       const payload = await getJson(kawasakiPartsUrl(clean)) as { html?: unknown; model?: { error?: unknown } } | null;
       if (!payload || payload.model?.error) return null;
-      const parts = parseKawasakiParts(String(payload.html ?? ''));
-      return parts.length ? parts : null;
+
+      const html = String(payload.html ?? '');
+      const parts = parseKawasakiParts(html);
+
+      // Duas passadas: a primeira só para achar a imagem (a altura vem dela), a
+      // segunda para converter as coordenadas com a altura em mãos.
+      const semAltura = parseKawasakiAssemblyView(html, null);
+      const referenceHeight = semAltura.imageUrl
+        ? await KawasakiPartStreamService.imageHeight(semAltura.imageUrl)
+        : null;
+      const view = parseKawasakiAssemblyView(html, referenceHeight);
+
+      // Hotspot sem peça na tabela é peça de OUTRO conjunto que aparece no
+      // mesmo desenho — 6 dos 47 no carburador do FX921V. Clicar nele não teria
+      // resposta, então ele não vira posição clicável.
+      const posicoes = new Set(parts.map(part => part.position).filter(Boolean));
+      const hotspots = view.hotspots.filter(spot => posicoes.has(spot.position));
+
+      if (!parts.length && !view.imageUrl) return null;
+      return {
+        parts,
+        imageUrl: view.imageUrl,
+        referenceWidth: view.referenceWidth,
+        referenceHeight,
+        hotspots,
+      };
     };
 
     try {
-      const cached = await OfficialSourceCacheService.get<KawasakiPart[]>(
+      const cached = await OfficialSourceCacheService.get<KawasakiAssemblyDetail>(
         key,
         { source: 'KAWASAKI', resourceType: 'ASSEMBLY_PARTS', resourceId: clean.slice(-80), freshMs: FRESH_MS, staleMs: STALE_MS },
         loader,
       );
-      if (cached.value?.length) return cached.value;
+      if (cached.value) return cached.value;
     } catch (cacheError) {
       console.warn(
         '[Kawasaki] Cache de peças indisponível; consultando direto.',
@@ -184,13 +268,13 @@ export class KawasakiPartStreamService {
     }
 
     try {
-      return (await loader()) ?? [];
+      return (await loader()) ?? EMPTY_DETAIL;
     } catch (error) {
       console.warn(
         '[Kawasaki] Não foi possível ler as peças do conjunto:',
         error instanceof Error ? error.message : error,
       );
-      return [];
+      return EMPTY_DETAIL;
     }
   }
 }

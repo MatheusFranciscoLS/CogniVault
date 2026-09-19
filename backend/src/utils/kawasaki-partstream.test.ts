@@ -5,6 +5,7 @@ import {
   kawasakiPartsUrl,
   kawasakiViewerUrl,
   parseKawasakiAssemblies,
+  parseKawasakiAssemblyView,
   parseKawasakiAutocomplete,
   parseKawasakiModelIds,
   parseKawasakiParts,
@@ -134,7 +135,9 @@ test('o código da peça sai do atributo name, não do texto da célula', () => 
   // onde errar custa devolução, então ele vem do atributo.
   const pecas = parseKawasakiParts(partsHtml);
   assert.equal(pecas.length, 3);
-  assert.deepEqual(pecas[2], { position: '15004', partNumber: '15004-0937', name: 'CARBURETOR-ASSY' });
+  // `quantity: null` porque o fixture não traz o campo de quantidade — e
+  // ausente é null, nunca 1 por suposição.
+  assert.deepEqual(pecas[2], { position: '15004', partNumber: '15004-0937', name: 'CARBURETOR-ASSY', quantity: null });
 });
 
 test('junta e carburador continuam sendo peças diferentes', () => {
@@ -237,4 +240,89 @@ test('o casamento exato ignora pontuação, como a plaqueta permite', () => {
     const r = resolveKawasakiModel(digitado, ['FX921V-ES06 4 Stroke Engine FX921V', 'FX921V-AS00 4 Stroke Engine FX921V']);
     assert.equal(r.kind, 'RESOLVED', digitado);
   }
+});
+
+// Recorte real do desenho + hotspots do CARBURETOR(1/2) do FX921V-ES06.
+// A imagem tem 2192x2867 (conferido no PNG), e o `tag` de cada hotspot é a
+// MESMA coluna "Ref" da tabela de peças.
+const viewHtml = `
+<div id="ariPartImageInfo" origWidth="2192"></div>
+<img id="ariparts_image" src="https://cdn.datamanager.arinet.com/image/KWE/311c066f-d93e-4b22-a552-3570f04be48a" class="ariImage" />
+<div class="ariHotSpot ariHotSpotHide" tag="11009" coords="1311;2075;1442;2112"></div>
+<div class="ariHotSpot ariHotSpotHide" tag="15004" coords="1090;1000;1165;1084"></div>
+<div class="ariHotSpot ariHotSpotHide" tag="11009" coords="661;1958;793;1994"></div>
+<div class="ariHotSpot ariHotSpotHide" tag="semcoords"></div>
+<div class="ariHotSpot ariHotSpotHide" tag="forado" coords="99999;99999;99999;99999"></div>
+`;
+
+test('o desenho e as posições saem da MESMA resposta da tabela', () => {
+  // Era isto que faltava para a Kawasaki chegar ao nível da Husqvarna: eu
+  // estava usando só a tabela e ignorando o desenho e as coordenadas.
+  const view = parseKawasakiAssemblyView(viewHtml, 2867);
+  assert.equal(view.imageUrl, 'https://cdn.datamanager.arinet.com/image/KWE/311c066f-d93e-4b22-a552-3570f04be48a');
+  assert.equal(view.referenceWidth, 2192);
+  assert.equal(view.hotspots.length, 3);
+});
+
+test('a coordenada vira o CENTRO em porcentagem', () => {
+  // `1311;2075;1442;2112` com referência 2192x2867:
+  //   x = (1311+1442)/2 / 2192 = 62,8%     y = (2075+2112)/2 / 2867 = 73,0%
+  const view = parseKawasakiAssemblyView(viewHtml, 2867);
+  const spot = view.hotspots.find(item => item.position === '11009');
+  assert.ok(spot);
+  assert.ok(Math.abs((spot as { left: number }).left - 62.797) < 0.01);
+  assert.ok(Math.abs((spot as { top: number }).top - 73.021) < 0.01);
+});
+
+test('sem a altura não há hotspot — marcar seria adivinhar', () => {
+  // A altura não vem no HTML; quem chama lê do cabeçalho da imagem. Sem ela, o
+  // `y` não tem escala, e hotspot no lugar errado faria o atendente ler o
+  // número de outra peça.
+  const view = parseKawasakiAssemblyView(viewHtml, null);
+  assert.equal(view.imageUrl !== null, true);
+  assert.equal(view.referenceWidth, 2192);
+  assert.deepEqual(view.hotspots, []);
+});
+
+test('hotspot sem coordenada ou fora do desenho é descartado', () => {
+  const view = parseKawasakiAssemblyView(viewHtml, 2867);
+  assert.equal(view.hotspots.some(item => item.position === 'semcoords'), false);
+  assert.equal(view.hotspots.some(item => item.position === 'forado'), false);
+});
+
+test('a mesma peça marcada em dois lugares vale nas duas', () => {
+  // No carburador do FX921V são 47 marcas para 34 peças: a peça aparece mais de
+  // uma vez no desenho, e todas as marcas são onde ela está.
+  const view = parseKawasakiAssemblyView(viewHtml, 2867);
+  assert.equal(view.hotspots.filter(item => item.position === '11009').length, 2);
+});
+
+test('HTML sem desenho não inventa imagem nem posição', () => {
+  for (const ruim of ['', '<div>nada</div>', '<img src="https://atacante.net/x.png" />']) {
+    const view = parseKawasakiAssemblyView(ruim, 2867);
+    assert.equal(view.imageUrl, null, ruim.slice(0, 20));
+    assert.deepEqual(view.hotspots, []);
+  }
+});
+
+test('a quantidade sai do input, e ausente é null e não 1', () => {
+  // Medido: 33 das 34 peças do carburador têm quantidade, e `11061-7057` leva
+  // **2**. Sem isso o balcão venderia 1 e o cliente voltaria. O carburador vem
+  // sem o campo, e afirmar "1" ali seria inventar número.
+  const html = `
+    <tr class="ariPartInfo">
+      <td class="ariPLTag">11061B</td>
+      <span class="ariPLSku" name="11061-7057">11061-7057</span>
+      <td class='ariPLDesc'> GASKET,INSULATOR </td>
+      <td class='ariPLQty'><input type='text' id='ariparts_qty3' value='2' /></td>
+    </tr>
+    <tr class="ariPartInfo">
+      <td class="ariPLTag">15004</td>
+      <span class="ariPLSku" name="15004-0937">15004-0937</span>
+      <td class='ariPLDesc'> CARBURETOR-ASSY </td>
+      <td class='ariPLQty'><span>&nbsp;</span></td>
+    </tr>`;
+  const pecas = parseKawasakiParts(html);
+  assert.equal(pecas.find(p => p.partNumber === '11061-7057')?.quantity, 2);
+  assert.equal(pecas.find(p => p.partNumber === '15004-0937')?.quantity, null);
 });

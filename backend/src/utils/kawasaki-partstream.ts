@@ -39,6 +39,16 @@ export type KawasakiPart = {
   partNumber: string;
   /** Descrição em inglês, como o catálogo publica (`CARBURETOR-ASSY`). */
   name: string;
+  /**
+   * Quantas vão no conjunto, quando o catálogo informa.
+   *
+   * O ARI põe isso num `<input>` editável (a tela deles é carrinho de
+   * compra), então o valor sai do `value`. Peça sem quantidade traz `null`
+   * em vez de 1: afirmar "1" sem a fonte dizer seria inventar número no
+   * balcão, e o conjunto do carburador tem itens sem quantidade de propósito
+   * (o próprio carburador, que é 1 por definição, vem sem o campo).
+   */
+  quantity: number | null;
 };
 
 /**
@@ -221,12 +231,89 @@ export function parseKawasakiParts(html: string): KawasakiPart[] {
     const position = linha.match(/ariPLTag["'][^>]*>\s*([^<]*)</i)?.[1]?.trim() || null;
     const name = linha.match(/ariPLDesc["'][^>]*>\s*([^<]*)</i)?.[1]?.replace(/\s+/g, ' ').trim() || '';
 
+    // A quantidade vive num <input> (a tela do ARI é carrinho), então sai do
+    // `value`. Ausente vira `null`, nunca 1 por suposição.
+    const qtyTexto = linha.match(/ariPLQty[\s\S]{0,300}?value=["'](\d+)["']/i)?.[1];
+    const quantity = qtyTexto ? Number(qtyTexto) : null;
+
     const chave = `${position || ''}|${partNumber}`;
     if (seen.has(chave)) continue;
     seen.add(chave);
 
-    out.push({ position, partNumber, name });
+    out.push({ position, partNumber, name, quantity: Number.isFinite(quantity) ? quantity : null });
   }
 
   return out;
+}
+
+export type KawasakiHotspot = {
+  /** O `tag` do ARI, que é a MESMA posição da coluna "Ref" da tabela. */
+  position: string;
+  /** Centro em porcentagem do desenho, como o `ExplodedView` espera. */
+  left: number;
+  top: number;
+};
+
+export type KawasakiAssemblyView = {
+  imageUrl: string | null;
+  /** Largura do desenho em pixels, do atributo `origWidth`. */
+  referenceWidth: number | null;
+  hotspots: KawasakiHotspot[];
+};
+
+/**
+ * O desenho do conjunto e as posições clicáveis.
+ *
+ * Isto é o que faltava para a Kawasaki chegar ao nível da Husqvarna: a MESMA
+ * resposta que traz a tabela de peças traz também o desenho e as coordenadas
+ * de cada posição, e eu estava usando só a tabela.
+ *
+ * O ARI marca cada posição com `<div class="ariHotSpot" tag="11009"
+ * coords="x1;y1;x2;y2">`, e o `tag` é a mesma coluna "Ref" da tabela — é por
+ * ele que hotspot e peça se encontram. A largura vem de
+ * `<div id="ariPartImageInfo" origWidth="2192">`, conferida contra o PNG real
+ * (2192x2867).
+ *
+ * A altura NÃO está no HTML, e é por isso que entra como parâmetro: quem chama
+ * lê do cabeçalho da imagem. Sem ela não há como converter o `y` em
+ * porcentagem, e hotspot no lugar errado é pior que hotspot nenhum — o
+ * atendente leria o número de outra peça.
+ */
+export function parseKawasakiAssemblyView(html: string, referenceHeight: number | null): KawasakiAssemblyView {
+  const texto = String(html || '');
+  const imageUrl = texto.match(/id=["']ariparts_image["'][^>]*\ssrc=["']([^"']+)["']/i)?.[1]
+    || texto.match(/<img[^>]*\ssrc=["'](https:\/\/cdn\.datamanager\.arinet\.com\/image\/[^"']+)["']/i)?.[1]
+    || null;
+
+  const larguraTexto = texto.match(/ariPartImageInfo["'][^>]*origWidth=["'](\d+)["']/i)?.[1];
+  const referenceWidth = larguraTexto ? Number(larguraTexto) : null;
+
+  const hotspots: KawasakiHotspot[] = [];
+  if (!referenceWidth || !referenceHeight) return { imageUrl, referenceWidth, hotspots };
+
+  const vistos = new Set<string>();
+  for (const bloco of texto.split(/<div\b/i)) {
+    if (!/ariHotSpot/i.test(bloco)) continue;
+    const position = bloco.match(/\stag=["']([^"']*)["']/i)?.[1]?.trim();
+    const coords = bloco.match(/\scoords=["']([^"']+)["']/i)?.[1];
+    if (!position || !coords) continue;
+
+    const n = coords.split(';').map(Number);
+    if (n.length < 4 || n.some(v => !Number.isFinite(v))) continue;
+
+    const left = ((n[0] + n[2]) / 2 / referenceWidth) * 100;
+    const top = ((n[1] + n[3]) / 2 / referenceHeight) * 100;
+    // Fora do desenho é coordenada corrompida, não posição.
+    if (left < 0 || left > 100 || top < 0 || top > 100) continue;
+
+    // A mesma peça aparece mais de uma vez no desenho (47 hotspots para 34
+    // peças no carburador do FX921V). Todas as marcas valem: é onde ela está.
+    const chave = position + '|' + left.toFixed(2) + '|' + top.toFixed(2);
+    if (vistos.has(chave)) continue;
+    vistos.add(chave);
+
+    hotspots.push({ position, left: Number(left.toFixed(3)), top: Number(top.toFixed(3)) });
+  }
+
+  return { imageUrl, referenceWidth, hotspots };
 }

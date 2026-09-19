@@ -4,9 +4,18 @@ import { toast } from 'sonner';
 import { apiJson } from '../../lib';
 import { useQuoteCart } from '../../context/QuoteCartContext';
 import { Icon } from '../icons/Icon';
+import ExplodedView from '../parts-v2/ExplodedView';
 
 type KawasakiAssembly = { name: string; slug: string; viewerUrl: string };
-type KawasakiPart = { position: string | null; partNumber: string; name: string };
+type KawasakiPart = { position: string | null; partNumber: string; name: string; quantity: number | null };
+type KawasakiHotspot = { position: string; left: number; top: number };
+type KawasakiAssemblyDetail = {
+  parts: KawasakiPart[];
+  imageUrl: string | null;
+  referenceWidth: number | null;
+  referenceHeight: number | null;
+  hotspots: KawasakiHotspot[];
+};
 type KawasakiCatalog = {
   model: string;
   fullName: string | null;
@@ -56,21 +65,25 @@ export default function KawasakiEnginePanel({
     },
   });
 
-  const partsQuery = useQuery({
+  const detailQuery = useQuery({
     queryKey: ['kawasaki-assembly', openSlug],
     enabled: Boolean(openSlug),
     staleTime: 10 * 60 * 1000,
     queryFn: async () => {
-      const data = await apiJson<{ parts: KawasakiPart[] }>(
+      const data = await apiJson<{ assembly: KawasakiAssemblyDetail }>(
         `/api/kawasaki/assembly?slug=${encodeURIComponent(openSlug as string)}`,
         { timeoutMs: 25_000 },
       );
-      return data.parts;
+      return data.assembly;
     },
   });
 
   const catalog = catalogQuery.data ?? null;
   const openAssembly = catalog?.assemblies.find(item => item.slug === openSlug) ?? null;
+  const detail = detailQuery.data ?? null;
+  const parts = detail?.parts ?? [];
+  // Peça em foco: o clique numa posição do desenho rola até a linha dela.
+  const [focusedPosition, setFocusedPosition] = useState<string | null>(null);
 
   const copy = (code: string) => {
     void navigator.clipboard.writeText(code).then(
@@ -183,13 +196,56 @@ export default function KawasakiEnginePanel({
             </a>
           </div>
 
-          {partsQuery.isLoading && (
+          {detailQuery.isLoading && (
             <div aria-busy="true" className="px-4 py-4 text-xs font-semibold text-ink-500 dark:text-ink-400">
-              Lendo as peças deste conjunto…
+              Lendo o desenho e as peças deste conjunto…
             </div>
           )}
 
-          {!partsQuery.isLoading && !(partsQuery.data ?? []).length && (
+          {/* A vista explodida DENTRO do app, com as posições clicáveis — o
+              mesmo `ExplodedView` da Husqvarna, com zoom e arraste.
+              As coordenadas vêm da mesma resposta que traz a tabela: o ARI
+              marca cada posição com `tag` (a coluna "Ref") e `coords`. */}
+          {detail?.imageUrl && (
+            <div className="px-4 pb-1 pt-3">
+              {detail.hotspots.length > 0 ? (
+                <ExplodedView
+                  imageUrl={detail.imageUrl}
+                  alt={`Vista explodida ${openAssembly.name}`}
+                  maxHeight={560}
+                  hotspots={detail.hotspots.map((spot, index) => {
+                    const peca = parts.find(item => item.position === spot.position);
+                    return {
+                      key: `${spot.position}-${index}`,
+                      left: spot.left,
+                      top: spot.top,
+                      label: spot.position,
+                      onSelect: () => setFocusedPosition(spot.position),
+                      tooltip: (
+                        <div className="pointer-events-none mb-2 hidden w-56 rounded-xl border border-ink-200 bg-white p-3 text-left shadow-xl group-hover:block group-focus-within:block dark:border-ink-700 dark:bg-ink-900">
+                          <div className="text-[10px] font-black text-ink-800 dark:text-ink-100">{peca?.name || 'Posição ' + spot.position}</div>
+                          {peca && <div className="mt-1 font-mono text-[11px] font-bold text-ink-900 dark:text-brand-300">{peca.partNumber}</div>}
+                          {peca?.quantity ? <div className="mt-1 text-[9px] font-bold text-ink-500 dark:text-ink-400">{peca.quantity} no conjunto</div> : null}
+                        </div>
+                      ),
+                    };
+                  })}
+                />
+              ) : (
+                /* Desenho sem posições: a altura da imagem não foi lida, então
+                   marcar seria adivinhar onde cada peça está. Mostra o desenho
+                   e deixa a leitura para o atendente. */
+                <img
+                  src={detail.imageUrl}
+                  alt={`Vista explodida ${openAssembly.name}`}
+                  className="mx-auto max-h-[560px] w-auto rounded-lg bg-white object-contain"
+                  loading="lazy"
+                />
+              )}
+            </div>
+          )}
+
+          {!detailQuery.isLoading && !parts.length && (
             <div className="px-4 py-3 text-[11px] leading-5 text-ink-500 dark:text-ink-400">
               A Kawasaki não devolveu a lista deste conjunto. Use a vista explodida acima
               para ler o código direto do desenho.
@@ -197,8 +253,12 @@ export default function KawasakiEnginePanel({
           )}
 
           <div className="divide-y divide-ink-100 dark:divide-ink-800">
-            {(partsQuery.data ?? []).map(part => (
-              <div key={`${part.position}-${part.partNumber}`} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5">
+            {parts.map(part => (
+              <div
+                key={`${part.position}-${part.partNumber}`}
+                id={`kw-part-${part.position}`}
+                className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 transition ${focusedPosition && focusedPosition === part.position ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''}`}
+              >
                 <span className="w-14 shrink-0 font-mono text-[10px] font-bold text-ink-500 dark:text-ink-400">
                   {part.position || '—'}
                 </span>
@@ -214,6 +274,13 @@ export default function KawasakiEnginePanel({
                   {part.partNumber}
                 </button>
                 <span className="min-w-0 flex-1 truncate text-xs text-ink-700 dark:text-ink-200">{part.name}</span>
+                {/* Quantidade só quando a fonte informa. `11061-7057` leva 2 —
+                    sem isso o balcão venderia 1 e o cliente voltaria. */}
+                {part.quantity && part.quantity > 1 ? (
+                  <span className="shrink-0 rounded bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                    leva {part.quantity}
+                  </span>
+                ) : null}
                 <div className="flex shrink-0 gap-1.5">
                   {/* Preço e estoque são nossos, não da Kawasaki: ela publica
                       "Please Contact a Dealer" em toda linha. Daí o atalho para
@@ -234,6 +301,9 @@ export default function KawasakiEnginePanel({
                         model: catalog.fullName || catalog.model,
                         section: openAssembly.name,
                         position: part.position || undefined,
+                        // A quantidade do catálogo, quando existe: é ela que
+                        // evita vender 1 onde o conjunto leva 2.
+                        quantity: part.quantity || 1,
                       });
                       toast.success(`${part.partNumber} no orçamento.`);
                     }}

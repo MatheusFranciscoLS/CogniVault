@@ -26,15 +26,19 @@ export class KawasakiController {
     res.json({ kawasaki: catalog });
   }
 
-  /** Peças de um conjunto. O `slug` vem da resposta de `engine`. */
+  /**
+   * Um conjunto aberto: a tabela de peças E o desenho com as posições.
+   *
+   * O `slug` vem da resposta de `engine`, nunca montado pela tela.
+   */
   async assembly(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
 
     const slug = String(req.query.slug || '').trim();
-    const parts = await KawasakiPartStreamService.partsForAssembly(slug);
+    const detail = await KawasakiPartStreamService.assemblyDetail(slug);
 
     res.set('Cache-Control', 'private, max-age=600');
-    res.json({ parts });
+    res.json({ assembly: detail });
   }
 }
 
