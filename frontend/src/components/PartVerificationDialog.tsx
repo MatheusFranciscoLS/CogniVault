@@ -213,7 +213,7 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
         </div>
 
         <div className="mt-5 flex flex-col gap-3 border-t border-ink-100 pt-4 pb-[max(0rem,env(safe-area-inset-bottom))] dark:border-ink-800 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-[11px] leading-5 text-ink-400">O CogniVault reutiliza aprovações recentes; telas novas ou vencidas continuam com conferência humana no portal.</div>
+          <div className="text-[11px] leading-5 text-ink-500 dark:text-ink-400">O CogniVault reutiliza aprovações recentes; telas novas ou vencidas continuam com conferência humana no portal.</div>
           <button type="submit" disabled={saving || !validCurrentCode} className="cv-primary w-full shrink-0 px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
             {saving ? 'Enviando…' : 'Enviar para aprovação'}
           </button>

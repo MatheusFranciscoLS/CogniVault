@@ -117,7 +117,7 @@ export default function CrossReferenceDialog({
                     em {data.totalUsages} ponto(s) de catálogo
                   </span>
                 </div>
-                <span className="text-[11px] font-medium text-ink-400">
+                <span className="text-[11px] font-medium text-ink-500 dark:text-ink-400">
                   Use como evidência de aplicação cadastrada
                 </span>
               </div>
@@ -148,7 +148,7 @@ export default function CrossReferenceDialog({
                           </div>
                           {m.sections.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1 text-[11px] text-ink-600 dark:text-ink-300">
-                              <span className="text-ink-400">Vistas:</span>
+                              <span className="text-ink-500 dark:text-ink-400">Vistas:</span>
                               {m.sections.map(s => (
                                 <span key={s} className="rounded border border-ink-200/70 bg-ink-50 px-1.5 py-0.5 text-[10px] dark:border-ink-700 dark:bg-ink-900/60">
                                   {s}
@@ -157,7 +157,7 @@ export default function CrossReferenceDialog({
                             </div>
                           )}
                           <div className="mt-1 flex flex-wrap gap-1 text-[11px]">
-                            <span className="text-ink-400">PNCs:</span>
+                            <span className="text-ink-500 dark:text-ink-400">PNCs:</span>
                             {m.pncs.map(p => (
                               <span key={p} className="font-mono text-[10px] text-brand-600 dark:text-brand-400">
                                 {p}

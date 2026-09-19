@@ -35,7 +35,7 @@ export default function PartResultRow({ part, verification, verificationLoading 
       <div className="grid gap-3 px-3 py-3 lg:grid-cols-[145px_minmax(0,1fr)_170px_auto] lg:items-center lg:px-4">
         <button type="button" onClick={onOpen} onFocus={onSelect} data-part-result="true" className="min-w-0 text-left" aria-label={`Abrir detalhes de ${part.name}`}>
           <div className="font-mono text-[15px] font-black tracking-[-.02em] text-ink-900 dark:text-brand-300">{rawCode}</div>
-          {superseded && <div className="mt-1 truncate text-[9px] font-semibold text-ink-400" title={`Substitui ${originalRawCode}`}>substitui {originalRawCode}</div>}
+          {superseded && <div className="mt-1 truncate text-[9px] font-semibold text-ink-500 dark:text-ink-400" title={`Substitui ${originalRawCode}`}>substitui {originalRawCode}</div>}
         </button>
 
         <button type="button" onClick={onOpen} onFocus={onSelect} className="min-w-0 text-left">
@@ -43,7 +43,7 @@ export default function PartResultRow({ part, verification, verificationLoading 
             <h3 className="min-w-0 truncate text-[13px] font-black text-ink-900 dark:text-white">{part.name}</h3>
             <span className={`rounded-md border px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wide ${classificationClasses(classification.kind)}`}>{classification.label.replace(/^\[|\]$/g, '')}</span>
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-ink-400">
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-ink-500 dark:text-ink-400">
             <span className="font-semibold text-ink-600 dark:text-ink-300">{part.model}</span>
             <span>PNC {part.pnc || '—'}</span>
             {part.position && <span>Pos. {part.position}</span>}

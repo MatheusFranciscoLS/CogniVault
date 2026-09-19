@@ -72,7 +72,7 @@ export default function OfficialVerificationApprovalPanel({ onChanged }: Props) 
 
       {notice && <div role="status" className="m-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 p-3 text-xs text-emerald-700 dark:text-emerald-300">{notice}</div>}
       {error && <div role="alert" className="m-4 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 p-3 text-xs text-rose-700 dark:text-rose-300">{error}</div>}
-      {loading && <div className="p-5 text-sm text-ink-400">Carregando conferências…</div>}
+      {loading && <div className="p-5 text-sm text-ink-500 dark:text-ink-400">Carregando conferências…</div>}
 
       {!loading && items.length > 0 && (
         <div className="divide-y divide-ink-100">
@@ -83,18 +83,18 @@ export default function OfficialVerificationApprovalPanel({ onChanged }: Props) 
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${changed ? 'bg-brand-50 dark:bg-ink-900 text-brand-700 dark:text-brand-300' : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'}`}>{statusLabel(item)}</span>
-                    <span className="text-[11px] text-ink-400">{fmtDate(item.verifiedAt)} · {item.submittedBy}</span>
+                    <span className="text-[11px] text-ink-500 dark:text-ink-400">{fmtDate(item.verifiedAt)} · {item.submittedBy}</span>
                   </div>
                   <div className="mt-2 text-sm font-semibold text-ink-800 dark:text-ink-200">{item.description || 'Peça sem descrição informada'}</div>
                   <div className="mt-1 text-lg font-bold tracking-tight text-brand-600 dark:text-brand-300">
-                    {changed ? <><span className="text-ink-400 line-through">{item.queriedPartNumber}</span> → {item.currentPartNumber}</> : item.currentPartNumber}
+                    {changed ? <><span className="text-ink-500 dark:text-ink-400 line-through">{item.queriedPartNumber}</span> → {item.currentPartNumber}</> : item.currentPartNumber}
                   </div>
                   {item.note && <div className="mt-2 rounded-xl bg-ink-50 dark:bg-ink-800/50 p-3 text-xs leading-5 text-ink-600 dark:text-ink-400">{item.note}</div>}
                   <a href={item.officialUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-xl border border-brand-200 dark:border-brand-600 bg-brand-50 dark:bg-ink-900 px-3 py-2 text-xs font-semibold text-brand-600 dark:text-brand-300">Conferir no Portal Husqvarna →</a>
                 </div>
 
                 <div className="rounded-2xl border border-ink-200 dark:border-ink-700 bg-ink-50/70 dark:bg-ink-800 p-3">
-                  <label className="text-[10px] font-bold uppercase tracking-[.08em] text-ink-400">
+                  <label className="text-[10px] font-bold uppercase tracking-[.08em] text-ink-500 dark:text-ink-400">
                     Observação da revisão
                     <textarea value={notes[item.id] || ''} onChange={event => setNotes(current => ({ ...current, [item.id]: event.target.value }))} maxLength={1000} rows={2} placeholder="Opcional" className="mt-1 w-full rounded-xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-2.5 text-xs font-normal normal-case tracking-normal text-ink-700 dark:text-ink-300" />
                   </label>

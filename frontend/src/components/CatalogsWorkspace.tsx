@@ -84,7 +84,7 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
       <section>
         <div className="mb-4 flex items-center justify-between gap-3">
           <button type="button" onClick={() => setManagementOpen(false)} className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-bold text-ink-600 transition hover:bg-ink-50 dark:border-ink-700 dark:text-ink-300 dark:hover:bg-ink-800">← Voltar para catálogos</button>
-          <span className="text-xs text-ink-400">Modo administração da biblioteca</span>
+          <span className="text-xs text-ink-500 dark:text-ink-400">Modo administração da biblioteca</span>
         </div>
         <CatalogsPanel admin={admin} onQuality={onQuality} initialSearch={initialSearch} onSearch={onSearch} />
       </section>
@@ -125,20 +125,20 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
 
       <div className="flex flex-col gap-2 rounded-xl border border-ink-200 bg-white p-3 shadow-sm dark:border-ink-800 dark:bg-ink-900 md:flex-row md:items-center">
         <div className="relative min-w-0 flex-1">
-          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400">⌕</span>
+          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-500 dark:text-ink-400">⌕</span>
           <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Modelo, arquivo, PNC ou aplicação…" className="h-11 w-full rounded-lg border border-ink-200 bg-ink-50 pl-10 pr-3 text-sm font-semibold outline-none transition focus:border-brand-600 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:border-ink-700 dark:bg-ink-800 dark:text-white" />
         </div>
         <select value={category} onChange={event => setCategory(event.target.value)} className="h-11 rounded-lg border border-ink-200 bg-white px-3 text-xs font-bold text-ink-600 outline-none dark:border-ink-700 dark:bg-ink-800 dark:text-ink-300">
           <option value="ALL">Todas as categorias</option>
           {categories.map(item => <option key={item} value={item}>{item}</option>)}
         </select>
-        <div className="px-1 text-xs font-semibold text-ink-400">{filtered.length} {filtered.length === 1 ? 'catálogo' : 'catálogos'}</div>
+        <div className="px-1 text-xs font-semibold text-ink-500 dark:text-ink-400">{filtered.length} {filtered.length === 1 ? 'catálogo' : 'catálogos'}</div>
       </div>
 
       {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">{error instanceof Error ? error.message : 'Não foi possível carregar os catálogos.'}</div>}
 
       <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
-        <div className="hidden grid-cols-[minmax(220px,1.4fr)_minmax(170px,.8fr)_110px_100px_130px] gap-4 border-b border-ink-100 px-4 py-2.5 text-[10px] font-black uppercase tracking-[.1em] text-ink-400 lg:grid dark:border-ink-800">
+        <div className="hidden grid-cols-[minmax(220px,1.4fr)_minmax(170px,.8fr)_110px_100px_130px] gap-4 border-b border-ink-100 px-4 py-2.5 text-[10px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400 lg:grid dark:border-ink-800">
           <span>Modelo / catálogo</span><span>Categoria</span><span>Peças</span><span>Status</span><span className="text-right">Ações</span>
         </div>
 
@@ -152,7 +152,7 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
             <article key={document.id} className="grid gap-3 border-b border-ink-100 px-4 py-3.5 last:border-0 transition hover:bg-ink-50/80 lg:grid-cols-[minmax(220px,1.4fr)_minmax(170px,.8fr)_110px_100px_130px] lg:items-center dark:border-ink-800 dark:hover:bg-ink-800/45">
               <div className="min-w-0">
                 <div className="truncate text-sm font-black text-ink-900 dark:text-white">{title}</div>
-                <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-ink-400">
+                <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-ink-500 dark:text-ink-400">
                   <span className="truncate">{document.filename}</span>
                   {pncs.length > 0 && <span>PNC {pncs.slice(0, 2).join(' · ')}{pncs.length > 2 ? ` +${pncs.length - 2}` : ''}</span>}
                 </div>
@@ -179,7 +179,7 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
             </article>
           );
         }) : (
-          <div className="px-5 py-12 text-center"><div className="text-sm font-bold text-ink-700 dark:text-ink-200">Nenhum catálogo encontrado</div><p className="mt-1 text-xs text-ink-400">Ajuste o modelo, PNC ou categoria.</p></div>
+          <div className="px-5 py-12 text-center"><div className="text-sm font-bold text-ink-700 dark:text-ink-200">Nenhum catálogo encontrado</div><p className="mt-1 text-xs text-ink-500 dark:text-ink-400">Ajuste o modelo, PNC ou categoria.</p></div>
         )}
       </div>
 
