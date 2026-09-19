@@ -284,7 +284,7 @@ export default function KawasakiEnginePanel({
                       hífen não é código de nada. */}
                   {part.partNumber}
                 </button>
-                <span className="min-w-0 flex-1 truncate text-xs text-ink-700 dark:text-ink-200">{part.name}</span>
+                <span className="min-w-[9rem] flex-1 truncate text-xs text-ink-700 dark:text-ink-200">{part.name}</span>
                 <PartPriceTag code={part.partNumber} prices={precos} />
                 {/* Quantidade só quando a fonte informa. `11061-7057` leva 2 —
                     sem isso o balcão venderia 1 e o cliente voltaria. */}

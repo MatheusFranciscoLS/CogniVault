@@ -92,7 +92,7 @@ export default function OfficialPartOrigin({
             <span className="shrink-0 rounded bg-ink-100 px-1.5 text-[10px] font-black uppercase text-ink-600 dark:bg-ink-800 dark:text-ink-300">
               {MARCA[hit.source]}
             </span>
-            <span className="min-w-0 flex-1 truncate font-mono text-xs font-bold text-ink-800 dark:text-ink-100">
+            <span className="min-w-[9rem] flex-1 truncate font-mono text-xs font-bold text-ink-800 dark:text-ink-100">
               {hit.engineModel}
               {hit.assembly ? (
                 <span className="font-sans font-normal text-ink-500 dark:text-ink-400"> · {hit.assembly}</span>
