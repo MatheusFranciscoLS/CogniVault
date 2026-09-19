@@ -104,6 +104,24 @@ export type HusqvarnaOfficialIplPart = {
   url: string | null;
   replacementPartNumbers: string[];
   commercial: HusqvarnaOfficialCommercial | null;
+  /**
+   * O que o texto do catálogo diz, já lido pelo servidor.
+   *
+   * `servesThisPnc: false` significa que a peça é de OUTRA variante do mesmo
+   * modelo — vender essa é devolução. `multipackQuantity` avisa pacote fechado
+   * antes de o atendente prometer uma unidade. `engine` é o elo máquina → motor
+   * que hoje se percorre à mão no site da Husqvarna.
+   */
+  servesThisPnc?: boolean;
+  multipackQuantity?: number | null;
+  engine?: {
+    brand: string | null;
+    model: string | null;
+    article: string | null;
+    modelOnPlate: boolean;
+    hasSeparateIpl: boolean;
+    manualUrl: string | null;
+  } | null;
 };
 
 export type HusqvarnaOfficialIplSection = {
