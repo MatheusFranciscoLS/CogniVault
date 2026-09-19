@@ -412,7 +412,7 @@ export default function QuickQuoteCart() {
                   <div className="min-w-0">
                     <h2 className="text-base font-bold tracking-tight text-white">Orçamento de balcão</h2>
                     <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="truncate text-xs text-brand-100/80">Vardão Máquinas · Peças originais Husqvarna</span>
+                      <span className="truncate text-xs text-brand-200">Vardão Máquinas · Peças originais Husqvarna</span>
                       <SyncBadge state={syncState} />
                     </div>
                   </div>
