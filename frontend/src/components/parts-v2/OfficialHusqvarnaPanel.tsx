@@ -22,9 +22,9 @@ type Props = {
   /** Abre as vistas assim que o painel monta, sem o clique extra do balcão. */
   autoExpand?: boolean;
   /** Navega para outro PNC dentro da aplicação em vez de recarregar a página. */
-  onOpenPnc?: (pnc: string) => void;
+  onOpenPnc: (pnc: string) => void;
   /** Leva um código para a busca interna (estoque, localização e preço). */
-  onOpenPart?: (partNumber: string) => void;
+  onOpenPart: (partNumber: string) => void;
   /** Pesquisa uma aplicação na fonte oficial sem recarregar a página. */
   onOpenSearch?: (query: string) => void;
 };
@@ -243,10 +243,7 @@ export default function OfficialHusqvarnaPanel({ result, autoExpand = false, onO
     return visibleTabs.find(item => item.count > 0)?.id ?? 'IPL';
   }, [tab, visibleTabs]);
 
-  const openPnc = (value: string) => {
-    if (onOpenPnc) onOpenPnc(value);
-    else window.location.assign(`/dashboard?tab=machines&pnc=${encodeURIComponent(value)}`);
-  };
+  const openPnc = (value: string) => onOpenPnc(value);
 
   const toggleDetails = () => {
     if (!result.pnc) return;
@@ -341,15 +338,15 @@ export default function OfficialHusqvarnaPanel({ result, autoExpand = false, onO
       const expected = normalizeComparable(query);
       const exact = products.filter(item => normalizeComparable(item.title) === expected);
       if (exact.length === 1 && exact[0].pnc) {
-        if (onOpenPnc) onOpenPnc(exact[0].pnc);
-        else window.location.assign(`/dashboard?tab=machines&pnc=${encodeURIComponent(exact[0].pnc)}`);
+        onOpenPnc(exact[0].pnc);
         return;
       }
     } catch {
       // A página de busca oficial é o fallback seguro quando não há uma resolução única.
     }
-    if (onOpenSearch) onOpenSearch(query);
-    else window.location.assign(`/dashboard?tab=machines&search=${encodeURIComponent(query)}`);
+    // `onOpenSearch` segue opcional: nem toda tela tem uma busca para receber
+    // a aplicação. Quando não tem, não fazer nada é melhor que recarregar.
+    onOpenSearch?.(query);
   };
 
   const copyPart = async (partNumber: string) => {

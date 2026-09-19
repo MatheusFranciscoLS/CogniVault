@@ -34,7 +34,6 @@ export default function MachineDetail({
   onOpenPart,
   onOpenSearch,
   onLoaded,
-  compact = false,
 }: {
   pnc: string;
   /** Modelo do atendimento, usado quando o Portal não nomeia a máquina. */
@@ -43,8 +42,6 @@ export default function MachineDetail({
   onOpenPart: (code: string) => void;
   onOpenSearch?: (term: string) => void;
   onLoaded?: (machine: MachineDetailLoaded) => void;
-  /** No painel lateral o kit fica de fora: é rolagem a mais num espaço menor. */
-  compact?: boolean;
 }) {
   const machineQuery = useQuery({
     queryKey: ['official-machine', pnc],
@@ -116,7 +113,7 @@ export default function MachineDetail({
         onOpenPart={onOpenPart}
         onOpenSearch={onOpenSearch}
       />
-      {!compact && kitModel && <MaintenanceKitPanel model={kitModel} pnc={machine.pnc ?? pnc} />}
+      {kitModel && <MaintenanceKitPanel model={kitModel} pnc={machine.pnc ?? pnc} />}
     </div>
   );
 }

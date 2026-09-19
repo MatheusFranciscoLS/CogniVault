@@ -100,35 +100,66 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-test('abrir máquina por PNC mostra a vista explodida sem precisar de PDF', async ({ page }) => {
+test('PNC da etiqueta abre a vista explodida no painel lateral, sem trocar de tela', async ({ page }) => {
   await login(page, MECHANIC_EMAIL);
 
-  await page.getByRole('button', { name: 'Máquinas' }).click();
-  await expect(page).toHaveURL(/tab=machines/);
+  // A aba Máquinas não existe mais: o balcão escreve no campo único e o PNC da
+  // etiqueta abre a máquina ao lado, com a busca de peças intacta atrás.
+  await expect(page.getByRole('button', { name: 'Máquinas' })).toHaveCount(0);
 
-  const input = page.getByPlaceholder(/Modelo da máquina ou PNC da etiqueta/);
-  await input.fill(PNC);
-  await page.getByRole('button', { name: 'Abrir máquina' }).click();
+  const painel = page.getByRole('dialog', { name: 'Máquina aberta' });
+  await expect(painel).toHaveCount(0);
 
-  await expect(page.getByText('HUSQVARNA 545 Mark II').first()).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Motor/ })).toBeVisible();
-  await expect(page.getByText('FILTRO DE AR')).toBeVisible();
-  await expect(page.getByText('537041901', { exact: false })).toBeVisible();
+  const busca = page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/);
+  await busca.fill('967 79 63-01');
+  await page.getByRole('button', { name: 'Buscar' }).click();
 
-  // Recarregar preserva o PNC pela URL, sem precisar digitar de novo.
-  await page.reload();
-  await expect(page.getByText('HUSQVARNA 545 Mark II').first()).toBeVisible();
+  await expect(painel).toBeVisible();
+  await expect(painel.getByText('HUSQVARNA 545 Mark II').first()).toBeVisible();
+  await expect(painel.getByText('FILTRO DE AR')).toBeVisible();
+  await expect(painel.getByText('537041901', { exact: false })).toBeVisible();
+
+  // Fechar devolve o atendimento no mesmo lugar, que é o ponto de ser lateral.
+  await painel.getByRole('button', { name: 'Fechar' }).click();
+  await expect(painel).toHaveCount(0);
+  await expect(busca).toBeVisible();
+});
+
+test('código de peça com a MESMA máscara do PNC não abre máquina', async ({ page }) => {
+  await login(page, MECHANIC_EMAIL);
+
+  // `587 10 67-01` é código de peça e usa a máscara idêntica à da etiqueta. O
+  // que separa os dois é o prefixo 9 do PNC, e é esta a regressão que o balcão
+  // sentiria primeiro: buscar uma peça e receber a tela de máquina.
+  await page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/).fill('587 10 67-01');
+  await page.getByRole('button', { name: 'Buscar' }).click();
+
+  await expect(page.getByRole('dialog', { name: 'Máquina aberta' })).toHaveCount(0);
+});
+
+test('link antigo de ?tab=machines&pnc= continua abrindo a máquina', async ({ page }) => {
+  await login(page, MECHANIC_EMAIL);
+
+  // Links salvos e abas abertas antes do deploy apontam para a aba que saiu.
+  // Eles caem no Atendimento e o painel já nasce aberto no mesmo PNC.
+  await page.goto(`/dashboard?tab=machines&pnc=${PNC}`);
+
+  const painel = page.getByRole('dialog', { name: 'Máquina aberta' });
+  await expect(painel).toBeVisible();
+  await expect(painel.getByText('HUSQVARNA 545 Mark II').first()).toBeVisible();
 });
 
 test('posição da vista explodida leva o código para a busca interna', async ({ page }) => {
   await login(page, MECHANIC_EMAIL);
 
   await page.goto(`/dashboard?tab=machines&pnc=${PNC}`);
-  await expect(page.getByText('HUSQVARNA 545 Mark II').first()).toBeVisible();
+  const painel = page.getByRole('dialog', { name: 'Máquina aberta' });
+  await expect(painel.getByText('HUSQVARNA 545 Mark II').first()).toBeVisible();
 
-  await page.getByRole('button', { name: 'Consultar interno' }).click();
+  await painel.getByRole('button', { name: 'Consultar interno' }).click();
 
-  await expect(page).toHaveURL(/tab=parts|[?&]q=/);
+  // O painel fecha e o código cai no campo de busca, sem recarregar a página.
+  await expect(painel).toHaveCount(0);
   await expect(page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/)).toHaveValue(/537041901/);
 });
 
@@ -136,8 +167,11 @@ test('máquina consultada entra na lista de recentes do atendente', async ({ pag
   await login(page, MECHANIC_EMAIL);
 
   await page.goto(`/dashboard?tab=machines&pnc=${PNC}`);
-  await expect(page.getByText('HUSQVARNA 545 Mark II').first()).toBeVisible();
+  const painel = page.getByRole('dialog', { name: 'Máquina aberta' });
+  await expect(painel.getByText('HUSQVARNA 545 Mark II').first()).toBeVisible();
+  await painel.getByRole('button', { name: 'Fechar' }).click();
 
-  await page.reload();
+  // Os recentes vivem no atendimento agora, e são o atalho que substitui o
+  // campo de máquina da aba removida.
   await expect(page.getByRole('button', { name: 'HUSQVARNA 545 Mark II' })).toBeVisible();
 });

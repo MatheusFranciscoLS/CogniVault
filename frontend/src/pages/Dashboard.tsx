@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ShellV2 from '../components/ShellV2';
 import TechnicalAssistantWorkspace from '../components/parts-v2/TechnicalAssistantWorkspace';
@@ -8,11 +8,10 @@ import type { Section, SessionUser } from '../types';
 import '../admin-polish.css';
 import '../quality-polish.css';
 
-// Só uma dessas três telas está visível por vez, e "parts" é a tela padrão no
-// login — então só ela precisa vir no primeiro pacote de JS. Catálogos e
-// Máquinas entram sob demanda, no clique da aba.
+// "parts" é a tela padrão no login, então só ela vem no primeiro pacote de JS.
+// Catálogos e os painéis de administração entram sob demanda, no clique da aba.
+// Máquinas não está mais nesta lista: virou painel lateral dentro de "parts".
 const CatalogsWorkspace = lazy(() => import('../components/CatalogsWorkspace'));
-const MachinesWorkspace = lazy(() => import('../components/machines/MachinesWorkspace'));
 const OverviewPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.OverviewPanel })));
 const BusinessPanel = lazy(() => import('../components/BusinessPanel'));
 const AssistantObservabilityPanel = lazy(() => import('../components/AssistantObservabilityPanel'));
@@ -61,29 +60,44 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [initialParams] = useState(() => new URLSearchParams(window.location.search));
   const initialSectionParam = initialParams.get('tab') as Section | null;
-  const initialQueryParam = cleanNavigationValue(initialParams.get('code') || initialParams.get('part') || initialParams.get('q'));
+  const initialQueryParam = cleanNavigationValue(
+    initialParams.get('code')
+    || initialParams.get('part')
+    || initialParams.get('q')
+    // `search=` era o campo de modelo da aba Máquinas. Ele entra aqui porque a
+    // busca do Atendimento acha máquina pelo modelo — o link antigo continua
+    // levando o balcão ao mesmo lugar, agora numa tela só.
+    || initialParams.get('search'),
+  );
   const initialCatalogParam = cleanNavigationValue(initialParams.get('catalog'));
   const initialPncParam = cleanNavigationValue(initialParams.get('pnc')).replace(/\D/g, '');
-  const initialMachineSearchParam = cleanNavigationValue(initialParams.get('search'));
 
   const [user, setUser] = useState<SessionUser | null>(null);
   const [section, setSection] = useState<Section>(() => {
-    if (initialPncParam || initialMachineSearchParam) return 'machines';
     if (initialQueryParam) return 'parts';
     if (initialCatalogParam) return 'catalogs';
-    if (initialSectionParam && initialSectionParam !== 'home' && initialSectionParam !== 'assistant') return initialSectionParam;
+    // `tab=machines` ainda chega de link antigo e de aba aberta antes do deploy.
+    // Ele cai no Atendimento, que é onde a máquina abre agora — o PNC segue
+    // junto em `initialPncParam`, então o painel lateral já nasce aberto.
+    if (
+      initialSectionParam
+      && initialSectionParam !== 'home'
+      && initialSectionParam !== 'assistant'
+      && (initialSectionParam as string) !== 'machines'
+    ) {
+      return initialSectionParam;
+    }
     return 'parts';
   });
   const [globalQuery, setGlobalQuery] = useState(initialQueryParam);
   const [searchVersion, setSearchVersion] = useState(0);
   const [catalogFilter, setCatalogFilter] = useState(initialCatalogParam);
   const [error, setError] = useState('');
-  // As vistas oficiais custam uma consulta externa, então o workspace de
-  // máquinas continua montado depois da primeira visita: voltar do atendimento
-  // não pode obrigar o balcão a carregar a mesma máquina de novo.
-  const [machinesMounted, setMachinesMounted] = useState(section === 'machines');
-  const [machinePnc, setMachinePnc] = useState(initialPncParam);
-  const [machineSearch, setMachineSearch] = useState(initialMachineSearchParam);
+  // O PNC da URL desce para o Atendimento, que é quem abre o painel lateral.
+  // Antes havia estado de máquina aqui (montagem, PNC, busca e um evento de
+  // janela para trocar a máquina aberta sem desmontar o workspace): nada disso
+  // é preciso quando a máquina não é mais uma tela irmã.
+  const machinePncFromUrl = initialPncParam;
   const sectionRef = useRef(section);
 
   useEffect(() => {
@@ -161,55 +175,11 @@ export default function Dashboard() {
     updateUrl('parts', clean || undefined);
   };
 
-  const writeMachineUrl = useCallback((state: { pnc: string; search: string }) => {
-    try {
-      const params = new URLSearchParams();
-      params.set('tab', 'machines');
-      if (state.pnc) params.set('pnc', state.pnc);
-      if (state.search) params.set('search', state.search);
-      window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
-    } catch {
-      // Navegador restrito ou ambiente de teste.
-    }
-  }, []);
-
-  const handleMachineState = useCallback((state: { pnc: string; search: string }) => {
-    // Guardar o que está aberto aqui mantém a URL correta mesmo quando o balcão
-    // sai para o atendimento e volta pela navegação lateral.
-    setMachinePnc(state.pnc);
-    setMachineSearch(state.search);
-    if (sectionRef.current !== 'machines') return;
-    writeMachineUrl(state);
-  }, [writeMachineUrl]);
-
   const handleSectionChange = (next: Section) => {
     if (next !== 'catalogs') setCatalogFilter('');
     const targetSection = next === 'assistant' || next === 'home' ? 'parts' : next;
-    if (targetSection === 'machines') {
-      setMachinesMounted(true);
-      setSection(targetSection);
-      writeMachineUrl({ pnc: machinePnc, search: machineSearch });
-      return;
-    }
     setSection(targetSection);
     updateUrl(targetSection);
-  };
-
-  const openMachine = (pnc: string) => {
-    const clean = pnc.replace(/\D/g, '');
-    if (!clean) return;
-    // Primeira visita: o workspace monta já lendo este PNC. Visita seguinte: ele
-    // continua montado, então o evento é o que troca a máquina aberta. O aviso
-    // só sai depois do render para não chegar antes do listener existir.
-    setMachinePnc(clean);
-    setMachinesMounted(true);
-    setSection('machines');
-    try {
-      window.history.replaceState(null, '', `${window.location.pathname}?tab=machines&pnc=${encodeURIComponent(clean)}`);
-    } catch {
-      // Navegador restrito ou ambiente de teste.
-    }
-    window.setTimeout(() => window.dispatchEvent(new CustomEvent<string>('cognivault:open-machine', { detail: clean })), 0);
   };
 
   if (error) {
@@ -302,22 +272,8 @@ export default function Dashboard() {
             initialQuery={globalQuery}
             onQueryChange={updatePartQuery}
             storageScope={user.id}
-            onOpenMachine={openMachine}
+            initialMachinePnc={machinePncFromUrl}
           />
-        </div>
-      )}
-
-      {machinesMounted && (
-        <div className={section === 'machines' ? undefined : 'hidden'}>
-          <Suspense fallback={<PanelLoading />}>
-            <MachinesWorkspace
-              initialPnc={machinePnc}
-              initialSearch={initialMachineSearchParam}
-              onStateChange={handleMachineState}
-              onSearchPart={search}
-              storageScope={user.id}
-            />
-          </Suspense>
         </div>
       )}
 
