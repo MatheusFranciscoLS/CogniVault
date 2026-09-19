@@ -72,8 +72,14 @@ export default function KawasakiEnginePanel({
     enabled: Boolean(openSlug),
     staleTime: 10 * 60 * 1000,
     queryFn: async () => {
+      // Modelo e conjunto viajam junto só para o índice de busca do servidor:
+      // o slug não informa o modelo, e deduzi-lo dali gravaria o código no
+      // motor errado. Sem eles a leitura funciona igual, só não indexa.
+      const nome = catalogQuery.data?.assemblies.find(item => item.slug === openSlug)?.name || '';
       const data = await apiJson<{ assembly: KawasakiAssemblyDetail }>(
-        `/api/kawasaki/assembly?slug=${encodeURIComponent(openSlug as string)}`,
+        `/api/kawasaki/assembly?slug=${encodeURIComponent(openSlug as string)}`
+        + `&model=${encodeURIComponent(catalogQuery.data?.model || model)}`
+        + (nome ? `&assembly=${encodeURIComponent(nome)}` : ''),
         { timeoutMs: 25_000 },
       );
       return data.assembly;

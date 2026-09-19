@@ -583,6 +583,45 @@ model AiBenchmarkRun {
   @@index([userId, createdAt])
 }
 
+/// Pecas lidas do catalogo OFICIAL do fabricante (Briggs, Kawasaki), guardadas
+/// para poderem ser PESQUISADAS.
+///
+/// O cache de fonte oficial responde "quais as pecas do motor X". Esta tabela
+/// responde o contrario: "o cliente chegou com o codigo 592358, o que e isso e
+/// de que motor e". Sem ela, cada atendimento lia 283 pecas e jogava fora.
+///
+/// Sem tenantId de proposito: e dado publico do fabricante, igual para todo
+/// mundo, mesmo criterio do OfficialSourceCache.
+///
+/// Separada da tabela Part de proposito: Part pertence a um Document (PDF que a
+/// loja subiu) e tem ciclo de vida proprio (active/reprocessamento). Aqui a
+/// procedencia e outra e mais forte — veio da fonte oficial, nao de extracao.
+model OfficialPartIndex {
+  id               String   @id @default(uuid())
+  /// 'BRIGGS' | 'KAWASAKI'
+  source           String
+  /// Motor de onde a peca foi lida: '104M02-0002-F1', 'FX921V-ES06'.
+  engineModel      String
+  normalizedEngine String
+  /// Conjunto dentro do catalogo do motor ("Air Cleaner, Cylinder Head").
+  assembly         String?
+  /// Vazio em vez de nulo: entra na chave unica, e NULL nao casa com NULL no
+  /// indice unico do Postgres — duas leituras criariam linhas duplicadas.
+  position         String   @default("")
+  partNumber       String
+  normalizedNumber String
+  name             String
+  normalizedName   String
+  quantity         Int?
+  /// Quando o catalogo do fabricante foi lido pela ultima vez.
+  readAt           DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([source, normalizedEngine, normalizedNumber, position])
+  @@index([normalizedNumber])
+  @@index([normalizedEngine])
+}
+
 model OfficialSourceCache {
   key                 String   @id
   source              String

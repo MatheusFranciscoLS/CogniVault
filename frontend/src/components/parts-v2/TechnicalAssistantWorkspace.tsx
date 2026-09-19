@@ -23,6 +23,7 @@ import { useOfficialMachineSearch } from '../machines/official-machine-search';
 import { useRecentMachines } from '../machines/recent-machines';
 import KawasakiEnginePanel from '../machines/KawasakiEnginePanel';
 import BriggsEnginePanel from '../machines/BriggsEnginePanel';
+import OfficialPartOrigin from '../machines/OfficialPartOrigin';
 
 /**
  * Como a Husqvarna classifica o que a busca acha. Peça não está aqui: ela vem
@@ -785,6 +786,12 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
               ao lado dos códigos, nunca só uma das duas. */}
           {kawasakiModel && <KawasakiEnginePanel model={kawasakiModel} onSearchPart={beginSearch} />}
           {briggsModel && <BriggsEnginePanel model={briggsModel} onSearchPart={beginSearch} />}
+
+          {/* Caminho inverso: o cliente chegou com o código e não com a
+              máquina. Responde do índice local do que já foi lido dos catálogos
+              Briggs/Kawasaki — sem consultar o fabricante, então pode aparecer
+              sozinho, sem botão. */}
+          {hasSearched && <OfficialPartOrigin code={lastQuery} onSearchPart={beginSearch} />}
 
           {machines.length > 0 && (
             <section>

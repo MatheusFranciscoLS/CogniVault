@@ -16,6 +16,7 @@ import {
 } from '../utils/kawasaki-partstream';
 import { formatKawasakiModelForSearch } from '../utils/engine-model';
 import { OfficialSourceCacheService, buildOfficialSourceCacheKey } from './official-source-cache.service';
+import { OfficialPartIndexService } from './official-part-index.service';
 
 const TIMEOUT_MS = 10_000;
 
@@ -214,7 +215,17 @@ export class KawasakiPartStreamService {
    * O `slug` vem da resposta de `forModel`, nunca montado à mão: ele carrega os
    * GUIDs do modelo e do conjunto, e inventá-los abriria outro motor.
    */
-  static async assemblyDetail(slug: string): Promise<KawasakiAssemblyDetail> {
+  static async assemblyDetail(
+    slug: string,
+    /**
+     * Modelo e conjunto servem só para o índice de busca, e vêm da tela porque
+     * o slug não os informa de forma confiável. Ausentes, a leitura funciona
+     * igual e nada é indexado — **não deduzir o modelo do slug**: errar aqui
+     * gravaria o código no motor errado, que é o defeito mais caro do balcão.
+     */
+    model?: string | null,
+    assembly?: string | null,
+  ): Promise<KawasakiAssemblyDetail> {
     const clean = String(slug || '').trim();
     // Guarda de forma antes de a chave entrar no cache ou na URL: só caminho de
     // motor Kawasaki, nada de `..` nem de outro host.
@@ -244,6 +255,19 @@ export class KawasakiPartStreamService {
       const hotspots = view.hotspots.filter(spot => posicoes.has(spot.position));
 
       if (!parts.length && !view.imageUrl) return null;
+
+      // Dentro do loader: só indexa quando a Kawasaki foi consultada de
+      // verdade, não a cada clique que o cache responde.
+      if (model && parts.length) {
+        void OfficialPartIndexService.record('KAWASAKI', model, parts.map(part => ({
+          partNumber: part.partNumber,
+          name: part.name,
+          position: part.position,
+          assembly: assembly || null,
+          quantity: part.quantity,
+        })));
+      }
+
       return {
         parts,
         imageUrl: view.imageUrl,

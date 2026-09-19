@@ -733,6 +733,71 @@ certo é a exportação do próprio Clipp, ou um backup `.fbk`. E o `.fdb` intei
 tem venda e cliente (provavelmente CPF) — a exportação de produtos não tem, e é
 por isso que ela é a melhor opção, não só por ser menor.
 
+## O que já foi lido do fabricante vira busca (`OfficialPartIndex`)
+
+Até 2026-09-19 o produto só andava num sentido: **máquina → peça**. Abrir um
+motor Briggs lia até 283 peças do PDF e guardava tudo num cache **opaco**, que
+só responde *"quais as peças do motor X"*. O caminho inverso não existia — o
+cliente chegava com o código `592358` na mão, o atendente digitava e **não
+achava nada**, mesmo o sistema tendo lido aquele código dez minutos antes.
+
+`services/official-part-index.service.ts` + tabela `OfficialPartIndex`
+(migração `20260920000000_official_part_index`) + rota
+`GET /api/official-parts/by-code` + `OfficialPartOrigin` na tela.
+
+- **A gravação mora dentro do `loader`** do cache, dos dois lados. Só roda
+  quando o fabricante foi consultado de verdade — fora dali, seriam 283 upserts
+  a cada clique que o cache já responde.
+- **Sem `await`**: é efeito colateral. O balcão não pode esperar a gravação
+  para ver a lista, e `record` **nunca lança** — banco fora não derruba
+  atendimento por causa de um índice.
+- **O modelo da Kawasaki vem da tela**, como parâmetro, porque o slug do ARI não
+  o informa de forma confiável. **Não deduza o modelo do slug**: errar ali
+  gravaria o código no motor errado, que é o defeito mais caro do balcão. Sem o
+  parâmetro, a leitura funciona igual e nada é indexado.
+- **Sem `tenantId`**, mesmo critério do `OfficialSourceCache`: é dado público
+  do fabricante, igual para todo mundo.
+- **Separada de `Part`** de propósito. `Part` pertence a um `Document` que a
+  loja subiu e tem ciclo de vida próprio (`active`, reprocessamento). A
+  procedência aqui é outra e mais forte — veio da fonte oficial, não de
+  extração. Misturar faria a tela perder a diferença entre "o fabricante
+  publica" e "extraímos de um PDF daqui", que é o que sustenta a regra de nunca
+  chutar código.
+- `position` é `''` e não `NULL` porque entra na chave única, e no Postgres
+  `NULL` não casa com `NULL` num índice único — duas leituras criariam linhas
+  duplicadas.
+- A mesma peça em vários motores **não é ruído**: parafuso e junta servem em
+  muitos, e dizer isso ao balcão evita devolução por peça trocada. Por isso a
+  consulta devolve lista, não o primeiro.
+
+## A Briggs publica manual do operador — e ele NÃO entra no produto
+
+Medido em 2026-09-19: `manual-search` devolve **16 documentos** para o
+`104M02-0002-F1`, sendo **14 manuais do operador** e só 2 listas de peças. Entre
+os descartados há edição em **português** (no `09P702-0212-F1`, rótulo
+`English, French, Spanish, Arabic, Portuguese`) — baixei e confirmei o texto:
+*"Segurança do Operador"*, *"Vela de ignição"*, *"Folga da válvula de entrada"*.
+
+Ou seja: a afirmação "a Briggs não tem nada em português" vale para a **lista de
+peças** (só English e Chinese, conferido em 3 motores), **não** para o manual do
+operador.
+
+O caminho do download é mais longo que o do IPL e fica registrado para não ser
+redescoberto:
+
+    /_hcms/api/scramble-service?phrase=<tc_RelativePath>   -> token
+    bsintek.basco.com/BriggsDocumentDisplay/default.aspx?filename=<token>
+
+**Mesmo assim, não use.** Decisão do dono, com estas palavras: *"eu nao quero
+saber sobre manual do operador né, nós não somos operador... folga de valvula e
+essas coisas são coisas que o mecanico que fez curso sabe, mas o atendente e o
+cliente nao precisa saber disso. Se caso der problema ele vai levar na
+assistencia"*.
+
+É a mesma regra de "Papéis de usuário" lá em cima: o único usuário é o balcão, e
+não existe fluxo de oficina. Está escrito aqui porque a descoberta é real e
+tentadora — sem este registro, alguém (eu inclusive) vai propor de novo.
+
 ## A tela do balcão não explica o sistema
 
 Regra do dono, dita depois de ver o aviso de recusa do PDF: *"esses ruídos,
