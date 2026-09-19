@@ -770,6 +770,68 @@ achava nada**, mesmo o sistema tendo lido aquele código dez minutos antes.
   muitos, e dizer isso ao balcão evita devolução por peça trocada. Por isso a
   consulta devolve lista, não o primeiro.
 
+## O IPL da Briggs carrega regra de aplicação, e ela estava sendo perdida
+
+Medido no IPL real do `104M02-0002-F1` em 2026-09-19. O qualificador — a linha
+que começa com `-` logo abaixo da peça — não é só `-(Intake)`. Ele é o
+**equivalente Briggs do campo `comment` da Husqvarna**: texto solto que decide
+se a peça serve.
+
+O regex antigo exigia parênteses ao redor de tudo (`^-\(...\)$`) e por isso
+pegava só o caso decorativo, perdendo os que mudam a venda:
+
+    -(Intake)                                    <- pegava
+    -Used Before Code Date 17092700              <- perdia
+    -(Must Be Replaced As A Kit)                 <- pegava, sem significado
+    -Used Before Code Date 26080500 (No Longer Available) (See Reference 300D
+    for Service)                                 <- perdia, e quebra linha
+
+`briggsPartNotes` classifica em `BriggsPartNote`: `CODE_DATE_BEFORE`,
+`CODE_DATE_AFTER`, `DISCONTINUED`, `SEE_REFERENCE`, `KIT_ONLY`, `ONLY_WITH`.
+**O que não casar fica só no texto cru** — nota mal interpretada é pior que nota
+nenhuma, porque parece informação.
+
+**O mais caro é o code date.** O mesmo motor tem duas peças diferentes na mesma
+posição, separadas só pela data gravada na etiqueta:
+
+    209 590541 SPRING, Governor   -Used Before Code Date 17092700
+    209 596459 SPRING, Governor   -Used After  Code Date 17092600
+
+Sem o aviso as duas aparecem idênticas na tela. É a mesma classe de problema que
+"mesma peça, código diferente por PNC" da Husqvarna, já registrado acima.
+
+### O teto de 7 dígitos descartava peça de verdade
+
+`ROW` limitava o código a `\d{5,7}` e a Briggs também emite 8. As linhas caíam
+**em silêncio** — 4 por catálogo, e nenhuma era parafuso:
+
+    455B 84013130 CUP, Flywheel
+    608B 84013129 STARTER, Rewind
+    957  84004416 CAP, Fuel
+    972B 84004115 TANK, Fuel
+
+Alargar para `\d{5,8}` acrescentou exatamente essas 4 linhas e nenhuma outra
+(186 → 190 linhas casadas no mesmo PDF). Travado em teste.
+
+## O teto do ARI da Kawasaki, medido
+
+Não procure substituição nem "também usado em" na Kawasaki: **não existe no ARI
+público**. Medido contra a API real em 2026-09-19, `GetDetails` devolve só
+`{ html, model: null }`, e uma linha de peça tem exatamente estes campos:
+
+    ariPLTag   = 11028                    (posição)
+    ariPLSku   = 11028-6320               (código)
+    ariPLDesc  = GASKET-SET(ENGINE)
+    ariPLPrice = "Please Contact a Dealer"
+    ariPLQty   = input, value 1
+
+Zero ocorrências de `supersede`, `replaced`, `Where Used`, `also used`, `NLA`,
+`obsolete` ou nota de qualquer tipo no HTML.
+
+**A paridade com a Husqvarna nesse ponto vem do `OfficialPartIndex`**, não da
+API deles: o "também usado em" é montado do que a própria loja já leu. É
+informação que nós acumulamos, não que a Kawasaki publica.
+
 ## A Briggs publica manual do operador — e ele NÃO entra no produto
 
 Medido em 2026-09-19: `manual-search` devolve **16 documentos** para o

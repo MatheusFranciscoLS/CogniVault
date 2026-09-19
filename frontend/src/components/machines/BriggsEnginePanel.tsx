@@ -10,6 +10,14 @@ import PartPriceTag from './PartPriceTag';
 type BriggsManual = { language: string; languageLabel: string; url: string };
 type BriggsResult = { model: string; partsManuals: BriggsManual[]; hasEnglish: boolean };
 
+type BriggsPartNote =
+  | { kind: 'CODE_DATE_BEFORE'; codeDate: string }
+  | { kind: 'CODE_DATE_AFTER'; codeDate: string }
+  | { kind: 'DISCONTINUED' }
+  | { kind: 'SEE_REFERENCE'; position: string }
+  | { kind: 'KIT_ONLY' }
+  | { kind: 'ONLY_WITH'; position: string };
+
 type BriggsIplPart = {
   position: string;
   partNumber: string;
@@ -17,12 +25,106 @@ type BriggsIplPart = {
   quantity: number | null;
   section: string | null;
   qualifier: string | null;
+  notes: BriggsPartNote[];
 };
+
+/**
+ * Os avisos que decidem se a peça serve, em português e curtos.
+ *
+ * O IPL da Briggs escreve isto em inglês no meio da linha, e o balcão não lê.
+ * O mais importante é o **code date**: a data gravada no motor, que separa duas
+ * peças diferentes na mesma posição —
+ *
+ *     209 SPRING, Governor  590541   motor até 17092700
+ *     209 SPRING, Governor  596459   motor a partir de 17092600
+ *
+ * Sem isso as duas aparecem idênticas e metade das vendas sai errada.
+ *
+ * "Fora de linha" é vermelho e vem primeiro porque é o único que **impede** a
+ * venda: prometer peça que a Briggs não fornece mais é o cliente voltando.
+ */
+function BriggsNotes({ notes }: { notes: BriggsPartNote[] }) {
+  if (!notes.length) return null;
+
+  const ordem = (note: BriggsPartNote) => (note.kind === 'DISCONTINUED' ? 0 : note.kind === 'SEE_REFERENCE' ? 1 : 2);
+
+  return (
+    <span className="flex shrink-0 flex-wrap items-center gap-1">
+      {[...notes].sort((a, b) => ordem(a) - ordem(b)).map(note => {
+        if (note.kind === 'DISCONTINUED') {
+          return (
+            <span key="d" title="A Briggs não fornece mais esta peça" className="rounded bg-rose-100 px-1.5 text-[10px] font-black uppercase text-rose-800 dark:bg-rose-950/50 dark:text-rose-300">
+              fora de linha
+            </span>
+          );
+        }
+        if (note.kind === 'SEE_REFERENCE') {
+          return (
+            <span key="s" title="Use a peça desta posição no lugar" className="rounded bg-emerald-100 px-1.5 text-[10px] font-bold text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+              usar pos. {note.position}
+            </span>
+          );
+        }
+        if (note.kind === 'CODE_DATE_BEFORE' || note.kind === 'CODE_DATE_AFTER') {
+          return (
+            <span
+              key={note.kind}
+              title="Code date: a data de fabricação gravada na etiqueta do motor. Confira antes de vender."
+              className="rounded bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+            >
+              motor {note.kind === 'CODE_DATE_BEFORE' ? 'até' : 'a partir de'} {note.codeDate}
+            </span>
+          );
+        }
+        if (note.kind === 'KIT_ONLY') {
+          return (
+            <span key="k" title="Não se vende avulsa" className="rounded bg-ink-100 px-1.5 text-[10px] font-bold text-ink-700 dark:bg-ink-800 dark:text-ink-300">
+              só em kit
+            </span>
+          );
+        }
+        return (
+          <span key="o" title="Só funciona junto da peça desta posição" className="rounded bg-ink-100 px-1.5 text-[10px] font-bold text-ink-700 dark:bg-ink-800 dark:text-ink-300">
+            só com pos. {note.position}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
 
 type BriggsIplOutcome =
   | { status: 'READ'; model: string; parts: BriggsIplPart[]; sourceUrl: string; language: string }
   | { status: 'DECLINED'; reason: string; label: string; sourceUrl: string | null }
   | { status: 'NO_MANUAL' };
+
+/**
+ * Agrupa por conjunto, preservando a ordem em que o PDF entrega.
+ *
+ * A Kawasaki já mostra conjuntos; a Briggs vinha como 283 linhas corridas, e o
+ * atendente rolava sem saber de que parte do motor era a peça. O dado sempre
+ * esteve aqui — `section` chegava na resposta e só virava tooltip.
+ *
+ * A ordem do PDF é a ordem do catálogo, que é como o balcão pensa. Ordenar por
+ * nome misturaria o motor.
+ */
+function agrupar(parts: BriggsIplPart[]): Array<{ nome: string; pecas: BriggsIplPart[] }> {
+  const grupos: Array<{ nome: string; pecas: BriggsIplPart[] }> = [];
+  const porNome = new Map<string, BriggsIplPart[]>();
+
+  for (const part of parts) {
+    const nome = part.section || 'Sem conjunto identificado';
+    let lista = porNome.get(nome);
+    if (!lista) {
+      lista = [];
+      porNome.set(nome, lista);
+      grupos.push({ nome, pecas: lista });
+    }
+    lista.push(part);
+  }
+
+  return grupos;
+}
 
 /**
  * Motor Briggs no atendimento: a lista de peças oficial **e** os códigos lidos
@@ -200,8 +302,16 @@ export default function BriggsEnginePanel({
             />
           </div>
 
-          <div className="max-h-[420px] divide-y divide-ink-100 overflow-y-auto dark:divide-ink-800">
-            {visiveis.map(part => (
+          <div className="max-h-[420px] overflow-y-auto">
+            {agrupar(visiveis).map(grupo => (
+              <div key={grupo.nome}>
+                {/* Cabeçalho pregado: em 283 linhas, rolando a lista, o
+                    atendente perde de vista de que conjunto é a peça. */}
+                <div className="sticky top-0 z-10 border-y border-ink-100 bg-ink-50 px-4 py-1 text-[10px] font-black uppercase tracking-[.1em] text-ink-500 dark:border-ink-800 dark:bg-ink-950 dark:text-ink-400">
+                  {grupo.nome} <span className="font-bold text-ink-400 dark:text-ink-500">· {grupo.pecas.length}</span>
+                </div>
+                <div className="divide-y divide-ink-100 dark:divide-ink-800">
+            {grupo.pecas.map(part => (
               <div key={`${part.position}-${part.partNumber}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
                 <span className="w-12 shrink-0 font-mono text-[10px] font-bold text-ink-500 dark:text-ink-400">
                   {part.position}
@@ -214,12 +324,18 @@ export default function BriggsEnginePanel({
                 >
                   {part.partNumber}
                 </button>
-                <span className="min-w-0 flex-1 truncate text-xs text-ink-700 dark:text-ink-200" title={part.section || undefined}>
+                <span className="min-w-0 flex-1 truncate text-xs text-ink-700 dark:text-ink-200" title={part.qualifier || undefined}>
                   {part.name}
                   {/* O qualificador diz QUAL das peças iguais é esta: a mola de
-                      válvula aparece duas vezes, "-(Intake)" e "-(Exhaust)". */}
-                  {part.qualifier ? <span className="text-ink-500 dark:text-ink-400"> · {part.qualifier}</span> : null}
+                      válvula aparece duas vezes, "-(Intake)" e "-(Exhaust)".
+                      Quando ele virou aviso reconhecido, a tarja abaixo já diz
+                      a mesma coisa em português, e repetir o inglês só ocuparia
+                      a linha. */}
+                  {part.qualifier && !part.notes.length ? (
+                    <span className="text-ink-500 dark:text-ink-400"> · {part.qualifier}</span>
+                  ) : null}
                 </span>
+                <BriggsNotes notes={part.notes} />
                 {part.quantity && part.quantity > 1 ? (
                   <span className="shrink-0 rounded bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
                     leva {part.quantity}
@@ -253,6 +369,9 @@ export default function BriggsEnginePanel({
                   >
                     + orçamento
                   </button>
+                </div>
+              </div>
+            ))}
                 </div>
               </div>
             ))}
