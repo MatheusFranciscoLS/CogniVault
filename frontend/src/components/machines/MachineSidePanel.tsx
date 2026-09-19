@@ -13,6 +13,9 @@ import type { MachineDetailLoaded } from './MachineDetail';
  * Largo de propósito (até 980px). A vista explodida do carburador tem mais de
  * 20 posições numeradas; num painel de 320px o zoom não salva, porque não há
  * para onde arrastar. O zoom continua lá dentro, vindo do `ExplodedView`.
+ *
+ * Nessa largura o kit de manutenção cabe, então o painel mostra o mesmo
+ * conteúdo que a tela de máquinas mostrava: documentos, vista e kit.
  */
 export default function MachineSidePanel({
   pnc,
@@ -83,7 +86,6 @@ export default function MachineSidePanel({
             onOpenPart={onOpenPart}
             onOpenSearch={onOpenSearch}
             onLoaded={onLoaded}
-            compact
           />
         </div>
       </aside>

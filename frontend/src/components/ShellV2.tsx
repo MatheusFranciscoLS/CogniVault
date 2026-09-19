@@ -21,8 +21,11 @@ type Props = {
 type NavItem = { id: Section; label: string; icon: IconName };
 
 const primaryNav: NavItem[] = [
+  // "Máquinas" saiu daqui: a busca do Atendimento oferece peça e máquina na
+  // mesma consulta, e a vista explodida abre em painel lateral. Eram duas abas
+  // para a mesma pergunta do balcão — *"nem eu entendi o que muda da aba
+  // atendimento e da aba máquinas"*.
   { id: 'parts', label: 'Atendimento', icon: 'search' },
-  { id: 'machines', label: 'Máquinas', icon: 'machine' },
   { id: 'catalogs', label: 'Catálogos', icon: 'catalog' },
   { id: 'quotes', label: 'Orçamentos', icon: 'quote' },
 ];

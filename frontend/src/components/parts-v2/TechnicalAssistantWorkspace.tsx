@@ -20,8 +20,18 @@ import SourceBadge from './SourceBadge';
 import type { CommercialPart, HusqvarnaLivePart, OfficialFallbackResult, PdfPreview, PriceSection, SearchDocument, SearchResultPart, SearchStreamMessage } from './types';
 import MachineSidePanel from '../machines/MachineSidePanel';
 import { useOfficialMachineSearch } from '../machines/official-machine-search';
+import { useRecentMachines } from '../machines/recent-machines';
 
-type Props = { initialQuery: string; onQueryChange: (query: string) => void; storageScope?: string; onOpenMachine?: (pnc: string) => void };
+type Props = {
+  initialQuery: string;
+  onQueryChange: (query: string) => void;
+  storageScope?: string;
+  /**
+   * PNC vindo da URL (`?pnc=`), inclusive dos links antigos que apontavam para
+   * a aba Máquinas. Abre o painel lateral direto, sem passar pela busca.
+   */
+  initialMachinePnc?: string;
+};
 type Selection = { kind: 'technical' | 'commercial'; id: string } | null;
 
 // Mesmo limite de backend/src/controllers/commercial-search.controller.ts
@@ -197,7 +207,7 @@ function SuggestionsDropdown({ suggestions, activeIndex, onPick }: { suggestions
   );
 }
 
-export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChange, storageScope, onOpenMachine }: Props) {
+export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChange, storageScope, initialMachinePnc }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const quoteCart = useQuoteCart();
   const { session, hasContext, updateSession } = useCounterSession();
@@ -216,7 +226,9 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   const [machineTerm, setMachineTerm] = useState('');
   // A máquina abre AO LADO, sem trocar de tela: o atendente confirma a posição
   // na vista explodida e volta para a lista de peças com o contexto intacto.
-  const [openMachine, setOpenMachine] = useState<{ pnc: string; name: string } | null>(null);
+  const [openMachine, setOpenMachine] = useState<{ pnc: string; name: string } | null>(
+    () => (initialMachinePnc ? { pnc: initialMachinePnc, name: `PNC ${initialMachinePnc}` } : null),
+  );
   // Termo anunciado pelo stream -> busca oficial de máquina. Desabilitada
   // sozinha quando o termo está vazio, que é o caso da maioria das buscas.
   const machineSearch = useOfficialMachineSearch(machineTerm);
@@ -224,6 +236,10 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     () => (machineSearch.data ?? []).filter(item => item.kind === 'PRODUCT' && item.pnc),
     [machineSearch.data],
   );
+  // Atalho para a máquina que este atendente já abriu, agora no atendimento:
+  // no balcão poucas máquinas repetem muito, e redigitar o PNC da etiqueta com
+  // o cliente na frente é o atrito que a tela existe para tirar.
+  const { recent: recentMachines, remember: rememberMachine } = useRecentMachines(storageScope);
   const [commercialParts, setCommercialParts] = useState<CommercialPart[]>([]);
   const [priceSections, setPriceSections] = useState<PriceSection[]>([]);
   const [priceSection, setPriceSection] = useState('');
@@ -334,6 +350,16 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       if (!signal?.aborted) setCommercialLoading(false);
     }
   }, []);
+
+  // Abre a máquina só quando a HUSQVARNA confirmou que aquele número é
+  // máquina (`kind === 'PRODUCT_CATALOG'`), não por formato.
+  //
+  // É o que resolve o PNC colado, de 9 dígitos: ele é indistinguível de um
+  // código de peça e por isso `machineQueryHint` se recusa a adivinhar. Aqui
+  // não há palpite — a resposta vem da fonte, e a consulta já foi feita, então
+  // o botão não custa nada.
+  const officialMachinePnc =
+    officialResult?.kind === 'PRODUCT_CATALOG' && officialResult.pnc ? officialResult.pnc : null;
 
   const consultOfficial = useCallback(async (value: string) => {
     const clean = value.trim();
@@ -637,7 +663,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
 
   return (
     <section className="flex flex-1 flex-col gap-4">
-      <CounterSessionBar onOpenMachine={onOpenMachine} />
+      <CounterSessionBar onOpenMachine={pnc => setOpenMachine({ pnc, name: session.machineModel || `PNC ${pnc}` })} />
 
       {/* O título grande "Encontre a peça certa. Entenda por quê." saiu daqui.
           Eram três cabeçalhos empilhados dizendo a mesma coisa antes da busca:
@@ -692,6 +718,23 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           </div>
         )}
       </form>
+
+      {recentMachines.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 px-1">
+          <span className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">Máquinas recentes</span>
+          {recentMachines.map(item => (
+            <button
+              key={item.pnc}
+              type="button"
+              onClick={() => setOpenMachine({ pnc: item.pnc, name: item.name })}
+              title={item.meta || `PNC ${item.pnc}`}
+              className="max-w-[240px] truncate rounded-full border border-ink-200 bg-white px-3 py-1.5 text-[11px] font-bold text-ink-600 transition hover:border-brand-300 hover:text-brand-700 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300"
+            >
+              {item.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">{error}</div>}
 
@@ -807,6 +850,15 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
                   )}
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
+                  {officialMachinePnc && (
+                    <button
+                      type="button"
+                      onClick={() => setOpenMachine({ pnc: officialMachinePnc, name: officialResult?.name || `PNC ${officialMachinePnc}` })}
+                      className="rounded-lg bg-accent-700 px-3 py-2 text-xs font-black text-white transition hover:bg-accent-800"
+                    >
+                      Abrir vista explodida
+                    </button>
+                  )}
                   {officialResult?.partNumber && <button type="button" onClick={() => void copyCode(officialResult.partNumber!)} className="rounded-lg bg-ink-900 px-3 py-2 text-xs font-black text-white">Copiar código</button>}
                   <button type="button" onClick={() => openAi(buildTechnicalQuery(lastQuery))} className="rounded-lg border border-ink-200 bg-white px-3 py-2 text-xs font-black text-ink-600 transition hover:border-brand-200 hover:text-brand-600 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300">Pedir orientação</button>
                 </div>
@@ -853,6 +905,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           onOpenPnc={pnc => setOpenMachine({ pnc, name: `PNC ${pnc}` })}
           onOpenPart={code => { setOpenMachine(null); void beginSearch(code); }}
           onOpenSearch={term => { setOpenMachine(null); void beginSearch(term); }}
+          onLoaded={rememberMachine}
         />
       )}
 

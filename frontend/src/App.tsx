@@ -23,11 +23,13 @@ function RouteLoading() {
 }
 
 function LegacyHusqvarnaRedirect() {
-  // A consulta oficial deixou de ser uma página solta: hoje ela é a seção
-  // Máquinas do balcão. Links antigos continuam funcionando com o mesmo PNC.
+  // A consulta oficial já deixou de ser uma página solta uma vez (virou a aba
+  // Máquinas) e agora deixou de ser aba: ela abre em painel lateral dentro do
+  // Atendimento. Os links antigos continuam valendo com o mesmo PNC — só o
+  // destino mudou, e é por isso que `tab` não vai mais aqui.
   const { search } = useLocation();
   const params = new URLSearchParams(search);
-  const next = new URLSearchParams({ tab: 'machines' });
+  const next = new URLSearchParams();
   const pnc = (params.get('pnc') || '').replace(/\D/g, '');
   const query = (params.get('search') || '').trim();
   if (pnc) next.set('pnc', pnc);
