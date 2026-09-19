@@ -117,8 +117,8 @@ minutos ilimitados).
   `iplDocumentCount` (contagens que nenhum código de produto lia) e
   `officialFallback` respondia `documents: []`.
   Agora `extractProductDetailsSummary` devolve `documents`
-  (`HusqvarnaQuickDocument`), a rota expõe, e a seção Máquinas mostra uma faixa
-  de atalho (`OfficialDocumentShortcuts`). **Custo zero**: a query GraphQL já
+  (`HusqvarnaQuickDocument`), a rota expõe, e o painel da máquina mostra uma
+  faixa de atalho (`OfficialDocumentShortcuts`). **Custo zero**: a query GraphQL já
   pedia `url`/`publicationTitle`/`fileFormat` e a carga já estava em cache.
   Ordem é PT primeiro, depois `OM` (manual) antes de `IPL` — é o que o balcão
   abre toda hora.
@@ -131,6 +131,58 @@ minutos ilimitados).
   e agora é importada dos dois. `safeHusqvarnaAssetUrl` só resolve caminho
   relativo quando começa com `/` — antes, um valor não-string virava
   `https://portal.husqvarnagroup.com/42`, link válido feito de lixo.
+
+## Atendimento e máquinas são UMA tela (a aba Máquinas não existe mais)
+
+Até 2026-09-19 havia duas abas para a mesma pergunta do balcão, e o dono disse
+o que isso custava: *"nem eu entendi o que muda da aba atendimento e da aba
+máquinas"*. Hoje o atendente escreve num campo só e recebe peça **e** máquina.
+
+- **A busca oferece máquina quando o texto traz identificador de máquina.**
+  A regra é `backend/src/utils/machine-query.ts`, e ela é conservadora de
+  propósito nos dois sentidos:
+  - **Modelo**: token com letra E dígito (`143RII`, `TS142`, `LC121P`). Hífen
+    é **recusado** — é assinatura de código (`15004-0937`, `104M02-0002-F1`), e
+    aceitá-lo faria toda busca por código disparar chamada externa inútil.
+  - **PNC de etiqueta**: exige máscara com espaço (`967 17 65-01`) **E** prefixo
+    9. As duas juntas, porque cada uma sozinha erra: código de peça usa a mesma
+    máscara (`587 10 67-01`, que `looksLikeExactPartCode` já trata como código)
+    e PNC colado é indistinguível de um código de 9 dígitos. O prefixo 9 é a
+    regra que `normalizeHusqvarnaPnc` já usava.
+  - **Descrição pura não gasta nada**: "carburador", "junta", "filtro de ar"
+    não produzem consulta externa. Medido no navegador: zero chamadas.
+  Travado em `machine-query.test.ts`, incluindo o lado negativo.
+- **O stream só ANUNCIA; a tela busca.** `searchStream` manda
+  `{ type: 'machines', machineTerm | machinePnc }` sem tocar no Portal. Duas
+  razões: o `done` do stream não pode esperar o Portal (teto de 8s, e a peça já
+  está na tela desde a fase léxica), e a busca de máquina do cliente
+  (`useOfficialMachineSearch`) usa a mesma chave de cache, então o Portal é
+  consultado uma vez por modelo, não uma por tela.
+- **`typed` é o texto digitado; `q` leva o contexto anexado.** A tela manda os
+  dois. Bug real já cometido: com só `q`, `967 33 29-04` chegava como
+  `967 33 29-04 Husqvarna 143R-II` e deixava de ser reconhecido como PNC.
+  `typed` é validado com o mesmo teto de `q` porque ele decide uma chamada
+  externa.
+- **`fast-search` delega quando o texto é PNC de etiqueta.** Sem isso ele
+  respondia (a máscara casa `looksLikeExactPartCode`) e a fase de máquinas
+  nunca rodava. Código de peça com máscara continua indo pelo caminho rápido.
+- **O painel lateral é `MachineSidePanel` + `MachineDetail`**, largo (980px)
+  porque a vista do carburador tem mais de 20 posições — em 320px o zoom não
+  salva, não há para onde arrastar. `MachineDetail` é o único dono da consulta
+  `['official-machine', pnc]`: **não crie uma segunda `queryFn` com essa chave**
+  (já aconteceu, e o React Query usa a que montou primeiro — comportamento
+  dependente da ordem de render).
+- **PNC colado (9 dígitos) não abre máquina por formato.** Quando
+  `officialFallback` responde `kind === 'PRODUCT_CATALOG'`, a Husqvarna
+  confirmou, e só então aparece "Abrir vista explodida". A mesma checagem impede
+  que um código de peça abra a tela de máquina vazia.
+- **Links antigos continuam valendo**: `?tab=machines&pnc=` abre o painel no
+  Atendimento, `?tab=machines&search=` cai na busca unificada. `'machines'` não
+  existe mais em `Section`.
+- **`OfficialHusqvarnaPanel` não recarrega a página.** `onOpenPnc` e
+  `onOpenPart` são **obrigatórios**; havia `window.location.assign` como
+  fallback, e dentro de um painel lateral isso derrubava a busca e o
+  atendimento abertos.
 
 ## IA (Gemini)
 
@@ -189,6 +241,19 @@ Regras que não são estética, são operação de balcão:
   precisa.
 - `.cv-touch-target` (44px) é o piso de alvo de toque. Dedo com luva de oficina
   não acerta botão de 28px.
+- **Opacidade em cor de texto é proibida** (`text-brand-100/70`, `text-white/80`).
+  Use o degrau da escala que já tem o contraste. Foi o defeito que a varredura
+  de 28 arquivos corrigiu, e ele voltou no painel do login porque lá o fundo é
+  escuro e escapou daquela passagem: `brand-100` a 70% sobre `brand-600` nascia
+  em 5,31:1 e caía para **4,51:1** com a marca d'água a 7% por trás — passava AA
+  por 0,01. `brand-200` cheio dá 7,23:1 limpo e 5,87:1 sobre a marca, e continua
+  secundário. O mesmo caso estava no cabeçalho da gaveta de orçamento.
+- **Marca d'água grande se dimensiona pela ALTURA, não pela largura.** O símbolo
+  do login era `w-[min(78%,560px)]`, o que num painel de 754x900 virava 669px de
+  altura (74% da tela) e encostava em tudo — a faixa de autorização entrava 32px
+  dentro dele. Com `h-[min(52vh,440px)]` a folga não fecha em nenhuma altura de
+  janela (131px em 900, 85px em 768, 57px em 650); com largura em px isso não era
+  verdade.
 
 ## Orçamento de balcão é dado de banco (não mais localStorage)
 
@@ -378,21 +443,46 @@ Engine:  0XXXXX-XXXX      (modelo de 5 dígitos)*
 "Dashes are required after first 6 digits when entering model number."
 ```
 
-O IPL sai em `thepowerportal.com/ipls/ipl.htm?md=<modelo sem traço>~<IDIOMA>_IPLURL_LO.pdf`.
-**Não gere esse link — a advertência agora tem prova.** Dois exemplos reais do
-proprietário se contradizem no segmento de idioma:
+### A Briggs tem API pública (corrigido em 2026-09-19)
+
+Esta seção dizia que a Briggs "não tem API pública equivalente ao GraphQL da
+Husqvarna" e que o link do IPL era indeduzível. **As duas coisas estavam
+erradas**, e o dono viu o sintoma antes de mim: *"o que fizemos na briggs nao
+deu certo"*.
+
+A lista da página de resultados é montada por JavaScript a partir de:
+
+    GET briggsandstratton.com/_hcms/api/manual-search?partNumber=<modelo>
+
+Índice Azure Search, JSON, **sem chave e sem login**. Ela devolve `tc_DocType`
+(`Illustrated Parts List` vs `Operator's Manual`), `tc_LanguageCode` e
+`tc_RelativePath`, e o PDF abre em
+`thepowerportal.com/ipls/ipl.htm?md=<tc_RelativePath com ~ literal>`.
+Código: `utils/briggs-manuals.ts` + `services/briggs-manuals.service.ts`,
+rota `/api/briggs/parts-manuals/open`.
+
+**A "contradição" do idioma não era contradição.** Estes dois exemplos estavam
+registrados aqui como prova de que o link era indeduzível:
 
     103M02-0027-H1  ->  md=103M020027H1~ZH_IPLURL_LO.pdf   (chinês)
     12J902-0118-01  ->  md=12J902011801~_IPLURL_LO.pdf     (idioma VAZIO)
 
-Não há regra dedutível de dois casos que discordam, e link quebrado no balcão é
-pior que link nenhum. O caminho certo é a **busca de manuais**, que
-`briggsManualsSearchUrl` monta.
+Medindo 8 modelos: o segmento é o código do idioma (`ZH` chinês, `JA` japonês,
+**vazio** inglês), e o `103M02-0027-H1` simplesmente **não tem IPL em inglês**.
 
-**A URL é a do site pt-BR**, conferida no navegador: `/pt-br/support/manuals/results?search=12J902-0118-01`
-devolve os dois `PARTS MANUAL - 12J902-0118-01`, em inglês e em chinês. A
-preferência do dono, nas palavras dele: *"Parts manual english de preferência,
-se não tiver pode ser o chinese mesmo. Em português não vai ter de jeito nenhum."*
+Mesmo assim, **não deduza esse segmento**. O caminho vem da resposta da API, e é
+isso que faz a diferença entre uma fonte e um palpite.
+
+**A lição que vale além deste caso.** A validação antiga registrada aqui dizia
+"a URL gerada devolveu 16 resultados reais" — e estava certa e inútil ao mesmo
+tempo. Os dois `PARTS MANUAL` ficavam em ÚLTIMO, depois de 14 linhas chamadas só
+`MANUAL, ILLUSTRATED`, sem modelo nem número para distinguir. **"Respondeu 200"
+não é evidência de que serve ao balcão**; o teste é se o atendente chega ao
+documento certo sem caçar.
+
+Preferência do dono, nas palavras dele: *"SEMPRE VOU DAR PRIORIDADE PRO INGLÊS,
+mas se não tiver o inglês e outra língua eu tenho que abrir igual para ver o
+código e ver o preço."* Os dois casos estão travados em teste.
 
 ### Kawasaki não tem link profundo, e isso é deliberado
 
@@ -405,6 +495,22 @@ grade de conjuntos. Então `kawasakiPartsLookupUrl()` aponta para
 
 O modelo Kawasaki é **série + spec** (`FX921V-ES06`), e vem da **plaqueta do
 motor** — o Portal Husqvarna não informa (veja a seção abaixo).
+
+**E não é só o link profundo que falta — a Kawasaki não dá para integrar**, ao
+contrário da Briggs. Medido em 2026-09-19: a lista de peças vive no ARI
+PartStream com uma app key que pertence ao site deles; a página do localizador
+roda **reCAPTCHA** (`POST /api/verify-captcha` no carregamento); e o `/manuals`
+público só tem manual do proprietário, por série, com a própria página mandando
+procurar o revendedor para o manual de serviço. Não procure um endpoint: ele não
+existe em acesso público, e a presença de reCAPTCHA é uma recusa explícita a
+acesso automatizado.
+
+**`hasKawasakiEvidence` não é redundante.** `formatKawasakiModelForSearch`
+reconhece `LC121P` e `LB155S`, que são cortadores **Husqvarna** — o padrão
+`[A-Z]{2}d{3}[A-Z]` é o mesmo dos dois fabricantes. Sem a guarda, um cortador
+Husqvarna ganharia botão de "Catálogo Kawasaki", que é mandar o atendente ao
+catálogo errado. A decisão exige a marca dita no `manufacturer` ou no nome do
+arquivo; sem isso, não há botão — e não ter botão é o resultado correto.
 
 ## Portal Husqvarna: identidade de 9 dígitos e o campo `comment`
 
