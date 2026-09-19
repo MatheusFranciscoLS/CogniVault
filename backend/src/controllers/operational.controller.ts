@@ -787,13 +787,27 @@ export class OperationalController {
             // comuns: "carburador" e "junta" não produzem anúncio nenhum.
             const machineHint = machineQueryHint(typed);
 
-            if (machineHint.pnc || machineHint.model) {
+            if (
+                machineHint.pnc
+                || machineHint.model
+                || machineHint.kawasakiModel
+                || machineHint.briggsModel
+            ) {
                 send({
                     type: 'machines',
                     // PNC da etiqueta é resposta, não busca: a tela abre a
                     // máquina direto com esse número.
                     machinePnc: machineHint.pnc ?? undefined,
                     machineTerm: machineHint.model ?? undefined,
+                    // Motor Kawasaki com spec: a tela abre o catálogo do ARI,
+                    // que dá o código da peça e a vista explodida de cada
+                    // conjunto. Ver docs/KAWASAKI_ARI_PARTSTREAM.md.
+                    kawasakiModel: machineHint.kawasakiModel ?? undefined,
+                    // Motor Briggs: a tela abre a LISTA DE PEÇAS oficial, que é
+                    // a vista explodida em PDF. A Briggs não publica a tabela
+                    // estruturada como a Kawasaki, então aqui o retorno é o
+                    // documento — que é exatamente a saída que o dono pediu.
+                    briggsModel: machineHint.briggsModel ?? undefined,
                 });
             }
 

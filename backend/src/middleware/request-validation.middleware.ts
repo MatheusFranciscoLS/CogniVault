@@ -47,6 +47,21 @@ export function validateOfficialFallbackQuery(req: Request, res: Response, next:
  * formato publicado pela Briggs (`XXXXXX-XXXX-XX` com o prefixo
  * "Motor Briggs " que o catálogo guarda).
  */
+/**
+ * O slug de conjunto Kawasaki vem da nossa própria resposta anterior, mas ele
+ * chega pela query do cliente e entra numa chamada externa e numa chave de
+ * cache — então a forma é checada aqui, antes de qualquer trabalho. O serviço
+ * repete a checagem: esta é a barreira de entrada, aquela é a de uso.
+ */
+export function validateKawasakiSlugQuery(req: Request, res: Response, next: NextFunction): void {
+  const slug = stringQueryParam(req, 'slug');
+  if (slug === null || !slug.startsWith('/Kawasaki_Engine/') || slug.length > 400 || slug.includes('..')) {
+    res.status(400).json({ error: 'Conjunto Kawasaki inválido.' });
+    return;
+  }
+  next();
+}
+
 export function validateBriggsModelQuery(req: Request, res: Response, next: NextFunction): void {
   const model = stringQueryParam(req, 'model');
   if (model === null || !model || model.length > 60) {

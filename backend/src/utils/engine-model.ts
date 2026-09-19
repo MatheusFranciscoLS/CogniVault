@@ -122,7 +122,10 @@ export function formatKawasakiModelForSearch(raw: string | null | undefined): st
     .replace(/\s*\([^)]*\)\s*$/, '')
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '');
-  const match = /^([A-Z]{2}\d{3}[A-Z])([A-Z]{2}\d{2})?$/.exec(cleaned);
+  // 3 OU 4 dígitos: a série de 1000cc existe (`FX1000V`, confirmado no
+  // autocomplete da Kawasaki) e o regex de 3 a rejeitava. Ela equipa giro zero,
+  // que é linha que a loja vende.
+  const match = /^([A-Z]{2}\d{3,4}[A-Z])([A-Z]{2}\d{2})?$/.exec(cleaned);
   if (!match) return null;
   const [, series, spec] = match;
   return spec ? `${series}-${spec}` : series;

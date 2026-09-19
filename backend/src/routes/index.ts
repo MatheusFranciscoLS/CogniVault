@@ -16,6 +16,7 @@ import { QualityController } from '../controllers/quality.controller';
 import { WorkIntelligenceController } from '../controllers/work-intelligence.controller';
 import { HusqvarnaOfficialController } from '../controllers/husqvarna-official.controller';
 import { briggsManualsController } from '../controllers/briggs-manuals.controller';
+import { kawasakiController } from '../controllers/kawasaki.controller';
 import { CommercialSearchController } from '../controllers/commercial-search.controller';
 import { CommercialImportController } from '../controllers/commercial-import.controller';
 import { WorkContextController } from '../controllers/work-context.controller';
@@ -41,6 +42,7 @@ import {
   validateEntityIdParam,
   validateFavoriteMutationBody,
   validateBriggsModelQuery,
+  validateKawasakiSlugQuery,
   validateHusqvarnaProductSearchQuery,
   validateModelParam,
   validateOfficialFallbackQuery,
@@ -138,6 +140,11 @@ router.get('/briggs/parts-manuals', authMiddleware, validateBriggsModelQuery, (r
 // em vez de `fetch` + `window.open`: o link do balcão é um `<a target="_blank">`
 // puro, sem bloqueio de pop-up por a aba abrir depois do `await`.
 router.get('/briggs/parts-manuals/open', authMiddleware, validateBriggsModelQuery, (req, res) => briggsManualsController.openPartsManual(req, res));
+// Catálogo Kawasaki pelo ARI PartStream. `engine` traz os conjuntos do motor
+// (baratos, de uma vez); `assembly` traz as peças de UM conjunto, que é o que o
+// atendente abre por atendimento. Ver docs/KAWASAKI_ARI_PARTSTREAM.md.
+router.get('/kawasaki/engine', authMiddleware, validateBriggsModelQuery, (req, res) => kawasakiController.engine(req, res));
+router.get('/kawasaki/assembly', authMiddleware, validateKawasakiSlugQuery, (req, res) => kawasakiController.assembly(req, res));
 router.get('/husqvarna/products/:pnc/details', authMiddleware, (req, res) => husqvarnaOfficialController.productDetails(req, res));
 router.get('/husqvarna/parts/:code/details', authMiddleware, validatePartCodeParam, (req, res) => husqvarnaOfficialController.partDetails(req, res));
 router.post('/analytics/search-usage', authMiddleware, validateOperationalSearchUsage, (req, res) => workIntelligenceController.recordSearchUsage(req, res));

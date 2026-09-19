@@ -56,6 +56,16 @@ export type SearchStreamMessage = {
   machineTerm?: string;
   /** PNC lido da máscara de etiqueta: abre a máquina direto, sem lista. */
   machinePnc?: string;
+  /**
+   * Motor Kawasaki com série+spec (`FX921V-ES06`). A tela abre o catálogo do
+   * ARI, que dá o código da peça e a vista explodida de cada conjunto.
+   */
+  kawasakiModel?: string;
+  /**
+   * Motor Briggs (`104M02-0002-F1`). A tela abre a lista de peças oficial —
+   * na Briggs o retorno é o PDF da vista explodida, não uma tabela.
+   */
+  briggsModel?: string;
   error?: string;
 };
 
