@@ -1,6 +1,9 @@
 import { LRUCache } from 'lru-cache';
 import { normalizeIdentifier } from '../utils/normalize';
 import { husqvarnaArticleIdCandidates } from '../utils/husqvarna-article-id';
+import { iplCommentServesPnc, parseHusqvarnaIplComment } from '../utils/husqvarna-ipl-comment';
+import { briggsManualsSearchUrl } from '../utils/engine-model';
+import { kawasakiCatalogUrl } from '../utils/kawasaki-catalog';
 import { isHostOrSubdomain } from '../utils/husqvarna-url';
 
 const GRAPHQL_URL = 'https://portal.husqvarnagroup.com/hbd/graphql?';
@@ -268,6 +271,35 @@ export type HusqvarnaOfficialIplPart = {
   coordinates: string | null;
   url: string | null;
   replacementPartNumbers: string[];
+  /**
+   * O que o texto do `comment` diz, já lido.
+   *
+   * O campo `comment` vinha da API, era copiado para cá e **nada o usava** — o
+   * parser existia e ninguém chamava. Agora estes três campos chegam prontos na
+   * tela, porque cada um evita um erro concreto de balcão:
+   *
+   * `servesThisPnc: false` — a peça é de OUTRA variante do mesmo modelo. O
+   * texto `For 96041036802, 96041036803` diz exatamente quais PNCs ela atende,
+   * e vender a de outra variante é devolução.
+   *
+   * `multipackQuantity` — a peça sai em pacote fechado. Sem o aviso o
+   * atendente promete uma unidade e o cliente recebe dez.
+   *
+   * `engine` — o elo máquina -> motor que o balcão percorre à mão no site:
+   * `For 96041044000. HUSQVARNA MODEL NO. HS608` dá o motor, e no Briggs dá
+   * modelo E artigo. Em Kawasaki o portal não informa, e `modelOnPlate` diz
+   * isso em vez de fingir que sabe.
+   */
+  servesThisPnc: boolean;
+  multipackQuantity: number | null;
+  engine: {
+    brand: string | null;
+    model: string | null;
+    article: string | null;
+    modelOnPlate: boolean;
+    hasSeparateIpl: boolean;
+    manualUrl: string | null;
+  } | null;
 };
 
 export type HusqvarnaOfficialIplSection = {
@@ -598,13 +630,38 @@ export function parseOfficialProductDetails(payload: unknown, pncInput: string):
         const commercialReference = normalizeIdentifier(String(part?.commercialReference || ''));
         const id = normalizeIdentifier(String(part?.id || ''));
         const partNumber = /^\d{6,14}$/.test(commercialReference) ? commercialReference : (/^\d{6,14}$/.test(id) ? id : null);
+        const comment = part?.comment ? String(part.comment).trim() : null;
+        const parsedComment = parseHusqvarnaIplComment(comment);
         return {
           position: part?.number != null ? String(part.number).trim() : null,
           partNumber,
           name: String(part?.name || part?.articleDescription || partNumber || 'Peça').trim(),
           description: part?.articleDescription ? String(part.articleDescription).trim() : null,
           quantity: numberOrNull(part?.quantity),
-          comment: part?.comment ? String(part.comment).trim() : null,
+          comment,
+          // Sem "For ..." no texto, a peça vale para todas as variantes da
+          // seção — é o padrão do catálogo, e responder `false` esconderia peça
+          // legítima. O `pnc` aqui é o que foi consultado, de 9 dígitos, e o
+          // texto escreve o de 11: `iplCommentServesPnc` casa os dois.
+          servesThisPnc: iplCommentServesPnc(parsedComment, pnc),
+          multipackQuantity: parsedComment.multipackQuantity,
+          engine: parsedComment.engineModel || parsedComment.engineModelOnPlate
+            ? {
+              brand: parsedComment.engineBrand,
+              model: parsedComment.engineModel,
+              article: parsedComment.engineArticle,
+              modelOnPlate: parsedComment.engineModelOnPlate,
+              hasSeparateIpl: parsedComment.hasSeparateEngineIpl,
+              // Briggs tem busca de manual por modelo; Kawasaki só tem o
+              // localizador, e sem modelo na mão nem isso adianta — por isso o
+              // link só sai quando há para onde levar.
+              manualUrl: parsedComment.engineBrand === 'BRIGGS'
+                ? briggsManualsSearchUrl(parsedComment.engineModel)
+                : parsedComment.engineBrand === 'KAWASAKI'
+                  ? kawasakiCatalogUrl(parsedComment.engineModel).url
+                  : null,
+            }
+            : null,
           coordinates: part?.coordinates ? String(part.coordinates) : null,
           url: safePortalUrl(part?.url),
           replacementPartNumbers: Array.isArray(part?.replacedIds)
