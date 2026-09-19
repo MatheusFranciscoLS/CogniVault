@@ -256,6 +256,15 @@ model MasterPart {
   ean              String?
   category         String?
   brand            String?
+  // Campos vindos do ERP da loja (Clipp/CompuFour, Firebird). Todos anulaveis:
+  // a lista de precos importada de planilha nao tem nenhum deles, e a loja nao
+  // compra todas as pecas do catalogo — ausencia aqui e normal, nao defeito.
+  stock            Int?
+  /// Prateleira, como a loja escreve: "P13-A1", "PF", "P18-A5". Texto puro.
+  location         String?
+  /// Decide se o preco vale como esta ou pede conferencia. Ver utils/price-freshness.ts.
+  lastPurchaseAt   DateTime?
+  lastSaleAt       DateTime?
   sections         MasterPartSection[]
   updatedAt        DateTime            @default(now())
 

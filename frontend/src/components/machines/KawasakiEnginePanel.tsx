@@ -5,6 +5,8 @@ import { apiJson } from '../../lib';
 import { useQuoteCart } from '../../context/QuoteCartContext';
 import { Icon } from '../icons/Icon';
 import ExplodedView from '../parts-v2/ExplodedView';
+import { useMasterPrices } from './master-part-prices';
+import PartPriceTag from './PartPriceTag';
 
 type KawasakiAssembly = { name: string; slug: string; viewerUrl: string };
 type KawasakiPart = { position: string | null; partNumber: string; name: string; quantity: number | null };
@@ -82,6 +84,8 @@ export default function KawasakiEnginePanel({
   const openAssembly = catalog?.assemblies.find(item => item.slug === openSlug) ?? null;
   const detail = detailQuery.data ?? null;
   const parts = detail?.parts ?? [];
+  // Preço é da loja: a Kawasaki escreve "Please Contact a Dealer" em toda linha.
+  const precos = useMasterPrices(parts.map(part => part.partNumber)).data;
   // Peça em foco: o clique numa posição do desenho rola até a linha dela.
   const [focusedPosition, setFocusedPosition] = useState<string | null>(null);
 
@@ -268,6 +272,7 @@ export default function KawasakiEnginePanel({
                   {part.partNumber}
                 </button>
                 <span className="min-w-0 flex-1 truncate text-xs text-ink-700 dark:text-ink-200">{part.name}</span>
+                <PartPriceTag code={part.partNumber} prices={precos} />
                 {/* Quantidade só quando a fonte informa. `11061-7057` leva 2 —
                     sem isso o balcão venderia 1 e o cliente voltaria. */}
                 {part.quantity && part.quantity > 1 ? (

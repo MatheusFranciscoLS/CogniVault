@@ -18,6 +18,7 @@ import { HusqvarnaOfficialController } from '../controllers/husqvarna-official.c
 import { briggsManualsController } from '../controllers/briggs-manuals.controller';
 import { kawasakiController } from '../controllers/kawasaki.controller';
 import { CommercialSearchController } from '../controllers/commercial-search.controller';
+import { masterPartPricesController } from '../controllers/master-part-prices.controller';
 import { CommercialImportController } from '../controllers/commercial-import.controller';
 import { WorkContextController } from '../controllers/work-context.controller';
 import { PerformanceController } from '../controllers/performance.controller';
@@ -131,6 +132,10 @@ router.get(
   (req, res) => operationalController.searchStream(req, res),
 );
 router.get('/master-parts/search', authMiddleware, (req, res) => commercialSearchController.search(req, res));
+// Preço da lista comercial para vários códigos de uma vez. POST porque um
+// catálogo Briggs tem até 283 linhas e isso não cabe em query string. É leitura,
+// não grava nada. Ver controllers/master-part-prices.controller.ts.
+router.post('/master-parts/prices', authMiddleware, (req, res) => masterPartPricesController.byCodes(req, res));
 router.get('/official-fallback', authMiddleware, validateOfficialFallbackQuery, (req, res) => workIntelligenceController.officialFallback(req, res));
 router.get('/husqvarna/products/search', authMiddleware, validateHusqvarnaProductSearchQuery, (req, res) => husqvarnaOfficialController.productSearch(req, res));
 // Lista de peças do motor Briggs. Rota própria, chamada só no clique do balcão:
