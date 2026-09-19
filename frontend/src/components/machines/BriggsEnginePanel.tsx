@@ -4,6 +4,8 @@ import { toast } from 'sonner';
 import { apiJson } from '../../lib';
 import { useQuoteCart } from '../../context/QuoteCartContext';
 import { Icon } from '../icons/Icon';
+import { priceCoverage, useMasterPrices } from './master-part-prices';
+import PartPriceTag from './PartPriceTag';
 
 type BriggsManual = { language: string; languageLabel: string; url: string };
 type BriggsResult = { model: string; partsManuals: BriggsManual[]; hasEnglish: boolean };
@@ -80,6 +82,13 @@ export default function BriggsEnginePanel({
     },
   });
 
+  const ipl = iplQuery.data ?? null;
+  // O preço é da loja, não do PDF da Briggs: uma chamada para a lista toda.
+  // Fica aqui, acima dos returns antecipados, porque `useMasterPrices` é hook.
+  const codigos = ipl?.status === 'READ' ? ipl.parts.map(part => part.partNumber) : [];
+  const precos = useMasterPrices(codigos).data;
+  const cobertura = priceCoverage(codigos, precos);
+
   if (manualsQuery.isLoading) {
     return (
       <section aria-busy="true" className="rounded-xl border border-ink-200 bg-white px-4 py-4 text-sm font-semibold text-ink-500 dark:border-ink-800 dark:bg-ink-900">
@@ -92,7 +101,6 @@ export default function BriggsEnginePanel({
   if (!result) return null;
 
   const [principal, ...outros] = result.partsManuals;
-  const ipl = iplQuery.data ?? null;
 
   const termo = filtro.trim().toLocaleLowerCase('pt-BR');
   const visiveis = ipl?.status === 'READ'
@@ -182,6 +190,7 @@ export default function BriggsEnginePanel({
           <div className="flex flex-wrap items-center justify-between gap-2 bg-ink-50/70 px-4 py-2 dark:bg-ink-950/40">
             <span className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">
               {ipl.parts.length} peças lidas do PDF ({ipl.language})
+              {cobertura ? <span className="ml-2 text-emerald-700 dark:text-emerald-400">· {cobertura}</span> : null}
             </span>
             <input
               value={filtro}
@@ -216,6 +225,7 @@ export default function BriggsEnginePanel({
                     leva {part.quantity}
                   </span>
                 ) : null}
+                <PartPriceTag code={part.partNumber} prices={precos} />
                 <div className="flex shrink-0 gap-1.5">
                   {onSearchPart && (
                     <button

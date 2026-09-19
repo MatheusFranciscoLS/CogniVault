@@ -667,6 +667,72 @@ Quando recusa, a tela do balcão **não mostra nada** — fica só o botão do P
 Decisão do dono: *"o atendente nao precisa saber disso"*. O motivo continua na
 resposta da API, para o painel de Qualidade.
 
+## Preço da loja no catálogo do fabricante, e o ERP Clipp
+
+Kawasaki e Briggs entregam código e descrição; **preço nenhuma das duas dá**
+(a Kawasaki escreve "Please Contact a Dealer" em toda linha). O preço é da loja
+e mora em `master_parts`. `POST /api/master-parts/prices` resolve a lista
+inteira de uma vez — catálogo de motor Briggs tem até 283 linhas, e uma chamada
+por peça seriam 283 idas ao Render free por atendimento.
+
+A chave é a mesma dos dois lados: `normalizeIdentifier` joga fora traço e
+espaço, então `587 10 67-01` da etiqueta e `587106701` da lista comercial
+convergem sozinhos.
+
+### A regra de preço velho é do dono
+
+*"se a compra for desse mês, mostrar. Agora se a compra for do mês passado,
+poderia mostrar o preço mas ter uma atenção falando que deveria consultar
+novamente (pode ser que esteja mais caro a peça)"*
+
+`utils/price-freshness.ts`. O valor guardado é o da **última compra**, não uma
+tabela viva. **Nunca esconde o preço** — mesmo velho ele é referência. O que
+muda é a cor e o aviso.
+
+- **Sem data de compra vira `UNKNOWN`, tratado como "confirme"**, não como
+  atual. Cair em `FRESH` por campo vazio seria o erro caro.
+- **O mês é o da LOJA.** 1º de setembro 01h UTC é 31 de agosto na loja — pelo
+  relógio do Render, compra de hoje de manhã viraria "mês passado". Mesma classe
+  de bug que `store-day.ts` existe para evitar.
+- A virada de mês é um **degrau** (31/08 fica `STALE` em 01/09, com um dia de
+  idade). É a regra literal do dono e está travada em teste, para trocar por
+  "últimos 30 dias" ser decisão deliberada, não deslize.
+
+### O ERP da loja é o Clipp (CompuFour), em Firebird
+
+Descoberto em 2026-09-19. O banco vive em `\ADMCompuFourCertaClippBaseCLIPP.FDB`
+— rede local da loja, que o Render **não alcança de jeito nenhum**. O desenho é
+exportar do Clipp e importar aqui, periódico, como a lista de preços já faz.
+Não prometa leitura ao vivo do ERP.
+
+O que o dono confirmou sobre os campos do Clipp:
+
+- **"Referência"** é o código da peça, **sempre junto, sem traço**, seja
+  Husqvarna, Briggs ou Kawasaki. É a chave. ("Código" é id interno curto do
+  sistema, que a loja não usa.)
+- **"Descrição complementar"** é a **prateleira**, em maiúscula: `P13-A1`,
+  `PF`, `P18-A5`. Texto puro — não tente interpretar andar ou corredor.
+- Existem **"última compra"** e **"última venda"**, que é o que torna a regra de
+  preço velho possível.
+- **A loja não compra todas as peças do catálogo.** Peça de catálogo sem preço é
+  normal, não defeito — por isso a tela fica em silêncio para quem não está no
+  cadastro, em vez de escrever "não cadastrada" em 283 linhas.
+
+Colunas já criadas e **vazias até a primeira importação** (migração
+`20260919230000_master_part_store_fields`): `stock`, `location`,
+`lastPurchaseAt`, `lastSaleAt`. Anuláveis e sem backfill: `NULL` é "a loja não
+informou", nunca "zero" — `stock` não tem `DEFAULT 0` de propósito.
+
+**Falta**: o importador. Ele depende de ver o formato real da exportação do
+Clipp (cabeçalhos, separador, se o decimal é vírgula, se o preço vem com "R$").
+Não adivinhe esse formato.
+
+**Nunca copie o `.fdb` com o Clipp aberto**: o Firebird trava o arquivo, e uma
+cópia que "funciona" com o sistema rodando vem corrompida em silêncio. O caminho
+certo é a exportação do próprio Clipp, ou um backup `.fbk`. E o `.fdb` inteiro
+tem venda e cliente (provavelmente CPF) — a exportação de produtos não tem, e é
+por isso que ela é a melhor opção, não só por ser menor.
+
 ## A tela do balcão não explica o sistema
 
 Regra do dono, dita depois de ver o aviso de recusa do PDF: *"esses ruídos,
