@@ -1,27 +1,52 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { apiJson } from '../../lib';
+import { useQuoteCart } from '../../context/QuoteCartContext';
 import { Icon } from '../icons/Icon';
 
 type BriggsManual = { language: string; languageLabel: string; url: string };
 type BriggsResult = { model: string; partsManuals: BriggsManual[]; hasEnglish: boolean };
 
+type BriggsIplPart = {
+  position: string;
+  partNumber: string;
+  name: string;
+  quantity: number | null;
+  section: string | null;
+  qualifier: string | null;
+};
+
+type BriggsIplOutcome =
+  | { status: 'READ'; model: string; parts: BriggsIplPart[]; sourceUrl: string; language: string }
+  | { status: 'DECLINED'; reason: string; label: string; sourceUrl: string | null }
+  | { status: 'NO_MANUAL' };
+
 /**
- * Lista de peças do motor Briggs, dentro do atendimento.
+ * Motor Briggs no atendimento: a lista de peças oficial **e** os códigos lidos
+ * dela, quando o parser tem certeza.
  *
- * **O retorno aqui é o documento, não a tabela** — e isso é diferença de fonte,
- * não de esforço. A Kawasaki publica a lista de peças estruturada (código,
- * posição, descrição), então o painel dela mostra os códigos na tela. A Briggs
- * publica um PDF de vista explodida, e é ele que abre.
+ * A leitura do PDF segue a disciplina do extrator de catálogo, a pedido do
+ * dono: *"só aceitar quando o parser tiver certeza, e recusar em vez de
+ * chutar"*. Quando recusa, a tela do balcão não diz nada — fica só o link do
+ * PDF, e o motivo vai para o painel de Qualidade.
  *
- * É a regra do dono aplicada ao que cada fabricante entrega: *"se você não deu
- * um retorno com o código, pelo menos dê um retorno com a vista explodida para
- * que o atendente verifique manualmente"*.
- *
- * Inglês primeiro, com o resto ao lado — *"SEMPRE VOU DAR PRIORIDADE PRO
- * INGLÊS, mas se não tiver o inglês e outra língua eu tenho que abrir igual
- * para ver o código e ver o preço"*.
+ * Inglês primeiro, com o resto ao lado: *"SEMPRE VOU DAR PRIORIDADE PRO INGLÊS,
+ * mas se não tiver o inglês e outra língua eu tenho que abrir igual para ver o
+ * código e ver o preço"*.
  */
-export default function BriggsEnginePanel({ model }: { model: string }) {
+export default function BriggsEnginePanel({
+  model,
+  onSearchPart,
+}: {
+  model: string;
+  /** Leva um código para a busca interna, onde há preço e estoque. */
+  onSearchPart?: (code: string) => void;
+}) {
+  const quoteCart = useQuoteCart();
+  // 150–280 peças por motor: sem filtro o atendente rola demais.
+  const [filtro, setFiltro] = useState('');
+
   const manualsQuery = useQuery({
     queryKey: ['briggs-parts-manuals', model],
     enabled: Boolean(model),
@@ -32,6 +57,26 @@ export default function BriggsEnginePanel({ model }: { model: string }) {
         { timeoutMs: 20_000 },
       );
       return data.briggs;
+    },
+  });
+
+  /**
+   * As peças lidas do PDF.
+   *
+   * Consulta separada de propósito: a primeira leitura baixa 1,5 MB e leva
+   * 3–12s. O link do PDF aparece na hora e os códigos chegam depois — o balcão
+   * nunca fica esperando para ter alguma coisa na mão. Depois disso é cache.
+   */
+  const iplQuery = useQuery({
+    queryKey: ['briggs-ipl-parts', model],
+    enabled: Boolean(model),
+    staleTime: 60 * 60 * 1000,
+    queryFn: async () => {
+      const data = await apiJson<{ briggsIpl: BriggsIplOutcome }>(
+        `/api/briggs/ipl-parts?model=${encodeURIComponent(model)}`,
+        { timeoutMs: 45_000 },
+      );
+      return data.briggsIpl;
     },
   });
 
@@ -47,6 +92,23 @@ export default function BriggsEnginePanel({ model }: { model: string }) {
   if (!result) return null;
 
   const [principal, ...outros] = result.partsManuals;
+  const ipl = iplQuery.data ?? null;
+
+  const termo = filtro.trim().toLocaleLowerCase('pt-BR');
+  const visiveis = ipl?.status === 'READ'
+    ? (termo
+      ? ipl.parts.filter(part =>
+        part.partNumber.toLocaleLowerCase('pt-BR').includes(termo)
+        || part.name.toLocaleLowerCase('pt-BR').includes(termo))
+      : ipl.parts)
+    : [];
+
+  const copiar = (codigo: string) => {
+    void navigator.clipboard.writeText(codigo).then(
+      () => toast.success(`Código ${codigo} copiado.`),
+      () => toast.error(`Não foi possível copiar. Anote: ${codigo}`),
+    );
+  };
 
   return (
     <section className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
@@ -68,8 +130,7 @@ export default function BriggsEnginePanel({ model }: { model: string }) {
 
       {!principal && (
         <div className="px-4 py-3 text-[11px] leading-5 text-ink-500 dark:text-ink-400">
-          A Briggs não publica lista de peças para este modelo. Confira a plaqueta do
-          motor — o modelo tem que estar completo, com tipo e código.
+          Sem lista de peças para este modelo. Confira o modelo completo na plaqueta.
         </div>
       )}
 
@@ -95,6 +156,103 @@ export default function BriggsEnginePanel({ model }: { model: string }) {
               {manual.languageLabel} ↗
             </a>
           ))}
+        </div>
+      )}
+
+      {/* Só enquanto está lendo. Se a leitura falhar, este aviso desaparece e
+          não é substituído por nada — ver o comentário abaixo. */}
+      {iplQuery.isLoading && principal && (
+        <div aria-busy="true" className="border-t border-ink-100 px-4 py-2.5 text-[11px] font-semibold text-ink-500 dark:border-ink-800 dark:text-ink-400">
+          Lendo os códigos do PDF oficial…
+        </div>
+      )}
+
+      {/* Quando o parser recusa, a tela do balcão não mostra NADA sobre isso —
+          fica só o botão do PDF, como se a leitura nem tivesse sido tentada.
+          Decisão do dono: *"o atendente nao precisa saber disso"*. Ele quer a
+          peça, não o diagnóstico do parser.
+
+          O motivo continua vindo na resposta da API (status DECLINED com o
+          campo de razão), para o painel de Qualidade — que é onde este projeto
+          já mostra por que um catálogo caiu na leitura visual. Lá o número
+          serve para decidir o que ensinar ao parser; aqui só atrapalharia. */}
+
+      {ipl?.status === 'READ' && (
+        <div className="border-t border-ink-100 dark:border-ink-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 bg-ink-50/70 px-4 py-2 dark:bg-ink-950/40">
+            <span className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">
+              {ipl.parts.length} peças lidas do PDF ({ipl.language})
+            </span>
+            <input
+              value={filtro}
+              onChange={event => setFiltro(event.target.value)}
+              placeholder="filtrar por código ou nome"
+              className="h-8 w-48 rounded border border-ink-200 bg-white px-2 text-[11px] outline-none transition focus:border-red-400 dark:border-ink-700 dark:bg-ink-900 dark:text-white"
+            />
+          </div>
+
+          <div className="max-h-[420px] divide-y divide-ink-100 overflow-y-auto dark:divide-ink-800">
+            {visiveis.map(part => (
+              <div key={`${part.position}-${part.partNumber}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
+                <span className="w-12 shrink-0 font-mono text-[10px] font-bold text-ink-500 dark:text-ink-400">
+                  {part.position}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => copiar(part.partNumber)}
+                  title="Copiar o código"
+                  className="shrink-0 font-mono text-sm font-black text-ink-900 hover:underline dark:text-brand-300"
+                >
+                  {part.partNumber}
+                </button>
+                <span className="min-w-0 flex-1 truncate text-xs text-ink-700 dark:text-ink-200" title={part.section || undefined}>
+                  {part.name}
+                  {/* O qualificador diz QUAL das peças iguais é esta: a mola de
+                      válvula aparece duas vezes, "-(Intake)" e "-(Exhaust)". */}
+                  {part.qualifier ? <span className="text-ink-500 dark:text-ink-400"> · {part.qualifier}</span> : null}
+                </span>
+                {part.quantity && part.quantity > 1 ? (
+                  <span className="shrink-0 rounded bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                    leva {part.quantity}
+                  </span>
+                ) : null}
+                <div className="flex shrink-0 gap-1.5">
+                  {onSearchPart && (
+                    <button
+                      type="button"
+                      onClick={() => onSearchPart(part.partNumber)}
+                      className="cv-touch-target rounded border border-ink-200 px-2 text-[10px] font-bold text-ink-600 transition hover:border-brand-300 hover:text-brand-700 dark:border-ink-700 dark:text-ink-300"
+                    >
+                      consultar interno
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      quoteCart.addItem({
+                        partNumber: part.partNumber,
+                        name: part.name,
+                        model: `Motor Briggs ${ipl.model}`,
+                        section: part.section || undefined,
+                        position: part.position,
+                        quantity: part.quantity || 1,
+                      });
+                      toast.success(`${part.partNumber} no orçamento.`);
+                    }}
+                    className="cv-touch-target rounded bg-accent-700 px-2 text-[10px] font-bold text-white transition hover:bg-accent-800"
+                  >
+                    + orçamento
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {!visiveis.length && (
+              <div className="px-4 py-3 text-[11px] text-ink-500 dark:text-ink-400">
+                Nada com &quot;{filtro}&quot; nesta lista.
+              </div>
+            )}
+          </div>
         </div>
       )}
     </section>

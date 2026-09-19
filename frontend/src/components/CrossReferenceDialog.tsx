@@ -195,9 +195,6 @@ export default function CrossReferenceDialog({
         </div>
 
         <div className="flex shrink-0 items-center justify-between gap-3 border-t border-ink-200 bg-ink-50 p-3 pb-[max(.75rem,env(safe-area-inset-bottom))] dark:border-ink-800 dark:bg-ink-800/60">
-          <span className="hidden text-[11px] text-ink-500 dark:text-ink-400 sm:block">
-            Aplicações exibidas vêm dos catálogos cadastrados no CogniVault.
-          </span>
           <button
             type="button"
             onClick={onClose}

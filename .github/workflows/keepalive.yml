@@ -1,18 +1,26 @@
 name: Keepalive
 
-# O plano gratuito do Render "dorme" o serviço depois de ~15 minutos sem
-# tráfego HTTP, e a primeira requisição depois disso paga um cold start de
-# dezenas de segundos — é o atendente no balcão esperando a página carregar.
-# Este workflow mantém o processo acordado sem custo: repositório público
-# tem minutos de Actions ilimitados.
+# ATENÇÃO: este workflow é REDE DE SEGURANÇA, não a solução.
 #
-# Usa /health (não /api/cron/keepalive) de propósito: /health consulta o
-# Postgres de verdade. O Supabase gratuito pausa o projeto depois de ~7 dias
-# sem nenhuma consulta ao banco — um ping que só acorda o Render, sem tocar
-# no banco, não evitaria essa pausa numa baixa longa (feriado, férias).
+# Medido em 2026-09-19: agendado para cada 10 minutos, ele roda de verdade a
+# cada 2 a 8 HORAS. O cron do GitHub Actions é "best effort" e, em repositório
+# com pouca atividade, execuções agendadas são simplesmente descartadas.
+#
+#   13:37 → 09:56 → 01:11 → 23:13 → 21:03 → 18:21 → 15:06
+#        3h41    8h45     1h58     2h10     2h41     3h15
+#
+# Consequência medida nas métricas do Render: 11 IDs de instância diferentes
+# em 22 horas, ou seja **11 cold starts** — o serviço passou a maior parte do
+# tempo dormindo, e o atendente via "Preparando o servidor" na primeira busca.
+#
+# A solução de verdade é um agendador externo (UptimeRobot, 5 min, gratuito),
+# documentado em docs/MANTER_SERVIDOR_ATIVO.md. Este arquivo continua porque
+# custa zero e ainda acorda o banco algumas vezes por dia: o Supabase gratuito
+# pausa o projeto depois de ~7 dias sem NENHUMA consulta, e /health consulta o
+# Postgres de verdade. Mesmo irregular, ele cobre esse risco.
 on:
   schedule:
-    - cron: '*/10 6-23 * * *' # a cada 10 min, 06:00–23:59 UTC (03:00–20:59 em Brasília)
+    - cron: '*/10 6-23 * * *' # pedido: cada 10 min. Entregue: ver acima.
   workflow_dispatch: {}
 
 concurrency:

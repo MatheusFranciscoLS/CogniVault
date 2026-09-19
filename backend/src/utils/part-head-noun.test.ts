@@ -217,3 +217,48 @@ test('palpite de posição não autoriza punição — regressão real da suíte
   assert.equal(isQualifierOnlyMatch(['carburador', 'carburetor'], 'GASKET,CARBURETOR'), true);
   assert.equal(isQualifierOnlyMatch(['silenciador', 'muffler'], 'PLATE.MUFFLER'), true);
 });
+
+test('ponto COM espaço também separa qualificador — o formato da Briggs', () => {
+  // Medido no PDF do `104M02-0002-F1`: "ADJUSTER. Rocker Arm" caía na regra
+  // posicional e devolvia `ARM`. Um ajustador de balancim virava "braço", e
+  // quem pedisse braço receberia o ajustador.
+  assert.equal(partHeadNoun('ADJUSTER. Rocker Arm'), 'ADJUSTER');
+  assert.equal(partHeadNounDetailed('ADJUSTER. Rocker Arm').basis, 'explicit');
+  // Sem espaço continua valendo (era o caso que já existia).
+  assert.equal(partHeadNoun('PLATE.MUFFLER'), 'PLATE');
+});
+
+test('ponto antes de NÚMERO não é separador de qualificador', () => {
+  // `NO. 2` é numeração, não "peça NO qualificada por 2". A regra exige 2+
+  // letras dos dois lados justamente para isso.
+  assert.equal(partHeadNoun('NO. 2 SCREW'), 'SCREW');
+});
+
+test('descrições reais da Briggs: o substantivo principal é o primeiro', () => {
+  // A Briggs usa a mesma convenção da Husqvarna, com vírgula OU hífen. As
+  // descrições abaixo saíram dos PDFs de `104M02-0002-F1`, `12J902-0118-01`,
+  // `28R707-1151-E1` e `09P702-0212-F1`.
+  const casos: Array<[string, string]> = [
+    ['GASKET, Cylinder Head', 'GASKET'],
+    ['GASKET-AIR CLEANER', 'GASKET'],
+    ['HEAD, Cylinder', 'HEAD'],
+    ['SPRING, Valve', 'SPRING'],
+    ['CAP, Valve', 'CAP'],
+    ['VALVE, Exhaust', 'VALVE'],
+    ['SEAL, Oil', 'SEAL'],
+    ['TUBE, Breather', 'TUBE'],
+    ['LOCK, Muffler Screw', 'LOCK'],
+    ['GASKET, Intake', 'GASKET'],
+  ];
+  for (const [descricao, esperado] of casos) {
+    assert.equal(partHeadNoun(descricao), esperado, descricao);
+  }
+});
+
+test('junta do cabeçote não é cabeçote, nem na Briggs', () => {
+  // A correção do dono, agora no catálogo do motor: `GASKET, Cylinder Head` e
+  // `HEAD, Cylinder` são peças diferentes, e a vírgula é quem diz qual é qual.
+  assert.notEqual(partHeadNoun('GASKET, Cylinder Head'), partHeadNoun('HEAD, Cylinder'));
+  assert.equal(partHeadNoun('GASKET, Cylinder Head'), 'GASKET');
+  assert.equal(partHeadNoun('HEAD, Cylinder'), 'HEAD');
+});

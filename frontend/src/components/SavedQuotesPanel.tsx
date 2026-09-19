@@ -160,9 +160,6 @@ export default function SavedQuotesPanel() {
         <div>
           <div className="cv-kicker">Continuidade do atendimento</div>
           <h1 className="cv-page-title">Orçamentos</h1>
-          <p className="mt-1 text-sm text-ink-500">
-            Arquivados no servidor: abrem em qualquer aparelho do balcão, não só no navegador em que foram criados.
-          </p>
         </div>
         <div className="text-xs font-semibold text-ink-500 tabular-nums">
           {total} {total === 1 ? 'orçamento arquivado' : 'orçamentos arquivados'}

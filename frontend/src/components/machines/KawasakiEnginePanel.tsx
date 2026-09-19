@@ -127,10 +127,6 @@ export default function KawasakiEnginePanel({
           <div className="text-xs font-bold text-ink-800 dark:text-ink-100">
             Este motor tem {catalog.needsSpec.length} versões. Qual é o spec da plaqueta?
           </div>
-          <p className="mt-1 text-[11px] leading-5 text-ink-500 dark:text-ink-400">
-            O spec vem depois do traço, na mesma plaqueta da série. Cada um tem peças
-            próprias, então escolher por você poderia dar o código errado.
-          </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {catalog.needsSpec.map(option => {
               const spec = option.trim().split(/\s+/)[0];
@@ -151,8 +147,7 @@ export default function KawasakiEnginePanel({
 
       {catalog.assemblies.length === 0 && catalog.needsSpec.length === 0 && (
         <div className="px-4 py-3 text-[11px] leading-5 text-ink-500 dark:text-ink-400">
-          A Kawasaki não devolveu catálogo para este modelo. Abra o catálogo oficial acima e
-          confira a plaqueta do motor — série e spec têm que estar exatos.
+          Sem catálogo para este modelo. Confira série e spec na plaqueta.
         </div>
       )}
 
@@ -247,8 +242,7 @@ export default function KawasakiEnginePanel({
 
           {!detailQuery.isLoading && !parts.length && (
             <div className="px-4 py-3 text-[11px] leading-5 text-ink-500 dark:text-ink-400">
-              A Kawasaki não devolveu a lista deste conjunto. Use a vista explodida acima
-              para ler o código direto do desenho.
+              Leia o código na vista explodida acima.
             </div>
           )}
 
