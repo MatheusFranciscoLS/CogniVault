@@ -249,9 +249,6 @@ export default function Dashboard() {
             <div className="h-full w-1/3 animate-cv-indeterminate rounded-full bg-brand-600 dark:bg-brand-400" />
           </div>
           <p className="mt-4 text-sm font-semibold text-ink-600 dark:text-ink-300">Preparando o atendimento…</p>
-          <p className="mt-1 text-xs leading-5 text-ink-500 dark:text-ink-400">
-            Carregando catálogo, cadastro comercial e sua cesta de orçamento.
-          </p>
         </div>
       </main>
     );

@@ -33,7 +33,7 @@ export default function PncFollowUp({ disabled, onSubmit }: { disabled: boolean;
         O PNC não está na lista? Digite o da etiqueta
       </label>
       <p className="mt-1 text-[11px] leading-4 text-ink-500 dark:text-ink-400">
-        As opções acima são os PNCs que esta base conhece. Pode digitar como está na etiqueta, com espaços e hífen.
+        Pode digitar como está na etiqueta, com espaços e hífen.
       </p>
       <div className="mt-2 flex flex-col gap-2 sm:flex-row">
         <input

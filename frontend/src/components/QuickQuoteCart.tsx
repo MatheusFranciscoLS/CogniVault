@@ -605,10 +605,6 @@ export default function QuickQuoteCart() {
                         <ActionButton icon="printer" label="Imprimir" onClick={() => window.print()} />
                       </div>
 
-                      <p className="text-center text-[10px] leading-4 text-ink-500 dark:text-ink-400">
-                        Enviar no WhatsApp ou gerar o PDF já arquiva este orçamento no histórico.
-                      </p>
-
                       {/* Ação destrutiva nunca como par das de envio: fica
                           discreta, no fim. O "Encerrar" da barra de atendimento
                           já limpa a cesta junto com o contexto; este serve para
