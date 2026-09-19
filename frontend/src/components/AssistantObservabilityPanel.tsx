@@ -85,7 +85,7 @@ function metricLabel(action: string) {
 function Stat({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <div className="rounded-xl border border-ink-200 bg-white px-4 py-3 dark:border-ink-800 dark:bg-ink-900">
-      <div className="text-[9px] font-black uppercase tracking-[.1em] text-ink-400">{label}</div>
+      <div className="text-[9px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">{label}</div>
       <div className="mt-1 text-xl font-black tracking-tight text-ink-950 dark:text-white">{value}</div>
       <div className="mt-1 text-[11px] leading-4 text-ink-500 dark:text-ink-400">{detail}</div>
     </div>
@@ -123,7 +123,7 @@ export default function AssistantObservabilityPanel() {
   }
 
   if (!data || !performance) {
-    return <div className="mt-5 rounded-xl border border-ink-200 bg-white px-4 py-4 text-xs text-ink-400 dark:border-ink-800 dark:bg-ink-900">Carregando operação do assistente…</div>;
+    return <div className="mt-5 rounded-xl border border-ink-200 bg-white px-4 py-4 text-xs text-ink-500 dark:text-ink-400 dark:border-ink-800 dark:bg-ink-900">Carregando operação do assistente…</div>;
   }
 
   const portfolio = data.portfolioCoverage;
@@ -178,7 +178,7 @@ export default function AssistantObservabilityPanel() {
 
       <div className="grid gap-4 border-t border-ink-100 p-4 lg:grid-cols-[1.2fr_.8fr] dark:border-ink-800">
         <div>
-          <div className="mb-2 text-[9px] font-black uppercase tracking-[.1em] text-ink-400">Onde a IA foi usada hoje</div>
+          <div className="mb-2 text-[9px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">Onde a IA foi usada hoje</div>
           {!data.actions.length ? (
             <div className="rounded-lg bg-ink-50 px-3 py-3 text-xs text-ink-500 dark:bg-ink-950/40 dark:text-ink-400">Nenhuma chamada de IA registrada hoje. A operação ficou nos caminhos locais/cacheados.</div>
           ) : (
@@ -186,7 +186,7 @@ export default function AssistantObservabilityPanel() {
               {data.actions.slice(0, 5).map(action => (
                 <div key={action.action} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-3 py-2.5 text-xs">
                   <span className="font-semibold capitalize text-ink-700 dark:text-ink-200">{metricLabel(action.action)}</span>
-                  <span className="text-ink-400">{number(action.calls)} chamadas</span>
+                  <span className="text-ink-500 dark:text-ink-400">{number(action.calls)} chamadas</span>
                   <span className="font-mono font-bold text-ink-600 dark:text-ink-300">{number(action.totalTokens)}</span>
                 </div>
               ))}
@@ -195,7 +195,7 @@ export default function AssistantObservabilityPanel() {
         </div>
 
         <div>
-          <div className="mb-2 text-[9px] font-black uppercase tracking-[.1em] text-ink-400">Cobertura de portfólio</div>
+          <div className="mb-2 text-[9px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">Cobertura de portfólio</div>
           <div className="rounded-lg border border-ink-200 p-3 dark:border-ink-800">
             {portfolio ? (
               <>
@@ -206,8 +206,8 @@ export default function AssistantObservabilityPanel() {
                 {portfolio.priorityGaps.length > 0 && (
                   <div className="mt-3 border-t border-ink-100 pt-3 dark:border-ink-800">
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <span className="text-[9px] font-black uppercase tracking-[.1em] text-ink-400">Prioridade de cobertura</span>
-                      <span className="text-[9px] font-semibold text-ink-400">sinais comerciais</span>
+                      <span className="text-[9px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">Prioridade de cobertura</span>
+                      <span className="text-[9px] font-semibold text-ink-500 dark:text-ink-400">sinais comerciais</span>
                     </div>
                     <div className="space-y-1.5">
                       {portfolio.priorityGaps.slice(0, 6).map(item => (
@@ -224,7 +224,7 @@ export default function AssistantObservabilityPanel() {
                   </div>
                 )}
 
-                <p className="mt-3 border-t border-ink-100 pt-3 text-[10px] leading-4 text-ink-400 dark:border-ink-800">“Sem IPL local” não significa incompatível. A fila acima só prioriza onde buscar evidência primeiro; a fonte oficial continua sendo necessária antes de liberar aplicação.</p>
+                <p className="mt-3 border-t border-ink-100 pt-3 text-[10px] leading-4 text-ink-500 dark:text-ink-400 dark:border-ink-800">“Sem IPL local” não significa incompatível. A fila acima só prioriza onde buscar evidência primeiro; a fonte oficial continua sendo necessária antes de liberar aplicação.</p>
               </>
             ) : (
               <div className="text-xs text-ink-500 dark:text-ink-400">Inventário de cobertura indisponível nesta leitura.</div>

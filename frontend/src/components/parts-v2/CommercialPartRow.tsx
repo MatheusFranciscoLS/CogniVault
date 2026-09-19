@@ -29,7 +29,7 @@ export default function CommercialPartRow({ part, selected = false, onSelect, on
 
         <button type="button" onFocus={onSelect} onClick={onSelect} className="min-w-0 text-left">
           <h3 className="truncate text-[13px] font-black text-ink-900 dark:text-white">{part.name}</h3>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-ink-400">
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-ink-500 dark:text-ink-400">
             <span className="font-semibold text-ink-600 dark:text-ink-300">{application}</span>
             {applications.length > 1 && <span>+{applications.length - 1} aplicações</span>}
             {part.references[0] && <span>Ref. {part.references[0]}</span>}
@@ -41,7 +41,7 @@ export default function CommercialPartRow({ part, selected = false, onSelect, on
             <div className="text-[11px] font-black text-ink-700 dark:text-ink-200">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(part.price)}</div>
           ) : (
             <div>
-              <div className="text-[10px] text-ink-400">Preço não informado</div>
+              <div className="text-[10px] text-ink-500 dark:text-ink-400">Preço não informado</div>
               {/* Sem login automático: copia o código pro clipboard e abre o portal
                   numa aba nova, já logado do jeito do atendente — o preço aparece
                   na hora que ele clica na peça, sem nada guardado no servidor. */}
@@ -54,7 +54,7 @@ export default function CommercialPartRow({ part, selected = false, onSelect, on
               </button>
             </div>
           )}
-          {part.priceSections[0] && <div className="mt-1 truncate text-[9px] font-bold text-ink-400">{part.priceSections[0]}</div>}
+          {part.priceSections[0] && <div className="mt-1 truncate text-[9px] font-bold text-ink-500 dark:text-ink-400">{part.priceSections[0]}</div>}
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">

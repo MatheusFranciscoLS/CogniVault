@@ -19,7 +19,7 @@ export default function ReliabilityDetails({ response }: { response: ChatRespons
       <summary className="cursor-pointer font-semibold text-brand-700">Evidências da decisão</summary>
       {sources.length ? (
         <div className="mt-3">
-          <div className="text-[10px] font-bold uppercase tracking-[.1em] text-ink-400">Métodos que encontraram a peça</div>
+          <div className="text-[10px] font-bold uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">Métodos que encontraram a peça</div>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {sources.map(source => <span key={source} className="rounded-full bg-white dark:bg-ink-800 px-2.5 py-1 text-[10px] font-semibold text-brand-600 dark:text-brand-300 ring-1 ring-brand-100">{retrievalLabels[source as RetrievalSource]}</span>)}
           </div>
@@ -32,8 +32,8 @@ export default function ReliabilityDetails({ response }: { response: ChatRespons
       ) : null}
       {context.length ? (
         <div className="mt-3 border-t border-brand-100 dark:border-brand-700 pt-3">
-          <div className="text-[10px] font-bold uppercase tracking-[.1em] text-ink-400">Memória técnica da mesma fonte</div>
-          <p className="mt-1 text-[10px] leading-4 text-ink-400">Estes trechos servem para conferir contexto mecânico. O Part Number não é extraído deles; o código exibido vem do registro estruturado da peça.</p>
+          <div className="text-[10px] font-bold uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">Memória técnica da mesma fonte</div>
+          <p className="mt-1 text-[10px] leading-4 text-ink-500 dark:text-ink-400">Estes trechos servem para conferir contexto mecânico. O Part Number não é extraído deles; o código exibido vem do registro estruturado da peça.</p>
           <div className="mt-2 grid gap-2">
             {context.map((item, index) => (
               <div key={`${item.filename}-${item.page}-${item.section}-${index}`} className="rounded-lg border border-brand-100 dark:border-brand-700 bg-white dark:bg-ink-800 p-2.5">

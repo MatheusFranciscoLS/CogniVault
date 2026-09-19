@@ -54,7 +54,7 @@ export default function ResultCard({
           <div className="mt-2 flex flex-wrap items-baseline gap-2">
             <span className="break-all font-mono text-2xl font-bold text-brand-600 dark:text-brand-300">{formattedCode}</span>
             {formattedCode !== part.partNumber && (
-              <span className="text-xs font-mono text-ink-400">({part.partNumber})</span>
+              <span className="text-xs font-mono text-ink-500 dark:text-ink-400">({part.partNumber})</span>
             )}
           </div>
         </div>
@@ -130,7 +130,7 @@ export default function ResultCard({
                 {response.technicalReasoningSteps.length} etapas
               </span>
             </div>
-            <span className="text-ink-400 transition-transform group-open:rotate-180 text-xs">▼</span>
+            <span className="text-ink-500 dark:text-ink-400 transition-transform group-open:rotate-180 text-xs">▼</span>
           </summary>
           <div className="border-t border-ink-200/80 dark:border-ink-700/60 p-3.5 space-y-2.5 bg-white/70 dark:bg-ink-800/60">
             {response.technicalReasoningSteps.map(step => (
@@ -248,7 +248,7 @@ export default function ResultCard({
                     <div className="text-xs font-bold truncate text-ink-800 dark:text-ink-100">{addon.name}</div>
                     <div className="text-[11px] font-mono font-semibold text-brand-600 dark:text-brand-300">
                       {formatHusqvarnaPartNumber(addon.partNumber)}
-                      {addon.position && <span className="text-ink-400 font-sans font-normal ml-1">· Pos. {addon.position}</span>}
+                      {addon.position && <span className="text-ink-500 dark:text-ink-400 font-sans font-normal ml-1">· Pos. {addon.position}</span>}
                     </div>
                   </div>
                   <button

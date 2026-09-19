@@ -181,7 +181,7 @@ export default function PortfolioCoveragePanel({
             <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">Maiores lacunas para investigar</h3>
             <p className="mt-1 text-xs text-ink-500 dark:text-ink-400">Ordenadas pela quantidade de vezes que o modelo aparece nas aplicações da base comercial.</p>
           </div>
-          <span className="text-xs font-semibold text-ink-400">Top {gaps.length}</span>
+          <span className="text-xs font-semibold text-ink-500 dark:text-ink-400">Top {gaps.length}</span>
         </div>
 
         {gaps.length === 0 ? (

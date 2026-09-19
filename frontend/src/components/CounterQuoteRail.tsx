@@ -15,17 +15,17 @@ export default function CounterQuoteRail() {
     <aside className="overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm dark:border-ink-800 dark:bg-ink-900">
       <div className="flex items-center justify-between gap-3 px-4 py-3">
         <div>
-          <div className="text-[9px] font-black uppercase tracking-[.13em] text-ink-400">Orçamento</div>
+          <div className="text-[9px] font-black uppercase tracking-[.13em] text-ink-500 dark:text-ink-400">Orçamento</div>
           <div className="mt-0.5 text-base font-black text-ink-950 dark:text-white">{quoteCart.totalItems} {quoteCart.totalItems === 1 ? 'item' : 'itens'}</div>
         </div>
         <div className="text-right">
-          <div className="text-[9px] font-bold uppercase tracking-wide text-ink-400">Total informado</div>
+          <div className="text-[9px] font-bold uppercase tracking-wide text-ink-500 dark:text-ink-400">Total informado</div>
           <div className="mt-0.5 text-sm font-black text-ink-900 dark:text-white">{quoteCart.totalPrice > 0 ? formatMoney(quoteCart.totalPrice) : '—'}</div>
         </div>
       </div>
 
       {(session.customerName || session.machineModel || session.pnc) && (
-        <div className="flex flex-wrap gap-x-3 gap-y-1 border-y border-ink-100 bg-ink-50/70 px-4 py-2 text-[10px] text-ink-400 dark:border-ink-800 dark:bg-ink-950/30">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 border-y border-ink-100 bg-ink-50/70 px-4 py-2 text-[10px] text-ink-500 dark:text-ink-400 dark:border-ink-800 dark:bg-ink-950/30">
           {session.customerName && <span className="truncate">{session.customerName}</span>}
           {session.machineModel && <span className="font-bold text-ink-600 dark:text-ink-300">{session.machineModel}</span>}
           {session.pnc && <span>PNC {session.pnc}</span>}
@@ -42,7 +42,7 @@ export default function CounterQuoteRail() {
                     descrição. */}
                 <div className="flex items-center gap-2">
                   <span className="rounded bg-brand-50 px-1.5 py-0.5 font-mono text-xs font-black text-brand-700 dark:bg-brand-950/40 dark:text-brand-300">{formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)}</span>
-                  {item.unitPrice != null && <span className="text-[10px] text-ink-400">{formatMoney(item.unitPrice * item.quantity)}</span>}
+                  {item.unitPrice != null && <span className="text-[10px] text-ink-500 dark:text-ink-400">{formatMoney(item.unitPrice * item.quantity)}</span>}
                 </div>
                 <div className="mt-1 truncate text-[11px] font-bold text-ink-800 dark:text-ink-100" title={item.name}>{item.name}</div>
               </div>

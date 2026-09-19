@@ -48,9 +48,9 @@ export function OverviewPanel() {
         <div className="grid divide-y divide-ink-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4 dark:divide-ink-800">
           {(data ? metrics : Array.from({ length: 4 }, (_, index) => [`Carregando ${index}`, '—'])).map(([label, value], index) => (
             <div key={String(label)} className="px-5 py-4">
-              <div className="text-[10px] font-black uppercase tracking-[.1em] text-ink-400">{data ? label : 'Carregando'}</div>
+              <div className="text-[10px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">{data ? label : 'Carregando'}</div>
               <div className="mt-2 text-2xl font-black tracking-[-.03em] text-ink-950 dark:text-white">{data ? value : '—'}</div>
-              {data && index === 3 && <div className="mt-1 text-[11px] text-ink-400">Validação registrada pelo balcão</div>}
+              {data && index === 3 && <div className="mt-1 text-[11px] text-ink-500 dark:text-ink-400">Validação registrada pelo balcão</div>}
             </div>
           ))}
         </div>
@@ -161,17 +161,17 @@ export function UsersPanel() {
       )}
 
       <div className="flex items-center gap-2 rounded-xl border border-ink-200 bg-white p-3 dark:border-ink-800 dark:bg-ink-900">
-        <div className="relative min-w-0 flex-1"><span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400">⌕</span><input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Filtrar por e-mail, perfil ou status…" className="h-10 w-full rounded-lg border border-ink-200 bg-ink-50 pl-10 pr-3 text-sm outline-none dark:border-ink-700 dark:bg-ink-800" /></div>
-        <span className="px-1 text-xs font-semibold text-ink-400">{filtered.length} usuários</span>
+        <div className="relative min-w-0 flex-1"><span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-500 dark:text-ink-400">⌕</span><input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Filtrar por e-mail, perfil ou status…" className="h-10 w-full rounded-lg border border-ink-200 bg-ink-50 pl-10 pr-3 text-sm outline-none dark:border-ink-700 dark:bg-ink-800" /></div>
+        <span className="px-1 text-xs font-semibold text-ink-500 dark:text-ink-400">{filtered.length} usuários</span>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
         <table className="w-full min-w-[850px] text-sm">
-          <thead className="border-b border-ink-100 bg-ink-50/70 text-left text-[10px] font-black uppercase tracking-[.1em] text-ink-400 dark:border-ink-800 dark:bg-ink-800/50"><tr><th className="px-4 py-3">Usuário</th><th>Perfil</th><th>Status</th><th>Feedback</th><th className="px-4 text-right">Ações</th></tr></thead>
+          <thead className="border-b border-ink-100 bg-ink-50/70 text-left text-[10px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400 dark:border-ink-800 dark:bg-ink-800/50"><tr><th className="px-4 py-3">Usuário</th><th>Perfil</th><th>Status</th><th>Feedback</th><th className="px-4 text-right">Ações</th></tr></thead>
           <tbody>
             {filtered.map(user => (
               <tr key={user.id} className="border-b border-ink-100 last:border-0 hover:bg-ink-50/70 dark:border-ink-800 dark:hover:bg-ink-800/40">
-                <td className="px-4 py-3"><div className="font-bold text-ink-800 dark:text-ink-100">{user.email}</div><div className="mt-1 text-[11px] text-ink-400">desde {fmtDate(user.createdAt)}</div></td>
+                <td className="px-4 py-3"><div className="font-bold text-ink-800 dark:text-ink-100">{user.email}</div><div className="mt-1 text-[11px] text-ink-500 dark:text-ink-400">desde {fmtDate(user.createdAt)}</div></td>
                 <td className="text-xs font-semibold text-ink-600 dark:text-ink-300">{user.role === 'ADMIN' ? 'Administrador' : 'Balcão'}</td>
                 <td><span className={`text-xs font-bold ${user.status === 'APPROVED' ? 'text-emerald-700 dark:text-emerald-300' : user.status === 'REJECTED' ? 'text-rose-700 dark:text-rose-300' : 'text-amber-700 dark:text-amber-300'}`}>{user.status === 'APPROVED' ? 'Ativo' : user.status === 'REJECTED' ? 'Bloqueado' : 'Pendente'}</span></td>
                 <td className="text-xs text-ink-500 dark:text-ink-400">{user.feedbackCount}</td>
@@ -185,7 +185,7 @@ export function UsersPanel() {
                 </td>
               </tr>
             ))}
-            {!filtered.length && <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-ink-400">Nenhum usuário encontrado.</td></tr>}
+            {!filtered.length && <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-ink-500 dark:text-ink-400">Nenhum usuário encontrado.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -225,11 +225,11 @@ export function AuditPanel() {
   return (
     <section className="mx-auto max-w-[1400px] space-y-4">
       <AdminHeading kicker="Rastreabilidade" title="Auditoria" description="Ações administrativas relevantes, em ordem cronológica." />
-      <div className="flex items-center gap-2 rounded-xl border border-ink-200 bg-white p-3 dark:border-ink-800 dark:bg-ink-900"><div className="relative min-w-0 flex-1"><span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400">⌕</span><input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Ação, usuário ou recurso…" className="h-10 w-full rounded-lg border border-ink-200 bg-ink-50 pl-10 pr-3 text-sm outline-none dark:border-ink-700 dark:bg-ink-800" /></div><span className="px-1 text-xs font-semibold text-ink-400">{filtered.length} eventos</span></div>
+      <div className="flex items-center gap-2 rounded-xl border border-ink-200 bg-white p-3 dark:border-ink-800 dark:bg-ink-900"><div className="relative min-w-0 flex-1"><span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-500 dark:text-ink-400">⌕</span><input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Ação, usuário ou recurso…" className="h-10 w-full rounded-lg border border-ink-200 bg-ink-50 pl-10 pr-3 text-sm outline-none dark:border-ink-700 dark:bg-ink-800" /></div><span className="px-1 text-xs font-semibold text-ink-500 dark:text-ink-400">{filtered.length} eventos</span></div>
       <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
-        <div className="hidden grid-cols-[minmax(230px,1fr)_minmax(180px,.8fr)_160px] gap-4 border-b border-ink-100 px-4 py-2.5 text-[10px] font-black uppercase tracking-[.1em] text-ink-400 md:grid dark:border-ink-800"><span>Ação</span><span>Responsável / recurso</span><span className="text-right">Data</span></div>
-        {filtered.map(log => <div key={log.id} className="grid gap-2 border-b border-ink-100 px-4 py-3.5 last:border-0 md:grid-cols-[minmax(230px,1fr)_minmax(180px,.8fr)_160px] md:items-center dark:border-ink-800"><div className="text-sm font-bold text-ink-800 dark:text-ink-100">{label(log.action)}</div><div className="text-xs text-ink-500 dark:text-ink-400">{log.user?.email || 'Sistema'} · {log.targetType}</div><div className="text-xs text-ink-400 md:text-right">{fmtDate(log.createdAt)}</div></div>)}
-        {!filtered.length && <div className="px-5 py-10 text-center text-sm text-ink-400">Nenhuma ação encontrada.</div>}
+        <div className="hidden grid-cols-[minmax(230px,1fr)_minmax(180px,.8fr)_160px] gap-4 border-b border-ink-100 px-4 py-2.5 text-[10px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400 md:grid dark:border-ink-800"><span>Ação</span><span>Responsável / recurso</span><span className="text-right">Data</span></div>
+        {filtered.map(log => <div key={log.id} className="grid gap-2 border-b border-ink-100 px-4 py-3.5 last:border-0 md:grid-cols-[minmax(230px,1fr)_minmax(180px,.8fr)_160px] md:items-center dark:border-ink-800"><div className="text-sm font-bold text-ink-800 dark:text-ink-100">{label(log.action)}</div><div className="text-xs text-ink-500 dark:text-ink-400">{log.user?.email || 'Sistema'} · {log.targetType}</div><div className="text-xs text-ink-500 dark:text-ink-400 md:text-right">{fmtDate(log.createdAt)}</div></div>)}
+        {!filtered.length && <div className="px-5 py-10 text-center text-sm text-ink-500 dark:text-ink-400">Nenhuma ação encontrada.</div>}
       </div>
     </section>
   );

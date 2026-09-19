@@ -214,7 +214,7 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
 
   return <form onSubmit={upload} className="cv-surface mb-6 rounded-[22px] p-5">
     <div className="mb-1 font-semibold">Importar catálogos em lote</div>
-    <p className="mb-4 text-xs leading-5 text-ink-400">
+    <p className="mb-4 text-xs leading-5 text-ink-500 dark:text-ink-400">
       Adicione até {MAX_BATCH_FILES} PDFs por vez. Não é necessário renomear os arquivos: modelo e PNC são identificados pelo conteúdo de cada catálogo.
     </p>
 
@@ -247,7 +247,7 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
         <span className="rounded-full border border-ink-200 dark:border-ink-700 bg-ink-50 dark:bg-ink-800/50 px-3 py-1">Arrastar e soltar</span>
         <span className="rounded-full border border-ink-200 dark:border-ink-700 bg-ink-50 dark:bg-ink-800/50 px-3 py-1">Ctrl+V</span>
       </div>
-      <div className="mt-2 text-xs text-ink-400">Até {MAX_BATCH_FILES} PDFs · máximo de 50 MB por arquivo · duplicados detectados pelo conteúdo</div>
+      <div className="mt-2 text-xs text-ink-500 dark:text-ink-400">Até {MAX_BATCH_FILES} PDFs · máximo de 50 MB por arquivo · duplicados detectados pelo conteúdo</div>
     </div>
 
     {items.length === 1 && <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -269,10 +269,10 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
         {items.map(item => <div key={item.id} className="flex items-center gap-3 px-3 py-2.5 text-xs">
           <div className="min-w-0 flex-1">
             <div className="truncate font-medium text-ink-700 dark:text-ink-300">{item.file.name}</div>
-            <div className="mt-0.5 text-[10px] text-ink-400">{(item.file.size / 1024 / 1024).toFixed(1)} MB{item.message ? ` · ${item.message}` : ''}</div>
+            <div className="mt-0.5 text-[10px] text-ink-500 dark:text-ink-400">{(item.file.size / 1024 / 1024).toFixed(1)} MB{item.message ? ` · ${item.message}` : ''}</div>
           </div>
           <span className={`whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-semibold ${statusClass(item.state)}`}>{statusLabel(item)}</span>
-          {!busy && item.state !== 'UPLOADING' && <button type="button" onClick={() => removeItem(item.id)} aria-label={`Remover ${item.file.name}`} className="rounded-lg px-2 py-1 text-ink-400 hover:bg-ink-100 dark:bg-ink-700 hover:text-ink-700 dark:text-ink-300">×</button>}
+          {!busy && item.state !== 'UPLOADING' && <button type="button" onClick={() => removeItem(item.id)} aria-label={`Remover ${item.file.name}`} className="rounded-lg px-2 py-1 text-ink-500 hover:bg-ink-100 dark:bg-ink-700 hover:text-ink-700 dark:text-ink-300">×</button>}
         </div>)}
       </div>
     </div>}

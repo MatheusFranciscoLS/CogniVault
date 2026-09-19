@@ -11,7 +11,7 @@ function Field({ label, value, placeholder, onChange }: { label: string; value: 
         value={value}
         onChange={event => onChange(event.target.value)}
         placeholder={placeholder}
-        className="h-10 w-full rounded-lg border border-ink-200 bg-white px-3 text-sm font-semibold text-ink-800 outline-none transition placeholder:font-medium placeholder:text-ink-400 focus:border-brand-600 focus:ring-4 focus:ring-brand-500/10 dark:border-ink-700 dark:bg-ink-950 dark:text-ink-100"
+        className="h-10 w-full rounded-lg border border-ink-200 bg-white px-3 text-sm font-semibold text-ink-800 outline-none transition placeholder:font-medium placeholder:text-ink-500 focus:border-brand-600 focus:ring-4 focus:ring-brand-500/10 dark:border-ink-700 dark:bg-ink-950 dark:text-ink-100"
       />
     </label>
   );

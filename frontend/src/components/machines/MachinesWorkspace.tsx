@@ -291,13 +291,13 @@ export default function MachinesWorkspace({ initialPnc, initialSearch, onStateCh
       <form onSubmit={submit} className="overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm dark:border-ink-800 dark:bg-ink-900">
         <div className="flex flex-col gap-2 p-2 md:flex-row">
           <div className="relative min-w-0 flex-1">
-            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-400">⌕</span>
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-500 dark:text-ink-400">⌕</span>
             <input
               value={query}
               onChange={event => setQuery(event.target.value)}
               placeholder="Modelo da máquina ou PNC da etiqueta. Ex.: 143RII ou 967 17 65-01"
               autoComplete="off"
-              className="h-12 w-full rounded-lg border-0 bg-ink-50 pl-10 pr-4 text-sm font-semibold text-ink-900 outline-none transition placeholder:text-ink-400 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:bg-ink-800 dark:text-white dark:focus:bg-ink-800"
+              className="h-12 w-full rounded-lg border-0 bg-ink-50 pl-10 pr-4 text-sm font-semibold text-ink-900 outline-none transition placeholder:text-ink-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:bg-ink-800 dark:text-white dark:focus:bg-ink-800"
             />
           </div>
           <button type="submit" disabled={query.trim().length < 2} className="h-12 rounded-lg bg-ink-900 px-5 text-sm font-black text-white transition hover:bg-ink-950 disabled:opacity-50">
@@ -305,7 +305,7 @@ export default function MachinesWorkspace({ initialPnc, initialSearch, onStateCh
           </button>
         </div>
         <div className="flex flex-wrap items-center gap-2 border-t border-ink-100 px-4 py-2 dark:border-ink-800">
-          <span className="text-[10px] font-semibold text-ink-400">PNC abre a máquina direto · texto pesquisa no catálogo oficial Husqvarna.</span>
+          <span className="text-[10px] font-semibold text-ink-500 dark:text-ink-400">PNC abre a máquina direto · texto pesquisa no catálogo oficial Husqvarna.</span>
           {canUseContext && (
             <button type="button" onClick={() => openMachine(contextPnc)} className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700 transition hover:border-emerald-300 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
               Abrir PNC do atendimento · {session.pnc}
@@ -320,7 +320,7 @@ export default function MachinesWorkspace({ initialPnc, initialSearch, onStateCh
 
       {recent.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 px-1">
-          <span className="text-[10px] font-black uppercase tracking-[.12em] text-ink-400">Máquinas recentes</span>
+          <span className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">Máquinas recentes</span>
           {recent.map(item => (
             <button
               key={item.pnc}
@@ -378,7 +378,7 @@ export default function MachinesWorkspace({ initialPnc, initialSearch, onStateCh
               <section key={kind} className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
                 <div className="flex items-center justify-between border-b border-ink-100 px-4 py-2.5 dark:border-ink-800">
                   <h2 className="text-[10px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">{SEARCH_KIND_LABELS[kind]}</h2>
-                  <span className="text-[10px] font-bold text-ink-400">{items.length}</span>
+                  <span className="text-[10px] font-bold text-ink-500 dark:text-ink-400">{items.length}</span>
                 </div>
                 <div>
                   {items.map(item => {
@@ -388,7 +388,7 @@ export default function MachinesWorkspace({ initialPnc, initialSearch, onStateCh
                           {item.imageUrl && <img src={item.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-lg bg-white object-contain" loading="lazy" />}
                           <div className="min-w-0">
                             <div className="truncate text-sm font-black text-ink-900 dark:text-white">{item.title}</div>
-                            <div className="mt-1 truncate text-[11px] text-ink-400">{resultMeta(item)}</div>
+                            <div className="mt-1 truncate text-[11px] text-ink-500 dark:text-ink-400">{resultMeta(item)}</div>
                           </div>
                         </div>
                         <div className="flex items-center gap-5">
@@ -426,7 +426,7 @@ export default function MachinesWorkspace({ initialPnc, initialSearch, onStateCh
       {!machineLoading && !machine && !searchLoading && !results.length && !searchError && !machineError && (
         <div className="rounded-xl border border-dashed border-ink-300 bg-white px-5 py-10 text-center dark:border-ink-700 dark:bg-ink-900">
           <div className="text-sm font-bold text-ink-700 dark:text-ink-200">Comece pela máquina do cliente</div>
-          <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-ink-400">
+          <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-ink-500 dark:text-ink-400">
             Digite o modelo ou o PNC da etiqueta. A vista explodida abre aqui dentro, com código, preço e botão de orçamento em cada posição.
           </p>
         </div>

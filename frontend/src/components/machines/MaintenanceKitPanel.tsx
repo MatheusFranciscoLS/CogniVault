@@ -55,12 +55,12 @@ export default function MaintenanceKitPanel({ model, pnc }: Props) {
       </div>
 
       {loading ? (
-        <div className="px-4 py-6 text-xs font-semibold text-ink-400">Montando o kit de manutenção deste modelo…</div>
+        <div className="px-4 py-6 text-xs font-semibold text-ink-500 dark:text-ink-400">Montando o kit de manutenção deste modelo…</div>
       ) : (
         <div className="grid gap-px bg-ink-100 sm:grid-cols-2 dark:bg-ink-800">
           {items.map((item, index) => (
             <div key={`${item.category}-${item.part.id}`} className="bg-white px-4 py-3 dark:bg-ink-900">
-              <div className="text-[9px] font-black uppercase tracking-[.12em] text-ink-400">{item.label}</div>
+              <div className="text-[9px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">{item.label}</div>
               <div className="mt-1 truncate text-xs font-bold text-ink-800 dark:text-ink-100" title={item.part.name}>{item.part.name}</div>
               <div className="mt-1.5 flex items-center justify-between gap-3">
                 <span className="font-mono text-xs font-black text-ink-900 dark:text-brand-300">{cleanErpCode(item.part.partNumber)}</span>

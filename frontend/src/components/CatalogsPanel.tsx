@@ -546,9 +546,9 @@ export default function CatalogsPanel({
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <div className="font-semibold text-ink-800 dark:text-ink-200">Biblioteca por seção</div>
-            <p className="mt-1 text-xs leading-5 text-ink-400">Classificação automática por tipo de máquina Husqvarna:</p>
+            <p className="mt-1 text-xs leading-5 text-ink-500 dark:text-ink-400">Classificação automática por tipo de máquina Husqvarna:</p>
           </div>
-          <div className="text-xs font-medium text-ink-400">{activeDocs.length} catálogo{activeDocs.length === 1 ? '' : 's'}</div>
+          <div className="text-xs font-medium text-ink-500 dark:text-ink-400">{activeDocs.length} catálogo{activeDocs.length === 1 ? '' : 's'}</div>
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
           <button
@@ -560,7 +560,7 @@ export default function CatalogsPanel({
               <span>📚</span>
               <span>Todos</span>
             </div>
-            <div className={`mt-1 text-xs ${effectiveCategoryFilter === 'ALL' ? 'text-brand-200' : 'text-ink-400'}`}>
+            <div className={`mt-1 text-xs ${effectiveCategoryFilter === 'ALL' ? 'text-brand-200' : 'text-ink-500 dark:text-ink-400'}`}>
               {activeDocs.length} catálogo{activeDocs.length === 1 ? '' : 's'}
             </div>
           </button>
@@ -579,7 +579,7 @@ export default function CatalogsPanel({
                   <span>{icon}</span>
                   <span className="truncate">{category}</span>
                 </div>
-                <div className={`mt-1 text-xs ${selected ? 'text-brand-200' : 'text-ink-400'}`}>
+                <div className={`mt-1 text-xs ${selected ? 'text-brand-200' : 'text-ink-500 dark:text-ink-400'}`}>
                   {count} catálogo{count === 1 ? '' : 's'}
                 </div>
               </button>
@@ -605,7 +605,7 @@ export default function CatalogsPanel({
               <button
                 type="button"
                 onClick={() => setSearch('')}
-                className="flex items-center rounded-xl px-2.5 sm:px-3 text-xs font-semibold text-ink-400 transition hover:bg-ink-100 dark:hover:bg-ink-700 hover:text-ink-700 dark:text-ink-300"
+                className="flex items-center rounded-xl px-2.5 sm:px-3 text-xs font-semibold text-ink-500 transition hover:bg-ink-100 dark:hover:bg-ink-700 hover:text-ink-700 dark:text-ink-300"
               >
                 Limpar
               </button>
@@ -624,8 +624,8 @@ export default function CatalogsPanel({
                 className="group flex items-center gap-2 rounded-xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 px-3 py-1.5 text-xs font-semibold text-ink-700 dark:text-ink-200 shadow-xs hover:border-ink-300 dark:hover:border-ink-600 hover:bg-ink-50 dark:hover:bg-ink-700/60 transition active:scale-95 cursor-pointer"
                 title="Ordenar catálogo por nome, data ou quantidade de peças"
               >
-                <span className="flex items-center gap-1.5 text-ink-400 dark:text-ink-400 font-medium">
-                  <svg className="w-3.5 h-3.5 text-ink-400 group-hover:text-brand-500 transition-colors" viewBox="0 0 20 20" fill="currentColor">
+                <span className="flex items-center gap-1.5 text-ink-500 dark:text-ink-400 font-medium">
+                  <svg className="w-3.5 h-3.5 text-ink-500 dark:text-ink-400 group-hover:text-brand-500 transition-colors" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M2.24 6.8a.75.75 0 001.06-.04l1.95-2.1v8.59a.75.75 0 001.5 0V4.66l1.95 2.1a.75.75 0 101.1-1.02l-3.25-3.5a.75.75 0 00-1.1 0L2.2 5.74a.75.75 0 00.04 1.06zm8 6.4a.75.75 0 00-.04 1.06l3.25 3.5a.75.75 0 001.1 0l3.25-3.5a.75.75 0 10-1.1-1.02l-1.95 2.1V6.75a.75.75 0 00-1.5 0v8.59l-1.95-2.1a.75.75 0 00-1.06-.04z" clipRule="evenodd" />
                   </svg>
                   <span>Ordem:</span>
@@ -634,7 +634,7 @@ export default function CatalogsPanel({
                   {SORT_OPTIONS.find(opt => opt.value === sortMode)?.label || 'Nome / Modelo (A-Z)'}
                 </span>
                 <svg
-                  className={`w-3.5 h-3.5 text-ink-400 transition-transform duration-200 ${sortOpen ? 'rotate-180 text-brand-500' : ''}`}
+                  className={`w-3.5 h-3.5 text-ink-500 dark:text-ink-400 transition-transform duration-200 ${sortOpen ? 'rotate-180 text-brand-500' : ''}`}
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
@@ -648,7 +648,7 @@ export default function CatalogsPanel({
                   aria-labelledby="catalog-sort-menu-button"
                   className="absolute right-0 z-50 mt-1.5 w-64 origin-top-right rounded-2xl border border-ink-200 dark:border-ink-700 bg-white/95 dark:bg-ink-900/95 backdrop-blur-md p-1.5 shadow-2xl shadow-ink-950/20 ring-1 ring-black/5"
                 >
-                  <div className="px-2.5 py-1.5 border-b border-ink-100 dark:border-ink-800 text-[10px] font-bold uppercase tracking-wider text-ink-400">
+                  <div className="px-2.5 py-1.5 border-b border-ink-100 dark:border-ink-800 text-[10px] font-bold uppercase tracking-wider text-ink-500 dark:text-ink-400">
                     Critério de ordenação
                   </div>
                   <div className="mt-1 space-y-0.5">
@@ -678,7 +678,7 @@ export default function CatalogsPanel({
                                 <span className="text-brand-600 dark:text-brand-400 font-bold text-xs">✓</span>
                               )}
                             </div>
-                            <p className="mt-1 text-[11px] text-ink-400 dark:text-ink-400 leading-tight">
+                            <p className="mt-1 text-[11px] text-ink-500 dark:text-ink-400 leading-tight">
                               {opt.description}
                             </p>
                           </div>
@@ -798,7 +798,7 @@ export default function CatalogsPanel({
                       <h3 className="text-base font-bold text-ink-800 dark:text-ink-100 truncate" title={formatEngineOrCatalogModel(document.model, document.manufacturer, document.filename) || document.filename}>
                         {formatEngineOrCatalogModel(document.model, document.manufacturer, document.filename) || document.model || 'Modelo não confirmado'}
                       </h3>
-                      <div className="mt-0.5 text-xs text-ink-400 truncate" title={document.filename}>
+                      <div className="mt-0.5 text-xs text-ink-500 dark:text-ink-400 truncate" title={document.filename}>
                         {document.filename}
                       </div>
                       {document.briggsManualsUrl && (
@@ -824,7 +824,7 @@ export default function CatalogsPanel({
 
                     {pncs.length > 0 && (
                       <div className="mt-3">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-ink-400">PNCs</div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-ink-500 dark:text-ink-400">PNCs</div>
                         <div className="mt-1 flex flex-wrap gap-1">
                           {pncs.slice(0, 3).map(pnc => (
                             <span key={pnc} className="rounded-md bg-brand-50 dark:bg-ink-900/60 px-1.5 py-0.5 text-[10px] font-mono font-medium text-brand-700 dark:text-brand-300">
@@ -832,7 +832,7 @@ export default function CatalogsPanel({
                             </span>
                           ))}
                           {pncs.length > 3 && (
-                            <span className="rounded-md bg-ink-100 dark:bg-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400">
+                            <span className="rounded-md bg-ink-100 dark:bg-ink-700 px-1.5 py-0.5 text-[10px] text-ink-500 dark:text-ink-400">
                               +{pncs.length - 3}
                             </span>
                           )}
@@ -931,7 +931,7 @@ export default function CatalogsPanel({
                     )}
 
                     {admin && (
-                      <div className="w-full flex items-center justify-between pt-1 text-[11px] text-ink-400">
+                      <div className="w-full flex items-center justify-between pt-1 text-[11px] text-ink-500 dark:text-ink-400">
                         <button
                           type="button"
                           disabled={busy || document.processingActive}
@@ -967,7 +967,7 @@ export default function CatalogsPanel({
           /* View Mode: Table */
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1160px] text-sm">
-              <thead className="bg-ink-50/80 dark:bg-ink-800 text-left text-[11px] uppercase tracking-[.08em] text-ink-400">
+              <thead className="bg-ink-50/80 dark:bg-ink-800 text-left text-[11px] uppercase tracking-[.08em] text-ink-500 dark:text-ink-400">
                 <tr>
                   <th className="p-4">Catálogo</th>
                   <th>Seção</th>
@@ -997,8 +997,8 @@ export default function CatalogsPanel({
                           </button>
                           <div>
                             <b className="font-semibold text-ink-800 dark:text-ink-200">{document.filename}</b>
-                            <div className="mt-1 text-xs text-ink-400">{document.manufacturer || 'Husqvarna'} · {fmtDate(document.createdAt)}</div>
-                            {document.extractionMethod && <div className="mt-1 text-[10px] font-medium text-ink-400">{extractionLabel(document.extractionMethod)}</div>}
+                            <div className="mt-1 text-xs text-ink-500 dark:text-ink-400">{document.manufacturer || 'Husqvarna'} · {fmtDate(document.createdAt)}</div>
+                            {document.extractionMethod && <div className="mt-1 text-[10px] font-medium text-ink-500 dark:text-ink-400">{extractionLabel(document.extractionMethod)}</div>}
                             {document.archivedAt && <span className="text-xs text-rose-600">Arquivado</span>}
                           </div>
                         </div>
@@ -1078,7 +1078,7 @@ export default function CatalogsPanel({
                         )}
                         {pncs.length ? (
                           <div className="mt-1.5">
-                            <div className="text-[10px] font-semibold uppercase tracking-[.06em] text-ink-400">
+                            <div className="text-[10px] font-semibold uppercase tracking-[.06em] text-ink-500 dark:text-ink-400">
                               {pncs.length === 1 ? 'PNC' : 'PNCs encontrados'}{pncs.length > 1 ? ` · ${pncs.length}` : ''}
                             </div>
                             <div className="mt-1 flex max-w-[280px] flex-wrap gap-1" title={pncs.join(', ')}>
@@ -1095,7 +1095,7 @@ export default function CatalogsPanel({
                             </div>
                           </div>
                         ) : (
-                          <div className="mt-1 text-[10px] text-ink-400">PNC não identificado no PDF</div>
+                          <div className="mt-1 text-[10px] text-ink-500 dark:text-ink-400">PNC não identificado no PDF</div>
                         )}
                       </td>
                       <td className="pr-4">
@@ -1275,7 +1275,7 @@ export default function CatalogsPanel({
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200 dark:border-ink-700 px-4 py-3">
               <div>
                 <div className="text-sm font-semibold">{pdf.title}</div>
-                <div className="text-xs text-ink-400">Visualizador técnico de catálogo</div>
+                <div className="text-xs text-ink-500 dark:text-ink-400">Visualizador técnico de catálogo</div>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -1302,7 +1302,7 @@ export default function CatalogsPanel({
                   Nova aba ↗
                 </a>
                 <button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-ink-200 dark:border-ink-700 px-3 py-2 text-sm font-semibold">
-                  Fechar <span className="ml-1 text-[10px] text-ink-400">Esc</span>
+                  Fechar <span className="ml-1 text-[10px] text-ink-500 dark:text-ink-400">Esc</span>
                 </button>
               </div>
             </div>

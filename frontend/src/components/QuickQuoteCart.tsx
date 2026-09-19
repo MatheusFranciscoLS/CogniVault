@@ -283,7 +283,7 @@ function CartItemRow({
               reservado para o total do pedido. */}
           {subtotal > 0 && (
             <span className="shrink-0 text-right">
-              <span className="block text-[9px] font-bold uppercase tracking-[.08em] text-ink-400">Subtotal</span>
+              <span className="block text-[9px] font-bold uppercase tracking-[.08em] text-ink-500 dark:text-ink-400">Subtotal</span>
               <span className="block text-sm font-bold text-ink-800 tabular-nums dark:text-ink-100">{money(subtotal)}</span>
             </span>
           )}
@@ -456,7 +456,7 @@ export default function QuickQuoteCart() {
                             arquivados vive na seção "Orçamentos", que filtra por
                             cliente, telefone, código e período. Sem esta linha, o
                             atendente não tem como saber para onde ela foi. */}
-                        <p className="mt-3 max-w-[260px] text-[11px] text-ink-400">
+                        <p className="mt-3 max-w-[260px] text-[11px] text-ink-500 dark:text-ink-400">
                           Orçamentos já enviados ficam na seção <strong className="font-bold text-ink-600 dark:text-ink-300">Orçamentos</strong>, no menu lateral.
                         </p>
                       </div>

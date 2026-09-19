@@ -186,7 +186,7 @@ function SuggestionsDropdown({ suggestions, activeIndex, onPick }: { suggestions
         >
           <span className="min-w-0">
             <span className="block truncate text-[13px] font-black text-ink-900 dark:text-white">{part.name}</span>
-            <span className="mt-0.5 block truncate text-[10px] text-ink-400">{part.model}{part.pnc ? ` · PNC ${part.pnc}` : ''}</span>
+            <span className="mt-0.5 block truncate text-[10px] text-ink-500 dark:text-ink-400">{part.model}{part.pnc ? ` · PNC ${part.pnc}` : ''}</span>
           </span>
           <span className="shrink-0 font-mono text-[12px] font-black text-ink-700 dark:text-brand-300">{part.partNumber}</span>
         </button>
@@ -614,7 +614,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       <form onSubmit={submit} className="overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm dark:border-ink-800 dark:bg-ink-900">
         <div className="flex items-center gap-2 p-2">
           <div className="relative min-w-0 flex-1">
-            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-400">⌕</span>
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-500 dark:text-ink-400">⌕</span>
             <input
               ref={inputRef}
               value={query}
@@ -641,7 +641,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
               aria-expanded={suggestionsOpen && suggestions.length > 0}
               aria-controls="parts-search-suggestions"
               aria-autocomplete="list"
-              className="h-[52px] w-full rounded-lg border-0 bg-ink-50 pl-10 pr-4 sm:h-12 text-sm font-semibold text-ink-900 outline-none transition placeholder:text-ink-400 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:bg-ink-800 dark:text-white dark:focus:bg-ink-800"
+              className="h-[52px] w-full rounded-lg border-0 bg-ink-50 pl-10 pr-4 sm:h-12 text-sm font-semibold text-ink-900 outline-none transition placeholder:text-ink-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:bg-ink-800 dark:text-white dark:focus:bg-ink-800"
             />
             {suggestionsOpen && suggestions.length > 0 && (
               <div id="parts-search-suggestions">
@@ -670,7 +670,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
             <section>
               <div className="mb-2 flex items-center justify-between gap-3 px-1">
                 <div className="flex items-center gap-2"><SourceBadge source="CATALOG" /><span className="text-xs font-black text-ink-700 dark:text-ink-200">Evidência técnica</span></div>
-                <span className="text-[10px] text-ink-400">{parts.length} resultado{parts.length === 1 ? '' : 's'} em catálogo</span>
+                <span className="text-[10px] text-ink-500 dark:text-ink-400">{parts.length} resultado{parts.length === 1 ? '' : 's'} em catálogo</span>
               </div>
               <div className="overflow-hidden rounded-xl border border-ink-200 dark:border-ink-800">
                 {parts.map(part => (
@@ -694,7 +694,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           {(commercialParts.length > 0 || commercialLoading || priceSections.length > 0) && (
             <section>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-3 px-1">
-                <div className="flex items-center gap-2"><SourceBadge source="PRICE_LIST" /><span className="text-xs font-black text-ink-700 dark:text-ink-200">Cadastro comercial</span><span className="text-[10px] text-ink-400">{commercialLoading ? 'Consultando…' : `${commercialParts.length} resultado${commercialParts.length === 1 ? '' : 's'}`}</span></div>
+                <div className="flex items-center gap-2"><SourceBadge source="PRICE_LIST" /><span className="text-xs font-black text-ink-700 dark:text-ink-200">Cadastro comercial</span><span className="text-[10px] text-ink-500 dark:text-ink-400">{commercialLoading ? 'Consultando…' : `${commercialParts.length} resultado${commercialParts.length === 1 ? '' : 's'}`}</span></div>
                 {priceSections.length > 1 && (
                   <select value={priceSection} onChange={event => changePriceSection(event.target.value)} className="h-8 rounded-lg border border-ink-200 bg-white px-2 text-[10px] font-bold text-ink-600 outline-none dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300">
                     <option value="">Todas as seções</option>
@@ -744,11 +744,11 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           {documents.length > 0 && (
             <section>
               <div className="mb-2 flex items-center justify-between gap-3 px-1">
-                <div className="text-[10px] font-black uppercase tracking-[.14em] text-ink-400">Catálogos relacionados</div>
-                {documents.length > 4 && <div className="text-[10px] text-ink-400">+{documents.length - 4} outro{documents.length - 4 === 1 ? '' : 's'}</div>}
+                <div className="text-[10px] font-black uppercase tracking-[.14em] text-ink-500 dark:text-ink-400">Catálogos relacionados</div>
+                {documents.length > 4 && <div className="text-[10px] text-ink-500 dark:text-ink-400">+{documents.length - 4} outro{documents.length - 4 === 1 ? '' : 's'}</div>}
               </div>
               <div className="grid gap-2 md:grid-cols-2">
-                {documents.slice(0, 4).map(document => <button key={document.id} type="button" onClick={() => void accessPdf(document.id, null, document.filename)} className="rounded-xl border border-ink-200 bg-white p-3 text-left transition hover:border-brand-300 dark:border-ink-800 dark:bg-ink-900"><div className="truncate text-xs font-black text-ink-800 dark:text-ink-100">{document.filename}</div><div className="mt-1 text-[10px] text-ink-400">{document.model || 'Modelo não informado'} · {document.partCount} peças</div></button>)}
+                {documents.slice(0, 4).map(document => <button key={document.id} type="button" onClick={() => void accessPdf(document.id, null, document.filename)} className="rounded-xl border border-ink-200 bg-white p-3 text-left transition hover:border-brand-300 dark:border-ink-800 dark:bg-ink-900"><div className="truncate text-xs font-black text-ink-800 dark:text-ink-100">{document.filename}</div><div className="mt-1 text-[10px] text-ink-500 dark:text-ink-400">{document.model || 'Modelo não informado'} · {document.partCount} peças</div></button>)}
               </div>
             </section>
           )}
