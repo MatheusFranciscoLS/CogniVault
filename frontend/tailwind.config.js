@@ -12,6 +12,31 @@ export default {
     theme: {
         extend: {
             colors: {
+                /*
+                 * Superfícies têm escala PRÓPRIA, separada da do texto.
+                 *
+                 * A razão é concreta: `ink-900` é fundo em 164 lugares e texto
+                 * em 108. Enquanto fundo e texto dividem a mesma escala, não dá
+                 * para ajustar profundidade sem mexer em legibilidade.
+                 *
+                 * O diagnóstico que motivou isto foi medido, não opinado — as
+                 * três camadas do tema claro (página, card, barra lateral)
+                 * tinham separação de 1,10 e 1,00. Barra lateral e card eram
+                 * literalmente a MESMA cor branca, e é isso que fazia a tela
+                 * parecer "tudo muito branco".
+                 */
+                surface: {
+                    // Página: afasta do card branco (1,10 -> 1,23) mantendo o
+                    // neutro quente do site da loja. Texto #1e1e1d a 13,6:1.
+                    page: '#eae8e2',
+                    // Página no escuro: afasta do card ink-900 (1,15 -> 1,24)
+                    // sem tocar no token do card.
+                    'page-dark': '#0f1426',
+                    // Barra lateral: navy da marca, nos DOIS temas. É a mesma
+                    // superfície do painel do login, e resolve de uma vez o
+                    // "tudo branco" — 12:1 de separação contra a página clara.
+                    nav: '#1f2742',
+                },
                 brand: {
                     DEFAULT: '#273a60',
                     50: '#f1f4f9',
@@ -73,9 +98,19 @@ export default {
                     600: '#4f5461',
                     700: '#3d3d3c',
                     800: '#2b3348',
-                    // 850 não existe no `slate`: é a superfície de card do tema
-                    // escuro, entre o fundo da página (950) e a borda (800).
-                    850: '#222b44',
+                    // 850 não existe no `slate`: é a superfície ELEVADA do tema
+                    // escuro, acima do card (900).
+                    //
+                    // Era `#222b44`, que dava 1,05 de separação contra o card —
+                    // medido, e 1,05 o olho não distingue. Duas camadas com um
+                    // tom só é o que fazia a tela parecer chapada. `#2a3555`
+                    // sobe para 1,22 e mantém branco a 12,1:1.
+                    //
+                    // Este token é seguro de mudar porque é SÓ fundo: 20 usos em
+                    // `bg-`, zero em `text-`. O `ink-900`, por comparação, é
+                    // fundo 164 vezes E texto 108 — mexer nele quebraria o
+                    // texto escuro sobre superfície clara.
+                    850: '#2a3555',
                     900: '#1f2742',
                     950: '#161c2f',
                 },

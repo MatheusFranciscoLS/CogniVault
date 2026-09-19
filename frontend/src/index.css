@@ -17,7 +17,9 @@
 :root {
   font-family: "Roboto Flex", Roboto, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
   color: #1e1e1d;
-  background: #f4f4f3;
+  /* Página afastada do card branco: 1,10 -> 1,23 de separação, medido.
+     Mantém o neutro quente do site da loja. */
+  background: #eae8e2;
 
   --cv-brand: #273a60;
   --cv-brand-dark: #1f2742;
@@ -36,7 +38,7 @@
   --cv-ink-strong: #3d3d3c;
   --cv-ink-muted: #686867;
   --cv-border: #e4e4e2;
-  --cv-neutral: #f4f4f3;
+  --cv-neutral: #eae8e2;
   --cv-surface: #ffffff;
 
   --cv-radius-sm: 6px;
@@ -390,7 +392,9 @@ input[type="number"],
 
 .dark {
   color: #f4f4f3;
-  background: #161c2f;
+  /* Página mais profunda que o card (ink-900): 1,15 -> 1,24. O card não muda,
+     porque ink-900 também é cor de texto em 108 lugares. */
+  background: #0f1426;
 
   --cv-brand: #94aacd;
   --cv-brand-dark: #5f7dae;
@@ -414,7 +418,9 @@ input[type="number"],
   --cv-shadow-raised: 0 12px 28px -8px rgba(0, 0, 0, .55), 0 4px 10px -4px rgba(0, 0, 0, .35);
 }
 
-html.dark { background: #161c2f; }
+/* Acompanha a superfície de página do tema escuro. Só aparece em overscroll,
+   mas ficar num tom diferente do app entrega a emenda. */
+html.dark { background: #0f1426; }
 
 .dark .cv-app-shell {
   background: linear-gradient(to bottom right, #1f2742, #161c2f);
