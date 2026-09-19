@@ -443,21 +443,46 @@ Engine:  0XXXXX-XXXX      (modelo de 5 dígitos)*
 "Dashes are required after first 6 digits when entering model number."
 ```
 
-O IPL sai em `thepowerportal.com/ipls/ipl.htm?md=<modelo sem traço>~<IDIOMA>_IPLURL_LO.pdf`.
-**Não gere esse link — a advertência agora tem prova.** Dois exemplos reais do
-proprietário se contradizem no segmento de idioma:
+### A Briggs tem API pública (corrigido em 2026-09-19)
+
+Esta seção dizia que a Briggs "não tem API pública equivalente ao GraphQL da
+Husqvarna" e que o link do IPL era indeduzível. **As duas coisas estavam
+erradas**, e o dono viu o sintoma antes de mim: *"o que fizemos na briggs nao
+deu certo"*.
+
+A lista da página de resultados é montada por JavaScript a partir de:
+
+    GET briggsandstratton.com/_hcms/api/manual-search?partNumber=<modelo>
+
+Índice Azure Search, JSON, **sem chave e sem login**. Ela devolve `tc_DocType`
+(`Illustrated Parts List` vs `Operator's Manual`), `tc_LanguageCode` e
+`tc_RelativePath`, e o PDF abre em
+`thepowerportal.com/ipls/ipl.htm?md=<tc_RelativePath com ~ literal>`.
+Código: `utils/briggs-manuals.ts` + `services/briggs-manuals.service.ts`,
+rota `/api/briggs/parts-manuals/open`.
+
+**A "contradição" do idioma não era contradição.** Estes dois exemplos estavam
+registrados aqui como prova de que o link era indeduzível:
 
     103M02-0027-H1  ->  md=103M020027H1~ZH_IPLURL_LO.pdf   (chinês)
     12J902-0118-01  ->  md=12J902011801~_IPLURL_LO.pdf     (idioma VAZIO)
 
-Não há regra dedutível de dois casos que discordam, e link quebrado no balcão é
-pior que link nenhum. O caminho certo é a **busca de manuais**, que
-`briggsManualsSearchUrl` monta.
+Medindo 8 modelos: o segmento é o código do idioma (`ZH` chinês, `JA` japonês,
+**vazio** inglês), e o `103M02-0027-H1` simplesmente **não tem IPL em inglês**.
 
-**A URL é a do site pt-BR**, conferida no navegador: `/pt-br/support/manuals/results?search=12J902-0118-01`
-devolve os dois `PARTS MANUAL - 12J902-0118-01`, em inglês e em chinês. A
-preferência do dono, nas palavras dele: *"Parts manual english de preferência,
-se não tiver pode ser o chinese mesmo. Em português não vai ter de jeito nenhum."*
+Mesmo assim, **não deduza esse segmento**. O caminho vem da resposta da API, e é
+isso que faz a diferença entre uma fonte e um palpite.
+
+**A lição que vale além deste caso.** A validação antiga registrada aqui dizia
+"a URL gerada devolveu 16 resultados reais" — e estava certa e inútil ao mesmo
+tempo. Os dois `PARTS MANUAL` ficavam em ÚLTIMO, depois de 14 linhas chamadas só
+`MANUAL, ILLUSTRATED`, sem modelo nem número para distinguir. **"Respondeu 200"
+não é evidência de que serve ao balcão**; o teste é se o atendente chega ao
+documento certo sem caçar.
+
+Preferência do dono, nas palavras dele: *"SEMPRE VOU DAR PRIORIDADE PRO INGLÊS,
+mas se não tiver o inglês e outra língua eu tenho que abrir igual para ver o
+código e ver o preço."* Os dois casos estão travados em teste.
 
 ### Kawasaki não tem link profundo, e isso é deliberado
 
@@ -470,6 +495,22 @@ grade de conjuntos. Então `kawasakiPartsLookupUrl()` aponta para
 
 O modelo Kawasaki é **série + spec** (`FX921V-ES06`), e vem da **plaqueta do
 motor** — o Portal Husqvarna não informa (veja a seção abaixo).
+
+**E não é só o link profundo que falta — a Kawasaki não dá para integrar**, ao
+contrário da Briggs. Medido em 2026-09-19: a lista de peças vive no ARI
+PartStream com uma app key que pertence ao site deles; a página do localizador
+roda **reCAPTCHA** (`POST /api/verify-captcha` no carregamento); e o `/manuals`
+público só tem manual do proprietário, por série, com a própria página mandando
+procurar o revendedor para o manual de serviço. Não procure um endpoint: ele não
+existe em acesso público, e a presença de reCAPTCHA é uma recusa explícita a
+acesso automatizado.
+
+**`hasKawasakiEvidence` não é redundante.** `formatKawasakiModelForSearch`
+reconhece `LC121P` e `LB155S`, que são cortadores **Husqvarna** — o padrão
+`[A-Z]{2}d{3}[A-Z]` é o mesmo dos dois fabricantes. Sem a guarda, um cortador
+Husqvarna ganharia botão de "Catálogo Kawasaki", que é mandar o atendente ao
+catálogo errado. A decisão exige a marca dita no `manufacturer` ou no nome do
+arquivo; sem isso, não há botão — e não ter botão é o resultado correto.
 
 ## Portal Husqvarna: identidade de 9 dígitos e o campo `comment`
 
