@@ -45,7 +45,7 @@ export interface ChatResponse {
   };
   technicalContext?:Array<{filename:string;page:number|null;section:string|null;excerpt:string;method:'FULL_TEXT'|'FUZZY'|'SEMANTIC'}>;
   guidance?:{title:string;description:string;tips:string[]};
-  part?:{ id:string; documentId:string; partNumber:string; manufacturer?:string|null; name:string; model:string; pnc:string; section:string|null; position:string|null; page:number|null; notes?:string|null; filename:string; universalAcrossPnc?:boolean; applications?:Array<{model:string;pnc:string}>; classification?: PartClassification; suggestedAddons?: { reason: string; items: SuggestedAddon[] } };
+  part?:{ id:string; documentId:string; partNumber:string; manufacturer?:string|null; name:string; model:string; pnc:string; section:string|null; position:string|null; page:number|null; notes?:string|null; filename:string; universalAcrossPnc?:boolean; applications?:Array<{model:string;pnc:string}>; classification?: PartClassification; suggestedAddons?: { reason: string; items: SuggestedAddon[]; consumables?: ConsumableSuggestion[] } };
   feedbackOptions?:FeedbackOption[]; options?:FeedbackOption[];
   b2bPortal?: { success: boolean; stockStatus: string; supersededBy?: string; };
   technicalReasoningSteps?: Array<{ step: number; title: string; detail: string; status: 'SUCCESS' | 'INFO' | 'NOTICE' }>;
@@ -140,7 +140,7 @@ export interface PartDetail extends SearchPart {
   notes:string|null; favoriteId:string|null; document:{id:string;filename:string;manufacturer:string|null;model:string|null;pnc:string|null};
   related:Array<{id:string;name:string;partNumber:string;model:string;pnc:string|null;section:string|null;position:string|null;page:number|null;classification?:PartClassification}>;
   compatibility:Array<{model:string;pnc:string|null}>;
-  suggestedAddons?: { reason: string; items: SuggestedAddon[] };
+  suggestedAddons?: { reason: string; items: SuggestedAddon[]; consumables?: ConsumableSuggestion[] };
   price?: number | null;
   ean?: string | null;
   officialName?: string | null;
@@ -217,4 +217,17 @@ export interface BusinessInsights {
   unpricedParts:BusinessUnpricedPart[];
   attendants:BusinessAttendant[];
   priceListCoverage:{ masterParts:number; masterPartsWithoutPrice:number };
+}
+
+/**
+ * Consumível sugerido junto da peça: óleo, basicamente.
+ *
+ * Não tem código de catálogo — a loja não cadastra óleo. Entra no orçamento
+ * como linha avulsa (`SRV-`), que a cesta mostra como "SERVIÇO / AVULSO", e o
+ * atendente põe o preço. Ver backend services/machine-oil.ts.
+ */
+export interface ConsumableSuggestion {
+  kind: 'TWO_STROKE' | 'CHAIN' | 'MOWER_20W50' | 'TRACTOR_15W50';
+  label: string;
+  code: string;
 }

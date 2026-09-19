@@ -1,6 +1,4 @@
-import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
-import { GEMINI_EMBEDDING_MODEL, getGeminiClient } from '../config/gemini';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { invalidateSearchFeedbackCache } from './part-search.service';
 
@@ -56,14 +54,18 @@ export class FeedbackService {
 
         invalidateSearchFeedbackCache(tenantId);
 
-        // O voto é o dado importante e já está salvo. O embedding é apenas uma
-        // otimização opcional; quota/indisponibilidade do Gemini nunca pode
-        // impedir o registro do feedback do balcão.
-        if (this.semanticFeedbackEnabled()) {
-            void this.attachOptionalEmbedding(feedback.id, query).catch((error) => {
-                console.warn('⚠️ Feedback salvo sem embedding opcional.', error instanceof Error ? error.message : error);
-            });
-        }
+        // O voto é o dado importante e já está salvo aqui. O aprendizado sai
+        // dele por sinal estruturado (código, modelo, PNC) em
+        // `feedback-learning.ts` — determinístico e explicável, que é o que um
+        // produto cuja regra é "nunca chutar o código" precisa.
+        //
+        // Havia aqui um embedding opcional do texto digitado
+        // (ENABLE_FEEDBACK_EMBEDDINGS). Removido em 2026-09-19: ele calculava e
+        // gravava o vetor, e NADA lia de volta para o ranking. Custava chamada
+        // paga ao Gemini por voto, precisava de volume que um balcão não
+        // produz, e nem dava para exercitar localmente (a coluna precisa da
+        // extensão pgvector, ausente na máquina de desenvolvimento). Código que
+        // parece produção e não é engana quem mexer depois.
 
         return {
             feedbackId: feedback.id,
@@ -140,27 +142,4 @@ export class FeedbackService {
         };
     }
 
-    private static semanticFeedbackEnabled(): boolean {
-        // A pontuação de aprendizado usa sinais estruturados e não consulta este
-        // vetor hoje. Mantê-lo separado evita custo sem benefício quando a busca
-        // semântica de peças estiver habilitada.
-        return ['1', 'true', 'yes', 'on'].includes((process.env.ENABLE_FEEDBACK_EMBEDDINGS || 'false').trim().toLowerCase());
-    }
-
-    private static async attachOptionalEmbedding(feedbackId: string, query: string): Promise<void> {
-        const ai = await getGeminiClient();
-        const embeddingResult = await ai.models.embedContent({
-            model: GEMINI_EMBEDDING_MODEL,
-            contents: query,
-            config: { outputDimensionality: 768, taskType: 'RETRIEVAL_QUERY' },
-        });
-        const embedding = embeddingResult.embeddings?.[0]?.values;
-        if (!embedding || embedding.length !== 768) throw new Error('Embedding de feedback inválido.');
-        const vectorString = `[${embedding.join(',')}]`;
-        await prisma.$executeRaw(Prisma.sql`
-            UPDATE "SearchFeedback"
-            SET "queryEmbedding" = ${vectorString}::vector
-            WHERE "id" = ${feedbackId}
-        `);
-    }
 }
