@@ -61,6 +61,11 @@ export type SearchStreamMessage = {
    * ARI, que dá o código da peça e a vista explodida de cada conjunto.
    */
   kawasakiModel?: string;
+  /**
+   * Motor Briggs (`104M02-0002-F1`). A tela abre a lista de peças oficial —
+   * na Briggs o retorno é o PDF da vista explodida, não uma tabela.
+   */
+  briggsModel?: string;
   error?: string;
 };
 

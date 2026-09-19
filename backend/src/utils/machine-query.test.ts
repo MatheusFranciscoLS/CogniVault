@@ -27,9 +27,12 @@ test('modelo escrito com espaço no meio não é reconhecido — e isso é aceit
 test('código de peça NÃO vira consulta de máquina', () => {
   // A assinatura de código é o hífen e o dígito puro. Cada um destes dispararia
   // uma chamada externa que nunca acha máquina.
-  for (const query of ['530069247', '15004-0937', '104M02-0002-F1', '967176501', '27911', '794653']) {
+  // `104M02-0002-F1` saiu desta lista: eu o tinha classificado como código de
+  // peça, e ele é o MODELO do motor Briggs do LC121P — está no CLAUDE.md. O
+  // teste do Briggs pegou o erro quando a detecção passou a existir.
+  for (const query of ['530069247', '15004-0937', '967176501', '27911', '794653']) {
     const hint = machineQueryHint(query);
-    assert.deepEqual(hint, { pnc: null, model: null, kawasakiModel: null }, query);
+    assert.deepEqual(hint, { pnc: null, model: null, kawasakiModel: null, briggsModel: null }, query);
     assert.equal(wantsMachineLookup(query), false, query);
   }
 });
@@ -83,7 +86,7 @@ test('medida com letra e dígito não é confundida com modelo', () => {
 
 test('consulta curta demais é descartada antes de qualquer trabalho', () => {
   for (const query of ['', ' ', 'ts', '14', null, undefined]) {
-    assert.deepEqual(machineQueryHint(query), { pnc: null, model: null, kawasakiModel: null }, String(query));
+    assert.deepEqual(machineQueryHint(query), { pnc: null, model: null, kawasakiModel: null, briggsModel: null }, String(query));
   }
 });
 
@@ -121,4 +124,40 @@ test('código de peça e PNC não viram consulta de Kawasaki', () => {
   for (const query of ['15004-0937', '104M02-0002-F1', '967 17 65-01', '530069247']) {
     assert.equal(machineQueryHint(query).kawasakiModel, null, query);
   }
+});
+
+test('motor Briggs é reconhecido pela LETRA no bloco do modelo', () => {
+  // Todos os motores Briggs da base têm essa letra. É ela que separa modelo de
+  // código de peça, e sem a exigência a busca por código abriria catálogo
+  // Briggs errado — medido, 4 falsos positivos.
+  const reais = ['12J902-0118-01', '104M02-0002-F1', '103M02-0027-H1', '09P702-0212-F1',
+    '28R707-1151-E1', '08P502-0087-H1', '44N677-0065-G1', '31R577-0027-B1'];
+  for (const m of reais) {
+    assert.equal(machineQueryHint(m).briggsModel, m, m);
+  }
+  assert.equal(machineQueryHint('carburador 104M02-0002-F1').briggsModel, '104M02-0002-F1');
+});
+
+test('código de peça e PNC NÃO viram catálogo Briggs', () => {
+  // Estes quatro são o motivo da regra existir. `formatBriggsModelForSearch`
+  // formata qualquer sequência numérica como modelo Briggs:
+  //   530069247-01 -> 053006-9247-01     15004-0937   -> 015004-0937
+  //   587106701    -> 058710-6701        967 17 65-01 -> 096717-6501
+  // Nenhum deles é motor, e os quatro são buscas que o balcão faz todo dia.
+  for (const q of ['530069247-01', '15004-0937', '587106701', '967 17 65-01', '530069247', '599349108']) {
+    assert.equal(machineQueryHint(q).briggsModel, null, q);
+  }
+});
+
+test('modelo de máquina e de Kawasaki não viram Briggs', () => {
+  for (const q of ['143RII', 'TS142', 'LC121P', 'Z460', 'FX921V-ES06']) {
+    assert.equal(machineQueryHint(q).briggsModel, null, q);
+  }
+});
+
+test('Briggs e Kawasaki não se confundem entre si', () => {
+  assert.equal(machineQueryHint('FX921V-ES06').briggsModel, null);
+  assert.equal(machineQueryHint('FX921V-ES06').kawasakiModel, 'FX921V-ES06');
+  assert.equal(machineQueryHint('104M02-0002-F1').kawasakiModel, null);
+  assert.equal(machineQueryHint('104M02-0002-F1').briggsModel, '104M02-0002-F1');
 });

@@ -22,6 +22,7 @@ import MachineSidePanel from '../machines/MachineSidePanel';
 import { useOfficialMachineSearch } from '../machines/official-machine-search';
 import { useRecentMachines } from '../machines/recent-machines';
 import KawasakiEnginePanel from '../machines/KawasakiEnginePanel';
+import BriggsEnginePanel from '../machines/BriggsEnginePanel';
 
 type Props = {
   initialQuery: string;
@@ -228,6 +229,9 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   // Motor Kawasaki reconhecido no texto (série+spec). O servidor só anuncia
   // quando a forma é inequívoca — ver utils/machine-query.ts no backend.
   const [kawasakiModel, setKawasakiModel] = useState('');
+  // Motor Briggs reconhecido no texto. Só a forma com letra no bloco do modelo
+  // entra — ver utils/machine-query.ts no backend.
+  const [briggsModel, setBriggsModel] = useState('');
   // A máquina abre AO LADO, sem trocar de tela: o atendente confirma a posição
   // na vista explodida e volta para a lista de peças com o contexto intacto.
   const [openMachine, setOpenMachine] = useState<{ pnc: string; name: string } | null>(
@@ -390,6 +394,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     setDocuments([]);
     setMachineTerm('');
     setKawasakiModel('');
+    setBriggsModel('');
     setCommercialParts([]);
     setOfficialResult(null);
     setPriceSection('');
@@ -429,6 +434,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           }
           setMachineTerm(message.machineTerm ?? '');
           setKawasakiModel(message.kawasakiModel ?? '');
+          setBriggsModel(message.briggsModel ?? '');
           return;
         }
         if (message.type === 'semantic') {
@@ -578,6 +584,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     setDocuments([]);
     setMachineTerm('');
     setKawasakiModel('');
+    setBriggsModel('');
     setCommercialParts([]);
     setOfficialResult(null);
     setHasSearched(false);
@@ -755,6 +762,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
               é o catálogo dele que responde — e a vista explodida está sempre
               ao lado dos códigos, nunca só uma das duas. */}
           {kawasakiModel && <KawasakiEnginePanel model={kawasakiModel} onSearchPart={beginSearch} />}
+          {briggsModel && <BriggsEnginePanel model={briggsModel} />}
 
           {machines.length > 0 && (
             <section>
