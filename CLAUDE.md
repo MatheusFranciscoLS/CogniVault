@@ -23,8 +23,13 @@ minutos ilimitados).
 - **Banco**: Supabase Postgres. Projeto free pausa sozinho depois de ~7 dias
   *sem nenhuma consulta ao Postgres* — não confundir com o sleep do Render
   (15 min de inatividade HTTP, problema diferente). `.github/workflows/keepalive.yml`
-  cobre os dois: pinga `/health` (que consulta o banco de verdade) a cada 10 min,
-  06h–24h UTC.
+  **tenta** cobrir os dois pingando `/health` (que consulta o banco de
+  verdade), mas o cron do GitHub Actions é best effort: agendado para 10 min,
+  medido rodando a cada 2–8 **horas** (11 cold starts em 22 h nas métricas do
+  Render). Ele é rede de segurança — irregular, ainda acorda o banco algumas
+  vezes por dia e cobre a pausa de ~7 dias do Supabase. O que segura o sleep de
+  15 min do Render é um agendador externo; passo a passo em
+  `docs/MANTER_SERVIDOR_ATIVO.md`.
 - **Fila**: CloudAMQP, plano Little Lemur. Confirmado saudável (baixo uso,
   reconecta sozinho a cada deploy). "Max Idle Queue Time: 28 dias" nunca é
   risco real porque o `/health` já mantém a conexão viva.
@@ -595,24 +600,26 @@ e por isso ela é segura mesmo quando o palpite de formato erra. O teste
 Baseado na regra publicada pelo fabricante, **não** num catálogo de 5 dígitos
 observado na base — se aparecer um, confirme que a busca acha nas duas formas.
 
-## Motor Briggs: link de vista explodida (não é integração)
+## Motor Briggs: link de busca no site (o caminho antigo, ainda em uso)
 
-Pedido do dono: um botão para a vista explodida/manual oficial da Briggs, sem
-precisar que o app entenda as peças daquele catálogo ("não tem necessidade do
-sistema saber as peças, eu posso procurar manualmente"). A Briggs não tem
-catálogo em português — só inglês, e em alguns motores só chinês — e não tem
-API pública equivalente ao GraphQL da Husqvarna.
+Esta seção descrevia o único caminho que existia até 2026-09-19 e dizia que a
+Briggs "não tem API pública equivalente ao GraphQL da Husqvarna". **Isso está
+corrigido acima** ("A Briggs tem API pública"): a rota
+`/api/briggs/parts-manuals` traz o link exato do IPL, e
+`/api/briggs/ipl-parts` traz as peças lidas do PDF.
 
-Por isso **não é integração**, é o mesmo padrão do botão manual do Portal
-Parceiro Husqvarna: link pré-formatado que abre em nova aba
-(`utils/engine-model.ts`, `briggsManualsSearchUrl`), sem scraping, sem
-interpretar peça nenhuma do lado de lá. `formatBriggsModelForSearch` converte
-o modelo guardado (`Motor Briggs 104M02-0002-F1`, às vezes com sufixo
-`(Cortador X)`) para o formato exato que `briggsandstratton.com` exige na
-busca — mesma regra de traço/zero-à-esquerda documentada acima em "Motores de
-outras marcas". Validado **de ponta a ponta com o site real** em
-2026-09-18: a URL gerada devolveu 16 resultados reais, incluindo o manual de
-peças em chinês e inglês.
+O que continua valendo aqui é o link de **busca** no site da Briggs, montado
+por `utils/engine-model.ts` (`briggsManualsSearchUrl`), usado na tela de
+Catálogos. `formatBriggsModelForSearch` converte o modelo guardado
+(`Motor Briggs 104M02-0002-F1`, às vezes com sufixo `(Cortador X)`) para o
+formato exato que `briggsandstratton.com` exige na busca — mesma regra de
+traço/zero-à-esquerda documentada acima em "Motores de outras marcas".
+
+**A validação antiga dele não era validação.** Dizia "a URL gerada devolveu 16
+resultados reais", e devolveu — com os dois `PARTS MANUAL` em último, depois de
+14 linhas chamadas só `MANUAL, ILLUSTRATED`. "Respondeu 200" não é evidência de
+que serve ao balcão. Por isso o atendimento usa a API, e este link ficou para a
+tela de Catálogos, onde o contexto é procurar documento, não vender peça.
 
 O link aparece em dois lugares: `CatalogsWorkspace.tsx` (tela padrão de
 Catálogos, o que o balcão usa no dia a dia) e `CatalogsPanel.tsx` (a mesma
@@ -620,6 +627,61 @@ informação na visão de administração da biblioteca). Calculado no backend e
 `catalog-list.controller.ts` (`briggsManualsUrl` no documento e em cada
 `engineApplications[]`), exposto só quando `isBriggsModel` é verdadeiro —
 nunca gera link para catálogo Husqvarna/Kawasaki/Kohler.
+
+## Briggs: as peças saem do PDF, com a recusa do extrator de catálogo
+
+`utils/briggs-ipl-text.ts` (decisão, regex puro, testável) +
+`services/briggs-ipl.service.ts` (transporte: baixar, extrair texto, cachear) +
+rota `/api/briggs/ipl-parts`. **Não há IA nenhuma neste caminho** — é a camada
+de texto do PDF oficial, lida por regex.
+
+Pedido do dono: *"eu queria travar essa mesma lógica… só aceitar quando o parser
+tiver certeza, e recusar em vez de chutar"*. Sete motivos de recusa:
+`NO_TEXT_LAYER`, `NO_SIGNATURE`, `NO_MODEL`, `MODEL_MISMATCH`, `NO_ROWS`,
+`TOO_FEW_ROWS`, `NOT_LATIN`. Dois deles existem por medição, não por precaução:
+
+- **`MODEL_MISMATCH` é o caso perigoso.** A URL do visualizador é montada do
+  modelo; se ela devolver o PDF de outro motor, a lista chega com aparência de
+  certa. O `Mfg. No:` do PDF é conferido contra o modelo pedido.
+- **`NOT_LATIN` recusa o PDF chinês** (`103M02-0027-H1`). O código pode estar
+  certo, mas a descrição existe para o atendente conferir se é a peça pedida. O
+  link do PDF continua valendo como vista explodida.
+
+Medido nos quatro PDFs reais: **167 / 263 / 283 / 155** peças aceitas, chinês
+recusado. `MIN_ROWS = 20` é o mesmo espírito do `MIN_CATALOG_OCCURRENCES` —
+tabela pequena é onde o falso positivo mora. Não baixe sem evidência nova.
+
+Dois detalhes que são da fonte, não escolha:
+- **A coluna QTY é opcional.** Zero linhas no `104M02-0002-F1`, 58 de 131 no
+  `09P702-0212-F1`. Ausência vira `null`, **nunca 1** — afirmar "1" onde a fonte
+  não diz seria inventar número no balcão.
+- **O qualificador vem na linha seguinte** (`-(Intake)` / `-(Exhaust)`) e diz
+  qual das peças iguais é aquela. Perder isso faz duas peças distintas parecerem
+  a mesma.
+
+Cache de 30 d fresh / 180 d stale, inclusive da recusa: o PDF não muda, e
+reprocessar 1,5 MB para chegar na mesma recusa só gastaria o Render. Medido:
+12,5 s na primeira leitura, **2 ms** do cache.
+
+Quando recusa, a tela do balcão **não mostra nada** — fica só o botão do PDF.
+Decisão do dono: *"o atendente nao precisa saber disso"*. O motivo continua na
+resposta da API, para o painel de Qualidade.
+
+## A tela do balcão não explica o sistema
+
+Regra do dono, dita depois de ver o aviso de recusa do PDF: *"esses ruídos,
+depois queria que você fizesse uma busca em geral e tirar todos, é como te falei
+o atendente quer a peça e nao a explicação"*.
+
+O critério da varredura de 2026-09-19 (8 textos removidos ou encurtados em
+Kawasaki/Briggs/PNC/Referência cruzada/gaveta de orçamento/abertura): **fica o
+que é ação** — para onde olhar, o que digitar, qual botão. **Sai o que só conta
+como o sistema funciona** ou por que ele decidiu assim. "A Kawasaki não devolveu
+a lista deste conjunto. Use a vista explodida acima para ler o código direto do
+desenho" virou "Leia o código na vista explodida acima".
+
+Painel de **Qualidade** e de **Negócio** ficam fora dessa regra: lá a explicação
+é o produto, e é quem lê é o dono, não o atendente com cliente na frente.
 
 ## Mapeamento máquina ↔ motor Briggs, atualizado com catálogos reais
 
