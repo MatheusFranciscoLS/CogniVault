@@ -42,21 +42,27 @@ function GoldSeal() {
 }
 
 /**
- * Bloco de autorização com o lockup oficial da Husqvarna (coroa + palavra),
- * baixado de vardaomaquinas.com.br/brand — o mesmo arquivo que o site da loja
- * usa. Antes era um tile quadrado com fundo azul-marinho próprio, que obrigava
- * a apoiar a marca sobre um retângulo branco; o lockup oficial é transparente e
- * existe nas duas cores, então cada fundo recebe a versão certa em vez de um
- * filtro CSS por cima da marca de terceiro.
+ * Faixa de autorização Husqvarna.
+ *
+ * O lockup oficial (coroa + palavra) vem de vardaomaquinas.com.br/brand — o
+ * mesmo arquivo do site da loja, transparente e nas duas cores, então cada
+ * fundo recebe a versão certa em vez de um filtro CSS por cima da marca de
+ * terceiro.
+ *
+ * **Era um card com borda e virou faixa.** No painel da marca ele tinha 657px
+ * de largura num painel de 754 — borda a borda — com o selo dourado solto
+ * embaixo, duas caixas dizendo a mesma coisa. E, por ficar no rodapé, a borda
+ * dele cortava a marca d'água de fundo no meio, que é o que o dono viu.
+ *
+ * A régua superior separa sem desenhar caixa, e o selo entra na mesma linha:
+ * um rodapé institucional, não um componente de formulário deslocado.
  */
 function AuthorizedByHusqvarna({ tone }: { tone: 'onBrand' | 'onLight' }) {
   const onBrand = tone === 'onBrand';
   return (
     <div
-      className={`flex items-center gap-4 rounded-card border p-3.5 ${
-        onBrand
-          ? 'border-white/15 bg-white/[0.07]'
-          : 'border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900'
+      className={`flex flex-wrap items-center gap-x-4 gap-y-3 border-t pt-4 ${
+        onBrand ? 'border-white/15' : 'border-ink-200 dark:border-ink-800'
       }`}
     >
       <img
@@ -72,17 +78,21 @@ function AuthorizedByHusqvarna({ tone }: { tone: 'onBrand' | 'onLight' }) {
           className="hidden h-5 w-auto shrink-0 object-contain dark:block"
         />
       )}
-      {/* Sem repetir "Revenda Autorizada Ouro" aqui: o selo dourado ao lado já
+      {/* Sem repetir "Revenda Autorizada Ouro" em texto aqui: o selo ao lado já
           diz isso, e o e2e casa esse texto por substring sem diferenciar
           maiúsculas — duas ocorrências violariam o modo estrito do Playwright. */}
-      <div className={`min-w-0 border-l pl-4 ${onBrand ? 'border-white/15' : 'border-ink-200 dark:border-ink-800'}`}>
-        <div className={`text-sm font-bold ${onBrand ? 'text-white' : 'text-ink-950 dark:text-white'}`}>
+      <div className={`min-w-[190px] flex-1 border-l pl-4 ${onBrand ? 'border-white/15' : 'border-ink-200 dark:border-ink-800'}`}>
+        <div className={`text-xs font-bold ${onBrand ? 'text-white' : 'text-ink-950 dark:text-white'}`}>
           Peças e catálogo originais
         </div>
-        <div className={`mt-0.5 text-[11px] ${onBrand ? 'text-brand-100/70' : 'text-ink-500 dark:text-ink-400'}`}>
+        <div className={`mt-0.5 text-[11px] ${onBrand ? 'text-brand-200' : 'text-ink-500 dark:text-ink-400'}`}>
           Direto da fonte oficial da fábrica
         </div>
       </div>
+      {/* Só no painel da marca. No celular o painel não existe e o selo já
+          está no cabeçalho compacto — dois na mesma tela seriam a repetição
+          que esta faixa veio resolver. */}
+      {onBrand && <GoldSeal />}
     </div>
   );
 }
@@ -166,20 +176,30 @@ export default function Login() {
             pixel a pixel igual ao fundo e o painel parecia cortado no meio. */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand-600 via-brand-700 to-brand-800" />
 
-        {/* Marca de fundo: a coroa oficial da Husqvarna, recortada do lockup
-            branco de vardaomaquinas.com.br/brand. Substitui os dois círculos
-            decorativos que havia aqui — círculo não diz nada, e a autorização
-            Husqvarna é justamente o que dá autoridade à tela.
+        {/* Marca d'água: o símbolo oficial da Husqvarna, centralizado e inteiro.
 
-            Centralizada e grande, e não no canto: no canto ela lia como um
-            adesivo solto: assim o painel inteiro se apoia nela, que é o efeito
-            do CRM. Opacidade baixa (5%) porque atrás dela passa texto —
-            headline, parágrafo e os três itens. */}
+            O que a cortava não era a posição, era o TAMANHO. Ela era medida
+            pela largura (`w-[min(78%,560px)]`), e num painel de 754x900 isso
+            virava 669px de altura — 74% da tela, encostando no logo em cima e
+            na faixa de autorização embaixo, que entrava 32px dentro dela. É
+            esse recorte que aparecia como "cortada no meio".
+
+            Agora ela é medida pela ALTURA (`h-[min(52vh,440px)]`), que é a
+            dimensão que estava sobrando. Presa a `vh`, ela ocupa sempre a
+            mesma fração vertical: em 1366x768 sobram 86px até a faixa, em
+            1280x650 sobram 57, em 1440x900 sobram 131 — a folga nunca fecha,
+            em nenhuma altura de janela. Com largura fixa em px isso não era
+            verdade: a 650px de altura elas voltavam a colidir.
+
+            Opacidade de 7% porque atrás dela passa texto. O texto foi o outro
+            lado do conserto: era `brand-100` a 70%, que já nascia em 5,31:1
+            antes de qualquer marca e caía para 4,51 sobre ela. Agora é
+            `brand-200` cheio — 7,23:1 limpo, 5,87:1 sobre a marca. */}
         <img
           src="/brand/husqvarna-simbolo-branco.png"
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-1/2 w-[min(78%,560px)] -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.05]"
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[min(52vh,440px)] w-auto -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.07]"
         />
 
         <div className="relative">
@@ -190,7 +210,7 @@ export default function Login() {
                azul-marinho com filtro CSS. */
             className="h-9 w-auto max-w-[230px] object-contain"
           />
-          <div className="mt-2 text-[11px] font-bold uppercase tracking-[.16em] text-brand-100/70">
+          <div className="mt-2 text-[11px] font-bold uppercase tracking-[.16em] text-brand-200">
             Máquinas e peças · Limeira/SP
           </div>
         </div>
@@ -199,7 +219,7 @@ export default function Login() {
           <h1 className="text-display-lg text-white">
             O balcão inteiro em uma tela.
           </h1>
-          <p className="mt-3 text-sm leading-6 text-brand-100/80">
+          <p className="mt-3 text-sm leading-6 text-brand-200">
             O CogniVault reúne catálogo técnico, cadastro comercial, fonte oficial e orçamento
             no mesmo atendimento — para o cliente não esperar e a peça não voltar.
           </p>
@@ -210,16 +230,15 @@ export default function Login() {
                 <span aria-hidden="true" className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-gold-500" />
                 <div>
                   <div className="text-sm font-bold text-white">{item.title}</div>
-                  <div className="mt-0.5 text-xs leading-5 text-brand-100/70">{item.detail}</div>
+                  <div className="mt-0.5 text-xs leading-5 text-brand-200">{item.detail}</div>
                 </div>
               </li>
             ))}
           </ul>
         </div>
 
-        <div className="relative space-y-3">
+        <div className="relative">
           <AuthorizedByHusqvarna tone="onBrand" />
-          <GoldSeal />
         </div>
       </aside>
 
