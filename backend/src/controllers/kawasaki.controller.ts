@@ -35,7 +35,11 @@ export class KawasakiController {
     if (!req.user) return;
 
     const slug = String(req.query.slug || '').trim();
-    const detail = await KawasakiPartStreamService.assemblyDetail(slug);
+    // Rótulos para o índice de busca. Limitados no tamanho porque viram linha
+    // no banco; vazios, a leitura funciona e nada é indexado.
+    const model = String(req.query.model || '').trim().slice(0, 60);
+    const assembly = String(req.query.assembly || '').trim().slice(0, 120);
+    const detail = await KawasakiPartStreamService.assemblyDetail(slug, model, assembly);
 
     res.set('Cache-Control', 'private, max-age=600');
     res.json({ assembly: detail });

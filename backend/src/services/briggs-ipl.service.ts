@@ -7,6 +7,7 @@ import {
 } from '../utils/briggs-ipl-text';
 import { BriggsManualsService } from './briggs-manuals.service';
 import { OfficialSourceCacheService, buildOfficialSourceCacheKey } from './official-source-cache.service';
+import { OfficialPartIndexService } from './official-part-index.service';
 
 const TIMEOUT_MS = 30_000;
 /**
@@ -111,6 +112,19 @@ export class BriggsIplService {
           sourceUrl: manual.url,
         };
       }
+
+      // Guarda as peças para poderem ser PESQUISADAS depois. Fica dentro do
+      // loader de propósito: só roda quando o PDF foi lido de verdade, não a
+      // cada consulta que o cache responde. Sem `await` porque é efeito
+      // colateral — o balcão não pode esperar 283 gravações para ver a lista, e
+      // `record` nunca lança.
+      void OfficialPartIndexService.record('BRIGGS', result.model, result.parts.map(part => ({
+        partNumber: part.partNumber,
+        name: part.name,
+        position: part.position,
+        assembly: part.section,
+        quantity: part.quantity,
+      })));
 
       return {
         status: 'READ',

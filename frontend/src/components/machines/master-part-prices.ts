@@ -23,7 +23,7 @@ export type MasterPriceMap = Record<string, MasterPrice>;
 export function normalizeCode(value: string): string {
   return value
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '');
 }
