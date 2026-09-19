@@ -53,10 +53,58 @@ export default function PartDetailDrawer({ detail, verification, verificationLoa
       {/* Eram quatro cartoes de padding cheio para quatro valores curtos.
           E a identificacao da peca: precisa estar visivel, nao ocupar meia tela. */}
       <section className="rounded-2xl border border-ink-200 bg-white p-4 dark:border-ink-800 dark:bg-ink-900"><div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">{[['Modelo', detail.model], ['PNC', detail.pnc || '—'], ['Seção', detail.section || '—'], ['Posição / página', `${detail.position || '—'} · pág. ${detail.page || '—'}`]].map(([label, value]) => <div key={label} className="min-w-0"><div className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">{label}</div><div className="mt-0.5 truncate text-sm font-black text-ink-900 dark:text-white" title={value}>{value}</div></div>)}</div></section>
-      {detail.suggestedAddons && detail.suggestedAddons.items.length > 0 && <section className="rounded-2xl border border-brand-200 bg-white p-4 dark:border-brand-900 dark:bg-ink-900"><div className="text-[10px] font-black uppercase tracking-[.12em] text-brand-600 dark:text-brand-300">Sugestões para esta máquina</div><p className="mt-1 text-[11px] text-ink-500 dark:text-ink-400">{detail.suggestedAddons.reason}</p><div className="mt-3 space-y-2">{detail.suggestedAddons.items.map(item => <button key={item.id} type="button" onClick={() => onOpenRelated(item.id)} className="flex w-full items-center justify-between gap-3 rounded-xl bg-brand-50/70 px-3 py-2.5 text-left"><span className="min-w-0"><span className="block truncate text-xs font-black text-ink-800 dark:text-ink-100">{item.name}</span><span className="mt-0.5 block font-mono text-[10px] font-bold text-brand-600">{cleanErpCode(item.partNumber)}</span></span><span className="text-[10px] font-black text-brand-600">Abrir →</span></button>)}</div></section>}
+      {/* Peças que vão JUNTO. O rótulo (`item.label`) é o que a seção antiga não
+          tinha: ela listava seis "JUNTA" iguais e o atendente não sabia qual era
+          a do carburador. Agora cada linha diz QUAL peça é, e o nome do catálogo
+          fica embaixo como conferência. Sem candidato específico, a seção
+          inteira não aparece. Ver backend services/part-companions.ts. */}
+      {detail.suggestedAddons && detail.suggestedAddons.items.length > 0 && (
+        <section className="rounded-2xl border border-brand-200 bg-white p-4 dark:border-brand-900 dark:bg-ink-900">
+          <div className="text-[10px] font-black uppercase tracking-[.12em] text-brand-600 dark:text-brand-300">Leve junto</div>
+          <p className="mt-1 text-[11px] text-ink-500 dark:text-ink-400">{detail.suggestedAddons.reason}</p>
+          <div className="mt-3 space-y-2">
+            {detail.suggestedAddons.items.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onOpenRelated(item.id)}
+                className="flex w-full items-center justify-between gap-3 rounded-xl bg-brand-50/70 px-3 py-2.5 text-left transition hover:bg-brand-100/70 dark:bg-ink-800/60 dark:hover:bg-ink-800"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-xs font-black text-ink-800 dark:text-ink-100">
+                    {item.label || item.name}
+                  </span>
+                  <span className="mt-0.5 flex items-baseline gap-2">
+                    <span className="font-mono text-[11px] font-black text-brand-700 dark:text-brand-300">
+                      {cleanErpCode(item.partNumber)}
+                    </span>
+                    {item.label && item.label !== item.name ? (
+                      <span className="truncate text-[10px] text-ink-500 dark:text-ink-400">{item.name}</span>
+                    ) : null}
+                  </span>
+                </span>
+                <span className="shrink-0 text-[10px] font-black text-brand-600 dark:text-brand-300">Abrir →</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
     </div><aside className="space-y-4"><section className="rounded-2xl border border-ink-200 bg-white p-4 dark:border-ink-800 dark:bg-ink-900"><div className="flex items-center justify-between gap-2"><div><div className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">Confiabilidade</div><div className="mt-1 text-sm font-black text-ink-900 dark:text-white">Esta peça foi conferida?</div></div><VerificationBadge verification={verification} loading={verificationLoading} /></div><div className="mt-3 flex flex-wrap gap-2"><SourceBadge source="CATALOG" />{workContext?.sources.filter(source => source.type !== 'CATALOG').map(source => <SourceBadge key={`${source.type}:${source.detail}`} source={source.type} detail={source.detail} />)}{liveData && <SourceBadge source="OFFICIAL" />}</div><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={onVerify} className="cv-touch-target rounded-lg border border-ink-200 px-3 text-xs font-bold text-ink-700 dark:border-ink-700 dark:text-ink-200">Registrar conferência</button><a href={officialUrl} target="_blank" rel="noreferrer" className="cv-touch-target inline-flex items-center rounded-lg border border-ink-200 px-3 text-xs font-bold text-brand-700 dark:border-ink-700 dark:text-brand-300">Fonte oficial ↗</a></div></section>
-      {Boolean(workContext?.popularParts.length) && <section className="rounded-2xl border border-ink-200 bg-white p-4 dark:border-ink-800 dark:bg-ink-900"><div className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">Mais procuradas</div><div className="mt-1 text-sm font-black text-ink-900 dark:text-white">Nesta máquina</div><div className="mt-3 space-y-2">{workContext!.popularParts.slice(0, 6).map(item => <SmallPartAction key={item.partNumber} code={item.partNumber} name={item.name} extra={`${item.count} consulta${item.count === 1 ? '' : 's'}`} onCopy={onCopy} />)}</div></section>}
+      {/* "Mais procuradas nesta máquina" saiu em 2026-09-19. Ela ordenava por
+          contagem de CONSULTA, e com "1 consulta" em cada linha não era
+          "mais procurada" coisa nenhuma — era "as três que alguém abriu".
+          Decisão do dono: *"nem sao os mais procurados de vdd"*.
+
+          O sinal não se perdeu: peça mais cotada mora no painel de Negócio,
+          que é de quem decide compra. No meio do atendimento ele só ocupava
+          espaço que agora é dos acompanhantes. */}
       {Boolean(workContext?.togetherReady && workContext.frequentlyTogether.length) && <section className="rounded-2xl border border-ink-200 bg-white p-4 dark:border-ink-800 dark:bg-ink-900"><div className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">Costumam sair junto</div><div className="mt-1 text-sm font-black text-ink-900 dark:text-white">Baseado em orçamentos reais</div><div className="mt-3 space-y-2">{workContext!.frequentlyTogether.slice(0, 6).map(item => <SmallPartAction key={item.partNumber} code={item.partNumber} name={item.name} extra={`${item.percentage}% dos atendimentos`} onCopy={onCopy} />)}</div></section>}
-      {detail.related.length > 0 && <section className="rounded-2xl border border-ink-200 bg-white p-4 dark:border-ink-800 dark:bg-ink-900"><div className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">Peças da mesma vista</div><div className="mt-1 text-sm font-black text-ink-900 dark:text-white">Contexto do desenho técnico</div><div className="mt-3 space-y-2">{detail.related.map(item => <button key={item.id} type="button" onClick={() => onOpenRelated(item.id)} className="w-full rounded-xl bg-ink-50 px-3 py-2.5 text-left dark:bg-ink-800/60"><div className="truncate text-xs font-black text-ink-800 dark:text-ink-100">{item.name}</div><div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-ink-500 dark:text-ink-400"><span className="font-mono font-bold text-brand-600">{cleanErpCode(item.partNumber)}</span><span>{item.position ? `Pos. ${item.position}` : ''}</span></div></button>)}</div></section>}
+      {/* "Peças da mesma vista" saiu em 2026-09-19: era o resto da vista
+          explodida, sem filtro nenhum — JUNTA, BRAÇADEIRA, CORPO, FILTRO DE AR,
+          SCREW. Decisão do dono: *"tambem nao faz tanto sentido"*.
+
+          Os acompanhantes fazem o mesmo trabalho com intenção: em vez de
+          listar a vista inteira, dizem QUAL peça vai junto e por quê. Quem
+          quer a vista inteira tem "Abrir catálogo" no topo. */}
     </aside></div></div></section></div>;
 }
