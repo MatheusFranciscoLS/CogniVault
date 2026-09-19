@@ -13,10 +13,12 @@ export interface DocumentItem {
   archivedAt?:string|null; processingActive?:boolean; processingStage?:string; processingCurrent?:number; processingTotal?:number; processingError?:string|null;
   healthScore?:number; reviewStatus?:CatalogReviewStatus; reviewReasons?:string[]; qualityCheckedAt?:string|null; extractionMethod?:string|null;
   applications?:Array<{ machineModel:string; machinePnc?:string; label:string }>;
-  engineApplications?:Array<{ engineModel:string; engineArticle?:string; label:string; briggsManualsUrl?:string|null }>;
+  engineApplications?:Array<{ engineModel:string; engineArticle?:string; label:string; briggsEngineModel?:string|null; briggsManualsUrl?:string|null }>;
   // Link de busca oficial da Briggs (manual/vista explodida), só quando este
   // catálogo é de um motor Briggs. Não é integração — é link de busca, mesmo
   // padrão do botão manual do Portal Parceiro Husqvarna. Ver utils/engine-model.ts.
+  /** Modelo do motor no formato da Briggs; monta a rota da lista de peças. */
+  briggsEngineModel?:string|null;
   briggsManualsUrl?:string|null;
 }
 export interface FeedbackOption { id:string; name:string; partNumber:string; model:string; pnc:string|null; section:string|null; position:string|null; notes?:string|null; }

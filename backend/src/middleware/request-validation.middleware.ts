@@ -41,6 +41,21 @@ export function validateOfficialFallbackQuery(req: Request, res: Response, next:
   next();
 }
 
+/**
+ * O modelo de motor Briggs decide uma chamada externa, então tem teto e tipo
+ * checados antes de chegar ao serviço. 60 caracteres cobrem com folga o maior
+ * formato publicado pela Briggs (`XXXXXX-XXXX-XX` com o prefixo
+ * "Motor Briggs " que o catálogo guarda).
+ */
+export function validateBriggsModelQuery(req: Request, res: Response, next: NextFunction): void {
+  const model = stringQueryParam(req, 'model');
+  if (model === null || !model || model.length > 60) {
+    res.status(400).json({ error: 'Modelo de motor inválido ou muito longo.' });
+    return;
+  }
+  next();
+}
+
 export function validateHusqvarnaProductSearchQuery(req: Request, res: Response, next: NextFunction): void {
   const query = stringQueryParam(req, 'q');
   if (query === null || query.length > 80) {

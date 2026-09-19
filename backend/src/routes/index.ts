@@ -15,6 +15,7 @@ import { OfficialPartVerificationController } from '../controllers/official-part
 import { QualityController } from '../controllers/quality.controller';
 import { WorkIntelligenceController } from '../controllers/work-intelligence.controller';
 import { HusqvarnaOfficialController } from '../controllers/husqvarna-official.controller';
+import { briggsManualsController } from '../controllers/briggs-manuals.controller';
 import { CommercialSearchController } from '../controllers/commercial-search.controller';
 import { CommercialImportController } from '../controllers/commercial-import.controller';
 import { WorkContextController } from '../controllers/work-context.controller';
@@ -39,6 +40,7 @@ import { qualityOverviewCacheMiddleware } from '../middleware/quality-overview-c
 import {
   validateEntityIdParam,
   validateFavoriteMutationBody,
+  validateBriggsModelQuery,
   validateHusqvarnaProductSearchQuery,
   validateModelParam,
   validateOfficialFallbackQuery,
@@ -129,6 +131,13 @@ router.get(
 router.get('/master-parts/search', authMiddleware, (req, res) => commercialSearchController.search(req, res));
 router.get('/official-fallback', authMiddleware, validateOfficialFallbackQuery, (req, res) => workIntelligenceController.officialFallback(req, res));
 router.get('/husqvarna/products/search', authMiddleware, validateHusqvarnaProductSearchQuery, (req, res) => husqvarnaOfficialController.productSearch(req, res));
+// Lista de peças do motor Briggs. Rota própria, chamada só no clique do balcão:
+// resolver isso na listagem de catálogos custaria uma chamada externa por item.
+router.get('/briggs/parts-manuals', authMiddleware, validateBriggsModelQuery, (req, res) => briggsManualsController.partsManuals(req, res));
+// Abre o PDF da lista de peças direto, preferindo inglês. Redirect do servidor
+// em vez de `fetch` + `window.open`: o link do balcão é um `<a target="_blank">`
+// puro, sem bloqueio de pop-up por a aba abrir depois do `await`.
+router.get('/briggs/parts-manuals/open', authMiddleware, validateBriggsModelQuery, (req, res) => briggsManualsController.openPartsManual(req, res));
 router.get('/husqvarna/products/:pnc/details', authMiddleware, (req, res) => husqvarnaOfficialController.productDetails(req, res));
 router.get('/husqvarna/parts/:code/details', authMiddleware, validatePartCodeParam, (req, res) => husqvarnaOfficialController.partDetails(req, res));
 router.post('/analytics/search-usage', authMiddleware, validateOperationalSearchUsage, (req, res) => workIntelligenceController.recordSearchUsage(req, res));

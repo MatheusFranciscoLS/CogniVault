@@ -156,17 +156,46 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
                   <span className="truncate">{document.filename}</span>
                   {pncs.length > 0 && <span>PNC {pncs.slice(0, 2).join(' · ')}{pncs.length > 2 ? ` +${pncs.length - 2}` : ''}</span>}
                 </div>
-                {document.briggsManualsUrl && (
+                {/* Abre a LISTA DE PEÇAS do motor, não a busca de manuais.
+                    O link antigo apontava para a página de resultados da Briggs,
+                    onde os dois PARTS MANUAL ficam no fim de 16 itens quase
+                    idênticos — o atendente abria PDF errado até achar. A rota do
+                    servidor resolve pela API da Briggs e manda o inglês quando
+                    existe. */}
+                {document.briggsEngineModel ? (
+                  <span className="mt-1 inline-flex flex-wrap items-center gap-1">
+                    <a
+                      href={`/api/briggs/parts-manuals/open?model=${encodeURIComponent(document.briggsEngineModel)}`}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      title={`Abrir a lista de peças oficial do motor ${document.briggsEngineModel} — inglês quando a Briggs publica; senão, o idioma disponível`}
+                      className="cv-touch-target inline-flex items-center gap-1 rounded border border-red-300 bg-red-100 px-2 text-[10px] font-bold text-red-800 transition hover:bg-red-200 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200 dark:hover:bg-red-900/50"
+                    >
+                      📕 Lista de peças Briggs ↗
+                    </a>
+                    {document.briggsManualsUrl && (
+                      <a
+                        href={document.briggsManualsUrl}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        title="Todos os manuais deste motor no site da Briggs (inclui manual do operador)"
+                        className="cv-touch-target inline-flex items-center rounded border border-ink-200 bg-white px-2 text-[10px] font-semibold text-ink-600 transition hover:bg-ink-50 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300"
+                      >
+                        todos ↗
+                      </a>
+                    )}
+                  </span>
+                ) : document.briggsManualsUrl ? (
                   <a
                     href={document.briggsManualsUrl}
                     target="_blank"
                     rel="noreferrer noopener"
-                    title="Abrir manual / vista explodida oficial no site da Briggs & Stratton (inglês ou chinês)"
+                    title="Abrir manuais oficiais no site da Briggs & Stratton"
                     className="mt-1 inline-flex items-center gap-1 rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-700 transition hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-900/40"
                   >
-                    📕 Vista explodida Briggs ↗
+                    📕 Manuais Briggs ↗
                   </a>
-                )}
+                ) : null}
               </div>
               <div className="text-xs font-semibold text-ink-600 dark:text-ink-300">{document.category || 'Sem categoria'}</div>
               <div className="text-xs font-semibold text-ink-500 dark:text-ink-400">{document.partCount} peças</div>
