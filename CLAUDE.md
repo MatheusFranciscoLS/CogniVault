@@ -582,6 +582,41 @@ MULTIPACK: 10" como "o carburador acompanha 10 juntas" seria vender errado.
 **Preço não vem do portal em nenhuma hipótese** — o dono confirmou que fica
 apagado até logado. Preço é Portal Parceiro ou planilha, como já dizia acima.
 
+### Auditoria do schema: o que a API tem e NÃO usamos (2026-09-19)
+
+Feita por introspecção contra a API real (`{ __type(name:"Article"){ fields ... } }`),
+pelo navegador embutido. Conclusão curta: **a integração já usa quase tudo que
+serve ao balcão**. Não vale procurar de novo sem motivo novo.
+
+**`listPrice` existe — e devolve ZERO, não nulo.** Medido no `967332901`:
+
+    listPrice { listPriceExcludingVat: 0, listPriceIncludingVat: 0, currency: "BRL" }
+
+Isto é **armadilha**, não oportunidade. Quem ligasse esse campo sem olhar o
+valor mostraria **"R$ 0,00"** na tela do balcão como se fosse preço de verdade —
+pior que não ter preço, porque parece informação. A regra de sempre continua:
+preço é Portal Parceiro ou planilha, agora com prova de por quê.
+
+**`stockRecommendations(quantitySold: Int!)`** seria a Husqvarna dizendo quais
+peças estocar para as máquinas que a loja vende — exatamente o tipo de coisa que
+interessa ao dono. Devolve **`null`** no nosso site sem login. `serviceArticleOffers`
+exige `customerType` e é do mesmo grupo. Os dois estão atrás da sessão que o dono
+decidiu não automatizar; não insista sem ele reabrir essa decisão.
+
+**`IplArticle` está 100% aproveitado**: `comment`, `coordinates`, `quantity`,
+`replacedIds`, `number`, `name`, `commercialReference`.
+
+**`SparePartSpecifications` tem campos que não pedimos**, e a maioria vem vazia.
+Medido em peças reais (`587106701` carburador, `537338101` conj. de ventilação):
+só `ean`, `grossWeight`, `netWeight`, `masterPackQuantity` e `packagingType`
+vinham preenchidos. Os dimensionais — `diameter`, `length`, `bladeLength`,
+`bladeType` — existem e devem preencher em lâmina e fio de nylon, que é onde o
+balcão pergunta ("qual o diâmetro do fio?"). É o único acréscimo barato que
+sobrou desta auditoria.
+
+Marketing (`tagline`, `introductionText`, `divisionBadge`) e `repairabilityIndex`
+(regra europeia) não servem ao balcão.
+
 ### O zero à esquerda era falha real de busca
 
 `normalizeIdentifier` já remove traço e espaço, então `103M02-0027-H1`,
