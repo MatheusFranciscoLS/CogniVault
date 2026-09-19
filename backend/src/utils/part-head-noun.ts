@@ -142,7 +142,13 @@ function normalizeText(value: string): string {
     // O ponto entre palavras é a mesma convenção da vírgula: "PLATE.MUFFLER" é
     // uma CHAPA do silenciador, não o silenciador. Sem isto, quem pedisse
     // silenciador recebia a chapa. Vira vírgula para cair na regra que já existe.
-    .replace(/([A-Z])\.([A-Z])/g, '$1,$2')
+    //
+    // O `\s*` cobre o ponto COM espaço, que é como a Briggs escreve: medido no
+    // PDF do `104M02-0002-F1`, "ADJUSTER. Rocker Arm" caía na regra posicional e
+    // devolvia `ARM` — um ajustador de balancim virava "braço". Exige 2+ letras
+    // dos dois lados de propósito: `NO. 2` e abreviação seguida de número não
+    // são separador de qualificador.
+    .replace(/([A-Z]{2,})\.\s*([A-Z]{2,})/g, '$1,$2')
     .replace(/[^A-Z0-9,\-/ ]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();

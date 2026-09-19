@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { BriggsManualsService } from '../services/briggs-manuals.service';
 import { isBriggsIplUrl } from '../utils/briggs-manuals';
+import { BriggsIplService } from '../services/briggs-ipl.service';
 
 /**
  * Lista de peças do motor Briggs.
@@ -23,6 +24,23 @@ export class BriggsManualsController {
     // tela diz isso. `BriggsManualsService` nunca lança pelo mesmo motivo.
     res.set('Cache-Control', 'private, max-age=300');
     res.json({ briggs: result });
+  }
+
+  /**
+   * Peças lidas do PDF, quando o parser tem CERTEZA.
+   *
+   * Sempre 200: a recusa é resposta legítima e vem com o motivo, porque o
+   * balcão precisa saber se vale insistir ou abrir o PDF à mão. Ver
+   * `utils/briggs-ipl-text.ts` para os motivos e por que cada um existe.
+   */
+  async iplParts(req: AuthenticatedRequest, res: Response): Promise<void> {
+    if (!req.user) return;
+
+    const model = String(req.query.model || '').trim();
+    const outcome = await BriggsIplService.forModel(model);
+
+    res.set('Cache-Control', 'private, max-age=600');
+    res.json({ briggsIpl: outcome });
   }
 
   /**

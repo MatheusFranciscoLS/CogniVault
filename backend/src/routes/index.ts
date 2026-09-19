@@ -140,6 +140,9 @@ router.get('/briggs/parts-manuals', authMiddleware, validateBriggsModelQuery, (r
 // em vez de `fetch` + `window.open`: o link do balcão é um `<a target="_blank">`
 // puro, sem bloqueio de pop-up por a aba abrir depois do `await`.
 router.get('/briggs/parts-manuals/open', authMiddleware, validateBriggsModelQuery, (req, res) => briggsManualsController.openPartsManual(req, res));
+// Peças lidas do PDF da Briggs, com a disciplina do extrator de catálogo: só
+// aceita com certeza e recusa dizendo o motivo. Ver utils/briggs-ipl-text.ts.
+router.get('/briggs/ipl-parts', authMiddleware, validateBriggsModelQuery, (req, res) => briggsManualsController.iplParts(req, res));
 // Catálogo Kawasaki pelo ARI PartStream. `engine` traz os conjuntos do motor
 // (baratos, de uma vez); `assembly` traz as peças de UM conjunto, que é o que o
 // atendente abre por atendimento. Ver docs/KAWASAKI_ARI_PARTSTREAM.md.

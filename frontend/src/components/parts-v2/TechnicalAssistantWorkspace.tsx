@@ -784,7 +784,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
               é o catálogo dele que responde — e a vista explodida está sempre
               ao lado dos códigos, nunca só uma das duas. */}
           {kawasakiModel && <KawasakiEnginePanel model={kawasakiModel} onSearchPart={beginSearch} />}
-          {briggsModel && <BriggsEnginePanel model={briggsModel} />}
+          {briggsModel && <BriggsEnginePanel model={briggsModel} onSearchPart={beginSearch} />}
 
           {machines.length > 0 && (
             <section>
