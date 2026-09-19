@@ -918,11 +918,16 @@ pra motor de trator/giro zero e cambio)"*.
     roçadeira, soprador      -> 2 tempos
     motosserra, podador      -> 2 tempos + óleo de corrente
     cortador de grama        -> 20W50
-    trator, giro zero        -> 15W50   (motor e câmbio; 15W40 a loja não vende)
+    trator, giro zero, Rider -> 15W50   (motor e câmbio; 15W40 a loja não vende)
 
 **Família desconhecida mostra as QUATRO opções**, não um palpite. Recomendar
 20W50 num motor 2 tempos estraga o motor do cliente — erro pior que não sugerir
 nada. Foi o desenho que o dono pediu ("ou até opções").
+
+**O Rider entra em trator, não em cortador.** `R112C`, `V548`, `V554` são o
+cortador em que o operador senta, têm câmbio, e o dono confirmou 15W50 para
+eles. A primeira versão mandava 20W50 no `R112C` e não sabia classificar os
+outros dois — medido contra 43 modelos reais, era o único buraco.
 
 **A ordem das regras em `machineOilFamily` importa**: os prefixos de 4 tempos
 são testados antes do sufixo, porque `LC121P` termina em `P` e **não** é
