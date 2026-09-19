@@ -18,6 +18,8 @@ import PartQuickPreview from './PartQuickPreview';
 import PartResultRow from './PartResultRow';
 import SourceBadge from './SourceBadge';
 import type { CommercialPart, HusqvarnaLivePart, OfficialFallbackResult, PdfPreview, PriceSection, SearchDocument, SearchResultPart, SearchStreamMessage } from './types';
+import MachineSidePanel from '../machines/MachineSidePanel';
+import { useOfficialMachineSearch } from '../machines/official-machine-search';
 
 type Props = { initialQuery: string; onQueryChange: (query: string) => void; storageScope?: string; onOpenMachine?: (pnc: string) => void };
 type Selection = { kind: 'technical' | 'commercial'; id: string } | null;
@@ -198,13 +200,30 @@ function SuggestionsDropdown({ suggestions, activeIndex, onPick }: { suggestions
 export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChange, storageScope, onOpenMachine }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const quoteCart = useQuoteCart();
-  const { session, hasContext } = useCounterSession();
+  const { session, hasContext, updateSession } = useCounterSession();
   const contextRevisionRef = useRef(`${session.machineModel}\u0000${session.pnc}\u0000${session.serial}`);
 
   const [query, setQuery] = useState(initialQuery);
   const [lastQuery, setLastQuery] = useState(initialQuery.trim());
   const [parts, setParts] = useState<SearchResultPart[]>([]);
   const [documents, setDocuments] = useState<SearchDocument[]>([]);
+  // Máquinas da MESMA busca.
+  //
+  // O stream só ANUNCIA o termo (custo zero); a busca sai daqui, pela mesma
+  // função e mesma chave de cache que a tela de máquinas usa. Assim o `done`
+  // do stream não espera o Portal, e o mesmo modelo não é consultado duas
+  // vezes. Sem modelo no texto, `machineTerm` fica vazio e nada é consultado.
+  const [machineTerm, setMachineTerm] = useState('');
+  // A máquina abre AO LADO, sem trocar de tela: o atendente confirma a posição
+  // na vista explodida e volta para a lista de peças com o contexto intacto.
+  const [openMachine, setOpenMachine] = useState<{ pnc: string; name: string } | null>(null);
+  // Termo anunciado pelo stream -> busca oficial de máquina. Desabilitada
+  // sozinha quando o termo está vazio, que é o caso da maioria das buscas.
+  const machineSearch = useOfficialMachineSearch(machineTerm);
+  const machines = useMemo(
+    () => (machineSearch.data ?? []).filter(item => item.kind === 'PRODUCT' && item.pnc),
+    [machineSearch.data],
+  );
   const [commercialParts, setCommercialParts] = useState<CommercialPart[]>([]);
   const [priceSections, setPriceSections] = useState<PriceSection[]>([]);
   const [priceSection, setPriceSection] = useState('');
@@ -339,6 +358,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     setError('');
     setParts([]);
     setDocuments([]);
+    setMachineTerm('');
     setCommercialParts([]);
     setOfficialResult(null);
     setPriceSection('');
@@ -350,7 +370,10 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       if (signal?.aborted) return;
       const technicalQuery = buildTechnicalQuery(resolvedQuery);
       const commercialPromise = fetchCommercial(resolvedQuery, '', signal);
-      const response = await api(`/api/search/stream?q=${encodeURIComponent(technicalQuery)}`, signal ? { signal, timeoutMs: 60_000 } : { timeoutMs: 60_000 });
+      // `typed` é o texto do atendente; `q` leva o contexto anexado. O
+      // servidor precisa dos dois: o contexto melhora a busca de peça, e a
+      // decisão de consultar máquina tem que olhar o que foi digitado.
+      const response = await api(`/api/search/stream?q=${encodeURIComponent(technicalQuery)}&typed=${encodeURIComponent(clean)}`, signal ? { signal, timeoutMs: 60_000 } : { timeoutMs: 60_000 });
       if (!response.ok) throw new Error('Não foi possível concluir a pesquisa técnica.');
 
       let accumulated: SearchResultPart[] = [];
@@ -364,6 +387,16 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           setParts(accumulated);
           setDocuments(message.documents ?? []);
           if (accumulated[0]) setSelection({ kind: 'technical', id: accumulated[0].id });
+          return;
+        }
+        if (message.type === 'machines') {
+          // PNC lido da máscara de etiqueta é resposta, não lista: abre a
+          // máquina direto, que é o que o atendente com a etiqueta na mão quer.
+          if (message.machinePnc) {
+            setOpenMachine({ pnc: message.machinePnc, name: `PNC ${message.machinePnc}` });
+            return;
+          }
+          setMachineTerm(message.machineTerm ?? '');
           return;
         }
         if (message.type === 'semantic') {
@@ -511,6 +544,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     setLastQuery('');
     setParts([]);
     setDocuments([]);
+    setMachineTerm('');
     setCommercialParts([]);
     setOfficialResult(null);
     setHasSearched(false);
@@ -666,6 +700,45 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           {!hasSearched && <Starter hasContext={hasContext} onExample={beginSearch} favorites={quickFavorites} lastSearch={lastSearch} onReplay={beginSearch} />}
           {loading && !hasLocalResults ? <LoadingRows /> : null}
 
+          {machines.length > 0 && (
+            <section>
+              <div className="mb-2 flex items-center justify-between gap-3 px-1">
+                <div className="flex items-center gap-2">
+                  <Icon name="machine" className="h-4 w-4 text-brand-600 dark:text-brand-300" />
+                  <span className="text-xs font-black text-ink-700 dark:text-ink-200">Máquinas{machineTerm ? ` · ${machineTerm}` : ''}</span>
+                </div>
+                <span className="text-[10px] text-ink-500 dark:text-ink-400">{machines.length} no catálogo oficial</span>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-ink-200 dark:border-ink-800">
+                {machines.map(item => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      // O contexto do atendimento passa a valer para as buscas
+                      // seguintes, como já valia na aba de máquinas.
+                      updateSession({ machineModel: item.title, pnc: item.pnc || '' });
+                      setOpenMachine({ pnc: item.pnc as string, name: item.title });
+                    }}
+                    className="grid w-full gap-3 border-b border-ink-100 bg-white px-4 py-3.5 text-left transition last:border-0 hover:bg-ink-50/80 md:grid-cols-[minmax(0,1fr)_auto] md:items-center dark:border-ink-800 dark:bg-ink-900 dark:hover:bg-ink-800/45"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      {item.imageUrl && <img src={item.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-lg bg-white object-contain" loading="lazy" />}
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-black text-ink-900 dark:text-white">{item.title}</div>
+                        <div className="mt-1 truncate text-[11px] text-ink-500 dark:text-ink-400">{[item.categoryName || item.subtitle, item.discontinued ? 'fora de linha' : null].filter(Boolean).join(' · ')}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-5">
+                      <div className="hidden text-right md:block"><div className="font-mono text-xs font-black text-ink-900 dark:text-brand-300">PNC {item.pnc}</div></div>
+                      <span className="shrink-0 text-xs font-black text-brand-600 dark:text-brand-300">Abrir vista explodida</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
           {parts.length > 0 && (
             <section>
               <div className="mb-2 flex items-center justify-between gap-3 px-1">
@@ -771,6 +844,17 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           </aside>
         )}
       </div>
+
+      {openMachine && (
+        <MachineSidePanel
+          pnc={openMachine.pnc}
+          contextModel={openMachine.name}
+          onClose={() => setOpenMachine(null)}
+          onOpenPnc={pnc => setOpenMachine({ pnc, name: `PNC ${pnc}` })}
+          onOpenPart={code => { setOpenMachine(null); void beginSearch(code); }}
+          onOpenSearch={term => { setOpenMachine(null); void beginSearch(term); }}
+        />
+      )}
 
       {detail && <PartDetailDrawer detail={detail} verification={detailVerification} verificationLoading={verificationLoading} liveData={liveData} onClose={() => setDetail(null)} onCopy={code => void copyCode(code)} onOpenPdf={(documentId, page, title) => void accessPdf(documentId, page, title)} onOpenRelated={id => void openPart(id)} onToggleFavorite={() => void toggleFavorite()} onVerify={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} onCrossReference={(code, name) => setCrossReference({ code, name })} onAskAi={openAi} />}
       {verificationTarget && <PartVerificationDialog target={verificationTarget} existing={verifications[normalizePartCode(verificationTarget.partNumber)]} onClose={() => setVerificationTarget(null)} onSaved={() => { setVerificationTarget(null); toast.success('Conferência enviada para aprovação.'); if (detail) void loadVerifications([detail]); }} />}

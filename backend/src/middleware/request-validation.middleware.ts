@@ -20,6 +20,15 @@ export function validateSearchQuery(req: Request, res: Response, next: NextFunct
     res.status(400).json({ error: 'Consulta inválida ou muito longa.' });
     return;
   }
+  // `typed` é o texto que o atendente digitou, sem o contexto que a tela
+  // anexa em `q`. Ele decide se a busca consulta MÁQUINA no Portal Husqvarna,
+  // ou seja: entra numa chamada externa. Mesmo teto de `q`, e o mesmo 400 para
+  // valor estruturado (`?typed=a&typed=b` chega como array).
+  const typed = stringQueryParam(req, 'typed');
+  if (typed === null || typed.length > 500) {
+    res.status(400).json({ error: 'Consulta inválida ou muito longa.' });
+    return;
+  }
   next();
 }
 

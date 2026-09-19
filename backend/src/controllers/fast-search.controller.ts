@@ -3,6 +3,7 @@ import { LRUCache } from 'lru-cache';
 import { prisma } from '../config/prisma';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { normalizeIdentifier } from '../utils/normalize';
+import { machineQueryHint } from '../utils/machine-query';
 import { classifyPartKind } from '../services/husqvarna-domain-knowledge';
 import { preferCurrentPartNumbers } from '../services/part-supersession';
 import { PartSearchService, type PartCandidate } from '../services/part-search.service';
@@ -270,6 +271,20 @@ export class FastSearchController {
     if (!req.user) return;
     const q = String(req.query.q || '').trim();
     if (!isFastSearchCandidate(q)) {
+      next();
+      return;
+    }
+
+    // PNC de etiqueta sai do caminho rápido de propósito.
+    //
+    // `967 17 65-01` casa `looksLikeExactPartCode` (é a mesma máscara de um
+    // código de peça), então este atalho responderia e a busca completa —
+    // que é quem oferece a máquina — nunca rodaria. A resposta certa aqui é
+    // abrir a máquina, não uma lista vazia de peças.
+    //
+    // Código de peça com máscara (`587 10 67-01`) continua vindo por aqui:
+    // `machineQueryHint` exige o prefixo 9 do PNC.
+    if (machineQueryHint(String(req.query.typed || q)).pnc) {
       next();
       return;
     }
