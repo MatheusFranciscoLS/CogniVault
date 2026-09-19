@@ -20,6 +20,10 @@ export interface DocumentItem {
   /** Modelo do motor no formato da Briggs; monta a rota da lista de peças. */
   briggsEngineModel?:string|null;
   briggsManualsUrl?:string|null;
+  /** Modelo Kawasaki (série+spec da plaqueta), para o atendente colar na busca. */
+  kawasakiEngineModel?:string|null;
+  /** Busca oficial da Kawasaki. Não é link profundo — ver engine-model.ts. */
+  kawasakiPartsUrl?:string|null;
 }
 export interface FeedbackOption { id:string; name:string; partNumber:string; model:string; pnc:string|null; section:string|null; position:string|null; notes?:string|null; }
 export interface OfficialVerification {

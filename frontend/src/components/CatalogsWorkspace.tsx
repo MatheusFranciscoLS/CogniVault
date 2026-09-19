@@ -7,6 +7,50 @@ import CatalogsPanel from './CatalogsPanel';
 
 type CatalogData = { documents: DocumentItem[]; favorites: FavoriteItem[]; categories: string[] };
 
+/**
+ * Catálogo de peças Kawasaki: abrir + copiar o modelo.
+ *
+ * **Não é integração, e não pode ser.** Medido: a lista de peças da Kawasaki
+ * vive no ARI PartStream com uma app key do site deles, e a página do
+ * localizador roda reCAPTCHA. O `/manuals` público tem só manual do
+ * proprietário, por série, e a própria página manda procurar o revendedor para
+ * o manual de serviço. Link profundo também não existe: a URL de um conjunto
+ * carrega dois GUIDs, e abrir só com o modelo cai na busca genérica.
+ *
+ * Então é o mesmo padrão já decidido para o Portal Parceiro: abre a busca
+ * oficial e o atendente cola o modelo. O botão de copiar existe porque o
+ * modelo é série+spec da plaqueta (`FX921V-ES06`) e o autocompletar da
+ * Kawasaki só reconhece com os dois juntos — digitar errado ali devolve nada.
+ */
+function KawasakiPartsLink({ model, url }: { model: string; url: string }) {
+  return (
+    <span className="mt-1 inline-flex flex-wrap items-center gap-1">
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer noopener"
+        title="Abrir o catálogo oficial de peças da Kawasaki. Cole o modelo no campo Model e CLIQUE na opção que aparecer."
+        className="cv-touch-target inline-flex items-center gap-1 rounded border border-emerald-300 bg-emerald-50 px-2 text-[10px] font-bold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200 dark:hover:bg-emerald-900/40"
+      >
+        ⚙ Catálogo Kawasaki ↗
+      </a>
+      <button
+        type="button"
+        onClick={() => {
+          void navigator.clipboard.writeText(model).then(
+            () => toast.success(`Modelo ${model} copiado. Cole no campo Model e clique na opção.`),
+            () => toast.error('Não foi possível copiar. Anote o modelo: ' + model),
+          );
+        }}
+        title="Copiar o modelo para colar na busca da Kawasaki"
+        className="cv-touch-target inline-flex items-center gap-1 rounded border border-ink-200 bg-white px-2 font-mono text-[10px] font-bold text-ink-700 transition hover:bg-ink-50 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-200"
+      >
+        {model} ⧉
+      </button>
+    </span>
+  );
+}
+
 type Props = {
   admin: boolean;
   onQuality?: () => void;
@@ -195,6 +239,8 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
                   >
                     📕 Manuais Briggs ↗
                   </a>
+                ) : document.kawasakiEngineModel && document.kawasakiPartsUrl ? (
+                  <KawasakiPartsLink model={document.kawasakiEngineModel} url={document.kawasakiPartsUrl} />
                 ) : null}
               </div>
               <div className="text-xs font-semibold text-ink-600 dark:text-ink-300">{document.category || 'Sem categoria'}</div>

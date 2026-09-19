@@ -129,6 +129,28 @@ export function formatKawasakiModelForSearch(raw: string | null | undefined): st
 }
 
 /**
+ * Verdadeiro só quando há EVIDÊNCIA de que o catálogo é de motor Kawasaki.
+ *
+ * Existe porque a forma do modelo não basta, e isso foi medido:
+ * `formatKawasakiModelForSearch` reconhece `LC121P` e `LB155S` — que são
+ * cortadores **Husqvarna**, não motores Kawasaki. O padrão `[A-Z]{2}d{3}[A-Z]`
+ * é o mesmo dos dois fabricantes.
+ *
+ * Oferecer "Catálogo Kawasaki" num cortador Husqvarna manda o atendente ao
+ * catálogo errado, que é o erro mais caro deste produto. Então a decisão exige
+ * a marca dita em algum lugar: no campo `manufacturer` ou no nome do arquivo.
+ * Sem isso, não há botão — e não ter botão é o resultado correto, porque o
+ * modelo Kawasaki vem da plaqueta do motor e o Portal Husqvarna não o informa.
+ */
+export function hasKawasakiEvidence(
+  manufacturer: string | null | undefined,
+  filename: string | null | undefined,
+  model: string | null | undefined,
+): boolean {
+  return /kawasaki/i.test(`${manufacturer || ''} ${filename || ''} ${model || ''}`);
+}
+
+/**
  * Localizador oficial de peças da Kawasaki.
  *
  * **Não é link profundo, e não pode ser.** Medido: a URL completa de um

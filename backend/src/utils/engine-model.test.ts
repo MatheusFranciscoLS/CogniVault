@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { briggsManualsSearchUrl, engineModelVariants, formatBriggsModelForSearch, formatKawasakiModelForSearch, kawasakiPartsLookupUrl } from './engine-model';
+import { briggsManualsSearchUrl, engineModelVariants, formatBriggsModelForSearch, formatKawasakiModelForSearch, hasKawasakiEvidence, kawasakiPartsLookupUrl } from './engine-model';
 
 /**
  * Casos ancorados em modelos Briggs reais já presentes nesta base
@@ -149,4 +149,23 @@ test('Kawasaki não tem link profundo, e isso é deliberado', () => {
   // Medido: abrir a URL só com o modelo devolve a página genérica de busca.
   // Os conjuntos exigem dois GUIDs que não temos como montar.
   assert.equal(kawasakiPartsLookupUrl(), 'https://kawasakienginesusa.com/parts-lookup');
+});
+
+test('a forma do modelo não basta para oferecer catálogo Kawasaki', () => {
+  // Medido: `LC121P` e `LB155S` são cortadores HUSQVARNA e casam o mesmo
+  // padrão `[A-Z]{2}\d{3}[A-Z]` de um modelo Kawasaki. Oferecer "Catálogo
+  // Kawasaki" neles mandaria o atendente ao catálogo errado — o erro mais caro
+  // deste produto.
+  assert.equal(formatKawasakiModelForSearch('LC121P'), 'LC121P');
+  assert.equal(formatKawasakiModelForSearch('LB155S'), 'LB155S');
+  // ...e é por isso que a decisão exige evidência da marca:
+  assert.equal(hasKawasakiEvidence(null, 'IPL LC121P.pdf', 'LC121P'), false);
+  assert.equal(hasKawasakiEvidence('Husqvarna', 'MOTOR BRIGGS 103M02-0027-H1 LB155S.pdf', 'LB155S'), false);
+});
+
+test('evidência de Kawasaki é aceita de onde ela realmente aparece', () => {
+  assert.equal(hasKawasakiEvidence('Kawasaki', null, 'FX921V-ES06'), true);
+  assert.equal(hasKawasakiEvidence(null, 'MOTOR KAWASAKI FX921V.pdf', 'FX921V'), true);
+  assert.equal(hasKawasakiEvidence(null, null, 'Motor Kawasaki FR691V'), true);
+  assert.equal(hasKawasakiEvidence(null, null, null), false);
 });

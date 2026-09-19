@@ -17,7 +17,13 @@ import {
   formatBriggsEngineModel,
   inferEquipmentFamily,
 } from '../services/husqvarna-domain-knowledge';
-import { briggsManualsSearchUrl, formatBriggsModelForSearch } from '../utils/engine-model';
+import {
+  briggsManualsSearchUrl,
+  formatBriggsModelForSearch,
+  formatKawasakiModelForSearch,
+  hasKawasakiEvidence,
+  kawasakiPartsLookupUrl,
+} from '../utils/engine-model';
 
 const LIST_FRESH_MS = Math.max(2_000, Number(process.env.CATALOG_LIST_CACHE_FRESH_MS || '5000') || 5_000);
 const LIST_STALE_MS = Math.max(LIST_FRESH_MS, Number(process.env.CATALOG_LIST_CACHE_STALE_MS || '30000') || 30_000);
@@ -108,6 +114,26 @@ function toListItem(document: CatalogRecord, partPncs: string[] = []) {
     ? briggsManualsSearchUrl(effectiveModel)
     : null;
 
+  // Kawasaki é o terceiro caso, e é diferente dos outros dois de propósito.
+  //
+  // Husqvarna tem GraphQL e a Briggs tem um índice JSON público — os dois
+  // entregam o documento. A Kawasaki, não: medido, a lista de peças dela vive
+  // no ARI PartStream, com uma app key que pertence ao site deles, e a página
+  // do localizador roda reCAPTCHA (`POST /api/verify-captcha`). O
+  // `/manuals` público só tem manual do proprietário, por série, e a própria
+  // página manda procurar o revendedor para o manual de serviço.
+  //
+  // Então aqui não há link profundo nem integração: é o mesmo padrão já
+  // decidido para o Portal Parceiro — abre a busca oficial com o modelo pronto
+  // para colar. `kawasakiEngineModel` é nulo quando o modelo não tem a forma
+  // série+spec da plaqueta, e aí nem o botão aparece.
+  // A forma do modelo NAO basta: LC121P e LB155S sao cortadores Husqvarna e
+  // casam o mesmo padrao. Exige a marca dita no manufacturer ou no arquivo.
+  const kawasakiEngineModel = isEngineCatalog && hasKawasakiEvidence(resolvedManufacturer, filename, effectiveModel)
+    ? formatKawasakiModelForSearch(effectiveModel)
+    : null;
+  const kawasakiPartsUrl = kawasakiEngineModel ? kawasakiPartsLookupUrl() : null;
+
   const applications = isEngineCatalog
     ? findMachinesForEngine(effectiveModel, filename).map(app => {
         const family = inferEquipmentFamily('', app.machineModel);
@@ -152,6 +178,8 @@ function toListItem(document: CatalogRecord, partPncs: string[] = []) {
     engineApplications,
     briggsEngineModel,
     briggsManualsUrl,
+    kawasakiEngineModel,
+    kawasakiPartsUrl,
     createdAt: document.createdAt,
     partCount: document._count.parts,
     archivedAt: document.archivedAt,
