@@ -21,6 +21,7 @@ import type { CommercialPart, HusqvarnaLivePart, OfficialFallbackResult, PdfPrev
 import MachineSidePanel from '../machines/MachineSidePanel';
 import { useOfficialMachineSearch } from '../machines/official-machine-search';
 import { useRecentMachines } from '../machines/recent-machines';
+import KawasakiEnginePanel from '../machines/KawasakiEnginePanel';
 
 type Props = {
   initialQuery: string;
@@ -224,6 +225,9 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   // do stream não espera o Portal, e o mesmo modelo não é consultado duas
   // vezes. Sem modelo no texto, `machineTerm` fica vazio e nada é consultado.
   const [machineTerm, setMachineTerm] = useState('');
+  // Motor Kawasaki reconhecido no texto (série+spec). O servidor só anuncia
+  // quando a forma é inequívoca — ver utils/machine-query.ts no backend.
+  const [kawasakiModel, setKawasakiModel] = useState('');
   // A máquina abre AO LADO, sem trocar de tela: o atendente confirma a posição
   // na vista explodida e volta para a lista de peças com o contexto intacto.
   const [openMachine, setOpenMachine] = useState<{ pnc: string; name: string } | null>(
@@ -385,6 +389,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     setParts([]);
     setDocuments([]);
     setMachineTerm('');
+    setKawasakiModel('');
     setCommercialParts([]);
     setOfficialResult(null);
     setPriceSection('');
@@ -423,6 +428,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
             return;
           }
           setMachineTerm(message.machineTerm ?? '');
+          setKawasakiModel(message.kawasakiModel ?? '');
           return;
         }
         if (message.type === 'semantic') {
@@ -571,6 +577,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     setParts([]);
     setDocuments([]);
     setMachineTerm('');
+    setKawasakiModel('');
     setCommercialParts([]);
     setOfficialResult(null);
     setHasSearched(false);
@@ -742,6 +749,12 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
         <div className="min-w-0 space-y-5">
           {!hasSearched && <Starter hasContext={hasContext} onExample={beginSearch} favorites={quickFavorites} lastSearch={lastSearch} onReplay={beginSearch} />}
           {loading && !hasLocalResults ? <LoadingRows /> : null}
+
+          {/* Motor Kawasaki: os códigos E a vista explodida de cada conjunto.
+              Vem primeiro porque, quando o atendente digitou o modelo do motor,
+              é o catálogo dele que responde — e a vista explodida está sempre
+              ao lado dos códigos, nunca só uma das duas. */}
+          {kawasakiModel && <KawasakiEnginePanel model={kawasakiModel} onSearchPart={beginSearch} />}
 
           {machines.length > 0 && (
             <section>

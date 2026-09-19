@@ -16,6 +16,16 @@
 
 export type MachineQueryHint = {
   /**
+   * Motor Kawasaki, quando o texto traz **série + spec** (`FX921V-ES06`).
+   *
+   * Só essa forma completa é aceita, e o motivo é medido: a série sozinha
+   * (`FS730V`, `FR691V`) casa o mesmo padrão de modelos Husqvarna como
+   * `LC121P` e `LB155S`, e no catálogo da Kawasaki ela devolve até 10 specs
+   * diferentes — cada um com peças próprias. Série+spec é o que está na
+   * plaqueta do motor e não colide com nada.
+   */
+  kawasakiModel: string | null;
+  /**
    * PNC da etiqueta, quando o atendente digitou com a máscara impressa.
    * Abre a máquina direto, sem passar pela busca.
    */
@@ -28,7 +38,7 @@ export type MachineQueryHint = {
   model: string | null;
 };
 
-const EMPTY: MachineQueryHint = { pnc: null, model: null };
+const EMPTY: MachineQueryHint = { pnc: null, model: null, kawasakiModel: null };
 
 /**
  * Medida e unidade, não modelo. `2T`/`4T` (mistura), `10W30` (viscosidade),
@@ -97,19 +107,40 @@ function pncFromMask(query: string): string | null {
   return /^9\d{8}(?:\d{2})?$/.test(digits) ? digits : null;
 }
 
+/**
+ * Motor Kawasaki com série E spec, que é a forma da plaqueta.
+ *
+ * Aceita só a forma completa de propósito — ver o comentário de
+ * `kawasakiModel` em `MachineQueryHint`.
+ */
+const KAWASAKI_WITH_SPEC = /^[A-Z]{2}\d{3,4}[A-Z]-[A-Z]{2}\d{2}$/;
+
+function kawasakiFromTokens(value: string): string | null {
+  for (const token of tokens(value)) {
+    const limpo = token.replace(/[.®]/g, '').toUpperCase();
+    if (KAWASAKI_WITH_SPEC.test(limpo)) return limpo;
+  }
+  return null;
+}
+
 export function machineQueryHint(query: string | null | undefined): MachineQueryHint {
   const value = (query ?? '').trim();
   if (value.length < 3) return EMPTY;
 
   const pnc = pncFromMask(value);
-  if (pnc) return { pnc, model: null };
+  if (pnc) return { ...EMPTY, pnc };
+
+  // Kawasaki com spec é inequívoco, então vem antes: `FX921V-ES06` não é
+  // máquina Husqvarna e buscar lá só gastaria chamada.
+  const kawasakiModel = kawasakiFromTokens(value);
+  if (kawasakiModel) return { ...EMPTY, kawasakiModel };
 
   const model = tokens(value).find(looksLikeModel) ?? null;
-  return { pnc: null, model: model ? model.replace(/[.®]/g, '').toUpperCase() : null };
+  return { ...EMPTY, model: model ? model.replace(/[.®]/g, '').toUpperCase() : null };
 }
 
 /** Verdadeiro quando vale gastar a consulta externa de máquina. */
 export function wantsMachineLookup(query: string | null | undefined): boolean {
   const hint = machineQueryHint(query);
-  return Boolean(hint.pnc || hint.model);
+  return Boolean(hint.pnc || hint.model || hint.kawasakiModel);
 }

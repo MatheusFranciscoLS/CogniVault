@@ -29,7 +29,7 @@ test('código de peça NÃO vira consulta de máquina', () => {
   // uma chamada externa que nunca acha máquina.
   for (const query of ['530069247', '15004-0937', '104M02-0002-F1', '967176501', '27911', '794653']) {
     const hint = machineQueryHint(query);
-    assert.deepEqual(hint, { pnc: null, model: null }, query);
+    assert.deepEqual(hint, { pnc: null, model: null, kawasakiModel: null }, query);
     assert.equal(wantsMachineLookup(query), false, query);
   }
 });
@@ -83,7 +83,7 @@ test('medida com letra e dígito não é confundida com modelo', () => {
 
 test('consulta curta demais é descartada antes de qualquer trabalho', () => {
   for (const query of ['', ' ', 'ts', '14', null, undefined]) {
-    assert.deepEqual(machineQueryHint(query), { pnc: null, model: null }, String(query));
+    assert.deepEqual(machineQueryHint(query), { pnc: null, model: null, kawasakiModel: null }, String(query));
   }
 });
 
@@ -94,4 +94,31 @@ test('só um termo de modelo por consulta, porque cada um é uma chamada externa
 test('modelo normaliza para maiúscula e sem pontuação decorativa', () => {
   assert.equal(machineQueryHint('husqvarna 143rii').model, '143RII');
   assert.equal(machineQueryHint('Z460®').model, 'Z460');
+});
+
+test('motor Kawasaki com série+spec é reconhecido, e não vai para a Husqvarna', () => {
+  // `FX921V-ES06` é a forma da plaqueta e é inequívoca. Ela não pode virar
+  // busca de máquina Husqvarna: lá não existe e só gastaria chamada.
+  for (const query of ['FX921V-ES06', 'carburador FX921V-ES06', 'fx921v-es06', 'FS730V-AS00', 'FX1000V-CS00']) {
+    const hint = machineQueryHint(query);
+    assert.ok(hint.kawasakiModel, query);
+    assert.equal(hint.model, null, query);
+    assert.equal(hint.pnc, null, query);
+  }
+  assert.equal(machineQueryHint('carburador FX921V-ES06').kawasakiModel, 'FX921V-ES06');
+});
+
+test('série Kawasaki SEM spec não vira consulta de Kawasaki', () => {
+  // Medido nos dois lados: `FS730V` casa o mesmo padrão de `LC121P`/`LB155S`
+  // (cortadores Husqvarna), e no catálogo da Kawasaki devolve até 10 specs
+  // diferentes — cada um com peças próprias. Sem o spec não há o que abrir.
+  for (const query of ['FS730V', 'FR691V', 'FX921V', 'LC121P', 'LB155S']) {
+    assert.equal(machineQueryHint(query).kawasakiModel, null, query);
+  }
+});
+
+test('código de peça e PNC não viram consulta de Kawasaki', () => {
+  for (const query of ['15004-0937', '104M02-0002-F1', '967 17 65-01', '530069247']) {
+    assert.equal(machineQueryHint(query).kawasakiModel, null, query);
+  }
 });

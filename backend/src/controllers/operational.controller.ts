@@ -787,13 +787,17 @@ export class OperationalController {
             // comuns: "carburador" e "junta" não produzem anúncio nenhum.
             const machineHint = machineQueryHint(typed);
 
-            if (machineHint.pnc || machineHint.model) {
+            if (machineHint.pnc || machineHint.model || machineHint.kawasakiModel) {
                 send({
                     type: 'machines',
                     // PNC da etiqueta é resposta, não busca: a tela abre a
                     // máquina direto com esse número.
                     machinePnc: machineHint.pnc ?? undefined,
                     machineTerm: machineHint.model ?? undefined,
+                    // Motor Kawasaki com spec: a tela abre o catálogo do ARI,
+                    // que dá o código da peça e a vista explodida de cada
+                    // conjunto. Ver docs/KAWASAKI_ARI_PARTSTREAM.md.
+                    kawasakiModel: machineHint.kawasakiModel ?? undefined,
                 });
             }
 

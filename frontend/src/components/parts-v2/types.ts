@@ -56,6 +56,11 @@ export type SearchStreamMessage = {
   machineTerm?: string;
   /** PNC lido da máscara de etiqueta: abre a máquina direto, sem lista. */
   machinePnc?: string;
+  /**
+   * Motor Kawasaki com série+spec (`FX921V-ES06`). A tela abre o catálogo do
+   * ARI, que dá o código da peça e a vista explodida de cada conjunto.
+   */
+  kawasakiModel?: string;
   error?: string;
 };
 
