@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { briggsManualsSearchUrl, engineModelVariants, formatBriggsModelForSearch } from './engine-model';
+import { briggsManualsSearchUrl, engineModelVariants, formatBriggsModelForSearch, formatKawasakiModelForSearch, kawasakiPartsLookupUrl } from './engine-model';
 
 /**
  * Casos ancorados em modelos Briggs reais já presentes nesta base
@@ -101,7 +101,7 @@ test('entrada vazia ou sem forma reconhecível devolve null', () => {
 test('a URL de busca usa a forma canônica, codificada, no domínio oficial', () => {
   const url = briggsManualsSearchUrl('103M02-0027-H1');
   assert.ok(url);
-  assert.equal(url, 'https://www.briggsandstratton.com/en-us/support/manuals/results?search=103M02-0027-H1');
+  assert.equal(url, 'https://www.briggsandstratton.com/pt-br/support/manuals/results?search=103M02-0027-H1');
   // A URL nunca deve conter o texto cru não formatado.
   assert.ok(!url!.includes('Motor'));
 });
@@ -109,4 +109,44 @@ test('a URL de busca usa a forma canônica, codificada, no domínio oficial', ()
 test('modelo que não é Briggs não gera URL nenhuma', () => {
   assert.equal(briggsManualsSearchUrl('143RII'), null);
   assert.equal(briggsManualsSearchUrl(''), null);
+});
+
+test('modelo Briggs que o dono usa no site oficial', () => {
+  // Print do dono: ele digita 12J902-0118-01 na busca de manuais da Briggs.
+  assert.equal(formatBriggsModelForSearch('12J902-0118-01'), '12J902-0118-01');
+  assert.equal(formatBriggsModelForSearch('12J9020118 01'), '12J902-0118-01');
+  assert.equal(formatBriggsModelForSearch('12J902011801'), '12J902-0118-01');
+
+  // Modelos que o campo `comment` do Portal Husqvarna entrega.
+  assert.equal(formatBriggsModelForSearch('31R577-0027-B1'), '31R577-0027-B1');
+  assert.equal(formatBriggsModelForSearch('44N677-0065-G1'), '44N677-0065-G1');
+
+  // A URL é a do site pt-BR, conferida no navegador: devolve os dois
+  // "PARTS MANUAL - 12J902-0118-01" (inglês e chinês).
+  assert.equal(
+    briggsManualsSearchUrl('12J902-0118-01'),
+    'https://www.briggsandstratton.com/pt-br/support/manuals/results?search=12J902-0118-01',
+  );
+});
+
+test('modelo Kawasaki vem da plaqueta: série + spec', () => {
+  assert.equal(formatKawasakiModelForSearch('FX921V-ES06'), 'FX921V-ES06');
+  assert.equal(formatKawasakiModelForSearch('fx921v es06'), 'FX921V-ES06');
+  assert.equal(formatKawasakiModelForSearch('FX921VES06'), 'FX921V-ES06');
+  assert.equal(formatKawasakiModelForSearch('Motor Kawasaki FR691V (Z248F)'), 'FR691V');
+
+  // Série sozinha é aceita: é o que o mapa interno guarda hoje.
+  assert.equal(formatKawasakiModelForSearch('FR691V'), 'FR691V');
+  assert.equal(formatKawasakiModelForSearch('FX730V'), 'FX730V');
+
+  // O que não é modelo Kawasaki não ganha formato.
+  assert.equal(formatKawasakiModelForSearch('143RII'), null);
+  assert.equal(formatKawasakiModelForSearch('12J902-0118-01'), null);
+  assert.equal(formatKawasakiModelForSearch(''), null);
+});
+
+test('Kawasaki não tem link profundo, e isso é deliberado', () => {
+  // Medido: abrir a URL só com o modelo devolve a página genérica de busca.
+  // Os conjuntos exigem dois GUIDs que não temos como montar.
+  assert.equal(kawasakiPartsLookupUrl(), 'https://kawasakienginesusa.com/parts-lookup');
 });

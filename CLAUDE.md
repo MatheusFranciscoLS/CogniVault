@@ -378,10 +378,98 @@ Engine:  0XXXXX-XXXX      (modelo de 5 dígitos)*
 "Dashes are required after first 6 digits when entering model number."
 ```
 
-O IPL sai em `thepowerportal.com/ipls/ipl.htm?md=<modelo sem traço>~<IDIOMA>_IPLURL_LO.pdf`
-— ex.: `103M02-0027-H1` vira `md=103M020027H1~ZH_IPLURL_LO.pdf`. **Não gere esse
-link por padrão a partir de um exemplo só**: o código de idioma varia por motor
-(aquele saiu em chinês), e link quebrado no balcão é pior que link nenhum.
+O IPL sai em `thepowerportal.com/ipls/ipl.htm?md=<modelo sem traço>~<IDIOMA>_IPLURL_LO.pdf`.
+**Não gere esse link — a advertência agora tem prova.** Dois exemplos reais do
+proprietário se contradizem no segmento de idioma:
+
+    103M02-0027-H1  ->  md=103M020027H1~ZH_IPLURL_LO.pdf   (chinês)
+    12J902-0118-01  ->  md=12J902011801~_IPLURL_LO.pdf     (idioma VAZIO)
+
+Não há regra dedutível de dois casos que discordam, e link quebrado no balcão é
+pior que link nenhum. O caminho certo é a **busca de manuais**, que
+`briggsManualsSearchUrl` monta.
+
+**A URL é a do site pt-BR**, conferida no navegador: `/pt-br/support/manuals/results?search=12J902-0118-01`
+devolve os dois `PARTS MANUAL - 12J902-0118-01`, em inglês e em chinês. A
+preferência do dono, nas palavras dele: *"Parts manual english de preferência,
+se não tiver pode ser o chinese mesmo. Em português não vai ter de jeito nenhum."*
+
+### Kawasaki não tem link profundo, e isso é deliberado
+
+Medido: a URL de um conjunto carrega **dois GUIDs**
+(`.../FX921V-ES06_4_Stroke_Engine_FX921V/*KITS_GASKET.../63e707fb-…/97b0edbd-…`),
+e abrir o endereço só com o modelo devolve a página genérica de busca, sem a
+grade de conjuntos. Então `kawasakiPartsLookupUrl()` aponta para
+`kawasakienginesusa.com/parts-lookup` e o atendente cola o modelo, que
+`formatKawasakiModelForSearch` devolve pronto.
+
+O modelo Kawasaki é **série + spec** (`FX921V-ES06`), e vem da **plaqueta do
+motor** — o Portal Husqvarna não informa (veja a seção abaixo).
+
+## Portal Husqvarna: identidade de 9 dígitos e o campo `comment`
+
+Duas descobertas medidas **contra a API real**, pelo navegador embutido (o
+terminal do sandbox não alcança `portal.husqvarnagroup.com`, mas o navegador
+sim — não precisa de allowlist).
+
+### O artigo tem 9 dígitos, sempre
+
+    articles.byIds  articleId '96041044000'  (11 díg.) -> null
+    articles.byIds  articleId '960410440'    (9 díg.)  -> "HUSQVARNA TS 142"
+    search.content  searchTerm '96041044000'           -> lista VAZIA
+    search.content  searchTerm '960410440'             -> TS 142
+
+Conferido em 8 máquinas de 5 categorias — 143R II `967332901`, 272 XP
+`965681601`, LC 121P `961330027`, LC 353AWD `970450102`, HU725AWDH
+`961430127`, Z460 `967984802`, TS 142 `960410440`, TS 148 `960410441` —
+**todos com exatamente 9 dígitos**. Nenhum id com mais de 9 responde.
+
+Regra do dono: *"tem algumas máquinas que não utilizam os 2 últimos números,
+como no caso do TS142, já outras utilizam todos"* — ou seja, a etiqueta às vezes
+traz 11 dígitos e o portal usa só os 9 primeiros; às vezes ela já traz 9.
+`utils/husqvarna-article-id.ts` cobre os dois: com 9, usa como veio; acima de
+9, tenta o prefixo de 9 e depois o número cheio. Abaixo de 9 **não completa com
+zero** — isso consultaria outra máquina.
+
+Antes disso, os três pontos de consulta validavam `/^\d{8,14}$/` e passavam o
+número como veio: toda máquina de etiqueta longa devolvia vazio e o painel
+oficial sumia sem dizer o motivo.
+
+### `ipls { articles { comment } }` era pedido e jogado no lixo
+
+O campo chegava da API, era copiado para o tipo e **nada lia**. É ele que
+carrega, em texto, a cadeia que o balcão percorre à mão:
+
+    "For 96041043000. HUSQVARNA MODEL NO. HS608 (COMPLETE IPL AVAILABLE SEPARATELY)."
+    "For 96041036800, ... Engine Briggs Model No. 31R577-0027-B1 (587333501)."
+    "ENGINE B&S MODEL NO. 44N677-0065-G1 (529581901)"
+    "FOR ENGINE: 598693901"          <- decide entre os dois carburadores
+    "CARBURETTOR GASKET - MULTIPACK: 10"
+    "Kawasaki - See Engine Model & Spec."
+
+`utils/husqvarna-ipl-comment.ts` lê isso. Cadeia provada ao vivo:
+
+    TS142 + PNC 96041044000 -> motor 598693901 -> carburador 599349108
+    TS142 + PNC 96041043000 -> motor 593230101 -> carburador 599349109
+
+**Três realidades diferentes**, e a diferença é de projeto:
+
+- **Husqvarna própria** — o texto dá o modelo (`HS608`; o TS 148 escreve
+  `HV 764cc`, **com espaço**, e a primeira versão do parser capturava só `HV`).
+- **Briggs / B&S** — o texto dá modelo **e** artigo. É o que faltava para o
+  link do manual.
+- **Kawasaki** — o portal **não dá o modelo**: só `"Kawasaki - See Engine Model
+  & Spec."`. Por isso existe `engineModelOnPlate`, e por isso o
+  `ENGINE_APPLICATIONS` **deve continuar** existindo para Kawasaki: ali o mapa
+  não duplica a API, supre o que ela não tem.
+
+`multipackQuantity` vale **só para o item que traz o texto** — correção
+explícita do dono. No HS 608 o carburador e a junta são itens separados na
+vista: **o carburador não vem com a junta**. Ler "CARBURETTOR GASKET -
+MULTIPACK: 10" como "o carburador acompanha 10 juntas" seria vender errado.
+
+**Preço não vem do portal em nenhuma hipótese** — o dono confirmou que fica
+apagado até logado. Preço é Portal Parceiro ou planilha, como já dizia acima.
 
 ### O zero à esquerda era falha real de busca
 

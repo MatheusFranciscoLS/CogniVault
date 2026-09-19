@@ -99,5 +99,48 @@ export function formatBriggsModelForSearch(raw: string | null | undefined): stri
 export function briggsManualsSearchUrl(raw: string | null | undefined): string | null {
   const formatted = formatBriggsModelForSearch(raw);
   if (!formatted) return null;
-  return `https://www.briggsandstratton.com/en-us/support/manuals/results?search=${encodeURIComponent(formatted)}`;
+  return `https://www.briggsandstratton.com/pt-br/support/manuals/results?search=${encodeURIComponent(formatted)}`;
+}
+
+/**
+ * Modelo Kawasaki no formato que o localizador da marca aceita.
+ *
+ * A plaqueta do motor traz **série + spec**: `FX921V-ES06` é a série `FX921V`
+ * com o spec `ES06`. O dono confirmou esse formato no próprio site
+ * (`kawasakienginesusa.com/parts-lookup`), onde o autocompletar só reconhece o
+ * modelo quando os dois vêm juntos.
+ *
+ * Por que o atendente precisa digitar: o Portal Husqvarna **não informa** o
+ * modelo do motor Kawasaki. O item de motor do Z460 traz apenas
+ * "Kawasaki - See Engine Model & Spec." — a própria Husqvarna manda ler a
+ * plaqueta. Não há o que deduzir, e deduzir seria chutar o código da peça.
+ */
+export function formatKawasakiModelForSearch(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const cleaned = raw
+    .replace(/^\s*motor\s+kawasaki\s*/i, '')
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+  const match = /^([A-Z]{2}\d{3}[A-Z])([A-Z]{2}\d{2})?$/.exec(cleaned);
+  if (!match) return null;
+  const [, series, spec] = match;
+  return spec ? `${series}-${spec}` : series;
+}
+
+/**
+ * Localizador oficial de peças da Kawasaki.
+ *
+ * **Não é link profundo, e não pode ser.** Medido: a URL completa de um
+ * conjunto carrega dois GUIDs
+ * (`.../FX921V-ES06_4_Stroke_Engine_FX921V/*KITS_GASKET.../63e707fb-…/97b0edbd-…`)
+ * e abrir o endereço só com o modelo devolve a página genérica de busca — sem
+ * a grade de conjuntos. Gerar um link que parece funcionar e abre vazio é pior
+ * para o balcão do que um link honesto para a busca.
+ *
+ * Então o padrão é o mesmo já decidido para o Portal Parceiro: abre a busca
+ * oficial e o atendente cola o modelo, que este helper já devolve formatado.
+ */
+export function kawasakiPartsLookupUrl(): string {
+  return 'https://kawasakienginesusa.com/parts-lookup';
 }
