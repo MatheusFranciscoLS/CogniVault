@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isHeadNounMatch, isQualifierOnlyMatch, partHeadNoun } from './part-head-noun';
+import {
+  isHeadNounMatch,
+  isQualifierOnlyMatch,
+  partHeadNoun,
+  partHeadNounDetailed,
+} from './part-head-noun';
 
 // Descrições reais, colhidas da fonte:
 // Kawasaki FX921V-ES06, conjunto CARBURETOR(1/2);
@@ -191,4 +196,24 @@ test('vírgula também separa palavra', () => {
   assert.equal(partHeadNoun('CONJ.SUPORTE DA PEGA'), 'SUPORTE');
   assert.equal(partHeadNoun('LABEL,COVER'), 'LABEL');
   assert.equal(partHeadNoun('TUBE ASSY'), 'TUBE');
+});
+
+test('palpite de posição não autoriza punição — regressão real da suíte', () => {
+  // O inglês é ambíguo aqui, e isso derrubou um teste que já existia:
+  //   "Screw Clutch shoe"   -> o principal é o PARAFUSO, na primeira palavra
+  //   "CARBURETTOR GASKET"  -> o principal é a JUNTA, na última
+  // Mesma estrutura, principais opostos. Punir com base nesse palpite
+  // rebaixava a peça CERTA de "parafuso da embreagem".
+  assert.equal(partHeadNounDetailed('Screw Clutch shoe').basis, 'positional');
+  assert.equal(partHeadNounDetailed('CARBURETTOR GASKET').basis, 'positional');
+  assert.equal(isQualifierOnlyMatch(['parafuso', 'screw'], 'Screw Clutch shoe'), false);
+
+  // Já o sinal explícito do catálogo continua autorizando.
+  assert.equal(partHeadNounDetailed('GASKET,CARBURETOR').basis, 'explicit');
+  assert.equal(partHeadNounDetailed('JUNTA DA TAMPA DE VÁLVULA').basis, 'explicit');
+  assert.equal(partHeadNounDetailed('VALVE-THROTTLE').basis, 'explicit');
+  assert.equal(partHeadNounDetailed('PLATE.MUFFLER').basis, 'explicit');
+  assert.equal(partHeadNounDetailed('PORCA SEXTAVADA').basis, 'explicit');
+  assert.equal(isQualifierOnlyMatch(['carburador', 'carburetor'], 'GASKET,CARBURETOR'), true);
+  assert.equal(isQualifierOnlyMatch(['silenciador', 'muffler'], 'PLATE.MUFFLER'), true);
 });
