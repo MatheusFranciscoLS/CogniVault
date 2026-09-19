@@ -67,6 +67,7 @@ test('aceita o Parts Manual e lê posição, código e descrição', () => {
     quantity: null,
     section: 'Air Cleaner, Cylinder Head',
     qualifier: null,
+    notes: [],
   });
 });
 
@@ -226,6 +227,114 @@ ${linhas(25)}
   assert.equal(r.ok, true);
   if (!r.ok) return;
   assert.equal(r.parts.filter(part => part.partNumber === '595353').length, 1);
+});
+
+// ---------------------------------------------------------------------------
+// Avisos do IPL. Todos os textos abaixo são recortes REAIS do
+// `104M02-0002-F1`, capturados em 2026-09-19.
+// ---------------------------------------------------------------------------
+
+const COM_AVISOS = `Parts Manual
+Mfg. No: 104M02-0002-F1
+REF NO\tPART NO\tDESCRIPTION
+209 590541 SPRING, Governor
+-Used Before Code Date 17092700
+209 596459 SPRING, Governor
+-Used After Code Date 17092600
+300F 596511 MUFFLER
+-Used Before Code Date 26080500 (No Longer Available) (See Reference 300D
+for Service)
+608B 84013129 STARTER, Rewind
+-(Must Be Replaced As A Kit)
+455B 84013130 CUP, Flywheel
+-(Only For Use With Reference 608B)
+${linhas(20)}
+`;
+
+test('duas peças na MESMA posição se distinguem pelo code date', () => {
+  // O caso mais caro do catálogo Briggs: as duas molas aparecem idênticas na
+  // tela, e o que decide qual serve é a data gravada no motor. Sem o aviso,
+  // metade das vendas sai errada.
+  const r = analyzeBriggsIplText(COM_AVISOS, '104M02-0002-F1');
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+
+  const molas = r.parts.filter(part => part.position === '209');
+  assert.equal(molas.length, 2);
+  assert.deepEqual(molas.find(m => m.partNumber === '590541')?.notes, [
+    { kind: 'CODE_DATE_BEFORE', codeDate: '17092700' },
+  ]);
+  assert.deepEqual(molas.find(m => m.partNumber === '596459')?.notes, [
+    { kind: 'CODE_DATE_AFTER', codeDate: '17092600' },
+  ]);
+});
+
+test('peça fora de linha vem com o substituto, mesmo com o aviso quebrado em duas linhas', () => {
+  // O texto real quebra no meio do parêntese: "(See Reference 300D" numa linha
+  // e "for Service)" na outra. Sem juntar, some justamente o substituto.
+  const r = analyzeBriggsIplText(COM_AVISOS, '104M02-0002-F1');
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+
+  const fora = r.parts.find(part => part.partNumber === '596511');
+  assert.deepEqual(fora?.notes, [
+    { kind: 'CODE_DATE_BEFORE', codeDate: '26080500' },
+    { kind: 'DISCONTINUED' },
+    { kind: 'SEE_REFERENCE', position: '300D' },
+  ]);
+});
+
+test('kit e peça casada também viram aviso', () => {
+  const r = analyzeBriggsIplText(COM_AVISOS, '104M02-0002-F1');
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+
+  assert.deepEqual(r.parts.find(part => part.partNumber === '84013129')?.notes, [{ kind: 'KIT_ONLY' }]);
+  assert.deepEqual(r.parts.find(part => part.partNumber === '84013130')?.notes, [
+    { kind: 'ONLY_WITH', position: '608B' },
+  ]);
+});
+
+test('código de 8 dígitos entra — o teto de 7 descartava peça de verdade', () => {
+  // Medido no IPL real: 4 peças perdidas por catálogo, e não eram parafusos —
+  // motor de partida, tanque, tampa de tanque e copo do volante.
+  const r = analyzeBriggsIplText(COM_AVISOS, '104M02-0002-F1');
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+
+  assert.equal(r.parts.some(part => part.partNumber === '84013129'), true);
+  assert.equal(r.parts.some(part => part.partNumber === '84013130'), true);
+});
+
+test('qualificador simples continua desembrulhado, como antes', () => {
+  // A mudança do regex não pode alterar o caso comum: `-(Intake)` segue virando
+  // `Intake`, sem parênteses e sem virar nota.
+  const r = analyzeBriggsIplText(SEM_QTY, '104M02-0002-F1');
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+
+  const parafuso = r.parts.find(part => part.position === '13');
+  assert.equal(parafuso?.qualifier, 'Cylinder Head');
+  assert.deepEqual(parafuso?.notes, []);
+});
+
+test('texto que não reconheço não vira aviso inventado', () => {
+  // Nota mal interpretada é pior que nota nenhuma, porque parece informação.
+  // O texto cru fica em `qualifier`; `notes` só recebe o que casou.
+  const estranho = `Parts Manual
+Mfg. No: 104M02-0002-F1
+REF NO\tPART NO\tDESCRIPTION
+5 595353 HEAD, Cylinder
+-Alguma observação que o parser não conhece
+${linhas(22)}
+`;
+  const r = analyzeBriggsIplText(estranho, '104M02-0002-F1');
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+
+  const cabecote = r.parts.find(part => part.partNumber === '595353');
+  assert.equal(cabecote?.qualifier, 'Alguma observação que o parser não conhece');
+  assert.deepEqual(cabecote?.notes, []);
 });
 
 test('todo motivo de recusa tem rótulo em português', () => {

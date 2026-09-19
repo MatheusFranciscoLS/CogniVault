@@ -49,7 +49,44 @@ export type BriggsIplPart = {
   section: string | null;
   /** Qualificador da linha seguinte (`-(Intake)`), quando existe. */
   qualifier: string | null;
+  /**
+   * O que o qualificador significa, quando dá para afirmar.
+   *
+   * O texto cru já ia para `qualifier`, mas em inglês e misturado — o balcão
+   * não ia ler. Estas são as que mudam a venda.
+   */
+  notes: BriggsPartNote[];
 };
+
+/**
+ * Avisos que a Briggs escreve no IPL e que decidem se a peça serve.
+ *
+ * São o equivalente Briggs do campo `comment` da Husqvarna: texto solto que
+ * carrega a regra de aplicação. Medido no IPL real do `104M02-0002-F1`.
+ *
+ * O mais perigoso é o code date: o mesmo motor tem **duas peças diferentes na
+ * mesma posição**, separadas só pela data de fabricação gravada nele —
+ *
+ *     209 590541 SPRING, Governor
+ *     -Used Before Code Date 17092700
+ *     209 596459 SPRING, Governor
+ *     -Used After Code Date 17092600
+ *
+ * Sem o aviso as duas aparecem iguais na tela, e metade das vendas sai errada.
+ */
+export type BriggsPartNote =
+  /** Só serve em motor fabricado ANTES deste code date. */
+  | { kind: 'CODE_DATE_BEFORE'; codeDate: string }
+  /** Só serve em motor fabricado A PARTIR deste code date. */
+  | { kind: 'CODE_DATE_AFTER'; codeDate: string }
+  /** A Briggs não fornece mais. Vender é prometer o que não chega. */
+  | { kind: 'DISCONTINUED' }
+  /** Usar a peça desta posição no lugar. Costuma vir junto de `DISCONTINUED`. */
+  | { kind: 'SEE_REFERENCE'; position: string }
+  /** Não se vende avulsa: só dentro do kit. */
+  | { kind: 'KIT_ONLY' }
+  /** Só funciona junto da peça daquela posição. */
+  | { kind: 'ONLY_WITH'; position: string };
 
 /**
  * Por que a leitura foi recusada. Espelha a intenção de
@@ -95,13 +132,74 @@ const MFG_NO = /Mfg\.\s*No:\s*([0-9A-Z]{5,8}(?:-[0-9A-Z]{2,4}){0,2})/i;
  * `<posição> <código> [<quantidade>] <descrição>`.
  *
  * A quantidade é capturada só quando tem 1–2 dígitos **e** vem antes de texto:
- * é o que a distingue de um código (5–7 dígitos) e de uma descrição que comece
+ * é o que a distingue de um código (5–8 dígitos) e de uma descrição que comece
  * com número.
+ *
+ * **O teto era 7 e estava errado.** A Briggs também emite código de 8 dígitos, e
+ * o regex antigo descartava essas linhas **em silêncio**. Medido no IPL do
+ * `104M02-0002-F1`: 4 peças perdidas por catálogo, e não eram parafusos —
+ *
+ *     455B 84013130 CUP, Flywheel
+ *     608B 84013129 STARTER, Rewind
+ *     957  84004416 CAP, Fuel
+ *     972B 84004115 TANK, Fuel
+ *
+ * Motor de partida, tanque e tampa de tanque são peça de balcão todo dia.
+ * Alargar para 8 acrescentou exatamente essas 4 linhas e nenhuma outra.
  */
-const ROW = /^\s*(\d{1,4}[A-Z]?)\s+(\d{5,7}[A-Z]?)\s+(?:(\d{1,2})\s+)?(\S.*?)\s*$/;
+const ROW = /^\s*(\d{1,4}[A-Z]?)\s+(\d{5,8}[A-Z]?)\s+(?:(\d{1,2})\s+)?(\S.*?)\s*$/;
 
-/** `-(Intake)`, `-(Cylinder Head)`: qualifica a linha imediatamente anterior. */
-const QUALIFIER = /^\s*-\(([^)]{1,60})\)\s*$/;
+/**
+ * Qualquer linha começada por `-` qualifica a peça imediatamente anterior.
+ *
+ * A versão antiga exigia parênteses ao redor de tudo, e por isso **perdia**
+ * justamente as notas que mudam a venda, que vêm sem eles:
+ *
+ *     -(Intake)                                    <- pegava
+ *     -Used Before Code Date 17092700              <- perdia
+ *     -Used Before Code Date 26080500 (No Longer Available) (See Reference 300D
+ *     for Service)                                 <- perdia, e ainda quebra linha
+ */
+const QUALIFIER = /^\s*-\s*(\S.*)$/;
+
+/** Falso enquanto sobrar parêntese aberto — o qualificador quebrou linha. */
+function parentesesFechados(texto: string): boolean {
+  let abertos = 0;
+  for (const ch of texto) {
+    if (ch === '(') abertos += 1;
+    else if (ch === ')') abertos -= 1;
+  }
+  return abertos <= 0;
+}
+
+/**
+ * Extrai as notas que mudam a venda.
+ *
+ * O que não casar fica só no texto cru: **não inventar significado**. Nota mal
+ * interpretada é pior que nota nenhuma, porque ela parece informação.
+ */
+export function briggsPartNotes(qualifier: string | null): BriggsPartNote[] {
+  if (!qualifier) return [];
+  const notes: BriggsPartNote[] = [];
+
+  const antes = /Used\s+Before\s+Code\s+Date\s+(\d{6,10})/i.exec(qualifier);
+  if (antes) notes.push({ kind: 'CODE_DATE_BEFORE', codeDate: antes[1] });
+
+  const depois = /Used\s+After\s+Code\s+Date\s+(\d{6,10})/i.exec(qualifier);
+  if (depois) notes.push({ kind: 'CODE_DATE_AFTER', codeDate: depois[1] });
+
+  if (/No\s+Longer\s+Available/i.test(qualifier)) notes.push({ kind: 'DISCONTINUED' });
+
+  const veja = /See\s+Reference\s+(\d{1,4}[A-Z]?)/i.exec(qualifier);
+  if (veja) notes.push({ kind: 'SEE_REFERENCE', position: veja[1].toUpperCase() });
+
+  if (/Must\s+Be\s+Replaced\s+As\s+A\s+Kit/i.test(qualifier)) notes.push({ kind: 'KIT_ONLY' });
+
+  const somenteCom = /Only\s+For\s+Use\s+With\s+Reference\s+(\d{1,4}[A-Z]?)/i.exec(qualifier);
+  if (somenteCom) notes.push({ kind: 'ONLY_WITH', position: somenteCom[1].toUpperCase() });
+
+  return notes;
+}
 
 /** Cabeçalho de tabela; marca o início de um bloco de peças. */
 const TABLE_HEADER = /REF\s*NO/i;
@@ -197,6 +295,24 @@ export function analyzeBriggsIplText(text: string, expectedModel?: string | null
     if (!isPlausiblePartNumber(partNumber)) continue;
 
     const qualificadorSeguinte = linhas[i + 1] ? QUALIFIER.exec(linhas[i + 1]) : null;
+    let qualifier: string | null = null;
+    if (qualificadorSeguinte) {
+      let texto = qualificadorSeguinte[1].trim();
+      // No máximo UMA continuação. O caso real quebra em duas linhas; aceitar
+      // mais arriscaria engolir a peça seguinte se um parêntese nunca fechar.
+      if (!parentesesFechados(texto)) {
+        const seguinte = (linhas[i + 2] ?? '').trim();
+        if (seguinte && !QUALIFIER.test(seguinte) && !ROW.test(seguinte)) {
+          texto = `${texto} ${seguinte}`.replace(/\s+/g, ' ').trim();
+          // Pula a continuação para ela não virar candidata a nome de conjunto.
+          i += 1;
+        }
+      }
+      // Quando é exatamente um grupo entre parênteses (`(Intake)`), desembrulha
+      // — é a forma antiga e continua sendo a mais legível na tela.
+      const soUmGrupo = /^\(([^()]{1,80})\)$/.exec(texto);
+      qualifier = (soUmGrupo ? soUmGrupo[1] : texto).trim();
+    }
 
     const chave = `${position}|${partNumber}`;
     if (vistos.has(chave)) continue;
@@ -208,7 +324,8 @@ export function analyzeBriggsIplText(text: string, expectedModel?: string | null
       name,
       quantity: qty ? Number(qty) : null,
       section: secao,
-      qualifier: qualificadorSeguinte ? qualificadorSeguinte[1].trim() : null,
+      qualifier,
+      notes: briggsPartNotes(qualifier),
     });
   }
 
