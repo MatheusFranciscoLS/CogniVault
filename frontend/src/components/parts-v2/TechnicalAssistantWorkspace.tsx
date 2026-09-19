@@ -24,6 +24,17 @@ import { useRecentMachines } from '../machines/recent-machines';
 import KawasakiEnginePanel from '../machines/KawasakiEnginePanel';
 import BriggsEnginePanel from '../machines/BriggsEnginePanel';
 
+/**
+ * Como a Husqvarna classifica o que a busca acha. Peça não está aqui: ela vem
+ * pelos caminhos de peça, com preço e estoque, e repetir como link seria pior.
+ */
+const OFFICIAL_KIND_LABELS: Record<string, string> = {
+  ACCESSORY: 'Acessório',
+  DOCUMENT: 'Documento',
+  CATEGORY: 'Categoria',
+  SPARE_PART: 'Peça',
+};
+
 type Props = {
   initialQuery: string;
   onQueryChange: (query: string) => void;
@@ -240,8 +251,19 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   // Termo anunciado pelo stream -> busca oficial de máquina. Desabilitada
   // sozinha quando o termo está vazio, que é o caso da maioria das buscas.
   const machineSearch = useOfficialMachineSearch(machineTerm);
+  // Máquinas com PNC abrem a vista explodida; o resto do que a Husqvarna acha
+  // (acessório, documento, categoria) aparece como atalho para o Portal.
+  //
+  // Filtrar só `PRODUCT` foi perda de função quando a aba Máquinas saiu: lá a
+  // busca oficial mostrava cinco grupos. Peça por CÓDIGO já vem pelos caminhos
+  // de peça, mas acessório, documento e categoria não vêm por lugar nenhum — e
+  // acessório é justamente o que o balcão vende junto.
   const machines = useMemo(
     () => (machineSearch.data ?? []).filter(item => item.kind === 'PRODUCT' && item.pnc),
+    [machineSearch.data],
+  );
+  const officialExtras = useMemo(
+    () => (machineSearch.data ?? []).filter(item => item.kind !== 'PRODUCT' && item.portalUrl),
     [machineSearch.data],
   );
   // Atalho para a máquina que este atendente já abriu, agora no atendimento:
@@ -798,6 +820,40 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
                       <span className="shrink-0 text-xs font-black text-brand-600 dark:text-brand-300">Abrir vista explodida</span>
                     </div>
                   </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {officialExtras.length > 0 && (
+            <section>
+              <div className="mb-2 flex items-center justify-between gap-3 px-1">
+                <div className="flex items-center gap-2">
+                  <Icon name="catalog" className="h-4 w-4 text-brand-600 dark:text-brand-300" />
+                  <span className="text-xs font-black text-ink-700 dark:text-ink-200">Também na Husqvarna</span>
+                </div>
+                <span className="text-[10px] text-ink-500 dark:text-ink-400">{officialExtras.length} acessório, documento ou categoria</span>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-ink-200 dark:border-ink-800">
+                {officialExtras.map(item => (
+                  <a
+                    key={`${item.kind}-${item.id}`}
+                    href={item.portalUrl as string}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="grid w-full gap-3 border-b border-ink-100 bg-white px-4 py-3 text-left transition last:border-0 hover:bg-ink-50/80 md:grid-cols-[minmax(0,1fr)_auto] md:items-center dark:border-ink-800 dark:bg-ink-900 dark:hover:bg-ink-800/45"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      {item.imageUrl && <img src={item.imageUrl} alt="" className="h-10 w-10 shrink-0 rounded-lg bg-white object-contain" loading="lazy" />}
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-bold text-ink-900 dark:text-white">{item.title}</div>
+                        <div className="mt-0.5 truncate text-[11px] text-ink-500 dark:text-ink-400">
+                          {[OFFICIAL_KIND_LABELS[item.kind], item.categoryName || item.subtitle || item.documentType, item.languages.join(', ') || null, item.discontinued ? 'fora de linha' : null].filter(Boolean).join(' · ')}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-xs font-black text-brand-600 dark:text-brand-300">Abrir na Husqvarna ↗</span>
+                  </a>
                 ))}
               </div>
             </section>
