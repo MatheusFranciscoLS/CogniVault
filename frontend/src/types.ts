@@ -83,6 +83,13 @@ export interface PartClassification {
 export interface SuggestedAddon {
   id: string;
   name: string;
+  /**
+   * Qual acompanhante esta peça é: "Junta do carburador", "Retentor".
+   * É o que a seção antiga não tinha — ela listava seis "JUNTA" iguais e o
+   * atendente não sabia qual era a do carburador. Opcional porque a resposta
+   * em cache do detalhe (LRU, minutos) pode ser anterior a este campo.
+   */
+  label?: string;
   partNumber: string;
   model?: string;
   pnc?: string | null;

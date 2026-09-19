@@ -10,7 +10,6 @@ import {
   formatBriggsEngineModel,
   isMachineEngineInquiry,
   classifyPartKind,
-  getCorrelatedMaintenanceTerms,
   getBasicMaintenanceKitTerms,
 } from './husqvarna-domain-knowledge';
 import { buildSearchGroups, inferredSearchAliases, scorePartText } from './part-vocabulary';
@@ -286,24 +285,6 @@ test('classifica estritamente subconjunto completo vs kit de reparo vs peça avu
   assert.equal(classifyPartKind('Anel do Pistão').kind, 'INDIVIDUAL_PART');
 });
 
-test('retorna itens de venda sugerida e manutenção correlata para peças de bancada', () => {
-  const pistonAddons = getCorrelatedMaintenanceTerms('Pistão 143R-II');
-  assert.ok(pistonAddons.suggestedTerms.includes('anel'));
-  assert.ok(pistonAddons.suggestedTerms.includes('trava'));
-  assert.ok(pistonAddons.suggestedTerms.includes('junta'));
-  assert.ok(pistonAddons.reason.length > 0);
-
-  const carbAddons = getCorrelatedMaintenanceTerms('Carburador Completo');
-  assert.ok(carbAddons.suggestedTerms.includes('filtro de combustivel') || carbAddons.suggestedTerms.includes('filtro combustivel'));
-
-  const barAddons = getCorrelatedMaintenanceTerms('Sabre 18 polegadas');
-  assert.ok(barAddons.suggestedTerms.includes('corrente'));
-  assert.ok(barAddons.suggestedTerms.includes('lima'));
-
-  const unknown = getCorrelatedMaintenanceTerms('Chave de vela');
-  assert.equal(unknown.suggestedTerms.length, 0);
-});
-
 test('retorna os 4 itens do combo de revisão básica preventiva', () => {
   const kit = getBasicMaintenanceKitTerms();
   assert.equal(kit.length, 4);
@@ -313,8 +294,6 @@ test('retorna os 4 itens do combo de revisão básica preventiva', () => {
   assert.ok(categories.includes('FUEL_FILTER'));
   assert.ok(categories.includes('STARTER_ROPE'));
 });
-
-
 
 test('LB155S, HU725AWD, HU550FH, LC140 e LT125 resolvem motor Briggs direto, sem pedir PNC', () => {
   // Regressão real: adicionar uma segunda aplicação sem PNC para a mesma

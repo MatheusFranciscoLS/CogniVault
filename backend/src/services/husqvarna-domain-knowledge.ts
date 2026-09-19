@@ -910,61 +910,6 @@ export function classifyPartKind(name?: string | null, section?: string | null, 
   };
 }
 
-export function getCorrelatedMaintenanceTerms(partName?: string | null): { suggestedTerms: string[]; reason: string } {
-  const norm = normalizeText(partName || '');
-
-  if (/\b(?:pistao|pistão|cilindro)\b/i.test(norm)) {
-    return {
-      suggestedTerms: ['anel', 'trava', 'pino', 'junta', 'rolamento', 'vela'],
-      reason: 'Ao trocar pistão ou cilindro, recomenda-se trocar anéis, travas, junta do cilindro e rolamento de agulhas.',
-    };
-  }
-  if (/\bcarburador\b/i.test(norm)) {
-    return {
-      suggestedTerms: ['filtro de combustivel', 'filtro combustivel', 'mangueira', 'junta', 'vela'],
-      reason: 'Ao revisar/trocar o carburador, recomenda-se substituir o filtro de combustível e mangueiras.',
-    };
-  }
-  if (/\b(?:sabre|barra|guia)\b/i.test(norm)) {
-    return {
-      suggestedTerms: ['corrente', 'lima', 'pinhao', 'pinhão', 'tambor'],
-      reason: 'Ao trocar o sabre, confira o desgaste da corrente e do pinhão da embreagem.',
-    };
-  }
-  if (/\b(?:partida|arranque|polia)\b/i.test(norm)) {
-    return {
-      suggestedTerms: ['corda', 'mola', 'punho', 'arrastador'],
-      reason: 'Ao consertar a partida, verifique o estado da corda e das molas.',
-    };
-  }
-  if (/\b(?:lamina|lâmina|faca)\b/i.test(norm)) {
-    return {
-      suggestedTerms: ['porca', 'prato', 'arruela', 'protetor', 'copo'],
-      reason: 'Ao trocar a lâmina, certifique-se da porca de fixação e do prato giratório.',
-    };
-  }
-  if (/\b(?:cabecote|cabeçote|carretel|fio de nylon)\b/i.test(norm)) {
-    return {
-      suggestedTerms: ['fio de nylon', 'mola', 'tampa', 'ilhos', 'ilhós'],
-      reason: 'Ao repor o cabeçote, verifique carga de fio de nylon e ilhós.',
-    };
-  }
-  if (/\b(?:filtro de ar|filtro ar)\b/i.test(norm)) {
-    return {
-      suggestedTerms: ['vela', 'filtro de combustivel', 'filtro combustivel', 'pre-filtro'],
-      reason: 'Item de revisão preventiva: considere o combo com vela e filtro de combustível.',
-    };
-  }
-  if (/\b(?:embreagem|tambor)\b/i.test(norm)) {
-    return {
-      suggestedTerms: ['mola', 'rolamento', 'pinhao', 'pinhão', 'arruela'],
-      reason: 'Ao mexer na embreagem, confira molas e rolamento de agulha.',
-    };
-  }
-
-  return { suggestedTerms: [], reason: '' };
-}
-
 export function getBasicMaintenanceKitTerms(): Array<{ category: string; searchTerms: string[]; label: string }> {
   return [
     { category: 'SPARK_PLUG', searchTerms: ['vela', 'spark plug', 'ignicao', 'ignição'], label: 'Vela de Ignição' },

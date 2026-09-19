@@ -4,11 +4,11 @@ import { prisma } from '../config/prisma';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { normalizeIdentifier } from '../utils/normalize';
 import { allRelatedPartNumbers, preferCurrentPartNumbers } from '../services/part-supersession';
+import { findCompanions, hasCompanionRule } from '../services/part-companions';
 import {
   classifyPartKind,
   findEngineApplications,
   findMachinesForEngine,
-  getCorrelatedMaintenanceTerms,
 } from '../services/husqvarna-domain-knowledge';
 
 const PART_DETAIL_CACHE_TTL_MS = Math.max(
@@ -83,7 +83,8 @@ export class PartDetailController {
         .map(normalizeIdentifier)
         .filter(Boolean);
       const compatibilityCodes = relatedCodes.length ? relatedCodes : [part.normalizedPartNumber];
-      const maintenanceInfo = getCorrelatedMaintenanceTerms(resolvedPart.name);
+      // Só vale ir ao banco se a peça tem regra de acompanhante.
+      const temAcompanhantes = hasCompanionRule(resolvedPart.name);
 
       // Depois de conhecermos a peça, todo o enriquecimento independente roda em paralelo.
       const [related, compatibility, masterPart, candidateParts] = await Promise.all([
@@ -125,17 +126,19 @@ export class PartDetailController {
             },
           },
         }),
-        maintenanceInfo.suggestedTerms.length
+        // Traz o catálogo da máquina e deixa `findCompanions` escolher. A
+        // versão anterior filtrava aqui por termo largo ("junta") e por isso
+        // devolvia toda junta da máquina — era daí que saía
+        // JUNTA/JUNTA/JUNTA/FIVELA na tela. O teto de 300 cabe num catálogo de
+        // máquina inteiro e continua sendo uma consulta indexada por documento.
+        temAcompanhantes
           ? prisma.part.findMany({
               where: {
                 documentId: resolvedPart.documentId,
                 active: true,
                 id: { not: resolvedPart.id },
-                OR: maintenanceInfo.suggestedTerms.map(term => ({
-                  name: { contains: term, mode: 'insensitive' as const },
-                })),
               },
-              take: 6,
+              take: 300,
               select: {
                 id: true,
                 name: true,
@@ -164,15 +167,17 @@ export class PartDetailController {
         });
       }
 
-      const suggestedAddons = maintenanceInfo.suggestedTerms.length
-        ? {
-            reason: maintenanceInfo.reason,
-            items: candidateParts.map(candidate => ({
-              ...candidate,
-              classification: classifyPartKind(candidate.name, candidate.section),
-            })),
-          }
-        : { reason: '', items: [] };
+      // Acompanhantes de verdade: substantivo principal E qualificador, lidos
+      // só da descrição. Sem candidato específico, a seção não aparece —
+      // preferir silêncio a uma junta qualquer. Ver services/part-companions.ts.
+      const encontrados = findCompanions(resolvedPart.name, candidateParts);
+      const suggestedAddons = {
+        reason: encontrados.reason,
+        items: encontrados.items.map(item => ({
+          ...item,
+          classification: classifyPartKind(item.name, item.section),
+        })),
+      };
 
       const payload: PartResponse = {
         part: {
