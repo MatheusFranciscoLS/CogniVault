@@ -26,6 +26,21 @@ export type MachineQueryHint = {
    */
   kawasakiModel: string | null;
   /**
+   * Motor Briggs (`104M02-0002-F1`, `12J902-0118-01`).
+   *
+   * A detecção exige uma **letra dentro do bloco do modelo**, e isso não é
+   * estilo: `formatBriggsModelForSearch` aceita qualquer sequência numérica e
+   * a formata como modelo Briggs, então sem essa exigência
+   * `530069247-01` (peça Husqvarna), `15004-0937` (peça Kawasaki),
+   * `587106701` (peça) e `967 17 65-01` (PNC) todos virariam catálogo Briggs.
+   * Medido: 4 falsos positivos em buscas que o balcão faz todo dia.
+   *
+   * Todos os motores Briggs da base têm essa letra (`104M02`, `12J902`,
+   * `09P702`, `28R707`, `08P502`, `103M02`, `44N677`, `31R577`) e nenhum
+   * código de peça tem. 8/8 reconhecidos, 6/6 falsos recusados.
+   */
+  briggsModel: string | null;
+  /**
    * PNC da etiqueta, quando o atendente digitou com a máscara impressa.
    * Abre a máquina direto, sem passar pela busca.
    */
@@ -38,7 +53,7 @@ export type MachineQueryHint = {
   model: string | null;
 };
 
-const EMPTY: MachineQueryHint = { pnc: null, model: null, kawasakiModel: null };
+const EMPTY: MachineQueryHint = { pnc: null, model: null, kawasakiModel: null, briggsModel: null };
 
 /**
  * Medida e unidade, não modelo. `2T`/`4T` (mistura), `10W30` (viscosidade),
@@ -115,6 +130,21 @@ function pncFromMask(query: string): string | null {
  */
 const KAWASAKI_WITH_SPEC = /^[A-Z]{2}\d{3,4}[A-Z]-[A-Z]{2}\d{2}$/;
 
+/**
+ * Modelo de motor Briggs: bloco com LETRA, hífen, bloco de tipo, e um bloco de
+ * código opcional. Ver o comentário de `briggsModel` para por que a letra é
+ * obrigatória.
+ */
+const BRIGGS_MODEL = /^[0-9]{0,2}[0-9A-Z]*[A-Z][0-9A-Z]*-[0-9A-Z]{4}(?:-[0-9A-Z]{1,2})?$/;
+
+function briggsFromTokens(value: string): string | null {
+  for (const token of tokens(value)) {
+    const limpo = token.replace(/[.®]/g, '').toUpperCase();
+    if (BRIGGS_MODEL.test(limpo)) return limpo;
+  }
+  return null;
+}
+
 function kawasakiFromTokens(value: string): string | null {
   for (const token of tokens(value)) {
     const limpo = token.replace(/[.®]/g, '').toUpperCase();
@@ -135,6 +165,11 @@ export function machineQueryHint(query: string | null | undefined): MachineQuery
   const kawasakiModel = kawasakiFromTokens(value);
   if (kawasakiModel) return { ...EMPTY, kawasakiModel };
 
+  // Briggs também é inequívoco pela letra no bloco do modelo, e vem antes da
+  // busca de máquina Husqvarna pelo mesmo motivo do Kawasaki.
+  const briggsModel = briggsFromTokens(value);
+  if (briggsModel) return { ...EMPTY, briggsModel };
+
   const model = tokens(value).find(looksLikeModel) ?? null;
   return { ...EMPTY, model: model ? model.replace(/[.®]/g, '').toUpperCase() : null };
 }
@@ -142,5 +177,5 @@ export function machineQueryHint(query: string | null | undefined): MachineQuery
 /** Verdadeiro quando vale gastar a consulta externa de máquina. */
 export function wantsMachineLookup(query: string | null | undefined): boolean {
   const hint = machineQueryHint(query);
-  return Boolean(hint.pnc || hint.model || hint.kawasakiModel);
+  return Boolean(hint.pnc || hint.model || hint.kawasakiModel || hint.briggsModel);
 }
