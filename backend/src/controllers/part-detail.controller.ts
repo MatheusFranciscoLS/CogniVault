@@ -5,6 +5,7 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { normalizeIdentifier } from '../utils/normalize';
 import { allRelatedPartNumbers, preferCurrentPartNumbers } from '../services/part-supersession';
 import { findCompanions, hasCompanionRule } from '../services/part-companions';
+import { oilSuggestions } from '../services/machine-oil';
 import {
   classifyPartKind,
   findEngineApplications,
@@ -177,6 +178,10 @@ export class PartDetailController {
           ...item,
           classification: classifyPartKind(item.name, item.section),
         })),
+        // Óleo não tem código cadastrado: entra como linha avulsa, e só quando
+        // a peça já tem acompanhante de catálogo — senão toda peça da loja
+        // viraria oferta de óleo. Ver services/machine-oil.ts.
+        consumables: encontrados.items.length ? oilSuggestions(resolvedPart.model) : [],
       };
 
       const payload: PartResponse = {

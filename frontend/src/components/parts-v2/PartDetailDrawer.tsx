@@ -87,6 +87,40 @@ export default function PartDetailDrawer({ detail, verification, verificationLoa
               </button>
             ))}
           </div>
+
+          {/* Óleo é botão, e não linha de catálogo, porque a loja não cadastra
+              código de óleo. Entra como linha avulsa (`SRV-`), que a cesta já
+              mostra como "SERVIÇO / AVULSO", e o atendente põe o preço.
+
+              Quando a máquina não dá para classificar, o servidor manda os
+              quatro e o atendente escolhe — recomendar 20W50 num motor 2 tempos
+              estragaria o motor do cliente, e isso é pior que não sugerir. */}
+          {detail.suggestedAddons.consumables && detail.suggestedAddons.consumables.length > 0 && (
+            <div className="mt-4 border-t border-ink-100 pt-3 dark:border-ink-800">
+              <div className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">
+                Óleo
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {detail.suggestedAddons.consumables.map(oleo => (
+                  <button
+                    key={oleo.code}
+                    type="button"
+                    onClick={() => {
+                      quoteCart.addItem({
+                        partNumber: oleo.code,
+                        name: oleo.label,
+                        model: detail.model,
+                      });
+                      toast.success(`${oleo.label} no orçamento.`);
+                    }}
+                    className="cv-touch-target rounded-lg border border-ink-200 bg-white px-3 text-xs font-bold text-ink-700 transition hover:border-accent-400 hover:text-accent-700 dark:border-ink-700 dark:bg-ink-950 dark:text-ink-200"
+                  >
+                    + {oleo.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
       )}
     </div><aside className="space-y-4"><section className="rounded-2xl border border-ink-200 bg-white p-4 dark:border-ink-800 dark:bg-ink-900"><div className="flex items-center justify-between gap-2"><div><div className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">Confiabilidade</div><div className="mt-1 text-sm font-black text-ink-900 dark:text-white">Esta peça foi conferida?</div></div><VerificationBadge verification={verification} loading={verificationLoading} /></div><div className="mt-3 flex flex-wrap gap-2"><SourceBadge source="CATALOG" />{workContext?.sources.filter(source => source.type !== 'CATALOG').map(source => <SourceBadge key={`${source.type}:${source.detail}`} source={source.type} detail={source.detail} />)}{liveData && <SourceBadge source="OFFICIAL" />}</div><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={onVerify} className="cv-touch-target rounded-lg border border-ink-200 px-3 text-xs font-bold text-ink-700 dark:border-ink-700 dark:text-ink-200">Registrar conferência</button><a href={officialUrl} target="_blank" rel="noreferrer" className="cv-touch-target inline-flex items-center rounded-lg border border-ink-200 px-3 text-xs font-bold text-brand-700 dark:border-ink-700 dark:text-brand-300">Fonte oficial ↗</a></div></section>

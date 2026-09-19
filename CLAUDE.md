@@ -199,10 +199,18 @@ máquinas"*. Hoje o atendente escreve num campo só e recebe peça **e** máquin
 - Sem fine-tuning (não faz sentido pra esse porte de app). As alavancas
   reais são prompt engineering e o `confidence-gate.ts` (scorer manual,
   bem ajustado, com comentários explicando casos de borda).
-- Recurso construído mas inerte: embedding de feedback
-  (`ENABLE_FEEDBACK_EMBEDDINGS`, default `false`) — vetor é calculado e
-  guardado mas nada lê ele de volta pro ranking. Terminar essa ligação ou
-  descartar, mas não deixar comentado como se fosse produção.
+- **Embedding de feedback: removido em 2026-09-19.** Ele calculava e gravava o
+  vetor do texto digitado e **nada lia de volta** para o ranking. Saiu por
+  quatro motivos, e o primeiro é a regra de custo zero: cada voto virava
+  chamada paga ao Gemini; semelhança de significado só ganha do casamento exato
+  com volume que um balcão não produz; o aprendizado por sinal estruturado
+  (`feedback-learning.ts`) já funciona e é **explicável**, que é o que um
+  produto cuja regra é "nunca chutar o código" precisa; e nem dava para
+  exercitar aqui, porque a coluna precisa da extensão `pgvector`, ausente nesta
+  máquina. A coluna `SearchFeedback.queryEmbedding` continua no schema — apagar
+  coluna em produção não compensa por um campo anulável e vazio.
+- A busca semântica de **peça** (`part-search.service.ts`, `queryEmbeddingCache`)
+  é outra coisa e continua valendo. Não confundir as duas.
 
 ## Antes de "consertar" algo que parece estranho
 
@@ -894,6 +902,32 @@ assistencia"*.
 É a mesma regra de "Papéis de usuário" lá em cima: o único usuário é o balcão, e
 não existe fluxo de oficina. Está escrito aqui porque a descoberta é real e
 tentadora — sem este registro, alguém (eu inclusive) vai propor de novo.
+
+## Óleo é consumível, não peça de catálogo
+
+`services/machine-oil.ts`. A loja **não cadastra código de óleo**, então ele não
+pode ser resolvido no catálogo como a junta do carburador. Entra no orçamento
+como **linha avulsa**, com o prefixo `SRV-` que a cesta já trata e mostra como
+"SERVIÇO / AVULSO" em vez de código.
+
+A tabela é do dono, com as palavras dele: *"vendemos oleo 20w50 para cortador,
+oleo 2t para maquinas 2 tempos, oleo corrente para motosserra/podador e por ai
+vai. O oleo 15w40 não vendemos por conta que o 15w50 é melhor (oleo recomendado
+pra motor de trator/giro zero e cambio)"*.
+
+    roçadeira, soprador      -> 2 tempos
+    motosserra, podador      -> 2 tempos + óleo de corrente
+    cortador de grama        -> 20W50
+    trator, giro zero        -> 15W50   (motor e câmbio; 15W40 a loja não vende)
+
+**Família desconhecida mostra as QUATRO opções**, não um palpite. Recomendar
+20W50 num motor 2 tempos estraga o motor do cliente — erro pior que não sugerir
+nada. Foi o desenho que o dono pediu ("ou até opções").
+
+**A ordem das regras em `machineOilFamily` importa**: os prefixos de 4 tempos
+são testados antes do sufixo, porque `LC121P` termina em `P` e **não** é
+podador, é cortador. Olhar o sufixo primeiro mandaria óleo de corrente para um
+cortador de grama. Travado em teste.
 
 ## A tela do balcão não explica o sistema
 
