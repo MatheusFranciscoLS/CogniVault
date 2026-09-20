@@ -141,19 +141,19 @@ export default function PortfolioCoveragePanel({
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
             <div className="text-[10px] font-bold uppercase tracking-[.09em] text-emerald-700 dark:text-emerald-300">IPL local</div>
             <div className="mt-2 text-2xl font-semibold text-emerald-950 dark:text-emerald-200">{displayCoverage.localIpl}</div>
-            <div className="mt-1 text-xs text-emerald-800/70 dark:text-emerald-300/70">Catálogos técnicos presentes no CogniVault</div>
+            <div className="mt-1 text-xs text-emerald-800 dark:text-emerald-200">Catálogos técnicos presentes no CogniVault</div>
           </div>
           <div className="rounded-2xl border border-brand-200 bg-brand-50/70 p-4 dark:border-brand-800 dark:bg-brand-900/20">
             <div className="text-[10px] font-bold uppercase tracking-[.09em] text-brand-700 dark:text-brand-300">Portal BR</div>
             <div className="mt-2 text-2xl font-semibold text-brand-950 dark:text-brand-200">{displayCoverage.portalIpl}</div>
-            <div className="mt-1 text-xs text-brand-800/70 dark:text-brand-300/70">
+            <div className="mt-1 text-xs text-brand-800 dark:text-brand-200">
               {displayCoverage.portalChecked ? 'IPLs oficiais confirmadas nesta consulta' : 'Portal ainda não consultado nesta carga'}
             </div>
           </div>
           <div className={`rounded-2xl border p-4 ${displayCoverage.unverified ? 'border-amber-200 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-900/20' : 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-800 dark:bg-emerald-900/20'}`}>
             <div className={`text-[10px] font-bold uppercase tracking-[.09em] ${displayCoverage.unverified ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>Sem fonte técnica comprovada</div>
             <div className={`mt-2 text-2xl font-semibold ${displayCoverage.unverified ? 'text-amber-950 dark:text-amber-200' : 'text-emerald-950 dark:text-emerald-200'}`}>{displayCoverage.unverified}</div>
-            <div className={`mt-1 text-xs ${displayCoverage.unverified ? 'text-amber-800/70 dark:text-amber-300/70' : 'text-emerald-800/70 dark:text-emerald-300/70'}`}>Pendências priorizadas pelas referências comerciais</div>
+            <div className={`mt-1 text-xs ${displayCoverage.unverified ? 'text-amber-800 dark:text-amber-200' : 'text-emerald-800 dark:text-emerald-200'}`}>Pendências priorizadas pelas referências comerciais</div>
           </div>
         </div>
 
@@ -169,7 +169,7 @@ export default function PortfolioCoveragePanel({
           <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-xs leading-5 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
             Portal Husqvarna Brasil consultado para <b>{displayCoverage.checkedCount ?? 0} modelo(s)</b> priorizado(s). Uma consulta inconclusiva nunca é tratada como ausência de IPL, e a lista comercial continua separada da evidência técnica oficial.
             {cacheLabel && (
-              <div className="mt-1 text-[11px] font-semibold text-emerald-700/80 dark:text-emerald-300/80">
+              <div className="mt-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-200">
                 Cache do Portal: {cacheLabel}.
               </div>
             )}

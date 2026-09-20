@@ -57,7 +57,7 @@ export default function OfficialPartOrigin({
         `/api/official-parts/by-code?code=${encodeURIComponent(code.trim())}`,
         { timeoutMs: 12_000 },
       );
-      return result.officialParts;
+      return result.officialParts ?? [];
     },
   });
 

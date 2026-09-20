@@ -76,7 +76,7 @@ export function useMasterPrices(codes: string[]) {
         body: JSON.stringify({ codes: normalized }),
         timeoutMs: 20_000,
       });
-      return data.prices;
+      return data.prices ?? {};
     },
   });
 }

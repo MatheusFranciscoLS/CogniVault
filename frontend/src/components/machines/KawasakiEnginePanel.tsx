@@ -63,7 +63,7 @@ export default function KawasakiEnginePanel({
         `/api/kawasaki/engine?model=${encodeURIComponent(model)}`,
         { timeoutMs: 25_000 },
       );
-      return data.kawasaki;
+      return data.kawasaki ?? null;
     },
   });
 
@@ -82,7 +82,7 @@ export default function KawasakiEnginePanel({
         + (nome ? `&assembly=${encodeURIComponent(nome)}` : ''),
         { timeoutMs: 25_000 },
       );
-      return data.assembly;
+      return data.assembly ?? null;
     },
   });
 
