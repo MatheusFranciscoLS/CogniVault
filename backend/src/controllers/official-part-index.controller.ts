@@ -17,12 +17,19 @@ export class OfficialPartIndexController {
     if (!req.user) return;
 
     const code = String(req.query.code || '').trim().slice(0, 40);
-    const hits = await OfficialPartIndexService.byCode(code);
-
-    // Sempre 200, inclusive vazio: "não achei" é resposta legítima aqui e a
-    // tela simplesmente não mostra a seção.
-    res.set('Cache-Control', 'private, max-age=120');
-    res.json({ officialParts: hits });
+    try {
+      const hits = await OfficialPartIndexService.byCode(code);
+      // Sempre 200, inclusive vazio: "não achei" é resposta legítima aqui e a
+      // tela simplesmente não mostra a seção.
+      res.set('Cache-Control', 'private, max-age=120');
+      res.json({ officialParts: hits });
+    } catch (error) {
+      // `byCode` já engole erro de banco, mas a garantia da rota não pode
+      // depender do serviço: é ela que o Express deixa rejeitar.
+      console.error('❌ Erro ao consultar o índice oficial:', error);
+      res.set('Cache-Control', 'private, no-store');
+      res.json({ officialParts: [] });
+    }
   }
 }
 
