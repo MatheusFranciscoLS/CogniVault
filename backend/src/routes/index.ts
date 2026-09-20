@@ -20,6 +20,7 @@ import { kawasakiController } from '../controllers/kawasaki.controller';
 import { CommercialSearchController } from '../controllers/commercial-search.controller';
 import { masterPartPricesController } from '../controllers/master-part-prices.controller';
 import { officialPartIndexController } from '../controllers/official-part-index.controller';
+import { partPickerController } from '../controllers/part-picker.controller';
 import { CommercialImportController } from '../controllers/commercial-import.controller';
 import { WorkContextController } from '../controllers/work-context.controller';
 import { PerformanceController } from '../controllers/performance.controller';
@@ -141,6 +142,10 @@ router.post('/master-parts/prices', authMiddleware, (req, res) => masterPartPric
 // foi lido do catalogo oficial de Briggs/Kawasaki. Ver
 // services/official-part-index.service.ts.
 router.get('/official-parts/by-code', authMiddleware, (req, res) => officialPartIndexController.byCode(req, res));
+// Ultimo recurso: o cliente descreveu a peca e a busca nao achou nada. A IA
+// escolhe de uma lista FECHADA (as pecas daquela maquina) e o desenho confirma.
+// Rota separada porque e mais lenta que a busca. Ver services/part-picker.service.ts.
+router.get('/parts/guess', authMiddleware, (req, res) => partPickerController.guess(req, res));
 router.get('/official-fallback', authMiddleware, validateOfficialFallbackQuery, (req, res) => workIntelligenceController.officialFallback(req, res));
 router.get('/husqvarna/products/search', authMiddleware, validateHusqvarnaProductSearchQuery, (req, res) => husqvarnaOfficialController.productSearch(req, res));
 // Lista de peças do motor Briggs. Rota própria, chamada só no clique do balcão:

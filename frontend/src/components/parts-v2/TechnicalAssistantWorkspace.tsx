@@ -24,6 +24,7 @@ import { useRecentMachines } from '../machines/recent-machines';
 import KawasakiEnginePanel from '../machines/KawasakiEnginePanel';
 import BriggsEnginePanel from '../machines/BriggsEnginePanel';
 import OfficialPartOrigin from '../machines/OfficialPartOrigin';
+import PartGuesses from './PartGuesses';
 
 /**
  * Como a Husqvarna classifica o que a busca acha. Peça não está aqui: ela vem
@@ -911,6 +912,22 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
                 )}
               </div>
             </section>
+          )}
+
+          {/* O cliente descreveu a peca com as palavras dele e a busca nao achou
+              nada. A IA escolhe de uma lista FECHADA — as pecas daquela maquina —
+              e o desenho confirma. Vem ANTES do painel de "nao achei" porque e
+              uma resposta, e o painel e a ausencia dela.
+
+              A maquina sai do contexto do atendimento, que o balcao sempre
+              preenche: "nos sempre perguntamos qual a marca e modelo da sua
+              maquina". Sem maquina, nao ha lista fechada e nada e consultado. */}
+          {hasSearched && !loading && !commercialLoading && !hasLocalResults && (session.machineModel.trim() || machineTerm) && (
+            <PartGuesses
+              model={session.machineModel.trim() || machineTerm}
+              query={lastQuery}
+              onOpenPart={beginSearch}
+            />
           )}
 
           {hasSearched && !loading && !commercialLoading && !hasLocalResults && (

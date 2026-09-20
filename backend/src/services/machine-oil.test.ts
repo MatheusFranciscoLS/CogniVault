@@ -30,10 +30,23 @@ test('LC121P é CORTADOR, não podador — o P do fim engana', () => {
   assert.equal(oilSuggestions('LC121P').some(o => o.kind === 'CHAIN'), false);
 });
 
-test('trator e giro zero levam 15W50', () => {
-  for (const modelo of ['TS142', 'TS148', 'LT125', 'Z460', 'YTH1842']) {
+test('trator, giro zero e Rider levam 15W50', () => {
+  // O Rider (R112C, V548, V554) é o cortador em que o operador senta. Entra
+  // aqui e não em cortador porque ele tem câmbio, e a regra do dono para 15W50
+  // é "motor de trator/giro zero e cambio" — confirmado por ele.
+  for (const modelo of ['TS142', 'TS148', 'LT125', 'Z460', 'YTH1842', 'R112C', 'V548', 'V554']) {
     assert.equal(machineOilFamily(modelo), 'TRACTOR', modelo);
     assert.deepEqual(oilSuggestions(modelo).map(o => o.kind), ['TRACTOR_15W50'], modelo);
+  }
+});
+
+test('nenhum Rider cai em desconhecido — era o buraco que a medição achou', () => {
+  // A primeira versão mandava 20W50 no R112C (errado) e não sabia classificar
+  // V548/V554. Os dois defeitos vinham da mesma lacuna.
+  for (const modelo of ['R112C', 'V548', 'V554']) {
+    assert.notEqual(machineOilFamily(modelo), 'UNKNOWN', modelo);
+    assert.notEqual(machineOilFamily(modelo), 'MOWER', modelo);
+    assert.equal(oilSuggestions(modelo).length, 1, modelo);
   }
 });
 

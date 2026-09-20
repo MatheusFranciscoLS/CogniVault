@@ -348,6 +348,28 @@ Quando precisar variar SQL por parâmetro (ex.: `date_trunc` por dia/semana/mês
 escreva as variantes por extenso em `$queryRaw`, como em
 `services/business-insights.service.ts`.
 
+## Toda tabela nova nasce com RLS ligado
+
+As 23 tabelas do banco têm Row Level Security ligado **com zero políticas**.
+Isso não é descuido: a aplicação conecta como `postgres`, dono das tabelas, e o
+dono passa por cima do RLS enquanto `FORCE ROW LEVEL SECURITY` estiver
+desligado. Quem fica de fora são os papéis `anon` e `authenticated` das
+bibliotecas cliente do Supabase — que é exatamente a intenção.
+
+**Já esqueci isso uma vez.** A migração que criou `OfficialPartIndex` em
+2026-09-19 não ligou o RLS, e ela foi para produção como a única tabela aberta
+do banco. O risco não era a leitura (código de peça de catálogo público) e sim a
+**escrita**: com a chave `anon`, dava para inserir um mapeamento peça→motor
+falso, que apareceria no balcão como se viesse da fonte oficial. Corrigido pela
+migração `20260920010000_official_part_index_rls`.
+
+Ao criar tabela, acrescente na mesma migração:
+
+    ALTER TABLE "NomeDaTabela" ENABLE ROW LEVEL SECURITY;
+
+O Prisma não faz isso sozinho, e o painel do Supabase só avisa depois que a
+tabela já está em produção.
+
 ## Validar migração e endpoints sem tocar em produção
 
 O `.env` do backend aponta para o Supabase **de produção**. Não rode
@@ -918,16 +940,60 @@ pra motor de trator/giro zero e cambio)"*.
     roçadeira, soprador      -> 2 tempos
     motosserra, podador      -> 2 tempos + óleo de corrente
     cortador de grama        -> 20W50
-    trator, giro zero        -> 15W50   (motor e câmbio; 15W40 a loja não vende)
+    trator, giro zero, Rider -> 15W50   (motor e câmbio; 15W40 a loja não vende)
 
 **Família desconhecida mostra as QUATRO opções**, não um palpite. Recomendar
 20W50 num motor 2 tempos estraga o motor do cliente — erro pior que não sugerir
 nada. Foi o desenho que o dono pediu ("ou até opções").
 
+**O Rider entra em trator, não em cortador.** `R112C`, `V548`, `V554` são o
+cortador em que o operador senta, têm câmbio, e o dono confirmou 15W50 para
+eles. A primeira versão mandava 20W50 no `R112C` e não sabia classificar os
+outros dois — medido contra 43 modelos reais, era o único buraco.
+
 **A ordem das regras em `machineOilFamily` importa**: os prefixos de 4 tempos
 são testados antes do sufixo, porque `LC121P` termina em `P` e **não** é
 podador, é cortador. Olhar o sufixo primeiro mandaria óleo de corrente para um
 cortador de grama. Travado em teste.
+
+## A IA escolhe de lista FECHADA, e o desenho confirma
+
+`services/part-picker.service.ts` + rota `GET /api/parts/guess` + `PartGuesses`.
+
+O caso: o cliente descreve com as palavras dele — *"a peça que segura a
+lâmina"*, *"o negócio que puxa a corda"* — e o catálogo escreve `PORCA, Lâmina`
+e `ARRASTADOR, Partida`. Isso devolvia **nada**, e "não achei" com o cliente na
+frente é o pior resultado possível.
+
+**Não é tradução, e a diferença é o produto inteiro.** Pedir para a IA traduzir
+devolveria "fixador da lâmina" — plausível em português e que não casa com nada.
+Aqui a IA recebe **a lista exata das peças daquela máquina** e responde com um
+**índice** dela. O servidor confere que o índice existe na lista que nós
+montamos; qualquer outra coisa é descartada. **Não há caminho pelo qual um
+código inventado chegue à tela.**
+
+**Quem confirma é o atendente, no desenho.** A resposta traz a posição, e a
+faixa diz "confira a posição na vista explodida antes de vender".
+
+Por que cabe num plano gratuito de IA:
+
+- **Quase nunca roda**: só quando a busca determinística voltou vazia **e** a
+  máquina é conhecida. `looksLikeDescription` barra código, modelo e palavra
+  solta — travado em teste, porque errar para MAIS aqui gasta cota do dono.
+- Texto curto (lista de nomes, sem imagem), teto de 120 candidatos.
+- Cache em memória e em `AiDecisionCacheService` por 7 dias.
+- Respeita `interactive-ai-budget` como o resto da IA interativa.
+
+**Sem cota, a tela cai no que o produto já faz** — a vista explodida para
+conferir à mão. Não existe modo de falha novo.
+
+**`canUseInteractiveAi` é assíncrona.** `if (!canUseInteractiveAi(t))` compila e
+é **sempre falso**, porque Promise é verdadeira — a guarda de cota nunca
+dispararia. Já cometi esse erro aqui; use `await`.
+
+A máquina sai de `session.machineModel` (o contexto do atendimento). O dono:
+*"nós sempre perguntamos qual a marca e modelo da sua maquina"*. Sem máquina não
+há lista fechada, e nada é consultado.
 
 ## A tela do balcão não explica o sistema
 

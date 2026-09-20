@@ -63,10 +63,16 @@ export function machineOilFamily(model: string | null | undefined): MachineOilFa
   const m = normalizeIdentifier(model || '');
   if (!m) return 'UNKNOWN';
 
-  // Trator e giro zero.
-  if (/^(?:TS|LT|YTH|TC|Z|MZ)\d/.test(m)) return 'TRACTOR';
-  // Cortador de grama.
-  if (/^(?:LC|LB|HU|J\d|R\d{3}|P\d{3})/.test(m)) return 'MOWER';
+  // Trator, giro zero e **Rider**.
+  //
+  // O Rider (`R112C`, `V548`, `V554`) é o cortador em que o operador senta, e
+  // entra aqui e não em MOWER: ele tem câmbio, e a regra do dono para 15W50 é
+  // "motor de trator/giro zero e cambio". Confirmado por ele em 2026-09-19 —
+  // a primeira versão mandava 20W50 no `R112C` e deixava `V548`/`V554` como
+  // desconhecidos, que foi o que a medição pegou.
+  if (/^(?:TS|LT|YTH|TC|Z|MZ|V\d|R\d{3})/.test(m)) return 'TRACTOR';
+  // Cortador de grama de empurrar.
+  if (/^(?:LC|LB|HU|J\d|P\d{3})/.test(m)) return 'MOWER';
   // Roçadeira: dígitos e um R (143R, 236R, 541RS, 128R).
   if (/^\d{2,3}R/.test(m)) return 'TWO_STROKE';
   // Podador de haste: dígitos e P (525P, 327P) — depois dos prefixos acima.
