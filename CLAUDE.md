@@ -934,6 +934,45 @@ são testados antes do sufixo, porque `LC121P` termina em `P` e **não** é
 podador, é cortador. Olhar o sufixo primeiro mandaria óleo de corrente para um
 cortador de grama. Travado em teste.
 
+## A IA escolhe de lista FECHADA, e o desenho confirma
+
+`services/part-picker.service.ts` + rota `GET /api/parts/guess` + `PartGuesses`.
+
+O caso: o cliente descreve com as palavras dele — *"a peça que segura a
+lâmina"*, *"o negócio que puxa a corda"* — e o catálogo escreve `PORCA, Lâmina`
+e `ARRASTADOR, Partida`. Isso devolvia **nada**, e "não achei" com o cliente na
+frente é o pior resultado possível.
+
+**Não é tradução, e a diferença é o produto inteiro.** Pedir para a IA traduzir
+devolveria "fixador da lâmina" — plausível em português e que não casa com nada.
+Aqui a IA recebe **a lista exata das peças daquela máquina** e responde com um
+**índice** dela. O servidor confere que o índice existe na lista que nós
+montamos; qualquer outra coisa é descartada. **Não há caminho pelo qual um
+código inventado chegue à tela.**
+
+**Quem confirma é o atendente, no desenho.** A resposta traz a posição, e a
+faixa diz "confira a posição na vista explodida antes de vender".
+
+Por que cabe num plano gratuito de IA:
+
+- **Quase nunca roda**: só quando a busca determinística voltou vazia **e** a
+  máquina é conhecida. `looksLikeDescription` barra código, modelo e palavra
+  solta — travado em teste, porque errar para MAIS aqui gasta cota do dono.
+- Texto curto (lista de nomes, sem imagem), teto de 120 candidatos.
+- Cache em memória e em `AiDecisionCacheService` por 7 dias.
+- Respeita `interactive-ai-budget` como o resto da IA interativa.
+
+**Sem cota, a tela cai no que o produto já faz** — a vista explodida para
+conferir à mão. Não existe modo de falha novo.
+
+**`canUseInteractiveAi` é assíncrona.** `if (!canUseInteractiveAi(t))` compila e
+é **sempre falso**, porque Promise é verdadeira — a guarda de cota nunca
+dispararia. Já cometi esse erro aqui; use `await`.
+
+A máquina sai de `session.machineModel` (o contexto do atendimento). O dono:
+*"nós sempre perguntamos qual a marca e modelo da sua maquina"*. Sem máquina não
+há lista fechada, e nada é consultado.
+
 ## A tela do balcão não explica o sistema
 
 Regra do dono, dita depois de ver o aviso de recusa do PDF: *"esses ruídos,
