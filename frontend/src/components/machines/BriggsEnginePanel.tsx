@@ -160,7 +160,7 @@ export default function BriggsEnginePanel({
         `/api/briggs/parts-manuals?model=${encodeURIComponent(model)}`,
         { timeoutMs: 20_000 },
       );
-      return data.briggs;
+      return data.briggs ?? null;
     },
   });
 
@@ -180,7 +180,7 @@ export default function BriggsEnginePanel({
         `/api/briggs/ipl-parts?model=${encodeURIComponent(model)}`,
         { timeoutMs: 45_000 },
       );
-      return data.briggsIpl;
+      return data.briggsIpl ?? { status: 'NO_MANUAL' as const };
     },
   });
 

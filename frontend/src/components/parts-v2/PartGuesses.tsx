@@ -45,7 +45,7 @@ export default function PartGuesses({
         `/api/parts/guess?model=${encodeURIComponent(model)}&q=${encodeURIComponent(query)}`,
         { timeoutMs: 20_000 },
       );
-      return result.guesses;
+      return result.guesses ?? [];
     },
   });
 
