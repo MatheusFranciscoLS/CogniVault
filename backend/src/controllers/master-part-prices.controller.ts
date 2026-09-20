@@ -59,6 +59,7 @@ export class MasterPartPricesController {
       return;
     }
 
+    try {
     const rows = await prisma.masterPart.findMany({
       where: { tenantId: req.user.tenantId, normalizedNumber: { in: normalized } },
       select: {
@@ -103,6 +104,15 @@ export class MasterPartPricesController {
     // mesmo com `price: null`.
     res.set('Cache-Control', 'private, no-store');
     res.json({ prices });
+    } catch (error) {
+      // Sem isto, banco fora virava `unhandledRejection` e o `server.ts`
+      // desligava o processo — o atendente veria "Preparando o servidor" por
+      // causa de uma consulta de preço. Mapa vazio degrada certo: a lista de
+      // peças continua na tela, só sem o preço ao lado.
+      console.error('❌ Erro ao buscar preço em lote:', error);
+      res.set('Cache-Control', 'private, no-store');
+      res.json({ prices: {} });
+    }
   }
 }
 

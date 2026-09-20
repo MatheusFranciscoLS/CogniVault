@@ -47,19 +47,28 @@ export class OfficialPartIndexService {
   /**
    * Grava o que a leitura do catálogo devolveu.
    *
-   * **Nunca lança.** É efeito colateral de uma consulta do balcão: se o banco
-   * estiver indisponível, o atendente tem que continuar vendo a lista de peças
-   * na tela. Falhar aqui derrubaria o atendimento por causa de um índice.
+   * **Nunca lança, e isso é obrigação, não gentileza.** Os dois pontos de
+   * chamada usam `void` — promessa solta, porque o balcão não pode esperar 283
+   * gravações para ver a lista na tela. Uma rejeição aqui vira
+   * `unhandledRejection`, e `server.ts` responde a isso desligando o processo:
+   * no Render o serviço reinicia e o atendente vê "Preparando o servidor" no
+   * meio do atendimento, por causa de um índice de busca.
+   *
+   * **O `try` começa na primeira linha de propósito.** A normalização ficava
+   * fora dele, e `normalizeIdentifier` chama `.normalize()` no valor — com
+   * entrada que não é string isso lança e a promessa rejeita. O TypeScript
+   * barra esse caso nos dois chamadores atuais, mas a garantia de uma função
+   * `void`-ada não pode depender de quem chama. Achado por teste, não por
+   * leitura: `official-part-index.test.ts` trava os dois lados.
    */
   static async record(
     source: OfficialPartSource,
     engineModel: string,
     parts: IndexablePart[],
   ): Promise<void> {
-    const normalizedEngine = normalizeIdentifier(engineModel);
-    if (!normalizedEngine || !parts.length) return;
-
     try {
+      const normalizedEngine = normalizeIdentifier(engineModel);
+      if (!normalizedEngine || !parts?.length) return;
       // `upsert` em vez de `createMany`: a mesma peça é relida a cada renovação
       // do cache, e o que interessa é a versão mais nova, não uma linha por
       // leitura. Sequencial de propósito — são 283 linhas no pior caso, uma vez
