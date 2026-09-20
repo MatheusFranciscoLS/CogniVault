@@ -348,6 +348,28 @@ Quando precisar variar SQL por parâmetro (ex.: `date_trunc` por dia/semana/mês
 escreva as variantes por extenso em `$queryRaw`, como em
 `services/business-insights.service.ts`.
 
+## Toda tabela nova nasce com RLS ligado
+
+As 23 tabelas do banco têm Row Level Security ligado **com zero políticas**.
+Isso não é descuido: a aplicação conecta como `postgres`, dono das tabelas, e o
+dono passa por cima do RLS enquanto `FORCE ROW LEVEL SECURITY` estiver
+desligado. Quem fica de fora são os papéis `anon` e `authenticated` das
+bibliotecas cliente do Supabase — que é exatamente a intenção.
+
+**Já esqueci isso uma vez.** A migração que criou `OfficialPartIndex` em
+2026-09-19 não ligou o RLS, e ela foi para produção como a única tabela aberta
+do banco. O risco não era a leitura (código de peça de catálogo público) e sim a
+**escrita**: com a chave `anon`, dava para inserir um mapeamento peça→motor
+falso, que apareceria no balcão como se viesse da fonte oficial. Corrigido pela
+migração `20260920010000_official_part_index_rls`.
+
+Ao criar tabela, acrescente na mesma migração:
+
+    ALTER TABLE "NomeDaTabela" ENABLE ROW LEVEL SECURITY;
+
+O Prisma não faz isso sozinho, e o painel do Supabase só avisa depois que a
+tabela já está em produção.
+
 ## Validar migração e endpoints sem tocar em produção
 
 O `.env` do backend aponta para o Supabase **de produção**. Não rode

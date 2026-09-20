@@ -1,0 +1,24 @@
+-- Liga o Row Level Security na OfficialPartIndex.
+--
+-- A migracao que criou a tabela esqueceu isto, e ela ficou sendo a UNICA das 23
+-- tabelas do banco sem RLS. Medido na producao em 2026-09-20:
+--
+--   MasterPart           rls=true   politicas=0   dono=postgres
+--   Part                 rls=true   politicas=0   dono=postgres
+--   Quote                rls=true   politicas=0   dono=postgres
+--   OfficialSourceCache  rls=true   politicas=0   dono=postgres
+--   OfficialPartIndex    rls=FALSE  <- o buraco
+--
+-- Sem RLS, quem tiver a chave publica `anon` do Supabase le E ESCREVE na
+-- tabela. A leitura expoe pouco (codigo de peca de catalogo publico), mas a
+-- escrita permitiria inserir um mapeamento peca->motor falso, que apareceria no
+-- balcao como se viesse da fonte oficial. E exatamente a falha que este produto
+-- existe para evitar.
+--
+-- Ligar sem politica NAO quebra o app, e isso nao e suposicao: as outras 22
+-- tabelas estao assim — RLS ligado, zero politicas — e funcionam, porque a
+-- aplicacao conecta como `postgres`, dono da tabela, e o dono passa por cima do
+-- RLS enquanto FORCE ROW LEVEL SECURITY estiver desligado (que e o caso em
+-- todas elas). Quem fica de fora e exatamente quem deve ficar: os papeis `anon`
+-- e `authenticated` das bibliotecas cliente do Supabase.
+ALTER TABLE "OfficialPartIndex" ENABLE ROW LEVEL SECURITY;
