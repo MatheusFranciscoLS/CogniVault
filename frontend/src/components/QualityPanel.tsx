@@ -319,12 +319,12 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
               </div>
               <div className="mt-2 flex items-baseline gap-1.5">
                 <span className="text-3xl font-semibold tracking-[-.04em] text-emerald-950 dark:text-emerald-200">{data.learning.uniqueSignals}</span>
-                <span className="text-sm font-medium text-emerald-700/80 dark:text-emerald-400">/ {data.learning.nextMilestone || 5} confirmações</span>
+                <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">/ {data.learning.nextMilestone || 5} confirmações</span>
               </div>
               <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-emerald-200 dark:bg-emerald-900/50">
                 <div className="h-full rounded-full bg-emerald-600 transition-all duration-500" style={{ width: `${Math.min(100, Math.round((data.learning.uniqueSignals / (data.learning.nextMilestone || 5)) * 100))}%` }} />
               </div>
-              <div className="mt-2 text-xs leading-5 text-emerald-900/70 dark:text-emerald-300/70">
+              <div className="mt-2 text-xs leading-5 text-emerald-900 dark:text-emerald-200">
                 {data.learning.nextMilestone
                   ? `Falta ${data.learning.nextMilestone - data.learning.uniqueSignals} confirmação para subir o nível da IA.`
                   : 'Base de aprendizado contínuo ativa.'}

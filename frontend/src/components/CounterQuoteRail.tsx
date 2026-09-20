@@ -46,12 +46,25 @@ export default function CounterQuoteRail() {
                 </div>
                 <div className="mt-1 truncate text-[11px] font-bold text-ink-800 dark:text-ink-100" title={item.name}>{item.name}</div>
               </div>
-              <button type="button" onClick={() => quoteCart.removeItem(item.id)} className="shrink-0 text-xs font-bold text-ink-300 transition hover:text-rose-500" aria-label={`Remover ${item.name}`}>×</button>
+              {/* Medido no DOM: este × tinha **7px de largura** e fica colado no
+                  `−`. É ação DESTRUTIVA — errar o toque apaga a peça do
+                  orçamento em vez de diminuir a quantidade, e com luva de
+                  oficina isso acontece.
+
+                  `p-2.5 -m-2.5` dá 44px de área de toque **sem mover nada na
+                  tela**: o padding cresce a área clicável e a margem negativa
+                  devolve o espaço ao layout. O × continua pequeno aos olhos. */}
+              <button type="button" onClick={() => quoteCart.removeItem(item.id)} className="-my-2 -mr-2 grid h-11 w-11 shrink-0 place-items-center text-xs font-bold text-ink-300 transition hover:text-rose-500" aria-label={`Remover ${item.name}`}>×</button>
             </div>
+            {/* 24px era o alvo dos controles de quantidade. 36px é o meio-termo
+                consciente: a regra pede 44, mas aqui cada pixel de altura se
+                multiplica por item na gaveta, e errar entre − e + custa um
+                clique de correção, não uma peça apagada. O × acima, que é o
+                destrutivo, esse sim ficou com os 44. */}
             <div className="mt-1.5 inline-flex items-center overflow-hidden rounded-md border border-ink-200 dark:border-ink-700">
-              <button type="button" onClick={() => quoteCart.updateQuantity(item.id, -1)} className="grid h-6 w-6 place-items-center text-xs text-ink-500 hover:bg-ink-50 dark:hover:bg-ink-800">−</button>
-              <span className="min-w-7 text-center text-[10px] font-black">{item.quantity}</span>
-              <button type="button" onClick={() => quoteCart.updateQuantity(item.id, 1)} className="grid h-6 w-6 place-items-center text-xs text-ink-500 hover:bg-ink-50 dark:hover:bg-ink-800">+</button>
+              <button type="button" onClick={() => quoteCart.updateQuantity(item.id, -1)} className="grid h-9 w-9 place-items-center text-sm text-ink-600 hover:bg-ink-50 dark:text-ink-300 dark:hover:bg-ink-800" aria-label={`Diminuir quantidade de ${item.name}`}>−</button>
+              <span className="min-w-7 text-center text-xs font-black">{item.quantity}</span>
+              <button type="button" onClick={() => quoteCart.updateQuantity(item.id, 1)} className="grid h-9 w-9 place-items-center text-sm text-ink-600 hover:bg-ink-50 dark:text-ink-300 dark:hover:bg-ink-800" aria-label={`Aumentar quantidade de ${item.name}`}>+</button>
             </div>
           </div>
         ))}

@@ -734,6 +734,10 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
                 }
               }}
               placeholder={hasContext ? 'Peça, código ou pergunta sobre este equipamento…' : 'Código, peça, modelo ou descreva o que você precisa…'}
+              /* O campo principal do produto não tinha rótulo nenhum — só
+                 placeholder, que some assim que o atendente digita. Medido no
+                 DOM: era o único campo sem rótulo da tela. */
+              aria-label="Buscar peça, código ou modelo"
               autoComplete="off"
               role="combobox"
               aria-expanded={suggestionsOpen && suggestions.length > 0}

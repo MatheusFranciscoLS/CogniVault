@@ -116,7 +116,12 @@ export default function PartDetailDrawer({ detail, verification, verificationLoa
                     });
                     toast.success(`${oleo.label} no orçamento.`);
                   }}
-                  className="rounded-lg border border-ink-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-ink-700 transition hover:border-accent-400 hover:text-accent-700 dark:border-ink-700 dark:bg-ink-950 dark:text-ink-200"
+                  /* `cv-touch-target` (44px) é piso de acessibilidade e eu o
+                     tinha removido ao deixar o botão compacto: ele ficou com
+                     ~28px, exatamente o tamanho que a regra do projeto proíbe
+                     ("dedo com luva de oficina não acerta botão de 28px").
+                     Compacto é na LARGURA; a altura não é negociável. */
+                  className="cv-touch-target inline-flex items-center rounded-lg border border-ink-200 bg-white px-3 text-[11px] font-bold text-ink-700 transition hover:border-accent-400 hover:text-accent-700 dark:border-ink-700 dark:bg-ink-950 dark:text-ink-200"
                 >
                   + {oleo.label}
                 </button>

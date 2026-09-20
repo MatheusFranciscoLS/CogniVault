@@ -558,7 +558,7 @@ export default function CatalogsPanel({
         </div>
       )}
 
-      <div className="mb-5 grid gap-3 rounded-[22px] border border-brand-200 dark:border-brand-600/80 bg-[linear-gradient(135deg,#eff6ff,#f8fbff)] p-4 text-xs leading-5 text-ink-600 dark:text-ink-400 md:grid-cols-[auto_1fr]">
+      <div className="mb-5 grid gap-3 rounded-[22px] border border-brand-200 dark:border-brand-600/80 bg-brand-50 dark:bg-ink-900 p-4 text-xs leading-5 text-ink-600 dark:text-ink-300 md:grid-cols-[auto_1fr]">
         <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand-700 font-bold text-white">PNC</div>
         <div>
           <b className="text-ink-900 dark:text-ink-100">Modelo e PNC são dados diferentes.</b> O modelo identifica a família da máquina; o PNC identifica uma variante de produto. Um IPL pode não imprimir PNC, trazer um único PNC ou reunir vários.
