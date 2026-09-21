@@ -298,6 +298,50 @@ não tinha visão consolidada nenhuma. Agora:
 - Papéis: Balcão vê e mexe só no que ele atendeu; Admin vê a loja inteira.
   Continua sem terceiro papel.
 
+### A janela de 5 s do Prisma derrubou a cesta em produção
+
+Log do Render, **18/09/2026 21:16 UTC**, no `PUT /api/quotes/draft`:
+
+    Transaction already closed: A commit cannot be executed on an expired
+    transaction. The timeout for this transaction was 5000 ms, however
+    6725 ms passed since the start of the transaction.
+
+Uma ocorrência em 30 dias de log. O atendente recebeu 500 e a cesta ficou só
+no navegador dele (`syncState` = "Só neste aparelho").
+
+**Não foi trabalho pesado**: a transação tem três comandos (apagar itens,
+recriar, atualizar o cabeçalho). Foi latência — Render free falando com
+Supabase free, com o banco frio ou disputado. O padrão do Prisma para
+transação interativa é 5 s, e ele não é generoso nesse cenário.
+
+O detalhe que fecha o diagnóstico: **todas as outras transações desta base já
+declaravam o teto** (`import-price-list`, `ai.service`,
+`semantic-index-maintenance`). As duas da cesta eram as únicas no padrão, e
+são justamente as do caminho crítico do balcão. Agora usam
+`QUOTE_TX_OPTIONS` (`{ maxWait: 10s, timeout: 20s }`), travado em
+`quote-transaction.test.ts`.
+
+Do lado da tela sobrava uma segunda falha, mais silenciosa: depois do erro o
+`catch` zerava `pendingRef`, e a cesta só era reenviada na **próxima
+edição**. Quando a falha cai no último item adicionado — que é o caso comum,
+põe a peça e vai gerar o PDF — ela ficava fora do servidor indefinidamente, e
+trocar de aparelho perdia o atendimento. `flushBeforeUnload` também só grava
+quando esse ref tem algo, então fechar a aba depois da falha perdia a versão
+do servidor junto.
+
+Agora o estado volta para a fila e há reenvio automático com espera crescente
+(`DRAFT_RETRY_DELAYS_MS`, ~1,5 min somados, que cobre o cold start do Render).
+Reenviar é seguro porque o `PUT` é do estado inteiro: nunca duplica item.
+
+Dois detalhes que não são estilo:
+
+- **O contador de falhas é estado, não ref.** `setSyncState('offline')` com o
+  estado já `offline` não re-renderiza, então uma segunda falha não acordaria
+  o efeito de reenvio. O número muda sempre.
+- **A escada não zera a cada edição.** Zerar exigiria chamar um setter de
+  dentro do updater de `setItems`, que roda na fase de render. A edição já é
+  coberta pelo debounce, que manda o estado inteiro de qualquer forma.
+
 ## Dias comerciais são no fuso da loja, nunca do servidor
 
 `backend/src/utils/store-day.ts`. **Bug real, já cometido e corrigido nesta

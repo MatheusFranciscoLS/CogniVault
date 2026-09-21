@@ -268,6 +268,26 @@ function itemRows(items: QuoteItemInput[]) {
   }));
 }
 
+/**
+ * Teto explicito das transacoes da cesta.
+ *
+ * **Falha real, medida em producao** (18/09/2026 21:16 UTC): o `PUT` da cesta
+ * voltou 500 com *"Transaction already closed: the timeout for this transaction
+ * was 5000 ms, however 6725 ms passed"*. O padrao do Prisma para transacao
+ * interativa e 5 s, e ele nao foi ultrapassado por trabalho: sao tres comandos
+ * (apagar itens, recriar, atualizar o cabecalho). Foi latencia -- Render free
+ * falando com Supabase free, com o banco frio ou disputado.
+ *
+ * Todas as outras transacoes desta base ja declaram o teto
+ * (`import-price-list`, `ai.service`, `semantic-index-maintenance`). As duas da
+ * cesta eram as unicas no padrao, e sao justamente as do caminho critico do
+ * balcao: o atendente perde a sincronia com o cliente na frente.
+ *
+ * 20 s e ~3x o pior tempo observado. O trabalho continua pequeno, entao isso
+ * nao segura conexao do pool em operacao lenta -- so cobre a rede ruim.
+ */
+export const QUOTE_TX_OPTIONS = { maxWait: 10_000, timeout: 20_000 } as const;
+
 export class QuoteService {
   /** Cesta aberta do atendente, criando uma vazia na primeira visita. */
   static async getOrCreateDraft(tenantId: string, userId: string): Promise<QuotePayload> {
@@ -334,7 +354,7 @@ export class QuoteService {
         },
         include: quoteInclude,
       });
-    });
+    }, QUOTE_TX_OPTIONS);
 
     return serializeQuote(updated);
   }
@@ -434,7 +454,7 @@ export class QuoteService {
         },
         include: quoteInclude,
       });
-    });
+    }, QUOTE_TX_OPTIONS);
 
     return serializeQuote(updated);
   }
