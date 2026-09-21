@@ -19,6 +19,7 @@ import PartResultRow from './PartResultRow';
 import SourceBadge from './SourceBadge';
 import type { CommercialPart, HusqvarnaLivePart, OfficialFallbackResult, PdfPreview, PriceSection, SearchDocument, SearchResultPart, SearchStreamMessage } from './types';
 import MachineSidePanel from '../machines/MachineSidePanel';
+import { PanelErrorBoundary } from '../PanelErrorBoundary';
 import { useOfficialMachineSearch } from '../machines/official-machine-search';
 import { useRecentMachines } from '../machines/recent-machines';
 import KawasakiEnginePanel from '../machines/KawasakiEnginePanel';
@@ -1002,19 +1003,23 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
         )}
       </div>
 
+      {/* A `key` remonta a barreira a cada máquina: sem ela, um erro numa
+          máquina deixaria o painel travado no aviso para todas as seguintes. */}
       {openMachine && (
-        <MachineSidePanel
-          pnc={openMachine.pnc}
-          contextModel={openMachine.name}
-          onClose={() => setOpenMachine(null)}
-          onOpenPnc={pnc => setOpenMachine({ pnc, name: `PNC ${pnc}` })}
-          onOpenPart={code => { setOpenMachine(null); void beginSearch(code); }}
-          onOpenSearch={term => { setOpenMachine(null); void beginSearch(term); }}
-          onLoaded={rememberMachine}
-        />
+        <PanelErrorBoundary key={`maquina-${openMachine.pnc}`} onClose={() => setOpenMachine(null)}>
+          <MachineSidePanel
+            pnc={openMachine.pnc}
+            contextModel={openMachine.name}
+            onClose={() => setOpenMachine(null)}
+            onOpenPnc={pnc => setOpenMachine({ pnc, name: `PNC ${pnc}` })}
+            onOpenPart={code => { setOpenMachine(null); void beginSearch(code); }}
+            onOpenSearch={term => { setOpenMachine(null); void beginSearch(term); }}
+            onLoaded={rememberMachine}
+          />
+        </PanelErrorBoundary>
       )}
 
-      {detail && <PartDetailDrawer detail={detail} verification={detailVerification} verificationLoading={verificationLoading} liveData={liveData} onClose={() => setDetail(null)} onCopy={code => void copyCode(code)} onOpenPdf={(documentId, page, title) => void accessPdf(documentId, page, title)} onOpenRelated={id => void openPart(id)} onToggleFavorite={() => void toggleFavorite()} onVerify={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} onCrossReference={(code, name) => setCrossReference({ code, name })} onAskAi={openAi} />}
+      {detail && <PanelErrorBoundary key={`peca-${detail.partNumber}`} onClose={() => setDetail(null)}><PartDetailDrawer detail={detail} verification={detailVerification} verificationLoading={verificationLoading} liveData={liveData} onClose={() => setDetail(null)} onCopy={code => void copyCode(code)} onOpenPdf={(documentId, page, title) => void accessPdf(documentId, page, title)} onOpenRelated={id => void openPart(id)} onToggleFavorite={() => void toggleFavorite()} onVerify={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} onCrossReference={(code, name) => setCrossReference({ code, name })} onAskAi={openAi} /></PanelErrorBoundary>}
       {verificationTarget && <PartVerificationDialog target={verificationTarget} existing={verifications[normalizePartCode(verificationTarget.partNumber)]} onClose={() => setVerificationTarget(null)} onSaved={() => { setVerificationTarget(null); toast.success('Conferência enviada para aprovação.'); if (detail) void loadVerifications([detail]); }} />}
       {crossReference && <CrossReferenceDialog partCode={crossReference.code} partName={crossReference.name} onClose={() => setCrossReference(null)} />}
 
