@@ -171,3 +171,32 @@ test('cesta volta para o servidor sozinha depois de uma falha de gravação', as
   derrubarGravacao = false;
   await expect(page.getByText('No servidor', { exact: true })).toBeVisible({ timeout: 30_000 });
 });
+
+/**
+ * A gaveta de detalhe abre dentro da própria barreira de erro.
+ *
+ * O projeto tinha **uma única** barreira, na raiz, e isso já custou a tela
+ * inteira: `SourceBadge` recebeu um tipo que o mapa dele não conhecia, leu
+ * `.title` de `undefined`, e o atendimento virou "Não foi possível carregar
+ * esta tela" — com a busca e a cesta junto.
+ *
+ * Este teste guarda o lado que dá para automatizar: a gaveta continua abrindo e
+ * fechando normalmente depois de ser envolvida. O caminho de captura em si é o
+ * contrato documentado do React (`getDerivedStateFromError`), e não há runner
+ * unitário no front deste projeto para exercitá-lo sem dependência nova.
+ */
+test('detalhe da peça abre e fecha com a barreira de erro em volta', async ({ page }) => {
+  await login(page, ADMIN_EMAIL);
+  await searchCarburettor(page);
+
+  await page.getByRole('button', { name: 'Abrir detalhes de CARBURADOR' }).click();
+
+  const gaveta = page.getByRole('dialog');
+  await expect(gaveta).toBeVisible();
+  await expect(gaveta.getByText('Detalhe da peça')).toBeVisible();
+  // O aviso da barreira NÃO pode aparecer num caminho feliz.
+  await expect(page.getByText('Não foi possível abrir este painel.')).toHaveCount(0);
+
+  await gaveta.getByRole('button', { name: /^Fechar/ }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
