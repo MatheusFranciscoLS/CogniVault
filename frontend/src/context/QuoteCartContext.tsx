@@ -93,6 +93,16 @@ const OPTIONS_STORAGE_KEY = 'cognivault_quote_draft_options';
 const HISTORY_STORAGE_KEY = 'cognivault_quote_history';
 
 const DRAFT_SYNC_DEBOUNCE_MS = 900;
+
+/**
+ * Espera crescente entre reenvios da cesta depois de uma falha de gravação.
+ *
+ * Somados dão ~1,5 min, que cobre o cold start do Render free (~50 s) e uma
+ * queda curta do wi-fi da loja. **Não é infinita de propósito**: passado isso,
+ * o aviso "Só neste aparelho" na gaveta é a resposta honesta, e qualquer
+ * edição nova reenvia o estado inteiro de qualquer forma.
+ */
+const DRAFT_RETRY_DELAYS_MS = [2_000, 5_000, 10_000, 20_000, 30_000, 30_000];
 const RECENT_QUOTES_PAGE_SIZE = 25;
 
 interface ApiQuoteItem {
@@ -242,6 +252,10 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>(() => readLocal<SavedQuote[]>(HISTORY_STORAGE_KEY, []));
   const [isOpen, setIsOpen] = useState(false);
   const [syncState, setSyncState] = useState<QuoteSyncState>('loading');
+  // Contador, e não booleano: `setSyncState('offline')` com o estado já
+  // 'offline' não re-renderiza, então uma segunda falha não acordaria o efeito
+  // de reenvio. O número muda sempre, e é ele que anda a escada acima.
+  const [syncFailures, setSyncFailures] = useState(0);
 
   const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
   const totalPrice = items.reduce((acc, item) => acc + item.quantity * (item.unitPrice || 0), 0);
@@ -286,18 +300,48 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
             timeoutMs: 20_000,
           });
         } catch {
-          // Não reverte a tela: a cesta local continua válida e o próximo flush
-          // reenvia o estado inteiro. O aviso na UI é o que impede o atendente
-          // de confiar num orçamento que só existe neste navegador.
+          // Não reverte a tela: a cesta local continua válida. O aviso na UI é
+          // o que impede o atendente de confiar num orçamento que só existe
+          // neste navegador.
           setSyncState('offline');
+          // **Devolve o estado à fila.** Sem isto a cesta só voltava a ser
+          // enviada na próxima edição — e quando a falha cai no último item
+          // adicionado (o caso comum: põe a peça e vai gerar o PDF), ela
+          // ficava fora do servidor indefinidamente. `flushBeforeUnload`
+          // também só grava quando este ref tem algo, então fechar a aba
+          // depois de uma falha perdia a versão do servidor junto.
+          if (!pendingRef.current) pendingRef.current = pending;
+          setSyncFailures(total => total + 1);
           return;
         }
       }
       setSyncState('synced');
+      setSyncFailures(0);
     } finally {
       inFlightRef.current = false;
     }
   }, []);
+
+  /**
+   * Reenvia sozinho depois de uma falha, com espera crescente.
+   *
+   * A gravação é um `PUT` do estado INTEIRO, então reenviar é idempotente:
+   * nunca duplica item, mesmo que a requisição anterior tenha chegado ao banco
+   * e só a resposta tenha se perdido.
+   *
+   * A escada zera sozinha quando uma gravação passa (`setSyncFailures(0)` no
+   * sucesso). **Não zera a cada edição de propósito**: isso exigiria chamar um
+   * setter de dentro do updater de `setItems`, que roda na fase de render. Uma
+   * edição durante a espera já é coberta pelo debounce, que manda o estado
+   * inteiro de qualquer jeito.
+   */
+  useEffect(() => {
+    if (syncFailures === 0 || syncFailures > DRAFT_RETRY_DELAYS_MS.length) return;
+    const timer = window.setTimeout(() => {
+      void flushDraft();
+    }, DRAFT_RETRY_DELAYS_MS[syncFailures - 1]);
+    return () => window.clearTimeout(timer);
+  }, [syncFailures, flushDraft]);
 
   const queueDraftSync = useCallback((nextItems: QuoteCartItem[], nextOptions: QuoteTextOptions) => {
     if (!hydratedRef.current) return;
