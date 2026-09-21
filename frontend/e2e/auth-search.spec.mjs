@@ -161,11 +161,13 @@ test('cesta volta para o servidor sozinha depois de uma falha de gravação', as
   await page.getByRole('button', { name: '+ Orçamento' }).first().click();
   await page.getByRole('button', { name: 'Revisar orçamento' }).click();
 
-  // O atendente precisa saber que o orçamento só existe neste navegador.
-  await expect(page.getByText('Só neste aparelho')).toBeVisible();
+  // `exact` porque o texto do selo também aparece dentro do aviso em texto
+  // corrido da gaveta ('Esta cesta está só neste aparelho — ...'), e o match
+  // por substring do Playwright casaria com os dois.
+  await expect(page.getByText('Só neste aparelho', { exact: true })).toBeVisible();
 
   // A conexão volta — e mais nada acontece na tela. Sem o reenvio automático,
   // o selo fica em "Só neste aparelho" para sempre.
   derrubarGravacao = false;
-  await expect(page.getByText('No servidor')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('No servidor', { exact: true })).toBeVisible({ timeout: 30_000 });
 });
