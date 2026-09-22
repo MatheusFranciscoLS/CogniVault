@@ -67,6 +67,21 @@ function hasPdfSignature(buffer: Buffer): boolean {
     return buffer.subarray(0, Math.min(buffer.length, 1024)).includes(Buffer.from('%PDF-'));
 }
 
+async function removeStorageObjectsWithRetry(paths: string[]): Promise<{ message: string } | null> {
+    let lastError: { message: string } | null = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+            const result = await supabase.storage.from(storageBucket).remove(paths);
+            if (!result.error) return null;
+            lastError = { message: result.error.message };
+        } catch (error) {
+            lastError = { message: errorMessage(error) };
+        }
+        if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
+    }
+    return lastError || { message: 'Falha desconhecida ao remover arquivo.' };
+}
+
 export class DocumentService {
     async handleNewUpload(tenantId: string, filename: string, filePath: string, metadata: UploadMetadata = {}) {
         try {
@@ -133,11 +148,8 @@ export class DocumentService {
                     },
                 });
             } catch (error) {
-                try {
-                    await supabase.storage.from(storageBucket).remove([canonicalStoragePath]);
-                } catch (cleanupError) {
-                    console.warn('⚠️ Não foi possível limpar PDF do Storage após falha no banco:', errorMessage(cleanupError));
-                }
+                const cleanupError = await removeStorageObjectsWithRetry([canonicalStoragePath]);
+                if (cleanupError) console.warn('⚠️ Não foi possível limpar PDF do Storage após falha no banco:', cleanupError.message);
                 if (isPrismaUniqueConstraintError(error)) {
                     const concurrentDuplicate = await prisma.document.findFirst({
                         where: { tenantId, contentHash, archivedAt: null },
@@ -385,13 +397,7 @@ export class DocumentService {
         if (reserved.count !== 1) throw new Error('DOCUMENT_ALREADY_PROCESSING');
 
         const candidates = storageCandidates(tenantId, document.id, document.storagePath);
-        let removeError: { message: string } | null = null;
-        try {
-            const result = await supabase.storage.from(storageBucket).remove(candidates);
-            removeError = result.error;
-        } catch (error) {
-            removeError = { message: errorMessage(error) };
-        }
+        const removeError = await removeStorageObjectsWithRetry(candidates);
 
         if (removeError) {
             await prisma.document.update({

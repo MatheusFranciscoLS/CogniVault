@@ -22,6 +22,7 @@ model Tenant {
   masterParts           MasterPart[]
   partLocations         PartLocation[]
   quoteUsages           QuoteUsage[]
+  interactiveAiBudgetReservations InteractiveAiBudgetReservation[]
   quotes                Quote[]
   commercialImportRuns  CommercialImportRun[]
   createdAt             DateTime                   @default(now())
@@ -391,6 +392,7 @@ model QuoteItem {
 
   partNumber           String
   normalizedPartNumber String
+  manufacturer         String?
   effectiveCode        String?
   name                 String
   model                String?
@@ -536,6 +538,20 @@ model AuditLog {
 
   @@index([tenantId, createdAt])
   @@index([userId, createdAt])
+}
+
+model InteractiveAiBudgetReservation {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  day           DateTime @db.Date
+  reservedTokens Int
+  actualTokens  Int?
+  settledAt     DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId, day])
+  @@index([tenantId, createdAt])
 }
 
 model OfficialPartVerification {

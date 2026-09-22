@@ -91,7 +91,9 @@ export default function KawasakiEnginePanel({
   const detail = detailQuery.data ?? null;
   const parts = detail?.parts ?? [];
   // Preço é da loja: a Kawasaki escreve "Please Contact a Dealer" em toda linha.
-  const precos = useMasterPrices(parts.map(part => part.partNumber)).data;
+  const priceQuery = useMasterPrices(parts.map(part => part.partNumber));
+  const precos = priceQuery.data?.prices;
+  const precoDegradado = priceQuery.data?.degraded === true;
   // Peça em foco: o clique numa posição do desenho rola até a linha dela.
   const [focusedPosition, setFocusedPosition] = useState<string | null>(null);
 
@@ -163,6 +165,11 @@ export default function KawasakiEnginePanel({
 
       {catalog.assemblies.length > 0 && (
         <div className="px-4 py-3">
+          {precoDegradado ? (
+            <div role="status" className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+              Preços da loja temporariamente indisponíveis. Os códigos continuam disponíveis; confirme o valor antes de fechar.
+            </div>
+          ) : null}
           <div className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">
             Conjuntos · toque para ver os códigos
           </div>
@@ -302,6 +309,7 @@ export default function KawasakiEnginePanel({
                     onClick={() => {
                       quoteCart.addItem({
                         partNumber: part.partNumber,
+                        manufacturer: 'Kawasaki',
                         name: part.name || part.partNumber,
                         model: catalog.fullName || catalog.model,
                         section: openAssembly.name,

@@ -461,7 +461,7 @@ export class ChatService {
 
     eligible = preferCurrentPartNumbers(focusCandidatesByDescription(partDescription, filterCandidatesByMarket(eligible)));
     eligible = applyExplicitOccurrenceConstraints(question, eligible);
-    const selection = await ChatIntentService.choose(question, eligible.slice(0, 20).map(candidate => ({
+    const selection = await ChatIntentService.choose(tenantId, question, eligible.slice(0, 20).map(candidate => ({
       id: candidate.id, name: candidate.name, model: candidate.model, pnc: candidate.pnc,
       section: candidate.section, position: candidate.position, aliases: candidate.alternativeNames,
       feedbackScore: candidate.feedbackScore, notes: candidate.notes,

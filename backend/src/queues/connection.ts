@@ -13,6 +13,7 @@ class RabbitMQConnection {
     private connectingPromise: Promise<void> | null = null;
 
     async connect(retries = 5, delayMs = 2000): Promise<void> {
+        this.closing = false;
         if (this.isReady()) return;
         if (this.connectingPromise) return this.connectingPromise;
 

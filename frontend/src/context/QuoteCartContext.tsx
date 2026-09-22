@@ -10,9 +10,10 @@ type JsPdfWithAutoTable = import('jspdf').jsPDF & {
 };
 
 export interface QuoteCartItem {
-  id: string; // unique key: `${partNumber}|${model}|${pnc || ''}`
+  id: string; // unique key: `${partNumber}|${manufacturer || ''}|${model}|${pnc || ''}`
   partNumber: string;
   effectiveCode?: string;
+  manufacturer?: string | null;
   name: string;
   model: string;
   pnc?: string | null;
@@ -109,6 +110,7 @@ interface ApiQuoteItem {
   id: string;
   partNumber: string;
   effectiveCode: string | null;
+  manufacturer: string | null;
   name: string;
   model: string | null;
   pnc: string | null;
@@ -145,15 +147,16 @@ interface ApiQuote {
   items: ApiQuoteItem[];
 }
 
-function cartItemKey(partNumber: string, model: string | null | undefined, pnc: string | null | undefined): string {
-  return `${partNumber}|${model || ''}|${pnc || ''}`;
+function cartItemKey(partNumber: string, manufacturer: string | null | undefined, model: string | null | undefined, pnc: string | null | undefined): string {
+  return `${partNumber}|${manufacturer || ''}|${model || ''}|${pnc || ''}`;
 }
 
 function fromApiItems(items: ApiQuoteItem[]): QuoteCartItem[] {
   return items.map(item => ({
-    id: cartItemKey(item.partNumber, item.model, item.pnc),
+    id: cartItemKey(item.partNumber, item.manufacturer, item.model, item.pnc),
     partNumber: item.partNumber,
     effectiveCode: item.effectiveCode ?? undefined,
+    manufacturer: item.manufacturer,
     name: item.name,
     model: item.model ?? '',
     pnc: item.pnc,
@@ -173,6 +176,7 @@ function toApiItems(items: QuoteCartItem[]) {
   return items.map(item => ({
     partNumber: item.partNumber,
     effectiveCode: item.effectiveCode ?? null,
+    manufacturer: item.manufacturer ?? null,
     name: item.name,
     model: item.model || null,
     pnc: item.pnc ?? null,
@@ -531,7 +535,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
   }, [refreshSavedQuotes, savedQuotes]);
 
   const addItem = useCallback((item: Omit<QuoteCartItem, 'quantity' | 'id'> & { quantity?: number }) => {
-    const id = cartItemKey(item.partNumber, item.model, item.pnc);
+    const id = cartItemKey(item.partNumber, item.manufacturer, item.model, item.pnc);
     const qty = item.quantity || 1;
 
     applyItems(current => {
@@ -562,7 +566,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     applyItems(current => {
       const updated = [...current];
       for (const item of itemsToAdd) {
-        const id = cartItemKey(item.partNumber, item.model, item.pnc);
+        const id = cartItemKey(item.partNumber, item.manufacturer, item.model, item.pnc);
         const qty = item.quantity || 1;
         const existingIndex = updated.findIndex(i => i.id === id);
         if (existingIndex >= 0) {
@@ -650,12 +654,16 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       text += `👤 Cliente: *${opts.customerName}*\n`;
     }
     if (headerModel) {
-      text += `⚙️ Aplicação / Modelo: *Husqvarna ${headerModel}*\n`;
+      const manufacturers = [...new Set(items.map(item => item.manufacturer).filter(Boolean))];
+      const manufacturerLabel = manufacturers.length === 1 ? manufacturers[0] : manufacturers.length > 1 ? 'Fabricantes diversos' : '';
+      text += `⚙️ Aplicação / Modelo: *${manufacturerLabel ? `${manufacturerLabel} ` : ''}${headerModel}*\n`;
     }
     text += `\n📋 *Itens Selecionados:*\n`;
 
     items.forEach((item, index) => {
-      const formattedCode = formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber);
+      const formattedCode = item.manufacturer?.toLowerCase().includes('husqvarna')
+        ? formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)
+        : (item.effectiveCode || item.partNumber);
       text += `\n${index + 1}. *${item.name}* (Qtd: ${item.quantity}x)\n`;
       text += `   • Código: \`${formattedCode}\`\n`;
       if (item.unitPrice && item.unitPrice > 0) {
@@ -663,7 +671,10 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
         text += `   • Preço: R$ ${item.unitPrice.toFixed(2).replace('.', ',')} un. (Subtotal: R$ ${itemTotal.toFixed(2).replace('.', ',')})\n`;
       }
       if (item.isSuperseded && item.originalCode) {
-        text += `   • Substituição oficial de: \`${formatHusqvarnaPartNumber(item.originalCode)}\`\n`;
+        const originalCode = item.manufacturer?.toLowerCase().includes('husqvarna')
+          ? formatHusqvarnaPartNumber(item.originalCode)
+          : item.originalCode;
+        text += `   • Substituição oficial de: \`${originalCode}\`\n`;
       }
       if (item.position) {
         text += `   • Vista/Posição: Pos. ${item.position}${item.section ? ` · ${item.section}` : ''}\n`;
@@ -691,7 +702,12 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
 
     text += `⏱️ Validade da Proposta: 7 dias úteis\n`;
     text += `\n━━━━━━━━━━━━━━━━━━━━\n`;
-    text += `✅ *Peças 100% Originais Husqvarna*\n`;
+    const manufacturers = [...new Set(items.map(item => item.manufacturer).filter(Boolean))];
+    text += manufacturers.length === 1
+      ? `✅ *Peças originais ${manufacturers[0]}*\n`
+      : manufacturers.length > 1
+        ? `✅ *Peças originais de fabricantes diversos*\n`
+        : `✅ *Peças originais*\n`;
     text += `🏬 *Vardão Máquinas* · Assistência Técnica Autorizada`;
 
     return text;
@@ -760,7 +776,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text('Vardão Máquinas - Assistência Técnica Autorizada Husqvarna', 40, 60);
+    doc.text('Vardão Máquinas - Orçamento de balcão', 40, 60);
 
     // Info Section
     doc.setTextColor(30, 30, 29);
@@ -790,17 +806,24 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       doc.setFont('helvetica', 'bold');
       doc.text('Aplicação / Máquina: ', 40, yPos);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Husqvarna ${headerModel}`, 155, yPos);
+      const manufacturers = [...new Set(items.map(item => item.manufacturer).filter(Boolean))];
+      const manufacturerLabel = manufacturers.length === 1 ? `${manufacturers[0]} ` : manufacturers.length > 1 ? 'Fabricantes diversos · ' : '';
+      doc.text(`${manufacturerLabel}${headerModel}`, 155, yPos);
     }
 
     yPos += 20;
 
     // Table
     const tableData = items.map((item, index) => {
-      const code = formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber);
+      const code = item.manufacturer?.toLowerCase().includes('husqvarna')
+        ? formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)
+        : (item.effectiveCode || item.partNumber);
       let desc = item.name;
       if (item.isSuperseded && item.originalCode) {
-         desc += `\n(Substitui: ${formatHusqvarnaPartNumber(item.originalCode)})`;
+         const originalCode = item.manufacturer?.toLowerCase().includes('husqvarna')
+           ? formatHusqvarnaPartNumber(item.originalCode)
+           : item.originalCode;
+         desc += `\n(Substitui: ${originalCode})`;
       }
 
       const unit = item.unitPrice ? `R$ ${item.unitPrice.toFixed(2).replace('.', ',')}` : '-';
@@ -868,7 +891,16 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     doc.setFontSize(9);
     doc.setTextColor(104, 104, 103);
     doc.text('Validade da proposta: 7 dias úteis.', 40, footerY);
-    doc.text('Peças 100% Originais Husqvarna.', 40, footerY + 12);
+    const manufacturers = [...new Set(items.map(item => item.manufacturer).filter(Boolean))];
+    doc.text(
+      manufacturers.length === 1
+        ? `Peças originais ${manufacturers[0]}.`
+        : manufacturers.length > 1
+          ? 'Peças originais de fabricantes diversos.'
+          : 'Peças originais.',
+      40,
+      footerY + 12,
+    );
 
     doc.save(`Orcamento_Vardao_${Date.now()}.pdf`);
     toast.success('PDF gerado com sucesso!');

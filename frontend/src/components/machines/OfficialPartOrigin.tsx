@@ -62,7 +62,9 @@ export default function OfficialPartOrigin({
   });
 
   const hits = data ?? [];
-  const precos = useMasterPrices(hits.map(hit => hit.partNumber)).data;
+  const priceQuery = useMasterPrices(hits.map(hit => hit.partNumber));
+  const precos = priceQuery.data?.prices;
+  const precoDegradado = priceQuery.data?.degraded === true;
   if (!hits.length) return null;
 
   const [primeiro] = hits;
@@ -77,6 +79,11 @@ export default function OfficialPartOrigin({
       </div>
 
       <div className="divide-y divide-ink-100 dark:divide-ink-800">
+        {precoDegradado ? (
+          <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-[11px] font-semibold text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+            Preços da loja temporariamente indisponíveis. Confirme o valor antes de fechar.
+          </div>
+        ) : null}
         {hits.map(hit => (
           <div
             key={`${hit.source}-${hit.engineModel}-${hit.position}`}
@@ -117,6 +124,7 @@ export default function OfficialPartOrigin({
                 onClick={() => {
                   quoteCart.addItem({
                     partNumber: hit.partNumber,
+                    manufacturer: MARCA[hit.source],
                     name: hit.name,
                     model: hit.engineModel,
                     section: hit.assembly || undefined,

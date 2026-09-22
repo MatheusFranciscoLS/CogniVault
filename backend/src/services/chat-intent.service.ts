@@ -7,7 +7,7 @@ import { withTransientAIRetry } from '../utils/ai-retry';
 import { LRUCache } from 'lru-cache';
 import { extractAiUsage, recordAiTelemetry } from '../utils/ai-telemetry';
 import { PartSearchService } from './part-search.service';
-import { canUseInteractiveAi, consumeInteractiveAiBudget } from './interactive-ai-budget';
+import { reserveInteractiveAiBudget, settleInteractiveAiBudget } from './interactive-ai-budget';
 import { AiDecisionCacheService } from './ai-decision-cache.service';
 
 const INTERACTIVE_AI_TIMEOUT_MS = 8_000;
@@ -105,7 +105,8 @@ export class ChatIntentService {
       }
     }
 
-    if (tenantId && !(await canUseInteractiveAi(tenantId))) {
+    const reservation = tenantId ? await reserveInteractiveAiBudget(tenantId) : null;
+    if (tenantId && !reservation) {
       console.info('[AI Budget] Interpretação generativa pulada; usando leitura local segura.');
       return localIntent;
     }
@@ -144,8 +145,10 @@ export class ChatIntentService {
         }, { timeout_ms: INTERACTIVE_AI_TIMEOUT_MS }),
         { label: 'Chat Intent Parse', ...INTERACTIVE_AI_RETRY },
       );
-      recordAiTelemetry(tenantId || 'global', 'CHAT_INTENT_PARSE', response);
-      if (tenantId) consumeInteractiveAiBudget(tenantId, extractAiUsage(response).totalTokens);
+      recordAiTelemetry(tenantId || 'global', 'CHAT_INTENT_PARSE', response, reservation ? { reservationId: reservation.id } : undefined);
+      if (tenantId && reservation) {
+        await settleInteractiveAiBudget(tenantId, reservation.id, extractAiUsage(response).totalTokens);
+      }
 
       const rawText = String((response as any).output_text || '').trim();
       const cleanedText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
@@ -169,17 +172,22 @@ export class ChatIntentService {
       }
       return mergeIntent(localIntent, parsed, question);
     } catch (error) {
+      if (tenantId && reservation) {
+        await settleInteractiveAiBudget(tenantId, reservation.id, 0).catch(() => undefined);
+      }
       console.warn('⚠️ Interpretação generativa indisponível; usando leitura local segura.', error instanceof Error ? error.message : error);
       return localIntent;
     }
   }
 
-  static async choose(question: string, candidates: CandidateForAi[]): Promise<{ id: string | null; confidence: number; ambiguous: boolean }> {
+  static async choose(tenantId: string, question: string, candidates: CandidateForAi[]): Promise<{ id: string | null; confidence: number; ambiguous: boolean }> {
     if (candidates.length === 1) return { id: candidates[0].id, confidence: 0.99, ambiguous: false };
 
     const localSelection = chooseCandidateLocally(question, candidates);
     if (!localSelection.ambiguous) return localSelection;
 
+    const reservation = await reserveInteractiveAiBudget(tenantId);
+    if (!reservation) return localSelection;
     try {
       const ai = await getGeminiClient();
       const response = await withTransientAIRetry(
@@ -202,7 +210,8 @@ export class ChatIntentService {
         }, { timeout_ms: INTERACTIVE_AI_TIMEOUT_MS }),
         { label: 'Chat Intent Choose', ...INTERACTIVE_AI_RETRY },
       );
-      recordAiTelemetry('global', 'CHAT_INTENT_CHOOSE', response);
+      recordAiTelemetry(tenantId, 'CHAT_INTENT_CHOOSE', response, { reservationId: reservation.id });
+      await settleInteractiveAiBudget(tenantId, reservation.id, extractAiUsage(response).totalTokens);
 
       const rawText = String((response as any).output_text || '').trim();
       const cleanedText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
@@ -219,6 +228,7 @@ export class ChatIntentService {
       const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0));
       return { id, confidence, ambiguous: Boolean(parsed.ambiguous) || !id };
     } catch (error) {
+      await settleInteractiveAiBudget(tenantId, reservation.id, 0).catch(() => undefined);
       console.warn('⚠️ Ranking generativo indisponível; usando comparação textual segura.', error instanceof Error ? error.message : error);
       return chooseCandidateLocally(question, candidates);
     }

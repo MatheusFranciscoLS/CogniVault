@@ -41,7 +41,7 @@ export default function CounterQuoteRail() {
                     confere na peça física. Estava em 10px, menor que a
                     descrição. */}
                 <div className="flex items-center gap-2">
-                  <span className="rounded bg-brand-50 px-1.5 py-0.5 font-mono text-xs font-black text-brand-700 dark:bg-brand-950/40 dark:text-brand-300">{formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)}</span>
+                  <span className="rounded bg-brand-50 px-1.5 py-0.5 font-mono text-xs font-black text-brand-700 dark:bg-brand-950/40 dark:text-brand-300">{item.manufacturer?.toLowerCase().includes('husqvarna') ? formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber) : (item.effectiveCode || item.partNumber)}</span>
                   {item.unitPrice != null && <span className="text-[10px] text-ink-500 dark:text-ink-400">{formatMoney(item.unitPrice * item.quantity)}</span>}
                 </div>
                 <div className="mt-1 truncate text-[11px] font-bold text-ink-800 dark:text-ink-100" title={item.name}>{item.name}</div>

@@ -4,7 +4,7 @@ import { prisma } from '../config/prisma';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { withTransientAIRetry } from '../utils/ai-retry';
 import { extractAiUsage, recordAiTelemetry } from '../utils/ai-telemetry';
-import { canUseInteractiveAi, consumeInteractiveAiBudget } from './interactive-ai-budget';
+import { reserveInteractiveAiBudget, settleInteractiveAiBudget } from './interactive-ai-budget';
 import { AiDecisionCacheService } from './ai-decision-cache.service';
 
 /**
@@ -144,10 +144,10 @@ export class PartPickerService {
     // Abaixo de 3 peças não há escolha a fazer, e a busca normal já teria achado.
     if (candidatos.length < 3) return [];
 
-    // `await` obrigatório: a função é assíncrona, e `!promise` é sempre falso —
-    // sem ele a guarda de cota nunca dispararia e o plano gratuito estouraria
-    // em silêncio. O TypeScript aceita as duas formas, então o erro passa batido.
-    if (!(await canUseInteractiveAi(tenantId))) {
+    // A reserva acontece no PostgreSQL para que duas instâncias Render não
+    // liberem chamadas concorrentes acima da cota do tenant.
+    const reservation = await reserveInteractiveAiBudget(tenantId);
+    if (!reservation) {
       console.warn(`[Palpite de peça] Cota de IA interativa esgotada para ${tenantId}; a tela fica com a vista explodida.`);
       return [];
     }
@@ -205,8 +205,8 @@ export class PartPickerService {
         { label: 'Part Pick', ...RETRY },
       );
 
-      recordAiTelemetry(tenantId, 'PART_PICK', response);
-      consumeInteractiveAiBudget(tenantId, extractAiUsage(response).totalTokens);
+      recordAiTelemetry(tenantId, 'PART_PICK', response, { reservationId: reservation.id });
+      await settleInteractiveAiBudget(tenantId, reservation.id, extractAiUsage(response).totalTokens);
 
       const bruto = String((response as { output_text?: unknown }).output_text || '').trim();
       const limpo = bruto.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
@@ -243,6 +243,7 @@ export class PartPickerService {
 
       return palpites;
     } catch (error) {
+      await settleInteractiveAiBudget(tenantId, reservation.id, 0).catch(() => undefined);
       // Falha de IA nunca vira erro na tela: o balcão continua com a vista
       // explodida, que é a saída que o dono definiu para todo caso sem código.
       console.warn(

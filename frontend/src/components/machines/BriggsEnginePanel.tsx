@@ -188,7 +188,9 @@ export default function BriggsEnginePanel({
   // O preço é da loja, não do PDF da Briggs: uma chamada para a lista toda.
   // Fica aqui, acima dos returns antecipados, porque `useMasterPrices` é hook.
   const codigos = ipl?.status === 'READ' ? ipl.parts.map(part => part.partNumber) : [];
-  const precos = useMasterPrices(codigos).data;
+  const priceQuery = useMasterPrices(codigos);
+  const precos = priceQuery.data?.prices;
+  const precoDegradado = priceQuery.data?.degraded === true;
   const cobertura = priceCoverage(codigos, precos);
 
   if (manualsQuery.isLoading) {
@@ -301,6 +303,11 @@ export default function BriggsEnginePanel({
               className="h-8 w-48 rounded border border-ink-200 bg-white px-2 text-[11px] outline-none transition focus:border-red-400 dark:border-ink-700 dark:bg-ink-900 dark:text-white"
             />
           </div>
+          {precoDegradado ? (
+            <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-[11px] font-semibold text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+              Preços da loja temporariamente indisponíveis. Os códigos continuam disponíveis; confirme o valor antes de fechar.
+            </div>
+          ) : null}
 
           <div className="max-h-[420px] overflow-y-auto">
             {agrupar(visiveis).map(grupo => (
@@ -357,6 +364,7 @@ export default function BriggsEnginePanel({
                     onClick={() => {
                       quoteCart.addItem({
                         partNumber: part.partNumber,
+                        manufacturer: 'Briggs & Stratton',
                         name: part.name,
                         model: `Motor Briggs ${ipl.model}`,
                         section: part.section || undefined,

@@ -23,6 +23,7 @@ export function roundMoney(value: number): number {
 export interface QuoteItemInput {
   partNumber: string;
   effectiveCode?: string | null;
+  manufacturer?: string | null;
   name: string;
   model?: string | null;
   pnc?: string | null;
@@ -69,6 +70,7 @@ export interface QuotePayload {
     id: string;
     partNumber: string;
     effectiveCode: string | null;
+    manufacturer: string | null;
     name: string;
     model: string | null;
     pnc: string | null;
@@ -132,6 +134,7 @@ export function parseQuoteItems(value: unknown): QuoteItemInput[] | null {
     items.push({
       partNumber,
       effectiveCode: text(input.effectiveCode, 80),
+      manufacturer: text(input.manufacturer, 80),
       name,
       model: text(input.model, 160),
       pnc: text(input.pnc, 80),
@@ -229,6 +232,7 @@ export function serializeQuote(quote: QuoteWithItems): QuotePayload {
       id: item.id,
       partNumber: item.partNumber,
       effectiveCode: item.effectiveCode,
+      manufacturer: item.manufacturer,
       name: item.name,
       model: item.model,
       pnc: item.pnc,
@@ -252,6 +256,7 @@ function itemRows(items: QuoteItemInput[]) {
     partNumber: item.partNumber,
     normalizedPartNumber: normalizeIdentifier(item.effectiveCode || item.partNumber),
     effectiveCode: item.effectiveCode ?? null,
+    manufacturer: item.manufacturer ?? null,
     name: item.name,
     model: item.model ?? null,
     pnc: item.pnc ?? null,
@@ -414,6 +419,7 @@ export class QuoteService {
     const nextItems: QuoteItemInput[] = items ?? existing.items.map(item => ({
       partNumber: item.partNumber,
       effectiveCode: item.effectiveCode,
+      manufacturer: item.manufacturer,
       name: item.name,
       model: item.model,
       pnc: item.pnc,

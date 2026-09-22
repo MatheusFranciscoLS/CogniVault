@@ -179,7 +179,11 @@ function CartItemRow({
   onRemove: () => void;
 }) {
   const isServiceItem = item.partNumber.startsWith('SRV-');
-  const formattedCode = isServiceItem ? 'SERVIÇO / AVULSO' : formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber);
+  const formattedCode = isServiceItem
+    ? 'SERVIÇO / AVULSO'
+    : item.manufacturer?.toLowerCase().includes('husqvarna')
+      ? formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)
+      : (item.effectiveCode || item.partNumber);
   const subtotal = item.unitPrice ? item.quantity * item.unitPrice : 0;
 
   return (
@@ -686,7 +690,9 @@ export default function QuickQuoteCart() {
               <tr key={item.id} className="border-b border-ink-200">
                 <td className="py-2.5 text-center font-bold text-ink-900 tabular-nums">{item.quantity}x</td>
                 <td className="py-2.5 font-mono font-bold text-ink-900">
-                  {formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)}
+                  {item.manufacturer?.toLowerCase().includes('husqvarna')
+                    ? formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)
+                    : (item.effectiveCode || item.partNumber)}
                 </td>
                 <td className="py-2.5 font-medium text-ink-900">
                   {item.name} {item.isSuperseded ? '★ (Substituição oficial)' : ''}

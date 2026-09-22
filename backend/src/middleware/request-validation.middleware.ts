@@ -41,6 +41,15 @@ export function validateOfficialFallbackQuery(req: Request, res: Response, next:
   next();
 }
 
+export function validateOfficialPartCodeQuery(req: Request, res: Response, next: NextFunction): void {
+  const code = stringQueryParam(req, 'code');
+  if (code === null || !code || code.length > 80) {
+    res.status(400).json({ error: 'Código oficial inválido ou muito longo.' });
+    return;
+  }
+  next();
+}
+
 /**
  * O modelo de motor Briggs decide uma chamada externa, então tem teto e tipo
  * checados antes de chegar ao serviço. 60 caracteres cobrem com folga o maior
@@ -84,6 +93,26 @@ export function validatePartCodeParam(req: Request, res: Response, next: NextFun
   const code = String(req.params.code || '').trim();
   if (!code || code.length > 80) {
     res.status(400).json({ error: 'Código da peça inválido.' });
+    return;
+  }
+  next();
+}
+
+export function validateHusqvarnaPncParam(req: Request, res: Response, next: NextFunction): void {
+  const rawPnc = req.params.pnc;
+  if (typeof rawPnc !== 'string') {
+    res.status(400).json({ error: 'PNC inválido.' });
+    return;
+  }
+
+  if (!/^[\d\s-]+$/.test(rawPnc.trim())) {
+    res.status(400).json({ error: 'PNC inválido.' });
+    return;
+  }
+
+  const normalizedPnc = rawPnc.replace(/\D/g, '');
+  if (!/^\d{8,14}$/.test(normalizedPnc)) {
+    res.status(400).json({ error: 'PNC inválido.' });
     return;
   }
   next();

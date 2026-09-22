@@ -4,7 +4,9 @@ import { NextFunction, Request, Response } from 'express';
 import {
   validateEntityIdParam,
   validateFavoriteMutationBody,
+  validateHusqvarnaPncParam,
   validateHusqvarnaProductSearchQuery,
+  validateOfficialPartCodeQuery,
   validateModelParam,
   validateOfficialFallbackQuery,
   validateOperationalQuoteUsage,
@@ -43,6 +45,13 @@ test('official fallback query is capped before external services are called', ()
   assert.equal(run(validateOfficialFallbackQuery, { query: { q: '503808302' } as any }).nextCalled, true);
 });
 
+test('official part index rejects missing, structured and oversized codes', () => {
+  assert.equal(run(validateOfficialPartCodeQuery, { query: {} } as any).statusCode, 400);
+  assert.equal(run(validateOfficialPartCodeQuery, { query: { code: ['503808302'] } } as any).statusCode, 400);
+  assert.equal(run(validateOfficialPartCodeQuery, { query: { code: '9'.repeat(81) } } as any).statusCode, 400);
+  assert.equal(run(validateOfficialPartCodeQuery, { query: { code: '503 808 302' } } as any).nextCalled, true);
+});
+
 test('official product search rejects structured or oversized queries before upstream work', () => {
   assert.equal(run(validateHusqvarnaProductSearchQuery, { query: { q: ['TS114'] } as any }).statusCode, 400);
   assert.equal(run(validateHusqvarnaProductSearchQuery, { query: { q: { model: 'TS114' } } as any }).statusCode, 400);
@@ -58,6 +67,14 @@ test('part, model and generic entity guards reject pathological route input', ()
   assert.equal(run(validateEntityIdParam, { params: { id: '   ' } as any }).statusCode, 400);
   assert.equal(run(validatePartCodeParam, { params: { code: '503808302' } as any }).nextCalled, true);
   assert.equal(run(validateEntityIdParam, { params: { id: '550e8400-e29b-41d4-a716-446655440000' } as any }).nextCalled, true);
+});
+
+test('Husqvarna PNC route guard accepts formatted values and rejects structured or invalid values', () => {
+  assert.equal(run(validateHusqvarnaPncParam, { params: { pnc: '967 33 29-01' } } as any).nextCalled, true);
+  assert.equal(run(validateHusqvarnaPncParam, { params: { pnc: ['967332901'] } } as any).statusCode, 400);
+  assert.equal(run(validateHusqvarnaPncParam, { params: { pnc: '1234567' } } as any).statusCode, 400);
+  assert.equal(run(validateHusqvarnaPncParam, { params: { pnc: 'x'.repeat(20) } } as any).statusCode, 400);
+  assert.equal(run(validateHusqvarnaPncParam, { params: { pnc: 'abc967332901' } } as any).statusCode, 400);
 });
 
 test('favorite mutation requires exactly one bounded string identifier', () => {

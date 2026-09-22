@@ -225,6 +225,7 @@ export default function ResultCard({
                 quoteCart.addItems(
                   part.suggestedAddons!.items.map((item: SuggestedAddon) => ({
                     partNumber: item.partNumber,
+                    manufacturer: 'Husqvarna',
                     name: item.name,
                     model: item.model || part.model,
                     section: item.section || part.section,
@@ -256,6 +257,7 @@ export default function ResultCard({
                     onClick={() => {
                       quoteCart.addItem({
                         partNumber: addon.partNumber,
+                        manufacturer: 'Husqvarna',
                         name: addon.name,
                         model: addon.model || part.model,
                         section: addon.section || part.section,
@@ -285,6 +287,7 @@ export default function ResultCard({
           onClick={() => {
             quoteCart.addItem({
               partNumber: part.partNumber,
+              manufacturer: part.manufacturer || 'Husqvarna',
               name: part.name,
               model: part.model,
               pnc: part.pnc,

@@ -147,6 +147,7 @@ export class ExportController {
         'Total bruto do orçamento (R$)',
         'Total líquido do orçamento (R$)',
         'Código da peça',
+        'Fabricante',
         'Descrição do item',
         'Modelo do item',
         'PNC',
@@ -160,6 +161,7 @@ export class ExportController {
 
       let cursor: string | undefined;
       let rows = 0;
+      let truncated = false;
 
       for (;;) {
         const page = await prisma.quote.findMany({
@@ -182,6 +184,10 @@ export class ExportController {
         if (!page.length) break;
 
         for (const quote of page) {
+          if (rows >= MAX_QUOTE_EXPORT_ROWS) {
+            truncated = true;
+            break;
+          }
           const attendant = quote.user?.email || 'Atendente removido';
           const reference = quote.savedAt ?? quote.createdAt;
 
@@ -197,6 +203,10 @@ export class ExportController {
           }
 
           for (const item of quote.items) {
+            if (rows >= MAX_QUOTE_EXPORT_ROWS) {
+              truncated = true;
+              break;
+            }
             res.write(csvRow([
               quote.id,
               reference,
@@ -209,6 +219,7 @@ export class ExportController {
               csvMoney(quote.grossTotal),
               csvMoney(quote.netTotal),
               item.effectiveCode || item.partNumber,
+              item.manufacturer,
               item.name,
               item.model,
               item.pnc,
@@ -221,18 +232,19 @@ export class ExportController {
             ]));
             rows += 1;
           }
+          if (truncated) break;
         }
 
+        if (truncated) break;
         cursor = page[page.length - 1].id;
-        if (rows >= MAX_QUOTE_EXPORT_ROWS) {
-          res.write(csvRow([
-            `AVISO: exportação limitada a ${MAX_QUOTE_EXPORT_ROWS} linhas. Reduza o período para exportar o restante.`,
-          ]));
-          break;
-        }
         if (page.length < 200) break;
       }
 
+      if (truncated) {
+        res.write(csvRow([
+          `AVISO: exportação limitada a ${MAX_QUOTE_EXPORT_ROWS} linhas. Reduza o período para exportar o restante.`,
+        ]));
+      }
       res.end();
 
       void AuditService.record({

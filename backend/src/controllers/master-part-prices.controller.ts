@@ -51,7 +51,7 @@ export class MasterPartPricesController {
     )];
 
     if (!normalized.length) {
-      res.json({ prices: {} });
+      res.json({ prices: {}, degraded: false });
       return;
     }
     if (normalized.length > MAX_CODES) {
@@ -103,7 +103,7 @@ export class MasterPartPricesController {
     // ausência é peça que a loja não vende. Por isso o registro entra no mapa
     // mesmo com `price: null`.
     res.set('Cache-Control', 'private, no-store');
-    res.json({ prices });
+    res.json({ prices, degraded: false });
     } catch (error) {
       // Sem isto, banco fora virava `unhandledRejection` e o `server.ts`
       // desligava o processo — o atendente veria "Preparando o servidor" por
@@ -111,7 +111,7 @@ export class MasterPartPricesController {
       // peças continua na tela, só sem o preço ao lado.
       console.error('❌ Erro ao buscar preço em lote:', error);
       res.set('Cache-Control', 'private, no-store');
-      res.json({ prices: {} });
+      res.status(503).json({ prices: {}, degraded: true, error: 'Preço temporariamente indisponível.' });
     }
   }
 }

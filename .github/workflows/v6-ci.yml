@@ -32,11 +32,21 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      rabbitmq:
+        image: rabbitmq:3.13-management-alpine
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: backend
     env:
       DATABASE_URL: postgresql://user:password@localhost:5432/cognivault
+      RABBITMQ_URL: amqp://guest:guest@localhost:5672
       JWT_SECRET: ci-only-secret-not-used-in-production
       GEMINI_API_KEY: ci-placeholder
       SUPABASE_URL: https://example.supabase.co
@@ -105,8 +115,18 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      rabbitmq:
+        image: rabbitmq:3.13-management-alpine
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     env:
       DATABASE_URL: postgresql://user:password@localhost:5432/cognivault_e2e
+      RABBITMQ_URL: amqp://guest:guest@localhost:5672
       JWT_SECRET: e2e-only-secret-not-used-in-production
       NODE_ENV: test
       E2E_SEED_ALLOWED: 'true'
@@ -130,6 +150,7 @@ jobs:
           npx prisma generate
           npx prisma migrate deploy
           npm run seed:e2e
+          npm run build
           nohup npm start >/tmp/cognivault-backend.log 2>&1 &
       - name: Wait for E2E backend
         run: |

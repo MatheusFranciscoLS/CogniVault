@@ -23,15 +23,17 @@ function AdminHeading({ kicker, title, description, action }: { kicker: string; 
 
 export function OverviewPanel() {
   const [data, setData] = useState<Overview | null>(null);
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let active = true;
     void api('/api/admin/overview')
       .then(response => json<{ overview: Overview }>(response))
       .then(response => { if (active) setData(response.overview); })
-      .catch(() => undefined);
+      .catch(loadError => { if (active) setError(loadError instanceof Error ? loadError.message : 'Não foi possível carregar a visão geral.'); });
     return () => { active = false; };
-  }, []);
+  }, [retry]);
 
   const metrics = data ? [
     ['Catálogos ativos', data.activeDocuments],
@@ -43,6 +45,7 @@ export function OverviewPanel() {
   return (
     <section className="mx-auto max-w-[1400px] space-y-4">
       <AdminHeading kicker="Administração" title="Visão geral" description="Situação da base técnica, acessos e sinais de qualidade sem misturar esses dados com o fluxo do balcão." />
+      {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"><span>{error}</span><button type="button" onClick={() => { setError(''); setRetry(value => value + 1); }} className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-bold dark:border-rose-700">Tentar novamente</button></div>}
 
       <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
         <div className="grid divide-y divide-ink-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4 dark:divide-ink-800">
@@ -196,15 +199,17 @@ export function UsersPanel() {
 export function AuditPanel() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [filter, setFilter] = useState('');
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let active = true;
     void api('/api/admin/audit')
       .then(response => json<{ logs: AuditLog[] }>(response))
       .then(response => { if (active) setLogs(response.logs); })
-      .catch(() => undefined);
+      .catch(loadError => { if (active) setError(loadError instanceof Error ? loadError.message : 'Não foi possível carregar a auditoria.'); });
     return () => { active = false; };
-  }, []);
+  }, [retry]);
 
   const label = (action: string): string => ({
     DOCUMENT_UPLOADED: 'Catálogo enviado',
@@ -225,6 +230,7 @@ export function AuditPanel() {
   return (
     <section className="mx-auto max-w-[1400px] space-y-4">
       <AdminHeading kicker="Rastreabilidade" title="Auditoria" description="Ações administrativas relevantes, em ordem cronológica." />
+      {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"><span>{error}</span><button type="button" onClick={() => { setError(''); setRetry(value => value + 1); }} className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-bold dark:border-rose-700">Tentar novamente</button></div>}
       <div className="flex items-center gap-2 rounded-xl border border-ink-200 bg-white p-3 dark:border-ink-800 dark:bg-ink-900"><div className="relative min-w-0 flex-1"><span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-500 dark:text-ink-400">⌕</span><input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Ação, usuário ou recurso…" className="h-10 w-full rounded-lg border border-ink-200 bg-ink-50 pl-10 pr-3 text-sm outline-none dark:border-ink-700 dark:bg-ink-800" /></div><span className="px-1 text-xs font-semibold text-ink-500 dark:text-ink-400">{filtered.length} eventos</span></div>
       <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
         <div className="hidden grid-cols-[minmax(230px,1fr)_minmax(180px,.8fr)_160px] gap-4 border-b border-ink-100 px-4 py-2.5 text-[10px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400 md:grid dark:border-ink-800"><span>Ação</span><span>Responsável / recurso</span><span className="text-right">Data</span></div>

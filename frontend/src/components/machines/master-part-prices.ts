@@ -18,6 +18,7 @@ export type MasterPrice = {
   freshness: PriceFreshness;
 };
 export type MasterPriceMap = Record<string, MasterPrice>;
+export type MasterPriceResponse = { prices: MasterPriceMap; degraded?: boolean };
 
 /** Mesma normalização do servidor: maiúscula, sem traço e sem espaço. */
 export function normalizeCode(value: string): string {
@@ -70,13 +71,13 @@ export function useMasterPrices(codes: string[]) {
     // cadastro, ou a lista não foi importada ainda. Repetir só gastaria.
     retry: false,
     queryFn: async () => {
-      const data = await apiJson<{ prices: MasterPriceMap }>('/api/master-parts/prices', {
+      const data = await apiJson<MasterPriceResponse>('/api/master-parts/prices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ codes: normalized }),
         timeoutMs: 20_000,
       });
-      return data.prices ?? {};
+      return { prices: data.prices ?? {}, degraded: data.degraded === true };
     },
   });
 }

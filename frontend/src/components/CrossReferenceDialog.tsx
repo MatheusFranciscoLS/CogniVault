@@ -36,10 +36,14 @@ export default function CrossReferenceDialog({
   const formatted = formatHusqvarnaPartNumber(partCode);
   const rawClean = cleanErpCode(partCode);
 
-  const handleCopyErp = () => {
-    navigator.clipboard.writeText(rawClean);
-    playCopySound();
-    toast.success(`Código ERP copiado: ${rawClean}`);
+  const handleCopyErp = async () => {
+    try {
+      await navigator.clipboard.writeText(rawClean);
+      playCopySound();
+      toast.success(`Código ERP copiado: ${rawClean}`);
+    } catch {
+      toast.info(`Código ERP: ${rawClean}`);
+    }
   };
 
   return (
@@ -171,6 +175,7 @@ export default function CrossReferenceDialog({
                           onClick={() => {
                             quoteCart.addItem({
                               partNumber: partCode,
+                              manufacturer: 'Husqvarna',
                               name: partName || m.usages[0]?.name || 'Peça Compatível',
                               model: m.model,
                               pnc: m.pncs[0] !== 'Todos PNCs' ? m.pncs[0] : null,
