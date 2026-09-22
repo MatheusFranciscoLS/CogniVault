@@ -4,7 +4,11 @@ import { prisma } from '../config/prisma';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { withTransientAIRetry } from '../utils/ai-retry';
 import { extractAiUsage, recordAiTelemetry } from '../utils/ai-telemetry';
-import { reserveInteractiveAiBudget, settleInteractiveAiBudget } from './interactive-ai-budget';
+import {
+  interactiveAiFailureSettlementTokens,
+  reserveInteractiveAiBudget,
+  settleInteractiveAiBudget,
+} from './interactive-ai-budget';
 import { AiDecisionCacheService } from './ai-decision-cache.service';
 
 /**
@@ -152,12 +156,14 @@ export class PartPickerService {
       return [];
     }
 
+    let aiRequestAttempted = false;
     try {
       const ai = await getGeminiClient();
       const lista = candidatos
         .map((c, i) => `${i}. ${c.name}${c.section ? ` (${c.section})` : ''}`)
         .join('\n');
 
+      aiRequestAttempted = true;
       const response = await withTransientAIRetry(
         () => ai.interactions.create({
           model: GEMINI_GENERATIVE_MODEL,
@@ -243,7 +249,10 @@ export class PartPickerService {
 
       return palpites;
     } catch (error) {
-      await settleInteractiveAiBudget(tenantId, reservation.id, 0).catch(() => undefined);
+      const failureTokens = interactiveAiFailureSettlementTokens(aiRequestAttempted);
+      if (failureTokens !== null) {
+        await settleInteractiveAiBudget(tenantId, reservation.id, failureTokens).catch(() => undefined);
+      }
       // Falha de IA nunca vira erro na tela: o balcão continua com a vista
       // explodida, que é a saída que o dono definiu para todo caso sem código.
       console.warn(
