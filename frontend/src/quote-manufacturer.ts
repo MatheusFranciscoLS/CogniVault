@@ -73,7 +73,8 @@ export async function resolveQuoteManufacturer({
     manufacturerCache.set(cacheKey, manufacturer);
     return manufacturer;
   } catch {
-    manufacturerCache.set(cacheKey, null);
+    // Falha transitória não vira decisão persistida na sessão: uma nova ação
+    // pode conseguir recuperar a origem depois que o backend voltar.
     return null;
   }
 }
