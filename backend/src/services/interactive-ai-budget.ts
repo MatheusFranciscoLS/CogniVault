@@ -62,6 +62,16 @@ export function interactiveAiReservationFitsBudget(
     && usedTokens + reservationTokens <= budgetTokens;
 }
 
+/**
+ * Se a falha aconteceu antes de qualquer tentativa contra o Gemini, a reserva
+ * pode ser liquidada em zero. Depois que uma chamada foi tentada, timeout,
+ * conexão interrompida ou 5xx não provam consumo zero: manter `null` conserva o
+ * teto reservado até o fim do dia e evita estourar silenciosamente a cota free.
+ */
+export function interactiveAiFailureSettlementTokens(requestAttempted: boolean): 0 | null {
+  return requestAttempted ? null : 0;
+}
+
 export async function interactiveAiBudgetStatus(tenantId: string): Promise<InteractiveAiBudgetStatus> {
   const cached = usageCache.get(tenantId);
   if (cached) return cached;
