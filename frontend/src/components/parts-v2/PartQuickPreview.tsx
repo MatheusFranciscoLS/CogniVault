@@ -39,7 +39,7 @@ export default function PartQuickPreview({ technical, commercial, verification, 
     recordQuoteUsage([...quoteCart.items, { partNumber: code, model }], quoteCart.items.length === 0);
     if (technical) {
       const superseded = isSupersededForCode(technical.partNumber, verification);
-      quoteCart.addItem({ partNumber: code, effectiveCode: code, manufacturer: technical.manufacturer || 'Husqvarna', name: technical.name, model: technical.model, pnc: technical.pnc, section: technical.section, position: technical.position, filename: technical.filename, page: technical.page, isSuperseded: superseded, originalCode: superseded ? originalCode : undefined, notes: technical.notes, unitPrice: technical.price ?? undefined });
+      quoteCart.addItem({ partNumber: code, effectiveCode: code, manufacturer: technical.manufacturer ?? null, name: technical.name, model: technical.model, pnc: technical.pnc, section: technical.section, position: technical.position, filename: technical.filename, page: technical.page, isSuperseded: superseded, originalCode: superseded ? originalCode : undefined, notes: technical.notes, unitPrice: technical.price ?? undefined });
       return;
     }
     if (commercial) quoteCart.addItem({ partNumber: code, effectiveCode: code, name: commercial.name, model, pnc: null, section: commercial.priceSections[0] || 'Cadastro comercial', filename: 'Cadastro comercial', unitPrice: commercial.price ?? undefined });

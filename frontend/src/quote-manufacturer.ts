@@ -17,10 +17,24 @@ function cleanManufacturer(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+function manufacturerCacheScope(): string {
+  try {
+    const tenant = localStorage.getItem('cognivault_tenant')?.trim() || 'anonymous';
+    const email = localStorage.getItem('cognivault_email')?.trim().toLocaleLowerCase('pt-BR') || 'anonymous';
+    return `${tenant}:${email}`;
+  } catch {
+    return 'anonymous:anonymous';
+  }
+}
+
 /**
  * Resolve o fabricante por evidência existente antes de mandar a peça para o
  * orçamento. Nunca deduz pela forma do código ou pelo modelo: se a origem não
  * for inequívoca, devolve `null` e o orçamento preserva a incerteza.
+ *
+ * O cache inclui tenant + usuário. O módulo permanece vivo entre logout/login
+ * na mesma aba; sem esse escopo, a resolução de um tenant poderia ser
+ * reaproveitada por outro sem nova evidência.
  */
 export async function resolveQuoteManufacturer({
   code,
@@ -35,7 +49,9 @@ export async function resolveQuoteManufacturer({
   if (known) return known;
 
   const normalizedCode = cleanErpCode(code);
-  const cacheKey = partId ? `part:${partId}` : `code:${normalizedCode}`;
+  const scope = manufacturerCacheScope();
+  const evidenceKey = partId ? `part:${partId}` : `code:${normalizedCode}`;
+  const cacheKey = `${scope}:${evidenceKey}`;
   if (manufacturerCache.has(cacheKey)) return manufacturerCache.get(cacheKey) ?? null;
 
   if (partId) {
