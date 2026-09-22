@@ -74,7 +74,7 @@ export default function HistoryWorkspace({ onSearch }: { onSearch: (query: strin
       partNumber: item.resultCode,
       manufacturer,
       name: item.resultLabel || item.query,
-      model: item.resultModel || undefined,
+      model: item.resultModel || '',
       pnc: item.resultPnc || undefined,
     });
     toast.success(alreadyInCart ? 'Quantidade atualizada no orçamento.' : 'Peça adicionada ao orçamento.');
