@@ -4,6 +4,7 @@ import { apiJson, cleanErpCode, formatHusqvarnaPartNumber } from '../lib';
 import { playCopySound, playCartSound } from '../lib/sound';
 import { useOverlayLifecycle } from '../lib/useOverlayLifecycle';
 import { useQuoteCart } from '../context/QuoteCartContext';
+import { resolveQuoteManufacturer } from '../quote-manufacturer';
 import { toast } from 'sonner';
 
 interface CrossReferenceDialogProps {
@@ -28,13 +29,21 @@ export default function CrossReferenceDialog({
     queryFn: () => apiJson<CrossReferenceResult>(`/api/parts/${encodeURIComponent(clean)}/cross-reference`),
     enabled: Boolean(isOpen && clean),
   });
+  const { data: manufacturer = null } = useQuery({
+    queryKey: ['quote-manufacturer', clean],
+    queryFn: () => resolveQuoteManufacturer({ code: partCode }),
+    enabled: Boolean(isOpen && clean),
+    staleTime: 10 * 60 * 1000,
+  });
 
   const error = queryError instanceof Error ? queryError.message : queryError ? 'Erro ao buscar referências cruzadas.' : null;
 
   if (!isOpen) return null;
 
-  const formatted = formatHusqvarnaPartNumber(partCode);
   const rawClean = cleanErpCode(partCode);
+  const formatted = manufacturer?.toLowerCase().includes('husqvarna')
+    ? formatHusqvarnaPartNumber(partCode)
+    : rawClean;
 
   const handleCopyErp = async () => {
     try {
@@ -175,7 +184,7 @@ export default function CrossReferenceDialog({
                           onClick={() => {
                             quoteCart.addItem({
                               partNumber: partCode,
-                              manufacturer: 'Husqvarna',
+                              manufacturer,
                               name: partName || m.usages[0]?.name || 'Peça Compatível',
                               model: m.model,
                               pnc: m.pncs[0] !== 'Todos PNCs' ? m.pncs[0] : null,
