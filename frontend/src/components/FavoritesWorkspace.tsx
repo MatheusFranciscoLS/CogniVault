@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { api, apiJson, formatHusqvarnaPartNumber, json } from '../lib';
+import { api, apiJson, json } from '../lib';
 import type { FavoriteItem } from '../types';
 import { useQuoteCart } from '../context/QuoteCartContext';
+import { resolveQuoteManufacturer } from '../quote-manufacturer';
 
 type KindFilter = 'ALL' | FavoriteItem['kind'];
 
@@ -97,6 +98,24 @@ export default function FavoritesWorkspace({ onSearch }: { onSearch: (query: str
     }
   };
 
+  const addFavoriteToQuote = async (item: FavoriteItem, alreadyInCart: boolean) => {
+    if (!item.reference) return;
+    const manufacturer = await resolveQuoteManufacturer({
+      code: item.reference,
+      partId: item.partId,
+    });
+    quoteCart.addItem({
+      partNumber: item.reference,
+      manufacturer,
+      name: item.label,
+      model: item.model || '',
+      pnc: item.pnc || undefined,
+      section: item.section || undefined,
+      position: item.position || undefined,
+    });
+    toast.success(alreadyInCart ? 'Quantidade atualizada no orçamento.' : 'Peça adicionada ao orçamento.');
+  };
+
   return (
     <section className="mx-auto max-w-[1400px] space-y-4">
       <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
@@ -129,7 +148,10 @@ export default function FavoritesWorkspace({ onSearch }: { onSearch: (query: str
         </div>
 
         {loading ? <div className="space-y-1 p-3">{[0,1,2,3].map(item => <div key={item} className="h-16 animate-pulse rounded-lg bg-ink-100 dark:bg-ink-800" />)}</div> : filtered.length ? filtered.map(item => {
-          const code = item.reference ? formatHusqvarnaPartNumber(item.reference) : '';
+          // Sem fabricante no contrato antigo de favoritos, formatar todo código
+          // como Husqvarna é um palpite. Mostra o valor cru e resolve a origem
+          // por evidência apenas quando a peça entra no orçamento.
+          const code = item.reference || '';
           const inCart = item.reference ? quoteCart.items.find(cartItem => cartItem.partNumber === item.reference) : undefined;
           return (
             <article key={item.id} className="grid gap-3 border-b border-ink-100 px-4 py-3.5 last:border-0 transition hover:bg-ink-50/80 lg:grid-cols-[90px_minmax(220px,1.25fr)_150px_minmax(170px,.8fr)_170px] lg:items-center dark:border-ink-800 dark:hover:bg-ink-800/45">
@@ -141,7 +163,7 @@ export default function FavoritesWorkspace({ onSearch }: { onSearch: (query: str
               <div className="text-xs text-ink-500 dark:text-ink-400">{item.model || '—'}{item.pnc ? <><br /><span className="text-[11px] text-ink-500 dark:text-ink-400">PNC {item.pnc}</span></> : null}</div>
               <div className="min-w-0 truncate text-xs text-ink-500 dark:text-ink-400">{item.sourceFilename || item.section || '—'}</div>
               <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
-                {item.reference && <button type="button" onClick={() => { quoteCart.addItem({ partNumber: item.reference!, manufacturer: 'Husqvarna', name: item.label, model: item.model || 'Husqvarna', pnc: item.pnc || undefined, section: item.section || undefined, position: item.position || undefined }); toast.success(inCart ? 'Quantidade atualizada no orçamento.' : 'Peça adicionada ao orçamento.'); }} className="grid h-8 w-8 place-items-center rounded-lg text-sm font-black text-amber-600 transition hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950/30" title="Adicionar ao orçamento">{inCart ? '✓' : '+'}</button>}
+                {item.reference && <button type="button" onClick={() => void addFavoriteToQuote(item, Boolean(inCart))} className="grid h-8 w-8 place-items-center rounded-lg text-sm font-black text-amber-600 transition hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950/30" title="Adicionar ao orçamento">{inCart ? '✓' : '+'}</button>}
                 {item.reference && <button type="button" onClick={() => void copy(code)} className="rounded-lg px-2.5 py-2 text-xs font-bold text-ink-500 dark:text-ink-400 transition hover:bg-ink-100 hover:text-brand-600 dark:hover:bg-ink-800">Copiar</button>}
                 {item.reference && <button type="button" onClick={() => onSearch(item.reference!)} className="rounded-lg bg-ink-900 px-3 py-2 text-xs font-black text-white transition hover:bg-ink-950">Consultar</button>}
                 {item.documentId && <button type="button" onClick={() => void openCatalog(item)} className="rounded-lg bg-ink-900 px-3 py-2 text-xs font-black text-white transition hover:bg-ink-950">Abrir</button>}

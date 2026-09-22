@@ -9,7 +9,11 @@ import { getVerifiedSupersession, preferCurrentPartNumbers } from './part-supers
 import { chooseCandidateLocally } from './chat-reliability';
 import { withTransientAIRetry } from '../utils/ai-retry';
 import { extractAiUsage, recordAiTelemetry } from '../utils/ai-telemetry';
-import { reserveInteractiveAiBudget, settleInteractiveAiBudget } from './interactive-ai-budget';
+import {
+  interactiveAiFailureSettlementTokens,
+  reserveInteractiveAiBudget,
+  settleInteractiveAiBudget,
+} from './interactive-ai-budget';
 import { AiDecisionCacheService } from './ai-decision-cache.service';
 import { OfficialVariantCompatibilityService } from './official-variant-compatibility';
 
@@ -265,8 +269,10 @@ export class ReActAgentService {
 
     const decisionPrompt = `Você é um especialista em catálogo de peças Husqvarna.\nPergunta: "${question}"\n\nCandidatos já encontrados no IPL:\n${candidatesSummary}\n\nEscolha SOMENTE entre esses IDs. Priorize Brasil/América Latina, modelo, PNC, seção, posição e descrição. Preserve substituição oficial vigente. Se duas opções continuarem plausíveis, marque ambiguous=true. Não invente aplicação nem código.\n\nRetorne JSON com chosenId, explanation e ambiguous.`;
 
+    let aiRequestAttempted = false;
     try {
       const ai = await getGeminiClient();
+      aiRequestAttempted = true;
       const decisionResponse = await withTransientAIRetry(
         () => ai.interactions.create({
           model: GEMINI_GENERATIVE_MODEL,
@@ -311,7 +317,10 @@ export class ReActAgentService {
       await AiDecisionCacheService.set(tenantId, 'REACT_RANKING', cacheIdentity, decision, PERSISTENT_RANKING_TTL_MS);
       return foundFromDecision(decision, candidates, tenantId, question, explicitPnc);
     } catch (error) {
-      await settleInteractiveAiBudget(tenantId, reservation.id, 0).catch(() => undefined);
+      const failureTokens = interactiveAiFailureSettlementTokens(aiRequestAttempted);
+      if (failureTokens !== null) {
+        await settleInteractiveAiBudget(tenantId, reservation.id, failureTokens).catch(() => undefined);
+      }
       console.warn('⚠️ Falha na tomada de decisão do ReAct Agent.', error);
       return { status: 'AMBIGUOUS', explanation: 'Falha ao analisar os candidatos.', candidates };
     }

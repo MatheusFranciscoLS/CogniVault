@@ -9,6 +9,8 @@ const INTERACTIVE_ACTIONS = [
   'AI_TELEMETRY_REACT_AGENT_DECISION',
 ] as const;
 
+const RELEASE_UNUSED_RESERVATION = '__release_unused_interactive_ai_reservation__';
+
 export type InteractiveAiBudgetStatus = {
   budgetTokens: number;
   usedTokens: number;
@@ -60,6 +62,30 @@ export function interactiveAiReservationFitsBudget(
     && budgetTokens >= 0
     && reservationTokens > 0
     && usedTokens + reservationTokens <= budgetTokens;
+}
+
+/**
+ * Se a falha aconteceu antes de qualquer tentativa contra o Gemini, a reserva
+ * pode ser liberada sem consumo. Depois que uma chamada foi tentada, timeout,
+ * conexão interrompida ou 5xx não provam consumo zero: manter `null` conserva o
+ * teto reservado até o fim do dia e evita estourar silenciosamente a cota free.
+ */
+export function interactiveAiFailureSettlementTokens(requestAttempted: boolean): string | null {
+  return requestAttempted ? null : RELEASE_UNUSED_RESERVATION;
+}
+
+/**
+ * Só transforma em consumo real um usage positivo reportado pelo provedor.
+ * `0`, NaN ou ausência de metadata depois de uma chamada não provam consumo
+ * zero; nesses casos a reserva continua valendo pelo teto reservado.
+ * O sentinela interno é usado exclusivamente para liberar uma reserva quando
+ * sabemos que nenhuma chamada chegou a ser tentada.
+ */
+export function interactiveAiSettlementTokens(tokens: unknown): number | null {
+  if (tokens === RELEASE_UNUSED_RESERVATION) return 0;
+  const parsed = Number(tokens);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.trunc(parsed);
 }
 
 export async function interactiveAiBudgetStatus(tenantId: string): Promise<InteractiveAiBudgetStatus> {
@@ -158,7 +184,8 @@ export async function settleInteractiveAiBudget(
   reservationId: string,
   tokens: unknown,
 ): Promise<void> {
-  const actualTokens = Math.max(0, Math.trunc(Number(tokens) || 0));
+  const actualTokens = interactiveAiSettlementTokens(tokens);
+  if (actualTokens === null) return;
   await prisma.interactiveAiBudgetReservation.updateMany({
     where: { id: reservationId, tenantId, actualTokens: null },
     data: { actualTokens, settledAt: new Date() },

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiJson } from '../../lib';
+import { api, json } from '../../lib';
 
 /**
  * `FRESH`: compra do mês corrente, preço vale como está.
@@ -71,12 +71,23 @@ export function useMasterPrices(codes: string[]) {
     // cadastro, ou a lista não foi importada ainda. Repetir só gastaria.
     retry: false,
     queryFn: async () => {
-      const data = await apiJson<MasterPriceResponse>('/api/master-parts/prices', {
+      const response = await api('/api/master-parts/prices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ codes: normalized }),
         timeoutMs: 20_000,
       });
+
+      // O backend usa 503 de propósito para distinguir "sem preço cadastrado"
+      // de "a fonte de preço está temporariamente indisponível". `apiJson`
+      // lança antes de devolver esse corpo, então este hook trata somente esse
+      // status como degradação funcional e deixa os demais erros seguirem o
+      // caminho normal do React Query.
+      if (response.status === 503) {
+        return { prices: {}, degraded: true };
+      }
+
+      const data = await json<MasterPriceResponse>(response);
       return { prices: data.prices ?? {}, degraded: data.degraded === true };
     },
   });

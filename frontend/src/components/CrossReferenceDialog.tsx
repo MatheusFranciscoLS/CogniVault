@@ -4,6 +4,7 @@ import { apiJson, cleanErpCode, formatHusqvarnaPartNumber } from '../lib';
 import { playCopySound, playCartSound } from '../lib/sound';
 import { useOverlayLifecycle } from '../lib/useOverlayLifecycle';
 import { useQuoteCart } from '../context/QuoteCartContext';
+import { resolveQuoteManufacturer } from '../quote-manufacturer';
 import { toast } from 'sonner';
 
 interface CrossReferenceDialogProps {
@@ -28,13 +29,21 @@ export default function CrossReferenceDialog({
     queryFn: () => apiJson<CrossReferenceResult>(`/api/parts/${encodeURIComponent(clean)}/cross-reference`),
     enabled: Boolean(isOpen && clean),
   });
+  const { data: manufacturer = null } = useQuery({
+    queryKey: ['quote-manufacturer', clean],
+    queryFn: () => resolveQuoteManufacturer({ code: partCode }),
+    enabled: Boolean(isOpen && clean),
+    staleTime: 10 * 60 * 1000,
+  });
 
   const error = queryError instanceof Error ? queryError.message : queryError ? 'Erro ao buscar referências cruzadas.' : null;
 
   if (!isOpen) return null;
 
-  const formatted = formatHusqvarnaPartNumber(partCode);
   const rawClean = cleanErpCode(partCode);
+  const formatted = manufacturer?.toLowerCase().includes('husqvarna')
+    ? formatHusqvarnaPartNumber(partCode)
+    : rawClean;
 
   const handleCopyErp = async () => {
     try {
@@ -44,6 +53,24 @@ export default function CrossReferenceDialog({
     } catch {
       toast.info(`Código ERP: ${rawClean}`);
     }
+  };
+
+  const addModelToQuote = async (model: CrossReferenceResult['models'][number]) => {
+    // A consulta visual roda em paralelo para formatar o código quando a origem
+    // já está conhecida. No clique, porém, esperamos a resolução: assim um
+    // clique imediato nunca transforma uma peça conhecida em fabricante nulo.
+    const resolvedManufacturer = await resolveQuoteManufacturer({ code: partCode });
+    quoteCart.addItem({
+      partNumber: partCode,
+      manufacturer: resolvedManufacturer,
+      name: partName || model.usages[0]?.name || 'Peça Compatível',
+      model: model.model,
+      pnc: model.pncs[0] !== 'Todos PNCs' ? model.pncs[0] : null,
+      section: model.sections[0] || null,
+      position: model.usages[0]?.position || null,
+      filename: model.filename,
+    });
+    playCartSound();
   };
 
   return (
@@ -172,19 +199,7 @@ export default function CrossReferenceDialog({
 
                         <button
                           type="button"
-                          onClick={() => {
-                            quoteCart.addItem({
-                              partNumber: partCode,
-                              manufacturer: 'Husqvarna',
-                              name: partName || m.usages[0]?.name || 'Peça Compatível',
-                              model: m.model,
-                              pnc: m.pncs[0] !== 'Todos PNCs' ? m.pncs[0] : null,
-                              section: m.sections[0] || null,
-                              position: m.usages[0]?.position || null,
-                              filename: m.filename,
-                            });
-                            playCartSound();
-                          }}
+                          onClick={() => void addModelToQuote(m)}
                           className="w-full shrink-0 rounded-lg bg-amber-400 px-3 py-2 text-xs font-bold text-ink-950 transition hover:bg-amber-300 sm:w-auto"
                           title={`Adicionar ao orçamento sob o modelo ${m.model}`}
                         >
