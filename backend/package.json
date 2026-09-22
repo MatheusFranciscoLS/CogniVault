@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "test": "npm run build && node --test \"dist/**/*.test.js\"",
+    "test": "npm run build && node --test --test-concurrency=1 \"dist/**/*.test.js\"",
     "benchmark:parts": "npm run build && node dist/scripts/run-part-benchmark.js",
     "benchmark:parts:ci": "npm run build && node dist/scripts/run-ci-search-gate.js",
     "benchmark:parts:full": "npm run build && node dist/scripts/run-part-benchmark.js --full",
