@@ -175,3 +175,39 @@ test('máquina consultada entra na lista de recentes do atendente', async ({ pag
   // campo de máquina da aba removida.
   await expect(page.getByRole('button', { name: 'HUSQVARNA 545 Mark II' })).toBeVisible();
 });
+
+test('preço indisponível mantém o código oficial visível e mostra a degradação', async ({ page }) => {
+  const code = '15004-0937';
+  await page.route(
+    url => url.pathname.endsWith('/api/official-parts/by-code') && url.searchParams.get('code') === code,
+    route => route.fulfill({
+      json: {
+        officialParts: [{
+          source: 'KAWASAKI',
+          engineModel: 'FX921V-ES06',
+          assembly: 'CARBURETOR',
+          position: '1',
+          partNumber: code,
+          name: 'GASKET',
+          quantity: 1,
+        }],
+      },
+    }),
+  );
+  await page.route(
+    url => url.pathname.endsWith('/api/master-parts/prices'),
+    route => route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ prices: {}, degraded: true, error: 'Preço temporariamente indisponível.' }),
+    }),
+  );
+
+  await login(page, MECHANIC_EMAIL);
+  await page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/).fill(code);
+  await page.getByRole('button', { name: 'Buscar' }).click();
+
+  await expect(page.getByText('FX921V-ES06', { exact: false })).toBeVisible();
+  await expect(page.getByText(code, { exact: false }).first()).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Preços da loja temporariamente indisponíveis' })).toBeVisible();
+});
