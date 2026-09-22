@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { toast } from 'sonner';
-import { apiJson, fmtDate, formatHusqvarnaPartNumber, replayQuery } from '../lib';
+import { apiJson, fmtDate, replayQuery } from '../lib';
 import type { SearchHistoryItem, SearchStatus } from '../types';
 import { useQuoteCart } from '../context/QuoteCartContext';
+import { resolveQuoteManufacturer } from '../quote-manufacturer';
 
 const statusLabels: Record<SearchStatus, string> = {
   FOUND: 'Encontrada',
@@ -63,6 +64,22 @@ export default function HistoryWorkspace({ onSearch }: { onSearch: (query: strin
     }
   };
 
+  const addHistoryToQuote = async (item: SearchHistoryItem, alreadyInCart: boolean) => {
+    if (!item.resultCode) return;
+    const manufacturer = await resolveQuoteManufacturer({
+      code: item.resultCode,
+      partId: item.resultPartId,
+    });
+    quoteCart.addItem({
+      partNumber: item.resultCode,
+      manufacturer,
+      name: item.resultLabel || item.query,
+      model: item.resultModel || undefined,
+      pnc: item.resultPnc || undefined,
+    });
+    toast.success(alreadyInCart ? 'Quantidade atualizada no orçamento.' : 'Peça adicionada ao orçamento.');
+  };
+
   return (
     <section className="mx-auto max-w-[1400px] space-y-4">
       <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
@@ -103,7 +120,9 @@ export default function HistoryWorkspace({ onSearch }: { onSearch: (query: strin
             <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
               {virtualizer.getVirtualItems().map(virtualItem => {
                 const item = filtered[virtualItem.index];
-                const code = item.resultCode ? formatHusqvarnaPartNumber(item.resultCode) : '';
+                // Histórico antigo não carrega fabricante. O código cru evita
+                // formatar Kawasaki/Briggs como se fosse Husqvarna.
+                const code = item.resultCode || '';
                 const inCart = item.resultCode ? quoteCart.items.find(cartItem => cartItem.partNumber === item.resultCode) : undefined;
                 return (
                   <article key={virtualItem.key} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: `${virtualItem.size}px`, transform: `translateY(${virtualItem.start}px)` }} className="grid gap-3 border-b border-ink-100 px-4 py-3 transition hover:bg-ink-50/80 lg:grid-cols-[minmax(250px,1.35fr)_minmax(230px,1fr)_120px_130px] lg:items-center dark:border-ink-800 dark:hover:bg-ink-800/45">
@@ -116,7 +135,7 @@ export default function HistoryWorkspace({ onSearch }: { onSearch: (query: strin
                     </div>
                     <div className={`text-xs font-bold ${tone(item.status)}`}>{statusLabels[item.status]}</div>
                     <div className="flex items-center gap-1.5 lg:justify-end">
-                      {item.resultCode && <button type="button" onClick={() => { quoteCart.addItem({ partNumber: item.resultCode!, manufacturer: 'Husqvarna', name: item.resultLabel || item.query, model: item.resultModel || 'Husqvarna', pnc: item.resultPnc || undefined }); toast.success(inCart ? 'Quantidade atualizada no orçamento.' : 'Peça adicionada ao orçamento.'); }} className="grid h-8 w-8 place-items-center rounded-lg text-sm font-black text-amber-600 transition hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950/30" title="Adicionar ao orçamento">{inCart ? '✓' : '+'}</button>}
+                      {item.resultCode && <button type="button" onClick={() => void addHistoryToQuote(item, Boolean(inCart))} className="grid h-8 w-8 place-items-center rounded-lg text-sm font-black text-amber-600 transition hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950/30" title="Adicionar ao orçamento">{inCart ? '✓' : '+'}</button>}
                       {item.resultCode && <button type="button" onClick={() => void copy(code)} className="rounded-lg px-2.5 py-2 text-xs font-bold text-ink-500 dark:text-ink-400 transition hover:bg-ink-100 hover:text-brand-600 dark:hover:bg-ink-800" title="Copiar código">Copiar</button>}
                       <button type="button" onClick={() => onSearch(replayQuery(item))} className="rounded-lg bg-ink-900 px-3 py-2 text-xs font-black text-white transition hover:bg-ink-950">Retomar</button>
                     </div>
