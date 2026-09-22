@@ -55,6 +55,24 @@ export default function CrossReferenceDialog({
     }
   };
 
+  const addModelToQuote = async (model: CrossReferenceResult['models'][number]) => {
+    // A consulta visual roda em paralelo para formatar o código quando a origem
+    // já está conhecida. No clique, porém, esperamos a resolução: assim um
+    // clique imediato nunca transforma uma peça conhecida em fabricante nulo.
+    const resolvedManufacturer = await resolveQuoteManufacturer({ code: partCode });
+    quoteCart.addItem({
+      partNumber: partCode,
+      manufacturer: resolvedManufacturer,
+      name: partName || model.usages[0]?.name || 'Peça Compatível',
+      model: model.model,
+      pnc: model.pncs[0] !== 'Todos PNCs' ? model.pncs[0] : null,
+      section: model.sections[0] || null,
+      position: model.usages[0]?.position || null,
+      filename: model.filename,
+    });
+    playCartSound();
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/60 p-0 backdrop-blur-xs sm:items-center sm:p-4"
@@ -181,19 +199,7 @@ export default function CrossReferenceDialog({
 
                         <button
                           type="button"
-                          onClick={() => {
-                            quoteCart.addItem({
-                              partNumber: partCode,
-                              manufacturer,
-                              name: partName || m.usages[0]?.name || 'Peça Compatível',
-                              model: m.model,
-                              pnc: m.pncs[0] !== 'Todos PNCs' ? m.pncs[0] : null,
-                              section: m.sections[0] || null,
-                              position: m.usages[0]?.position || null,
-                              filename: m.filename,
-                            });
-                            playCartSound();
-                          }}
+                          onClick={() => void addModelToQuote(m)}
                           className="w-full shrink-0 rounded-lg bg-amber-400 px-3 py-2 text-xs font-bold text-ink-950 transition hover:bg-amber-300 sm:w-auto"
                           title={`Adicionar ao orçamento sob o modelo ${m.model}`}
                         >
