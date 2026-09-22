@@ -9,7 +9,7 @@ import { getVerifiedSupersession, preferCurrentPartNumbers } from './part-supers
 import { chooseCandidateLocally } from './chat-reliability';
 import { withTransientAIRetry } from '../utils/ai-retry';
 import { extractAiUsage, recordAiTelemetry } from '../utils/ai-telemetry';
-import { canUseInteractiveAi, consumeInteractiveAiBudget } from './interactive-ai-budget';
+import { reserveInteractiveAiBudget, settleInteractiveAiBudget } from './interactive-ai-budget';
 import { AiDecisionCacheService } from './ai-decision-cache.service';
 import { OfficialVariantCompatibilityService } from './official-variant-compatibility';
 
@@ -250,7 +250,8 @@ export class ReActAgentService {
 
     // IA só entra depois de recuperação, filtros de mercado, supersession e ranking
     // local. Sem franquia, o comportamento seguro é pedir contexto em vez de chutar.
-    if (!(await canUseInteractiveAi(tenantId))) {
+    const reservation = await reserveInteractiveAiBudget(tenantId);
+    if (!reservation) {
       return {
         status: 'AMBIGUOUS',
         explanation: 'Há mais de uma peça tecnicamente plausível. Informe PNC, posição, vista ou número de série para eu resolver sem depender da IA generativa.',
@@ -258,7 +259,6 @@ export class ReActAgentService {
       };
     }
 
-    const ai = await getGeminiClient();
     const candidatesSummary = candidates.slice(0, 6).map((candidate, index) =>
       `#${index + 1} id=${candidate.id}; nome=${candidate.name}; codigo=${candidate.partNumber}; modelo=${candidate.model}; pnc=${candidate.pnc || 'qualquer'}; secao=${candidate.section || 'N/A'}; posicao=${candidate.position || 'N/A'}; notas=${candidate.notes || 'N/A'}; score=${candidate.distance}; acordo=${candidate.retrievalAgreement || 0}`,
     ).join('\n');
@@ -266,6 +266,7 @@ export class ReActAgentService {
     const decisionPrompt = `Você é um especialista em catálogo de peças Husqvarna.\nPergunta: "${question}"\n\nCandidatos já encontrados no IPL:\n${candidatesSummary}\n\nEscolha SOMENTE entre esses IDs. Priorize Brasil/América Latina, modelo, PNC, seção, posição e descrição. Preserve substituição oficial vigente. Se duas opções continuarem plausíveis, marque ambiguous=true. Não invente aplicação nem código.\n\nRetorne JSON com chosenId, explanation e ambiguous.`;
 
     try {
+      const ai = await getGeminiClient();
       const decisionResponse = await withTransientAIRetry(
         () => ai.interactions.create({
           model: GEMINI_GENERATIVE_MODEL,
@@ -287,8 +288,8 @@ export class ReActAgentService {
         { label: 'ReAct Agent Decision', maxAttempts: 2, baseDelayMs: 500, maxDelayMs: 1_500 },
       );
 
-      recordAiTelemetry(tenantId, 'REACT_AGENT_DECISION', decisionResponse);
-      consumeInteractiveAiBudget(tenantId, extractAiUsage(decisionResponse).totalTokens);
+      recordAiTelemetry(tenantId, 'REACT_AGENT_DECISION', decisionResponse, { reservationId: reservation.id });
+      await settleInteractiveAiBudget(tenantId, reservation.id, extractAiUsage(decisionResponse).totalTokens);
 
       const rawText = String((decisionResponse as any).output_text || '').trim();
       const cleanedText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
@@ -310,6 +311,7 @@ export class ReActAgentService {
       await AiDecisionCacheService.set(tenantId, 'REACT_RANKING', cacheIdentity, decision, PERSISTENT_RANKING_TTL_MS);
       return foundFromDecision(decision, candidates, tenantId, question, explicitPnc);
     } catch (error) {
+      await settleInteractiveAiBudget(tenantId, reservation.id, 0).catch(() => undefined);
       console.warn('⚠️ Falha na tomada de decisão do ReAct Agent.', error);
       return { status: 'AMBIGUOUS', explanation: 'Falha ao analisar os candidatos.', candidates };
     }
