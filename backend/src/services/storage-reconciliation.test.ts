@@ -31,3 +31,15 @@ test('storage reconciliation treats duplicate references as one known path', () 
 
   assert.deepEqual(orphans, [{ tenantId: 'tenant-b', path: 'tenant-b/doc-1.pdf' }]);
 });
+
+test('storage reconciliation recognizes legacy root objects', () => {
+  const orphans = findOrphanStorageObjects(
+    [{ tenantId: 'tenant-a', documentId: 'doc-1', storagePath: null }],
+    [
+      { tenantId: '', path: 'doc-1.pdf' },
+      { tenantId: '', path: 'orphan.pdf' },
+    ],
+  );
+
+  assert.deepEqual(orphans, [{ tenantId: '', path: 'orphan.pdf' }]);
+});

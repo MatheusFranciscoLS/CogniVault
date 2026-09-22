@@ -8,17 +8,22 @@ import {
 
 const PAGE_SIZE = 100;
 
-async function listTenantObjects(tenantId: string): Promise<StorageObjectReference[]> {
+async function listObjects(prefix: string | null, tenantId: string): Promise<StorageObjectReference[]> {
   const objects: StorageObjectReference[] = [];
   for (let offset = 0; ; offset += PAGE_SIZE) {
-    const { data, error } = await supabase.storage.from(storageBucket).list(tenantId, {
+    const { data, error } = await supabase.storage.from(storageBucket).list(prefix || undefined, {
       limit: PAGE_SIZE,
       offset,
       sortBy: { column: 'name', order: 'asc' },
     });
-    if (error) throw new Error(`Falha ao listar Storage do tenant ${tenantId}: ${error.message}`);
+    if (error) {
+      throw new Error(`Falha ao listar Storage ${prefix ? `do tenant ${tenantId}` : 'na raiz'}: ${error.message}`);
+    }
     const files = (data || []).filter(entry => entry.id);
-    objects.push(...files.map(entry => ({ tenantId, path: `${tenantId}/${entry.name}` })));
+    objects.push(...files.map(entry => ({
+      tenantId,
+      path: prefix ? `${prefix}/${entry.name}` : entry.name,
+    })));
     if (files.length < PAGE_SIZE) return objects;
   }
 }
@@ -33,7 +38,10 @@ async function main(): Promise<void> {
     storagePath: document.storagePath,
   }));
   const tenantIds = [...new Set(documents.map(document => document.tenantId))];
-  const objects = (await Promise.all(tenantIds.map(listTenantObjects))).flat();
+  const objects = [
+    ...(await listObjects(null, '')),
+    ...(await Promise.all(tenantIds.map(tenantId => listObjects(tenantId, tenantId)))).flat(),
+  ];
   const orphans = findOrphanStorageObjects(references, objects);
 
   console.log(JSON.stringify({
