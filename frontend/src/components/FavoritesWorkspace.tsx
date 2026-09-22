@@ -108,7 +108,7 @@ export default function FavoritesWorkspace({ onSearch }: { onSearch: (query: str
       partNumber: item.reference,
       manufacturer,
       name: item.label,
-      model: item.model || undefined,
+      model: item.model || '',
       pnc: item.pnc || undefined,
       section: item.section || undefined,
       position: item.position || undefined,
