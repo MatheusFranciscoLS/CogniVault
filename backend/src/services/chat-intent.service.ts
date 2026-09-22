@@ -7,7 +7,11 @@ import { withTransientAIRetry } from '../utils/ai-retry';
 import { LRUCache } from 'lru-cache';
 import { extractAiUsage, recordAiTelemetry } from '../utils/ai-telemetry';
 import { PartSearchService } from './part-search.service';
-import { reserveInteractiveAiBudget, settleInteractiveAiBudget } from './interactive-ai-budget';
+import {
+  interactiveAiFailureSettlementTokens,
+  reserveInteractiveAiBudget,
+  settleInteractiveAiBudget,
+} from './interactive-ai-budget';
 import { AiDecisionCacheService } from './ai-decision-cache.service';
 
 const INTERACTIVE_AI_TIMEOUT_MS = 8_000;
@@ -111,6 +115,7 @@ export class ChatIntentService {
       return localIntent;
     }
 
+    let aiRequestAttempted = false;
     try {
       const ai = await getGeminiClient();
       const localHints = [
@@ -121,6 +126,7 @@ export class ChatIntentService {
         similarModelsHint,
       ].filter(Boolean).join('\n');
 
+      aiRequestAttempted = true;
       const response = await withTransientAIRetry(
         () => ai.interactions.create({
           model: GEMINI_GENERATIVE_MODEL,
@@ -173,7 +179,10 @@ export class ChatIntentService {
       return mergeIntent(localIntent, parsed, question);
     } catch (error) {
       if (tenantId && reservation) {
-        await settleInteractiveAiBudget(tenantId, reservation.id, 0).catch(() => undefined);
+        const failureTokens = interactiveAiFailureSettlementTokens(aiRequestAttempted);
+        if (failureTokens !== null) {
+          await settleInteractiveAiBudget(tenantId, reservation.id, failureTokens).catch(() => undefined);
+        }
       }
       console.warn('⚠️ Interpretação generativa indisponível; usando leitura local segura.', error instanceof Error ? error.message : error);
       return localIntent;
@@ -188,8 +197,10 @@ export class ChatIntentService {
 
     const reservation = await reserveInteractiveAiBudget(tenantId);
     if (!reservation) return localSelection;
+    let aiRequestAttempted = false;
     try {
       const ai = await getGeminiClient();
+      aiRequestAttempted = true;
       const response = await withTransientAIRetry(
         () => ai.interactions.create({
           model: GEMINI_GENERATIVE_MODEL,
@@ -228,7 +239,10 @@ export class ChatIntentService {
       const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0));
       return { id, confidence, ambiguous: Boolean(parsed.ambiguous) || !id };
     } catch (error) {
-      await settleInteractiveAiBudget(tenantId, reservation.id, 0).catch(() => undefined);
+      const failureTokens = interactiveAiFailureSettlementTokens(aiRequestAttempted);
+      if (failureTokens !== null) {
+        await settleInteractiveAiBudget(tenantId, reservation.id, failureTokens).catch(() => undefined);
+      }
       console.warn('⚠️ Ranking generativo indisponível; usando comparação textual segura.', error instanceof Error ? error.message : error);
       return chooseCandidateLocally(question, candidates);
     }
