@@ -40,7 +40,8 @@ export default function ResultCard({
   if (!response.part) return null;
   const part = response.part;
   const confidence = confidencePresentation(response);
-  const formattedCode = formatHusqvarnaPartNumber(part.partNumber);
+  const isHusqvarna = part.manufacturer?.toLowerCase().includes('husqvarna') === true;
+  const formattedCode = isHusqvarna ? formatHusqvarnaPartNumber(part.partNumber) : part.partNumber;
   const inCart = quoteCart.items.find(i => i.partNumber === part.partNumber);
 
   const classification = part.classification || classifyPartKind(part.name, part.section, part.notes);
@@ -225,7 +226,7 @@ export default function ResultCard({
                 quoteCart.addItems(
                   part.suggestedAddons!.items.map((item: SuggestedAddon) => ({
                     partNumber: item.partNumber,
-                    manufacturer: 'Husqvarna',
+                    manufacturer: part.manufacturer ?? null,
                     name: item.name,
                     model: item.model || part.model,
                     section: item.section || part.section,
@@ -243,12 +244,13 @@ export default function ResultCard({
           <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
             {part.suggestedAddons.items.map((addon: SuggestedAddon) => {
               const addonInCart = quoteCart.items.find(i => i.partNumber === addon.partNumber);
+              const addonCode = isHusqvarna ? formatHusqvarnaPartNumber(addon.partNumber) : addon.partNumber;
               return (
                 <div key={addon.id} className="flex items-center justify-between gap-2 rounded-xl bg-white/90 dark:bg-ink-800/90 border border-amber-200/80 dark:border-amber-800/80 p-2">
                   <div className="min-w-0">
                     <div className="text-xs font-bold truncate text-ink-800 dark:text-ink-100">{addon.name}</div>
                     <div className="text-[11px] font-mono font-semibold text-brand-600 dark:text-brand-300">
-                      {formatHusqvarnaPartNumber(addon.partNumber)}
+                      {addonCode}
                       {addon.position && <span className="text-ink-500 dark:text-ink-400 font-sans font-normal ml-1">· Pos. {addon.position}</span>}
                     </div>
                   </div>
@@ -257,7 +259,7 @@ export default function ResultCard({
                     onClick={() => {
                       quoteCart.addItem({
                         partNumber: addon.partNumber,
-                        manufacturer: 'Husqvarna',
+                        manufacturer: part.manufacturer ?? null,
                         name: addon.name,
                         model: addon.model || part.model,
                         section: addon.section || part.section,
@@ -287,7 +289,7 @@ export default function ResultCard({
           onClick={() => {
             quoteCart.addItem({
               partNumber: part.partNumber,
-              manufacturer: part.manufacturer || 'Husqvarna',
+              manufacturer: part.manufacturer ?? null,
               name: part.name,
               model: part.model,
               pnc: part.pnc,
