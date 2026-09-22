@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   interactiveAiFailureSettlementTokens,
   interactiveAiReservationFitsBudget,
+  interactiveAiSettlementTokens,
 } from './interactive-ai-budget';
 
 test('reserva distribuída cabe quando o saldo cobre o teto da requisição', () => {
@@ -22,6 +23,16 @@ test('valores inválidos nunca liberam uma chamada de IA', () => {
 });
 
 test('falha antes da chamada libera a reserva, mas falha depois da tentativa mantém o teto conservador', () => {
-  assert.equal(interactiveAiFailureSettlementTokens(false), 0);
+  const releaseUnusedReservation = interactiveAiFailureSettlementTokens(false);
+  assert.notEqual(releaseUnusedReservation, null);
+  assert.equal(interactiveAiSettlementTokens(releaseUnusedReservation), 0);
   assert.equal(interactiveAiFailureSettlementTokens(true), null);
+});
+
+test('usage só liquida a reserva quando o provedor reporta consumo positivo', () => {
+  assert.equal(interactiveAiSettlementTokens(1_234.9), 1_234);
+  assert.equal(interactiveAiSettlementTokens('42'), 42);
+  assert.equal(interactiveAiSettlementTokens(0), null);
+  assert.equal(interactiveAiSettlementTokens(undefined), null);
+  assert.equal(interactiveAiSettlementTokens(Number.NaN), null);
 });
