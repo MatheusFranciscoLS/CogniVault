@@ -108,7 +108,7 @@ test('histórico preserva fabricante real no orçamento em vez de presumir Husqv
 
   await login(page);
   await page.goto('/dashboard?tab=history');
-  await expect(page.getByText(CODE, { exact: true })).toBeVisible();
+  await expect(page.getByText(CODE, { exact: true }).first()).toBeVisible();
 
   await expectKawasakiInDraft(page, () => page.getByTitle('Adicionar ao orçamento').click());
 });
