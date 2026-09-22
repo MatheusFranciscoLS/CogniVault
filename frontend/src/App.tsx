@@ -1,4 +1,5 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import ReloadPrompt from './components/ReloadPrompt';
 import QuickQuoteCart from './components/QuickQuoteCart';
@@ -10,6 +11,17 @@ import { activateQuoteStorageScope, quoteStorageScopeFromSession } from './lib/q
 
 const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+
+function createSessionQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 1000 * 60 * 5,
+        refetchOnWindowFocus: false,
+      },
+    },
+  });
+}
 
 function RouteLoading() {
   return (
@@ -49,26 +61,33 @@ function RouteScopedQuoteExperience() {
 }
 
 function SessionScopedApplication() {
+  // A mudança de rota após login/logout força esta fronteira a reler o escopo
+  // autenticado. Cada escopo ganha um QueryClient novo, então nenhum dado
+  // tenant-dependent (catálogos, preço, estoque, localização etc.) sobrevive à
+  // troca de conta na mesma aba.
   useLocation();
   const storageScope = quoteStorageScopeFromSession();
   activateQuoteStorageScope(storageScope);
+  const queryClient = useMemo(() => createSessionQueryClient(), [storageScope]);
 
   return (
-    <QuoteCartProvider key={`quote:${storageScope}`}>
-      <CounterSessionProvider key={`counter:${storageScope}`}>
-        <Suspense fallback={<RouteLoading />}>
-          <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/husqvarna" element={<LegacyHusqvarnaRedirect />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </Suspense>
-        <RouteScopedQuoteExperience />
-        <ReloadPrompt />
-      </CounterSessionProvider>
-    </QuoteCartProvider>
+    <QueryClientProvider client={queryClient}>
+      <QuoteCartProvider key={`quote:${storageScope}`}>
+        <CounterSessionProvider key={`counter:${storageScope}`}>
+          <Suspense fallback={<RouteLoading />}>
+            <Routes>
+              <Route path="/" element={<Navigate to="/login" replace />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/husqvarna" element={<LegacyHusqvarnaRedirect />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </Suspense>
+          <RouteScopedQuoteExperience />
+          <ReloadPrompt />
+        </CounterSessionProvider>
+      </QuoteCartProvider>
+    </QueryClientProvider>
   );
 }
 
