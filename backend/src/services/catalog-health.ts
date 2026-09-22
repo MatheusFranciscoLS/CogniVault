@@ -1,6 +1,7 @@
 import { isPlausiblePartNumber } from '../utils/part-number';
 import { prisma } from '../config/prisma';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
+import { resolveManufacturerEvidence } from '../utils/manufacturer-provenance';
 import { isLikelyHusqvarnaPnc, isPlausibleCatalogModel } from './catalog-extractor';
 
 export type CatalogHealthInput = {
@@ -593,9 +594,11 @@ export async function refreshCatalogHealth(documentId: string, tenantId: string)
 
   const diagnostics = diagnoseCatalogStructure(parts, document.model, document.pnc, extractedPncs);
   const partsWithInformativeSection = parts.filter(part => isInformativeCatalogSection(part.section)).length;
-  const resolvedManufacturer = document.manufacturer
-    || (/\bbriggs\b/i.test(`${document.model || ''} ${document.filename || ''}`) ? 'Briggs & Stratton' : null)
-    || 'Husqvarna';
+  const resolvedManufacturer = resolveManufacturerEvidence({
+    documentManufacturer: document.manufacturer,
+    extractedManufacturer: typeof snapshot?.manufacturer === 'string' ? snapshot.manufacturer : null,
+    filename: document.filename,
+  });
 
   const health = assessCatalogHealth({
     filename: document.filename,
