@@ -363,6 +363,7 @@ export default function OfficialHusqvarnaPanel({ result, autoExpand = false, onO
     quoteCart.addItem({
       partNumber: part.partNumber,
       effectiveCode: part.partNumber,
+      manufacturer: 'Husqvarna',
       name: part.commercial?.name || part.name,
       model: details.model,
       pnc: details.pnc,
@@ -379,6 +380,7 @@ export default function OfficialHusqvarnaPanel({ result, autoExpand = false, onO
     quoteCart.addItem({
       partNumber: part.partNumber,
       effectiveCode: part.partNumber,
+      manufacturer: 'Husqvarna',
       name: part.commercial?.name || part.name,
       model: details.model,
       pnc: details.pnc,
@@ -416,6 +418,7 @@ export default function OfficialHusqvarnaPanel({ result, autoExpand = false, onO
         items.push({
           partNumber: part.partNumber,
           effectiveCode: part.partNumber,
+          manufacturer: 'Husqvarna',
           name: part.commercial?.name || part.name,
           model: details.model,
           pnc: details.pnc,

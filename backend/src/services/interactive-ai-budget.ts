@@ -1,4 +1,5 @@
 import { LRUCache } from 'lru-cache';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 
 const INTERACTIVE_ACTIONS = [
@@ -17,6 +18,7 @@ const usageCache = new LRUCache<string, InteractiveAiBudgetStatus>({
   max: 200,
   ttl: 30_000,
 });
+const pendingStatus = new Map<string, Promise<InteractiveAiBudgetStatus>>();
 
 function dailyBudgetTokens(): number {
   const configured = Number(process.env.AI_INTERACTIVE_DAILY_TOKEN_BUDGET || '120000');
@@ -29,37 +31,41 @@ function startOfUtcDay(): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
 
-function tokensFromMetadata(metadata: unknown): number {
-  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return 0;
-  const value = Number((metadata as Record<string, unknown>).totalTokens || 0);
-  return Number.isFinite(value) && value > 0 ? Math.trunc(value) : 0;
-}
-
 export async function interactiveAiBudgetStatus(tenantId: string): Promise<InteractiveAiBudgetStatus> {
   const cached = usageCache.get(tenantId);
   if (cached) return cached;
+  const pending = pendingStatus.get(tenantId);
+  if (pending) return pending;
 
-  const rows = await prisma.auditLog.findMany({
-    where: {
-      tenantId,
-      action: { in: [...INTERACTIVE_ACTIONS] },
-      createdAt: { gte: startOfUtcDay() },
-    },
-    select: { metadata: true },
-    take: 1000,
-  });
+  const load = (async () => {
+    const [row] = await prisma.$queryRaw<Array<{ usedTokens: number | null }>>`
+    SELECT COALESCE(SUM(
+      CASE
+        WHEN ("metadata"->>'totalTokens') ~ '^[0-9]+$'
+        THEN ("metadata"->>'totalTokens')::numeric
+        ELSE 0
+      END
+    ), 0)::float8 AS "usedTokens"
+    FROM "AuditLog"
+    WHERE "tenantId" = ${tenantId}
+      AND "action" IN (${Prisma.join(INTERACTIVE_ACTIONS)})
+      AND "createdAt" >= ${startOfUtcDay()}
+    `;
 
-  const budgetTokens = dailyBudgetTokens();
-  const usedTokens = rows.reduce((sum, row) => sum + tokensFromMetadata(row.metadata), 0);
-  const remainingTokens = Math.max(0, budgetTokens - usedTokens);
-  const status = {
-    budgetTokens,
-    usedTokens,
-    remainingTokens,
-    allowed: remainingTokens > 0,
-  };
-  usageCache.set(tenantId, status);
-  return status;
+    const budgetTokens = dailyBudgetTokens();
+    const totalUsedTokens = row?.usedTokens ?? 0;
+    const usedTokens = Number.isFinite(totalUsedTokens) ? Math.max(0, Math.trunc(totalUsedTokens)) : 0;
+    const remainingTokens = Math.max(0, budgetTokens - usedTokens);
+    const status = { budgetTokens, usedTokens, remainingTokens, allowed: remainingTokens > 0 };
+    usageCache.set(tenantId, status);
+    return status;
+  })();
+  pendingStatus.set(tenantId, load);
+  try {
+    return await load;
+  } finally {
+    if (pendingStatus.get(tenantId) === load) pendingStatus.delete(tenantId);
+  }
 }
 
 export async function canUseInteractiveAi(tenantId: string): Promise<boolean> {

@@ -29,6 +29,7 @@ export interface QuoteBucket {
 
 export interface TopQuotedPart {
   normalizedPartNumber: string;
+  manufacturer: string | null;
   partNumber: string;
   name: string;
   quotedQuantity: number;
@@ -41,6 +42,7 @@ export interface TopQuotedPart {
 
 export interface UnpricedPart {
   normalizedPartNumber: string;
+  manufacturer: string | null;
   partNumber: string;
   name: string;
   quoteCount: number;
@@ -228,6 +230,7 @@ export class BusinessInsightsService {
 
       prisma.$queryRaw<Array<{
         normalizedPartNumber: string;
+        manufacturer: string | null;
         partNumber: string;
         name: string;
         quotedQuantity: number;
@@ -238,6 +241,7 @@ export class BusinessInsightsService {
       }>>`
         SELECT
           i."normalizedPartNumber",
+          i."manufacturer",
           (array_agg(i."partNumber" ORDER BY q."savedAt" DESC))[1] AS "partNumber",
           (array_agg(i."name" ORDER BY q."savedAt" DESC))[1] AS "name",
           SUM(i."quantity")::int AS "quotedQuantity",
@@ -254,7 +258,7 @@ export class BusinessInsightsService {
           AND q."status" = 'SAVED'
           AND q."savedAt" BETWEEN ${from} AND ${to}
           AND i."isService" = false
-        GROUP BY i."normalizedPartNumber"
+        GROUP BY i."normalizedPartNumber", i."manufacturer"
         ORDER BY "quotedQuantity" DESC, "quoteCount" DESC
         LIMIT ${MAX_TOP_PARTS}
       `,
@@ -263,6 +267,7 @@ export class BusinessInsightsService {
       // o preço destas primeiro, porque são as que travaram um atendimento real.
       prisma.$queryRaw<Array<{
         normalizedPartNumber: string;
+        manufacturer: string | null;
         partNumber: string;
         name: string;
         quoteCount: number;
@@ -272,6 +277,7 @@ export class BusinessInsightsService {
       }>>`
         SELECT
           i."normalizedPartNumber",
+          i."manufacturer",
           (array_agg(i."partNumber" ORDER BY q."savedAt" DESC))[1] AS "partNumber",
           (array_agg(i."name" ORDER BY q."savedAt" DESC))[1] AS "name",
           COUNT(DISTINCT q."id")::int AS "quoteCount",
@@ -289,7 +295,7 @@ export class BusinessInsightsService {
           AND i."isService" = false
           AND COALESCE(i."unitPrice", 0) = 0
           AND COALESCE(m."price", 0) = 0
-        GROUP BY i."normalizedPartNumber"
+        GROUP BY i."normalizedPartNumber", i."manufacturer"
         ORDER BY "quoteCount" DESC, "quotedQuantity" DESC
         LIMIT ${MAX_UNPRICED_PARTS}
       `,
@@ -362,6 +368,7 @@ export class BusinessInsightsService {
       })),
       topParts: topPartRows.map(row => ({
         normalizedPartNumber: row.normalizedPartNumber,
+        manufacturer: row.manufacturer,
         partNumber: row.partNumber,
         name: row.name,
         quotedQuantity: Number(row.quotedQuantity || 0),
@@ -372,6 +379,7 @@ export class BusinessInsightsService {
       })),
       unpricedParts: unpricedRows.map(row => ({
         normalizedPartNumber: row.normalizedPartNumber,
+        manufacturer: row.manufacturer,
         partNumber: row.partNumber,
         name: row.name,
         quoteCount: Number(row.quoteCount || 0),

@@ -84,6 +84,7 @@ export default function HistoryWorkspace({ onSearch }: { onSearch: (query: strin
           <option value="FOUND">Encontradas</option>
           <option value="PNC_REQUIRED">Faltou PNC</option>
           <option value="MODEL_REQUIRED">Faltou modelo</option>
+          <option value="PART_REQUIRED">Faltou peça</option>
           <option value="AMBIGUOUS">Ambíguas</option>
           <option value="NOT_FOUND">Sem resultado</option>
         </select>
@@ -115,7 +116,7 @@ export default function HistoryWorkspace({ onSearch }: { onSearch: (query: strin
                     </div>
                     <div className={`text-xs font-bold ${tone(item.status)}`}>{statusLabels[item.status]}</div>
                     <div className="flex items-center gap-1.5 lg:justify-end">
-                      {item.resultCode && <button type="button" onClick={() => { quoteCart.addItem({ partNumber: item.resultCode!, name: item.resultLabel || item.query, model: item.resultModel || 'Husqvarna', pnc: item.resultPnc || undefined }); toast.success(inCart ? 'Quantidade atualizada no orçamento.' : 'Peça adicionada ao orçamento.'); }} className="grid h-8 w-8 place-items-center rounded-lg text-sm font-black text-amber-600 transition hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950/30" title="Adicionar ao orçamento">{inCart ? '✓' : '+'}</button>}
+                      {item.resultCode && <button type="button" onClick={() => { quoteCart.addItem({ partNumber: item.resultCode!, manufacturer: 'Husqvarna', name: item.resultLabel || item.query, model: item.resultModel || 'Husqvarna', pnc: item.resultPnc || undefined }); toast.success(inCart ? 'Quantidade atualizada no orçamento.' : 'Peça adicionada ao orçamento.'); }} className="grid h-8 w-8 place-items-center rounded-lg text-sm font-black text-amber-600 transition hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950/30" title="Adicionar ao orçamento">{inCart ? '✓' : '+'}</button>}
                       {item.resultCode && <button type="button" onClick={() => void copy(code)} className="rounded-lg px-2.5 py-2 text-xs font-bold text-ink-500 dark:text-ink-400 transition hover:bg-ink-100 hover:text-brand-600 dark:hover:bg-ink-800" title="Copiar código">Copiar</button>}
                       <button type="button" onClick={() => onSearch(replayQuery(item))} className="rounded-lg bg-ink-900 px-3 py-2 text-xs font-black text-white transition hover:bg-ink-950">Retomar</button>
                     </div>

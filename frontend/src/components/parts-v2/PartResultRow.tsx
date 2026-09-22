@@ -24,7 +24,7 @@ export default function PartResultRow({ part, verification, verificationLoading 
 
   const addToQuote = () => {
     recordQuoteUsage([...quoteCart.items, { partNumber: rawCode, model: part.model }], quoteCart.items.length === 0);
-    quoteCart.addItem({ partNumber: rawCode, effectiveCode: rawCode, name: part.name, model: part.model, pnc: part.pnc, section: part.section, position: part.position, filename: part.filename, page: part.page, isSuperseded: superseded, originalCode: superseded ? originalRawCode : undefined, notes: part.notes, unitPrice: part.price ?? undefined });
+    quoteCart.addItem({ partNumber: rawCode, effectiveCode: rawCode, manufacturer: part.manufacturer, name: part.name, model: part.model, pnc: part.pnc, section: part.section, position: part.position, filename: part.filename, page: part.page, isSuperseded: superseded, originalCode: superseded ? originalRawCode : undefined, notes: part.notes, unitPrice: part.price ?? undefined });
   };
 
   return (

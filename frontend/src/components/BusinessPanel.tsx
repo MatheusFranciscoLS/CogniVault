@@ -4,6 +4,12 @@ import { apiJson, formatHusqvarnaPartNumber } from '../lib';
 import type { BusinessBucketGranularity, BusinessInsights } from '../types';
 import { Icon, type IconName } from './icons/Icon';
 
+function displayPartNumber(partNumber: string, manufacturer: string | null): string {
+  return manufacturer?.toLowerCase().includes('husqvarna')
+    ? formatHusqvarnaPartNumber(partNumber)
+    : partNumber;
+}
+
 const PRESETS: Array<{ label: string; days: number; granularity: BusinessBucketGranularity }> = [
   { label: '7 dias', days: 7, granularity: 'day' },
   { label: '30 dias', days: 30, granularity: 'day' },
@@ -12,7 +18,12 @@ const PRESETS: Array<{ label: string; days: number; granularity: BusinessBucketG
 ];
 
 function isoDay(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
 }
 
 function presetRange(days: number): { from: string; to: string } {
@@ -388,7 +399,7 @@ export default function BusinessPanel() {
                           <td className="max-w-[16rem] px-4 py-2.5">
                             <div className="truncate font-semibold text-ink-900 dark:text-white" title={part.name}>{part.name}</div>
                             <div className="font-mono text-[11px] font-bold text-brand-600 dark:text-brand-300">
-                              {formatHusqvarnaPartNumber(part.partNumber)}
+                              {part.manufacturer ? `${part.manufacturer} · ` : ''}{displayPartNumber(part.partNumber, part.manufacturer)}
                             </div>
                           </td>
                           <td className="px-2 py-2.5 text-right font-bold tabular-nums">{part.quotedQuantity}</td>
@@ -450,7 +461,7 @@ export default function BusinessPanel() {
                           <td className="max-w-[18rem] px-4 py-2.5">
                             <div className="truncate font-semibold text-ink-900 dark:text-white" title={part.name}>{part.name}</div>
                             <div className="font-mono text-[11px] font-bold text-brand-600 dark:text-brand-300">
-                              {formatHusqvarnaPartNumber(part.partNumber)}
+                              {part.manufacturer ? `${part.manufacturer} · ` : ''}{displayPartNumber(part.partNumber, part.manufacturer)}
                             </div>
                           </td>
                           <td className="px-2 py-2.5 text-right font-bold tabular-nums">

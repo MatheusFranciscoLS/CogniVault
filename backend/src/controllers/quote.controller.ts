@@ -9,6 +9,14 @@ import {
   parseQuoteOptions,
 } from '../services/quote.service';
 
+export function canAccessQuote(
+  role: string,
+  userId: string,
+  attendantId: string | null,
+): boolean {
+  return role === 'ADMIN' || attendantId === userId;
+}
+
 // `from`/`to` são dias comerciais da loja, não instantes do fuso do servidor.
 // Ver utils/store-day.ts: sem isso, filtrar "até hoje" perdia o dia inteiro.
 
@@ -96,7 +104,7 @@ export class QuoteController {
         res.status(404).json({ error: 'Orçamento não encontrado.' });
         return;
       }
-      if (req.user.role !== 'ADMIN' && quote.attendantId && quote.attendantId !== req.user.id) {
+      if (!canAccessQuote(req.user.role, req.user.id, quote.attendantId)) {
         res.status(403).json({ error: 'Este orçamento pertence a outro atendente.' });
         return;
       }
@@ -155,7 +163,7 @@ export class QuoteController {
         res.status(404).json({ error: 'Orçamento não encontrado.' });
         return;
       }
-      if (req.user.role !== 'ADMIN' && existing.attendantId && existing.attendantId !== req.user.id) {
+      if (!canAccessQuote(req.user.role, req.user.id, existing.attendantId)) {
         res.status(403).json({ error: 'Este orçamento pertence a outro atendente.' });
         return;
       }
@@ -190,7 +198,7 @@ export class QuoteController {
         res.status(404).json({ error: 'Orçamento não encontrado.' });
         return;
       }
-      if (req.user.role !== 'ADMIN' && existing.attendantId && existing.attendantId !== req.user.id) {
+      if (!canAccessQuote(req.user.role, req.user.id, existing.attendantId)) {
         res.status(403).json({ error: 'Este orçamento pertence a outro atendente.' });
         return;
       }

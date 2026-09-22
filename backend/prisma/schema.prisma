@@ -391,6 +391,7 @@ model QuoteItem {
 
   partNumber           String
   normalizedPartNumber String
+  manufacturer         String?
   effectiveCode        String?
   name                 String
   model                String?

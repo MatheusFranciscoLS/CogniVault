@@ -71,7 +71,7 @@ test('preço em lote responde em vez de rejeitar com o banco fora', async () => 
       res,
     ));
     // Degrada certo: mapa vazio, e a lista de peças continua na tela sem preço.
-    assert.deepEqual(estado.corpo, { prices: {} });
+    assert.deepEqual(estado.corpo, { prices: {}, degraded: true, error: 'Preço temporariamente indisponível.' });
   } finally {
     restaurar();
   }

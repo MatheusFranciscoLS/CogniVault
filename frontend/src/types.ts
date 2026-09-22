@@ -193,12 +193,12 @@ export type BusinessBucketGranularity = 'day' | 'week' | 'month';
 export interface BusinessQuoteBucket { bucket:string; quotes:number; items:number; grossTotal:number; netTotal:number; }
 
 export interface BusinessTopPart {
-  normalizedPartNumber:string; partNumber:string; name:string; quotedQuantity:number; quoteCount:number;
+  normalizedPartNumber:string; manufacturer:string|null; partNumber:string; name:string; quotedQuantity:number; quoteCount:number;
   lastQuotedAt:string|null; registeredPrice:number|null; averageQuotedPrice:number|null;
 }
 
 export interface BusinessUnpricedPart {
-  normalizedPartNumber:string; partNumber:string; name:string; quoteCount:number; quotedQuantity:number;
+  normalizedPartNumber:string; manufacturer:string|null; partNumber:string; name:string; quoteCount:number; quotedQuantity:number;
   lastQuotedAt:string|null; inPriceList:boolean;
 }
 

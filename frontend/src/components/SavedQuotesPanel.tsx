@@ -23,6 +23,7 @@ interface ApiQuoteListItem {
   items: Array<{
     partNumber: string;
     effectiveCode: string | null;
+    manufacturer: string | null;
     name: string;
     model: string | null;
     pnc: string | null;
@@ -56,9 +57,10 @@ function toSavedQuote(quote: ApiQuoteListItem): SavedQuote {
     totalItems: quote.totalItems,
     attendantEmail: quote.attendantEmail,
     items: quote.items.map(item => ({
-      id: `${item.partNumber}|${item.model || ''}|${item.pnc || ''}`,
+      id: `${item.partNumber}|${item.manufacturer || ''}|${item.model || ''}|${item.pnc || ''}`,
       partNumber: item.partNumber,
       effectiveCode: item.effectiveCode ?? undefined,
+      manufacturer: item.manufacturer,
       name: item.name,
       model: item.model ?? '',
       pnc: item.pnc,
@@ -282,7 +284,11 @@ export default function SavedQuotesPanel() {
                             <tr key={`${quote.id}-${index}`} className="border-t border-ink-200 dark:border-ink-800">
                               <td className="py-1.5 pr-3 font-bold tabular-nums">{item.quantity}x</td>
                               <td className="py-1.5 pr-3 font-mono font-semibold text-brand-600 dark:text-brand-300">
-                                {item.isService ? '—' : formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)}
+                                {item.isService
+                                  ? '—'
+                                  : item.manufacturer?.toLowerCase().includes('husqvarna')
+                                    ? formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)
+                                    : (item.effectiveCode || item.partNumber)}
                               </td>
                               <td className="py-1.5 pr-3 text-ink-700 dark:text-ink-300">{item.name}</td>
                               <td className="py-1.5 pr-3 text-right font-mono tabular-nums">{item.unitPrice ? money(item.unitPrice) : '—'}</td>

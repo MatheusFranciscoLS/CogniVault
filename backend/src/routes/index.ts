@@ -46,7 +46,9 @@ import {
   validateFavoriteMutationBody,
   validateBriggsModelQuery,
   validateKawasakiSlugQuery,
+  validateHusqvarnaPncParam,
   validateHusqvarnaProductSearchQuery,
+  validateOfficialPartCodeQuery,
   validateModelParam,
   validateOfficialFallbackQuery,
   validateOperationalQuoteUsage,
@@ -141,7 +143,7 @@ router.post('/master-parts/prices', authMiddleware, (req, res) => masterPartPric
 // "O cliente chegou com este codigo — de que motor e?". Responde com o que ja
 // foi lido do catalogo oficial de Briggs/Kawasaki. Ver
 // services/official-part-index.service.ts.
-router.get('/official-parts/by-code', authMiddleware, (req, res) => officialPartIndexController.byCode(req, res));
+router.get('/official-parts/by-code', authMiddleware, validateOfficialPartCodeQuery, (req, res) => officialPartIndexController.byCode(req, res));
 // Ultimo recurso: o cliente descreveu a peca e a busca nao achou nada. A IA
 // escolhe de uma lista FECHADA (as pecas daquela maquina) e o desenho confirma.
 // Rota separada porque e mais lenta que a busca. Ver services/part-picker.service.ts.
@@ -163,7 +165,7 @@ router.get('/briggs/ipl-parts', authMiddleware, validateBriggsModelQuery, (req, 
 // atendente abre por atendimento. Ver docs/KAWASAKI_ARI_PARTSTREAM.md.
 router.get('/kawasaki/engine', authMiddleware, validateBriggsModelQuery, (req, res) => kawasakiController.engine(req, res));
 router.get('/kawasaki/assembly', authMiddleware, validateKawasakiSlugQuery, (req, res) => kawasakiController.assembly(req, res));
-router.get('/husqvarna/products/:pnc/details', authMiddleware, (req, res) => husqvarnaOfficialController.productDetails(req, res));
+router.get('/husqvarna/products/:pnc/details', authMiddleware, validateHusqvarnaPncParam, (req, res) => husqvarnaOfficialController.productDetails(req, res));
 router.get('/husqvarna/parts/:code/details', authMiddleware, validatePartCodeParam, (req, res) => husqvarnaOfficialController.partDetails(req, res));
 router.post('/analytics/search-usage', authMiddleware, validateOperationalSearchUsage, (req, res) => workIntelligenceController.recordSearchUsage(req, res));
 router.post('/analytics/quote-usage', authMiddleware, validateOperationalQuoteUsage, invalidateWorkContextAfterQuoteUsage, (req, res) => workIntelligenceController.recordQuoteUsage(req, res));
