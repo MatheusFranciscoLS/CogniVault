@@ -1,9 +1,10 @@
 const CART_KEY = 'cognivault_quote_cart';
+const OPTIONS_KEY = 'cognivault_quote_draft_options';
 const HISTORY_KEY = 'cognivault_quote_history';
 const ACTIVE_SCOPE_KEY = 'cognivault_quote_active_scope';
 const ANONYMOUS_SCOPE = 'anonymous';
 
-const QUOTE_KEYS = [CART_KEY, HISTORY_KEY] as const;
+const QUOTE_KEYS = [CART_KEY, OPTIONS_KEY, HISTORY_KEY] as const;
 
 function scopedKey(baseKey: string, scope: string) {
   return `${baseKey}:${scope}`;
@@ -38,9 +39,11 @@ export function quoteStorageScopeFromSession() {
 
 /**
  * QuoteCartContext ainda usa as chaves históricas por compatibilidade. Esta
- * barreira troca o conteúdo dessas chaves antes de o provider montar e mantém
- * uma cópia definitiva por usuário. Assim duas contas no mesmo navegador nunca
- * herdam o orçamento ou o histórico uma da outra.
+ * barreira troca o conteúdo dessas chaves antes do provider montar e mantém
+ * uma cópia definitiva por usuário. Itens, histórico E dados do rascunho
+ * (cliente, telefone, pagamento, máquina e desconto) precisam andar juntos;
+ * caso contrário uma conta pode herdar contexto privado da anterior quando a
+ * API estiver indisponível.
  */
 export function activateQuoteStorageScope(scope: string) {
   try {
