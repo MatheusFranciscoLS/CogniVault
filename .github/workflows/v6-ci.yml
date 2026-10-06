@@ -16,7 +16,62 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # PR que só muda texto não precisa dos ~4 minutos de backend + frontend + e2e.
+  #
+  # **A condição é por JOB, e isso é essencial.** Job pulado por `if:` reporta
+  # "Success" e libera o merge; workflow inteiro pulado por `paths-ignore` deixa o
+  # check obrigatório PENDENTE para sempre e trava o PR (documentação do GitHub,
+  # "Troubleshooting required status checks"). Por isso nada de `paths` no `on:`.
+  #
+  # **Falha fechada.** Se a detecção quebrar (`changes.result != 'success'`) os testes
+  # RODAM. Só se pula quando a detecção funcionou e provou que é só texto.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - id: classify
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # Push em main sempre testa tudo: é o que vai para produção.
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "Evento $EVENT: testa tudo."
+            exit 0
+          fi
+          files=$(git diff --name-only "$BASE...$HEAD")
+          if [ -z "$files" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "Nenhum arquivo detectado: na dúvida, testa."
+            exit 0
+          fi
+          echo "Arquivos alterados:"
+          echo "$files"
+          # "Só texto" = TUDO casa com um destes. Um único arquivo fora da lista
+          # (inclusive qualquer coisa em .github/, backend/ ou frontend/ que não
+          # seja .md) já conta como código. Verificado: nenhum .md é lido pelo
+          # código em tempo de execução.
+          other=$(echo "$files" | grep -vE '(.md$|^docs/|^.claude/|(^|/)LICENSE[^/]*$)' || true)
+          if [ -z "$other" ]; then
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "PR só de documentação: backend, frontend e e2e são pulados."
+          else
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "Há arquivo que não é só texto:"
+            echo "$other"
+          fi
+
   backend:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -74,6 +129,8 @@ jobs:
         run: node -e "require('./dist/config/gemini.js').getGeminiClient().then(() => console.log('Gemini ESM loader OK'))"
 
   frontend:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -107,7 +164,12 @@ jobs:
         run: npm run verify:production-origin
 
   e2e:
-    needs: [backend, frontend]
+    needs: [changes, backend, frontend]
+    # Mesmas condições, mais: backend e frontend precisam ter PASSADO. Sem o
+    # `always`/`!cancelled` o job seria pulado quando eles são pulados — que é o
+    # comportamento desejado em PR de texto — mas também quando a detecção falha, e
+    # aí o e2e "passaria" sem rodar. Por isso a condição é explícita.
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') && needs.backend.result == 'success' && needs.frontend.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
