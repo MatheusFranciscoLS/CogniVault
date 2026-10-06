@@ -1,6 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { prisma } from '../config/prisma';
 import { OfficialPartIndexService } from './official-part-index.service';
+
+/** Troca `officialPartIndex.upsert` por um espião e devolve como restaurar. */
+function espiaUpsert(comportamento: () => Promise<unknown>) {
+  const alvo = prisma.officialPartIndex as unknown as Record<string, unknown>;
+  const original = alvo.upsert;
+  const chamadas: unknown[] = [];
+  alvo.upsert = (args: unknown) => { chamadas.push(args); return comportamento(); };
+  return { chamadas, restaurar: () => { alvo.upsert = original; } };
+}
 
 /**
  * `record` é chamado com `void` — promessa solta, de propósito: o balcão não
@@ -18,11 +28,22 @@ import { OfficialPartIndexService } from './official-part-index.service';
  */
 
 test('record não rejeita quando o banco está fora', async () => {
-  // Sem DATABASE_URL o upsert falha de verdade. É o caso "banco indisponível",
-  // e ele NÃO pode derrubar o servidor.
-  await assert.doesNotReject(() => OfficialPartIndexService.record('BRIGGS', '104M02-0002-F1', [
-    { partNumber: '595353', name: 'HEAD, Cylinder', position: '5', assembly: 'Cylinder Head', quantity: null },
-  ]));
+  // O caso "banco indisponível" NÃO pode derrubar o servidor.
+  //
+  // **A falha é INJETADA.** A primeira versão confiava em não haver banco — mas
+  // o `DATABASE_URL` desta máquina apontava para a produção, o `upsert` rodava
+  // DE VERDADE e gravou `595353 / HEAD, Cylinder` em `OfficialPartIndex`. Um
+  // teste de resiliência a falha estava fabricando dado oficial falso.
+  const { chamadas, restaurar } = espiaUpsert(() => Promise.reject(new Error('banco fora (injetado pelo teste)')));
+  try {
+    await assert.doesNotReject(() => OfficialPartIndexService.record('BRIGGS', '104M02-0002-F1', [
+      { partNumber: '595353', name: 'HEAD, Cylinder', position: '5', assembly: 'Cylinder Head', quantity: null },
+    ]));
+    // Prova que o `catch` foi exercitado: o upsert FOI tentado, e falhou.
+    assert.equal(chamadas.length, 1, 'o upsert nem chegou a ser tentado — o teste não exercitou o catch');
+  } finally {
+    restaurar();
+  }
 });
 
 test('record não rejeita com entrada inválida', async () => {
@@ -38,18 +59,40 @@ test('record não rejeita com entrada inválida', async () => {
   }
 });
 
-test('record não rejeita com peça malformada', async () => {
-  await assert.doesNotReject(() => OfficialPartIndexService.record('KAWASAKI', 'FX921V-ES06', [
-    { partNumber: '', name: '', position: null, assembly: null, quantity: null },
-    { partNumber: '11009-2056', name: 'GASKET', position: undefined, assembly: undefined, quantity: undefined },
-  ]));
+test('record não rejeita com peça malformada, e só grava a que tem código', async () => {
+  // Também sem tocar em banco: com a produção acessível, a segunda peça virava
+  // um pareamento Kawasaki FX921V-ES06 → 11009-2056 INVENTADO na tabela oficial.
+  const { chamadas, restaurar } = espiaUpsert(() => Promise.resolve({}));
+  try {
+    await assert.doesNotReject(() => OfficialPartIndexService.record('KAWASAKI', 'FX921V-ES06', [
+      { partNumber: '', name: '', position: null, assembly: null, quantity: null },
+      { partNumber: '11009-2056', name: 'GASKET', position: undefined, assembly: undefined, quantity: undefined },
+    ]));
+    // A peça sem código é descartada ANTES do banco; só a válida chega ao upsert.
+    assert.equal(chamadas.length, 1);
+  } finally {
+    restaurar();
+  }
 });
 
 test('byCode não rejeita quando o banco está fora', async () => {
   // Mesma regra do outro lado: a consulta é awaitada, mas um erro aqui viraria
   // 500 na tela do balcão em vez de "não achei". Ela devolve lista vazia.
-  const vazio = await OfficialPartIndexService.byCode('592358');
-  assert.deepEqual(vazio, []);
+  //
+  // **A falha é INJETADA, não esperada.** A primeira versão confiava em não
+  // haver banco e afirmava "lista vazia" — mas o `DATABASE_URL` desta máquina
+  // aponta para a produção, a consulta funcionava, e o teste só passava porque
+  // o índice estava vazio. Em 21/09 uma consulta real da Briggs indexou o
+  // código 592358 e o teste passou a reprovar. Ele nunca exercitou o `catch`.
+  const alvo = prisma.officialPartIndex as unknown as Record<string, unknown>;
+  const original = alvo.findMany;
+  alvo.findMany = () => Promise.reject(new Error('banco fora (injetado pelo teste)'));
+  try {
+    const vazio = await OfficialPartIndexService.byCode('592358');
+    assert.deepEqual(vazio, []);
+  } finally {
+    alvo.findMany = original;
+  }
 });
 
 test('byCode recusa código curto sem tocar no banco', async () => {
