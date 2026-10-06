@@ -164,7 +164,8 @@ export class OfficialSourceCacheService {
         const background = refresh(key, options, loader)
           .catch(error => {
             console.warn(
-              `[OfficialSourceCache] Revalidação em segundo plano falhou para ${options.resourceId}:`,
+              '[OfficialSourceCache] Revalidação em segundo plano falhou para %j:',
+              options.resourceId,
               error instanceof Error ? error.message : error,
             );
             return {
@@ -193,7 +194,8 @@ export class OfficialSourceCacheService {
       .catch(error => {
         if (cached) {
           console.warn(
-            `[OfficialSourceCache] Fonte indisponível; usando cache expirado para ${options.resourceId}.`,
+            '[OfficialSourceCache] Fonte indisponível; usando cache expirado para %j.',
+            options.resourceId,
             error instanceof Error ? error.message : error,
           );
           return {
