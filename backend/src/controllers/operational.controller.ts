@@ -1249,7 +1249,7 @@ export class OperationalController {
                 items: results,
             });
         } catch (error) {
-            console.error(`❌ Erro ao buscar combo de revisão para ${modelParam}:`, error);
+            console.error('❌ Erro ao buscar combo de revisão para %j:', modelParam, error);
             res.status(500).json({ error: 'Erro ao buscar combo de revisão do modelo.' });
         }
     }
@@ -1271,7 +1271,7 @@ export class OperationalController {
 
             res.json({ livePart });
         } catch (error) {
-            console.error(`❌ Erro ao buscar dados ao vivo para ${code}:`, error);
+            console.error('❌ Erro ao buscar dados ao vivo para %j:', code, error);
             res.status(500).json({ error: 'Erro ao conectar ao portal oficial da Husqvarna.' });
         }
     }

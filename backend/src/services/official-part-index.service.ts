@@ -107,7 +107,9 @@ export class OfficialPartIndexService {
       }
     } catch (error) {
       console.warn(
-        `[Índice oficial] Não foi possível gravar as peças de "${engineModel}" (${source}):`,
+        '[Índice oficial] Não foi possível gravar as peças de %j (%s):',
+        engineModel,
+        source,
         error instanceof Error ? error.message : error,
       );
     }

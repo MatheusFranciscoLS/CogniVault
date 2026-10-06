@@ -23,6 +23,12 @@ on:
     - cron: '*/10 6-23 * * *' # pedido: cada 10 min. Entregue: ver acima.
   workflow_dispatch: {}
 
+# O job só faz `curl` em dois endereços públicos: não usa checkout, não usa
+# token, não escreve em nada. Sem este bloco ele herdava as permissões padrão do
+# GITHUB_TOKEN, que são mais largas do que ele precisa (CodeQL:
+# actions/missing-workflow-permissions).
+permissions: {}
+
 concurrency:
   group: cognivault-keepalive
   cancel-in-progress: true

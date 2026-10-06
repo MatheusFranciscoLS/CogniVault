@@ -52,7 +52,7 @@ export class HusqvarnaOfficialController {
       const results = await HusqvarnaProductSearchService.search(query);
       res.json({ results });
     } catch (error) {
-      console.error(`❌ Erro na busca oficial Husqvarna por "${query}":`, error);
+      console.error('❌ Erro na busca oficial Husqvarna por %j:', query, error);
       res.status(502).json({ error: 'Não foi possível pesquisar na Husqvarna.' });
     }
   }

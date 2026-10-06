@@ -90,7 +90,9 @@ async function main() {
     tenantId: tenant.id,
     adminEmail: ADMIN_EMAIL,
     mechanicEmail: MECHANIC_EMAIL,
-    password: PASSWORD,
+    // A senha NÃO é impressa. Ela é o dado de teste público do workflow e dos
+    // specs, mas imprimir credencial em log de CI é um hábito que um valor
+    // customizado em E2E_PASSWORD transformaria em vazamento. Nada lê esta saída.
   }));
 }
 
