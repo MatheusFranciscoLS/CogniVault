@@ -226,6 +226,16 @@ repositório inteiro — incluindo `.github/workflows/*.yml`, que scripts como
 outro arquivo `.ts`. Uma varredura anterior já teve um falso positivo exatamente
 por não checar os workflows.
 
+## Skills do projeto
+
+Ficam em `.claude/skills/`. A procedência, a versão fixada e o que foi avaliado e
+**recusado** estão em `.claude/skills/PROVENANCE.md` — leia antes de instalar
+qualquer outro. Regra: nenhum skill entra sem leitura integral e sem versão fixada,
+e nunca por `npx skills add` de terceiros.
+
+Para qualquer trabalho visual, `cognivault-ui` vem primeiro: ela tem o que é
+inegociável na tela do balcão e o ciclo de verificação (workflow `Screens`).
+
 ## Identidade visual (redesign de 2026-09-18)
 
 A referência é o site de loja **`vardaomaquinas.com.br`**, não um gosto novo. A

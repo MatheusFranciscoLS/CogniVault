@@ -216,7 +216,7 @@ export class PartDetailController {
       res.set('Cache-Control', 'private, no-store');
       res.json(payload);
     } catch (error) {
-      console.error(`❌ Erro ao buscar detalhe da peça ${id}:`, error);
+      console.error('❌ Erro ao buscar detalhe da peça %j:', id, error);
       res.status(500).json({ error: 'Erro ao carregar detalhes da peça.' });
     }
   }
