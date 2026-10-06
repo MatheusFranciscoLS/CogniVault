@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../config/prisma';
 import { authMiddleware, invalidateUserAuthCache, type AuthenticatedRequest } from './auth.middleware';
@@ -128,7 +129,12 @@ async function comServidor<T>(fn: (base: string) => Promise<T>): Promise<T> {
   });
 
   const app = express();
-  app.get('/ping', authMiddleware, (req: AuthenticatedRequest, res) => {
+  // O CodeQL (js/missing-rate-limiting) acusa rota que autoriza sem limitador, e
+  // reprovou o PR por causa deste servidor de teste. Ele não existe em produção, mas o
+  // limitador custa uma linha e tira o falso positivo do caminho. Teto folgado: os
+  // testes fazem poucas chamadas e não podem esbarrar nele.
+  const limitador = rateLimit({ windowMs: 60_000, limit: 10_000, validate: false });
+  app.get('/ping', limitador, authMiddleware, (req: AuthenticatedRequest, res) => {
     res.json({ ok: true, user: req.user?.id });
   });
   const server = app.listen(0);
