@@ -263,11 +263,18 @@ Regras que não são estética, são operação de balcão:
 - `ink-*` tem uma virada de matiz deliberada entre 700 e 800 (claro = neutro
   quente do site; escuro = azul-marinho da marca). Está comentado no
   `tailwind.config.js`; não "conserte" isso.
-- Breakpoint extra **`tablet: 820px`**: o aparelho do meio no balcão é um tablet
-  10". `sm`/`md` do Tailwind não pegam retrato de 10" da forma que esse layout
-  precisa.
-- `.cv-touch-target` (44px) é o piso de alvo de toque. Dedo com luva de oficina
-  não acerta botão de 28px.
+- **O alvo do design é o PC do balcão (mouse e teclado), e só ele.** Dito pelo dono
+  em 2026-10-06: *"não precisamos focar no celular e tablet… vamos somente utilizar
+  no balcão. Tablet não temos na loja, só se for o celular pessoal."* Este arquivo
+  dizia o contrário — que "o aparelho do meio no balcão é um tablet de 10 polegadas" — e isso
+  era uma suposição que ninguém confirmou. **Celular não é alvo de design**: só não
+  pode quebrar (sem rolagem horizontal, texto legível). O breakpoint `tablet: 820px`
+  continua no `tailwind.config.js` e não deve guiar decisão nova.
+- `.cv-touch-target` (44px) foi escrito para "dedo com luva de oficina", e o produto
+  não tem fluxo de oficina: o usuário é o balcão. Para mouse, o que importa é alvo de
+  clique confortável (≥ 32 px) e **teclado primeiro** (`Ctrl K`, Enter busca, foco
+  visível). Os 44 px só voltam a valer se o PC do balcão tiver tela sensível ao toque —
+  **pergunta em aberto ao dono**.
 - **Opacidade em cor de texto é proibida** (`text-brand-100/70`, `text-white/80`).
   Use o degrau da escala que já tem o contraste. Foi o defeito que a varredura
   de 28 arquivos corrigiu, e ele voltou no painel do login porque lá o fundo é
