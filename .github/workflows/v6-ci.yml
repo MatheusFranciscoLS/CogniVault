@@ -144,6 +144,9 @@ jobs:
       SUPABASE_URL: https://example.supabase.co
       SUPABASE_SECRET_KEY: ci-placeholder
       ENABLE_SEMANTIC_INDEXING: 'false'
+      # A suíte inteira sai de um IP; com o teto de produção (300/min) os últimos
+      # testes recebem 429. Só o e2e sobe o limite; produção segue em 300.
+      API_RATE_LIMIT_PER_MINUTE: '5000'
     steps:
       - uses: actions/checkout@v6
       - name: Set up backend Node

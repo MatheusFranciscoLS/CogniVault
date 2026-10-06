@@ -64,9 +64,26 @@ app.use(helmet({
 }));
 app.disable('x-powered-by');
 
+/**
+ * Teto de requisições por IP, por minuto.
+ *
+ * O padrão (300) é o valor de produção e **não mudou**. A variável existe para o
+ * e2e: a suíte inteira sai de UM IP e dispara dezenas de chamadas por tela, então
+ * os últimos testes da fila chegam com a janela de 1 minuto já cheia e recebem 429
+ * — o login volta para /login ou a busca não aparece. O `express-rate-limit`
+ * responde 429 **sem registrar nada** no log, então a ausência de 429 no log do job
+ * não prova que ele não aconteceu (eu mesmo concluí isso errado na primeira
+ * triagem do #196).
+ *
+ * Em produção vale a mesma conta: a loja inteira sai por um IP (NAT). Não há dado
+ * para dizer se 300/min aperta — o Render não expõe log nem métrica HTTP deste
+ * serviço — mas o teto é por loja, não por atendente.
+ */
+const API_RATE_LIMIT_PER_MINUTE = Number(process.env.API_RATE_LIMIT_PER_MINUTE) || 300;
+
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
-  limit: 300,
+  limit: API_RATE_LIMIT_PER_MINUTE,
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => req.path === '/health/live',
