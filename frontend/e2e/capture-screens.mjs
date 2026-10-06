@@ -23,9 +23,13 @@ const PASSWORD = process.env.E2E_PASSWORD ?? 'CogniVault-E2E-2026!';
 const ADMIN_EMAIL = 'admin.e2e@cognivault.local';
 const OUT = process.env.SCREENS_DIR ?? 'screens';
 
+// O alvo é o PC do balcão (dono, 2026-10-06: não há tablet na loja, e celular só o
+// pessoal). A resolução real do PC ainda não foi confirmada, então cobrimos o
+// notebook/monitor pequeno e o monitor comum. Celular é só teste de fumaça: não
+// pode quebrar, mas ninguém otimiza para ele.
 const VIEWPORTS = {
-  desktop: { width: 1440, height: 900 },
-  tablet: { width: 820, height: 1180 },
+  'pc-1366': { width: 1366, height: 768 },
+  'pc-1920': { width: 1920, height: 1080 },
   celular: { width: 390, height: 844 },
 };
 const THEMES = ['light', 'dark'];
@@ -35,6 +39,8 @@ mkdirSync(OUT, { recursive: true });
 
 for (const theme of THEMES) {
   for (const [viewportName, viewport] of Object.entries(VIEWPORTS)) {
+    // Fumaça de celular só no tema claro: 8 prints a menos sem perder o aviso.
+    if (viewportName === 'celular' && theme === 'dark') continue;
     test.describe(`${theme}-${viewportName}`, () => {
       test.use({ viewport, colorScheme: theme });
 
