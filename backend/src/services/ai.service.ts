@@ -11,6 +11,7 @@ import { shouldForceCatalogReextraction } from '../utils/document-processing-int
 import { withTransientAIRetry } from '../utils/ai-retry';
 import { describePartNumberRejection, isPlausiblePartNumber } from '../utils/part-number';
 import { resolvePositionProvenance, type PositionStatus } from '../utils/position-provenance';
+import { resolveManufacturerEvidence } from '../utils/manufacturer-provenance';
 import {
     type CatalogExtraction,
     type ExtractedPart,
@@ -383,10 +384,12 @@ pncs deve listar todos os PNCs explicitamente encontrados no documento.
                     continue;
                 }
 
-                const manufacturer = cleanString(rawPart.manufacturer)
-                    || document.manufacturer
-                    || extractedManufacturer
-                    || (/\bKawasaki\b/i.test(document.filename) ? 'Kawasaki' : (/\bKohler\b/i.test(document.filename) ? 'Kohler' : (/\bBriggs\b/i.test(document.filename) ? 'Briggs & Stratton' : 'Husqvarna')));
+                const manufacturer = resolveManufacturerEvidence({
+                    partManufacturer: rawPart.manufacturer,
+                    documentManufacturer: document.manufacturer,
+                    extractedManufacturer,
+                    filename: document.filename,
+                }) || '';
                 const documentPnc = trustedDocumentPnc;
                 const extractedPartPnc = normalizeHusqvarnaPnc(cleanString(rawPart.pnc));
                 let pnc = extractedPartPnc || documentPnc || '';

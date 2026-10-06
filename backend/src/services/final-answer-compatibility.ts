@@ -124,8 +124,11 @@ export async function enforceFinalApplicationCompatibility(input: {
   let { result } = input;
   if (manualSelection || result.status !== 'FOUND' || !result.part) return result;
 
-  const manufacturer = normalizeIdentifier(result.part.manufacturer || 'HUSQVARNA');
-  if (manufacturer && !manufacturer.includes('HUSQVARNA')) return result;
+  // O Portal usado abaixo é específico da Husqvarna. Fabricante ausente não é
+  // evidência de Husqvarna: nesses casos preservamos o resultado local em vez
+  // de tentar validar a peça contra uma fonte de outra marca.
+  const manufacturer = normalizeIdentifier(result.part.manufacturer);
+  if (!manufacturer.includes('HUSQVARNA')) return result;
 
   const intent = buildFallbackIntent(question);
   const requestedPnc = numericPnc(input.explicitPnc || intent.pnc);

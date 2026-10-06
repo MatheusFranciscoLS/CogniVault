@@ -21,37 +21,37 @@ export function husqvarnaPortalUrl(code: string) {
   return `${HUSQVARNA_PORTAL_BASE}${encodeURIComponent(normalizePartCode(code))}`;
 }
 
-export function officialPortalUrl(code: string, manufacturer?: string | null) {
-  const normMfg = (manufacturer || '').toUpperCase();
-  const normCode = normalizePartCode(code);
-  if (normMfg.includes('KAWASAKI') || /^\d{5}\d{4}$/.test(normCode)) {
-    return `https://www.google.com/search?q=${encodeURIComponent(`Kawasaki Engines OEM part ${code}`)}`;
-  }
-  if (normMfg.includes('STIHL')) {
-    return `https://www.google.com/search?q=${encodeURIComponent(`Stihl OEM part ${code}`)}`;
-  }
-  if (normMfg.includes('KOHLER')) {
-    return `https://www.google.com/search?q=${encodeURIComponent(`Kohler Engines OEM part ${code}`)}`;
-  }
-  if (normMfg.includes('BRIGGS')) {
-    return `https://www.google.com/search?q=${encodeURIComponent(`Briggs and Stratton OEM part ${code}`)}`;
-  }
-  return husqvarnaPortalUrl(code);
+function neutralOemSearch(code: string, manufacturer?: string | null) {
+  const brand = (manufacturer || '').trim();
+  const query = brand ? `${brand} OEM part ${code}` : `OEM part ${code}`;
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
 }
 
-export function officialPortalLabel(code: string, manufacturer?: string | null) {
+/**
+ * Escolhe a saída de conferência somente pela marca conhecida. A forma do
+ * código não prova fabricante: Husqvarna e Kawasaki, por exemplo, podem ter
+ * códigos numéricos com o mesmo comprimento.
+ */
+export function officialPortalUrl(code: string, manufacturer?: string | null) {
   const normMfg = (manufacturer || '').toUpperCase();
-  const normCode = normalizePartCode(code);
-  if (normMfg.includes('KAWASAKI') || /^\d{5}\d{4}$/.test(normCode)) {
-    return 'Verificar Kawasaki';
-  }
-  if (normMfg.includes('STIHL')) {
-    return 'Verificar Stihl';
-  }
-  if (normMfg.includes('KOHLER')) {
-    return 'Verificar Kohler';
-  }
-  return 'Verificar oficial Husqvarna';
+  if (normMfg.includes('HUSQVARNA')) return husqvarnaPortalUrl(code);
+  if (normMfg.includes('KAWASAKI')) return neutralOemSearch(code, 'Kawasaki Engines');
+  if (normMfg.includes('STIHL')) return neutralOemSearch(code, 'Stihl');
+  if (normMfg.includes('KOHLER')) return neutralOemSearch(code, 'Kohler Engines');
+  if (normMfg.includes('BRIGGS')) return neutralOemSearch(code, 'Briggs and Stratton');
+  if (normMfg.includes('HONDA')) return neutralOemSearch(code, 'Honda');
+  return neutralOemSearch(code);
+}
+
+export function officialPortalLabel(_code: string, manufacturer?: string | null) {
+  const normMfg = (manufacturer || '').toUpperCase();
+  if (normMfg.includes('HUSQVARNA')) return 'Verificar oficial Husqvarna';
+  if (normMfg.includes('KAWASAKI')) return 'Pesquisar fonte Kawasaki';
+  if (normMfg.includes('STIHL')) return 'Pesquisar fonte Stihl';
+  if (normMfg.includes('KOHLER')) return 'Pesquisar fonte Kohler';
+  if (normMfg.includes('BRIGGS')) return 'Pesquisar fonte Briggs & Stratton';
+  if (normMfg.includes('HONDA')) return 'Pesquisar fonte Honda';
+  return 'Pesquisar fabricante / fonte oficial';
 }
 
 export function isSupersededForCode(code: string, verification?: OfficialVerification) {

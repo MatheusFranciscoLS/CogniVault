@@ -159,7 +159,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
 
   const openEdit = (catalog: QualityCatalog) => {
     setEditing(catalog.id);
-    setDraft({ manufacturer: catalog.manufacturer || 'Husqvarna', model: catalog.suggestedModel || catalog.model || '', pnc: catalog.pnc || '' });
+    setDraft({ manufacturer: catalog.manufacturer || '', model: catalog.suggestedModel || catalog.model || '', pnc: catalog.pnc || '' });
   };
 
   const saveMetadata = async (catalog: QualityCatalog) => {
@@ -201,7 +201,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          manufacturer: catalog.manufacturer || 'Husqvarna',
+          ...(catalog.manufacturer ? { manufacturer: catalog.manufacturer } : {}),
           model: catalog.suggestedModel,
           pnc: catalog.pnc || null,
         }),
