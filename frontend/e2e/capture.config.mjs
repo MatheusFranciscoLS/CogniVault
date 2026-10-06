@@ -16,5 +16,11 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:5173',
     headless: true,
+    // Sem isto, clique e preenchimento esperam até o teto de 180 s do teste por
+    // um elemento que não existe — e o teste morre sem tirar os prints seguintes.
+    // Foi o que aconteceu na primeira execução. Falhar rápido deixa o passo
+    // cair no try/catch e a captura seguir.
+    actionTimeout: 8_000,
+    navigationTimeout: 30_000,
   },
 });

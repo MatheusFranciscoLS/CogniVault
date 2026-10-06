@@ -71,6 +71,21 @@ for (const theme of THEMES) {
           await page.waitForURL(/\/dashboard/);
           await page.getByPlaceholder(SEARCH).waitFor();
         });
+        // O rascunho do orçamento mora no SERVIDOR e é por usuário. Todas as
+        // sessões usam o mesmo usuário do seed, então a segunda já encontrava a
+        // peça na cesta: o botão virava "No orçamento" e o clique em
+        // "+ Orçamento" esperava para sempre. Esvaziar e recarregar dá a cada
+        // sessão o mesmo ponto de partida.
+        await passo('limpar rascunho', async () => {
+          await page.evaluate(() => fetch('/api/quotes/draft', {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: [], options: {} }),
+          }));
+          await page.reload();
+          await page.getByPlaceholder(SEARCH).waitFor();
+        });
         await shot('02-atendimento-vazio');
 
         await passo('buscar', async () => {
