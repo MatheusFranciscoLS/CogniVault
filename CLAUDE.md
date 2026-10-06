@@ -226,6 +226,37 @@ repositório inteiro — incluindo `.github/workflows/*.yml`, que scripts como
 outro arquivo `.ts`. Uma varredura anterior já teve um falso positivo exatamente
 por não checar os workflows.
 
+## A sessão do balcão se renova, com teto
+
+Antes de 2026-10-06 a sessão durava **8 h fixas desde o login** e não existia rota de
+renovação: quem entrava de manhã era deslogado à tarde, no meio do atendimento, e a
+loja trabalha mais que 8 h por dia. Autorizado pelo dono.
+
+- **Sem atividade, tudo como antes: 8 h.** A sessão nunca ficou mais curta.
+- **Com atividade, vai até o teto de 12 h desde o login ORIGINAL.** Na primeira
+  requisição depois que restarem menos de 4 h, o cookie é reemitido valendo até
+  `login + 12 h`. Como o teto conta do login, **a renovação é sempre cortada nele:
+  na prática é UMA renovação por sessão**, não uma a cada 4 h. Exemplo: login às
+  08:00; qualquer requisição entre 12:00 e 16:00 estende a sessão até 20:00; sem uso
+  entre 12:00 e 16:00, expira às 16:00.
+- **O teto existe** porque, sem ele, um PC compartilhado com uso contínuo manteria a
+  mesma sessão para sempre. É o único ponto em que o pior caso piora (cookie roubado:
+  de 8 h para 12 h).
+- `authAt` (login original) viaja dentro do JWT assinado, então não se adultera;
+  token antigo sem `authAt` usa o `iat`. Código: `utils/session-renewal.ts` (função
+  pura) e `renewSessionIfDue` em `middleware/auth.middleware.ts`.
+- **A renovação roda DEPOIS de todas as validações** (assinatura, tenant,
+  `sessionVersion`, status): logout e bloqueio continuam derrubando a sessão na hora,
+  e sessão inválida nunca ganha cookie. Só renova token que veio do **cookie**; quem
+  usa `Authorization: Bearer` é cliente de API. **Nunca lança**: falhar ao renovar não
+  pode virar 401 numa requisição já autenticada.
+- Os números estão travados em `middleware/session-renewal.test.ts`. Mudá-los é
+  decisão de segurança, não refatoração.
+
+Uma primeira versão dos testes esperava "mais 8 h" e reprovou: o código estava certo e
+o teste (e o comentário) é que descreviam o desenho errado. Vale como lembrete de que
+um teto contado do login faz toda renovação terminar nele.
+
 ## Fluxo de PR: o que custa tempo, medido
 
 Medido em 2026-10-06, quando o dono reclamou que subir três PRs demorava demais.

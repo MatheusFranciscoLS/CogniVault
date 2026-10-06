@@ -36,10 +36,18 @@ function cookieAttributes(maxAgeSeconds: number): string[] {
   return attributes;
 }
 
-export function setSessionCookie(res: Response, token: string): void {
+/**
+ * `maxAgeSeconds` existe para a renovação: perto do teto absoluto o token novo vale
+ * menos que 8 h, e o cookie não deve sobreviver ao token que carrega.
+ */
+export function setSessionCookie(
+  res: Response,
+  token: string,
+  maxAgeSeconds: number = SESSION_TTL_SECONDS,
+): void {
   res.setHeader(
     'Set-Cookie',
-    `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}; ${cookieAttributes(SESSION_TTL_SECONDS).join('; ')}`,
+    `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}; ${cookieAttributes(maxAgeSeconds).join('; ')}`,
   );
 }
 
