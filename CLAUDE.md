@@ -226,6 +226,36 @@ repositório inteiro — incluindo `.github/workflows/*.yml`, que scripts como
 outro arquivo `.ts`. Uma varredura anterior já teve um falso positivo exatamente
 por não checar os workflows.
 
+## Fluxo de PR: o que custa tempo, medido
+
+Medido em 2026-10-06, quando o dono reclamou que subir três PRs demorava demais.
+
+- O CI obrigatório leva ~4 minutos por PR: `backend` ~1m20, `frontend` ~35s, e o
+  `e2e` ~2m45 (começa depois do backend). A regra do repositório exige o branch
+  **atualizado** antes de mesclar, então **cada merge deixa os outros PRs abertos
+  defasados** e reinicia os 4 minutos deles. Três PRs paralelos viram uma fila.
+- **PR só de documentação pula os três jobs** (`changes` em `v6-ci.yml`). "Só texto"
+  é: `*.md`, `docs/**`, `.claude/**` e `LICENSE*`. Qualquer outro arquivo, inclusive
+  `.github/`, conta como código. A condição é **por job**, nunca `paths-ignore` no
+  workflow: workflow pulado por filtro deixa o check obrigatório pendente e trava o
+  PR, enquanto job pulado por `if:` reporta sucesso. Se a detecção quebrar, os
+  testes rodam (falha fechada).
+
+Como trabalhar para não pagar isso à toa:
+
+1. **Agrupe mudanças pequenas e relacionadas num PR só.** Um PR de 3 commits custa 4
+   minutos; três PRs de 1 commit custam 12 e ainda se atrapalham.
+2. **Só abra o PR quando terminar aquele assunto.** Cada push em PR aberto reinicia o
+   CI. O auto-merge dispara enquanto você ainda commita: já deixou um commit fora de
+   `main` (o `184899c`, recuperado no #203).
+3. **Valide antes de subir.** `tsc`, lint e build rodam local. O que só roda no CI
+   (workflow, e2e) não tem como: teste a LÓGICA separada, como foi feito com o
+   classificador de "só texto", e suba uma vez.
+4. **Um PR por vez na fila de merge.** Mescle, atualize o próximo com
+   `gh pr update-branch` (nunca reescreva história de PR) e só então espere.
+5. **Antes de apagar uma branch**, compare a ponta com o `headRefOid` do PR mesclado:
+   commit à frente é commit que não entrou em `main`.
+
 ## Skills do projeto
 
 Ficam em `.claude/skills/`. A procedência, a versão fixada e o que foi avaliado e
