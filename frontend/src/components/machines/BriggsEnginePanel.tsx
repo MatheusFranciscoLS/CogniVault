@@ -43,8 +43,13 @@ type BriggsIplPart = {
  * "Fora de linha" é vermelho e vem primeiro porque é o único que **impede** a
  * venda: prometer peça que a Briggs não fornece mais é o cliente voltando.
  */
-function BriggsNotes({ notes }: { notes: BriggsPartNote[] }) {
-  if (!notes.length) return null;
+function BriggsNotes({ notes }: { notes?: BriggsPartNote[] }) {
+  // Opcional de propósito, e não por precaução vaga: o cache do IPL guarda a
+  // resposta por 30 DIAS, então nos primeiros 30 dias depois deste deploy
+  // chegam payloads gravados antes de `notes` existir. Sem esta guarda,
+  // `notes.length` em `undefined` quebraria a tela do balcão justamente nos
+  // motores mais consultados — que são os que estão em cache.
+  if (!notes?.length) return null;
 
   const ordem = (note: BriggsPartNote) => (note.kind === 'DISCONTINUED' ? 0 : note.kind === 'SEE_REFERENCE' ? 1 : 2);
 
@@ -331,14 +336,14 @@ export default function BriggsEnginePanel({
                 >
                   {part.partNumber}
                 </button>
-                <span className="min-w-0 flex-1 truncate text-xs text-ink-700 dark:text-ink-200" title={part.qualifier || undefined}>
+                <span className="min-w-[9rem] flex-1 truncate text-xs text-ink-700 dark:text-ink-200" title={part.qualifier || undefined}>
                   {part.name}
                   {/* O qualificador diz QUAL das peças iguais é esta: a mola de
                       válvula aparece duas vezes, "-(Intake)" e "-(Exhaust)".
                       Quando ele virou aviso reconhecido, a tarja abaixo já diz
                       a mesma coisa em português, e repetir o inglês só ocuparia
                       a linha. */}
-                  {part.qualifier && !part.notes.length ? (
+                  {part.qualifier && !part.notes?.length ? (
                     <span className="text-ink-500 dark:text-ink-400"> · {part.qualifier}</span>
                   ) : null}
                 </span>
