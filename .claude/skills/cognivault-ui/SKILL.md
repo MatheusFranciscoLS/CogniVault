@@ -10,17 +10,22 @@ Estas regras **vencem** o gosto de qualquer outro skill. O `frontend-design` diz
 
 ## Quem usa e como
 
-Atendente de balcão, com o cliente esperando. Telas: **desktop 1440**, **tablet 10"
-em pé (820)** e **celular 390**. O que ele procura é a **peça**: código, descrição,
-preço, de onde veio a informação. Interface que explica o sistema atrapalha.
+Atendente de balcão, com o cliente esperando, num **PC com mouse e teclado**. **Esse é
+o único alvo do design** (dono, 2026-10-06: não há tablet na loja, e celular só o
+pessoal). Celular não é alvo: só não pode quebrar (sem rolagem horizontal). A
+resolução do PC do balcão **ainda não foi confirmada**: projete para 1366×768 e
+1920×1080. O que ele procura é a **peça**: código, descrição, preço, de onde veio a
+informação. Interface que explica o sistema atrapalha.
 
 ## Inegociável (operação, não estética)
 
 1. **Contraste medido, não olhado.** WCAG AA no DOM renderizado, compondo o alfa de
    todos os ancestrais (já erramos: 5,31:1 virou 4,51:1 com uma marca d'água por
    trás). Nunca `opacity` em cor de texto.
-2. **Alvo de toque ≥ 44 px** (`.cv-touch-target`). O desenho pode ser pequeno; a área
-   clicável não. Margem negativa + padding aumenta a área sem custo de layout.
+2. **Alvo de clique confortável (≥ 32 px) e teclado primeiro**: `Ctrl K` foca a busca,
+   Enter busca, Tab percorre na ordem visual, foco sempre visível. Os 44 px de toque só
+   valem se o PC do balcão tiver tela sensível ao toque (pergunta em aberto). Margem
+   negativa + padding aumenta a área sem custo de layout.
 3. **Código e preço são o destaque.** Código em algarismos tabulares ou monoespaçado,
    **nunca truncado**, nunca inventado. A origem (catálogo, fonte oficial, cadastro
    comercial) fica visível, porque ela sustenta a regra "nunca chutar o código".
@@ -28,8 +33,8 @@ preço, de onde veio a informação. Interface que explica o sistema atrapalha.
    atendente quer a peça e não a explicação"*. Texto é ação (para onde olhar, o que
    digitar, qual botão). Vale também para estado de sistema ("servidor disponível").
 5. **Uma ação principal por tela.** Ação destrutiva é menor e protegida.
-6. **Claro e escuro funcionam**, e funcionam em 820 e 390. Teclado: foco visível,
-   diálogo e gaveta prendem o foco e fecham com Esc.
+6. **Claro e escuro funcionam** em 1366×768 e 1920×1080. Diálogo e gaveta prendem o
+   foco e fecham com Esc. Em celular, só um teste de fumaça: não quebra.
 7. **Custo zero.** Nenhuma dependência paga. Dependência nova só com justificativa.
 
 **Piso proposto para o redesign, ainda NÃO ratificado pelo dono:** texto de leitura

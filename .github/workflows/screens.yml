@@ -1,0 +1,124 @@
+name: Screens
+
+# Captura de telas do balcão (3 larguras x 2 temas) num ambiente DESCARTÁVEL.
+#
+# Não é gate: não aparece em required_status_checks e não bloqueia PR. Serve para
+# olhar o visual com antes/depois comparáveis, sem depender de print mandado à
+# mão e sem nunca tocar na produção (usa o seed do e2e, dado de teste público).
+#
+# Como usar: Actions > Screens > Run workflow, e baixar o artefato `screens`.
+# Também roda em PR que altere SÓ este arquivo ou o script de captura, para que
+# uma mudança na própria captura seja verificada antes do merge.
+on:
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - '.github/workflows/screens.yml'
+      - 'frontend/e2e/capture-screens.mjs'
+      - 'frontend/e2e/capture.config.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  screens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.6-pg17
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: cognivault_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d cognivault_e2e"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      rabbitmq:
+        image: rabbitmq:3.13-management-alpine
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://user:password@localhost:5432/cognivault_e2e
+      RABBITMQ_URL: amqp://guest:guest@localhost:5672
+      JWT_SECRET: e2e-only-secret-not-used-in-production
+      NODE_ENV: test
+      E2E_SEED_ALLOWED: 'true'
+      E2E_PASSWORD: CogniVault-E2E-2026!
+      GEMINI_API_KEY: ci-placeholder
+      SUPABASE_URL: https://example.supabase.co
+      SUPABASE_SECRET_KEY: ci-placeholder
+      ENABLE_SEMANTIC_INDEXING: 'false'
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up backend Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Prepare backend
+        working-directory: backend
+        run: |
+          npm ci --prefix . --workspaces=false
+          npx prisma generate
+          npx prisma migrate deploy
+          npm run seed:e2e
+          npm run build
+          nohup npm start >/tmp/cognivault-backend.log 2>&1 &
+      - name: Wait for backend
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://localhost:3333/health/live >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/cognivault-backend.log || true
+          exit 1
+      - name: Set up frontend Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Prepare Playwright and frontend
+        working-directory: frontend
+        run: |
+          npm ci --prefix . --workspaces=false
+          npm install --prefix . --workspaces=false --no-save --no-package-lock @playwright/test@1.63.0
+          npx playwright install --with-deps chromium
+          nohup npm run dev -- --host 0.0.0.0 >/tmp/cognivault-frontend.log 2>&1 &
+      - name: Wait for frontend
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://localhost:5173/login >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/cognivault-frontend.log || true
+          exit 1
+      - name: Capture screens
+        working-directory: frontend
+        run: npx playwright test -c e2e/capture.config.mjs
+      - name: Upload screens
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screens
+          path: frontend/screens/*.png
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Print service logs on failure
+        if: failure()
+        run: |
+          echo '--- backend ---'
+          cat /tmp/cognivault-backend.log || true
+          echo '--- frontend ---'
+          cat /tmp/cognivault-frontend.log || true
