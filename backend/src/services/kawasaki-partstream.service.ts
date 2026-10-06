@@ -158,7 +158,8 @@ export class KawasakiPartStreamService {
       // Cache no Postgres, que no plano free pausa. Ele é otimização, não
       // requisito: sem ele a consulta segue direto.
       console.warn(
-        `[Kawasaki] Cache indisponível para "${model}"; consultando direto.`,
+        '[Kawasaki] Cache indisponível para %j; consultando direto.',
+        model,
         cacheError instanceof Error ? cacheError.message : cacheError,
       );
     }
@@ -167,7 +168,8 @@ export class KawasakiPartStreamService {
       return (await loader()) ?? EMPTY(model);
     } catch (error) {
       console.warn(
-        `[Kawasaki] Não foi possível resolver o catálogo de "${model}":`,
+        '[Kawasaki] Não foi possível resolver o catálogo de %j:',
+        model,
         error instanceof Error ? error.message : error,
       );
       return EMPTY(model);
