@@ -150,7 +150,8 @@ export class BriggsIplService {
       if (cached.value) return cached.value;
     } catch (cacheError) {
       console.warn(
-        `[Briggs IPL] Cache indisponível para "${manuals.model}"; lendo direto.`,
+        '[Briggs IPL] Cache indisponível para %j; lendo direto.',
+        manuals.model,
         cacheError instanceof Error ? cacheError.message : cacheError,
       );
     }
@@ -159,7 +160,8 @@ export class BriggsIplService {
       return (await loader()) ?? { status: 'NO_MANUAL' };
     } catch (error) {
       console.warn(
-        `[Briggs IPL] Não foi possível ler o PDF de "${manuals.model}":`,
+        '[Briggs IPL] Não foi possível ler o PDF de %j:',
+        manuals.model,
         error instanceof Error ? error.message : error,
       );
       // Falha de transporte não é "o PDF não serve": o link continua valendo.

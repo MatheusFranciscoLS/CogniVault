@@ -43,14 +43,18 @@ minutos ilimitados).
 ## Comandos
 
 - Backend typecheck: `cd backend && npx tsc --noEmit`.
-- Backend build+test real: `cd backend && npm test` (roda `tsc` e depois
-  `node --test dist/**/*.test.js` — precisa de build passar primeiro).
+- Backend build+test real: `cd backend && npm test` (roda `tsc`, a **guarda do
+  banco** e depois `node --test dist/**/*.test.js` — precisa de build passar
+  primeiro). **Na máquina de desenvolvimento ele recusa de propósito**: o
+  `.env` aponta para a produção. Veja "A suíte de testes não roda contra a
+  produção" abaixo.
 - Backend não tem `npm run lint` (não há ESLint configurado lá; `tsc` é o
   único gate de tipo).
 - Frontend: `cd frontend && npm run lint && npm run build`.
 - E2E: `frontend/e2e/*.spec.mjs` via Playwright, sobem backend+frontend reais
-  com Postgres de teste (só roda de ponta a ponta em CI/local com Docker;
-  neste sandbox não há `DATABASE_URL`, não dá pra rodar completo).
+  com Postgres de teste (só roda de ponta a ponta em CI, ou local com um
+  PostgreSQL descartável). **Não há "sandbox sem `DATABASE_URL`" na máquina de
+  desenvolvimento** — ela tem, e aponta para a produção.
 
 ## Limitações conhecidas de ambiente sandbox (não são bugs do projeto)
 
@@ -413,6 +417,42 @@ Ao criar tabela, acrescente na mesma migração:
 
 O Prisma não faz isso sozinho, e o painel do Supabase só avisa depois que a
 tabela já está em produção.
+
+## A suíte de testes não roda contra a produção
+
+Este arquivo já disse que não havia `DATABASE_URL` no ambiente de
+desenvolvimento. **Era falso**: o `.env` do backend aponta para o Supabase de
+produção, o Prisma o carrega sozinho, e `npm test` sempre rodou contra ele sem
+ninguém ver. Descoberto em 2026-10-06 por dois sintomas no mesmo dia:
+
+- um teste "com o banco fora" não simulava falha nenhuma — a consulta
+  funcionava, devolvia vazio, e o `catch` nunca era exercitado (verde falso). Ele
+  passou a reprovar quando uma consulta real da Briggs indexou o código que o
+  teste usava;
+- o teste de `OfficialPartIndexService.record` chamava `upsert` de verdade e
+  deixou **duas linhas inventadas** em `OfficialPartIndex` na produção, entre
+  elas um pareamento Kawasaki peça→motor fictício com a procedência "oficial" —
+  exatamente o dado que o produto jura nunca mostrar. **Eu afirmei, antes disso,
+  que os testes só liam. Estava errado.**
+
+Agora `npm test` passa por `scripts/guard-test-database.ts`, que recusa quando o
+host é de provedor hospedado (`utils/test-database-guard.ts`: supabase, render,
+neon, rds). Por sufixo de host conhecido, **não** por lista de permitidos: o CI usa
+`localhost`, e uma lista de permitidos quebraria `host.docker.internal` e nome de
+serviço de container sem proteger nada a mais. A mensagem nunca imprime a URL. O
+escape `ALLOW_PRODUCTION_DB_TESTS=1` existe de propósito — trava sem saída é
+contornada de formas piores.
+
+**Três arquivos precisam de Postgres de verdade e só passam com um** (medido
+rodando a suíte contra uma porta morta): `ai-decision-cache.service.test.ts`,
+`bounded-portal-coverage.service.test.ts` e `husqvarna-live-part.test.ts`. Eles
+gravam e depois limpam; no CI isso é seguro, na máquina de desenvolvimento só com
+o banco descartável da seção abaixo.
+
+**Teste de resiliência a falha injeta a falha.** Padrão em
+`controllers/no-reject.test.ts` e `official-part-index.test.ts`: trocar o método
+do Prisma por um que lança, e afirmar que o `catch` foi exercitado (o espião foi
+chamado). Contar com "não há banco aqui" é o erro que originou esta seção.
 
 ## Validar migração e endpoints sem tocar em produção
 

@@ -4,7 +4,13 @@ type UsageItem = { partNumber: string; model?: string | null };
 const SESSION_KEY = 'cognivault_quote_usage_session';
 
 function createSessionId() {
-  return typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  // Plano B para navegador sem `randomUUID`. Este id só agrupa a sessão nas
+  // estatísticas de uso (COUNT DISTINCT) e nunca autentica nada, mas
+  // `getRandomValues` existe onde `randomUUID` falta e não tem o defeito de
+  // aleatoriedade previsível que o CodeQL apontava no `Math.random`.
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 function getSessionId(reset = false) {
