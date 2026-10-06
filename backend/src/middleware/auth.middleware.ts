@@ -2,7 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { LRUCache } from 'lru-cache';
 import { prisma } from '../config/prisma';
-import { readSessionCookie } from '../utils/session-cookie';
+import { readSessionCookie, setSessionCookie } from '../utils/session-cookie';
+import { planSessionRenewal } from '../utils/session-renewal';
 
 function getJwtSecret(): string {
     const secret = process.env.JWT_SECRET;
@@ -72,6 +73,45 @@ export function invalidateUserAuthCache(userId?: string): void {
         userAuthCache.delete(userId);
     } else {
         userAuthCache.clear();
+    }
+}
+
+/**
+ * Renova o cookie de sessão quando a pessoa está em atividade e a sessão está na
+ * segunda metade da vida. Ver `utils/session-renewal.ts` para os números.
+ *
+ * Roda DEPOIS de todas as validações (assinatura, tenant, `sessionVersion`,
+ * status): só sessão válida é renovada, então logout e bloqueio continuam
+ * derrubando a sessão na hora. Só renova quando o token veio do COOKIE; quem usa
+ * `Authorization: Bearer` é cliente de API e renova fazendo login.
+ *
+ * **Nunca lança.** Renovar é conforto; um erro aqui não pode transformar uma
+ * requisição já autenticada em 401.
+ */
+function renewSessionIfDue(
+    req: Request,
+    res: Response,
+    claims: Record<string, unknown>,
+    user: CachedUser,
+): void {
+    if (!readSessionCookie(req)) return;
+    try {
+        const plan = planSessionRenewal(claims, Math.floor(Date.now() / 1000));
+        if (!plan) return;
+        const token = jwt.sign(
+            {
+                id: user.id,
+                role: user.role,
+                tenantId: user.tenantId,
+                sessionVersion: user.sessionVersion,
+                authAt: plan.authAt,
+            },
+            getJwtSecret(),
+            { algorithm: 'HS256', expiresIn: plan.expiresInSeconds },
+        );
+        setSessionCookie(res, token, plan.expiresInSeconds);
+    } catch (error) {
+        console.error('⚠️ Não foi possível renovar a sessão:', error);
     }
 }
 
@@ -179,6 +219,8 @@ export async function authMiddleware(
             createdAt: currentUser.createdAt,
             tenantName: currentUser.tenantName,
         };
+
+        renewSessionIfDue(req, res, decoded as Record<string, unknown>, currentUser);
 
         next();
     } catch (error) {
