@@ -37,7 +37,7 @@ A plataforma combina dados estruturados, documentos privados, regras técnicas e
 
 ## Evidências técnicas verificadas
 
-| 45 | 17 | 12 | 2 |
+| 140 | 43 | 22 | 2 |
 | :---: | :---: | :---: | :---: |
 | arquivos de teste automatizado | migrations versionadas | modelos de domínio no Prisma | perfis operacionais |
 
@@ -187,7 +187,7 @@ A atualização de memória técnica é uma operação separada: reutiliza as pe
 
 CogniVault is an internal technical catalog and parts-intelligence platform. It centralizes private documents, structured parts data and operational knowledge with role-based access, asynchronous processing and evidence-grounded AI answers.
 
-The current repository contains **45 automated test files, 17 versioned database migrations, 12 Prisma domain models and 2 operational roles**. Part numbers originate from structured records; AI supports interpretation, context and ranking without replacing technical evidence.
+The current repository contains **140 automated test files (136 backend and 4 browser E2E), 43 versioned database migrations, 22 Prisma domain models and 2 operational roles** (counted on 2026-10-06). Part numbers originate from structured records; AI supports interpretation, context and ranking without replacing technical evidence.
 
 [Open application](https://cognivault-murex.vercel.app) · [View portfolio](https://matheusfranciscols.github.io/) · [Contact Matheus](https://www.linkedin.com/in/matheusfranciscols)
 
