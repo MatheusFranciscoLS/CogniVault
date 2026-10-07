@@ -42,18 +42,20 @@ export async function gerar(machine: ListedMachine, todas: ListedMachine[]) {
     complement: suggestComplement(machine, detail ? { features: detail.features, specifications: detail.specifications } : null),
     highlight: defaultHighlight(machine.application), includeEquipment,
   };
-  let photoUrl = machine.hasPhoto ? machinePhotoUrl(machine.pnc) : (detail?.imageUrl ?? null);
+  // Portal primeiro (qualidade), pelo PNC e pelo nome; a foto da lista é a reserva.
+  let photoUrl = detail?.imageUrl ?? null;
   if (!photoUrl) {
     try {
       const found = await apiJson<{ results?: Array<{ imageUrl: string | null }> }>('/api/husqvarna/products/search?q=' + encodeURIComponent(machine.model) + '&exact=1', { timeoutMs: 20000 });
       photoUrl = found.results?.find(item => item.imageUrl)?.imageUrl ?? null;
     } catch { photoUrl = null; }
   }
+  if (!photoUrl && machine.hasPhoto) photoUrl = machinePhotoUrl(machine.pnc);
   const photo = photoUrl ? await loadProductImage(photoUrl) : null;
   const doc = buildMachineQuotePdf({ doc: new jsPDF('p', 'pt', 'a4'), autoTable, machine, equipment, fields, variant: machineVariantNote(machine, todas), logo: await loadStoreLogo(), photo });
   const base64 = (doc.output('datauristring') as string).split(',')[1];
   const descricao = machineQuoteDescription(machine, fields.complement, machineVariantNote(machine, todas));
-  return { base64, descricao, comPortal: Boolean(detail), comFoto: Boolean(photo), complemento: fields.complement, equipamento: includeEquipment };
+  return { base64, descricao, comPortal: Boolean(detail), comFoto: Boolean(photo), fonteFoto: photo ? (photoUrl && photoUrl.startsWith("/api/") ? "lista" : "portal") : null, complemento: fields.complement, equipamento: includeEquipment };
 }
 `);
 
@@ -78,7 +80,7 @@ try {
         const sufixo = vistos.get(m.model) > 1 ? `-${m.pnc.replace(/[^A-Za-z0-9]/g, '')}` : '';
         const arquivo = path.join(pasta, `Orcamento-${limpar(m.model)}${sufixo}.pdf`);
         fs.writeFileSync(arquivo, Buffer.from(r.base64, 'base64'));
-        resumo.push({ modelo: m.model, categoria: m.category, preco: m.listPrice, descricao: r.descricao, foto: r.comFoto, portal: r.comPortal, complemento: Boolean(r.complemento), acompanha: r.equipamento });
+        resumo.push({ modelo: m.model, categoria: m.category, preco: m.listPrice, descricao: r.descricao, foto: r.comFoto, fonteFoto: r.fonteFoto, portal: r.comPortal, complemento: Boolean(r.complemento), acompanha: r.equipamento });
       } catch (erro) {
         resumo.push({ modelo: m.model, categoria: m.category, erro: String(erro).slice(0, 120) });
       }
@@ -98,7 +100,7 @@ const semPortal = resumo.filter(r => !r.erro && !r.portal);
 const linhas = [
   `Orçamentos-modelo gerados em ${new Date().toLocaleString('pt-BR')}`,
   `Total: ${resumo.length - erros.length} PDFs (${erros.length} com erro)`,
-  `Com foto da máquina: ${comFoto}`,
+  `Com foto da máquina: ${comFoto} (Portal: ${resumo.filter(r => r.fonteFoto === "portal").length}, lista: ${resumo.filter(r => r.fonteFoto === "lista").length})`,
   `Com complemento sugerido pelo Portal: ${resumo.filter(r => r.complemento).length}`,
   `Com "conjunto composto por": ${resumo.filter(r => r.acompanha).length}`,
   `Sem resposta do Portal (sem foto e sem complemento): ${semPortal.length} - ${semPortal.map(r => r.modelo).join(', ')}`,

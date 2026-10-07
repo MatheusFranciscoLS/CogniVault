@@ -44,10 +44,11 @@ export default function MachineQuoteDialog({
   allMachines: ListedMachine[];
   onClose: () => void;
 }) {
-  // Foto da própria lista (todas as máquinas vigentes têm); só sem ela vale a do Portal, pelo PNC ou pelo nome do modelo.
+  // Foto do PORTAL primeiro (maior qualidade; dono, 2026-10-07), pelo PNC e, sem ela, pelo nome do modelo. A da própria
+  // lista, que toda máquina vigente tem, fica de reserva.
   const listPhoto = machine.hasPhoto ? machinePhotoUrl(machine.pnc) : null;
-  const byName = useMachinePhoto(machine.model, !listPhoto && portalSettled && !portal?.imageUrl);
-  const photoUrl = listPhoto ?? portal?.imageUrl ?? byName.data ?? null;
+  const byName = useMachinePhoto(machine.model, portalSettled && !portal?.imageUrl);
+  const photoUrl = portal?.imageUrl ?? byName.data ?? listPhoto;
   const ids = useId();
   const [customer, setCustomer] = useState('');
   const [priceText, setPriceText] = useState(() => String(machine.listPrice).replace('.', ','));

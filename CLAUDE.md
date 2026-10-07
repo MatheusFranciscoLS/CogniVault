@@ -168,8 +168,9 @@ usuários** ("todos podem visualizar isso").
   ~2,7 MB no total), gravadas pelo importador na mesma transação da lista, e servidas por `GET /api/machine-list/:pnc/photo`
   só para quem está logado. **Nenhuma imagem, nem o .html, entra no repositório (público) nem nos testes**: o aviso de
   propriedade intelectual da Husqvarna segue valendo. Os testes usam máquinas e uma foto inventadas ("RIFF"). O orçamento
-  usa a foto da lista primeiro e o Portal como reserva. Subir o código antes de reimportar é seguro: sem foto no banco, a
-  gaveta cai nas fotos do Portal (139 de 151).
+  usa a foto do PORTAL primeiro (maior qualidade; dono, 2026-10-07: "utilize todas as fotos do Portal"), pelo PNC e depois pelo
+  nome do modelo, e a da lista só como reserva (hoje 139 pelo Portal e 12 pela lista, de 151). A foto é reduzida a 800 px em JPEG. Sem reimportar a lista, as 12 máquinas que o Portal não
+  tem ficam sem foto.
 - **Fichas que o importador agora lê, por categoria** (`buildCategorySpecs`): transmissão e velocidade máxima só de giro zero,
   trator, rider e cortador de grama (em motosserra o mesmo campo é velocidade da corrente, 174,9 km/h); área de trabalho e
   inclinação só de Automower. **Peso continua fora** (decisão do dono). Os testes usam máquinas inventadas.
