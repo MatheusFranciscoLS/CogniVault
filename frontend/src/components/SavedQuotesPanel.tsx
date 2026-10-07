@@ -171,7 +171,7 @@ export default function SavedQuotesPanel() {
   const hasFilters = Boolean(appliedFilter || from || to);
 
   return (
-    <section className="mx-auto max-w-[1400px] space-y-4">
+    <section className="mx-auto w-full max-w-[1400px] space-y-4">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="text-3xl font-semibold tracking-tight">Orçamentos</h1>
         <p className="text-base text-muted-foreground tabular-nums">
