@@ -239,9 +239,14 @@
 * { box-sizing: border-box; }
 html { background: var(--cv-neutral); }
 body { margin: 0; min-width: 320px; min-height: 100vh; overflow-x: hidden; }
-button, input, select, textarea { font: inherit; }
-button { cursor: pointer; }
-button:disabled { cursor: not-allowed; }
+/* Dentro de @layer base DE PROPÓSITO. No Tailwind 4 uma regra de elemento fora
+   de camada vence TODA classe utilitária: `button { font: inherit }` solta fazia
+   cada botão perder o text-xs/font-black (visto no Screens da migração). */
+@layer base {
+  button, input, select, textarea { font: inherit; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+}
 
 /* Preço, código de peça e quantidade precisam alinhar em coluna. O site da loja
    também usa tabular-nums. */
