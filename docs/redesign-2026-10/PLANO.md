@@ -145,17 +145,17 @@ Regra: cada tela percorrida entra aqui com o que foi corrigido na hora (✅) e o
 | ✅ | Últimas buscas ao focar o campo vazio (↑/↓, Enter, Esc); a tela Histórico foi apagada |
 | 💡 | Linhas se reordenam quando a fase "por significado" acrescenta peças: marcar o que chegou depois, ou só anexar no fim do grupo |
 | 💡 | Abrir uma máquina grava a máquina no atendimento sem avisar: mostrar que foi gravada |
-| 💡 | Pergunta de óleo devolve 20+ linhas de filtro/vela: oferecer os botões de óleo no topo |
+| ✅ | Pergunta de óleo: os 4 óleos da loja viram botões no topo (feito antes; o plano estava defasado) |
 | ❓ | Contexto (cliente/máquina) sobrevive ao recarregar: manter? hoje fica até "Encerrar atendimento" |
-| 💡 | A máquina aparece duas vezes: na barra de contexto e como chip "recente" logo abaixo da busca |
-| 💡 | **9 diálogos nativos do navegador (`window.confirm`)**: Encerrar atendimento, Esvaziar orçamento, Retomar e Excluir orçamento (balcão) e mais 5 na administração/biblioteca. Trocar por um diálogo do próprio site, com o texto do que será perdido e botão claro |
+| ✅ | A máquina aparecia duas vezes (atalho da busca e chip "recente"): o "recente" igual ao do atalho ou ao do contexto some (roteiro com prova de mordida) |
+| ✅ | **9 diálogos nativos do navegador (`window.confirm`)** trocados por diálogos do próprio site (`ConfirmProvider`); os roteiros reprovam se aparecer um nativo |
 
 ### Gaveta da peça
 | | Achado |
 |---|---|
 | ✅ | O Esc que fecha o menu ⋯ fechava a gaveta inteira (tratador global duplicado): corrigido |
 | ✅ | **"Registrar conferência"** refeito com o diálogo do shadcn (foco preso, `role="dialog"`, Esc fecha só ele) e sem o texto que explicava o sistema; 9 verificações novas no roteiro da gaveta |
-| 💡 | "Leve junto": companheiro sem nome mostra o código duas vezes ("595353 / 595353") |
+| ✅ | "Leve junto": companheiro sem nome mostrava o código duas vezes ("595353 / 595353"): agora uma vez só |
 | 💡 | Falha ao abrir o PDF mostra um aviso no canto, bom; poderia oferecer "tentar de novo" |
 
 ### Gaveta do orçamento (26 verificações)
@@ -167,8 +167,8 @@ Regra: cada tela percorrida entra aqui com o que foi corrigido na hora (✅) e o
 | ✅ | Serviço avulso ("Mão de obra") contava como segunda máquina e o texto repetia "Máquina:" em toda peça |
 | ✅ | **PDF refeito** (`lib/quote-pdf.ts`, 8 testes): cabeçalho da loja, tabela com código em Courier, total em destaque, "Válido até", rodapé com "Página n de N"; **prévia** da mensagem do WhatsApp com "Copiar mensagem" |
 | ✅ | O total na gaveta estava um centavo diferente do que o cliente recebia (R$ 435,92 x 435,91): agora os três (gaveta, texto, PDF) usam a mesma conta |
-| 💡 | Texto livre para observação ("peça sob encomenda, prazo 5 dias") no WhatsApp e no PDF |
-| 💡 | Telefone digitado sem máscara ("19987654321"): formatar enquanto digita |
+| ✅ | Texto livre para observação no WhatsApp e no PDF: feito (observações editáveis do orçamento) |
+| ✅ | Telefone com máscara enquanto digita (`lib/phone.ts`): `(19) 98765-4321`; colar com +55 e traço dá o mesmo |
 
 ### Orçamentos (arquivo) (24 verificações)
 | | Achado |
