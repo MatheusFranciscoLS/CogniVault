@@ -19,6 +19,7 @@ import { briggsManualsController } from '../controllers/briggs-manuals.controlle
 import { kawasakiController } from '../controllers/kawasaki.controller';
 import { CommercialSearchController } from '../controllers/commercial-search.controller';
 import { masterPartPricesController } from '../controllers/master-part-prices.controller';
+import { machineListingController } from '../controllers/machine-listing.controller';
 import { officialPartIndexController } from '../controllers/official-part-index.controller';
 import { partPickerController } from '../controllers/part-picker.controller';
 import { CommercialImportController } from '../controllers/commercial-import.controller';
@@ -140,6 +141,8 @@ router.get('/master-parts/search', authMiddleware, (req, res) => commercialSearc
 // catálogo Briggs tem até 283 linhas e isso não cabe em query string. É leitura,
 // não grava nada. Ver controllers/master-part-prices.controller.ts.
 router.post('/master-parts/prices', authMiddleware, (req, res) => masterPartPricesController.byCodes(req, res));
+// Aba "Tabela de precos": maquinas da lista vigente da Husqvarna. So leitura, todos os usuarios.
+router.get('/machine-list', authMiddleware, (req, res) => machineListingController.list(req, res));
 // "O cliente chegou com este codigo — de que motor e?". Responde com o que ja
 // foi lido do catalogo oficial de Briggs/Kawasaki. Ver
 // services/official-part-index.service.ts.

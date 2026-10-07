@@ -1,152 +1,216 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Check, Copy, MoreHorizontal, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiJson, cleanErpCode } from '../../lib';
-import { useOverlayLifecycle } from '../../lib/useOverlayLifecycle';
 import { useQuoteCart } from '../../context/QuoteCartContext';
 import type { OfficialVerification, PartDetail } from '../../types';
-import { effectivePartNumber, isSupersededForCode, officialPortalLabel, officialPortalUrl, VerificationBadge } from '../PartVerificationDialog';
+import { effectivePartNumber, isSupersededForCode, officialPortalLabel, officialPortalUrl } from '../PartVerificationDialog';
 import { recordQuoteUsage } from './quoteUsage';
-import SourceBadge from './SourceBadge';
 import type { HusqvarnaLivePart, WorkContext } from './types';
+import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 
-type Props = { detail: PartDetail; verification?: OfficialVerification; verificationLoading?: boolean; liveData: HusqvarnaLivePart | null; onClose: () => void; onCopy: (code: string) => void; onOpenPdf: (documentId: string, page: number | null, title: string) => void; onOpenRelated: (id: string) => void; onToggleFavorite: () => void; onVerify: () => void; onCrossReference: (code: string, name: string) => void; onAskAi: (prompt: string) => void };
+/**
+ * Gaveta "Detalhe da peça".
+ *
+ * O site cuida da VISTA EXPLODIDA e do ORÇAMENTO; a venda acontece no sistema da loja.
+ * Por isso a ação principal é COPIAR O CÓDIGO, e a gaveta mostra só o que ajuda a
+ * vender: código, preço, onde a peça está na vista explodida, o que levar junto. O que
+ * era informação sobre o sistema (confiabilidade, fontes, "onde usa", "também serve em")
+ * saiu; o raro (conferir, perguntar à IA) mora no menu "⋯".
+ */
 
-function money(value?: number | null) { return value == null ? null : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value); }
-function SmallPartAction({ code, name, extra, onCopy }: { code: string; name: string; extra?: string; onCopy: (code: string) => void }) { const rawCode = cleanErpCode(code); return <div className="flex items-center justify-between gap-3 rounded-xl bg-ink-50 px-3 py-2.5 dark:bg-ink-800/60"><div className="min-w-0"><div className="truncate text-xs font-black text-ink-800 dark:text-ink-100">{name}</div><div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-ink-500 dark:text-ink-400"><span className="font-mono font-bold text-brand-600 dark:text-brand-300">{rawCode}</span>{extra && <span>{extra}</span>}</div></div><button type="button" onClick={() => onCopy(rawCode)} className="shrink-0 rounded-lg border border-ink-200 bg-white px-2.5 py-1.5 text-[10px] font-black text-ink-600 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300">Copiar</button></div>; }
+type Props = {
+  detail: PartDetail;
+  verification?: OfficialVerification;
+  liveData: HusqvarnaLivePart | null;
+  onClose: () => void;
+  onCopy: (code: string) => void;
+  onOpenPdf: (documentId: string, page: number | null, title: string) => void;
+  onOpenRelated: (id: string) => void;
+  onVerify: () => void;
+  onAskAi: (prompt: string) => void;
+  /** Há algo por cima (visualizador de PDF, conferência, IA) que fecha com o Esc: a gaveta fica. */
+  escapeBlocked?: boolean;
+};
 
-export default function PartDetailDrawer({ detail, verification, verificationLoading = false, liveData, onClose, onCopy, onOpenPdf, onOpenRelated, onToggleFavorite, onVerify, onCrossReference, onAskAi }: Props) {
+const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+/** Botão de copiar com confirmação na própria tela (o aviso some sozinho em 1,6 s). */
+function useCopyFlash(onCopy: (code: string) => void) {
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = useCallback((code: string) => {
+    onCopy(code);
+    setCopied(code);
+    window.setTimeout(() => setCopied(current => (current === code ? null : current)), 1600);
+  }, [onCopy]);
+  return { copied, copy };
+}
+
+export default function PartDetailDrawer({ detail, verification, liveData, onClose, onCopy, onOpenPdf, onOpenRelated, onVerify, onAskAi, escapeBlocked = false }: Props) {
   const quoteCart = useQuoteCart();
   const [workContext, setWorkContext] = useState<WorkContext | null>(null);
-  const [contextLoading, setContextLoading] = useState(true);
-  const [locationEditing, setLocationEditing] = useState(false);
-  const [location, setLocation] = useState('');
-  const [locationNote, setLocationNote] = useState('');
-  const [savingLocation, setSavingLocation] = useState(false);
-  useOverlayLifecycle({ onClose });
+  const { copied, copy } = useCopyFlash(onCopy);
+
   const superseded = isSupersededForCode(detail.partNumber, verification);
   const effectiveCode = cleanErpCode(effectivePartNumber(detail.partNumber, verification));
   const originalCode = cleanErpCode(detail.partNumber);
-  const price = money(detail.price);
   const quoteManufacturer = detail.manufacturer || detail.document.manufacturer || null;
+  const officialUrl = liveData?.originalPartUrl || verification?.officialUrl || officialPortalUrl(effectiveCode, quoteManufacturer);
   const inCart = useMemo(() => quoteCart.items.find(item => cleanErpCode(item.partNumber) === effectiveCode && item.model === detail.model), [detail.model, effectiveCode, quoteCart.items]);
 
-  const loadContext = useCallback(async () => {
-    setContextLoading(true);
-    try { const data = await apiJson<{ context: WorkContext }>(`/api/parts/${encodeURIComponent(effectiveCode)}/work-context?model=${encodeURIComponent(detail.model)}`); setWorkContext(data.context); setLocation(data.context.location?.value || ''); setLocationNote(data.context.location?.note || ''); } catch { setWorkContext(null); } finally { setContextLoading(false); }
+  useEffect(() => {
+    let active = true;
+    void apiJson<{ context: WorkContext }>(`/api/parts/${encodeURIComponent(effectiveCode)}/work-context?model=${encodeURIComponent(detail.model)}`)
+      .then(data => { if (active) setWorkContext(data.context); })
+      .catch(() => { if (active) setWorkContext(null); });
+    return () => { active = false; };
   }, [detail.model, effectiveCode]);
-  useEffect(() => { const timer = window.setTimeout(() => void loadContext(), 0); return () => window.clearTimeout(timer); }, [loadContext]);
 
-  const addToQuote = () => { recordQuoteUsage([...quoteCart.items, { partNumber: effectiveCode, model: detail.model }], quoteCart.items.length === 0); quoteCart.addItem({ partNumber: effectiveCode, effectiveCode, manufacturer: quoteManufacturer, name: detail.name, model: detail.model, pnc: detail.pnc, section: detail.section, position: detail.position, filename: detail.filename, page: detail.page, isSuperseded: superseded, originalCode: superseded ? originalCode : undefined, notes: detail.notes, unitPrice: detail.price ?? undefined }); };
-  const sendWhatsApp = () => { const text = [`*${detail.name}*`, `Código: ${effectiveCode}`, `Aplicação: ${detail.model}${detail.pnc ? ` · PNC ${detail.pnc}` : ''}`, price ? `Preço: ${price}` : null].filter(Boolean).join('\n'); window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer'); };
-  const saveLocation = async () => { const clean = location.trim(); if (!clean) { toast.error('Informe a localização física da peça.'); return; } setSavingLocation(true); try { await apiJson(`/api/parts/${encodeURIComponent(effectiveCode)}/location`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: clean, note: locationNote.trim() }) }); toast.success('Localização compartilhada atualizada.'); setLocationEditing(false); await loadContext(); } catch (error) { toast.error(error instanceof Error ? error.message : 'Não foi possível salvar a localização.'); } finally { setSavingLocation(false); } };
-  const officialUrl = liveData?.originalPartUrl || verification?.officialUrl || officialPortalUrl(effectiveCode, quoteManufacturer);
-  const sources = workContext?.sources || [];
+  const addToQuote = () => {
+    recordQuoteUsage([...quoteCart.items, { partNumber: effectiveCode, model: detail.model }], quoteCart.items.length === 0);
+    quoteCart.addItem({ partNumber: effectiveCode, effectiveCode, manufacturer: quoteManufacturer, name: detail.name, model: detail.model, pnc: detail.pnc, section: detail.section, position: detail.position, filename: detail.filename, page: detail.page, isSuperseded: superseded, originalCode: superseded ? originalCode : undefined, notes: detail.notes, unitPrice: detail.price ?? undefined });
+  };
 
-  return <div className="fixed inset-0 z-[75] flex justify-end"><button type="button" aria-label="Fechar detalhe" onClick={onClose} className="absolute inset-0 bg-ink-950/45 backdrop-blur-[2px]" /><section role="dialog" aria-modal="true" aria-labelledby="part-detail-title" className="relative z-10 flex h-[100dvh] w-full max-w-[900px] flex-col bg-ink-100 shadow-2xl dark:bg-ink-950">
-    <header className="flex shrink-0 items-start justify-between gap-4 border-b border-ink-200 bg-white px-4 py-4 dark:border-ink-800 dark:bg-ink-900 sm:px-7"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="text-[10px] font-black uppercase tracking-[.15em] text-brand-600 dark:text-brand-300">Detalhe da peça</span><SourceBadge source="CATALOG" compact />{sources.filter(source => source.type !== 'CATALOG').map(source => <SourceBadge key={`${source.type}:${source.detail}`} source={source.type} detail={source.detail} compact />)}</div><h2 id="part-detail-title" className="mt-1 truncate text-lg font-black tracking-[-.02em] text-ink-950 dark:text-white sm:text-xl">{detail.name}</h2></div><button type="button" onClick={onClose} className="shrink-0 rounded-xl border border-ink-200 bg-white px-3 py-2 text-xs font-bold text-ink-600 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300">Fechar <span className="ml-1 hidden text-[9px] text-ink-500 dark:text-ink-400 sm:inline">Esc</span></button></header>
-    <div className="cv-scrollbar min-h-0 flex-1 overflow-y-auto p-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:p-6"><div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(260px,.85fr)]"><div className="space-y-4">
-      <section className="overflow-hidden rounded-2xl bg-ink-900 text-white shadow-[0_14px_35px_rgba(13,43,85,.16)]"><div className="p-5 sm:p-6"><div className="text-[10px] font-black uppercase tracking-[.13em] text-brand-200">Código da peça</div><div className="mt-2 break-all font-mono text-3xl font-black tracking-[-.04em]">{effectiveCode}</div>{superseded && <div className="mt-1 text-xs text-brand-200">Código anterior: {originalCode}</div>}<div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">{price ? <><span className="text-[10px] font-black uppercase tracking-[.13em] text-brand-200">Preço de venda</span><span className="text-2xl font-black tabular-nums text-emerald-300">{price}</span></> : <span className="rounded-lg bg-white/10 px-2.5 py-1 text-[11px] font-bold text-amber-200">Sem preço cadastrado — confira no Portal Parceiro</span>}</div><div className="mt-5 grid gap-2 sm:grid-cols-2"><button type="button" onClick={() => onCopy(effectiveCode)} className="rounded-xl bg-white px-4 py-3 text-sm font-black text-ink-900">Copiar código</button><button type="button" onClick={addToQuote} className="rounded-xl bg-amber-400 px-4 py-3 text-sm font-black text-ink-950">{inCart ? `No orçamento (${inCart.quantity})` : '+ Adicionar ao orçamento'}</button></div><div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3"><button type="button" onClick={sendWhatsApp} className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5 text-xs font-bold">WhatsApp</button><button type="button" onClick={() => onOpenPdf(detail.documentId, detail.page, detail.filename)} className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5 text-xs font-bold">Abrir catálogo</button><button type="button" onClick={() => onCrossReference(effectiveCode, detail.name)} className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5 text-xs font-bold">Onde usa?</button></div><div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/10 pt-3 text-[11px] font-bold text-brand-100"><button type="button" onClick={onToggleFavorite} className="-my-2 py-2 transition hover:text-white">{detail.favoriteId ? 'Remover dos favoritos' : 'Favoritar peça'}</button><button type="button" onClick={() => onAskAi(`Analise a peça ${detail.name}, código ${effectiveCode}, aplicada em ${detail.model}.`)} className="-my-2 py-2 transition hover:text-white">Perguntar à IA</button><a href={officialUrl} target="_blank" rel="noreferrer" className="-my-2 py-2 transition hover:text-white">{officialPortalLabel(effectiveCode, quoteManufacturer)} ↗</a></div></div></section>
-      {liveData?.replacedBy && <section className="rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30"><div className="flex flex-wrap items-center justify-between gap-3"><div className="min-w-0"><div className="text-[10px] font-black uppercase tracking-[.12em] text-amber-700 dark:text-amber-300">A Husqvarna substituiu este código</div><div className="mt-1 font-mono text-lg font-black text-amber-900 dark:text-amber-100">{cleanErpCode(liveData.replacedBy)}</div></div><button type="button" onClick={() => onCopy(liveData.replacedBy!)} className="shrink-0 rounded-lg bg-amber-600 px-3 py-2 text-xs font-black text-white">Copiar código atual</button></div></section>}
-      {(liveData?.name || liveData?.imageUrl || liveData?.fitsTo?.length) && <section className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900 dark:bg-emerald-950/20"><div className="flex flex-wrap items-start gap-4">{liveData.imageUrl && <div className="grid h-28 w-32 shrink-0 place-items-center overflow-hidden rounded-xl border border-emerald-100 bg-white p-2 dark:border-emerald-900 dark:bg-ink-900"><img src={liveData.imageUrl} alt={liveData.name || detail.name} className="max-h-full max-w-full object-contain" /></div>}<div className="min-w-0 flex-1"><div className="flex items-center gap-2"><SourceBadge source="OFFICIAL" compact /><span className="text-[10px] font-black uppercase tracking-[.12em] text-emerald-700 dark:text-emerald-300">Dados ao vivo Husqvarna</span></div><div className="mt-2 text-sm font-black text-ink-900 dark:text-white">{liveData.name || detail.name}</div>
-        {liveData.fitsTo && liveData.fitsTo.length > 0 && <div className="mt-3"><div className="text-[9px] font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Também serve em</div><div className="mt-1.5 flex flex-wrap gap-1.5">{liveData.fitsTo.slice(0, 12).map(application => <span key={application} className="rounded-full border border-emerald-200 bg-white px-2 py-1 text-[10px] font-bold text-emerald-800 dark:border-emerald-800 dark:bg-ink-900 dark:text-emerald-200">{application}</span>)}{liveData.fitsTo.length > 12 && <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">+{liveData.fitsTo.length - 12}</span>}</div></div>}
-      </div></div></section>}
-      <section className="rounded-2xl border border-ink-200 bg-white p-4 dark:border-ink-800 dark:bg-ink-900"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">Localização física</div><div className="mt-1 text-sm font-black text-ink-900 dark:text-white">Onde pegar esta peça</div></div><button type="button" onClick={() => setLocationEditing(editing => !editing)} className="rounded-lg border border-ink-200 px-3 py-1.5 text-[10px] font-black text-brand-600 dark:border-ink-700 dark:text-brand-300">{locationEditing ? 'Cancelar' : workContext?.location ? 'Alterar' : '+ Cadastrar'}</button></div>{contextLoading ? <div className="mt-3 h-14 animate-pulse rounded-xl bg-ink-100 dark:bg-ink-800" /> : locationEditing ? <div className="mt-3 grid gap-2"><input value={location} onChange={event => setLocation(event.target.value)} maxLength={160} placeholder="Ex.: Estoque principal · Corredor 2 · Prateleira A4" className="rounded-xl border border-ink-200 bg-ink-50 px-3 py-2.5 text-sm dark:border-ink-700 dark:bg-ink-800" /><input value={locationNote} onChange={event => setLocationNote(event.target.value)} maxLength={500} placeholder="Observação opcional" className="rounded-xl border border-ink-200 bg-ink-50 px-3 py-2.5 text-xs dark:border-ink-700 dark:bg-ink-800" /><button type="button" disabled={savingLocation} onClick={() => void saveLocation()} className="justify-self-start rounded-xl bg-ink-900 px-4 py-2 text-xs font-black text-white disabled:opacity-50">{savingLocation ? 'Salvando…' : 'Salvar para a equipe'}</button></div> : workContext?.location ? <div className="mt-3 rounded-xl bg-brand-50 px-4 py-3 dark:bg-brand-950/25"><div className="text-sm font-black text-ink-900 dark:text-brand-300">{workContext.location.value}</div>{workContext.location.note && <div className="mt-1 text-xs text-ink-500 dark:text-ink-400">{workContext.location.note}</div>}</div> : <div className="mt-3 rounded-xl border border-dashed border-ink-200 px-4 py-4 text-xs text-ink-500 dark:text-ink-400 dark:border-ink-700">Localização ainda não cadastrada.</div>}</section>
-      {/* Eram quatro cartoes de padding cheio para quatro valores curtos.
-          E a identificacao da peca: precisa estar visivel, nao ocupar meia tela. */}
-      <section className="rounded-2xl border border-ink-200 bg-white p-4 dark:border-ink-800 dark:bg-ink-900"><div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">{[['Modelo', detail.model], ['PNC', detail.pnc || '—'], ['Seção', detail.section || '—'], ['Posição / página', `${detail.position || '—'} · pág. ${detail.page || '—'}`]].map(([label, value]) => <div key={label} className="min-w-0"><div className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">{label}</div><div className="mt-0.5 truncate text-sm font-black text-ink-900 dark:text-white" title={value}>{value}</div></div>)}</div></section>
-      {/* Peças que vão JUNTO. O rótulo (`item.label`) é o que a seção antiga não
-          tinha: ela listava seis "JUNTA" iguais e o atendente não sabia qual era
-          a do carburador. Agora cada linha diz QUAL peça é, e o nome do catálogo
-          fica embaixo como conferência. Sem candidato específico, a seção
-          inteira não aparece. Ver backend services/part-companions.ts. */}
-      {detail.suggestedAddons && detail.suggestedAddons.items.length > 0 && (
-        <section className="rounded-2xl border border-brand-200 bg-white p-4 dark:border-brand-900 dark:bg-ink-900">
-          <div className="text-[10px] font-black uppercase tracking-[.12em] text-brand-600 dark:text-brand-300">Leve junto</div>
-          <p className="mt-1 text-[11px] text-ink-500 dark:text-ink-400">{detail.suggestedAddons.reason}</p>
-          <div className="mt-3 space-y-2">
-            {detail.suggestedAddons.items.map(item => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onOpenRelated(item.id)}
-                className="flex w-full items-center justify-between gap-3 rounded-xl bg-brand-50/70 px-3 py-2.5 text-left transition hover:bg-brand-100/70 dark:bg-ink-800/60 dark:hover:bg-ink-800"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-xs font-black text-ink-800 dark:text-ink-100">
-                    {item.label || item.name}
-                  </span>
-                  <span className="mt-0.5 flex items-baseline gap-2">
-                    <span className="font-mono text-[11px] font-black text-brand-700 dark:text-brand-300">
-                      {cleanErpCode(item.partNumber)}
-                    </span>
-                    {item.label && item.label !== item.name ? (
-                      <span className="truncate text-[10px] text-ink-500 dark:text-ink-400">{item.name}</span>
-                    ) : null}
-                  </span>
-                </span>
-                <span className="shrink-0 text-[10px] font-black text-brand-600 dark:text-brand-300">Abrir →</span>
-              </button>
-            ))}
+  // "Leve junto": a lista curada (a junta DO carburador) primeiro, e depois o que costuma
+  // sair junto nos orçamentos reais, sem repetir. Uma lista só.
+  const companions = useMemo(() => {
+    const curated = (detail.suggestedAddons?.items ?? []).map(item => ({ key: item.id, id: item.id as string | null, code: cleanErpCode(item.partNumber), title: item.label || item.name }));
+    const known = new Set(curated.map(item => item.code));
+    const together = workContext?.togetherReady
+      ? workContext.frequentlyTogether
+          .filter(item => !known.has(cleanErpCode(item.partNumber)) && cleanErpCode(item.partNumber) !== effectiveCode)
+          .map(item => ({ key: `t-${item.partNumber}`, id: null as string | null, code: cleanErpCode(item.partNumber), title: item.name }))
+      : [];
+    return [...curated, ...together].slice(0, 5);
+  }, [detail.suggestedAddons, effectiveCode, workContext]);
+
+  const consumables = detail.suggestedAddons?.consumables ?? [];
+  const price = detail.price != null ? brl.format(detail.price) : null;
+  const shelf = workContext?.location?.value || null;
+  const replacedBy = liveData?.replacedBy ? cleanErpCode(liveData.replacedBy) : null;
+
+  return (
+    <Sheet open onOpenChange={open => { if (!open) onClose(); }}>
+      <SheetContent side="right" showCloseButton={false} onEscapeKeyDown={event => { if (escapeBlocked) event.preventDefault(); }} className="w-full gap-0 border-border bg-background p-0 sm:max-w-[560px]">
+        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border bg-card px-6 py-4">
+          <div className="min-w-0">
+            <SheetTitle className="truncate text-2xl font-semibold leading-8 text-foreground">{detail.name}</SheetTitle>
+            <SheetDescription className="sr-only">Detalhe da peça</SheetDescription>
+            <p className="truncate text-base text-muted-foreground">{[detail.model, detail.pnc ? `PNC ${detail.pnc}` : ''].filter(Boolean).join(' · ')}</p>
           </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Mais ações"><MoreHorizontal className="size-5" /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-56">
+                <DropdownMenuItem asChild className="h-10 text-base"><a href={officialUrl} target="_blank" rel="noreferrer noopener">{officialPortalLabel(effectiveCode, quoteManufacturer)} ↗</a></DropdownMenuItem>
+                <DropdownMenuItem onSelect={onVerify} className="h-10 text-base">Registrar conferência</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onAskAi(`Analise a peça ${detail.name}, código ${effectiveCode}, aplicada em ${detail.model}.`)} className="h-10 text-base">Perguntar à IA</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar"><X className="size-5" /></Button>
+          </div>
+        </header>
 
-          {/* Óleo é botão, e não linha de catálogo, porque a loja não cadastra
-              código de óleo. Entra como linha avulsa (`SRV-`), que a cesta já
-              mostra como "SERVIÇO / AVULSO", e o atendente põe o preço.
-
-              Quando a máquina não dá para classificar, o servidor manda os
-              quatro e o atendente escolhe — recomendar 20W50 num motor 2 tempos
-              estragaria o motor do cliente, e isso é pior que não sugerir. */}
-          {detail.suggestedAddons.consumables && detail.suggestedAddons.consumables.length > 0 && (
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-ink-100 pt-3 dark:border-ink-800">
-              {/* Na mesma linha do rótulo, e não em bloco próprio: quando a
-                  máquina é conhecida vem 1 ou 2 botões e isso cabe ao lado.
-                  Medido em 43 modelos reais: 96% caem numa família, então o
-                  caso de 4 botões é raro — mas mesmo ele fica numa linha só. */}
-              <span className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">
-                Óleo
-              </span>
-              {detail.suggestedAddons.consumables.map(oleo => (
-                <button
-                  key={oleo.code}
-                  type="button"
-                  onClick={() => {
-                    quoteCart.addItem({
-                      partNumber: oleo.code,
-                      name: oleo.label,
-                      model: detail.model,
-                    });
-                    toast.success(`${oleo.label} no orçamento.`);
-                  }}
-                  /* `cv-touch-target` (44px) é piso de acessibilidade e eu o
-                     tinha removido ao deixar o botão compacto: ele ficou com
-                     ~28px, exatamente o tamanho que a regra do projeto proíbe
-                     ("dedo com luva de oficina não acerta botão de 28px").
-                     Compacto é na LARGURA; a altura não é negociável. */
-                  className="cv-touch-target inline-flex items-center rounded-lg border border-ink-200 bg-white px-3 text-[11px] font-bold text-ink-700 transition hover:border-accent-400 hover:text-accent-700 dark:border-ink-700 dark:bg-ink-950 dark:text-ink-200"
-                >
-                  + {oleo.label}
-                </button>
-              ))}
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-6">
+          <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+            <div>
+              <div translate="no" className="break-all font-code text-[40px] font-semibold leading-none tracking-wide tabular-nums">{effectiveCode}</div>
+              {superseded && <p className="mt-2 text-sm text-muted-foreground">Substitui o código {originalCode}</p>}
             </div>
+
+            {price ? (
+              <div className="font-code text-3xl font-bold tabular-nums">{price}</div>
+            ) : (
+              <p className="text-base text-muted-foreground">Sem preço cadastrado.{' '}
+                <a href="https://parceirohusqvarna.com/Product/Index" target="_blank" rel="noreferrer noopener" onClick={() => copy(effectiveCode)} className="font-semibold text-add underline decoration-dotted underline-offset-4">Consultar no Parceiro</a>
+              </p>
+            )}
+
+            {shelf && <p className="text-base"><span className="text-muted-foreground">Prateleira </span><span translate="no" className="font-code text-lg font-semibold">{shelf}</span></p>}
+
+            <div className="grid gap-2">
+              <Button size="lg" onClick={() => copy(effectiveCode)} className="w-full">
+                {copied === effectiveCode ? <><Check className="size-5" />Código copiado</> : <><Copy className="size-5" />Copiar código</>}
+              </Button>
+              <Button size="lg" variant={inCart ? 'added' : 'add'} onClick={addToQuote} className="w-full">
+                {inCart ? <><Check className="size-5" />No orçamento · {inCart.quantity}</> : '+ Adicionar ao orçamento'}
+              </Button>
+            </div>
+          </section>
+
+          {replacedBy && (
+            <section role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warn bg-warn-soft p-4">
+              <div className="min-w-0">
+                <p className="text-base font-semibold text-warn">A Husqvarna substituiu este código</p>
+                <p translate="no" className="font-code text-2xl font-semibold tabular-nums text-foreground">{replacedBy}</p>
+              </div>
+              <Button variant="outline" onClick={() => copy(replacedBy)}>{copied === replacedBy ? 'Copiado' : 'Copiar código atual'}</Button>
+            </section>
           )}
-        </section>
-      )}
-    </div><aside className="space-y-4"><section className="rounded-2xl border border-ink-200 bg-white p-4 dark:border-ink-800 dark:bg-ink-900"><div className="flex items-center justify-between gap-2"><div><div className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">Confiabilidade</div><div className="mt-1 text-sm font-black text-ink-900 dark:text-white">Esta peça foi conferida?</div></div><VerificationBadge verification={verification} loading={verificationLoading} /></div><div className="mt-3 flex flex-wrap gap-2"><SourceBadge source="CATALOG" />{workContext?.sources.filter(source => source.type !== 'CATALOG').map(source => <SourceBadge key={`${source.type}:${source.detail}`} source={source.type} detail={source.detail} />)}{liveData && <SourceBadge source="OFFICIAL" />}</div><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={onVerify} className="cv-touch-target rounded-lg border border-ink-200 px-3 text-xs font-bold text-ink-700 dark:border-ink-700 dark:text-ink-200">Registrar conferência</button><a href={officialUrl} target="_blank" rel="noreferrer" className="cv-touch-target inline-flex items-center rounded-lg border border-ink-200 px-3 text-xs font-bold text-brand-700 dark:border-ink-700 dark:text-brand-300">Fonte oficial ↗</a></div></section>
-      {/* "Mais procuradas nesta máquina" saiu em 2026-09-19. Ela ordenava por
-          contagem de CONSULTA, e com "1 consulta" em cada linha não era
-          "mais procurada" coisa nenhuma — era "as três que alguém abriu".
-          Decisão do dono: *"nem sao os mais procurados de vdd"*.
 
-          O sinal não se perdeu: peça mais cotada mora no painel de Negócio,
-          que é de quem decide compra. No meio do atendimento ele só ocupava
-          espaço que agora é dos acompanhantes. */}
-      {Boolean(workContext?.togetherReady && workContext.frequentlyTogether.length) && <section className="rounded-2xl border border-ink-200 bg-white p-4 dark:border-ink-800 dark:bg-ink-900"><div className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">Costumam sair junto</div><div className="mt-1 text-sm font-black text-ink-900 dark:text-white">Baseado em orçamentos reais</div><div className="mt-3 space-y-2">{workContext!.frequentlyTogether.slice(0, 6).map(item => <SmallPartAction key={item.partNumber} code={item.partNumber} name={item.name} extra={`${item.percentage}% dos atendimentos`} onCopy={onCopy} />)}</div></section>}
-      {/* "Peças da mesma vista" saiu em 2026-09-19: era o resto da vista
-          explodida, sem filtro nenhum — JUNTA, BRAÇADEIRA, CORPO, FILTRO DE AR,
-          SCREW. Decisão do dono: *"tambem nao faz tanto sentido"*.
+          <section className="rounded-xl border border-border bg-card p-5">
+            <div className="flex items-center gap-4">
+              {liveData?.imageUrl && (
+                <div className="grid size-24 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-white p-1.5">
+                  <img src={liveData.imageUrl} alt={liveData.name || detail.name} width={96} height={96} className="max-h-full max-w-full object-contain" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-semibold text-muted-foreground">Vista explodida</h3>
+                <p className="text-lg font-semibold">{detail.position ? `Posição ${detail.position}` : 'Posição não informada'}{detail.page ? ` · Página ${detail.page}` : ''}</p>
+              </div>
+            </div>
+            <Button variant="outline" size="lg" className="mt-4 w-full" onClick={() => onOpenPdf(detail.documentId, detail.page, detail.filename)}>Abrir vista explodida</Button>
+          </section>
 
-          Os acompanhantes fazem o mesmo trabalho com intenção: em vez de
-          listar a vista inteira, dizem QUAL peça vai junto e por quê. Quem
-          quer a vista inteira tem "Abrir catálogo" no topo. */}
-    </aside></div></div></section></div>;
+          {(companions.length > 0 || consumables.length > 0) && (
+            <section className="rounded-xl border border-border bg-card p-5">
+              <h3 className="text-base font-semibold">Leve junto</h3>
+              {detail.suggestedAddons?.reason && <p className="mt-0.5 text-sm text-muted-foreground">{detail.suggestedAddons.reason}</p>}
+              {companions.length > 0 && (
+                <ul className="mt-2 divide-y divide-border">
+                  {companions.map(item => (
+                    <li key={item.key} className="flex items-center gap-2 py-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-base font-semibold">{item.title}</div>
+                        <div translate="no" className="font-code text-lg tabular-nums text-muted-foreground">{item.code}</div>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => copy(item.code)}>{copied === item.code ? 'Copiado' : 'Copiar'}</Button>
+                      {item.id && <Button variant="outline" size="sm" onClick={() => onOpenRelated(item.id as string)}>Abrir</Button>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {/* Óleo é botão, e não linha de catálogo, porque a loja não cadastra código de
+                  óleo: entra como linha avulsa (SRV-) e o atendente põe o preço. Quando a
+                  máquina não dá para classificar, vêm os quatro e ele escolhe: recomendar
+                  20W50 num motor 2 tempos estragaria o motor do cliente. */}
+              {consumables.length > 0 && (
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                  <span className="text-base text-muted-foreground">Óleo</span>
+                  {consumables.map(oleo => (
+                    <Button
+                      key={oleo.code}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        quoteCart.addItem({ partNumber: oleo.code, name: oleo.label, model: detail.model });
+                        toast.success(`${oleo.label} no orçamento.`);
+                      }}
+                    >
+                      + {oleo.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
 }

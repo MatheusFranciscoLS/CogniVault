@@ -81,7 +81,7 @@ export default function CrossReferenceDialog({
       }}
     >
       <div
-        className="relative flex max-h-[100dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-ink-200 bg-white shadow-2xl dark:border-ink-800 dark:bg-ink-900 sm:max-h-[85dvh] sm:rounded-2xl"
+        className="relative flex max-h-dvh w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-ink-200 bg-white shadow-2xl dark:border-ink-800 dark:bg-ink-900 sm:max-h-[85dvh] sm:rounded-2xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="cross-reference-title"
@@ -174,14 +174,14 @@ export default function CrossReferenceDialog({
                               {m.category}
                             </span>
                           </div>
-                          <div className="mt-1 break-words text-xs text-ink-500 dark:text-ink-400">
+                          <div className="mt-1 wrap-break-word text-xs text-ink-500 dark:text-ink-400">
                             📄 {m.filename}
                           </div>
                           {m.sections.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1 text-[11px] text-ink-600 dark:text-ink-300">
                               <span className="text-ink-500 dark:text-ink-400">Vistas:</span>
                               {m.sections.map(s => (
-                                <span key={s} className="rounded border border-ink-200/70 bg-ink-50 px-1.5 py-0.5 text-[10px] dark:border-ink-700 dark:bg-ink-900/60">
+                                <span key={s} className="rounded-sm border border-ink-200/70 bg-ink-50 px-1.5 py-0.5 text-[10px] dark:border-ink-700 dark:bg-ink-900/60">
                                   {s}
                                 </span>
                               ))}

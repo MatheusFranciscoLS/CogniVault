@@ -1,4 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useState } from 'react';
+import { Check, Copy, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import MachineDetail from './MachineDetail';
 import type { MachineDetailLoaded } from './MachineDetail';
 
@@ -10,12 +13,9 @@ import type { MachineDetailLoaded } from './MachineDetail';
  * peça, olha a vista explodida para confirmar a posição e volta para a lista —
  * trocar de aba perdia a lista e o contexto no meio do atendimento.
  *
- * Largo de propósito (até 980px). A vista explodida do carburador tem mais de
- * 20 posições numeradas; num painel de 320px o zoom não salva, porque não há
+ * Largo de propósito (até 1040px). A vista explodida do carburador tem mais de
+ * 20 posições numeradas; num painel estreito o zoom não salva, porque não há
  * para onde arrastar. O zoom continua lá dentro, vindo do `ExplodedView`.
- *
- * Nessa largura o kit de manutenção cabe, então o painel mostra o mesmo
- * conteúdo que a tela de máquinas mostrava: documentos, vista e kit.
  */
 export default function MachineSidePanel({
   pnc,
@@ -23,7 +23,6 @@ export default function MachineSidePanel({
   onClose,
   onOpenPnc,
   onOpenPart,
-  onOpenSearch,
   onLoaded,
 }: {
   pnc: string;
@@ -31,64 +30,70 @@ export default function MachineSidePanel({
   onClose: () => void;
   onOpenPnc: (pnc: string) => void;
   onOpenPart: (code: string) => void;
-  onOpenSearch?: (term: string) => void;
   onLoaded?: (machine: MachineDetailLoaded) => void;
 }) {
-  const closeRef = useRef<HTMLButtonElement>(null);
+  const [loaded, setLoaded] = useState<MachineDetailLoaded | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    closeRef.current?.focus();
-  }, []);
+  const handleLoaded = useCallback((machine: MachineDetailLoaded) => {
+    setLoaded(machine);
+    onLoaded?.(machine);
+  }, [onLoaded]);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.stopPropagation();
-      onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+  const copyPnc = async () => {
+    try {
+      await navigator.clipboard.writeText(pnc);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* sem permissão de área de transferência: o PNC continua visível na tela */
+    }
+  };
+
+  // O nome só vale para a máquina atual: ao trocar de variante o painel remonta (key do pai),
+  // mas o cabeçalho nunca mostra o nome de OUTRA máquina enquanto a nova carrega.
+  const name = loaded && loaded.pnc === pnc ? loaded.name : contextModel || `PNC ${pnc}`;
+  const meta = loaded && loaded.pnc === pnc ? loaded.meta : null;
 
   return (
-    <div className="fixed inset-0 z-[85] flex justify-end">
-      <button
-        type="button"
-        aria-label="Fechar máquina"
-        onClick={onClose}
-        className="absolute inset-0 bg-ink-950/50 backdrop-blur-[1px]"
-      />
-      <aside
-        role="dialog"
-        aria-label="Máquina aberta"
-        aria-modal="true"
-        className="relative z-10 flex h-full w-full max-w-[980px] flex-col bg-surface-page shadow-2xl dark:bg-surface-page-dark"
+    <Sheet open onOpenChange={open => { if (!open) onClose(); }}>
+      <SheetContent
+        side="right"
+        showCloseButton={false}
+        onOpenAutoFocus={event => { event.preventDefault(); (event.currentTarget as HTMLElement).focus(); }}
+        className="w-full gap-0 border-border bg-background p-0 data-[side=right]:sm:max-w-[1040px]"
       >
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-ink-200 bg-white px-4 py-3 dark:border-ink-800 dark:bg-ink-900">
+        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border bg-card px-6 py-4">
           <div className="min-w-0">
-            <div className="text-[10px] font-black uppercase tracking-[.14em] text-brand-600 dark:text-brand-300">Máquina do cliente</div>
-            <div className="truncate font-mono text-sm font-black text-ink-900 dark:text-white">PNC {pnc}</div>
+            <SheetTitle className="sr-only">Máquina aberta</SheetTitle>
+            <SheetDescription className="sr-only">Vistas explodidas e peças da máquina</SheetDescription>
+            <h2 className="truncate text-2xl font-semibold leading-8 text-foreground">{name}</h2>
+            <p className="flex flex-wrap items-center gap-x-2 text-base text-muted-foreground">
+              <span>PNC <span translate="no" className="font-code tabular-nums">{pnc}</span></span>
+              {meta && <span>· {meta}</span>}
+              <button
+                type="button"
+                onClick={() => void copyPnc()}
+                aria-label={`Copiar PNC ${pnc}`}
+                title="Copiar PNC"
+                className="rounded-md p-1 text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/60"
+              >
+                {copied ? <Check className="size-4 text-ok" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
+              </button>
+            </p>
           </div>
-          <button
-            ref={closeRef}
-            type="button"
-            onClick={onClose}
-            className="cv-touch-target shrink-0 rounded-card border border-ink-200 px-4 text-xs font-bold text-ink-600 transition hover:border-brand-300 hover:text-brand-700 dark:border-ink-700 dark:text-ink-300"
-          >
-            Fechar
-          </button>
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar"><X className="size-5" /></Button>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6">
           <MachineDetail
             pnc={pnc}
             contextModel={contextModel}
             onOpenPnc={onOpenPnc}
             onOpenPart={onOpenPart}
-            onOpenSearch={onOpenSearch}
-            onLoaded={onLoaded}
+            onLoaded={handleLoaded}
           />
         </div>
-      </aside>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }

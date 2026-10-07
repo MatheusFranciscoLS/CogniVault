@@ -3,9 +3,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import ReloadPrompt from './components/ReloadPrompt';
 import QuickQuoteCart from './components/QuickQuoteCart';
-import QuoteCartOverlayLifecycle from './components/QuoteCartOverlayLifecycle';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { QuoteCartProvider } from './context/QuoteCartContext';
+import { ConfirmProvider } from './context/ConfirmProvider';
 import { CounterSessionProvider } from './context/CounterSessionProvider';
 import { activateQuoteStorageScope, quoteStorageScopeFromSession } from './lib/quote-storage-scope';
 
@@ -54,7 +54,6 @@ function RouteScopedQuoteExperience() {
   if (pathname === '/' || pathname === '/login') return null;
   return (
     <>
-      <QuoteCartOverlayLifecycle />
       <QuickQuoteCart />
     </>
   );
@@ -72,6 +71,7 @@ function SessionScopedApplication() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <ConfirmProvider>
       <QuoteCartProvider key={`quote:${storageScope}`}>
         <CounterSessionProvider key={`counter:${storageScope}`}>
           <Suspense fallback={<RouteLoading />}>
@@ -87,6 +87,7 @@ function SessionScopedApplication() {
           <ReloadPrompt />
         </CounterSessionProvider>
       </QuoteCartProvider>
+      </ConfirmProvider>
     </QueryClientProvider>
   );
 }

@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { apiJson, formatHusqvarnaPartNumber } from '../lib';
 import type { BusinessBucketGranularity, BusinessInsights } from '../types';
 import { Icon, type IconName } from './icons/Icon';
+import { Button } from '@/components/ui/button';
 
 function displayPartNumber(partNumber: string, manufacturer: string | null): string {
   return manufacturer?.toLowerCase().includes('husqvarna')
@@ -85,7 +86,7 @@ function StatCard({
       <div className="mt-1 flex flex-wrap items-center gap-2">
         {trend && Number.isFinite(trend.delta) && (
           <span
-            className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums ${
+            className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-sm font-bold tabular-nums ${
               trend.delta >= 0
                 ? 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-400'
                 : 'bg-rose-500/12 text-rose-700 dark:text-rose-400'
@@ -121,7 +122,7 @@ function QuoteChart({ insights }: { insights: BusinessInsights }) {
     return (
       <div className="cv-empty">
         <div className="text-sm font-bold text-ink-700 dark:text-ink-300">Nenhum orçamento salvo neste período</div>
-        <p className="mt-1 text-xs text-ink-500">
+        <p className="mt-1 text-sm text-ink-500">
           Assim que o balcão arquivar um orçamento, o volume por dia aparece aqui.
         </p>
       </div>
@@ -131,8 +132,8 @@ function QuoteChart({ insights }: { insights: BusinessInsights }) {
   return (
     <div className="rounded-card border border-ink-200 bg-white p-4 shadow-card dark:border-ink-800 dark:bg-ink-850">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-sm font-bold text-ink-900 dark:text-white">Orçamentos por período</h2>
-        <span className="text-[11px] text-ink-500">Altura = valor líquido · número = quantidade de orçamentos</span>
+        <h2 className="text-lg font-semibold">Orçamentos por período</h2>
+        <span className="text-sm text-ink-500">Altura = valor líquido · número = quantidade de orçamentos</span>
       </div>
 
       {/* `max-w` por coluna: com um único dia no período, `flex-1` sozinho
@@ -143,8 +144,8 @@ function QuoteChart({ insights }: { insights: BusinessInsights }) {
           const heightPercent = Math.max(4, (bucket.netTotal / maxValue) * 100);
           const intensity = bucket.quotes / maxQuotes;
           return (
-            <div key={bucket.bucket} className="flex min-w-[2.5rem] max-w-[4.5rem] flex-1 flex-col items-center gap-1">
-              <span className="text-[10px] font-bold text-ink-700 tabular-nums dark:text-ink-300">{bucket.quotes}</span>
+            <div key={bucket.bucket} className="flex min-w-10 max-w-18 flex-1 flex-col items-center gap-1">
+              <span className="text-sm font-bold text-ink-700 tabular-nums dark:text-ink-300">{bucket.quotes}</span>
               <div className="flex h-32 w-full items-end">
                 <div
                   className="w-full rounded-t-[4px] bg-brand-600 transition-all dark:bg-brand-400"
@@ -152,10 +153,10 @@ function QuoteChart({ insights }: { insights: BusinessInsights }) {
                   title={`${formatBucket(bucket.bucket, range.granularity)} · ${bucket.quotes} orçamento(s) · ${money(bucket.netTotal)} · ${bucket.items} itens`}
                 />
               </div>
-              <span className="whitespace-nowrap text-[10px] font-semibold text-ink-500 tabular-nums">
+              <span className="whitespace-nowrap text-sm font-semibold text-ink-500 tabular-nums">
                 {formatBucket(bucket.bucket, range.granularity)}
               </span>
-              <span className="whitespace-nowrap text-[9px] text-ink-500 tabular-nums">
+              <span className="whitespace-nowrap text-sm text-ink-500 tabular-nums">
                 {bucket.netTotal > 0 ? compactMoney(bucket.netTotal) : '—'}
               </span>
             </div>
@@ -264,66 +265,45 @@ export default function BusinessPanel() {
 
   return (
     <section className="mx-auto max-w-[1400px] space-y-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div className="cv-kicker">Painel do dono</div>
-          <h1 className="cv-page-title">Negócio</h1>
-          <p className="mt-1 max-w-2xl text-sm text-ink-500">
-            O que o balcão cotou, o que os clientes mais pedem e o que está sem preço cadastrado.
-            Números de venda, não de catálogo — a saúde técnica fica em Qualidade.
-          </p>
-        </div>
-      </div>
+      <h1 className="text-3xl font-semibold leading-9">Negócio</h1>
 
       <div className="flex flex-col gap-3 rounded-card border border-ink-200 bg-white p-3 shadow-card dark:border-ink-800 dark:bg-ink-850 tablet:flex-row tablet:items-end tablet:justify-between">
         <div className="flex flex-wrap items-end gap-2">
           <div className="flex flex-wrap gap-1.5">
             {PRESETS.map((preset, index) => (
-              <button
+              <Button
                 key={preset.label}
                 type="button"
+                variant="outline"
+                aria-pressed={activePreset === index}
                 onClick={() => applyPreset(index)}
-                className={`cv-touch-target rounded-card px-3 text-xs font-bold transition ${
-                  activePreset === index
-                    ? 'bg-brand-600 text-white'
-                    : 'border border-ink-200 bg-white text-ink-700 hover:bg-brand-50 dark:border-ink-800 dark:bg-ink-900 dark:text-ink-300'
-                }`}
+                className={activePreset === index ? 'border-ring bg-selected' : undefined}
               >
                 {preset.label}
-              </button>
+              </Button>
             ))}
           </div>
           <div className="flex items-end gap-2">
             <div>
-              <label htmlFor="insights-from" className="block text-[10px] font-bold uppercase tracking-[.08em] text-ink-500">De</label>
-              <input id="insights-from" type="date" value={range.from} onChange={e => applyCustomRange({ from: e.target.value })} className="cv-field mt-1 h-11 w-[9.5rem] py-0 text-sm tabular-nums" />
+              <label htmlFor="insights-from" className="block text-sm font-bold text-ink-500">De</label>
+              <input id="insights-from" type="date" value={range.from} onChange={e => applyCustomRange({ from: e.target.value })} className="cv-field mt-1 h-11 w-38 py-0 text-sm tabular-nums" />
             </div>
             <div>
-              <label htmlFor="insights-to" className="block text-[10px] font-bold uppercase tracking-[.08em] text-ink-500">Até</label>
-              <input id="insights-to" type="date" value={range.to} onChange={e => applyCustomRange({ to: e.target.value })} className="cv-field mt-1 h-11 w-[9.5rem] py-0 text-sm tabular-nums" />
+              <label htmlFor="insights-to" className="block text-sm font-bold text-ink-500">Até</label>
+              <input id="insights-to" type="date" value={range.to} onChange={e => applyCustomRange({ to: e.target.value })} className="cv-field mt-1 h-11 w-38 py-0 text-sm tabular-nums" />
             </div>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => void downloadCsv('quotes')}
-            disabled={exporting !== null}
-            className="cv-primary cv-touch-target flex items-center gap-2 px-3 text-xs disabled:opacity-50"
-          >
-            <Icon name="download" className={`h-4 w-4 ${exporting === 'quotes' ? 'animate-spin' : ''}`} />
+          <Button type="button" variant="outline" onClick={() => void downloadCsv('quotes')} disabled={exporting !== null}>
+            <Icon name="download" className={`size-4 ${exporting === 'quotes' ? 'animate-spin' : ''}`} />
             Exportar orçamentos
-          </button>
-          <button
-            type="button"
-            onClick={() => void downloadCsv('price-list')}
-            disabled={exporting !== null}
-            className="cv-secondary cv-touch-target flex items-center gap-2 px-3 text-xs disabled:opacity-50"
-          >
-            <Icon name="download" className={`h-4 w-4 ${exporting === 'price-list' ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button type="button" variant="outline" onClick={() => void downloadCsv('price-list')} disabled={exporting !== null}>
+            <Icon name="download" className={`size-4 ${exporting === 'price-list' ? 'animate-spin' : ''}`} />
             Lista de preços
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -334,7 +314,7 @@ export default function BusinessPanel() {
       )}
 
       {loading && !insights ? (
-        <div className="flex items-center justify-center gap-3 rounded-card border border-ink-200 bg-white px-5 py-16 text-xs text-ink-500 dark:border-ink-800 dark:bg-ink-850">
+        <div className="flex items-center justify-center gap-3 rounded-card border border-ink-200 bg-white px-5 py-16 text-sm text-ink-500 dark:border-ink-800 dark:bg-ink-850">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink-200 border-t-brand-600" />
           Carregando indicadores de negócio…
         </div>
@@ -378,14 +358,14 @@ export default function BusinessPanel() {
           <div className="grid gap-4 xl:grid-cols-2">
             <div className="overflow-hidden rounded-card border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-850">
               <div className="flex items-center justify-between gap-2 border-b border-ink-200 px-4 py-3 dark:border-ink-800">
-                <h2 className="text-sm font-bold text-ink-900 dark:text-white">Peças mais cotadas</h2>
-                <span className="text-[11px] text-ink-500">Top {insights.topParts.length}</span>
+                <h2 className="text-lg font-semibold">Peças mais cotadas</h2>
+                <span className="text-sm text-ink-500">Top {insights.topParts.length}</span>
               </div>
               {insights.topParts.length ? (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[520px] text-left text-xs">
+                  <table className="w-full min-w-[520px] text-left text-sm">
                     <thead>
-                      <tr className="text-[10px] font-bold uppercase tracking-[.08em] text-ink-500">
+                      <tr className="text-sm font-bold text-ink-500">
                         <th className="px-4 py-2">Peça</th>
                         <th className="px-2 py-2 text-right">Qtd.</th>
                         <th className="px-2 py-2 text-right">Orçam.</th>
@@ -398,7 +378,7 @@ export default function BusinessPanel() {
                         <tr key={part.normalizedPartNumber} className="border-t border-ink-200 dark:border-ink-800">
                           <td className="max-w-[16rem] px-4 py-2.5">
                             <div className="truncate font-semibold text-ink-900 dark:text-white" title={part.name}>{part.name}</div>
-                            <div className="font-mono text-[11px] font-bold text-brand-600 dark:text-brand-300">
+                            <div className="font-mono text-sm font-bold text-brand-600 dark:text-brand-300">
                               {part.manufacturer ? `${part.manufacturer} · ` : ''}{displayPartNumber(part.partNumber, part.manufacturer)}
                             </div>
                           </td>
@@ -408,7 +388,7 @@ export default function BusinessPanel() {
                             {part.registeredPrice !== null && part.registeredPrice > 0 ? (
                               <span className="font-mono font-semibold">{money(part.registeredPrice)}</span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-gold-100 px-1.5 py-0.5 text-[10px] font-bold text-gold-800 dark:bg-gold-500/15 dark:text-gold-300">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-gold-100 px-1.5 py-0.5 text-sm font-bold text-gold-800 dark:bg-gold-500/15 dark:text-gold-300">
                                 <Icon name="warning" className="h-3 w-3" /> sem preço
                               </span>
                             )}
@@ -420,7 +400,7 @@ export default function BusinessPanel() {
                   </table>
                 </div>
               ) : (
-                <div className="px-5 py-10 text-center text-xs text-ink-500">
+                <div className="px-5 py-10 text-center text-sm text-ink-500">
                   Nenhuma peça cotada no período.
                 </div>
               )}
@@ -429,8 +409,8 @@ export default function BusinessPanel() {
             <div className="overflow-hidden rounded-card border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-850">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-200 px-4 py-3 dark:border-ink-800">
                 <div>
-                  <h2 className="text-sm font-bold text-ink-900 dark:text-white">Peças sem preço cadastrado</h2>
-                  <p className="mt-0.5 text-[11px] text-ink-500">
+                  <h2 className="text-lg font-semibold">Peças sem preço cadastrado</h2>
+                  <p className="mt-0.5 text-sm text-ink-500">
                     Cotadas pelo balcão sem valor. {insights.priceListCoverage.masterPartsWithoutPrice} de{' '}
                     {insights.priceListCoverage.masterParts} itens da lista estão sem preço.
                   </p>
@@ -439,17 +419,17 @@ export default function BusinessPanel() {
                   type="button"
                   onClick={() => void downloadCsv('price-list-gaps')}
                   disabled={exporting !== null}
-                  className="cv-secondary cv-touch-target flex items-center gap-1.5 px-2.5 text-[11px] disabled:opacity-50"
+                  className="cv-secondary cv-touch-target flex items-center gap-1.5 px-2.5 text-sm disabled:opacity-50"
                 >
                   <Icon name="download" className={`h-3.5 w-3.5 ${exporting === 'price-list-gaps' ? 'animate-spin' : ''}`} />
                   Exportar lacunas
                 </button>
               </div>
               {insights.unpricedParts.length ? (
-                <div className="max-h-[26rem] overflow-y-auto">
-                  <table className="w-full text-left text-xs">
+                <div className="max-h-104 overflow-y-auto">
+                  <table className="w-full text-left text-sm">
                     <thead className="sticky top-0 bg-white dark:bg-ink-850">
-                      <tr className="text-[10px] font-bold uppercase tracking-[.08em] text-ink-500">
+                      <tr className="text-sm font-bold text-ink-500">
                         <th className="px-4 py-2">Peça</th>
                         <th className="px-2 py-2 text-right">Pedidos</th>
                         <th className="px-4 py-2 text-right">Situação</th>
@@ -460,19 +440,19 @@ export default function BusinessPanel() {
                         <tr key={part.normalizedPartNumber} className="border-t border-ink-200 dark:border-ink-800">
                           <td className="max-w-[18rem] px-4 py-2.5">
                             <div className="truncate font-semibold text-ink-900 dark:text-white" title={part.name}>{part.name}</div>
-                            <div className="font-mono text-[11px] font-bold text-brand-600 dark:text-brand-300">
+                            <div className="font-mono text-sm font-bold text-brand-600 dark:text-brand-300">
                               {part.manufacturer ? `${part.manufacturer} · ` : ''}{displayPartNumber(part.partNumber, part.manufacturer)}
                             </div>
                           </td>
                           <td className="px-2 py-2.5 text-right font-bold tabular-nums">
                             {part.quoteCount}
-                            <span className="block text-[10px] font-normal text-ink-500">{part.quotedQuantity} un.</span>
+                            <span className="block text-sm font-normal text-ink-500">{part.quotedQuantity} un.</span>
                           </td>
                           <td className="px-4 py-2.5 text-right">
                             {part.inPriceList ? (
-                              <span className="text-[10px] font-bold text-gold-800 dark:text-gold-300">na lista, sem preço</span>
+                              <span className="text-sm font-bold text-gold-800 dark:text-gold-300">na lista, sem preço</span>
                             ) : (
-                              <span className="text-[10px] font-bold text-accent-700 dark:text-accent-300">fora da lista</span>
+                              <span className="text-sm font-bold text-accent-700 dark:text-accent-300">fora da lista</span>
                             )}
                           </td>
                         </tr>
@@ -481,7 +461,7 @@ export default function BusinessPanel() {
                   </table>
                 </div>
               ) : (
-                <div className="px-5 py-10 text-center text-xs text-ink-500">
+                <div className="px-5 py-10 text-center text-sm text-ink-500">
                   Nenhuma peça foi cotada sem preço no período.
                 </div>
               )}
@@ -490,14 +470,14 @@ export default function BusinessPanel() {
 
           <div className="overflow-hidden rounded-card border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-850">
             <div className="border-b border-ink-200 px-4 py-3 dark:border-ink-800">
-              <h2 className="text-sm font-bold text-ink-900 dark:text-white">Atividade por atendente</h2>
-              <p className="mt-0.5 text-[11px] text-ink-500">Quem arquivou orçamento no período. Orçamento de atendente removido continua contando.</p>
+              <h2 className="text-lg font-semibold">Atividade por atendente</h2>
+              <p className="mt-0.5 text-sm text-ink-500">Quem arquivou orçamento no período. Orçamento de atendente removido continua contando.</p>
             </div>
             {insights.attendants.length ? (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[620px] text-left text-xs">
+                <table className="w-full min-w-[620px] text-left text-sm">
                   <thead>
-                    <tr className="text-[10px] font-bold uppercase tracking-[.08em] text-ink-500">
+                    <tr className="text-sm font-bold text-ink-500">
                       <th className="px-4 py-2">Atendente</th>
                       <th className="px-2 py-2 text-right">Orçamentos</th>
                       <th className="px-2 py-2 text-right">Itens</th>
@@ -521,7 +501,7 @@ export default function BusinessPanel() {
                 </table>
               </div>
             ) : (
-              <div className="px-5 py-10 text-center text-xs text-ink-500">Nenhum atendimento arquivado no período.</div>
+              <div className="px-5 py-10 text-center text-sm text-ink-500">Nenhum atendimento arquivado no período.</div>
             )}
           </div>
         </>

@@ -1,31 +1,34 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { toast } from 'sonner';
-import { api, apiJson, cleanErpCode, replayQuery } from '../../lib';
+import { api, apiJson, cleanErpCode } from '../../lib';
 import { playCopySound } from '../../lib/sound';
 import { useCounterSession } from '../../context/CounterSessionContext';
-import { useQuoteCart } from '../../context/QuoteCartContext';
-import type { FavoriteItem, OfficialVerification, PartDetail, SearchHistoryItem } from '../../types';
+import type { OfficialVerification, PartDetail, SearchHistoryItem } from '../../types';
+import { recentSearchesFrom, type RecentSearch } from '../../lib/recent-searches';
 import PartVerificationDialog, { isSupersededForCode, looksLikePartNumber, normalizePartCode } from '../PartVerificationDialog';
-import CrossReferenceDialog from '../CrossReferenceDialog';
 import ChatPanel from '../ChatPanel';
 import { Icon } from '../icons/Icon';
 import CounterSessionBar from '../CounterSessionBar';
 import CounterQuoteRail from '../CounterQuoteRail';
 import CommercialPartRow from './CommercialPartRow';
 import PartDetailDrawer from './PartDetailDrawer';
-import PartQuickPreview from './PartQuickPreview';
 import PartResultRow from './PartResultRow';
-import SourceBadge from './SourceBadge';
 import type { CommercialPart, HusqvarnaLivePart, OfficialFallbackResult, PdfPreview, PriceSection, SearchDocument, SearchResultPart, SearchStreamMessage } from './types';
 import MachineSidePanel from '../machines/MachineSidePanel';
 import { PanelErrorBoundary } from '../PanelErrorBoundary';
 import { useOfficialMachineSearch } from '../machines/official-machine-search';
 import { useRecentMachines } from '../machines/recent-machines';
 import KawasakiEnginePanel from '../machines/KawasakiEnginePanel';
+import OilQuickAdd from './OilQuickAdd';
 import BriggsEnginePanel from '../machines/BriggsEnginePanel';
 import OfficialPartOrigin from '../machines/OfficialPartOrigin';
 import PartGuesses from './PartGuesses';
+import { ResultsGroup, ResultsSkeleton, ResultsTable } from './ResultsTable';
+import { groupPartsByCode, nameContainsPhrase } from './group-parts';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 /**
  * Como a Husqvarna classifica o que a busca acha. Peça não está aqui: ela vem
@@ -48,7 +51,6 @@ type Props = {
    */
   initialMachinePnc?: string;
 };
-type Selection = { kind: 'technical' | 'commercial'; id: string } | null;
 
 // Mesmo limite de backend/src/controllers/commercial-search.controller.ts
 // (loadCommercialSearch corta em .slice(0, 50)). Não há pacote compartilhado
@@ -61,6 +63,13 @@ const examples = [
   { label: 'Peça + modelo', value: 'carburador 143RII' },
   { label: 'Pergunta técnica', value: 'qual carburador serve na 143RII?' },
 ];
+
+/** Menor vem primeiro: português antes de outros idiomas, manual (OM) antes de lista de peças (IPL). */
+function extraRank(item: { title: string; languages: string[] }) {
+  const portuguese = item.languages.some(language => /^pt/i.test(language)) ? 0 : 2;
+  const manual = /^OM\b/i.test(item.title) ? 0 : 1;
+  return portuguese + manual;
+}
 
 function isTypingTarget(target: EventTarget | null) {
   return target instanceof HTMLInputElement
@@ -104,105 +113,63 @@ async function consumeSearchStream(response: Response, signal: AbortSignal | und
   }
 }
 
-function Starter({
-  hasContext,
-  onExample,
-  favorites,
-  lastSearch,
-  onReplay,
-}: {
-  hasContext: boolean;
-  onExample: (value: string) => void;
-  favorites: FavoriteItem[];
-  lastSearch: SearchHistoryItem | null;
-  onReplay: (value: string) => void;
-}) {
+function RecentSearchesDropdown({ recent, activeIndex, onPick }: { recent: RecentSearch[]; activeIndex: number; onPick: (value: string) => void }) {
   return (
-    /* Antes: uma faixa de 132px (17% da tela) com o texto a esquerda e quatro
-       botoes de 11px se empilhando a direita, numa tela em que 45% do espaco
-       estava vazio. Os tres atalhos e os favoritos sao o que o atendente
-       realmente usa para comecar, entao ganharam a area que sobrava, em corpo
-       legivel a distancia de braco — nada de novo foi inventado aqui, so
-       deixou de ser miniatura. */
-    <div className="space-y-3">
-      {lastSearch && (
+    <div role="listbox" aria-label="Últimas buscas" className="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-lg">
+      <div className="px-4 pt-2 text-sm text-muted-foreground">Últimas buscas</div>
+      {recent.map((item, index) => (
         <button
+          key={item.query}
           type="button"
-          onClick={() => onReplay(replayQuery(lastSearch))}
-          className="group flex w-full items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-left transition hover:border-brand-400 dark:border-brand-800 dark:bg-brand-950/30 dark:hover:border-brand-600"
+          role="option"
+          aria-selected={index === activeIndex}
+          onMouseDown={event => { event.preventDefault(); onPick(item.replay); }}
+          className={cn('flex min-h-11 w-full items-center justify-between gap-4 px-4 py-2 text-left transition-colors', index === activeIndex ? 'bg-accent' : 'hover:bg-muted')}
         >
-          <Icon name="history" className="h-5 w-5 shrink-0 text-brand-700 dark:text-brand-300" />
-          <span className="min-w-0 flex-1">
-            <span className="block text-[10px] font-black uppercase tracking-[.1em] text-brand-700 dark:text-brand-300">Retomar última busca</span>
-            <span className="mt-0.5 block truncate text-sm font-bold text-ink-900 dark:text-white">{lastSearch.resultLabel || lastSearch.query}</span>
-          </span>
-          <span className="shrink-0 text-xs font-bold text-brand-700 opacity-0 transition group-hover:opacity-100 dark:text-brand-300">Abrir →</span>
+          <span className="truncate text-base font-semibold">{item.query}</span>
+          {item.label && item.label !== item.query && <span className="max-w-[45%] shrink-0 truncate text-sm text-muted-foreground">{item.label}</span>}
         </button>
-      )}
-
-      <div className="rounded-xl border border-ink-200 bg-white p-4 dark:border-ink-800 dark:bg-ink-900 tablet:p-5">
-        <div className="text-sm font-black text-ink-900 dark:text-white">Pesquise como você falaria no balcão</div>
-        <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-500 dark:text-ink-400">
-          {hasContext
-            ? 'Modelo, PNC e S/N do atendimento já entram na busca. Digite só a peça, o código ou faça a pergunta.'
-            : 'Código, descrição, modelo ou uma pergunta técnica — o CogniVault escolhe entre catálogo, cadastro, fonte oficial e assistência por IA.'}
-        </p>
-
-        <div className="mt-4 grid gap-2 md:grid-cols-3">
-          {examples.map(example => (
-            <button
-              key={example.label}
-              type="button"
-              onClick={() => onExample(example.value)}
-              className="cv-touch-target flex flex-col justify-center rounded-lg border border-ink-200 bg-ink-50 px-3 py-3 text-left transition hover:border-accent-300 hover:bg-accent-50 dark:border-ink-700 dark:bg-ink-850 dark:hover:border-accent-700 dark:hover:bg-accent-950/20"
-            >
-              <span className="block text-[10px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">{example.label}</span>
-              <span className="mt-1 block truncate text-sm font-bold text-ink-900 dark:text-white">{example.value}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {favorites.length > 0 && (
-        <div className="rounded-xl border border-ink-200 bg-white p-4 dark:border-ink-800 dark:bg-ink-900">
-          <div className="text-[10px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">Seus favoritos</div>
-          <div className="mt-2 grid gap-2 sm:grid-cols-2 tablet:grid-cols-3">
-            {favorites.map(favorite => (
-              <button
-                key={favorite.id}
-                type="button"
-                onClick={() => onExample(favorite.reference as string)}
-                className="cv-touch-target flex flex-col justify-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-left transition hover:border-amber-400 dark:border-amber-900 dark:bg-amber-950/20 dark:hover:border-amber-700"
-              >
-                <span className="block truncate text-xs font-black text-ink-900 dark:text-white">{favorite.label}</span>
-                <span className="mt-0.5 block font-mono text-[11px] font-bold text-ink-600 dark:text-ink-300">{favorite.reference}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      ))}
     </div>
   );
 }
 
-function LoadingRows() {
+function Starter({
+  onExample,
+  recent,
+  onReplay,
+}: {
+  onExample: (value: string) => void;
+  recent: RecentSearch[];
+  onReplay: (value: string) => void;
+}) {
+  // Estado vazio útil: voltar a uma busca recente ou ver como se pesquisa. Sem texto sobre o sistema.
   return (
-    <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
-      {[0, 1, 2].map(item => (
-        <div key={item} className="grid animate-pulse gap-3 border-b border-ink-100 px-4 py-4 last:border-0 dark:border-ink-800 lg:grid-cols-[145px_minmax(0,1fr)_170px_auto]">
-          <div className="h-4 w-28 rounded bg-ink-100 dark:bg-ink-800" />
-          <div className="h-4 w-3/5 rounded bg-ink-100 dark:bg-ink-800" />
-          <div className="h-4 w-24 rounded bg-ink-100 dark:bg-ink-800" />
-          <div className="h-8 w-28 rounded bg-ink-100 dark:bg-ink-800" />
+    <div className="space-y-4">
+      {recent.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-base text-muted-foreground">Últimas buscas</span>
+          {recent.slice(0, 6).map(item => (
+            <Button key={item.query} variant="outline" size="sm" onClick={() => onReplay(item.replay)} title={item.label || undefined} className="max-w-72 font-medium">
+              <span className="truncate">{item.query}</span>
+            </Button>
+          ))}
         </div>
-      ))}
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-base text-muted-foreground">Experimente</span>
+        {examples.map(example => (
+          <Button key={example.label} variant="outline" size="sm" onClick={() => onExample(example.value)} className="font-medium">{example.value}</Button>
+        ))}
+      </div>
     </div>
   );
 }
 
 function SuggestionsDropdown({ suggestions, activeIndex, onPick }: { suggestions: SearchResultPart[]; activeIndex: number; onPick: (part: SearchResultPart) => void }) {
   return (
-    <div role="listbox" className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-ink-200 bg-white shadow-lg dark:border-ink-700 dark:bg-ink-900">
+    <div role="listbox" className="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-lg">
       {suggestions.map((part, index) => (
         <button
           key={part.id}
@@ -210,13 +177,13 @@ function SuggestionsDropdown({ suggestions, activeIndex, onPick }: { suggestions
           role="option"
           aria-selected={index === activeIndex}
           onMouseDown={event => { event.preventDefault(); onPick(part); }}
-          className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition ${index === activeIndex ? 'bg-brand-50 dark:bg-brand-950/25' : 'hover:bg-ink-50 dark:hover:bg-ink-800/50'}`}
+          className={cn('flex min-h-12 w-full items-center justify-between gap-4 px-4 py-2 text-left transition-colors', index === activeIndex ? 'bg-accent' : 'hover:bg-muted')}
         >
           <span className="min-w-0">
-            <span className="block truncate text-[13px] font-black text-ink-900 dark:text-white">{part.name}</span>
-            <span className="mt-0.5 block truncate text-[10px] text-ink-500 dark:text-ink-400">{part.model}{part.pnc ? ` · PNC ${part.pnc}` : ''}</span>
+            <span className="block truncate text-base font-semibold">{part.name}</span>
+            <span className="block truncate text-sm text-muted-foreground">{part.model}{part.pnc ? ` · PNC ${part.pnc}` : ''}</span>
           </span>
-          <span className="shrink-0 font-mono text-[12px] font-black text-ink-700 dark:text-brand-300">{part.partNumber}</span>
+          <span className="shrink-0 font-code text-lg font-semibold tabular-nums">{part.partNumber}</span>
         </button>
       ))}
     </div>
@@ -225,7 +192,6 @@ function SuggestionsDropdown({ suggestions, activeIndex, onPick }: { suggestions
 
 export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChange, storageScope, initialMachinePnc }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const quoteCart = useQuoteCart();
   const { session, hasContext, updateSession } = useCounterSession();
   const contextRevisionRef = useRef(`${session.machineModel}\u0000${session.pnc}\u0000${session.serial}`);
 
@@ -274,13 +240,10 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   // o cliente na frente é o atrito que a tela existe para tirar.
   const { recent: recentMachines, remember: rememberMachine } = useRecentMachines(storageScope);
   const [commercialParts, setCommercialParts] = useState<CommercialPart[]>([]);
-  const [priceSections, setPriceSections] = useState<PriceSection[]>([]);
-  const [priceSection, setPriceSection] = useState('');
   const [loading, setLoading] = useState(false);
   const [commercialLoading, setCommercialLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState('');
-  const [selection, setSelection] = useState<Selection>(null);
   const [officialResult, setOfficialResult] = useState<OfficialFallbackResult | null>(null);
   const [officialLoading, setOfficialLoading] = useState(false);
   const [detail, setDetail] = useState<PartDetail | null>(null);
@@ -288,28 +251,29 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   const [liveData, setLiveData] = useState<HusqvarnaLivePart | null>(null);
   const [pdf, setPdf] = useState<PdfPreview | null>(null);
   const [verifications, setVerifications] = useState<Record<string, OfficialVerification>>({});
-  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [, setVerificationLoading] = useState(false);
   const [verificationTarget, setVerificationTarget] = useState<{ partNumber: string; name: string } | null>(null);
-  const [crossReference, setCrossReference] = useState<{ code: string; name: string } | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [suggestions, setSuggestions] = useState<SearchResultPart[]>([]);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
   const suggestionsAbortRef = useRef<AbortController | null>(null);
-  const [quickFavorites, setQuickFavorites] = useState<FavoriteItem[]>([]);
-  const [lastSearch, setLastSearch] = useState<SearchHistoryItem | null>(null);
+  // A busca em andamento. Uma busca nova cancela a anterior: sem isso, a fase "por significado" da busca
+  // velha chegava depois e misturava peças dela na lista da nova.
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const [recent, setRecent] = useState<RecentSearch[]>([]);
+  const [recentOpen, setRecentOpen] = useState(false);
+  const [activeRecent, setActiveRecent] = useState(-1);
+  const [showAllExtras, setShowAllExtras] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    void apiJson<{ favorites: FavoriteItem[] }>('/api/favorites')
-      .then(data => { if (active) setQuickFavorites(data.favorites.filter(item => item.kind === 'PART' && item.reference).slice(0, 6)); })
-      .catch(() => undefined);
+  const loadRecent = useCallback(() => {
     void apiJson<{ history: SearchHistoryItem[] }>('/api/history')
-      .then(data => { if (active) setLastSearch(data.history[0] || null); })
+      .then(data => setRecent(recentSearchesFrom(data.history)))
       .catch(() => undefined);
-    return () => { active = false; };
   }, []);
+
+  useEffect(() => { loadRecent(); }, [loadRecent]);
 
   const loadVerifications = useCallback(async (items: Array<{ partNumber: string }>, replace = false) => {
     if (!items.length) {
@@ -373,7 +337,6 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       const data = await apiJson<{ parts: CommercialPart[]; sections: PriceSection[] }>(`/api/master-parts/search?q=${encodeURIComponent(value)}${sectionQuery}`, signal ? { signal, timeoutMs: 45_000 } : { timeoutMs: 45_000 });
       if (signal?.aborted) return [];
       setCommercialParts(data.parts);
-      setPriceSections(data.sections);
       return data.parts;
     } catch (commercialError) {
       if (commercialError instanceof Error && commercialError.name === 'AbortError') return [];
@@ -408,9 +371,14 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     }
   }, []);
 
-  const runSearch = useCallback(async (value: string, signal?: AbortSignal) => {
+  const runSearch = useCallback(async (value: string, externalSignal?: AbortSignal) => {
     const clean = value.trim();
     if (clean.length < 2) return;
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+    externalSignal?.addEventListener('abort', () => controller.abort(), { once: true });
+    const signal = controller.signal;
     setLoading(true);
     setHasSearched(true);
     setLastQuery(clean);
@@ -422,8 +390,6 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     setBriggsModel('');
     setCommercialParts([]);
     setOfficialResult(null);
-    setPriceSection('');
-    setSelection(null);
     setVerifications({});
 
     try {
@@ -431,6 +397,9 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       if (signal?.aborted) return;
       const technicalQuery = buildTechnicalQuery(resolvedQuery);
       const commercialPromise = fetchCommercial(resolvedQuery, '', signal);
+      // Cadastro de preços respondeu com peças: o balcão já tem o que vender, mesmo que a busca técnica
+      // ainda esteja na fase "por significado".
+      void commercialPromise.then(found => { if (found.length > 0 && !signal.aborted) setLoading(false); }).catch(() => {});
       // `typed` é o texto do atendente; `q` leva o contexto anexado. O
       // servidor precisa dos dois: o contexto melhora a busca de peça, e a
       // decisão de consultar máquina tem que olhar o que foi digitado.
@@ -447,7 +416,9 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           accumulated = (message.parts ?? []).map(part => ({ ...part, source: 'CATALOG' as const }));
           setParts(accumulated);
           setDocuments(message.documents ?? []);
-          if (accumulated[0]) setSelection({ kind: 'technical', id: accumulated[0].id });
+          // Já há peças na tela: o balcão não precisa esperar a fase "por significado" (até alguns segundos,
+          // esperando a IA) para buscar de novo. Sem peças, continua "Buscando…" para não mostrar "nada achado" cedo.
+          if (accumulated.length > 0 && !signal.aborted) setLoading(false);
           return;
         }
         if (message.type === 'machines') {
@@ -476,8 +447,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       const commercial = await commercialPromise;
       if (signal?.aborted) return;
       if (accumulated.length > 0) void loadVerifications(accumulated, true);
-      else if (commercial[0]) setSelection({ kind: 'commercial', id: commercial[0].id });
-      else await consultOfficial(resolvedQuery);
+      else if (!commercial[0]) await consultOfficial(resolvedQuery);
     } catch (searchError) {
       if (searchError instanceof Error && searchError.name === 'AbortError') return;
       setError(searchError instanceof Error ? searchError.message : 'Erro ao pesquisar.');
@@ -555,11 +525,28 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     else void runSearch(part.partNumber);
   }, [closeSuggestions, initialQuery, onQueryChange, runSearch]);
 
-  const selectedTechnical = useMemo(() => selection?.kind === 'technical' ? parts.find(part => part.id === selection.id) : undefined, [parts, selection]);
-  const selectedCommercial = useMemo(() => selection?.kind === 'commercial' ? commercialParts.find(part => part.id === selection.id) : undefined, [commercialParts, selection]);
-  const selectedVerification = selectedTechnical ? verifications[normalizePartCode(selectedTechnical.partNumber)] : undefined;
   const hasLocalResults = parts.length > 0 || commercialParts.length > 0;
-  const showSideRail = Boolean(selectedTechnical || selectedCommercial || quoteCart.totalItems > 0);
+  // Uma linha por código. O cadastro de preços só mostra o que o catálogo ainda não mostrou: a mesma
+  // peça, com o mesmo preço, em dois grupos era a mesma linha duas vezes.
+  const partGroups = useMemo(() => groupPartsByCode(parts), [parts]);
+  const visibleCommercial = useMemo(() => {
+    const shown = new Set(partGroups.map(group => normalizePartCode(group.main.partNumber)));
+    return commercialParts.filter(item => !shown.has(normalizePartCode(item.partNumber)));
+  }, [commercialParts, partGroups]);
+  const hasCommercialGroup = visibleCommercial.length > 0 || commercialLoading;
+  const showGroupHeaders = partGroups.length > 0 && hasCommercialGroup;
+  // Vem primeiro o grupo que tem o NOME que o cliente falou. "vela de ignição" achava 21 chaves e
+  // fivelas no catálogo e deixava as velas de verdade, do cadastro, lá embaixo.
+  // Conta quantas peças de cada grupo têm esse nome (44 velas contra 1 plugue de teste); empate fica com o catálogo.
+  const commercialFirst = visibleCommercial.filter(item => nameContainsPhrase(item.name, lastQuery)).length
+    > partGroups.filter(group => nameContainsPhrase(group.main.name, lastQuery)).length;
+  // Atalhos de documento: o manual em português primeiro, o manual antes da lista de peças, sem repetir.
+  const sortedExtras = useMemo(() => {
+    const seen = new Set<string>();
+    return [...officialExtras]
+      .filter(item => { const key = `${item.title}|${item.languages.join(',')}`; if (seen.has(key)) return false; seen.add(key); return true; })
+      .sort((a, b) => extraRank(a) - extraRank(b));
+  }, [officialExtras]);
 
   const copyCode = useCallback(async (code: string) => {
     const raw = cleanErpCode(code);
@@ -613,9 +600,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     setCommercialParts([]);
     setOfficialResult(null);
     setHasSearched(false);
-    setSelection(null);
     setError('');
-    setPriceSection('');
     onQueryChange('');
     window.requestAnimationFrame(() => inputRef.current?.focus());
   };
@@ -647,36 +632,6 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     }
   }, []);
 
-  const toggleFavorite = useCallback(async () => {
-    if (!detail) return;
-    try {
-      if (detail.favoriteId) {
-        await apiJson(`/api/favorites/${detail.favoriteId}`, { method: 'DELETE' });
-        setDetail(current => current ? { ...current, favoriteId: null } : current);
-        toast.success('Removida dos favoritos.');
-      } else {
-        const data = await apiJson<{ favorite: { id: string } }>('/api/favorites', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ partId: detail.id }),
-        });
-        setDetail(current => current ? { ...current, favoriteId: data.favorite.id } : current);
-        toast.success('Adicionada aos favoritos.');
-      }
-    } catch (favoriteError) {
-      toast.error(favoriteError instanceof Error ? favoriteError.message : 'Não foi possível atualizar o favorito.');
-    }
-  }, [detail]);
-
-  const changePriceSection = (section: string) => {
-    setPriceSection(section);
-    setSelection(null);
-    if (lastQuery.length >= 2) {
-      void fetchCommercial(lastQuery, section).then(items => {
-        if (items?.[0]) setSelection({ kind: 'commercial', id: items[0].id });
-      });
-    }
-  };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -684,8 +639,8 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
         if (aiOpen) setAiOpen(false);
         else if (pdf) setPdf(null);
         else if (verificationTarget) setVerificationTarget(null);
-        else if (crossReference) setCrossReference(null);
-        else if (detail) setDetail(null);
+        // A gaveta da peça é um Sheet do Radix e fecha o próprio Esc. Fechá-la aqui também fazia o Esc que
+        // fecha o menu "⋯" levar a gaveta junto.
         return;
       }
       if (event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey && !isTypingTarget(event.target)) {
@@ -696,237 +651,188 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [aiOpen, crossReference, detail, pdf, verificationTarget]);
+  }, [aiOpen, detail, pdf, verificationTarget]);
 
   const detailVerification = detail ? verifications[normalizePartCode(detail.partNumber)] : undefined;
 
   return (
     <section className="flex flex-1 flex-col gap-4">
+      <h1 className="sr-only">Atendimento</h1>
+      <p role="status" className="sr-only">{loading ? 'Buscando…' : hasSearched ? `${parts.length + commercialParts.length} resultados` : ''}</p>
+
       <CounterSessionBar onOpenMachine={pnc => setOpenMachine({ pnc, name: session.machineModel || `PNC ${pnc}` })} />
 
-      {/* O título grande "Encontre a peça certa. Entenda por quê." saiu daqui.
-          Eram três cabeçalhos empilhados dizendo a mesma coisa antes da busca:
-          o do app ("Atendimento"), o da barra de sessão e este. Numa tela de
-          trabalho o rótulo da seção já vem do cabeçalho do app, e o campo de
-          busca se explica sozinho — o espaço devolvido é o que faltava acima
-          da dobra no laptop do balcão. */}
-      <form onSubmit={submit} className="overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm dark:border-ink-800 dark:bg-ink-900">
-        <div className="flex items-center gap-2 p-2">
-          <div className="relative min-w-0 flex-1">
-            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-500 dark:text-ink-400">⌕</span>
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={event => setQuery(event.target.value)}
-              onFocus={() => { if (suggestions.length > 0) setSuggestionsOpen(true); }}
-              onBlur={() => setSuggestionsOpen(false)}
-              onKeyDown={event => {
-                if (!suggestionsOpen || !suggestions.length) return;
-                if (event.key === 'ArrowDown') {
-                  event.preventDefault();
-                  setActiveSuggestion(current => (current + 1) % suggestions.length);
-                } else if (event.key === 'ArrowUp') {
-                  event.preventDefault();
-                  setActiveSuggestion(current => (current <= 0 ? suggestions.length - 1 : current - 1));
-                } else if (event.key === 'Escape') {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  closeSuggestions();
-                }
-              }}
-              placeholder={hasContext ? 'Peça, código ou pergunta sobre este equipamento…' : 'Código, peça, modelo ou descreva o que você precisa…'}
-              /* O campo principal do produto não tinha rótulo nenhum — só
-                 placeholder, que some assim que o atendente digita. Medido no
-                 DOM: era o único campo sem rótulo da tela. */
-              aria-label="Buscar peça, código ou modelo"
-              autoComplete="off"
-              role="combobox"
-              aria-expanded={suggestionsOpen && suggestions.length > 0}
-              aria-controls="parts-search-suggestions"
-              aria-autocomplete="list"
-              className="h-[52px] w-full rounded-lg border-0 bg-ink-50 pl-10 pr-4 sm:h-12 text-sm font-semibold text-ink-900 outline-none transition placeholder:text-ink-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:bg-ink-800 dark:text-white dark:focus:bg-ink-800"
-            />
-            {suggestionsOpen && suggestions.length > 0 && (
-              <div id="parts-search-suggestions">
-                <SuggestionsDropdown suggestions={suggestions} activeIndex={activeSuggestion} onPick={selectSuggestion} />
-              </div>
-            )}
-          </div>
-          {query && <button type="button" onClick={clearSearch} className="hidden h-10 shrink-0 rounded-lg px-3 text-xs font-bold text-ink-500 hover:text-ink-800 sm:block dark:text-ink-400 dark:hover:text-ink-200">Limpar</button>}
-          <button type="submit" disabled={loading} className="cv-touch-target h-[52px] shrink-0 rounded-lg bg-accent-700 px-6 sm:h-12 text-sm font-black text-white transition hover:bg-accent-800 disabled:opacity-60">{loading ? 'Analisando…' : 'Buscar'}</button>
+      <form onSubmit={submit} className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
+        <div className="relative min-w-0 basis-full sm:basis-0 sm:flex-1">
+          <Icon name="search" className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            ref={inputRef}
+            value={query}
+            onChange={event => {
+              setQuery(event.target.value);
+              setActiveRecent(-1);
+              setRecentOpen(!event.target.value.trim() && recent.length > 0);
+            }}
+            onFocus={() => {
+              if (suggestions.length > 0) setSuggestionsOpen(true);
+              if (!query.trim()) { loadRecent(); setRecentOpen(recent.length > 0); }
+            }}
+            onBlur={() => { setSuggestionsOpen(false); setRecentOpen(false); }}
+            onKeyDown={event => {
+              if (recentOpen && recent.length) {
+                if (event.key === 'ArrowDown') { event.preventDefault(); setActiveRecent(current => (current + 1) % recent.length); return; }
+                if (event.key === 'ArrowUp') { event.preventDefault(); setActiveRecent(current => (current <= 0 ? recent.length - 1 : current - 1)); return; }
+                if (event.key === 'Enter' && activeRecent >= 0) { event.preventDefault(); setRecentOpen(false); beginSearch(recent[activeRecent].replay); return; }
+                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setRecentOpen(false); return; }
+              }
+              if (!suggestionsOpen || !suggestions.length) return;
+              if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                setActiveSuggestion(current => (current + 1) % suggestions.length);
+              } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                setActiveSuggestion(current => (current <= 0 ? suggestions.length - 1 : current - 1));
+              } else if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                closeSuggestions();
+              }
+            }}
+            placeholder={hasContext ? 'Peça, código ou pergunta sobre este equipamento…' : 'Código, peça ou modelo…'}
+            name="busca"
+            spellCheck={false}
+            /* O campo principal do produto não tinha rótulo, só placeholder, que some
+               quando o atendente digita. */
+            aria-label="Buscar peça, código ou modelo"
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={(suggestionsOpen && suggestions.length > 0) || (recentOpen && recent.length > 0 && !query.trim())}
+            aria-controls="parts-search-suggestions"
+            aria-autocomplete="list"
+            className="h-12 rounded-xl bg-card pl-12 pr-20 text-lg font-medium"
+          />
+          {!query && <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-border px-1.5 text-sm text-muted-foreground">Ctrl&nbsp;K</kbd>}
+          {recentOpen && recent.length > 0 && !query.trim() && (
+            <RecentSearchesDropdown recent={recent} activeIndex={activeRecent} onPick={value => { setRecentOpen(false); beginSearch(value); }} />
+          )}
+          {suggestionsOpen && suggestions.length > 0 && (
+            <div id="parts-search-suggestions">
+              <SuggestionsDropdown suggestions={suggestions} activeIndex={activeSuggestion} onPick={selectSuggestion} />
+            </div>
+          )}
         </div>
-        {hasContext && (
-          <div className="flex flex-wrap items-center gap-2 border-t border-ink-100 px-4 py-2 text-xs dark:border-ink-800">
-            <span className="font-bold text-emerald-700 dark:text-emerald-400">Contexto aplicado: {session.machineModel || 'modelo'}{session.pnc ? ` · PNC ${session.pnc}` : ''}{session.serial ? ` · S/N ${session.serial}` : ''}</span>
-          </div>
-        )}
+        {query && <Button type="button" variant="ghost" size="lg" onClick={clearSearch}>Limpar</Button>}
+        <Button type="submit" size="lg" disabled={loading} className="min-w-32">{loading ? 'Buscando…' : 'Buscar'}</Button>
       </form>
 
-      {recentMachines.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 px-1">
-          <span className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">Máquinas recentes</span>
+      {error && <div role="alert" className="rounded-lg border border-destructive bg-destructive/10 px-4 py-3 text-base font-medium text-destructive">{error}</div>}
+
+      {/* Máquina e documentos viram atalhos pequenos, em uma linha: a peça buscada vem
+          primeiro. Antes eram uma lista de 12 linhas na frente do resultado. */}
+      {(machines.length > 0 || sortedExtras.length > 0 || recentMachines.length > 0) && (
+        <div className="flex flex-wrap items-center gap-2">
           {recentMachines.map(item => (
-            <button
-              key={item.pnc}
-              type="button"
-              onClick={() => setOpenMachine({ pnc: item.pnc, name: item.name })}
-              title={item.meta || `PNC ${item.pnc}`}
-              className="max-w-[240px] truncate rounded-full border border-ink-200 bg-white px-3 py-1.5 text-[11px] font-bold text-ink-600 transition hover:border-brand-300 hover:text-brand-700 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300"
-            >
-              {item.name}
-            </button>
+            <Button key={item.pnc} variant="outline" size="sm" onClick={() => setOpenMachine({ pnc: item.pnc, name: item.name })} title={item.meta || `PNC ${item.pnc}`} className="max-w-64">
+              <span className="truncate">{item.name}</span>
+            </Button>
           ))}
+          {machines.map(item => (
+            <Button
+              key={item.id}
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // O contexto do atendimento passa a valer para as buscas seguintes.
+                updateSession({ machineModel: item.title, pnc: item.pnc || '' });
+                setOpenMachine({ pnc: item.pnc as string, name: item.title });
+              }}
+              title={[item.categoryName || item.subtitle, item.discontinued ? 'fora de linha' : null].filter(Boolean).join(' · ')}
+              className="max-w-full border-primary/50 sm:max-w-[28rem]"
+            >
+              <Icon name="machine" className="size-4" />
+              <span className="truncate">{item.title}</span>
+              <span className="font-code text-sm font-medium text-muted-foreground tabular-nums">PNC {item.pnc}</span>
+            </Button>
+          ))}
+          {(showAllExtras ? sortedExtras : sortedExtras.slice(0, 3)).map(item => (
+            <Button key={`${item.kind}-${item.id}`} variant="outline" size="sm" asChild className="max-w-full sm:max-w-72">
+              <a
+                href={item.portalUrl as string}
+                target="_blank"
+                rel="noreferrer noopener"
+                title={[OFFICIAL_KIND_LABELS[item.kind], item.title, item.languages.join(', ') || null, item.discontinued ? 'fora de linha' : null].filter(Boolean).join(' · ')}
+              >
+                <Icon name="pdf" className="size-4 text-muted-foreground" />
+                <span className="truncate">{item.title}</span>
+              </a>
+            </Button>
+          ))}
+          {sortedExtras.length > 3 && (
+            <Button variant="ghost" size="sm" onClick={() => setShowAllExtras(value => !value)} aria-expanded={showAllExtras}>
+              {showAllExtras ? 'Mostrar menos' : `Mais ${sortedExtras.length - 3}`}
+            </Button>
+          )}
         </div>
       )}
 
-      {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">{error}</div>}
+      <div className="grid flex-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 space-y-4">
+          {!hasSearched && <Starter onExample={beginSearch} recent={recent} onReplay={beginSearch} />}
+          {loading && !hasLocalResults ? <ResultsSkeleton /> : null}
+          {hasSearched && <OilQuickAdd query={lastQuery} machineModel={session.machineModel.trim() || undefined} />}
 
-      <div className={showSideRail ? 'grid flex-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]' : 'flex-1'}>
-        <div className="min-w-0 space-y-5">
-          {!hasSearched && <Starter hasContext={hasContext} onExample={beginSearch} favorites={quickFavorites} lastSearch={lastSearch} onReplay={beginSearch} />}
-          {loading && !hasLocalResults ? <LoadingRows /> : null}
-
-          {/* Motor Kawasaki: os códigos E a vista explodida de cada conjunto.
-              Vem primeiro porque, quando o atendente digitou o modelo do motor,
-              é o catálogo dele que responde — e a vista explodida está sempre
-              ao lado dos códigos, nunca só uma das duas. */}
+          {/* Motor Kawasaki: os códigos E a vista explodida de cada conjunto. Vem antes
+              porque, quando o atendente digitou o modelo do motor, é o catálogo dele que
+              responde. */}
           {kawasakiModel && <KawasakiEnginePanel model={kawasakiModel} onSearchPart={beginSearch} />}
           {briggsModel && <BriggsEnginePanel model={briggsModel} onSearchPart={beginSearch} />}
 
-          {/* Caminho inverso: o cliente chegou com o código e não com a
-              máquina. Responde do índice local do que já foi lido dos catálogos
-              Briggs/Kawasaki — sem consultar o fabricante, então pode aparecer
-              sozinho, sem botão. */}
+          {/* Caminho inverso: o cliente chegou com o código e não com a máquina. Responde
+              do índice local do que já foi lido dos catálogos Briggs/Kawasaki, sem consultar
+              o fabricante. */}
           {hasSearched && <OfficialPartOrigin code={lastQuery} onSearchPart={beginSearch} />}
 
-          {machines.length > 0 && (
-            <section>
-              <div className="mb-2 flex items-center justify-between gap-3 px-1">
-                <div className="flex items-center gap-2">
-                  <Icon name="machine" className="h-4 w-4 text-brand-600 dark:text-brand-300" />
-                  <span className="text-xs font-black text-ink-700 dark:text-ink-200">Máquinas{machineTerm ? ` · ${machineTerm}` : ''}</span>
-                </div>
-                <span className="text-[10px] text-ink-500 dark:text-ink-400">{machines.length} no catálogo oficial</span>
-              </div>
-              <div className="overflow-hidden rounded-xl border border-ink-200 dark:border-ink-800">
-                {machines.map(item => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      // O contexto do atendimento passa a valer para as buscas
-                      // seguintes, como já valia na aba de máquinas.
-                      updateSession({ machineModel: item.title, pnc: item.pnc || '' });
-                      setOpenMachine({ pnc: item.pnc as string, name: item.title });
-                    }}
-                    className="grid w-full gap-3 border-b border-ink-100 bg-white px-4 py-3.5 text-left transition last:border-0 hover:bg-ink-50/80 md:grid-cols-[minmax(0,1fr)_auto] md:items-center dark:border-ink-800 dark:bg-ink-900 dark:hover:bg-ink-800/45"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      {item.imageUrl && <img src={item.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-lg bg-white object-contain" loading="lazy" />}
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-black text-ink-900 dark:text-white">{item.title}</div>
-                        <div className="mt-1 truncate text-[11px] text-ink-500 dark:text-ink-400">{[item.categoryName || item.subtitle, item.discontinued ? 'fora de linha' : null].filter(Boolean).join(' · ')}</div>
-                      </div>
+          {(partGroups.length > 0 || hasCommercialGroup) && (
+            <ResultsTable>
+              {partGroups.length > 0 && (
+                <ResultsGroup title="No catálogo" order={commercialFirst ? 2 : 1} showHeader={showGroupHeaders} count={`${partGroups.length} resultado${partGroups.length === 1 ? '' : 's'}`}>
+                  {partGroups.map(({ main: part, others }) => (
+                    <PartResultRow
+                      key={part.id}
+                      part={part}
+                      others={others}
+                      verification={verifications[normalizePartCode(part.partNumber)]}
+                      opening={detailLoadingId === part.id}
+                      onOpen={() => void openPart(part.id)}
+                      onCopy={code => void copyCode(code)}
+                    />
+                  ))}
+                </ResultsGroup>
+              )}
+
+              {hasCommercialGroup && (
+                <ResultsGroup
+                  title="Cadastro de preços"
+                  order={commercialFirst ? 1 : 2}
+                  showHeader={showGroupHeaders}
+                  count={commercialLoading ? 'Consultando…' : `${visibleCommercial.length} resultado${visibleCommercial.length === 1 ? '' : 's'}`}
+                >
+                  {visibleCommercial.map(part => <CommercialPartRow key={part.id} part={part} onCopy={code => void copyCode(code)} onOfficial={item => void consultOfficial(item.partNumber)} />)}
+                  {commercialParts.length === COMMERCIAL_RESULTS_CAP && (
+                    <div className="border-t border-border bg-muted px-4 py-2.5 text-sm text-muted-foreground">
+                      Mostrando os {COMMERCIAL_RESULTS_CAP} primeiros. Refine a busca para ver os demais.
                     </div>
-                    <div className="flex items-center gap-5">
-                      <div className="hidden text-right md:block"><div className="font-mono text-xs font-black text-ink-900 dark:text-brand-300">PNC {item.pnc}</div></div>
-                      <span className="shrink-0 text-xs font-black text-brand-600 dark:text-brand-300">Abrir vista explodida</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </section>
+                  )}
+                </ResultsGroup>
+              )}
+            </ResultsTable>
           )}
 
-          {officialExtras.length > 0 && (
-            <section>
-              <div className="mb-2 flex items-center justify-between gap-3 px-1">
-                <div className="flex items-center gap-2">
-                  <Icon name="catalog" className="h-4 w-4 text-brand-600 dark:text-brand-300" />
-                  <span className="text-xs font-black text-ink-700 dark:text-ink-200">Também na Husqvarna</span>
-                </div>
-                <span className="text-[10px] text-ink-500 dark:text-ink-400">{officialExtras.length} acessório, documento ou categoria</span>
-              </div>
-              <div className="overflow-hidden rounded-xl border border-ink-200 dark:border-ink-800">
-                {officialExtras.map(item => (
-                  <a
-                    key={`${item.kind}-${item.id}`}
-                    href={item.portalUrl as string}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="grid w-full gap-3 border-b border-ink-100 bg-white px-4 py-3 text-left transition last:border-0 hover:bg-ink-50/80 md:grid-cols-[minmax(0,1fr)_auto] md:items-center dark:border-ink-800 dark:bg-ink-900 dark:hover:bg-ink-800/45"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      {item.imageUrl && <img src={item.imageUrl} alt="" className="h-10 w-10 shrink-0 rounded-lg bg-white object-contain" loading="lazy" />}
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-bold text-ink-900 dark:text-white">{item.title}</div>
-                        <div className="mt-0.5 truncate text-[11px] text-ink-500 dark:text-ink-400">
-                          {[OFFICIAL_KIND_LABELS[item.kind], item.categoryName || item.subtitle || item.documentType, item.languages.join(', ') || null, item.discontinued ? 'fora de linha' : null].filter(Boolean).join(' · ')}
-                        </div>
-                      </div>
-                    </div>
-                    <span className="shrink-0 text-xs font-black text-brand-600 dark:text-brand-300">Abrir na Husqvarna ↗</span>
-                  </a>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {parts.length > 0 && (
-            <section>
-              <div className="mb-2 flex items-center justify-between gap-3 px-1">
-                <div className="flex items-center gap-2"><SourceBadge source="CATALOG" /><span className="text-xs font-black text-ink-700 dark:text-ink-200">Evidência técnica</span></div>
-                <span className="text-[10px] text-ink-500 dark:text-ink-400">{parts.length} resultado{parts.length === 1 ? '' : 's'} em catálogo</span>
-              </div>
-              <div className="overflow-hidden rounded-xl border border-ink-200 dark:border-ink-800">
-                {parts.map(part => (
-                  <PartResultRow
-                    key={part.id}
-                    part={part}
-                    verification={verifications[normalizePartCode(part.partNumber)]}
-                    verificationLoading={verificationLoading}
-                    selected={selection?.kind === 'technical' && selection.id === part.id}
-                    opening={detailLoadingId === part.id}
-                    onSelect={() => setSelection({ kind: 'technical', id: part.id })}
-                    onOpen={() => void openPart(part.id)}
-                    onCopy={code => void copyCode(code)}
-                    onCrossReference={(code, name) => setCrossReference({ code, name })}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {(commercialParts.length > 0 || commercialLoading || priceSections.length > 0) && (
-            <section>
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-3 px-1">
-                <div className="flex items-center gap-2"><SourceBadge source="PRICE_LIST" /><span className="text-xs font-black text-ink-700 dark:text-ink-200">Cadastro comercial</span><span className="text-[10px] text-ink-500 dark:text-ink-400">{commercialLoading ? 'Consultando…' : `${commercialParts.length} resultado${commercialParts.length === 1 ? '' : 's'}`}</span></div>
-                {priceSections.length > 1 && (
-                  <select value={priceSection} onChange={event => changePriceSection(event.target.value)} className="h-8 rounded-lg border border-ink-200 bg-white px-2 text-[10px] font-bold text-ink-600 outline-none dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300">
-                    <option value="">Todas as seções</option>
-                    {priceSections.map(section => <option key={section.name} value={section.name}>{section.name} · {section.count}</option>)}
-                  </select>
-                )}
-              </div>
-              <div className="overflow-hidden rounded-xl border border-ink-200 dark:border-ink-800">
-                {commercialParts.map(part => <CommercialPartRow key={part.id} part={part} selected={selection?.kind === 'commercial' && selection.id === part.id} onSelect={() => setSelection({ kind: 'commercial', id: part.id })} onCopy={code => void copyCode(code)} onOfficial={item => void consultOfficial(item.partNumber)} />)}
-                {commercialParts.length === COMMERCIAL_RESULTS_CAP && (
-                  <div className="border-t border-ink-100 bg-ink-50/60 px-4 py-2.5 text-[10px] font-semibold text-ink-500 dark:border-ink-800 dark:bg-ink-800/40 dark:text-ink-400">
-                    Mostrando os {COMMERCIAL_RESULTS_CAP} primeiros resultados por relevância. Pode haver mais — use a seção ao lado ou refine a busca (marca, categoria, parte do código) para ver os demais.
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
-
-          {/* O cliente descreveu a peca com as palavras dele e a busca nao achou
-              nada. A IA escolhe de uma lista FECHADA — as pecas daquela maquina —
-              e o desenho confirma. Vem ANTES do painel de "nao achei" porque e
-              uma resposta, e o painel e a ausencia dela.
-
-              A maquina sai do contexto do atendimento, que o balcao sempre
-              preenche: "nos sempre perguntamos qual a marca e modelo da sua
-              maquina". Sem maquina, nao ha lista fechada e nada e consultado. */}
+          {/* O cliente descreveu a peça com as palavras dele e a busca não achou nada. A IA
+              escolhe de uma lista FECHADA (as peças daquela máquina) e o desenho confirma.
+              Vem antes do painel de "não achei" porque é uma resposta, e o painel é a
+              ausência dela. A máquina sai do contexto do atendimento: sem máquina não há
+              lista fechada, e nada é consultado. */}
           {hasSearched && !loading && !commercialLoading && !hasLocalResults && (session.machineModel.trim() || machineTerm) && (
             <PartGuesses
               model={session.machineModel.trim() || machineTerm}
@@ -936,71 +842,53 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           )}
 
           {hasSearched && !loading && !commercialLoading && !hasLocalResults && (
-            <section className="rounded-xl border border-ink-200 bg-white p-5 dark:border-ink-800 dark:bg-ink-900">
+            <section className="rounded-xl border border-border bg-card p-5">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <SourceBadge source={officialResult?.status === 'FOUND' ? 'OFFICIAL' : 'REVIEW'} />
+                <div className="min-w-0 space-y-2">
                   {officialLoading ? (
-                    <div className="mt-3 text-sm font-semibold text-ink-500">Consultando fonte oficial…</div>
+                    <p className="text-base text-muted-foreground">Consultando a Husqvarna…</p>
                   ) : officialResult?.status === 'FOUND' ? (
                     <>
-                      <h2 className="mt-3 text-base font-black text-ink-900 dark:text-white">{officialResult.name}</h2>
-                      {officialResult.partNumber && <div className="mt-1 font-mono text-xl font-black text-ink-900 dark:text-brand-300">{cleanErpCode(officialResult.partNumber)}</div>}
-                      {officialResult.message && <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500 dark:text-ink-400">{officialResult.message}</p>}
+                      <h2 className="text-xl font-semibold">{officialResult.name}</h2>
+                      {officialResult.partNumber && <div className="font-code text-2xl font-semibold tabular-nums">{cleanErpCode(officialResult.partNumber)}</div>}
+                      {officialResult.message && <p className="max-w-2xl text-base text-muted-foreground">{officialResult.message}</p>}
                     </>
                   ) : (
                     <>
-                      <h2 className="mt-3 text-base font-black text-ink-900 dark:text-white">Não há evidência suficiente nas fontes locais</h2>
-                      <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500 dark:text-ink-400">{officialResult?.message || 'A consulta não retornou uma peça segura. Use a assistência técnica para entender o que precisa ser confirmado.'}</p>
+                      <h2 className="text-xl font-semibold">Nenhuma peça encontrada</h2>
+                      {officialResult?.message && <p className="max-w-2xl text-base text-muted-foreground">{officialResult.message}</p>}
                     </>
                   )}
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
                   {officialMachinePnc && (
-                    <button
-                      type="button"
-                      onClick={() => setOpenMachine({ pnc: officialMachinePnc, name: officialResult?.name || `PNC ${officialMachinePnc}` })}
-                      className="rounded-lg bg-accent-700 px-3 py-2 text-xs font-black text-white transition hover:bg-accent-800"
-                    >
-                      Abrir vista explodida
-                    </button>
+                    <Button onClick={() => setOpenMachine({ pnc: officialMachinePnc, name: officialResult?.name || `PNC ${officialMachinePnc}` })}>Abrir vista explodida</Button>
                   )}
-                  {officialResult?.partNumber && <button type="button" onClick={() => void copyCode(officialResult.partNumber!)} className="rounded-lg bg-ink-900 px-3 py-2 text-xs font-black text-white">Copiar código</button>}
-                  <button type="button" onClick={() => openAi(buildTechnicalQuery(lastQuery))} className="rounded-lg border border-ink-200 bg-white px-3 py-2 text-xs font-black text-ink-600 transition hover:border-brand-200 hover:text-brand-600 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300">Pedir orientação</button>
+                  {officialResult?.partNumber && <Button variant="outline" onClick={() => void copyCode(officialResult.partNumber!)}>Copiar código</Button>}
+                  <Button variant="outline" onClick={() => openAi(buildTechnicalQuery(lastQuery))}>Pedir orientação</Button>
                 </div>
               </div>
             </section>
           )}
 
           {documents.length > 0 && (
-            <section>
-              <div className="mb-2 flex items-center justify-between gap-3 px-1">
-                <div className="text-[10px] font-black uppercase tracking-[.14em] text-ink-500 dark:text-ink-400">Catálogos relacionados</div>
-                {documents.length > 4 && <div className="text-[10px] text-ink-500 dark:text-ink-400">+{documents.length - 4} outro{documents.length - 4 === 1 ? '' : 's'}</div>}
-              </div>
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold">Catálogos relacionados{documents.length > 4 ? <span className="ml-2 text-sm font-normal text-muted-foreground">+{documents.length - 4}</span> : null}</h2>
               <div className="grid gap-2 md:grid-cols-2">
-                {documents.slice(0, 4).map(document => <button key={document.id} type="button" onClick={() => void accessPdf(document.id, null, document.filename)} className="rounded-xl border border-ink-200 bg-white p-3 text-left transition hover:border-brand-300 dark:border-ink-800 dark:bg-ink-900"><div className="truncate text-xs font-black text-ink-800 dark:text-ink-100">{document.filename}</div><div className="mt-1 text-[10px] text-ink-500 dark:text-ink-400">{document.model || 'Modelo não informado'} · {document.partCount} peças</div></button>)}
+                {documents.slice(0, 4).map(document => (
+                  <Button key={document.id} variant="outline" onClick={() => void accessPdf(document.id, null, document.filename)} className="h-auto flex-col items-start gap-0 py-2.5 text-left">
+                    <span className="w-full truncate text-base font-semibold">{document.filename}</span>
+                    <span className="text-sm font-normal text-muted-foreground">{document.model || 'Modelo não informado'} · {document.partCount} peças</span>
+                  </Button>
+                ))}
               </div>
             </section>
           )}
         </div>
 
-        {showSideRail && (
-          <aside className="min-w-0 space-y-3 xl:sticky xl:top-[84px] xl:self-start">
-            {(selectedTechnical || selectedCommercial) && (
-              <PartQuickPreview
-                technical={selectedTechnical}
-                commercial={selectedCommercial}
-                verification={selectedVerification}
-                onCopy={code => void copyCode(code)}
-                onOpenTechnical={id => void openPart(id)}
-                onCrossReference={(code, name) => setCrossReference({ code, name })}
-                onOfficial={value => void consultOfficial(value)}
-              />
-            )}
-            <CounterQuoteRail />
-          </aside>
-        )}
+        <aside className="min-w-0 xl:sticky xl:top-[72px] xl:self-start">
+          <CounterQuoteRail />
+        </aside>
       </div>
 
       {/* A `key` remonta a barreira a cada máquina: sem ela, um erro numa
@@ -1013,18 +901,16 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
             onClose={() => setOpenMachine(null)}
             onOpenPnc={pnc => setOpenMachine({ pnc, name: `PNC ${pnc}` })}
             onOpenPart={code => { setOpenMachine(null); void beginSearch(code); }}
-            onOpenSearch={term => { setOpenMachine(null); void beginSearch(term); }}
             onLoaded={rememberMachine}
           />
         </PanelErrorBoundary>
       )}
 
-      {detail && <PanelErrorBoundary key={`peca-${detail.partNumber}`} onClose={() => setDetail(null)}><PartDetailDrawer detail={detail} verification={detailVerification} verificationLoading={verificationLoading} liveData={liveData} onClose={() => setDetail(null)} onCopy={code => void copyCode(code)} onOpenPdf={(documentId, page, title) => void accessPdf(documentId, page, title)} onOpenRelated={id => void openPart(id)} onToggleFavorite={() => void toggleFavorite()} onVerify={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} onCrossReference={(code, name) => setCrossReference({ code, name })} onAskAi={openAi} /></PanelErrorBoundary>}
+      {detail && <PanelErrorBoundary key={`peca-${detail.partNumber}`} onClose={() => setDetail(null)}><PartDetailDrawer detail={detail} verification={detailVerification} liveData={liveData} onClose={() => setDetail(null)} onCopy={code => void copyCode(code)} onOpenPdf={(documentId, page, title) => void accessPdf(documentId, page, title)} onOpenRelated={id => void openPart(id)} onVerify={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} onAskAi={openAi} escapeBlocked={aiOpen || Boolean(pdf) || Boolean(verificationTarget)} /></PanelErrorBoundary>}
       {verificationTarget && <PartVerificationDialog target={verificationTarget} existing={verifications[normalizePartCode(verificationTarget.partNumber)]} onClose={() => setVerificationTarget(null)} onSaved={() => { setVerificationTarget(null); toast.success('Conferência enviada para aprovação.'); if (detail) void loadVerifications([detail]); }} />}
-      {crossReference && <CrossReferenceDialog partCode={crossReference.code} partName={crossReference.name} onClose={() => setCrossReference(null)} />}
 
       {pdf && (
-        <div className="fixed inset-0 z-[90] bg-ink-950/90 p-3 md:p-5">
+        <div className="fixed inset-0 z-90 bg-ink-950/90 p-3 md:p-5">
           <div className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-2xl bg-white dark:bg-ink-900">
             <div className="flex items-center justify-between border-b border-ink-200 px-4 py-3 dark:border-ink-800"><div className="truncate text-sm font-black">{pdf.title}</div><button type="button" onClick={() => setPdf(null)} className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-bold dark:border-ink-700">Fechar</button></div>
             <iframe title={pdf.title} src={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} className="h-full w-full border-0" />
@@ -1033,7 +919,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       )}
 
       {aiOpen && (
-        <div className="fixed inset-0 z-[80] flex justify-end">
+        <div className="fixed inset-0 z-80 flex justify-end">
           <button type="button" aria-label="Fechar assistente" onClick={() => setAiOpen(false)} className="absolute inset-0 bg-ink-950/45 backdrop-blur-[1px]" />
           <div className="relative z-10 h-full w-full max-w-[600px] bg-white shadow-2xl dark:bg-ink-900"><ChatPanel storageScope={storageScope || 'balcao-v3'} initialPrompt={aiPrompt} onClose={() => setAiOpen(false)} isDrawer /></div>
         </div>

@@ -8,24 +8,25 @@ datasource db {
 }
 
 model Tenant {
-  id                    String                     @id @default(uuid())
-  name                  String
-  users                 User[]
-  categories            Category[]
-  documents             Document[]
-  searchFeedback        SearchFeedback[]
-  searchHistory         SearchHistory[]
-  favorites             Favorite[]
-  auditLogs             AuditLog[]
-  officialVerifications OfficialPartVerification[]
-  benchmarkRuns         AiBenchmarkRun[]
-  masterParts           MasterPart[]
-  partLocations         PartLocation[]
-  quoteUsages           QuoteUsage[]
+  id                              String                           @id @default(uuid())
+  name                            String
+  users                           User[]
+  categories                      Category[]
+  documents                       Document[]
+  searchFeedback                  SearchFeedback[]
+  searchHistory                   SearchHistory[]
+  favorites                       Favorite[]
+  auditLogs                       AuditLog[]
+  officialVerifications           OfficialPartVerification[]
+  benchmarkRuns                   AiBenchmarkRun[]
+  masterParts                     MasterPart[]
+  partLocations                   PartLocation[]
+  quoteUsages                     QuoteUsage[]
   interactiveAiBudgetReservations InteractiveAiBudgetReservation[]
-  quotes                Quote[]
-  commercialImportRuns  CommercialImportRun[]
-  createdAt             DateTime                   @default(now())
+  quotes                          Quote[]
+  commercialImportRuns            CommercialImportRun[]
+  createdAt                       DateTime                         @default(now())
+  MachineListing                  MachineListing[]
 }
 
 enum Role {
@@ -84,7 +85,7 @@ model User {
   partLocationsUpdated          PartLocation[]             @relation("PartLocationUpdatedBy")
   quoteUsages                   QuoteUsage[]
   quotes                        Quote[]
-  createdAt                     DateTime                    @default(now())
+  createdAt                     DateTime                   @default(now())
 
   @@index([tenantId])
 }
@@ -109,13 +110,13 @@ model Document {
   contentHash String?
   status      String  @default("PROCESSING")
 
-  processingJobId    String?
-  processingStage    String    @default("IDLE")
-  processingCurrent  Int       @default(0)
-  processingTotal    Int       @default(0)
-  processingError    String?
-  extractionSnapshot Json?
-  extractionMethod   String?
+  processingJobId          String?
+  processingStage          String    @default("IDLE")
+  processingCurrent        Int       @default(0)
+  processingTotal          Int       @default(0)
+  processingError          String?
+  extractionSnapshot       Json?
+  extractionMethod         String?
   /// Por que a leitura textual recusou este PDF e o processamento caiu para a
   /// IA (`DeterministicDeclineReason` em services/catalog-extractor.ts).
   /// Nulo quando a extração determinística funcionou. Existe para responder
@@ -125,8 +126,8 @@ model Document {
   /// Quantas linhas foram recusadas na gravação por terem código implausível
   /// (ver utils/part-number.ts). Serve para o descarte não ser silencioso: se
   /// esse número for alto, o catálogo foi lido errado e precisa de revisão.
-  extractionRejectedParts  Int     @default(0)
-  extractedAt        DateTime?
+  extractionRejectedParts  Int       @default(0)
+  extractedAt              DateTime?
 
   manufacturer String?
   model        String?
@@ -213,7 +214,7 @@ model Part {
   positionEvidence String?
   name             String
   normalizedName   String
-  alternativeNames String[] @default([])
+  alternativeNames String[]           @default([])
 
   partNumber           String
   normalizedPartNumber String
@@ -242,6 +243,39 @@ model Part {
   @@index([normalizedModel, normalizedPnc])
   @@index([partNumber])
   @@index([normalizedPartNumber, active])
+}
+
+/// Máquinas da lista de preços da Husqvarna (aba "Tabela de preços"). É um ESPELHO da lista
+/// vigente: a importação troca tudo, então máquina que saiu da lista sai daqui. Só texto e
+/// número — nenhuma imagem da lista entra (o arquivo traz aviso de propriedade intelectual).
+model MachineListing {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  pnc           String
+  normalizedPnc String
+  model         String
+  description   String
+  category      String
+  segment       String?
+  technology    String?
+  /// PROFISSIONAL, COMERCIAL ou OCASIONAL; nulo quando o arquivo traz outra coisa.
+  application   String?
+  /// PREÇO CONSUMIDOR da lista, como veio. Máquina NÃO passa pela regra ÷ 0,92 (dono, 2026-10-07).
+  listPrice     Float
+  discontinued  Boolean  @default(false)
+  /// Máquina nova nesta lista.
+  isNew         Boolean  @default(false)
+  /// Preço da lista anterior quando mudou.
+  priceBefore   Float?
+  /// [{ label, value }] na ordem de exibição.
+  specs         Json
+  details       String?
+  listDate      DateTime
+  importedAt    DateTime @default(now())
+
+  @@unique([tenantId, normalizedPnc])
+  @@index([tenantId, category])
 }
 
 model MasterPart {
@@ -323,7 +357,7 @@ model QuoteUsage {
   normalizedPartNumber String
   partNumber           String
   model                String?
-  createdAt             DateTime @default(now())
+  createdAt            DateTime @default(now())
 
   @@unique([tenantId, sessionId, normalizedPartNumber])
   @@index([tenantId, normalizedPartNumber, createdAt])
@@ -383,12 +417,12 @@ model Quote {
 }
 
 model QuoteItem {
-  id      String @id @default(uuid())
-  quoteId String
-  quote   Quote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  id        String @id @default(uuid())
+  quoteId   String
+  quote     Quote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
   // Ordem em que o atendente montou a cesta: o PDF e a ficha de separação
   // precisam sair na mesma ordem da tela.
-  sortOrder Int   @default(0)
+  sortOrder Int    @default(0)
 
   partNumber           String
   normalizedPartNumber String
@@ -541,40 +575,40 @@ model AuditLog {
 }
 
 model InteractiveAiBudgetReservation {
-  id            String   @id @default(uuid())
-  tenantId      String
-  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  day           DateTime @db.Date
+  id             String    @id @default(uuid())
+  tenantId       String
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  day            DateTime  @db.Date
   reservedTokens Int
-  actualTokens  Int?
-  settledAt     DateTime?
-  createdAt     DateTime @default(now())
+  actualTokens   Int?
+  settledAt      DateTime?
+  createdAt      DateTime  @default(now())
 
   @@index([tenantId, day])
   @@index([tenantId, createdAt])
 }
 
 model OfficialPartVerification {
-  id                        String                              @id @default(uuid())
-  tenantId                  String
-  tenant                    Tenant                              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  userId                    String
-  user                      User                                @relation("OfficialVerificationSubmitter", fields: [userId], references: [id], onDelete: Restrict)
-  status                    OfficialVerificationStatus
-  approvalStatus            OfficialVerificationApprovalStatus @default(PENDING)
-  queriedPartNumber         String
-  normalizedQueriedNumber   String
-  currentPartNumber         String
-  normalizedCurrentNumber   String
-  description               String?
-  officialUrl               String
-  note                      String?
-  verifiedAt                DateTime
-  reviewedById              String?
-  reviewedBy                User?                               @relation("OfficialVerificationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-  reviewedAt                DateTime?
-  reviewNote                String?
-  createdAt                 DateTime                            @default(now())
+  id                      String                             @id @default(uuid())
+  tenantId                String
+  tenant                  Tenant                             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId                  String
+  user                    User                               @relation("OfficialVerificationSubmitter", fields: [userId], references: [id], onDelete: Restrict)
+  status                  OfficialVerificationStatus
+  approvalStatus          OfficialVerificationApprovalStatus @default(PENDING)
+  queriedPartNumber       String
+  normalizedQueriedNumber String
+  currentPartNumber       String
+  normalizedCurrentNumber String
+  description             String?
+  officialUrl             String
+  note                    String?
+  verifiedAt              DateTime
+  reviewedById            String?
+  reviewedBy              User?                              @relation("OfficialVerificationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt              DateTime?
+  reviewNote              String?
+  createdAt               DateTime                           @default(now())
 
   @@index([tenantId, normalizedQueriedNumber, createdAt])
   @@index([tenantId, normalizedCurrentNumber, createdAt])
@@ -639,7 +673,7 @@ model OfficialPartIndex {
 }
 
 model OfficialSourceCache {
-  key                 String   @id
+  key                 String    @id
   source              String
   resourceType        String
   resourceId          String
@@ -650,8 +684,8 @@ model OfficialSourceCache {
   freshUntil          DateTime
   staleUntil          DateTime
   changedAt           DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@index([source, resourceType, resourceId])
   @@index([changedAt])

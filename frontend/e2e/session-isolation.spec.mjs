@@ -10,11 +10,12 @@ async function login(page, email) {
   await page.locator('#login-password').fill(PASSWORD);
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard/);
-  await expect(page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/)).toBeVisible();
+  await expect(page.getByPlaceholder(/Código, peça ou modelo|Peça, código ou pergunta/)).toBeVisible();
 }
 
 async function logout(page) {
-  await page.getByRole('button', { name: 'Sair' }).click();
+  await page.getByRole('button', { name: 'Minha conta' }).click();
+  await page.getByRole('menuitem', { name: 'Sair' }).click();
   await expect(page).toHaveURL(/\/login/);
 }
 

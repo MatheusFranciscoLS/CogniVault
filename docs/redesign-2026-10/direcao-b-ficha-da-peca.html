@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direção B — Ficha da peça</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* ===== Tokens (briefing) ===== */
+:root{
+  --navy:#273a60; --navy-deep:#1f2742; --navy-ink:#161c2f;
+  --action:#c13d0a; --action-hover:#9a3109;
+  --gold:#ffc800;
+  --font:'Roboto Flex','Segoe UI',system-ui,sans-serif;
+  --mono:'JetBrains Mono',Consolas,monospace;
+  --r:8px; --r-lg:14px;
+}
+[data-theme=dark]{
+  --page:#0f1426; --card:#171f36; --card-2:#1f2947; --line:#2c3757; --line-strong:#3b4870;
+  --text:#eef1f7; --text-2:#b4bdd2; --text-3:#8e99b4;
+  --add:#ff9a73; --ok:#5fd6a4; --ok-bg:rgba(95,214,164,.13);
+  --warn:#ffd45c; --bad:#ff8f8f; --sel:#223055; --code:#9db8ff;
+}
+[data-theme=light]{
+  --page:#eceae4; --card:#ffffff; --card-2:#f6f5f1; --line:#dedbd2; --line-strong:#c8c4b8;
+  --text:#1b2234; --text-2:#454d62; --text-3:#5f667a;
+  --add:#a73508; --ok:#0a6b4a; --ok-bg:#e1f4ec;
+  --warn:#7a5800; --bad:#a52626; --sel:#eaf0fb; --code:#223a73;
+}
+*{box-sizing:border-box;margin:0}
+body{font:16px/1.4 var(--font);background:var(--page);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+button{font:inherit;cursor:pointer}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* Cabeçalho: a BUSCA é o cabeçalho. Está em toda tela, sempre no mesmo lugar. */
+.top{background:var(--navy);color:#fff;display:flex;align-items:center;gap:20px;padding:0 20px;height:68px;flex:none}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-.02em}
+.logo i{width:32px;height:32px;border-radius:8px;background:#ffffff1c;border:1px solid #ffffff38;display:grid;place-items:center;font-style:normal;font-size:13px}
+.search{flex:1;max-width:640px;display:flex;align-items:center;gap:10px;background:#ffffff;color:#5f667a;border-radius:var(--r-lg);height:46px;padding:0 6px 0 16px}
+.search b{color:#1b2234;font-weight:500;font-size:18px}
+.search kbd{margin-left:auto;font:500 14px var(--font);border:1px solid #c8c4b8;border-radius:6px;padding:1px 8px}
+.search button{background:var(--action);color:#fff;border:0;border-radius:10px;height:36px;padding:0 20px;font-weight:700}
+.search button:hover{background:var(--action-hover)}
+.sp{flex:1}
+.ghost{background:#ffffff14;color:#fff;border:1px solid #ffffff2e;border-radius:var(--r);height:38px;padding:0 14px;display:flex;align-items:center;gap:8px;font-weight:500}
+.avatar{width:38px;height:38px;border-radius:50%;background:#ffffff20;display:grid;place-items:center;font-weight:600;font-size:14px}
+.tabs{background:var(--card);border-bottom:1px solid var(--line);display:flex;gap:6px;padding:0 20px;height:44px;flex:none;align-items:stretch}
+.tabs a{display:flex;align-items:center;padding:0 14px;color:var(--text-2);font-weight:500;text-decoration:none;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tabs a.on{color:var(--text);border-color:var(--action);font-weight:600}
+.tabs .gold{margin-left:auto;align-self:center;font-size:14px;font-weight:600;color:var(--gold);border:1px solid #ffc80060;border-radius:99px;padding:1px 10px}
+[data-theme=light] .tabs .gold{color:#8a6a00;border-color:#b38c0070}
+
+.body{flex:1;min-height:0;display:grid;grid-template-columns:372px 1fr;gap:16px;padding:16px 20px 0}
+
+/* Esquerda: lista curta, só para escolher */
+.list{display:flex;flex-direction:column;gap:8px;overflow:hidden}
+.count{color:var(--text-2);font-size:15px;padding:0 4px 2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:12px 14px;display:grid;gap:2px;cursor:pointer;position:relative}
+.card.sel{background:var(--sel);border-color:var(--line-strong)}
+.card.sel::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:4px;border-radius:0 4px 4px 0;background:var(--action)}
+.card .l1{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.card .c{font-size:18px;font-weight:700;color:var(--code)}
+.card .p{font-weight:700;font-size:17px}
+.card .n{color:var(--text-2);font-size:15px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:var(--ok)}
+.dot.zero{background:var(--bad)}
+
+/* Direita: a ficha */
+.ficha{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);display:flex;flex-direction:column;overflow:hidden}
+.fh{padding:22px 28px 18px;display:grid;grid-template-columns:1fr auto;gap:6px 24px;align-items:end;border-bottom:1px solid var(--line)}
+.origin{display:flex;gap:8px;align-items:center;color:var(--text-2);font-size:15px;margin-bottom:2px}
+.badge{display:inline-flex;gap:6px;align-items:center;font-weight:600;font-size:14px;color:var(--ok);background:var(--ok-bg);border-radius:6px;padding:1px 9px}
+.badge svg{width:14px;height:14px}
+h1{font-size:26px;font-weight:800;letter-spacing:-.02em;grid-column:1}
+.big{font-size:44px;font-weight:700;letter-spacing:.01em;color:var(--code);display:flex;align-items:center;gap:14px;grid-column:1}
+.copy{height:36px;border:1px solid var(--line-strong);background:transparent;color:var(--text-2);border-radius:var(--r);padding:0 12px;display:flex;align-items:center;gap:6px;font-size:15px;font-family:var(--font);font-weight:500}
+.pr{grid-column:2;grid-row:2/4;text-align:right}
+.pr .v{font-size:44px;font-weight:800;letter-spacing:-.02em}
+.pr .s{color:var(--text-2);font-size:15px}
+
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border-bottom:1px solid var(--line)}
+.fact{background:var(--card);padding:14px 28px}
+.fact span{display:block;color:var(--text-2);font-size:14px}
+.fact b{font-size:20px;font-weight:700}
+.fact b.zero{color:var(--bad)}
+
+.acts{padding:20px 28px;display:flex;gap:12px;align-items:center}
+.primary{background:var(--action);color:#fff;border:0;border-radius:var(--r-lg);height:54px;padding:0 34px;font-weight:800;font-size:18px;display:flex;gap:10px;align-items:center}
+.primary:hover{background:var(--action-hover)}
+.sec{height:54px;border-radius:var(--r-lg);border:1px solid var(--line-strong);background:transparent;color:var(--text);padding:0 20px;font-weight:600}
+
+.machine{margin:auto 28px 22px;border:1px solid var(--line);background:var(--card-2);border-radius:var(--r-lg);padding:14px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.machine .m{font-weight:700;font-size:17px}
+.machine .m span{color:var(--text-2);font-weight:500;font-size:15px;margin-left:8px}
+.machine .docs{display:flex;gap:8px;margin-left:auto}
+.chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:99px;border:1px solid var(--line-strong);color:var(--text);font-weight:500;font-size:15px;text-decoration:none;background:var(--card)}
+.chip svg{width:16px;height:16px;color:var(--text-3)}
+
+/* Orçamento: barra inferior que não rouba largura */
+.bar{flex:none;margin:12px 20px 14px;background:var(--navy-deep);color:#fff;border-radius:var(--r-lg);height:62px;display:flex;align-items:center;gap:22px;padding:0 20px 0 22px;border:1px solid #ffffff1c}
+.bar .it{font-weight:600}
+.bar .it span{color:#c2cbe0;font-weight:400;margin-left:8px}
+.bar .tot{margin-left:auto;font-size:15px;color:#c2cbe0}
+.bar .tot b{color:#fff;font-size:24px;margin-left:8px}
+.bar .go{background:var(--action);color:#fff;border:0;border-radius:10px;height:42px;padding:0 24px;font-weight:700;font-size:16px}
+</style>
+</head>
+<body>
+<script>document.documentElement.dataset.theme=(location.hash.match(/light/)?'light':'dark')</script>
+
+<header class="top">
+  <div class="logo"><i>V</i>CogniVault</div>
+  <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><b>carburador 143RII</b><kbd>Ctrl K</kbd><button>Buscar</button></div>
+  <div class="sp"></div>
+  <button class="ghost" aria-label="Tema"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+  <div class="avatar">AD</div>
+</header>
+<div class="tabs"><a class="on" href="#">Atendimento</a><a href="#">Catálogos</a><a href="#">Orçamentos</a><a href="#">Mais</a><span class="gold">Revenda ouro Husqvarna</span></div>
+
+<main class="body">
+  <section class="list" aria-label="Resultados">
+    <div class="count">5 peças para 143RII</div>
+
+    <div class="card sel"><div class="l1"><span class="c mono">587106701</span><span class="p mono">R$ 187,40</span></div><div class="n">CARBURADOR</div><div class="n"><span class="dot"></span>3 em estoque · P13-A1</div></div>
+    <div class="card"><div class="l1"><span class="c mono">575263301</span><span class="p mono">R$ 9,50</span></div><div class="n">JUNTA DO CARBURADOR</div><div class="n"><span class="dot"></span>12 em estoque · P13-A1</div></div>
+    <div class="card"><div class="l1"><span class="c mono">537336801</span><span class="p mono">R$ 24,90</span></div><div class="n">FILTRO DE AR</div><div class="n"><span class="dot"></span>7 em estoque · P13-B2</div></div>
+    <div class="card"><div class="l1"><span class="c mono">544225302</span><span class="p mono">R$ 14,30</span></div><div class="n">BOMBA PRIMER</div><div class="n"><span class="dot zero"></span>Sem estoque · P13-A3</div></div>
+    <div class="card"><div class="l1"><span class="c mono">530069445</span><span class="p mono">R$ 6,80</span></div><div class="n">MANGUEIRA DE COMBUSTÍVEL</div><div class="n"><span class="dot"></span>PF</div></div>
+  </section>
+
+  <section class="ficha" aria-label="Peça selecionada">
+    <div class="fh">
+      <div class="origin"><span class="badge"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg>Catálogo oficial</span>143RII · PNC 967332904</div>
+      <h1 style="grid-row:2">CARBURADOR</h1>
+      <div class="big mono" style="grid-row:3">587106701<button class="copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>Copiar</button></div>
+      <div class="pr"><div class="v mono">R$ 187,40</div><div class="s">Compra deste mês</div></div>
+    </div>
+
+    <div class="facts">
+      <div class="fact"><span>Prateleira</span><b class="mono">P13-A1</b></div>
+      <div class="fact"><span>Estoque</span><b>3 unidades</b></div>
+      <div class="fact"><span>Posição na vista</span><b>15 · pág. 29</b></div>
+      <div class="fact"><span>Também serve em</span><b>541RS, 143RST</b></div>
+    </div>
+
+    <div class="acts">
+      <button class="primary"><svg viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M12 5v14M5 12h14"/></svg>Adicionar ao orçamento</button>
+      <button class="sec">Onde usa</button>
+      <button class="sec">Detalhes</button>
+    </div>
+
+    <div class="machine">
+      <div class="m">Husqvarna 143R II<span class="mono">PNC 967332901</span></div>
+      <div class="docs">
+        <a class="chip" href="#"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg>Manual (PT)</a>
+        <a class="chip" href="#"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg>IPL 2018-02</a>
+        <a class="chip" href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>Vista explodida</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="bar">
+  <span class="it">Orçamento<span>1 item · CARBURADOR 587 10 67-01</span></span>
+  <span class="tot">Total<b class="mono">R$ 187,40</b></span>
+  <button class="go">Revisar orçamento</button>
+</footer>
+</body>
+</html>

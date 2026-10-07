@@ -30,33 +30,22 @@ export default function PartPriceTag({ code, prices }: { code: string; prices: M
   if (!hit) return null;
 
   return (
-    <span className="flex shrink-0 items-center gap-1.5">
+    <span className="flex shrink-0 items-center gap-2">
       {/* A prateleira vem antes do preço: com o cliente na frente, o atendente
           precisa saber ONDE a peça está tanto quanto quanto ela custa. */}
       {hit.location ? (
-        <span
-          title="Prateleira"
-          className="rounded bg-brand-50 px-1.5 font-mono text-[10px] font-bold text-brand-800 dark:bg-brand-950/50 dark:text-brand-300"
-        >
-          {hit.location}
-        </span>
+        <span title="Prateleira" className="rounded-md bg-secondary px-2 py-0.5 font-code text-base font-semibold tabular-nums">{hit.location}</span>
       ) : null}
 
       {hit.stock != null && hit.stock <= 0 ? (
-        <span className="rounded bg-ink-100 px-1.5 text-[10px] font-bold text-ink-600 dark:bg-ink-800 dark:text-ink-300">
-          sem estoque
-        </span>
+        <span className="rounded-md bg-secondary px-2 py-0.5 text-sm font-semibold text-muted-foreground">sem estoque</span>
       ) : null}
 
       {hit.price == null ? (
-        <span className="text-[10px] font-bold text-ink-400 dark:text-ink-500">sem preço</span>
+        <span className="text-sm text-muted-foreground">sem preço</span>
       ) : (
         <span
-          className={`font-mono text-xs font-black tabular-nums ${
-            hit.freshness === 'FRESH'
-              ? 'text-emerald-800 dark:text-emerald-300'
-              : 'text-amber-800 dark:text-amber-300'
-          }`}
+          className={`font-code text-xl font-bold tabular-nums ${hit.freshness === 'FRESH' ? '' : 'text-warn'}`}
           title={
             hit.freshness === 'FRESH'
               ? undefined

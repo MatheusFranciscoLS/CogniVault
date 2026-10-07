@@ -1,6 +1,165 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "./theme.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-surface-page: #eae8e2;
+  --color-surface-page-dark: #0f1426;
+  --color-surface-nav: #1f2742;
+
+  --color-brand-50: #f1f4f9;
+  --color-brand-100: #dfe6f1;
+  --color-brand-200: #c2d0e5;
+  --color-brand-300: #94aacd;
+  --color-brand-400: #5f7dae;
+  --color-brand-500: #3d5c90;
+  --color-brand-600: #273a60;
+  --color-brand-700: #223454;
+  --color-brand-800: #1f2742;
+  --color-brand-900: #161c2f;
+  --color-brand-950: #0d1220;
+  --color-brand: #273a60;
+
+  --color-accent-50: #fef3ee;
+  --color-accent-100: #fde2d5;
+  --color-accent-200: #fbc0a5;
+  --color-accent-300: #f8966d;
+  --color-accent-400: #f56f3e;
+  --color-accent-500: #f25420;
+  --color-accent-600: #d94512;
+  --color-accent-700: #c13d0a;
+  --color-accent-800: #9a3109;
+  --color-accent-900: #7c2a0c;
+  --color-accent: #f25420;
+
+  --color-gold-100: #fff4cc;
+  --color-gold-300: #ffdf66;
+  --color-gold-500: #ffc800;
+  --color-gold-700: #b38c00;
+  --color-gold-800: #8a6a00;
+  --color-gold: #ffc800;
+
+  /*
+   * Escala `ink`: usada pelas telas que ainda não foram refeitas (administração, biblioteca, favoritos,
+   * histórico). Os degraus foram alinhados ao tema novo (src/theme.css) para que elas tenham o MESMO claro e o
+   * MESMO escuro das telas refeitas, até serem substituídas uma a uma:
+   *   claro:  50 = muted, 100 = background, 200 = border, 300 = input
+   *   escuro: 950 = background, 900 = card, 850 = muted/secondary, 800 = border, 700 = input
+   * A cor do texto não muda de papel: 500 = texto de apoio, 400 = texto de apoio no escuro.
+   */
+  --color-ink-50: #f6f7fa;
+  --color-ink-100: #eef0f4;
+  --color-ink-200: #d9dde6;
+  --color-ink-300: #c4cada;
+  --color-ink-400: #8e99b4;
+  --color-ink-500: #5f667a;
+  --color-ink-600: #4a5266;
+  --color-ink-700: #3b4870;
+  --color-ink-800: #2b3858;
+  --color-ink-850: #1c2745;
+  --color-ink-900: #151d33;
+  --color-ink-950: #0e1424;
+  --color-ink: #1e1e1d;
+
+  --font-sans:
+    'Roboto Flex', Roboto, system-ui, -apple-system, 'Segoe UI', Arial,
+    sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+
+  --text-eyebrow: 0.75rem;
+  --text-eyebrow--line-height: 1rem;
+  --text-eyebrow--letter-spacing: 0.105em;
+  --text-eyebrow--font-weight: 700;
+  --text-seal: 0.6rem;
+  --text-seal--line-height: 0.6rem;
+  --text-seal--letter-spacing: 0.12em;
+  --text-seal--font-weight: 600;
+  --text-badge: 0.7rem;
+  --text-badge--line-height: 1.05rem;
+  --text-badge--letter-spacing: 0.025em;
+  --text-badge--font-weight: 600;
+  --text-display-lg: 2.4rem;
+  --text-display-lg--line-height: 2.64rem;
+  --text-display-lg--letter-spacing: -0.025em;
+  --text-display-lg--font-weight: 700;
+  --text-display: 2.25rem;
+  --text-display--line-height: 2.5rem;
+  --text-display--letter-spacing: -0.025em;
+  --text-display--font-weight: 700;
+  --text-display-sm: 1.875rem;
+  --text-display-sm--line-height: 2.25rem;
+  --text-display-sm--letter-spacing: -0.025em;
+  --text-display-sm--font-weight: 700;
+  --text-title: 1.125rem;
+  --text-title--line-height: 1.75rem;
+  --text-title--letter-spacing: -0.025em;
+  --text-title--font-weight: 600;
+  --text-title-sm: 0.875rem;
+  --text-title-sm--line-height: 1.203rem;
+  --text-title-sm--letter-spacing: -0.025em;
+  --text-title-sm--font-weight: 600;
+
+  --radius-card: 12px;
+  --radius-panel: 16px;
+
+  --shadow-card:
+    0 1px 2px rgba(30, 30, 29, 0.04), 0 1px 3px rgba(30, 30, 29, 0.06);
+  --shadow-raised:
+    0 12px 28px -8px rgba(39, 58, 96, 0.16),
+    0 4px 10px -4px rgba(30, 30, 29, 0.08);
+  --shadow-ringLight: 0 0 0 1px rgba(255, 255, 255, 0.15);
+
+  --background-image-section-soft: linear-gradient(
+    to bottom right,
+    #f1f4f9,
+    #f4f4f3
+  );
+  --background-image-brand-fade: linear-gradient(
+    to right,
+    #273a60,
+    rgba(39, 58, 96, 0.9),
+    rgba(39, 58, 96, 0.4)
+  );
+  --background-image-media-scrim: linear-gradient(
+    to top,
+    rgba(39, 58, 96, 0.6),
+    rgba(0, 0, 0, 0)
+  );
+
+  --breakpoint-tablet: 820px;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
 
 /*
  * Tokens da identidade Vardão Máquinas — extraídos do CSS computado de
@@ -15,11 +174,11 @@
  *   custa frame e deixa a leitura de código de peça pior, não melhor.
  */
 :root {
-  font-family: "Roboto Flex", Roboto, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  font-family: "Barlow", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
   color: #1e1e1d;
   /* Página afastada do card branco: 1,10 -> 1,23 de separação, medido.
      Mantém o neutro quente do site da loja. */
-  background: #eae8e2;
+  background: var(--background);
 
   --cv-brand: #273a60;
   --cv-brand-dark: #1f2742;
@@ -34,11 +193,11 @@
   --cv-gold: #ffc800;
   --cv-gold-text: #8a6a00;
 
-  --cv-ink: #1e1e1d;
-  --cv-ink-strong: #3d3d3c;
-  --cv-ink-muted: #686867;
-  --cv-border: #e4e4e2;
-  --cv-neutral: #eae8e2;
+  --cv-ink: #1b2234;
+  --cv-ink-strong: #3b4870;
+  --cv-ink-muted: #5f667a;
+  --cv-border: #d9dde6;
+  --cv-neutral: #eef0f4;
   --cv-surface: #ffffff;
 
   --cv-radius-sm: 6px;
@@ -55,11 +214,16 @@
 }
 
 * { box-sizing: border-box; }
-html { background: var(--cv-neutral); }
+html { background: var(--background); color-scheme: light; scroll-padding-top: 4.5rem; }
 body { margin: 0; min-width: 320px; min-height: 100vh; overflow-x: hidden; }
-button, input, select, textarea { font: inherit; }
-button { cursor: pointer; }
-button:disabled { cursor: not-allowed; }
+/* Dentro de @layer base DE PROPÓSITO. No Tailwind 4 uma regra de elemento fora
+   de camada vence TODA classe utilitária: `button { font: inherit }` solta fazia
+   cada botão perder o text-xs/font-black (visto no Screens da migração). */
+@layer base {
+  button, input, select, textarea { font: inherit; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+}
 
 /* Preço, código de peça e quantidade precisam alinhar em coluna. O site da loja
    também usa tabular-nums. */
@@ -194,10 +358,8 @@ input[type="number"],
 
 .cv-stat-label {
   color: var(--cv-ink-muted);
-  font-size: .72rem;
-  font-weight: 700;
-  letter-spacing: .105em;
-  text-transform: uppercase;
+  font-size: .95rem;
+  font-weight: 600;
 }
 
 .cv-stat-icon {
@@ -216,7 +378,7 @@ input[type="number"],
 .cv-stat-value {
   margin-top: .45rem;
   color: var(--cv-ink);
-  font-size: 1.8rem;
+  font-size: 2.25rem;
   font-weight: 700;
   letter-spacing: -.025em;
   font-variant-numeric: tabular-nums;
@@ -225,7 +387,7 @@ input[type="number"],
 .cv-stat-caption {
   margin-top: .25rem;
   color: var(--cv-ink-muted);
-  font-size: .72rem;
+  font-size: .9rem;
 }
 
 .cv-quick-action {
@@ -325,10 +487,8 @@ input[type="number"],
 /* Eyebrow do site: maiúsculo, laranja legível, tracking largo. */
 .cv-kicker {
   color: var(--cv-accent-text);
-  font-size: .75rem;
-  font-weight: 700;
-  letter-spacing: .105em;
-  text-transform: uppercase;
+  font-size: .9rem;
+  font-weight: 600;
 }
 
 .cv-page-title {
@@ -394,7 +554,7 @@ input[type="number"],
   color: #f4f4f3;
   /* Página mais profunda que o card (ink-900): 1,15 -> 1,24. O card não muda,
      porque ink-900 também é cor de texto em 108 lugares. */
-  background: #0f1426;
+  background: var(--background);
 
   --cv-brand: #94aacd;
   --cv-brand-dark: #5f7dae;
@@ -407,12 +567,12 @@ input[type="number"],
 
   --cv-gold-text: #ffdf66;
 
-  --cv-ink: #f4f4f3;
-  --cv-ink-strong: #d6d6d3;
-  --cv-ink-muted: #a8a8a6;
-  --cv-border: #2b3348;
-  --cv-neutral: #1f2742;
-  --cv-surface: #222b44;
+  --cv-ink: #eef1f7;
+  --cv-ink-strong: #c9d1e4;
+  --cv-ink-muted: #8e99b4;
+  --cv-border: #2b3858;
+  --cv-neutral: #0e1424;
+  --cv-surface: #151d33;
 
   --cv-shadow-card: 0 1px 2px rgba(0, 0, 0, .3), 0 1px 3px rgba(0, 0, 0, .24);
   --cv-shadow-raised: 0 12px 28px -8px rgba(0, 0, 0, .55), 0 4px 10px -4px rgba(0, 0, 0, .35);
@@ -420,10 +580,10 @@ input[type="number"],
 
 /* Acompanha a superfície de página do tema escuro. Só aparece em overscroll,
    mas ficar num tom diferente do app entrega a emenda. */
-html.dark { background: #0f1426; }
+html.dark { background: var(--background); color-scheme: dark; }
 
 .dark .cv-app-shell {
-  background: linear-gradient(to bottom right, #1f2742, #161c2f);
+  background: var(--background);
 }
 
 /* No escuro o laranja puro vibra demais como fundo de botão grande; o tom 400
@@ -463,4 +623,60 @@ html.dark { background: #0f1426; }
     display: block !important;
     box-shadow: none !important;
   }
+}
+/*
+  ---break---
+*/
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: 'Barlow', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  --font-code: 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif;
+  --color-primary-hover: var(--primary-hover);
+  --color-add: var(--add);
+  --color-bar: var(--bar);
+  --color-bar-foreground: var(--bar-foreground);
+  --color-gold: var(--gold);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-selected: var(--selected);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }

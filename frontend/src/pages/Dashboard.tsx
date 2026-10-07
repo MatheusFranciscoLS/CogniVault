@@ -15,13 +15,11 @@ const CatalogsWorkspace = lazy(() => import('../components/CatalogsWorkspace'));
 const OverviewPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.OverviewPanel })));
 const BusinessPanel = lazy(() => import('../components/BusinessPanel'));
 const AssistantObservabilityPanel = lazy(() => import('../components/AssistantObservabilityPanel'));
-const UsersPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.UsersPanel })));
+const UsersPanel = lazy(() => import('../components/admin/UsersPanel'));
 const AuditPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.AuditPanel })));
-const AdminFeedbackPanel = lazy(() => import('../components/AdminFeedbackPanel'));
 const QualityPanel = lazy(() => import('../components/QualityPanel'));
-const HistoryWorkspace = lazy(() => import('../components/HistoryWorkspace'));
-const FavoritesWorkspace = lazy(() => import('../components/FavoritesWorkspace'));
 const SavedQuotesPanel = lazy(() => import('../components/SavedQuotesPanel'));
+const MachineListPanel = lazy(() => import('../components/MachineListPanel'));
 
 function cleanNavigationValue(value: string | null | undefined) {
   const clean = (value ?? '').trim();
@@ -46,8 +44,8 @@ function PanelLoading() {
       <div className="overflow-hidden rounded-card border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
         {[0, 1, 2, 3, 4].map(item => (
           <div key={item} className="flex items-center gap-4 border-b border-ink-100 p-4 last:border-0 dark:border-ink-800">
-            <div className="h-4 w-28 animate-pulse rounded bg-ink-200 dark:bg-ink-800" />
-            <div className="h-4 flex-1 animate-pulse rounded bg-ink-100 dark:bg-ink-850" />
+            <div className="h-4 w-28 animate-pulse rounded-sm bg-ink-200 dark:bg-ink-800" />
+            <div className="h-4 flex-1 animate-pulse rounded-sm bg-ink-100 dark:bg-ink-850" />
             <div className="h-8 w-24 animate-pulse rounded-card bg-ink-100 dark:bg-ink-850" />
           </div>
         ))}
@@ -59,7 +57,11 @@ function PanelLoading() {
 export default function Dashboard() {
   const navigate = useNavigate();
   const [initialParams] = useState(() => new URLSearchParams(window.location.search));
-  const initialSectionParam = initialParams.get('tab') as Section | null;
+  // Abas que deixaram de existir: o link antigo cai na tela que ficou com o assunto (favoritos e histórico viraram
+  // "últimas buscas" no Atendimento; feedback foi para Qualidade; auditoria entrou na Visão geral).
+  const LEGACY_TABS: Record<string, Section> = { history: 'parts', favorites: 'parts', feedback: 'quality', audit: 'overview' };
+  const rawSectionParam = initialParams.get('tab');
+  const initialSectionParam = ((rawSectionParam && LEGACY_TABS[rawSectionParam]) || rawSectionParam) as Section | null;
   const initialQueryParam = cleanNavigationValue(
     initialParams.get('code')
     || initialParams.get('part')
@@ -97,7 +99,10 @@ export default function Dashboard() {
   // Antes havia estado de máquina aqui (montagem, PNC, busca e um evento de
   // janela para trocar a máquina aberta sem desmontar o workspace): nada disso
   // é preciso quando a máquina não é mais uma tela irmã.
-  const machinePncFromUrl = initialPncParam;
+  // O PNC vale só para a versão do Atendimento montada para ele (`forVersion`): uma busca feita depois
+  // remonta o Atendimento com outra versão e não reabre a mesma máquina.
+  const [machineOpen, setMachineOpen] = useState({ pnc: initialPncParam, forVersion: 0 });
+  const machinePnc = machineOpen.forVersion === searchVersion ? machineOpen.pnc : '';
   const sectionRef = useRef(section);
 
   useEffect(() => {
@@ -169,6 +174,17 @@ export default function Dashboard() {
     updateUrl('parts', clean || undefined);
   };
 
+  // Abre a vista explodida de uma máquina vinda de outra tela (a Tabela de preços). O Atendimento lê o PNC só
+  // ao montar, por isso a troca de `searchVersion` (remonta).
+  const openMachine = (pnc: string) => {
+    const version = searchVersion + 1;
+    setMachineOpen({ pnc, forVersion: version });
+    setGlobalQuery('');
+    setSearchVersion(version);
+    setSection('parts');
+    updateUrl('parts');
+  };
+
   const updatePartQuery = (query: string) => {
     const clean = cleanNavigationValue(query);
     setGlobalQuery(clean);
@@ -184,7 +200,7 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <main className="grid min-h-[100dvh] place-items-center bg-ink-100 p-6 dark:bg-ink-950">
+      <main className="grid min-h-dvh place-items-center bg-ink-100 p-6 dark:bg-ink-950">
         <div
           role="alert"
           className="w-full max-w-[460px] rounded-panel border border-ink-200 bg-white p-6 shadow-raised dark:border-ink-800 dark:bg-ink-900"
@@ -236,7 +252,7 @@ export default function Dashboard() {
 
   if (!user) {
     return (
-      <main className="grid min-h-[100dvh] place-items-center bg-ink-100 p-6 dark:bg-ink-950">
+      <main className="grid min-h-dvh place-items-center bg-ink-100 p-6 dark:bg-ink-950">
         <div aria-busy="true" className="w-full max-w-[320px] text-center">
           <img
             src="/brand/vardao-horizontal-azul.png"
@@ -269,7 +285,7 @@ export default function Dashboard() {
             initialQuery={globalQuery}
             onQueryChange={updatePartQuery}
             storageScope={user.id}
-            initialMachinePnc={machinePncFromUrl}
+            initialMachinePnc={machinePnc}
           />
         </div>
       )}
@@ -285,19 +301,17 @@ export default function Dashboard() {
           />
         )}
         {section === 'quotes' && <SavedQuotesPanel />}
-        {section === 'history' && <HistoryWorkspace onSearch={search} />}
-        {section === 'favorites' && <FavoritesWorkspace onSearch={search} />}
+        {section === 'prices' && <MachineListPanel onOpenMachine={openMachine} />}
         {section === 'overview' && user.role === 'ADMIN' && (
           <>
             <OverviewPanel />
             <AssistantObservabilityPanel />
+            <AuditPanel />
           </>
         )}
         {section === 'business' && user.role === 'ADMIN' && <BusinessPanel />}
         {section === 'users' && user.role === 'ADMIN' && <UsersPanel />}
-        {section === 'feedback' && user.role === 'ADMIN' && <AdminFeedbackPanel />}
         {section === 'quality' && user.role === 'ADMIN' && <div className="cv-quality-workspace"><QualityPanel onSearch={search} /></div>}
-        {section === 'audit' && user.role === 'ADMIN' && <AuditPanel />}
       </Suspense>
     </ShellV2>
   );

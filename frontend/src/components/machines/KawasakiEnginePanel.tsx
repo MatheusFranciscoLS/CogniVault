@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { apiJson } from '../../lib';
+import { apiJson, cleanErpCode } from '../../lib';
 import { useQuoteCart } from '../../context/QuoteCartContext';
-import { Icon } from '../icons/Icon';
+import { ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import PartLine from '../parts-v2/PartLine';
 import ExplodedView from '../parts-v2/ExplodedView';
 import { useMasterPrices } from './master-part-prices';
 import PartPriceTag from './PartPriceTag';
@@ -104,228 +106,154 @@ export default function KawasakiEnginePanel({
     );
   };
 
+  const noOrcamento = (codigo: string) => quoteCart.items.find(item => cleanErpCode(item.effectiveCode || item.partNumber) === cleanErpCode(codigo))?.quantity ?? 0;
+
   if (catalogQuery.isLoading) {
-    return (
-      <section aria-busy="true" className="rounded-xl border border-ink-200 bg-white px-4 py-5 text-sm font-semibold text-ink-500 dark:border-ink-800 dark:bg-ink-900">
-        Abrindo o catálogo Kawasaki de {model}…
-      </section>
-    );
+    return <section aria-busy="true" className="rounded-xl border border-border bg-card px-5 py-4 text-base text-muted-foreground">Abrindo o catálogo Kawasaki de {model}…</section>;
   }
 
   if (!catalog) return null;
 
   return (
-    <section className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-100 px-4 py-2.5 dark:border-ink-800">
-        <div className="flex min-w-0 items-center gap-2">
-          <Icon name="machine" className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-300" />
-          <span className="truncate text-xs font-black text-ink-700 dark:text-ink-200">
-            Motor Kawasaki · {catalog.fullName || catalog.model}
-          </span>
-        </div>
-        <a
-          href={catalog.lookupUrl}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="shrink-0 text-[10px] font-bold text-brand-600 hover:underline dark:text-brand-300"
-        >
-          catálogo oficial ↗
-        </a>
+    <section aria-label={`Motor Kawasaki ${catalog.fullName || catalog.model}`} className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3">
+        <h3 className="min-w-0 truncate text-lg font-semibold">Motor Kawasaki · <span translate="no" className="font-code tabular-nums">{catalog.fullName || catalog.model}</span></h3>
+        <Button asChild variant="ghost" size="sm">
+          <a href={catalog.lookupUrl} target="_blank" rel="noreferrer noopener">Catálogo oficial<ExternalLink className="size-3.5" aria-hidden="true" /></a>
+        </Button>
       </div>
 
       {/* Série sem spec: a pergunta certa, não um erro. */}
       {catalog.needsSpec.length > 0 && (
-        <div className="px-4 py-3">
-          <div className="text-xs font-bold text-ink-800 dark:text-ink-100">
-            Este motor tem {catalog.needsSpec.length} versões. Qual é o spec da plaqueta?
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="px-5 py-4">
+          <p className="text-base font-semibold">Este motor tem {catalog.needsSpec.length} versões. Qual é o spec da plaqueta?</p>
+          <div className="mt-2 flex flex-wrap gap-2">
             {catalog.needsSpec.map(option => {
               const spec = option.trim().split(/\s+/)[0];
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => onSearchPart(spec)}
-                  className="cv-touch-target rounded-full border border-ink-200 bg-white px-3 font-mono text-[11px] font-bold text-ink-700 transition hover:border-emerald-300 hover:text-emerald-800 dark:border-ink-700 dark:bg-ink-950 dark:text-ink-200"
-                >
-                  {spec}
-                </button>
-              );
+              return <Button key={option} variant="outline" onClick={() => onSearchPart(spec)}><span translate="no" className="font-code tabular-nums">{spec}</span></Button>;
             })}
           </div>
         </div>
       )}
 
       {catalog.assemblies.length === 0 && catalog.needsSpec.length === 0 && (
-        <div className="px-4 py-3 text-[11px] leading-5 text-ink-500 dark:text-ink-400">
-          Sem catálogo para este modelo. Confira série e spec na plaqueta.
-        </div>
+        <p className="px-5 py-4 text-base text-muted-foreground">Sem catálogo para este modelo. Confira série e spec na plaqueta.</p>
       )}
 
       {catalog.assemblies.length > 0 && (
-        <div className="px-4 py-3">
+        <div className="px-5 py-4">
           {precoDegradado ? (
-            <div role="status" className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+            <p role="status" className="mb-3 rounded-md border border-warn bg-warn-soft px-3 py-2 text-base text-warn">
               Preços da loja temporariamente indisponíveis. Os códigos continuam disponíveis; confirme o valor antes de fechar.
-            </div>
+            </p>
           ) : null}
-          <div className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">
-            Conjuntos · toque para ver os códigos
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <h4 className="text-base font-semibold text-muted-foreground">Conjuntos</h4>
+          <div className="mt-2 flex flex-wrap gap-2">
             {catalog.assemblies.map(assembly => (
-              <button
+              <Button
                 key={assembly.slug}
-                type="button"
+                variant="outline"
+                aria-pressed={openSlug === assembly.slug}
+                className={openSlug === assembly.slug ? 'border-ring bg-selected' : undefined}
                 onClick={() => setOpenSlug(current => (current === assembly.slug ? null : assembly.slug))}
-                className={`cv-touch-target rounded-full border px-3 text-[11px] font-bold transition ${
-                  openSlug === assembly.slug
-                    ? 'border-emerald-600 bg-emerald-50 text-emerald-900 dark:border-emerald-500 dark:bg-emerald-950/40 dark:text-emerald-200'
-                    : 'border-ink-200 bg-white text-ink-600 hover:border-emerald-300 hover:text-emerald-800 dark:border-ink-700 dark:bg-ink-950 dark:text-ink-300'
-                }`}
               >
                 {assembly.name}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
       )}
 
       {openAssembly && (
-        <div className="border-t border-ink-100 dark:border-ink-800">
-          <div className="flex flex-wrap items-center justify-between gap-2 bg-ink-50/70 px-4 py-2 dark:bg-ink-950/40">
-            <span className="truncate text-xs font-black text-ink-800 dark:text-ink-100">{openAssembly.name}</span>
+        <div className="space-y-3 border-t border-border px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h4 className="min-w-0 truncate text-xl font-semibold">{openAssembly.name}</h4>
             {/* A vista explodida ao lado dos códigos, sempre. É a saída quando a
                 descrição em inglês não basta para o atendente decidir. */}
-            <a
-              href={openAssembly.viewerUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="cv-touch-target inline-flex shrink-0 items-center gap-1 rounded border border-emerald-300 bg-emerald-50 px-2.5 text-[10px] font-bold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200"
-            >
-              ⚙ Ver vista explodida ↗
-            </a>
+            <Button asChild variant="outline">
+              <a href={openAssembly.viewerUrl} target="_blank" rel="noreferrer noopener">Ver vista explodida<ExternalLink className="size-4" aria-hidden="true" /></a>
+            </Button>
           </div>
 
-          {detailQuery.isLoading && (
-            <div aria-busy="true" className="px-4 py-4 text-xs font-semibold text-ink-500 dark:text-ink-400">
-              Lendo o desenho e as peças deste conjunto…
-            </div>
-          )}
+          {detailQuery.isLoading && <p aria-busy="true" className="py-4 text-base text-muted-foreground">Lendo o desenho e as peças deste conjunto…</p>}
 
           {/* A vista explodida DENTRO do app, com as posições clicáveis — o
               mesmo `ExplodedView` da Husqvarna, com zoom e arraste.
               As coordenadas vêm da mesma resposta que traz a tabela: o ARI
               marca cada posição com `tag` (a coluna "Ref") e `coords`. */}
           {detail?.imageUrl && (
-            <div className="px-4 pb-1 pt-3">
-              {detail.hotspots.length > 0 ? (
-                <ExplodedView
-                  imageUrl={detail.imageUrl}
-                  alt={`Vista explodida ${openAssembly.name}`}
-                  maxHeight={560}
-                  hotspots={detail.hotspots.map((spot, index) => {
-                    const peca = parts.find(item => item.position === spot.position);
-                    return {
-                      key: `${spot.position}-${index}`,
-                      left: spot.left,
-                      top: spot.top,
-                      label: spot.position,
-                      onSelect: () => setFocusedPosition(spot.position),
-                      tooltip: (
-                        <div className="pointer-events-none mb-2 hidden w-56 rounded-xl border border-ink-200 bg-white p-3 text-left shadow-xl group-hover:block group-focus-within:block dark:border-ink-700 dark:bg-ink-900">
-                          <div className="text-[10px] font-black text-ink-800 dark:text-ink-100">{peca?.name || 'Posição ' + spot.position}</div>
-                          {peca && <div className="mt-1 font-mono text-[11px] font-bold text-ink-900 dark:text-brand-300">{peca.partNumber}</div>}
-                          {peca?.quantity ? <div className="mt-1 text-[9px] font-bold text-ink-500 dark:text-ink-400">{peca.quantity} no conjunto</div> : null}
-                        </div>
-                      ),
-                    };
-                  })}
-                />
-              ) : (
-                /* Desenho sem posições: a altura da imagem não foi lida, então
-                   marcar seria adivinhar onde cada peça está. Mostra o desenho
-                   e deixa a leitura para o atendente. */
-                <img
-                  src={detail.imageUrl}
-                  alt={`Vista explodida ${openAssembly.name}`}
-                  className="mx-auto max-h-[560px] w-auto rounded-lg bg-white object-contain"
-                  loading="lazy"
-                />
-              )}
-            </div>
+            detail.hotspots.length > 0 ? (
+              <ExplodedView
+                imageUrl={detail.imageUrl}
+                alt={`Vista explodida ${openAssembly.name}`}
+                maxHeight={560}
+                hotspots={detail.hotspots.map((spot, index) => {
+                  const peca = parts.find(item => item.position === spot.position);
+                  return {
+                    key: `${spot.position}-${index}`,
+                    left: spot.left,
+                    top: spot.top,
+                    label: spot.position,
+                    active: focusedPosition === spot.position,
+                    onSelect: () => {
+                      setFocusedPosition(spot.position);
+                      window.setTimeout(() => document.getElementById(`kw-part-${spot.position}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+                    },
+                    tooltip: (
+                      <div className="pointer-events-none mb-2 hidden w-60 rounded-lg border border-border bg-popover p-3 text-left text-popover-foreground shadow-lg group-hover:block group-focus-within:block">
+                        <div className="text-sm font-semibold">{peca?.name || `Posição ${spot.position}`}</div>
+                        {peca && <div translate="no" className="mt-1 font-code text-lg font-semibold tabular-nums">{peca.partNumber}</div>}
+                        {peca?.quantity ? <div className="text-sm text-muted-foreground">{peca.quantity} no conjunto</div> : null}
+                      </div>
+                    ),
+                  };
+                })}
+              />
+            ) : (
+              /* Desenho sem posições: a altura da imagem não foi lida, então
+                 marcar seria adivinhar onde cada peça está. Mostra o desenho
+                 e deixa a leitura para o atendente. */
+              <img src={detail.imageUrl} alt={`Vista explodida ${openAssembly.name}`} className="mx-auto max-h-[560px] w-auto rounded-lg bg-white object-contain" loading="lazy" />
+            )
           )}
 
-          {!detailQuery.isLoading && !parts.length && (
-            <div className="px-4 py-3 text-[11px] leading-5 text-ink-500 dark:text-ink-400">
-              Leia o código na vista explodida acima.
-            </div>
-          )}
+          {!detailQuery.isLoading && !parts.length && <p className="text-base text-muted-foreground">Leia o código na vista explodida acima.</p>}
 
-          <div className="divide-y divide-ink-100 dark:divide-ink-800">
+          <div className="space-y-2">
             {parts.map(part => (
-              <div
+              <PartLine
                 key={`${part.position}-${part.partNumber}`}
-                id={`kw-part-${part.position}`}
-                className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 transition ${focusedPosition && focusedPosition === part.position ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''}`}
-              >
-                <span className="w-14 shrink-0 font-mono text-[10px] font-bold text-ink-500 dark:text-ink-400">
-                  {part.position || '—'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => copy(part.partNumber)}
-                  title="Copiar o código"
-                  className="shrink-0 font-mono text-sm font-black text-ink-900 hover:underline dark:text-brand-300"
-                >
-                  {/* Cru, como a Kawasaki publica. NÃO passar por
-                      `cleanErpCode`: ele remove o hífen, e `15004-0937` sem o
-                      hífen não é código de nada. */}
-                  {part.partNumber}
-                </button>
-                <span className="min-w-[9rem] flex-1 truncate text-xs text-ink-700 dark:text-ink-200">{part.name}</span>
-                <PartPriceTag code={part.partNumber} prices={precos} />
-                {/* Quantidade só quando a fonte informa. `11061-7057` leva 2 —
-                    sem isso o balcão venderia 1 e o cliente voltaria. */}
-                {part.quantity && part.quantity > 1 ? (
-                  <span className="shrink-0 rounded bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-                    leva {part.quantity}
-                  </span>
-                ) : null}
-                <div className="flex shrink-0 gap-1.5">
-                  {/* Preço e estoque são nossos, não da Kawasaki: ela publica
-                      "Please Contact a Dealer" em toda linha. Daí o atalho para
-                      a busca interna. */}
-                  <button
-                    type="button"
-                    onClick={() => onSearchPart(part.partNumber)}
-                    className="cv-touch-target rounded border border-ink-200 px-2 text-[10px] font-bold text-ink-600 transition hover:border-brand-300 hover:text-brand-700 dark:border-ink-700 dark:text-ink-300"
-                  >
-                    consultar interno
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      quoteCart.addItem({
-                        partNumber: part.partNumber,
-                        manufacturer: 'Kawasaki',
-                        name: part.name || part.partNumber,
-                        model: catalog.fullName || catalog.model,
-                        section: openAssembly.name,
-                        position: part.position || undefined,
-                        // A quantidade do catálogo, quando existe: é ela que
-                        // evita vender 1 onde o conjunto leva 2.
-                        quantity: part.quantity || 1,
-                      });
-                      toast.success(`${part.partNumber} no orçamento.`);
-                    }}
-                    className="cv-touch-target rounded bg-accent-700 px-2 text-[10px] font-bold text-white transition hover:bg-accent-800"
-                  >
-                    + orçamento
-                  </button>
-                </div>
-              </div>
+                anchorId={`kw-part-${part.position}`}
+                position={part.position}
+                name={part.name || part.partNumber}
+                /* Cru, como a Kawasaki publica. NÃO passar por `cleanErpCode`:
+                   ele remove o hífen, e `15004-0937` sem o hífen não é código
+                   de nada. */
+                code={part.partNumber}
+                /* Quantidade só quando a fonte informa. `11061-7057` leva 2 —
+                   sem isso o balcão venderia 1 e o cliente voltaria. */
+                quantity={part.quantity}
+                highlighted={focusedPosition !== null && focusedPosition === part.position}
+                priceSlot={<PartPriceTag code={part.partNumber} prices={precos} />}
+                inCart={noOrcamento(part.partNumber)}
+                onCopy={() => copy(part.partNumber)}
+                onAdd={() => {
+                  quoteCart.addItem({
+                    partNumber: part.partNumber,
+                    manufacturer: 'Kawasaki',
+                    name: part.name || part.partNumber,
+                    model: catalog.fullName || catalog.model,
+                    section: openAssembly.name,
+                    position: part.position || undefined,
+                    // A quantidade do catálogo, quando existe: é ela que
+                    // evita vender 1 onde o conjunto leva 2.
+                    quantity: part.quantity || 1,
+                  });
+                }}
+                /* Preço e estoque são nossos, não da Kawasaki: ela publica
+                   "Please Contact a Dealer" em toda linha. */
+                menu={[{ label: 'Ver preço e estoque', onSelect: () => onSearchPart(part.partNumber) }]}
+              />
             ))}
           </div>
         </div>

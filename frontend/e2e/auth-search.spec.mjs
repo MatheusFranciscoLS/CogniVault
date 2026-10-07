@@ -13,16 +13,17 @@ async function login(page, email) {
   // Âncora pós-login: o campo de busca, que é o elemento funcional da tela.
   // O título decorativo que servia de âncora saiu — três cabeçalhos empilhados
   // diziam a mesma coisa antes da busca.
-  await expect(page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/)).toBeVisible();
+  await expect(page.getByPlaceholder(/Código, peça ou modelo|Peça, código ou pergunta/)).toBeVisible();
 }
 
 async function searchCarburettor(page) {
-  const search = page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/);
+  const search = page.getByPlaceholder(/Código, peça ou modelo|Peça, código ou pergunta/);
   await search.fill('carburador 143RII 967332904');
   await page.getByRole('button', { name: 'Buscar' }).click();
   const technicalResult = page.getByRole('button', { name: 'Abrir detalhes de CARBURADOR' });
   await expect(technicalResult).toBeVisible();
-  await expect(technicalResult.getByText('587106701', { exact: true })).toBeVisible();
+  // O código é um botão de copiar, ao lado do nome (que abre os detalhes).
+  await expect(page.getByRole('button', { name: 'Copiar código 587106701' }).first()).toBeVisible();
 }
 
 test('rota protegida rejeita navegador sem sessão', async ({ page }) => {
@@ -69,13 +70,14 @@ test('sessão usa cookie HttpOnly, sobrevive a reload e isola orçamento por usu
   // Âncora pós-login: o campo de busca, que é o elemento funcional da tela.
   // O título decorativo que servia de âncora saiu — três cabeçalhos empilhados
   // diziam a mesma coisa antes da busca.
-  await expect(page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/)).toBeVisible();
+  await expect(page.getByPlaceholder(/Código, peça ou modelo|Peça, código ou pergunta/)).toBeVisible();
 
   await searchCarburettor(page);
   await page.getByRole('button', { name: '+ Orçamento' }).first().click();
   await expect(page.getByRole('button', { name: /No orçamento/ }).first()).toBeVisible();
 
-  await page.getByRole('button', { name: 'Sair' }).click();
+  await page.getByRole('button', { name: 'Minha conta' }).click();
+  await page.getByRole('menuitem', { name: 'Sair' }).click();
   await expect(page).toHaveURL(/\/login/);
   const clearedCookie = (await context.cookies()).find(cookie => cookie.name === 'cognivault_session');
   expect(clearedCookie).toBeFalsy();
@@ -113,7 +115,7 @@ test('qualidade compartilha uma única fonte de dados sob StrictMode', async ({ 
   expect((await qualityResponse).ok()).toBe(true);
 
   await expect(page.getByRole('heading', { name: 'Cobertura do portfólio BR' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Confiabilidade' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Qualidade', level: 1 })).toBeVisible();
 
   // O E2E usa Vite dev + React StrictMode. Em desenvolvimento, o React remonta
   // efeitos uma vez para detectar efeitos colaterais, então uma única fonte lógica
@@ -199,4 +201,19 @@ test('detalhe da peça abre e fecha com a barreira de erro em volta', async ({ p
 
   await gaveta.getByRole('button', { name: /^Fechar/ }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+/**
+ * A aba "Tabela de preços" é para todos, inclusive o balcão. No CI a tabela vem vazia (só a loja
+ * real tem a lista da Husqvarna importada), então o teste vale nos dois casos: lista ou aviso.
+ */
+test('o balcão abre a Tabela de preços', async ({ page }) => {
+  await login(page, MECHANIC_EMAIL);
+
+  await page.getByRole('button', { name: 'Tabela de preços', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Tabela de preços', level: 1 })).toBeVisible();
+  await expect(
+    page.getByLabel('Buscar máquina na tabela').or(page.getByText('A tabela de preços ainda não foi carregada.')),
+  ).toBeVisible();
+  await expect(page.getByText('Não foi possível carregar a tabela de preços.')).toHaveCount(0);
 });
