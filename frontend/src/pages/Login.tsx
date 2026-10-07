@@ -106,6 +106,9 @@ export default function Login() {
   // formulário de novo. É um `fetch` simples, e não `apiJson`: o 401 de quem NÃO está logado aqui é o caso
   // normal, e `apiJson` trataria como "sessão expirada".
   useEffect(() => {
+    // Sem lembrança de login anterior neste navegador, não há o que consultar: quem abre o login pela primeira vez
+    // (ou depois de "Sair", que apaga isto) não gera um 401 vermelho no console.
+    if (!localStorage.getItem('cognivault_email')) return;
     let active = true;
     void fetch(`${API_URL}/api/me`, { credentials: 'include' })
       .then(response => (response.ok ? response.json() as Promise<LoginResponse> : null))

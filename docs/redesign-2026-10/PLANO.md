@@ -133,6 +133,19 @@ Regra: cada tela percorrida entra aqui com o que foi corrigido na hora (✅) e o
 | ✅ | Quem já estava logado e abria `/login` via o formulário de novo: agora vai direto ao painel |
 | 💡 | Depois de "Sair", o rascunho do orçamento daquele e-mail continua no navegador (separado por e-mail, então outro atendente não vê); em PC compartilhado, limpar ao sair? |
 
+### Telas ainda no estilo antigo (percorridas: abrem e funcionam, 17 verificações)
+Todas com texto de 9 a 12 px e frases que explicam o sistema; nenhuma tem erro nem rolagem horizontal.
+| Tela | Controles | O que vi |
+|---|---|---|
+| Favoritos | 2 | vazia ("Nenhum favorito encontrado"); o botão de favoritar já saiu da gaveta de busca. **Recomendo apagar a tela.** |
+| Histórico | 50 | 20 consultas; **consultas "Analise a peça …" são o texto automático do "Perguntar à IA", não o que o atendente digitou** (poluição do histórico). Recomendo dobrar na busca (últimas buscas) e apagar a tela |
+| Negócio | 9 | números e gráfico bons; cartões na paleta antiga |
+| Visão geral | 6 | números técnicos (catálogos, peças indexadas): juntar com Auditoria |
+| Usuários | 8 | criar, perfil, bloquear, redefinir senha: manter |
+| Feedback | 5 | 0 avaliações registradas: recomendo tirar (dono já viu que é pouco uso) |
+| Qualidade | 6 | 2.659 caracteres de texto; manter, refazer |
+| Auditoria | 1 | 100 eventos, só leitura; juntar com Visão geral |
+
 ### Painel da máquina / vista explodida
 | | Achado |
 |---|---|
