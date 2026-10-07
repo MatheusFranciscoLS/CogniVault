@@ -35,6 +35,9 @@ type Props = {
   escapeBlocked?: boolean;
 };
 
+/** O "nome" do companheiro é só o próprio código (ou vazio). */
+const nameless = (item: { title: string; code: string }) => !item.title?.trim() || cleanErpCode(item.title) === item.code;
+
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 /** Botão de copiar com confirmação na própria tela (o aviso some sozinho em 1,6 s). */
@@ -175,8 +178,15 @@ export default function PartDetailDrawer({ detail, verification, liveData, onClo
                   {companions.map(item => (
                     <li key={item.key} className="flex items-center gap-2 py-3">
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-base font-semibold">{item.title}</div>
-                        <div translate="no" className="font-code text-lg tabular-nums text-muted-foreground">{item.code}</div>
+                        {/* Companheiro sem nome: mostra o código uma vez só (antes saía "595353 / 595353"). */}
+                        {nameless(item) ? (
+                          <div translate="no" className="font-code text-lg font-semibold tabular-nums">{item.code}</div>
+                        ) : (
+                          <>
+                            <div className="truncate text-base font-semibold">{item.title}</div>
+                            <div translate="no" className="font-code text-lg tabular-nums text-muted-foreground">{item.code}</div>
+                          </>
+                        )}
                       </div>
                       <Button variant="ghost" size="sm" onClick={() => copy(item.code)}>{copied === item.code ? 'Copiado' : 'Copiar'}</Button>
                       {item.id && <Button variant="outline" size="sm" onClick={() => onOpenRelated(item.id as string)}>Abrir</Button>}

@@ -263,6 +263,15 @@ await step('pergunta de óleo', async () => {
   check('"filtro de óleo" é peça: não oferece os botões de óleo', (await page.getByRole('region', { name: 'Óleo' }).count()) === 0);
 });
 
+await step('máquina sem repetir nos atalhos', async () => {
+  await busca.fill('carburador 143RII');
+  await busca.press('Enter');
+  await page.getByRole('button', { name: /Roçadeira Husqvarna 143R II/ }).first().waitFor({ timeout: 30000 });
+  await page.waitForTimeout(1500);
+  const iguais = await page.getByRole('button', { name: /Roçadeira Husqvarna 143R II/ }).count();
+  check('a máquina aparece uma vez só entre os atalhos (o "recente" igual some)', iguais === 1, `${iguais}`);
+});
+
 await step('sino só do administrador', async () => {
   check('o administrador vê o sino', (await page.getByRole('button', { name: 'Notificações' }).count()) === 1);
   // Balcão: entra por API, em outro contexto, e conta as consultas às notificações.

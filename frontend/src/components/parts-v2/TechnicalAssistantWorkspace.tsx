@@ -720,7 +720,8 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           primeiro. Antes eram uma lista de 12 linhas na frente do resultado. */}
       {(machines.length > 0 || sortedExtras.length > 0 || recentMachines.length > 0) && (
         <div className="flex flex-wrap items-center gap-2">
-          {recentMachines.map(item => (
+          {/* A máquina que já está no contexto ou nos atalhos desta busca não repete como "recente". */}
+          {recentMachines.filter(item => item.pnc !== session.pnc && !machines.some(found => found.pnc === item.pnc)).map(item => (
             <Button key={item.pnc} variant="outline" size="sm" onClick={() => setOpenMachine({ pnc: item.pnc, name: item.name })} title={item.meta || `PNC ${item.pnc}`} className="max-w-64">
               <span className="truncate">{item.name}</span>
             </Button>

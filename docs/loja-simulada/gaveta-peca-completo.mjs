@@ -51,6 +51,8 @@ await step('gaveta da peça de catálogo', async () => {
   // companheiros: copiar e abrir
   const companheiros = gaveta.locator('section', { hasText: 'Leve junto' }).locator('li');
   if (await companheiros.count()) {
+    const textos = await companheiros.evaluateAll(l => l.map(li => li.innerText.replace(/\s+/g, ' ').trim()));
+    check('nenhum companheiro mostra o mesmo código duas vezes ("595353 595353")', textos.every(t => !/\b([A-Z0-9]{5,})\b.*\b\1\b/.test(t)), textos.slice(0, 3).join(' | '));
     await companheiros.first().getByRole('button', { name: /^Copiar$/ }).click();
     check('"Copiar" do companheiro copia um código', /^[A-Z0-9]{5,}$/.test(await page.evaluate(() => navigator.clipboard.readText())));
     const abrir = companheiros.first().getByRole('button', { name: 'Abrir' });

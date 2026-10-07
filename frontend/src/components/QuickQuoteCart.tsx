@@ -10,6 +10,7 @@ import { formatHusqvarnaPartNumber, cleanErpCode } from '../lib';
 import { playCopySound } from '../lib/sound';
 import { formatBRL, quoteTotals } from '../lib/quote-message';
 import { QUOTE_DEFAULTS } from '../lib/store-profile';
+import { maskPhoneInput } from '../lib/phone';
 import { Icon } from './icons/Icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -335,7 +336,7 @@ export default function QuickQuoteCart() {
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="quote-customer-phone" className="block text-sm font-medium text-muted-foreground">WhatsApp do cliente</label>
-                  <Input id="quote-customer-phone" type="tel" inputMode="tel" autoComplete="off" value={customerPhone} onChange={e => patchOptions({ customerPhone: e.target.value })} placeholder="(19) 99999-9999" className="font-code text-base tabular-nums" />
+                  <Input id="quote-customer-phone" type="tel" inputMode="tel" autoComplete="off" value={customerPhone} onChange={e => patchOptions({ customerPhone: maskPhoneInput(e.target.value) })} placeholder="(19) 99999-9999" className="font-code text-base tabular-nums" />
                 </div>
               </div>
 
