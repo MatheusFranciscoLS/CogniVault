@@ -70,3 +70,33 @@ test('missing detail in both sources returns null and invalid codes do not call 
   assert.equal(mocks.direct.mock.callCount(), 1);
   assert.equal(mocks.scraper.mock.callCount(), 1);
 });
+
+test('cadeia longa: o código pedido na Husqvarna é o MAIS RECENTE, não o próximo passo', async t => {
+  await clearLivePartCache('506027201');
+  // O resultado simulado não pode ficar no cache persistente depois do teste (a próxima leitura real o veria).
+  t.after(() => clearLivePartCache('506027201'));
+  const mocks = setup(t);
+  // Caso real medido no portal: 506027201 → 506027207 → … → 587329503 (o passo seguinte também já foi trocado).
+  mocks.history.mock.mockImplementation(async (code: string) =>
+    parseSparePartReplacementHistory({ site: { spareParts: { byId: { replacementHistory: [
+      { unformattedArticleNumber: '587329503' }, { unformattedArticleNumber: '587329502' },
+      { unformattedArticleNumber: '506027207' }, { unformattedArticleNumber: '506027201' },
+    ] } } } }, code));
+  const result = await HusqvarnaLivePartService.getPart('506027201');
+  assert.equal(result?.replacedBy, '587329503', 'mostrar 506027207 faria o balcão pedir um código que já foi trocado');
+  assert.deepEqual(result?.replacementChain, [
+    { from: '506027201', to: '506027207' },
+    { from: '506027207', to: '587329502' },
+    { from: '587329502', to: '587329503' },
+  ]);
+});
+
+test('código que já é o mais recente não traz substituto nem cadeia', async t => {
+  await clearLivePartCache('533040223');
+  t.after(() => clearLivePartCache('533040223'));
+  const mocks = setup(t);
+  const result = await HusqvarnaLivePartService.getPart('533040223');
+  assert.equal(result?.replacedBy, undefined);
+  assert.equal(result?.replacementChain, undefined);
+  assert.equal(mocks.history.mock.callCount(), 1);
+});

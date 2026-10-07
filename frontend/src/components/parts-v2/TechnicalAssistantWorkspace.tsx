@@ -21,6 +21,7 @@ import { useOfficialMachineSearch } from '../machines/official-machine-search';
 import { useRecentMachines } from '../machines/recent-machines';
 import KawasakiEnginePanel from '../machines/KawasakiEnginePanel';
 import OilQuickAdd from './OilQuickAdd';
+import CodeReplacementCheck from './CodeReplacementCheck';
 import BriggsEnginePanel from '../machines/BriggsEnginePanel';
 import OfficialPartOrigin from '../machines/OfficialPartOrigin';
 import PartGuesses from './PartGuesses';
@@ -780,6 +781,9 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           {!hasSearched && <Starter onExample={beginSearch} recent={recent} onReplay={beginSearch} />}
           {loading && !hasLocalResults ? <ResultsSkeleton /> : null}
           {hasSearched && <OilQuickAdd query={lastQuery} machineModel={session.machineModel.trim() || undefined} />}
+
+          {/* Código digitado que a Husqvarna já trocou: mostra o novo antes da lista (consulta sozinha). */}
+          {hasSearched && <CodeReplacementCheck query={lastQuery} machineModel={session.machineModel.trim() || undefined} onCopy={code => void copyCode(code)} />}
 
           {/* Motor Kawasaki: os códigos E a vista explodida de cada conjunto. Vem antes
               porque, quando o atendente digitou o modelo do motor, é o catálogo dele que

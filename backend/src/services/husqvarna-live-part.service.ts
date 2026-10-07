@@ -41,7 +41,10 @@ export class HusqvarnaLivePartService {
           originalPartUrl: detail?.url || fallback?.originalPartUrl
             || `https://portal.husqvarnagroup.com/br/spare-parts/?part=${code}`,
           // An official "latest" result must also suppress a stale HTML replacement.
-          replacedBy: hasHistory ? history?.replacedBy || undefined : fallback?.replacedBy,
+          // `replacedBy` é o código MAIS RECENTE da cadeia, não o próximo passo: ao pedir à Husqvarna só vale o novo, e
+          // o passo seguinte pode já ter sido trocado também (506027201 → 506027207 → … → 587329503).
+          replacedBy: hasHistory ? (history?.isLatest === false ? history.latestPartNumber || undefined : undefined) : fallback?.replacedBy,
+          replacementChain: hasHistory && history?.isLatest === false ? history.chain : undefined,
           fitsTo: detail?.fitsTo || fallback?.fitsTo || [],
         };
       },

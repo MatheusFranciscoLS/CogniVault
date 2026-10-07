@@ -187,9 +187,9 @@ query getSparePart($siteName: String!, $sparePartId: ID!) {
           ... on Accessory { name { longName } }
         }
         specifications {
-          grossWeight packagingHeight packagingLength packagingWidth ean length
-          netWeight airFilterType batteryCellShape batteryEnergy batteryMaxVoltage
-          batteryPackWeight batteryRechargeable batteryReplaceable batteryType
+          packagingHeight packagingLength packagingWidth ean length
+          airFilterType batteryCellShape batteryEnergy batteryMaxVoltage
+          batteryRechargeable batteryReplaceable batteryType
           batteryUsage bladeLength bladeType cellsPerBattery diameter masterPackQuantity
           nominalCapacity nominalVoltage packagingType power ratedCurrent
           useTogetherWithGrassBlades useTogetherWithGrassKnifes useTogetherWithSawBlades

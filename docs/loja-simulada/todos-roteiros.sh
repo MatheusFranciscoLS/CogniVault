@@ -1,7 +1,7 @@
 #!/bin/bash
 # Roda todos os roteiros da loja simulada nos dois temas e imprime uma linha por roteiro.
 # Uso (de dentro de frontend/): bash ../docs/loja-simulada/todos-roteiros.sh
-for r in atendimento-completo login-completo catalogos-completo gaveta-peca-completo maquina-completo orcamento-completo orcamentos-completo usuarios-completo tabela-precos-completo telas-restantes; do
+for r in atendimento-completo login-completo catalogos-completo gaveta-peca-completo maquina-completo orcamento-completo orcamentos-completo usuarios-completo tabela-precos-completo troca-codigo-completo telas-restantes; do
   for t in dark light; do
     saida=$(node ../docs/loja-simulada/$r.mjs $t 2>&1)
     resumo=$(echo "$saida" | grep -E "verificações passaram" | tail -1)

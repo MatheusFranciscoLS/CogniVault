@@ -100,7 +100,6 @@ const SPEC_RULES: SpecRule[] = [
   { field: 'tipo_bateria', label: 'Bateria' },
   { field: 'volts', label: 'Tensão' },
   { field: 'largura_trabalho_cm', label: 'Largura de trabalho', unit: 'cm', maxBare: 500 },
-  { field: 'peso_produto', label: 'Peso', unit: 'kg', maxBare: 500 },
   { field: 'nivel_ruido_dba', label: 'Ruído', unit: 'dB(A)', maxBare: 200 },
   { field: 'ipi', label: 'IPI', unit: '%', maxBare: 100 },
   { field: 'classif_fiscal', label: 'NCM' },

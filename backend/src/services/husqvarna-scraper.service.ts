@@ -18,7 +18,10 @@ export interface HusqvarnaLivePart {
     imageUrl?: string;
     specifications?: HusqvarnaLiveSpecifications;
     originalPartUrl: string;
+    /** Código MAIS RECENTE da cadeia de substituição (o que a Husqvarna aceita no pedido), não o próximo passo. */
     replacedBy?: string;
+    /** Caminho oficial do código pedido até o mais recente, passo a passo. */
+    replacementChain?: Array<{ from: string; to: string }>;
     fitsTo?: string[];
 }
 

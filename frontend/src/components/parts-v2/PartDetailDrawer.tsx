@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { apiJson, cleanErpCode } from '../../lib';
 import { useQuoteCart } from '../../context/QuoteCartContext';
 import type { OfficialVerification, PartDetail } from '../../types';
+import CodeReplacementBanner from './CodeReplacementBanner';
 import { effectivePartNumber, isSupersededForCode, officialPortalLabel, officialPortalUrl } from '../PartVerificationDialog';
 import { recordQuoteUsage } from './quoteUsage';
 import type { HusqvarnaLivePart, WorkContext } from './types';
@@ -143,13 +144,13 @@ export default function PartDetailDrawer({ detail, verification, liveData, onClo
           </section>
 
           {replacedBy && (
-            <section role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warn bg-warn-soft p-4">
-              <div className="min-w-0">
-                <p className="text-base font-semibold text-warn">A Husqvarna substituiu este código</p>
-                <p translate="no" className="font-code text-2xl font-semibold tabular-nums text-foreground">{replacedBy}</p>
-              </div>
-              <Button variant="outline" onClick={() => copy(replacedBy)}>{copied === replacedBy ? 'Copiado' : 'Copiar código atual'}</Button>
-            </section>
+            <CodeReplacementBanner
+              asked={originalCode}
+              latest={replacedBy}
+              chain={liveData?.replacementChain}
+              copied={copied === replacedBy}
+              onCopy={() => copy(replacedBy)}
+            />
           )}
 
           <section className="rounded-xl border border-border bg-card p-5">
