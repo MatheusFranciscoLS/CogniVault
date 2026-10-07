@@ -11,7 +11,7 @@ async function login(page) {
   await page.locator('#login-password').fill(PASSWORD);
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard/);
-  await expect(page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/)).toBeVisible();
+  await expect(page.getByPlaceholder(/Código, peça ou modelo|Peça, código ou pergunta/)).toBeVisible();
 }
 
 async function mockPartManufacturer(page) {
@@ -108,7 +108,7 @@ test('histórico preserva fabricante real no orçamento em vez de presumir Husqv
 
   await login(page);
   await page.getByRole('button', { name: 'Mais', exact: true }).click();
-  await page.getByRole('button', { name: 'Histórico', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Histórico', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Histórico', exact: true })).toBeVisible();
   await expect(page.getByText(CODE, { exact: true }).first()).toBeVisible();
 

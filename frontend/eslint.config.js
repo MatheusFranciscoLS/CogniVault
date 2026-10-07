@@ -19,4 +19,10 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // Componentes do shadcn/ui exportam as variantes (buttonVariants, badgeVariants)
+    // junto do componente. É o desenho deles; a regra só afeta o recarregamento rápido.
+    files: ['src/components/ui/**/*.{ts,tsx}'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 ])

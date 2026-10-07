@@ -40,6 +40,10 @@
   --ring: #c13d0a;
   --radius: 0.5rem;
 
+  --primary-hover: #9a3109;
+  /* Contorno e texto do botão "adicionar ao orçamento" (a ação mais repetida do balcão). */
+  --add: #a73508;
+
   /* Barra superior: o azul da marca, nos dois temas. */
   --bar: #273a60;
   --bar-foreground: #ffffff;
@@ -72,6 +76,9 @@
   --border: #2b3858;
   --input: #3b4870;
   --ring: #ff9a73;
+
+  --primary-hover: #a33409;
+  --add: #ff9a73;
 
   --bar: #1f2742;
   --bar-foreground: #ffffff;

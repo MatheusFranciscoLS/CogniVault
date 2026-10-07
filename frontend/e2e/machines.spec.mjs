@@ -79,7 +79,7 @@ async function login(page, email) {
   // Âncora pós-login: o campo de busca, que é o elemento funcional da tela.
   // O título decorativo que servia de âncora saiu — três cabeçalhos empilhados
   // diziam a mesma coisa antes da busca.
-  await expect(page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/)).toBeVisible();
+  await expect(page.getByPlaceholder(/Código, peça ou modelo|Peça, código ou pergunta/)).toBeVisible();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -110,7 +110,7 @@ test('PNC da etiqueta abre a vista explodida no painel lateral, sem trocar de te
   const painel = page.getByRole('dialog', { name: 'Máquina aberta' });
   await expect(painel).toHaveCount(0);
 
-  const busca = page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/);
+  const busca = page.getByPlaceholder(/Código, peça ou modelo|Peça, código ou pergunta/);
   await busca.fill('967 79 63-01');
   await page.getByRole('button', { name: 'Buscar' }).click();
 
@@ -131,7 +131,7 @@ test('código de peça com a MESMA máscara do PNC não abre máquina', async ({
   // `587 10 67-01` é código de peça e usa a máscara idêntica à da etiqueta. O
   // que separa os dois é o prefixo 9 do PNC, e é esta a regressão que o balcão
   // sentiria primeiro: buscar uma peça e receber a tela de máquina.
-  await page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/).fill('587 10 67-01');
+  await page.getByPlaceholder(/Código, peça ou modelo|Peça, código ou pergunta/).fill('587 10 67-01');
   await page.getByRole('button', { name: 'Buscar' }).click();
 
   await expect(page.getByRole('dialog', { name: 'Máquina aberta' })).toHaveCount(0);
@@ -160,7 +160,7 @@ test('posição da vista explodida leva o código para a busca interna', async (
 
   // O painel fecha e o código cai no campo de busca, sem recarregar a página.
   await expect(painel).toHaveCount(0);
-  await expect(page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/)).toHaveValue(/537041901/);
+  await expect(page.getByPlaceholder(/Código, peça ou modelo|Peça, código ou pergunta/)).toHaveValue(/537041901/);
 });
 
 test('máquina consultada entra na lista de recentes do atendente', async ({ page }) => {
@@ -204,7 +204,7 @@ test('preço indisponível mantém o código oficial visível e mostra a degrada
   );
 
   await login(page, MECHANIC_EMAIL);
-  await page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/).fill(code);
+  await page.getByPlaceholder(/Código, peça ou modelo|Peça, código ou pergunta/).fill(code);
   await page.getByRole('button', { name: 'Buscar' }).click();
 
   await expect(page.getByText('FX921V-ES06', { exact: false })).toBeVisible();

@@ -13,11 +13,11 @@ async function login(page, email) {
   // Âncora pós-login: o campo de busca, que é o elemento funcional da tela.
   // O título decorativo que servia de âncora saiu — três cabeçalhos empilhados
   // diziam a mesma coisa antes da busca.
-  await expect(page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/)).toBeVisible();
+  await expect(page.getByPlaceholder(/Código, peça ou modelo|Peça, código ou pergunta/)).toBeVisible();
 }
 
 async function searchCarburettor(page) {
-  const search = page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/);
+  const search = page.getByPlaceholder(/Código, peça ou modelo|Peça, código ou pergunta/);
   await search.fill('carburador 143RII 967332904');
   await page.getByRole('button', { name: 'Buscar' }).click();
   const technicalResult = page.getByRole('button', { name: 'Abrir detalhes de CARBURADOR' });
@@ -69,13 +69,14 @@ test('sessão usa cookie HttpOnly, sobrevive a reload e isola orçamento por usu
   // Âncora pós-login: o campo de busca, que é o elemento funcional da tela.
   // O título decorativo que servia de âncora saiu — três cabeçalhos empilhados
   // diziam a mesma coisa antes da busca.
-  await expect(page.getByPlaceholder(/Código, peça, modelo|Peça, código ou pergunta/)).toBeVisible();
+  await expect(page.getByPlaceholder(/Código, peça ou modelo|Peça, código ou pergunta/)).toBeVisible();
 
   await searchCarburettor(page);
   await page.getByRole('button', { name: '+ Orçamento' }).first().click();
   await expect(page.getByRole('button', { name: /No orçamento/ }).first()).toBeVisible();
 
-  await page.getByRole('button', { name: 'Sair' }).click();
+  await page.getByRole('button', { name: 'Minha conta' }).click();
+  await page.getByRole('menuitem', { name: 'Sair' }).click();
   await expect(page).toHaveURL(/\/login/);
   const clearedCookie = (await context.cookies()).find(cookie => cookie.name === 'cognivault_session');
   expect(clearedCookie).toBeFalsy();

@@ -82,7 +82,7 @@ function verificationClass(value?: OfficialVerification) {
 
 export function VerificationBadge({ verification, loading = false }: { verification?: OfficialVerification; loading?: boolean }) {
   return (
-    <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold ${verificationClass(verification)}`}>
+    <span className={`inline-flex rounded-md border px-2 py-0.5 text-sm font-semibold ${verificationClass(verification)}`}>
       {loading && !verification ? 'Carregando estado…' : verificationLabel(verification)}
     </span>
   );

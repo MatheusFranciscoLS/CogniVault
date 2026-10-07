@@ -627,6 +627,8 @@ html.dark { background: var(--background); }
   --font-heading: var(--font-sans);
   --font-sans: 'Barlow', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
   --font-code: 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif;
+  --color-primary-hover: var(--primary-hover);
+  --color-add: var(--add);
   --color-bar: var(--bar);
   --color-bar-foreground: var(--bar-foreground);
   --color-gold: var(--gold);

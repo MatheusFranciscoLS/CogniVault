@@ -1,13 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { apiJson } from '../lib';
 import type { NotificationItem, Section, SessionUser } from '../types';
 import { useQuoteCart } from '../context/QuoteCartContext';
-import { useCounterSession } from '../context/CounterSessionContext';
 import { useTheme } from './ThemeProvider';
 import { isSoundEnabled, toggleSound } from '../lib/sound';
 import { Icon, type IconName } from './icons/Icon';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 type Props = {
   user: SessionUser;
@@ -44,55 +52,50 @@ const adminNav: NavItem[] = [
   { id: 'audit', label: 'Auditoria', icon: 'audit' },
 ];
 
-const sectionTitle = new Map<Section, string>([
-  ...primaryNav.map(item => [item.id, item.label] as const),
-  ...secondaryNav.map(item => [item.id, item.label] as const),
-  ...adminNav.map(item => [item.id, item.label] as const),
-  ['home', 'Atendimento'],
-  ['assistant', 'Atendimento'],
-]);
+// Aba da barra superior. Texto de apoio em hex fixo (não opacidade): contraste
+// medido sobre o azul da marca, nos dois temas.
+const tabBase = 'relative flex h-full items-center gap-1.5 border-b-[3px] px-4 text-base font-medium outline-none transition-colors focus-visible:bg-white/10';
+const tabIdle = 'border-transparent text-[#c9d2e6] hover:text-white';
+const tabActive = 'border-white font-semibold text-white';
 
-function NavButton({ item, active, onSelect }: { item: NavItem; active: boolean; onSelect: (section: Section) => void }) {
-  return <button type="button" onClick={() => onSelect(item.id)} aria-current={active ? 'page' : undefined} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition ${active ? 'bg-brand-200 font-bold text-brand-900' : 'font-semibold text-brand-100 hover:bg-white/10 hover:text-white'}`}><Icon name={item.icon} className="h-[17px] w-[17px] shrink-0"/><span className="truncate">{item.label}</span></button>;
+function Tab({ item, active, onSelect }: { item: NavItem; active: boolean; onSelect: (section: Section) => void }) {
+  return (
+    <button type="button" onClick={() => onSelect(item.id)} aria-current={active ? 'page' : undefined} className={`${tabBase} ${active ? tabActive : tabIdle}`}>
+      {item.label}
+    </button>
+  );
 }
 
-function CollapsibleNav({ label, items, open, onToggle, section, onSelect }: { label:string; items:NavItem[]; open:boolean; onToggle:()=>void; section:Section; onSelect:(section:Section)=>void }) {
-  return <div><button type="button" onClick={onToggle} className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-[.12em] text-brand-200 transition hover:bg-white/10 hover:text-white"><span>{label}</span><Icon name="chevron" className={`h-3.5 w-3.5 transition ${open ? 'rotate-90' : ''}`}/></button>{open && <nav className="mt-1 space-y-1">{items.map(item => <NavButton key={item.id} item={item} active={section === item.id} onSelect={onSelect}/>)}</nav>}</div>;
-}
-
-function Notifications({ items, open, onToggle, onClose }: { items:NotificationItem[]; open:boolean; onToggle:()=>void; onClose:()=>void }) {
-  return <div className="relative"><button type="button" onClick={onToggle} aria-label="Notificações" aria-expanded={open} className="relative grid h-10 w-10 place-items-center rounded-lg border border-ink-200 bg-white text-ink-500 transition hover:text-brand-600 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300"><Icon name="bell" className="h-[17px] w-[17px]"/>{items.length > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-ink-900"/>}</button>{open && <><button type="button" aria-label="Fechar notificações" className="fixed inset-0 z-40 cursor-default" onClick={onClose}/><div className="absolute right-0 top-12 z-50 w-[340px] max-w-[88vw] overflow-hidden rounded-xl border border-ink-200 bg-white shadow-2xl dark:border-ink-700 dark:bg-ink-900"><div className="border-b border-ink-100 px-4 py-3 text-sm font-bold dark:border-ink-800">Notificações</div><div className="max-h-[380px] overflow-y-auto">{items.length ? items.map(item => <div key={item.id} className="border-b border-ink-100 px-4 py-3 last:border-0 dark:border-ink-800"><div className="text-xs font-bold text-ink-800 dark:text-ink-100">{item.title}</div><div className="mt-1 text-xs leading-5 text-ink-500 dark:text-ink-400">{item.description}</div></div>) : <div className="px-5 py-8 text-center text-sm text-ink-500 dark:text-ink-400">Nenhuma pendência.</div>}</div></div></>}</div>;
-}
-
-function SidebarContent({ user, section, onSelect, onLogout, theme, onToggleTheme, soundEnabled, onToggleSound }: { user:SessionUser; section:Section; onSelect:(section:Section)=>void; onLogout:()=>void; theme:string; onToggleTheme:()=>void; soundEnabled:boolean; onToggleSound:()=>void }) {
-  const secondaryActive = secondaryNav.some(item => item.id === section);
-  const adminActive = adminNav.some(item => item.id === section);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const [adminOpen, setAdminOpen] = useState(false);
-  const showMore = moreOpen || secondaryActive;
-  const showAdmin = adminOpen || adminActive;
-
-  return <>
-    {/* O "Balcão · Peças" identifica o sistema, não é enfeite: a Vardão usa
-        este app e o Vardão CRM (gestão/vendas) ao mesmo tempo, e o atendente
-        precisa saber em qual está sem procurar. */}
-    <div className="flex h-[68px] items-center gap-3 border-b border-white/10 px-4"><div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-brand-600"><img src="/favicon.png" alt="" className="h-9 w-9 object-cover"/></div><div className="min-w-0"><div className="text-sm font-black tracking-tight text-white">CogniVault</div><div className="mt-0.5 flex items-center gap-1.5"><span className="rounded-sm bg-accent-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-accent-300">Balcão · Peças</span></div></div></div>
-    <div className="flex-1 overflow-y-auto px-3 py-4"><div className="px-3 pb-2 text-[10px] font-black uppercase tracking-[.15em] text-brand-200">Operação</div><nav className="space-y-1">{primaryNav.map(item => <NavButton key={item.id} item={item} active={section === item.id || ((section === 'home' || section === 'assistant') && item.id === 'parts')} onSelect={onSelect}/>)}</nav><div className="my-3 h-px bg-white/10"/><CollapsibleNav label="Mais" items={secondaryNav} open={showMore} onToggle={() => setMoreOpen(value => !value)} section={section} onSelect={onSelect}/>{user.role === 'ADMIN' && <><div className="my-3 h-px bg-white/10"/><CollapsibleNav label="Administração" items={adminNav} open={showAdmin} onToggle={() => setAdminOpen(value => !value)} section={section} onSelect={onSelect}/></>}</div>
-    <div className="border-t border-white/10 p-3"><div className="flex items-center gap-2.5 px-1"><div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/15 text-[10px] font-black text-white">{user.email.slice(0,2).toUpperCase()}</div><div className="min-w-0 flex-1"><div className="truncate text-[11px] font-bold text-white">{user.email}</div><div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-200">{user.role === 'ADMIN' ? 'Administrador' : 'Operação'}</div></div></div><div className="mt-3 grid grid-cols-3 gap-1.5"><button type="button" onClick={onToggleTheme} className="grid h-8 place-items-center rounded-lg border border-white/15 text-brand-100 transition hover:bg-white/10 hover:text-white" aria-label="Alternar tema"><Icon name={theme === 'dark' ? 'sun' : 'moon'} className="h-4 w-4"/></button><button type="button" onClick={onToggleSound} className="grid h-8 place-items-center rounded-lg border border-white/15 text-brand-100 transition hover:bg-white/10 hover:text-white" aria-label={soundEnabled ? 'Desativar sons' : 'Ativar sons'}><Icon name={soundEnabled ? 'sound' : 'mute'} className="h-4 w-4"/></button><button type="button" onClick={onLogout} className="grid h-8 place-items-center rounded-lg border border-white/15 text-brand-100 transition hover:bg-rose-500/20 hover:text-rose-200" aria-label="Sair"><Icon name="logout" className="h-4 w-4"/></button></div></div>
-  </>;
+function GroupTab({ label, items, section, onSelect }: { label: string; items: NavItem[]; section: Section; onSelect: (section: Section) => void }) {
+  const active = items.some(item => item.id === section);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" className={`${tabBase} ${active ? tabActive : tabIdle}`}>
+          {label}
+          <Icon name="chevron" className="h-3.5 w-3.5 rotate-90" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-48">
+        {items.map(item => (
+          <DropdownMenuItem key={item.id} onSelect={() => onSelect(item.id)} className="h-10 text-base">
+            <Icon name={item.icon} className="h-4 w-4" />
+            {item.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 export default function ShellV2({ user, section, onSection, onLogout, onSearch, children }: Props) {
   const [query, setQuery] = useState('');
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(() => isSoundEnabled());
   const { theme, setTheme } = useTheme();
   const quoteCart = useQuoteCart();
-  const { session, hasContext } = useCounterSession();
-  const currentTitle = useMemo(() => sectionTitle.get(section) ?? 'CogniVault', [section]);
   const isCounter = section === 'parts' || section === 'home' || section === 'assistant';
+  const isAdmin = user.role === 'ADMIN';
 
   useEffect(() => { let active = true; const load = () => { void apiJson<{notifications:NotificationItem[]}>('/api/notifications').then(data => { if (active) setNotifications(data.notifications ?? []); }).catch(() => { if (active) setNotifications([]); }); }; load(); const timer = window.setInterval(load, 60_000); return () => { active = false; window.clearInterval(timer); }; }, []);
 
@@ -107,16 +110,117 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
     input?.select();
   }, { enableOnFormTags:true });
   useHotkeys('ctrl+b, meta+b, alt+o', event => { event.preventDefault(); quoteCart.setIsOpen(!quoteCart.isOpen); }, { enableOnFormTags:true });
-  useHotkeys('escape', () => { setMobileOpen(false); setNotificationsOpen(false); }, { enableOnFormTags:true });
 
-  const select = (next: Section) => { onSection(next); setMobileOpen(false); };
-  const submitSearch = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const value = query.trim(); if (value.length < 2) return; onSearch(value); setQuery(''); setMobileOpen(false); };
+  const submitSearch = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const value = query.trim(); if (value.length < 2) return; onSearch(value); setQuery(''); };
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
   const toggleSoundPreference = () => setSoundEnabled(toggleSound());
+  const activeSection: Section = section === 'home' || section === 'assistant' ? 'parts' : section;
+  const allNav = [...primaryNav, ...secondaryNav, ...(isAdmin ? adminNav : [])];
 
-  return <div className="min-h-screen bg-surface-page text-ink-900 dark:bg-surface-page-dark dark:text-ink-100">
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[210px] flex-col border-r border-brand-900/60 bg-surface-nav md:flex"><SidebarContent user={user} section={section} onSelect={select} onLogout={onLogout} theme={theme} onToggleTheme={toggleTheme} soundEnabled={soundEnabled} onToggleSound={toggleSoundPreference}/></aside>
-    {mobileOpen && <><button type="button" aria-label="Fechar menu" onClick={() => setMobileOpen(false)} className="fixed inset-0 z-40 bg-ink-950/45 backdrop-blur-xs md:hidden"/><aside className="fixed inset-y-0 left-0 z-50 flex w-[280px] max-w-[88vw] flex-col bg-surface-nav shadow-2xl md:hidden"><button type="button" onClick={() => setMobileOpen(false)} className="absolute right-3 top-4 grid h-9 w-9 place-items-center rounded-lg border border-white/15 bg-white/10 text-brand-100" aria-label="Fechar menu"><Icon name="close" className="h-4 w-4"/></button><SidebarContent user={user} section={section} onSelect={select} onLogout={onLogout} theme={theme} onToggleTheme={toggleTheme} soundEnabled={soundEnabled} onToggleSound={toggleSoundPreference}/></aside></>}
-    <div className="flex min-h-dvh flex-col md:pl-[210px]"><header className="sticky top-0 z-30 border-b border-ink-200/90 bg-white/95 backdrop-blur-xl dark:border-ink-800 dark:bg-ink-950/95"><div className="flex h-[68px] items-center gap-3 px-4 lg:px-5"><button type="button" onClick={() => setMobileOpen(true)} className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-ink-200 bg-white text-ink-600 md:hidden dark:border-ink-700 dark:bg-ink-900" aria-label="Abrir menu"><Icon name="menu" className="h-[18px] w-[18px]"/></button><div className="hidden min-w-[110px] xl:block"><div className="text-[10px] font-bold uppercase tracking-[.14em] text-ink-500 dark:text-ink-400">Área de trabalho</div><div className="mt-0.5 text-sm font-black text-ink-900 dark:text-white">{currentTitle}</div></div>{isCounter ? <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden"><span className={`h-2 w-2 shrink-0 rounded-full ${quoteCart.totalItems > 0 || hasContext || session.customerName ? 'bg-emerald-500' : 'bg-ink-300 dark:bg-ink-600'}`} /><span className="truncate text-xs font-semibold text-ink-500 dark:text-ink-400">{session.machineModel || session.pnc || session.customerName ? [session.customerName, session.machineModel, session.pnc ? `PNC ${session.pnc}` : ''].filter(Boolean).join(' · ') : 'Atendimento pronto para iniciar'}</span><span className="hidden shrink-0 text-[11px] font-semibold text-ink-500 lg:inline">Ctrl K busca</span></div> : <form onSubmit={submitSearch} role="search" className="min-w-0 flex-1"><div className="relative mx-auto max-w-3xl"><Icon name="search" className="pointer-events-none absolute left-3.5 top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-ink-500 dark:text-ink-400"/><input id="cv-workspace-search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar código, descrição, modelo ou PNC" className="h-11 w-full rounded-lg border border-ink-200 bg-ink-50 pl-10 pr-20 text-sm font-medium outline-hidden transition placeholder:text-ink-500 dark:text-ink-400 focus:border-brand-600 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:border-ink-700 dark:bg-ink-900 dark:focus:bg-ink-900"/><span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-sm border border-ink-200 bg-white px-2 py-1 text-[9px] font-bold text-ink-500 dark:text-ink-400 lg:block dark:border-ink-700 dark:bg-ink-800">Ctrl K</span></div></form>}<button type="button" onClick={() => quoteCart.setIsOpen(true)} className={`flex h-10 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-bold transition ${quoteCart.totalItems > 0 ? 'border-brand-300 bg-white text-brand-700 dark:border-brand-700 dark:bg-ink-900 dark:text-brand-200' : 'border-ink-200 bg-white text-ink-600 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300'}`}><Icon name="quote" className="h-4 w-4"/><span className="hidden sm:inline">Orçamento</span>{quoteCart.totalItems > 0 && <span className="rounded-full bg-accent-600 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-white">{quoteCart.totalItems}</span>}</button><Notifications items={notifications} open={notificationsOpen} onToggle={() => setNotificationsOpen(value => !value)} onClose={() => setNotificationsOpen(false)}/></div></header><main className={`mx-auto flex w-full flex-col px-4 py-5 lg:px-5 lg:py-6 flex-1 ${isCounter ? 'max-w-[1800px]' : 'max-w-[1500px]'}`}>{children}</main></div>
-  </div>;
+  return (
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <header className="sticky top-0 z-30 border-b border-black/20 bg-bar text-bar-foreground">
+        <div className="mx-auto flex h-14 w-full max-w-[1800px] items-center gap-5 px-5">
+          {/* "Balcão · Peças" e o selo ouro identificam o sistema e a revenda; o atendente
+              usa este app ao lado do Vardão CRM e precisa saber em qual está. */}
+          <div className="flex shrink-0 items-center gap-3">
+            <img src="/favicon.png" alt="" className="size-8 rounded-md bg-white/10 object-cover" />
+            <span className="text-lg font-bold tracking-tight">CogniVault</span>
+            <span className="hidden rounded-full border border-[#ffc80080] px-2.5 py-0.5 text-sm font-semibold text-[#ffc800] xl:inline">Revenda ouro Husqvarna</span>
+          </div>
+
+          <nav aria-label="Principal" className="hidden h-full md:flex">
+            {primaryNav.map(item => <Tab key={item.id} item={item} active={activeSection === item.id} onSelect={onSection} />)}
+            <GroupTab label="Mais" items={secondaryNav} section={section} onSelect={onSection} />
+            {isAdmin && <GroupTab label="Administração" items={adminNav} section={section} onSelect={onSection} />}
+          </nav>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="bar" size="sm" className="md:hidden" aria-label="Abrir menu"><Icon name="menu" className="h-4 w-4" />Menu</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-52">
+              {allNav.map(item => (
+                <DropdownMenuItem key={item.id} onSelect={() => onSection(item.id)} className="h-10 text-base">
+                  <Icon name={item.icon} className="h-4 w-4" />
+                  {item.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {!isCounter && (
+            <form onSubmit={submitSearch} role="search" className="hidden min-w-0 max-w-md flex-1 lg:block">
+              <div className="relative">
+                <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5f667a]" />
+                <input
+                  id="cv-workspace-search"
+                  value={query}
+                  onChange={event => setQuery(event.target.value)}
+                  placeholder="Buscar código, descrição, modelo ou PNC"
+                  className="h-10 w-full rounded-md border border-transparent bg-white pl-9 pr-16 text-base text-[#1b2234] outline-none placeholder:text-[#5f667a] focus-visible:ring-3 focus-visible:ring-[#ff9a73]"
+                />
+                <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-[#c4cada] px-1.5 text-sm text-[#5f667a]">Ctrl K</kbd>
+              </div>
+            </form>
+          )}
+
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="bar" onClick={() => quoteCart.setIsOpen(true)}>
+              <Icon name="quote" className="h-4 w-4" />
+              <span className="hidden sm:inline">Orçamento</span>
+              {quoteCart.totalItems > 0 && <span className="grid min-w-6 place-items-center rounded-full bg-primary px-1.5 text-sm font-bold tabular-nums text-primary-foreground">{quoteCart.totalItems}</span>}
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="bar" size="icon" aria-label="Notificações" className="relative">
+                  <Icon name="bell" className="h-[18px] w-[18px]" />
+                  {notifications.length > 0 && <span className="absolute right-2 top-2 size-2 rounded-full bg-[#ff9a73] ring-2 ring-bar" />}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="max-h-96 w-80 overflow-y-auto">
+                <DropdownMenuLabel className="text-base">Notificações</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {notifications.length ? notifications.map(item => (
+                  <div key={item.id} className="px-2 py-2">
+                    <div className="text-base font-semibold">{item.title}</div>
+                    <div className="text-sm text-muted-foreground">{item.description}</div>
+                  </div>
+                )) : <div className="px-2 py-4 text-center text-base text-muted-foreground">Nenhuma pendência.</div>}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="bar" size="icon" aria-label="Minha conta" className="rounded-full text-sm font-bold">{user.email.slice(0, 2).toUpperCase()}</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel className="space-y-0.5">
+                  <div className="truncate text-base font-semibold">{user.email}</div>
+                  <div className="text-sm font-normal text-muted-foreground">{isAdmin ? 'Administrador' : 'Balcão'}</div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={toggleTheme} className="h-10 text-base">
+                  <Icon name={theme === 'dark' ? 'sun' : 'moon'} className="h-4 w-4" />
+                  {theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={toggleSoundPreference} className="h-10 text-base">
+                  <Icon name={soundEnabled ? 'sound' : 'mute'} className="h-4 w-4" />
+                  {soundEnabled ? 'Desligar sons' : 'Ligar sons'}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={onLogout} variant="destructive" className="h-10 text-base">
+                  <Icon name="logout" className="h-4 w-4" />
+                  Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </header>
+
+      <main className={`mx-auto flex w-full flex-1 flex-col px-5 py-5 ${isCounter ? 'max-w-[1800px]' : 'max-w-[1500px]'}`}>{children}</main>
+    </div>
+  );
 }
