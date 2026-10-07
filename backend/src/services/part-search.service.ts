@@ -13,7 +13,7 @@ import {
 } from './part-vocabulary';
 import { relationSpecificityBonus, stripExplicitSerialContext } from './candidate-specificity';
 import { applyFeedbackLearning, type FeedbackLearningSignal } from './feedback-learning';
-import { allRelatedPartNumbers, preferCurrentPartNumbers, resolveCurrentPartNumber } from './part-supersession';
+import { allRelatedPartNumbers, preferCurrentPartNumbers } from './part-supersession';
 import { fuzzyNormalizePartCode } from '../utils/fuzzy-code';
 import { normalizedReciprocalRankFusionScores } from './retrieval-fusion';
 import { fullTextPartCandidates, fuzzyPartCandidates, type HybridTextCandidateRow } from './hybrid-part-retrieval';
