@@ -23,7 +23,7 @@ Regra do dono (2026-10-07): **tudo que ele passar entra aqui na hora**, porque h
 | 4 | **Importar as máquinas (e depois o que mais vier da lista) em produção**: depende da aprovação do dono (relatório só lê; `--apply --expect-count=151`) | ❓ dono |
 | 5 | **Auditoria da API do Portal** (pedido do dono): feita em 2026-10-07 por introspecção ao vivo. Resultado: a integração já usa quase tudo que serve ao balcão (inclusive as especificações dimensionais, que uma nota antiga dizia faltar). O que sobrou: `necessaryProducts`/`recommendedProducts` (vêm quase vazios e, quando vêm, são itens de marketing com SKU próprio: luva, bolsa), `relatedTools`/`standardEquipment` (exigem argumento de paginação), vídeos e `repairabilityIndex`. **O dono NÃO quer dados de estoque recomendado (`stockRecommendations`) nem de peso**: fora de qualquer tela | ✅ feita; só o item 1 sai dela |
 | 6 | Dono: "usar sempre a lista de preços em HTML para achar funcionalidades e melhorias": análise na seção J (ordem Husqvarna, selo "Em linha", ficha ao cliente, "Leve junto" já entregues no #214) | ✅ rodada 1 |
-| 7 | Atalho `/` para a busca; "Peças de manutenção preventiva por PNC" (campo `reparo` da lista); lista de compras/CSV do Portal Parceiro (só se o dono pedir) | 💡 |
+| 7 | "Peças de manutenção preventiva por PNC" (campo `reparo` da lista: 191 máquinas, mediana de 8 peças preventivas, 101 das 151 máquinas da tabela); lista de compras/CSV do Portal Parceiro (só se o dono pedir). Já feitos nesta rodada: atalho `/`, teclado na lista, copiar códigos | 💡 |
 | 8 | Refazer por dentro Negócio, Qualidade, Visão geral e a Biblioteca; decidir ChatPanel; auditoria "zero erros"; Clipp (pedir a exportação de produtos) | ⏳ depois |
 
 ### Pedidos novos do dono (2026-10-07, pelo celular) — entram na fila acima, em ordem de importância
@@ -125,7 +125,7 @@ Pedido do dono: pegar o que for útil da lista, principalmente funcionalidade, "
 | ✅ | **"Leve junto"** na gaveta da máquina: acessórios que o PORTAL indica para a máquina e que a loja tem no cadastro (preço e prateleira), com "+ Orçamento". Mudei de "acessórios da categoria" para os do Portal: são os da máquina e não chute por categoria. Cobertura desigual (0 a 18 por máquina): sem item da loja, a seção some | feito |
 | ✅ | **Ordem da Husqvarna** na Tabela de preços (tecnologia, categoria e ordem da máquina: motosserra e roçadeira primeiro) em vez de alfabética; vale também para as opções dos filtros | feito |
 | 💡 | **Peças de manutenção preventiva por PNC** (`reparo` + `pnc` das 64.440 linhas): cobre as máquinas que o catálogo interno não cobre; só com tabela nova de ligação peça↔PNC | avaliar depois da similaridade |
-| 💡 | Atalho `/` para focar a busca (hoje só Ctrl K) | pequeno |
+| ✅ | Atalho `/` para focar a busca: já existia (o plano estava defasado) |
 | 💡 | Lista de compras / CSV para o Portal Parceiro: é fluxo de COMPRA, fora do "vista explodida + orçamento"; só se o dono pedir |
 | ➖ | Carrossel de destaques, modo cards/tabela, lista de compras salva: enfeite ou fora do escopo; não levar |
 
@@ -138,8 +138,8 @@ Regra: cada tela percorrida entra aqui com o que foi corrigido na hora (✅) e o
 | ✅ | "Buscando…" ficava até 4,5 s depois de a lista já estar na tela: agora libera quando há peças (e a busca nova cancela a anterior, para não misturar resultados) |
 | ✅ | "+ 7" solto ao lado dos documentos virou "Mais 7"; "+19 aplicações" saiu da linha (é o "onde usa"); "Ref. HUSQVARNA" (a marca) saiu |
 | ✅ | `Button` agora é `type="button"` por padrão: dentro de formulário, "+ Orçamento" podia refazer a busca |
-| 💡 | **Copiar todos os códigos do orçamento de uma vez** (um por linha, com quantidade) para colar no Clipp: a venda é lá, então é o caminho de saída natural do orçamento |
-| 💡 | Teclado primeiro: ↑/↓ percorrem as linhas e Enter copia o código (hoje só Ctrl K e Enter na busca) |
+| ✅ | **Copiar todos os códigos do orçamento de uma vez** (feito, 2026-10-07): botão "Copiar códigos" na gaveta do orçamento; um por linha, "código TAB quantidade", código limpo como o Clipp guarda, soma o mesmo código repetido e deixa o serviço avulso (óleo) de fora. **Formato a confirmar com o dono** (o que o Clipp aceita colar) |
+| ✅ | Teclado primeiro (feito): ↓ no campo de busca vai ao código da primeira linha, ↓/↑ percorrem as linhas (na ordem da TELA), Enter copia o código, **+** põe no orçamento, ↑ na primeira volta à busca; `/` e Ctrl K já focavam a busca |
 | ✅ | Últimas buscas ao focar o campo vazio (↑/↓, Enter, Esc); a tela Histórico foi apagada |
 | 💡 | Linhas se reordenam quando a fase "por significado" acrescenta peças: marcar o que chegou depois, ou só anexar no fim do grupo |
 | 💡 | Abrir uma máquina grava a máquina no atendimento sem avisar: mostrar que foi gravada |
