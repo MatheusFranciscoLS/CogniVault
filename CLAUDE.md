@@ -207,7 +207,7 @@ usuários** ("todos podem visualizar isso").
   "Ref.: Orçamento <tipo> Husqvarna <modelo>", uma linha "01-) <tipo>, modelo X equipado com motor 4 tempos de ..., potência ...,
   tanque ..., largura de corte ...", destaque "Recomendado para...", Preço, Condição de Pagamento, Prazo de Entrega, Validade 20 dias,
   Observação, ATT. Código em `lib/machine-quote.ts` + `MachineQuoteDialog`. A descrição sai da ficha da lista; o que ela não traz
-  (transmissão, câmbios, velocidade) o atendente digita em "Complemento". A **foto** vem do Portal pelo PNC (`imageUrl` do detalhe, só https de domínio Husqvarna) e é reduzida a 640 px em JPEG no navegador (`loadProductImage`: o PNG original passa de 2 MB); sem foto, o orçamento sai sem ela. **O preço sugerido é o da lista mas é do atendente**: nos
+  (transmissão, câmbios, velocidade) o atendente digita em "Complemento". A **data do orçamento** é editável (começa em hoje; a validade de 20 dias conta dela), como a negociação pede. A **foto** vem do Portal pelo PNC (`imageUrl` do detalhe, só https de domínio Husqvarna) e é reduzida a 640 px em JPEG no navegador (`loadProductImage`: o PNG original passa de 2 MB); sem foto, o orçamento sai sem ela. **O preço sugerido é o da lista mas é do atendente**: nos
   orçamentos reais o valor negociado quase nunca é o da lista (por isso o campo é editável). Os preços dos orçamentos reais NÃO entram aqui: é dado da loja. Sem PNC,
   sem código. Os orçamentos reais em Word têm dado de cliente: ficam em Downloads, nunca no repositório.
 - **PNC da lista com `BR` (36 de 151 máquinas, ex.: `970743401BR`) é o MESMO artigo de 9 dígitos** (`portalPnc`): sem tirar o `BR`,

@@ -34,6 +34,8 @@ await step(`orçamento da ${nome}`, async () => {
   await dialogo.getByLabel(/Preço do orçamento/).fill('79.900,00');
   await dialogo.getByLabel('Complemento da descrição').fill('com transmissão Hidrostática, 2 câmbios e 13 estágios para regulagem de altura');
   await dialogo.getByLabel('Prazo de entrega').fill('7 dias');
+  check('a data do orçamento começa em hoje e é editável', /^\d{4}-\d{2}-\d{2}$/.test(await dialogo.getByLabel('Data do orçamento').inputValue()));
+  await dialogo.getByLabel('Data do orçamento').fill('2026-10-15');
   await shot(page, `${theme}-1366-orcamento-maquina-dialogo`);
 
   const [download] = await Promise.all([
@@ -44,7 +46,7 @@ await step(`orçamento da ${nome}`, async () => {
   await download.saveAs(destino);
   const bruto = fs.readFileSync(destino).toString('latin1').replace(/\\([()])/g, '$1');
   check('baixou um PDF com o nome do modelo', /Orcamento-.*\.pdf$/.test(download.suggestedFilename()) && bruto.startsWith('%PDF'), download.suggestedFilename());
-  for (const trecho of ['Fazenda Teste', 'Preço: R$ 79.900,00', 'Prazo de Entrega:', '7 dias', 'Validade do Orçamento:', 'Observação:', 'Transmissão', 'ATT.']) {
+  for (const trecho of ['Limeira, 15 de outubro de 2026', 'até 04/11/2026', 'Fazenda Teste', 'Preço: R$ 79.900,00', 'Prazo de Entrega:', '7 dias', 'Validade do Orçamento:', 'Observação:', 'Transmissão', 'ATT.']) {
     check(`o PDF traz "${trecho.replace('Transmissão', 'transmissão')}"`, bruto.toLowerCase().includes(trecho.toLowerCase()));
   }
   const imagens = (bruto.match(/\/Subtype \/Image/g) ?? []).length;
