@@ -142,12 +142,13 @@ export default function MachineListDetail({
 
   const downloadPdf = async () => {
     try {
-      const [{ jsPDF }, autoTable, { buildMachineSheetPdf }] = await Promise.all([
+      const [{ jsPDF }, autoTable, { buildMachineSheetPdf }, { loadStoreLogo }] = await Promise.all([
         import('jspdf'),
         import('jspdf-autotable').then(module => module.default),
         import('../lib/machine-sheet'),
+        import('../lib/pdf-assets'),
       ]);
-      buildMachineSheetPdf({ doc: new jsPDF('p', 'pt', 'a4'), autoTable, machine, equipment: portalQuery.data?.equipment ?? null, listDate }).save(machineSheetFileName(machine));
+      buildMachineSheetPdf({ doc: new jsPDF('p', 'pt', 'a4'), autoTable, machine, equipment: portalQuery.data?.equipment ?? null, listDate, logo: await loadStoreLogo() }).save(machineSheetFileName(machine));
     } catch (error) {
       console.error('Falha ao gerar a ficha em PDF:', error);
       toast.error('Não foi possível gerar o PDF. Tente novamente.');
