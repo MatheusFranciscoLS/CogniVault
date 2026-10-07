@@ -1,3 +1,4 @@
+import { capRegexInput } from '../utils/regex-input';
 import { findPartConcepts, inferPartQueryRelation } from './part-vocabulary';
 
 type CandidateText = {
@@ -115,7 +116,7 @@ export function extractExplicitSerialNumber(value: string): string {
  * A pergunta original continua sendo usada no ranking/gate para validar a faixa.
  */
 export function stripExplicitSerialContext(value: string): string {
-  return value
+  return capRegexInput(value)
     .replace(/\b(?:S\s*\/\s*N|SN|SERIAL(?:\s+NUMBER)?|N[ÚU]MERO\s+(?:DE\s+)?S[ÉE]RIE)\s*[:#.-]?\s*\d{6,16}\b/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();

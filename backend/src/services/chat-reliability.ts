@@ -1,4 +1,5 @@
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
+import { capRegexInput } from '../utils/regex-input';
 import type { CandidateForAi, SearchIntent } from './chat-intent.service';
 import {
   extractExplicitSerialNumber,
@@ -65,7 +66,7 @@ export function extractLikelyPartNumber(question: string): string {
 }
 
 export function extractLikelyPnc(question: string): string {
-  const match = question.match(/\bpnc\s*[:#-]?\s*((?:\d{8,12})|(?:[a-z0-9]*\d[a-z0-9]*)(?:[\s./-]+(?:[a-z0-9]*\d[a-z0-9]*)){1,})/i);
+  const match = capRegexInput(question).match(/\bpnc\s*[:#-]?\s*((?:\d{8,12})|(?:[a-z0-9]*\d[a-z0-9]*)(?:[\s./-]+(?:[a-z0-9]*\d[a-z0-9]*)){1,})/i);
   return match?.[1]?.trim() || '';
 }
 
@@ -73,7 +74,8 @@ export function extractLikelyPosition(question: string): string {
   return extractExplicitOccurrencePosition(question);
 }
 
-export function extractLikelyModel(question: string): string {
+export function extractLikelyModel(rawQuestion: string): string {
+  const question = capRegexInput(rawQuestion);
   const partNumber = extractLikelyPartNumber(question);
   const pnc = extractLikelyPnc(question);
   const serial = extractExplicitSerialNumber(question);
