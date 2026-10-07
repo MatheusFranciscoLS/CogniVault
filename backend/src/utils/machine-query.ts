@@ -140,7 +140,9 @@ const BRIGGS_MODEL = /^[0-9]{0,2}[0-9A-Z]*[A-Z][0-9A-Z]*-[0-9A-Z]{4}(?:-[0-9A-Z]
 function briggsFromTokens(value: string): string | null {
   for (const token of tokens(value)) {
     const limpo = token.replace(/[.®]/g, '').toUpperCase();
-    if (BRIGGS_MODEL.test(limpo)) return limpo;
+    // Modelo Briggs tem ~16 caracteres. O teto fecha o regex polinomial: sem
+    // ele, um "token" de milhares de letras seguidas custaria O(n²).
+    if (limpo.length <= 24 && BRIGGS_MODEL.test(limpo)) return limpo;
   }
   return null;
 }

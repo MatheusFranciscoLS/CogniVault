@@ -1,4 +1,9 @@
 import { normalizeIdentifier } from './normalize';
+import { capRegexInput } from './regex-input';
+
+// Modelo de motor é texto de catálogo ("Motor Briggs 104M02-0002-F1 (Cortador X)"):
+// 200 caracteres sobram, e o teto fecha o regex polinomial dos dois formatadores.
+const MAX_ENGINE_MODEL_TEXT = 200;
 
 /**
  * Formas equivalentes de um mesmo número de modelo de motor.
@@ -68,7 +73,7 @@ export function engineModelVariants(value: string | null | undefined): string[] 
 export function formatBriggsModelForSearch(raw: string | null | undefined): string | null {
   if (!raw) return null;
 
-  const stripped = raw
+  const stripped = capRegexInput(raw, MAX_ENGINE_MODEL_TEXT)
     .replace(/^\s*motor\s+briggs\s*(?:&|and)?\s*(?:stratton)?\s*/i, '')
     .replace(/\s*\([^)]*\)\s*$/, '')
     .trim();
@@ -117,7 +122,7 @@ export function briggsManualsSearchUrl(raw: string | null | undefined): string |
  */
 export function formatKawasakiModelForSearch(raw: string | null | undefined): string | null {
   if (!raw) return null;
-  const cleaned = raw
+  const cleaned = capRegexInput(raw, MAX_ENGINE_MODEL_TEXT)
     .replace(/^\s*motor\s+kawasaki\s*/i, '')
     .replace(/\s*\([^)]*\)\s*$/, '')
     .toUpperCase()

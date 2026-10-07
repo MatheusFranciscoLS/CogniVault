@@ -1,4 +1,5 @@
 import { normalizeIdentifier } from '../utils/normalize';
+import { capRegexInput } from '../utils/regex-input';
 import { findPartConcepts } from './part-vocabulary';
 
 export type ExplicitOccurrenceCandidate = {
@@ -25,7 +26,7 @@ export function extractExplicitOccurrencePosition(question: string): string {
  * "parafuso da embreagem" em uma seção rígida.
  */
 export function extractExplicitOccurrenceSection(question: string): string {
-  const match = question.match(/\b(?:vista|se[cç][aã]o|secao|diagrama|grupo)\s*(?:t[eé]cnic[ao]\s*)?(?:de|da|do)?\s*[:#-]?\s*([^,;?.]+)/i);
+  const match = capRegexInput(question).match(/\b(?:vista|se[cç][aã]o|secao|diagrama|grupo)\s*(?:t[eé]cnic[ao]\s*)?(?:de|da|do)?\s*[:#-]?\s*([^,;?.]+)/i);
   if (!match?.[1]) return '';
 
   let section = match[1]

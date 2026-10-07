@@ -261,10 +261,13 @@ um teto contado do login faz toda renovação terminar nele.
 
 Medido em 2026-10-06, quando o dono reclamou que subir três PRs demorava demais.
 
-- O CI obrigatório leva ~4 minutos por PR: `backend` ~1m20, `frontend` ~35s, e o
-  `e2e` ~2m45 (começa depois do backend). A regra do repositório exige o branch
+- O CI obrigatório leva ~4 minutos por PR (medido antes de 2026-10-07): `backend`
+  ~1m20, `frontend` ~35s, e o `e2e` ~2m45 que ESPERAVA o backend. Desde 2026-10-07
+  os três rodam **em paralelo** (o e2e sobe o próprio backend e frontend, não usa
+  nada do outro job), então o tempo é o do mais lento, ~2m45. O gate é o mesmo: os
+  três checks seguem obrigatórios. A regra do repositório exige o branch
   **atualizado** antes de mesclar, então **cada merge deixa os outros PRs abertos
-  defasados** e reinicia os 4 minutos deles. Três PRs paralelos viram uma fila.
+  defasados** e reinicia a contagem deles. Três PRs paralelos viram uma fila.
 - **PR só de documentação pula os três jobs** (`changes` em `v6-ci.yml`). "Só texto"
   é: `*.md`, `docs/**`, `.claude/**` e `LICENSE*`. Qualquer outro arquivo, inclusive
   `.github/`, conta como código. A condição é **por job**, nunca `paths-ignore` no
@@ -893,6 +896,63 @@ reprocessar 1,5 MB para chegar na mesma recusa só gastaria o Render. Medido:
 Quando recusa, a tela do balcão **não mostra nada** — fica só o botão do PDF.
 Decisão do dono: *"o atendente nao precisa saber disso"*. O motivo continua na
 resposta da API, para o painel de Qualidade.
+
+## Lista de preços da Husqvarna em .html (importada em 2026-10-07)
+
+A Husqvarna passou a distribuir a lista como uma página `.html` (~35 MB), não mais
+`.xlsm`. Os dados estão num `<script id="catalogData" type="application/json">`; as
+listas que valem são `pecas`, `acessorios`, `lubrificantes` e `ferramentas`
+(`produtos` é máquina e fica de fora). `preco` vem como `"R$ 1.234,56"` e é o PREÇO
+CONSUMIDOR: a regra ÷ 0,92 continua a mesma (R$ 22,00 → R$ 23,91, conferido).
+
+Código: `scripts/price-list-html.ts` (leitor puro), `price-list-diff.ts` (relatório),
+`price-list-plan.ts` (o que vira linha), `import-price-list-html.ts` (CLI). Uso:
+`npm run report:price-list-html -- "<arquivo>"` só LÊ. Gravar exige
+`--apply --expect-changed=N --expect-added=N`: se os números do banco ou do arquivo
+mudaram desde a aprovação, nada é gravado.
+
+- **Grava só o aprovado:** atualiza o preço de código que já existe (só se o preço
+  ainda for o do relatório, até o centavo) e cria os códigos novos. **Nunca apaga**
+  e nunca mexe em código que a lista não traz: a Husqvarna tirou peça de motor,
+  giro zero e outras marcas desta lista, e essas 4.406 linhas ficam com o preço que
+  têm (decisão do dono). Código novo entra com `brand = HUSQVARNA`, uma linha de
+  `MasterPartSection` por modelo e `sourceSheet = LISTA_HTML:<lista>`, o que também
+  permite desfazer (`WHERE sourceSheet LIKE 'LISTA_HTML:%'`).
+- **Código com dois preços diferentes no arquivo é recusado**, não escolhido
+  (`594028101`: R$ 10,00 e R$ 9.171,00; o banco já tinha 9.171, então o 10 é defeito
+  da fonte). Preço fora do formato `R$ 1.234,56` também é recusado.
+- Primeira importação em produção: 80 preços atualizados, 1.177 códigos novos
+  (26.694 no total). Antes dela, 21.031 dos 22.288 códigos do arquivo já estavam no
+  preço certo, o que confirma o divisor.
+- **A transação é atômica e a trava funciona:** num teste em Postgres descartável,
+  uma comparação de preço por igualdade exata de ponto flutuante reprovou 109 de 446
+  linhas boas, o gravador viu 337 ≠ 446 e desfez tudo. Dinheiro compara por
+  tolerância de meio centavo.
+- O arquivo da Husqvarna traz um aviso de uso e propriedade intelectual. O repositório
+  é público: **nunca** copie o `.html`, o código ou o visual dele para cá, e mantenha
+  o arquivo (e qualquer relatório) em `C:\DadosLoja`, fora do projeto e do OneDrive.
+- O importador antigo (`import-price-list.ts`, planilha) apaga linha de
+  `MasterPartSection` mais velha que a importação e depois os `MasterPart` sem seção.
+  Se ele rodar de novo, **apagaria os códigos que vieram só do HTML**. Não rode sem
+  antes decidir como as duas fontes convivem.
+
+## Entrada de regex tem teto (CodeQL `js/polynomial-redos`)
+
+`utils/regex-input.ts` (`capRegexInput`, 1.000 caracteres; 200 em modelo de motor)
+fecha os 8 alertas. **Era real, não só aviso:** `stripExplicitSerialContext` levou
+25,5 s com 200 mil caracteres de espaço (agora 4 ms), e Node é um processo só: uma
+requisição assim travaria a loja inteira. O chat já cortava em 1.000, então em
+produção o teto não muda resposta nenhuma; ele existe para a função não depender de
+quem a chama. `regex-input.test.ts` trava o tempo com entrada hostil.
+
+## Testes do frontend (Vitest)
+
+`cd frontend && npm test` (Vitest 5 + jsdom + Testing Library; config própria em
+`vitest.config.ts`, sem o plugin PWA). Cobre a barreira de erro por painel e o
+reenvio da cesta (`QuoteCartContext.test.tsx`: reenvia sozinho, não duplica item,
+escada de 2/5/10 s, para depois de 6). Provados por mutação. O teste de reenvio avança
+o relógio em passos com `act` cada um: um salto único não deixa o React rodar o
+efeito que agenda a tentativa seguinte.
 
 ## Preço da loja no catálogo do fabricante, e o ERP Clipp
 
