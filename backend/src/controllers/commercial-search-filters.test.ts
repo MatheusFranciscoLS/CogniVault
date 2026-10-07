@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildCommercialTextFilters, commercialSearchTokens, commercialSearchWords } from './commercial-search.controller';
+import { buildCommercialTextFilters, commercialSearchTokens, commercialSearchWords, wordForms } from './commercial-search.controller';
 
 // A lista de preços da Husqvarna vem SEM acento ("VELA DE IGNICAO"). O balcão digita COM
 // acento ("vela de ignição"). Estes testes travam que as duas formas procuram o mesmo.
@@ -61,4 +61,29 @@ test('a palavra é tentada COM acento: as categorias da lista vêm com ("ROÇADE
   assert.deepEqual(words.map(word => word.plain), ['filtro', 'ar', 'rocadeira']);
   assert.deepEqual(words[2].variants, ['roçadeira', 'rocadeira']);
   assert.deepEqual(words[0].variants, ['filtro']);
+});
+
+// A lista escreve "NAILON" e "BOMBA MANUAL"; o balcão fala "nylon" e "primer". Medido: a busca devolvia ZERO.
+test('"nylon" também procura "nailon" e "nilon" (a lista escreve NAILON)', () => {
+  const words = commercialSearchWords('fio de nylon');
+  const nylon = words.find(word => word.plain === 'nylon');
+  assert.ok(nylon);
+  assert.ok(nylon.variants.includes('nylon') && nylon.variants.includes('nailon') && nylon.variants.includes('nilon'));
+  const and = buildCommercialTextFilters('fio de nylon').find(filter => 'AND' in filter) as { AND: Array<{ OR: unknown[] }> };
+  assert.equal(and.AND.length, 2, 'fio e nylon');
+});
+
+test('"primer" também procura "bomba manual"', () => {
+  const primer = commercialSearchWords('bomba primer').find(word => word.plain === 'primer');
+  assert.ok(primer?.variants.includes('bomba manual'));
+});
+
+test('uma palavra com equivalente (primer) gera filtros para as formas dela, não só a frase', () => {
+  const terms = nameTerms(buildCommercialTextFilters('primer'));
+  assert.ok(terms.includes('primer') && terms.includes('bomba manual'));
+});
+
+test('palavra sem equivalente não muda nada', () => {
+  assert.deepEqual(wordForms('carburador'), ['carburador']);
+  assert.deepEqual(nameTerms(buildCommercialTextFilters('filtro')), ['filtro']);
 });
