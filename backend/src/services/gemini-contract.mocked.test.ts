@@ -71,10 +71,19 @@ async function runWithGemini(t: test.TestContext, output: string, transientUploa
     download: async () => ({ data: new Blob(['%PDF-1.7 mocked']), error: null }),
     upload: async () => ({ data: { path: `${tenantId}/${documentId}.pdf` }, error: null }),
   });
+  // O serviço imprime várias linhas com emoji na saída padrão, que é o MESMO canal que o executor
+  // de testes do Node usa para falar com este arquivo. No CI (Node 22) isso derrubou o arquivo
+  // inteiro de forma intermitente ("Unable to deserialize cloned data due to invalid or
+  // unsupported version"), logo depois da linha "🧠 Iniciando processamento…". Nenhuma
+  // afirmação aqui depende dessas linhas, então o teste roda em silêncio.
+  const silencedLog = t.mock.method(console, 'log', () => undefined);
+  const silencedInfo = t.mock.method(console, 'info', () => undefined);
   try {
     await assert.rejects(() => AIService.processDocument(documentId, tenantId, jobId));
     return calls;
   } finally {
+    silencedLog.mock.restore();
+    silencedInfo.mock.restore();
     (prisma.document as any).findUnique = originalFindUnique;
     (prisma.document as any).updateMany = originalUpdateMany;
     geminiConfig.getGeminiClient = originalClient;
@@ -149,10 +158,15 @@ test('does not retry a real daily quota response from Gemini', async t => {
   (supabase.storage as any).from = () => ({
     upload: async () => ({ data: { path: `${tenantId}/${documentId}.pdf` }, error: null }),
   });
+  // Mesmo motivo do runWithGemini: sem saída no canal que o executor de testes usa.
+  const silencedLog = t.mock.method(console, 'log', () => undefined);
+  const silencedInfo = t.mock.method(console, 'info', () => undefined);
   try {
     await assert.rejects(() => AIService.processDocument(documentId, tenantId, jobId), error => error === quota);
     assert.equal(uploads, 1);
   } finally {
+    silencedLog.mock.restore();
+    silencedInfo.mock.restore();
     (prisma.document as any).findUnique = originalFindUnique;
     (prisma.document as any).updateMany = originalUpdateMany;
     geminiConfig.getGeminiClient = originalClient;
