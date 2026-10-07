@@ -33,7 +33,7 @@ const VIEWPORTS = {
   celular: { width: 390, height: 844 },
 };
 const THEMES = ['light', 'dark'];
-const SEARCH = /Código, peça, modelo|Peça, código ou pergunta/;
+const SEARCH = /Código, peça ou modelo|Peça, código ou pergunta/;
 
 mkdirSync(OUT, { recursive: true });
 
