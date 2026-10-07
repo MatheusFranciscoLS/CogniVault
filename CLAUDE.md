@@ -191,6 +191,17 @@ usuários** ("todos podem visualizar isso").
   rotativo), valem em todo orçamento e podem ser editadas por orçamento (campo recolhido; `Quote.notes`; vazio = padrão).
 - **Razão social** do PDF é a do cadastro do CNPJ: VARDÃO MÁQUINAS E EQUIPAMENTOS DE JARDINAGEM LTDA (o cabeçalho do modelo
   em Word estava abreviado).
+- **Orçamento de MÁQUINA** (botão "Orçamento" na gaveta da Tabela de preços, 2026-10-07): PDF no modelo em Word da loja (pasta
+  "Modelo Timbre" do dono, 8 modelos lidos: 143RST, MZ54, R316TX, TS114, TS142, Z248F, Z460, Z560X). Layout: "Limeira, data", A/C,
+  "Ref.: Orçamento <tipo> Husqvarna <modelo>", uma linha "01-) <tipo>, modelo X equipado com motor 4 tempos de ..., potência ...,
+  tanque ..., largura de corte ...", destaque "Recomendado para...", Preço, Condição de Pagamento, Prazo de Entrega, Validade 20 dias,
+  Observação, ATT. Código em `lib/machine-quote.ts` + `MachineQuoteDialog`. A descrição sai da ficha da lista; o que ela não traz
+  (transmissão, câmbios, velocidade) o atendente digita em "Complemento". **O preço sugerido é o da lista mas é do atendente**: nos
+  orçamentos reais o valor negociado quase nunca é o da lista (por isso o campo é editável). Os preços dos orçamentos reais NÃO entram aqui: é dado da loja. Sem PNC,
+  sem código. Os orçamentos reais em Word têm dado de cliente: ficam em Downloads, nunca no repositório.
+- **PNC da lista com `BR` (36 de 151 máquinas, ex.: `970743401BR`) é o MESMO artigo de 9 dígitos** (`portalPnc`): sem tirar o `BR`,
+  o Portal respondia 400 e a máquina ficava sem "o que acompanha", sem "leve junto", sem vista explodida e sem o selo "Em linha".
+  `CJ`, `CJ1`, `S12` (conjunto) são outro item e continuam como vieram.
 - "Leve junto" na gaveta vem dos acessórios que o PORTAL indica para a máquina e que a loja tem no cadastro.
 - **Gravar em produção precisa da aprovação do dono** (olhar o relatório, depois `--apply`). A migração
   cria a tabela vazia no deploy; a aba mostra "ainda não foi carregada" até a importação.

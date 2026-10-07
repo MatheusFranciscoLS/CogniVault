@@ -1,17 +1,18 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Check, Copy, Layers, MessageCircle, FileText, Send, X } from 'lucide-react';
+import { Check, Copy, Layers, MessageCircle, FileText, ReceiptText, Send, X } from 'lucide-react';
 import { useQuoteCart } from '../context/QuoteCartContext';
 import { useMachineList } from '../lib/use-machine-list';
 import { useMachinePortal, type MachinePortalData } from '../lib/use-machine-portal';
 import { buildMachineSheetMessage, machineFacts, machineSheetFileName } from '../lib/machine-sheet';
-import type { ListedMachine } from '../lib/machine-list';
+import { portalPnc, type ListedMachine } from '../lib/machine-list';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { normalizeCode, useMasterPrices } from './machines/master-part-prices';
 import PartPriceTag from './machines/PartPriceTag';
 import { MachineBadges, MachinePrice } from './MachineListPanel';
+import MachineQuoteDialog from './MachineQuoteDialog';
 
 /**
  * "Acompanha / não acompanha" vem do Portal, por PNC, ao abrir (a lista de preços só traz a descrição curta).
@@ -110,7 +111,8 @@ export default function MachineListDetail({
   onOpenMachine: (pnc: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
-  const portalQuery = useMachinePortal(machine.pnc);
+  const [quoting, setQuoting] = useState(false);
+  const portalQuery = useMachinePortal(portalPnc(machine.pnc));
   const list = useMachineList();
   const listDate = list.data?.listDate ? new Date(list.data.listDate) : null;
 
@@ -193,8 +195,11 @@ export default function MachineListDetail({
           </div>
 
           <div className="flex gap-2">
-            <Button size="lg" className="flex-1" onClick={() => onOpenMachine(machine.pnc)}>
+            <Button size="lg" className="flex-1" onClick={() => onOpenMachine(portalPnc(machine.pnc))}>
               <Layers className="size-5" aria-hidden="true" /> Abrir vista explodida
+            </Button>
+            <Button size="lg" variant="outline" onClick={() => setQuoting(true)}>
+              <ReceiptText className="size-5" aria-hidden="true" /> Orçamento
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -233,6 +238,7 @@ export default function MachineListDetail({
           )}
         </div>
       </SheetContent>
+      {quoting && <MachineQuoteDialog machine={machine} equipment={portalQuery.data?.equipment ?? null} onClose={() => setQuoting(false)} />}
     </Sheet>
   );
 }
