@@ -42,7 +42,7 @@ query searchMultiple(
               isDiscontinued
               numberOfVariants
               name { productName }
-              mainImageData { url altText }
+              mainImage { url altText }
               primaryArticle { id commercialReference name isDiscontinued }
               category { id name url }
             }
@@ -53,7 +53,7 @@ query searchMultiple(
               selectedArticle
               isDiscontinued
               name { productName }
-              mainImageData { url altText }
+              mainImage { url altText }
               primaryArticle { id commercialReference name isDiscontinued }
               category { id name url }
             }
@@ -80,7 +80,7 @@ query searchMultiple(
               isDiscontinued
               numberOfVariants
               name { productName }
-              mainImageData { url altText }
+              mainImage { url altText }
               primaryArticle { id commercialReference name isDiscontinued articleDescription }
               category { id name url }
             }
@@ -115,7 +115,7 @@ query searchMultiple(
             articleNumberFormatted
             commercialReference
             description
-            mainImage: mainImageData { url altText }
+            mainImage { url altText }
             name
             url
           }
@@ -256,7 +256,7 @@ export function parseHusqvarnaSearchPayload(payload: unknown): HusqvarnaOfficial
       partNumber: null,
       categoryName: hit?.category?.name ? String(hit.category.name).trim() : null,
       portalUrl: safePortalUrl(hit?.url, pnc),
-      imageUrl: safeMediaUrl(hit?.mainImageData?.url),
+      imageUrl: safeMediaUrl(hit?.mainImage?.url),
       discontinued: Boolean(hit?.isDiscontinued || hit?.primaryArticle?.isDiscontinued),
       numberOfVariants: Number.isFinite(Number(hit?.numberOfVariants)) ? Number(hit.numberOfVariants) : null,
       documentType: null,
@@ -279,7 +279,7 @@ export function parseHusqvarnaSearchPayload(payload: unknown): HusqvarnaOfficial
       partNumber: null,
       categoryName: hit?.category?.name ? String(hit.category.name).trim() : null,
       portalUrl: safePortalUrl(hit?.url, pnc),
-      imageUrl: safeMediaUrl(hit?.mainImageData?.url),
+      imageUrl: safeMediaUrl(hit?.mainImage?.url),
       discontinued: Boolean(hit?.isDiscontinued || hit?.primaryArticle?.isDiscontinued),
       numberOfVariants: Number.isFinite(Number(hit?.numberOfVariants)) ? Number(hit.numberOfVariants) : null,
       documentType: null,
