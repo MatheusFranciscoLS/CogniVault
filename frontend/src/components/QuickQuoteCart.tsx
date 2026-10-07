@@ -457,9 +457,8 @@ export default function QuickQuoteCart() {
           <thead>
             <tr className="border-b-2 border-brand-600 text-ink-900">
               <th className="w-16 py-2.5 text-center font-bold">Qtd.</th>
-              <th className="w-36 py-2.5 font-bold">Código oficial</th>
               <th className="py-2.5 font-bold">Descrição da peça</th>
-              <th className="w-44 py-2.5 font-bold">Modelo / aplicação</th>
+              <th className="w-44 py-2.5 font-bold">Máquina</th>
               {totalPrice > 0 && <th className="w-24 py-2.5 text-right font-bold">Preço un.</th>}
               {totalPrice > 0 && <th className="w-24 py-2.5 text-right font-bold">Subtotal</th>}
             </tr>
@@ -468,16 +467,11 @@ export default function QuickQuoteCart() {
             {items.map(item => (
               <tr key={item.id} className="border-b border-ink-200">
                 <td className="py-2.5 text-center font-bold text-ink-900 tabular-nums">{item.quantity}x</td>
-                <td className="py-2.5 font-mono font-bold text-ink-900">
-                  {item.manufacturer?.toLowerCase().includes('husqvarna')
-                    ? formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)
-                    : (item.effectiveCode || item.partNumber)}
-                </td>
                 <td className="py-2.5 font-medium text-ink-900">
-                  {item.name} {item.isSuperseded ? '★ (Substituição oficial)' : ''}
+                  {item.name}
                 </td>
                 <td className="py-2.5 text-ink-700">
-                  {item.model} {item.pnc ? `· PNC ${item.pnc}` : ''} {item.position ? `· Pos. ${item.position}` : ''}
+                  {item.model}
                 </td>
                 {totalPrice > 0 && (
                   <td className="py-2.5 text-right font-mono text-ink-700">
@@ -497,17 +491,17 @@ export default function QuickQuoteCart() {
               {discountPercentage > 0 && (
                 <>
                   <tr className="border-t-2 border-ink-700 text-ink-700">
-                    <td colSpan={4} className="py-1.5 text-right text-xs uppercase tracking-wide">Subtotal bruto:</td>
+                    <td colSpan={3} className="py-1.5 text-right text-xs uppercase tracking-wide">Subtotal bruto:</td>
                     <td colSpan={2} className="py-1.5 text-right font-mono text-xs font-semibold">{money(totalPrice)}</td>
                   </tr>
                   <tr className="border-b border-ink-700 text-ink-700">
-                    <td colSpan={4} className="py-1.5 text-right text-xs uppercase tracking-wide">Desconto comercial ({discountPercentage}%):</td>
+                    <td colSpan={3} className="py-1.5 text-right text-xs uppercase tracking-wide">Desconto comercial ({discountPercentage}%):</td>
                     <td colSpan={2} className="py-1.5 text-right font-mono text-xs font-semibold">-{money(discountAmount)}</td>
                   </tr>
                 </>
               )}
               <tr className="border-t-2 border-brand-600 font-bold">
-                <td colSpan={4} className="py-3 text-right text-xs uppercase tracking-wide">
+                <td colSpan={3} className="py-3 text-right text-xs uppercase tracking-wide">
                   {discountPercentage > 0 ? 'Total líquido do orçamento:' : 'Total geral do orçamento:'}
                 </td>
                 <td colSpan={2} className="py-3 text-right font-mono text-sm font-bold text-ink-900">{money(netTotalPrice)}</td>

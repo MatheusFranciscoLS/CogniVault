@@ -63,8 +63,9 @@ describe('buildWhatsAppMessage', () => {
     expect(message).toContain('Peças originais Husqvarna');
   });
 
-  it('o código vem formatado como a etiqueta, em monoespaçado', () => {
-    expect(message).toContain('Código: `587 10 67-01`');
+  it('NÃO traz código de peça: o cliente poderia cotar o mesmo código em outra revenda', () => {
+    expect(message).not.toMatch(/587 ?10 ?67|587106701|501 ?69 ?17|501691702|Código/);
+    expect(message).toContain('CARBURADOR');
   });
 
   it('uma unidade mostra o preço uma vez; várias mostram a conta', () => {
@@ -102,7 +103,7 @@ describe('buildWhatsAppMessage', () => {
     expect(mixed).toContain('*Total: R$ 378,26*');
   });
 
-  it('serviço avulso não ganha linha de código; peça substituída avisa o código antigo', () => {
+  it('serviço avulso e peça substituída também não mostram código, nem o antigo', () => {
     const text = buildWhatsAppMessage({
       items: [
         { partNumber: 'SRV-1234', name: 'Mão de obra', model: 'Balcão', quantity: 1, unitPrice: 80 },
@@ -112,8 +113,8 @@ describe('buildWhatsAppMessage', () => {
       now: quarta,
     });
     const service = text.split('2. *')[0];
-    expect(service).not.toContain('Código:');
-    expect(text).toContain('Substitui o código `587 10 66-01`');
+    expect(service).not.toContain('Código');
+    expect(text).not.toMatch(/587 ?10 ?66|587106601|Substitui/);
   });
 
   it('serviço avulso não conta como segunda máquina', () => {

@@ -109,7 +109,6 @@ export function buildWhatsAppMessage(input: { items: QuoteLine[]; options: Quote
   items.forEach((item, index) => {
     const quantity = item.quantity > 1 ? ` — ${item.quantity}x` : '';
     out.push('', `${index + 1}. *${item.name}*${quantity}`);
-    if (!isServiceLine(item)) out.push(`   Código: \`${displayCode(item)}\``);
     if (item.unitPrice && item.unitPrice > 0) {
       out.push(item.quantity > 1
         ? `   ${item.quantity} × ${formatBRL(item.unitPrice)} = ${formatBRL(item.quantity * item.unitPrice)}`
@@ -117,7 +116,6 @@ export function buildWhatsAppMessage(input: { items: QuoteLine[]; options: Quote
     } else if (totals.hasAnyPrice) {
       out.push('   Valor a consultar');
     }
-    if (item.isSuperseded && item.originalCode) out.push(`   Substitui o código \`${displayCode(item, item.originalCode)}\``);
     if (several && item.model && !isServiceLine(item)) out.push(`   Máquina: ${item.model}`);
   });
 

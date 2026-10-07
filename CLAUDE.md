@@ -171,8 +171,10 @@ usuários** ("todos podem visualizar isso").
   primeiros dígitos (`findListedMachine`); sem lista importada o selo fica em silêncio.
 - **A ficha para o cliente (WhatsApp/PDF, `lib/machine-sheet.ts`) não leva o PNC** nem selo de novidade, e
   cita a data da tabela. **Regra do dono (2026-10-07): o que o cliente recebe NÃO leva código de peça**, para
-  ele não cotar em outra revenda. O PDF e o WhatsApp do ORÇAMENTO ainda mostram o código: está no PLANO (B)
-  para ser refeito no modelo do timbrado da loja.
+  ele não cotar em outra revenda. Vale para TUDO que sai para o cliente: o WhatsApp, o PDF e a folha impressa do
+  ORÇAMENTO também não levam código (nem PNC, posição ou "substitui o código X"); travado em `quote-message.test.ts`,
+  `quote-pdf.test.ts` e no roteiro `orcamento-completo`. O código só existe na tela do balcão. O PDF ainda será
+  refeito no modelo do timbrado da loja (PLANO, B).
 - "Leve junto" na gaveta vem dos acessórios que o PORTAL indica para a máquina e que a loja tem no cadastro.
 - **Gravar em produção precisa da aprovação do dono** (olhar o relatório, depois `--apply`). A migração
   cria a tabela vazia no deploy; a aba mostra "ainda não foi carregada" até a importação.

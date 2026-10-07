@@ -112,6 +112,7 @@ await step('WhatsApp', async () => {
   await gaveta.getByRole('button', { name: 'Ver a mensagem antes de enviar' }).click();
   const previa = (await gaveta.getByLabel('Mensagem do WhatsApp').innerText()).trim();
   check('a prévia mostra cliente, total e validade', previa.includes('Sr. Carlos') && /Total: R\$/.test(previa) && /Válido até \d{2}\/\d{2}\/\d{4}/.test(previa));
+  check('a mensagem NÃO traz código de peça (o cliente cotaria em outra revenda)', !/\b\d{6,}\b|\d{3} \d{2} \d{2}-\d{2}|Código|Substitui/.test(previa), previa.split('\n').slice(0, 6).join(' | ').slice(0, 120));
   await shot(page, `${theme}-1366-orcamento-previa`);
   await gaveta.getByRole('button', { name: 'Copiar mensagem' }).click();
   await page.waitForTimeout(500);
