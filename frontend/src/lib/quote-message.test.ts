@@ -62,7 +62,8 @@ describe('buildWhatsAppMessage', () => {
     expect(message).toContain('*Total: R$ 420,56*');
     expect(message).toContain('Pagamento: À Vista / PIX (5% desc.)');
     expect(message).toContain('Válido até 27/10/2026');
-    expect(message).toContain('Vardão Máquinas · Revenda Autorizada Ouro Husqvarna');
+    expect(message).toContain('Vardão Máquinas');
+    expect(message).not.toMatch(/Revenda|Ouro/);
     expect(message).toContain('Peças originais Husqvarna');
   });
 

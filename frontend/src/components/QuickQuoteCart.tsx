@@ -483,7 +483,7 @@ export default function QuickQuoteCart() {
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-xl font-bold uppercase tracking-wide text-brand-600">VARDÃO MÁQUINAS</h1>
-              <p className="text-xs font-bold text-ink-900">Revenda Autorizada Ouro &amp; Peças Originais Husqvarna</p>
+              <p className="text-xs font-bold text-ink-900">Peças Originais Husqvarna</p>
               <p className="text-[11px] text-ink-500">CogniVault · Orçamento de balcão</p>
             </div>
             <div className="text-right text-xs">

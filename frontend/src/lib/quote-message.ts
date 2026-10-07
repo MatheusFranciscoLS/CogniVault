@@ -31,8 +31,8 @@ export type QuoteMessageOptions = {
   discountPercentage?: number;
 };
 
-/** Marca da loja nos textos para o cliente. É a mesma do login: "Revenda Autorizada Ouro". */
-export const STORE_SIGNATURE = 'Vardão Máquinas · Revenda Autorizada Ouro Husqvarna';
+/** Marca da loja nos textos para o cliente. Sem "Revenda Autorizada Ouro": o cliente não conhece nem precisa dessa distinção (dono, 2026-10-07). */
+export const STORE_SIGNATURE = 'Vardão Máquinas';
 
 export const PAYMENT_TO_COMBINE = 'A Combinar no Balcão';
 

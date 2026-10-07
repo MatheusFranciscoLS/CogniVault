@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,6 @@ import { machinePhotoUrl, type ListedMachine } from '../lib/machine-list';
 import {
   MACHINE_QUOTE_DEFAULTS,
   defaultHighlight,
-  defaultIncludeEquipment,
   suggestComplement,
   machineQuoteDescription,
   machineVariantNote,
@@ -19,7 +18,8 @@ import {
   todayInputValue,
   type MachineQuoteFields,
 } from '../lib/machine-quote';
-import type { SheetEquipment } from '../lib/machine-sheet';
+import { DEFAULT_BULLETS, listBullets } from '../lib/machine-highlights';
+import { bulletsHeading } from '../lib/machine-highlights';
 import { useMachinePhoto, type MachinePortalData } from '../lib/use-machine-portal';
 import { formatBRL } from '../lib/quote-message';
 
@@ -31,14 +31,12 @@ const TEXTAREA_CLASS = 'w-full rounded-md border border-input bg-background px-3
  */
 export default function MachineQuoteDialog({
   machine,
-  equipment,
   portal,
   portalSettled,
   allMachines,
   onClose,
 }: {
   machine: ListedMachine;
-  equipment: SheetEquipment;
   portal: MachinePortalData | undefined;
   /** O Portal já respondeu (ou falhou) para o PNC da lista; só então vale procurar a foto pelo nome do modelo. */
   portalSettled: boolean;
@@ -61,7 +59,16 @@ export default function MachineQuoteDialog({
   const [typedComplement, setTypedComplement] = useState<string | null>(null);
   const complement = typedComplement ?? suggestComplement(machine, portal);
   const [highlight, setHighlight] = useState(() => defaultHighlight(machine.application));
-  const [typedEquipment, setTypedEquipment] = useState<boolean | null>(null);
+  // Linhas da descrição da lista: as primeiras vêm marcadas; o atendente liga ou desliga cada uma e VÊ o resultado na prévia.
+  const bulletLines = useMemo(() => listBullets(machine.details, machine.model, machine.category), [machine]);
+  const [typedBullets, setTypedBullets] = useState<Set<string> | null>(null);
+  const chosenBullets = typedBullets ?? new Set(bulletLines.slice(0, DEFAULT_BULLETS));
+  const bullets = bulletLines.filter(line => chosenBullets.has(line));
+  const toggleBullet = (line: string) => {
+    const next = new Set(chosenBullets);
+    if (next.has(line)) next.delete(line); else next.add(line);
+    setTypedBullets(next);
+  };
   const [includePhoto, setIncludePhoto] = useState(true);
   // A data do orçamento é a da negociação (dono, 2026-10-07): começa em hoje e a validade de 20 dias conta dela.
   const [dateText, setDateText] = useState(() => todayInputValue());
@@ -70,9 +77,6 @@ export default function MachineQuoteDialog({
 
   const variant = machineVariantNote(machine, allMachines);
   const price = parseMoneyInput(priceText);
-  const hasEquipment = (equipment?.included.length ?? 0) > 0;
-  // Roçadeira (cabeçote, cinto, lâmina) lista o que acompanha por padrão, como no modelo em Word; as outras só se marcar.
-  const includeEquipment = typedEquipment ?? defaultIncludeEquipment(machine, equipment);
 
   const download = async () => {
     if (price === null || quoteDate === null) return;
@@ -87,12 +91,11 @@ export default function MachineQuoteDialog({
       ]);
       let email: string | null = null;
       try { email = localStorage.getItem('cognivault_email'); } catch { /* sem armazenamento: o PDF sai sem o ATT. */ }
-      const fields: MachineQuoteFields = { customerName: customer, price, payment, leadTime, observation, complement, highlight, includeEquipment };
+      const fields: MachineQuoteFields = { customerName: customer, price, payment, leadTime, observation, complement, highlight, bullets };
       buildMachineQuotePdf({
         doc: new jsPDF('p', 'pt', 'a4'),
         autoTable,
         machine,
-        equipment,
         fields,
         attendantName: attendantNameFromEmail(email) || undefined,
         variant,
@@ -152,14 +155,34 @@ export default function MachineQuoteDialog({
             onChange={event => setTypedComplement(event.target.value)}
             rows={2}
             maxLength={600}
-            placeholder="O que a lista não traz: transmissão, altura de corte, velocidade máxima, área recomendada"
+            placeholder="Opcional: algo a mais que a lista não diz (área recomendada, por exemplo)"
             className={TEXTAREA_CLASS}
           />
         </label>
 
-        <p className="rounded-md bg-secondary px-3 py-2 text-base leading-7 text-secondary-foreground">
-          <span className="font-medium">01-)</span> {machineQuoteDescription(machine, complement, variant)}
-        </p>
+        {bulletLines.length > 0 && (
+          <fieldset className="space-y-1.5">
+            <legend className="text-base font-medium">{bulletsHeading(machine.category).replace(/:$/, '')} (da lista de preços)</legend>
+            <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+              {bulletLines.map(line => (
+                <label key={line} className="flex items-start gap-2 text-base">
+                  <input type="checkbox" checked={chosenBullets.has(line)} onChange={() => toggleBullet(line)} className="mt-1 size-4 shrink-0" />
+                  <span>{line}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
+
+        <div className="rounded-md bg-secondary px-3 py-2 text-base leading-7 text-secondary-foreground" aria-label="Prévia do texto do orçamento">
+          <p><span className="font-medium">01-)</span> {machineQuoteDescription(machine, complement, variant)}</p>
+          {bullets.length > 0 && (
+            <>
+              <p className="mt-2">{bulletsHeading(machine.category)}</p>
+              <ul className="list-disc pl-6">{bullets.map(line => <li key={line}>{line}</li>)}</ul>
+            </>
+          )}
+        </div>
 
         <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-destaque`}>
           Destaque
@@ -174,13 +197,6 @@ export default function MachineQuoteDialog({
           <label className="flex items-center gap-2 text-base">
             <input type="checkbox" checked={includePhoto} onChange={event => setIncludePhoto(event.target.checked)} className="size-4" />
             Incluir a foto da máquina
-          </label>
-        )}
-
-        {hasEquipment && (
-          <label className="flex items-center gap-2 text-base">
-            <input type="checkbox" checked={includeEquipment} onChange={event => setTypedEquipment(event.target.checked)} className="size-4" />
-            Listar o que acompanha a máquina ({equipment?.included.length} itens do Portal)
           </label>
         )}
 

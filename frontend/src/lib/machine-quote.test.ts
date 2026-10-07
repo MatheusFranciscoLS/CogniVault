@@ -9,7 +9,6 @@ import {
   machineQuoteDescription,
   machineVariantNote,
   decimalComma,
-  defaultIncludeEquipment,
   machineQuoteFileName,
   machineQuoteReference,
   parseInputDate,
@@ -19,7 +18,6 @@ import {
   type MachineQuoteFields,
 } from './machine-quote';
 import type { ListedMachine } from './machine-list';
-import type { SheetEquipment } from './machine-sheet';
 
 // Máquinas inventadas: a lista real não entra no repositório.
 const giroZero: ListedMachine = {
@@ -45,7 +43,7 @@ const rocadeira: ListedMachine = {
 const fields: MachineQuoteFields = {
   customerName: 'Fazenda Teste', price: 79900, payment: 'A combinar', leadTime: 'Imediato',
   observation: 'Preços para produto a serem faturados no estado de São Paulo', complement: '', highlight: 'Recomendado para trabalhos profissionais e intensivos',
-  includeEquipment: true,
+  bullets: ['Pressão: 0,45 MPa', 'Tanque: 20 litros'],
 };
 
 describe('machineQuoteDescription', () => {
@@ -115,8 +113,8 @@ describe('detalhes do modelo', () => {
 });
 
 describe('buildMachineQuotePdf', () => {
-  const build = (extra: Partial<MachineQuoteFields> = {}, equipment: SheetEquipment = { included: [{ name: 'Cinto', value: null }], notIncluded: [] }) =>
-    buildMachineQuotePdf({ doc: new jsPDF('p', 'pt', 'a4'), autoTable, machine: giroZero, equipment, fields: { ...fields, ...extra }, attendantName: 'Maria Teste', now: new Date(2026, 9, 7) });
+  const build = (extra: Partial<MachineQuoteFields> = {}) =>
+    buildMachineQuotePdf({ doc: new jsPDF('p', 'pt', 'a4'), autoTable, machine: giroZero, fields: { ...fields, ...extra }, attendantName: 'Maria Teste', now: new Date(2026, 9, 7) });
 
   it('gera um PDF de verdade, de uma página', () => {
     const doc = build();
@@ -141,8 +139,8 @@ describe('buildMachineQuotePdf', () => {
   });
 
   it('com muita coisa a descrever, continua em mais de uma página sem quebrar', () => {
-    const muita = { included: Array.from({ length: 14 }, (_, i) => ({ name: `Acessório ${i + 1} com um nome um pouco longo para ocupar a linha`, value: 'valor' })), notIncluded: [] };
-    const doc = build({ complement: 'x'.repeat(900) }, muita);
+    const muitas = Array.from({ length: 10 }, (_, i) => `Característica ${i + 1} com um nome um pouco longo para ocupar a linha inteira do orçamento e quebrar`);
+    const doc = build({ complement: 'x'.repeat(900), bullets: muitas });
     expect(doc.getNumberOfPages()).toBeGreaterThanOrEqual(1);
   });
 });
@@ -221,19 +219,30 @@ describe('machineVariantNote', () => {
 });
 
 describe('o que muda por tipo de máquina', () => {
-  const equipamento = { included: [{ name: 'Lâmina', value: 'Multi 330-2' }, { name: 'Cinturão', value: 'Balance 55' }], notIncluded: [] };
-
   it('motosserra fala de sabre, não de largura de corte', () => {
     const serra = { ...rocadeira, model: '272XP', category: 'MOTOSSERRA', specs: [{ label: 'Largura de trabalho', value: '38 cm' }] };
     expect(machineQuoteDescription(serra)).toContain('comprimento do sabre de 38 cm');
     expect(machineQuoteDescription(serra)).not.toContain('largura de corte');
   });
 
-  it('"conjunto composto por" entra sozinho só na roçadeira', () => {
-    expect(defaultIncludeEquipment(rocadeira, equipamento)).toBe(true);
-    expect(defaultIncludeEquipment({ category: 'MOTOSSERRA' }, equipamento)).toBe(false);
-    expect(defaultIncludeEquipment(rocadeira, null)).toBe(false);
-    expect(defaultIncludeEquipment(rocadeira, { included: Array.from({ length: 9 }, (_, i) => ({ name: 'x' + i, value: null })), notIncluded: [] })).toBe(false);
+  it('a largura de corte só sai em máquina que corta; pulverizador, soprador e bomba não levam', () => {
+    const spec = [{ label: 'Largura de trabalho', value: '25,1 cm' }];
+    expect(machineQuoteDescription({ ...rocadeira, category: 'PULVERIZADOR', specs: spec })).not.toMatch(/largura|comprimento/);
+    expect(machineQuoteDescription({ ...rocadeira, category: 'SOPRADOR', specs: spec })).not.toMatch(/largura|comprimento/);
+    expect(machineQuoteDescription({ ...rocadeira, category: 'PODADOR DE CERCA VIVA', specs: spec })).toContain('comprimento da lâmina de 25,1 cm');
+    expect(machineQuoteDescription({ ...rocadeira, category: 'ROÇADEIRA COSTAL', specs: spec })).toContain('largura de corte de 25,1 cm');
+    expect(machineQuoteDescription({ ...rocadeira, category: 'AUTOMOWER', specs: spec })).toContain('largura de corte de 25,1 cm');
+  });
+
+  it('o PDF lista só as características marcadas, com o título certo, e nada de "Revenda Ouro"', () => {
+    const doc = buildMachineQuotePdf({ doc: new jsPDF('p', 'pt', 'a4'), autoTable, machine: rocadeira, fields: { ...fields, bullets: ['Cabeçote T45X', 'Cinto Balance 55'] }, attendantName: 'Maria Teste', now: new Date(2026, 9, 7) });
+    const texto = new TextDecoder('latin1').decode(doc.output('arraybuffer'));
+    expect(texto).toContain('Conjunto da roçadeira é composto por:');
+    expect(texto).toContain('Cabeçote T45X');
+    expect(texto).toContain('Cinto Balance 55');
+    expect(texto).not.toMatch(/Revenda|Ouro/);
+    const semLista = buildMachineQuotePdf({ doc: new jsPDF('p', 'pt', 'a4'), autoTable, machine: rocadeira, fields: { ...fields, bullets: [] }, now: new Date(2026, 9, 7) });
+    expect(new TextDecoder('latin1').decode(semLista.output('arraybuffer'))).not.toContain('composto por');
   });
 });
 
@@ -280,7 +289,7 @@ describe('data do orçamento', () => {
   });
 
   it('o PDF traz a data negociada e a validade de 20 dias contada dela', () => {
-    const doc = buildMachineQuotePdf({ doc: new jsPDF('p', 'pt', 'a4'), autoTable, machine: giroZero, equipment: null, fields, now: parseInputDate('2026-10-15') as Date });
+    const doc = buildMachineQuotePdf({ doc: new jsPDF('p', 'pt', 'a4'), autoTable, machine: giroZero, fields, now: parseInputDate('2026-10-15') as Date });
     const texto = new TextDecoder('latin1').decode(doc.output('arraybuffer')).replace(/\\([()])/g, '$1');
     expect(texto).toContain('Limeira, 15 de outubro de 2026');
     expect(texto).toContain('20 dias (até 04/11/2026)');
