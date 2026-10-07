@@ -5,7 +5,6 @@ import { CATALOG_UPLOAD_LIMITS } from '../config/upload-limits';
 import { DocumentController } from '../controllers/document.controller';
 import { DocumentAccessController } from '../controllers/document-access.controller';
 import { AuthController } from '../controllers/auth.controller';
-import { FeedbackController } from '../controllers/feedback.controller';
 import { AdminController } from '../controllers/admin.controller';
 import { AdminFeedbackController } from '../controllers/admin-feedback.controller';
 import { AdminFeedbackSummaryController } from '../controllers/admin-feedback-summary.controller';
@@ -42,7 +41,6 @@ import { tenantOperationSingleFlight } from '../middleware/tenant-operation-sing
 import { qualityOverviewCacheMiddleware } from '../middleware/quality-overview-cache.middleware';
 import {
   validateEntityIdParam,
-  validateFavoriteMutationBody,
   validateBriggsModelQuery,
   validateKawasakiSlugQuery,
   validateHusqvarnaPncParam,
@@ -51,7 +49,6 @@ import {
   validateModelParam,
   validateOfficialFallbackQuery,
   validateOperationalQuoteUsage,
-  validateOperationalSearchUsage,
   validatePartCodeParam,
   validatePartLocationBody,
   validateQualityRadarResolution,
@@ -62,7 +59,6 @@ import {
 import {
   invalidateAdminOverviewAfterMutation,
   invalidateDocumentAccessAfterMutation,
-  invalidateFavoriteCachesAfterMutation,
   invalidateHomeAfterSearch,
   invalidateNotificationsAfterMutation,
   invalidateQualityAfterMutation,
@@ -76,7 +72,6 @@ const router = Router();
 const documentController = new DocumentController();
 const documentAccessController = new DocumentAccessController();
 const authController = new AuthController();
-const feedbackController = new FeedbackController();
 const adminController = new AdminController();
 const adminFeedbackController = new AdminFeedbackController();
 const adminFeedbackSummaryController = new AdminFeedbackSummaryController();
@@ -167,7 +162,6 @@ router.get('/kawasaki/engine', authMiddleware, validateBriggsModelQuery, (req, r
 router.get('/kawasaki/assembly', authMiddleware, validateKawasakiSlugQuery, (req, res) => kawasakiController.assembly(req, res));
 router.get('/husqvarna/products/:pnc/details', authMiddleware, validateHusqvarnaPncParam, (req, res) => husqvarnaOfficialController.productDetails(req, res));
 router.get('/husqvarna/parts/:code/details', authMiddleware, validatePartCodeParam, (req, res) => husqvarnaOfficialController.partDetails(req, res));
-router.post('/analytics/search-usage', authMiddleware, validateOperationalSearchUsage, (req, res) => workIntelligenceController.recordSearchUsage(req, res));
 router.post('/analytics/quote-usage', authMiddleware, validateOperationalQuoteUsage, invalidateWorkContextAfterQuoteUsage, (req, res) => workIntelligenceController.recordQuoteUsage(req, res));
 router.get('/parts/:code/cross-reference', authMiddleware, validatePartCodeParam, (req, res) => operationalController.crossReference(req, res));
 router.get('/parts/:code/live-data', authMiddleware, validatePartCodeParam, (req, res) => operationalController.liveData(req, res));
@@ -176,9 +170,6 @@ router.put('/parts/:code/location', authMiddleware, validatePartCodeParam, valid
 router.get('/models/:model/maintenance-kit', authMiddleware, validateModelParam, (req, res) => operationalController.maintenanceKit(req, res));
 router.get('/parts/:id', authMiddleware, validateEntityIdParam, (req, res) => partDetailController.get(req, res));
 router.get('/history', authMiddleware, (req, res) => operationalController.history(req, res));
-router.get('/favorites', authMiddleware, (req, res) => operationalController.favorites(req, res));
-router.post('/favorites', authMiddleware, validateFavoriteMutationBody, invalidateFavoriteCachesAfterMutation, (req, res) => operationalController.addFavorite(req, res));
-router.delete('/favorites/:id', authMiddleware, validateEntityIdParam, invalidateFavoriteCachesAfterMutation, (req, res) => operationalController.removeFavorite(req, res));
 router.get('/notifications', authMiddleware, (req, res) => notificationController.list(req, res));
 
 // Orçamento de balcão persistido. A cesta aberta (`/quotes/draft`) é por
@@ -209,8 +200,6 @@ router.post('/documents/:id/reprocess', authMiddleware, adminOnly, validateEntit
 router.post('/documents/:id/refresh-health', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.refreshHealth(req, res));
 router.delete('/documents/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.remove(req, res));
 
-router.post('/feedback', authMiddleware, invalidateAdminOverviewAfterMutation, invalidateQualityAfterMutation, (req, res) => feedbackController.create(req, res));
-router.patch('/feedback/:id', authMiddleware, validateEntityIdParam, invalidateQualityAfterMutation, (req, res) => feedbackController.update(req, res));
 
 router.get('/admin/overview', authMiddleware, adminOnly, (req, res) => adminOverviewController.get(req, res));
 router.get('/admin/business-insights', authMiddleware, adminOnly, (req, res) => businessInsightsController.get(req, res));

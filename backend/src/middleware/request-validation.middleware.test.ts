@@ -3,14 +3,12 @@ import test from 'node:test';
 import { NextFunction, Request, Response } from 'express';
 import {
   validateEntityIdParam,
-  validateFavoriteMutationBody,
   validateHusqvarnaPncParam,
   validateHusqvarnaProductSearchQuery,
   validateOfficialPartCodeQuery,
   validateModelParam,
   validateOfficialFallbackQuery,
   validateOperationalQuoteUsage,
-  validateOperationalSearchUsage,
   validatePartCodeParam,
   validatePartLocationBody,
   validateQualityRadarResolution,
@@ -75,23 +73,6 @@ test('Husqvarna PNC route guard accepts formatted values and rejects structured 
   assert.equal(run(validateHusqvarnaPncParam, { params: { pnc: '1234567' } } as any).statusCode, 400);
   assert.equal(run(validateHusqvarnaPncParam, { params: { pnc: 'x'.repeat(20) } } as any).statusCode, 400);
   assert.equal(run(validateHusqvarnaPncParam, { params: { pnc: 'abc967332901' } } as any).statusCode, 400);
-});
-
-test('favorite mutation requires exactly one bounded string identifier', () => {
-  assert.equal(run(validateFavoriteMutationBody, { body: { partId: 'part-1' } } as any).nextCalled, true);
-  assert.equal(run(validateFavoriteMutationBody, { body: { documentId: 'doc-1' } } as any).nextCalled, true);
-  assert.equal(run(validateFavoriteMutationBody, { body: {} } as any).statusCode, 400);
-  assert.equal(run(validateFavoriteMutationBody, { body: { partId: 'part-1', documentId: 'doc-1' } } as any).statusCode, 400);
-  assert.equal(run(validateFavoriteMutationBody, { body: { partId: { id: 'part-1' } } } as any).statusCode, 400);
-  assert.equal(run(validateFavoriteMutationBody, { body: { documentId: 'x'.repeat(101) } } as any).statusCode, 400);
-});
-
-test('operational search analytics rejects structured or oversized text before database work', () => {
-  const validBody = { query: 'filtro de ar', partNumber: '503808303', partId: 'part-1', model: '143RII' };
-  assert.equal(run(validateOperationalSearchUsage, { body: validBody } as any).nextCalled, true);
-  assert.equal(run(validateOperationalSearchUsage, { body: { ...validBody, query: { text: 'filtro' } } } as any).statusCode, 400);
-  assert.equal(run(validateOperationalSearchUsage, { body: { ...validBody, partNumber: '9'.repeat(81) } } as any).statusCode, 400);
-  assert.equal(run(validateOperationalSearchUsage, { body: { ...validBody, sourceFilename: ['catalog.pdf'] } } as any).statusCode, 400);
 });
 
 test('quote analytics rejects malformed sessions and partial oversized batches', () => {
