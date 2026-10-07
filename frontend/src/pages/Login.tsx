@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiJson, ensureApiReady, isApiRecentlyReady } from '../lib';
+import { API_URL, apiJson, ensureApiReady, isApiRecentlyReady } from '../lib';
 import { activateQuoteStorageScope } from '../lib/quote-storage-scope';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -101,6 +101,25 @@ export default function Login() {
     });
     return () => { active = false; };
   }, []);
+
+  // Quem já tem sessão e abre /login (favorito do navegador, aba antiga) vai direto ao painel, em vez de ver o
+  // formulário de novo. É um `fetch` simples, e não `apiJson`: o 401 de quem NÃO está logado aqui é o caso
+  // normal, e `apiJson` trataria como "sessão expirada".
+  useEffect(() => {
+    let active = true;
+    void fetch(`${API_URL}/api/me`, { credentials: 'include' })
+      .then(response => (response.ok ? response.json() as Promise<LoginResponse> : null))
+      .then(session => {
+        if (!active || !session?.user) return;
+        localStorage.setItem('cognivault_tenant', session.user.tenantId);
+        localStorage.setItem('cognivault_role', session.user.role);
+        localStorage.setItem('cognivault_email', session.user.email);
+        activateQuoteStorageScope(session.user.email.trim().toLocaleLowerCase('pt-BR'));
+        navigate('/dashboard', { replace: true });
+      })
+      .catch(() => { /* sem sessão ou sem rede: o formulário de login é o certo */ });
+    return () => { active = false; };
+  }, [navigate]);
 
   const handleLogin = async (event: FormEvent) => {
     event.preventDefault();

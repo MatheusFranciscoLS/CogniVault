@@ -121,6 +121,18 @@ Regra: cada tela percorrida entra aqui com o que foi corrigido na hora (✅) e o
 | 💡 | Datas filtram a cada campo preenchido e o botão Buscar fica redundante: escolher um dos dois |
 | 💡 | Retomar abre a gaveta por cima da lista (bom) mas substitui a cesta atual com um `confirm` nativo |
 
+### Catálogos (21 verificações)
+| | Achado |
+|---|---|
+| ✅ | Lista, busca, categoria, "Ver peças", "Abrir vista explodida", busca do cabeçalho: tudo percorrido, sem defeito |
+| 💡 | **"Gerenciar biblioteca"** (admin) segue no estilo antigo e cheio de texto que explica o sistema ("Modelo e PNC são dados diferentes…"): refazer mantendo só importar PDF e a lista por seção |
+
+### Login (21 verificações, escuro e claro)
+| | Achado |
+|---|---|
+| ✅ | Quem já estava logado e abria `/login` via o formulário de novo: agora vai direto ao painel |
+| 💡 | Depois de "Sair", o rascunho do orçamento daquele e-mail continua no navegador (separado por e-mail, então outro atendente não vê); em PC compartilhado, limpar ao sair? |
+
 ### Painel da máquina / vista explodida
 | | Achado |
 |---|---|
