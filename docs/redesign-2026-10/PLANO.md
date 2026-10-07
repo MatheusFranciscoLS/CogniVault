@@ -13,6 +13,9 @@ Legenda: ✅ feito · 🔧 em andamento · ⏳ a fazer · ❓ decisão do dono
 4. **F**: auditoria "zero erros" e só então o Clipp.
 Regra: não abrir frente nova antes de fechar a anterior.
 
+## Regra de teste (dono, 2026-10-07)
+Toda tela aberta é testada em TODO o conteúdo dela, controle por controle, e não só no que aparece no topo. Roteiros em `docs/loja-simulada/` (`maquina-completo.mjs`, `motores.mjs`, ...); uma tela só fecha com o roteiro 100% e as capturas olhadas até o fim.
+
 ## A. Visual (direção A, aprovada pelo dono)
 | | Item | Onde |
 |---|---|---|
@@ -24,7 +27,7 @@ Regra: não abrir frente nova antes de fechar a anterior.
 | ✅ | Catálogos | PR #209 |
 | ✅ | Login | PR #209 |
 | ✅ | Painel lateral da máquina / vista explodida oficial: Sheet, uma linha por peça, código copiável, sem especificações/acessórios/"onde usa"; variantes em menu | PR #209 |
-| ⏳ | Painéis de motor Kawasaki e Briggs | |
+| ✅ | Painéis de motor Kawasaki e Briggs (linha de peça compartilhada `PartLine`) | PR #209 |
 | ⏳ | Administração: Negócio, Usuários, Qualidade, Visão geral, Auditoria | ver D |
 | ⏳ | Gerenciar biblioteca (`CatalogsPanel`, 1.365 linhas) | admin |
 

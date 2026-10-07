@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Check, ChevronDown, Copy, ExternalLink, Search } from 'lucide-react';
+import { ChevronDown, ExternalLink, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiJson, cleanErpCode, formatHusqvarnaPartNumber } from '../../lib';
 import { useQuoteCart } from '../../context/QuoteCartContext';
@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import ExplodedView from './ExplodedView';
+import PartLine, { Note } from './PartLine';
 import type {
   HusqvarnaOfficialIplPart,
   HusqvarnaOfficialPartDetails,
@@ -100,117 +101,6 @@ function hotspotFromCoordinates(
   if (x >= 0 && x <= 1.01 && y >= 0 && y <= 1.01) return { left: x * 100, top: y * 100 };
   if (x >= 0 && x <= 100 && y >= 0 && y <= 100) return { left: x, top: y };
   return null;
-}
-
-type LineProps = {
-  position?: string | null;
-  name: string;
-  code: string;
-  price: number | null | undefined;
-  quantity?: number | null;
-  imageUrl?: string | null;
-  /** Observações que mudam a venda: serial, outra variante, pacote fechado, motor. */
-  notes?: React.ReactNode;
-  replaces?: string[];
-  selected?: boolean;
-  highlighted?: boolean;
-  inCart: number;
-  onToggleSelect?: () => void;
-  onCopy: () => void;
-  onAdd: () => void;
-  menu: Array<{ label: string; onSelect: () => void }>;
-  anchorId?: string;
-};
-
-function PartLine({ position, name, code, price, quantity, imageUrl, notes, replaces, selected, highlighted, inCart, onToggleSelect, onCopy, onAdd, menu, anchorId }: LineProps) {
-  const [copied, setCopied] = useState(false);
-  const copy = () => {
-    onCopy();
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
-  };
-  const shown = formatHusqvarnaPartNumber(code) || code;
-
-  return (
-    <article
-      id={anchorId}
-      className={cn(
-        'flex gap-3 rounded-lg border bg-card px-4 py-3 transition-colors',
-        highlighted ? 'border-primary ring-2 ring-primary/30' : selected ? 'border-ring bg-selected' : 'border-border hover:bg-muted',
-      )}
-    >
-      {onToggleSelect && code && (
-        <input
-          type="checkbox"
-          checked={Boolean(selected)}
-          onChange={onToggleSelect}
-          aria-label={`Selecionar ${name}`}
-          className="mt-1.5 size-5 shrink-0 cursor-pointer accent-[var(--primary)]"
-        />
-      )}
-      {imageUrl && <img src={imageUrl} alt="" className="size-14 shrink-0 rounded-md border border-border bg-white object-contain p-0.5" loading="lazy" />}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start gap-2">
-          {position && <span className="mt-0.5 grid h-7 min-w-7 shrink-0 place-items-center rounded-md bg-secondary px-1.5 font-code text-base font-semibold tabular-nums" title="Posição na vista explodida">{position}</span>}
-          <h4 className="min-w-0 flex-1 text-[17px] font-semibold leading-7">{name}</h4>
-          {quantity ? <span className="shrink-0 text-sm text-muted-foreground">Qtd. {quantity}</span> : null}
-        </div>
-
-        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2">
-          {code ? (
-            <button
-              type="button"
-              onClick={copy}
-              aria-label={`Copiar código ${shown}`}
-              title="Copiar código"
-              className="group/copy -ml-1 flex items-center gap-2 rounded-md px-1 py-0.5 outline-none transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/60"
-            >
-              <span translate="no" className="font-code text-[22px] font-semibold leading-7 tracking-wide tabular-nums">{shown}</span>
-              {copied ? <Check className="size-4 text-ok" aria-hidden="true" /> : <Copy className="size-4 text-muted-foreground group-hover/copy:text-foreground" aria-hidden="true" />}
-            </button>
-          ) : (
-            <span className="text-sm text-muted-foreground">Sem código nesta vista</span>
-          )}
-          {price != null ? (
-            <span className="font-code text-xl font-bold tabular-nums">{brl.format(price)}</span>
-          ) : code ? (
-            <span className="text-sm text-muted-foreground">Sem preço</span>
-          ) : null}
-          {code && (
-            <div className="ml-auto flex items-center gap-1">
-              <Button variant={inCart > 0 ? 'added' : 'add'} onClick={onAdd}>
-                {inCart > 0 ? <><Check className="size-4" />No orçamento · {inCart}</> : '+ Orçamento'}
-                <span className="sr-only">, {name}</span>
-              </Button>
-              {menu.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" aria-label={`Mais ações para ${name}`}>
-                      <svg viewBox="0 0 24 24" fill="currentColor" className="size-5" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="min-w-56">
-                    {menu.map(item => <DropdownMenuItem key={item.label} onSelect={item.onSelect} className="h-10 text-base">{item.label}</DropdownMenuItem>)}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-          )}
-        </div>
-
-        {replaces && replaces.length > 0 && (
-          <p className="mt-1 text-sm text-muted-foreground">Substitui <span translate="no" className="font-code tabular-nums">{replaces.map(value => formatHusqvarnaPartNumber(value) || value).join(', ')}</span></p>
-        )}
-        {notes}
-      </div>
-    </article>
-  );
-}
-
-function Note({ tone = 'muted', children }: { tone?: 'muted' | 'warn'; children: React.ReactNode }) {
-  return (
-    <p className={cn('mt-2 rounded-md px-3 py-2 text-sm', tone === 'warn' ? 'border border-warn bg-warn-soft text-warn' : 'bg-secondary text-muted-foreground')}>{children}</p>
-  );
 }
 
 export default function OfficialHusqvarnaPanel({ result, onOpenPnc, onOpenPart }: Props) {
@@ -523,10 +413,11 @@ export default function OfficialHusqvarnaPanel({ result, onOpenPnc, onOpenPart }
                             position={part.position}
                             name={part.commercial?.name || part.name}
                             code={code}
+                            displayCode={formatHusqvarnaPartNumber(code)}
                             price={part.commercial?.price}
                             quantity={part.quantity}
                             notes={noteBlocks(part)}
-                            replaces={part.replacementPartNumbers?.map(cleanErpCode)}
+                            replaces={part.replacementPartNumbers?.map(value => formatHusqvarnaPartNumber(cleanErpCode(value)))}
                             selected={selectedParts.has(key)}
                             highlighted={highlightedPart === key}
                             inCart={quantityInCart(part.partNumber)}
@@ -553,6 +444,7 @@ export default function OfficialHusqvarnaPanel({ result, onOpenPnc, onOpenPart }
                     key={part.partNumber}
                     name={part.commercial?.name || part.name}
                     code={code}
+                    displayCode={formatHusqvarnaPartNumber(code)}
                     price={part.commercial?.price}
                     imageUrl={part.imageUrl}
                     inCart={quantityInCart(part.partNumber)}

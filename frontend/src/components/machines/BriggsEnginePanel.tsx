@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { apiJson } from '../../lib';
+import { apiJson, cleanErpCode } from '../../lib';
 import { useQuoteCart } from '../../context/QuoteCartContext';
-import { Icon } from '../icons/Icon';
+import { ExternalLink, FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import PartLine from '../parts-v2/PartLine';
 import { priceCoverage, useMasterPrices } from './master-part-prices';
 import PartPriceTag from './PartPriceTag';
 
@@ -43,6 +46,8 @@ type BriggsIplPart = {
  * "Fora de linha" é vermelho e vem primeiro porque é o único que **impede** a
  * venda: prometer peça que a Briggs não fornece mais é o cliente voltando.
  */
+const TAG = 'rounded-md px-2 py-0.5 text-sm font-semibold';
+
 function BriggsNotes({ notes }: { notes?: BriggsPartNote[] }) {
   // Opcional de propósito, e não por precaução vaga: o cache do IPL guarda a
   // resposta por 30 DIAS, então nos primeiros 30 dias depois deste deploy
@@ -57,42 +62,22 @@ function BriggsNotes({ notes }: { notes?: BriggsPartNote[] }) {
     <span className="flex shrink-0 flex-wrap items-center gap-1">
       {[...notes].sort((a, b) => ordem(a) - ordem(b)).map(note => {
         if (note.kind === 'DISCONTINUED') {
-          return (
-            <span key="d" title="A Briggs não fornece mais esta peça" className="rounded-sm bg-rose-100 px-1.5 text-[10px] font-black uppercase text-rose-800 dark:bg-rose-950/50 dark:text-rose-300">
-              fora de linha
-            </span>
-          );
+          return <span key="d" title="A Briggs não fornece mais esta peça" className={`${TAG} bg-destructive/10 text-destructive`}>fora de linha</span>;
         }
         if (note.kind === 'SEE_REFERENCE') {
-          return (
-            <span key="s" title="Use a peça desta posição no lugar" className="rounded-sm bg-emerald-100 px-1.5 text-[10px] font-bold text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
-              usar pos. {note.position}
-            </span>
-          );
+          return <span key="s" title="Use a peça desta posição no lugar" className={`${TAG} bg-ok-soft text-ok`}>usar pos. {note.position}</span>;
         }
         if (note.kind === 'CODE_DATE_BEFORE' || note.kind === 'CODE_DATE_AFTER') {
           return (
-            <span
-              key={note.kind}
-              title="Code date: a data de fabricação gravada na etiqueta do motor. Confira antes de vender."
-              className="rounded-sm bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
-            >
+            <span key={note.kind} title="Code date: a data de fabricação gravada na etiqueta do motor. Confira antes de vender." className={`${TAG} bg-warn-soft text-warn`}>
               motor {note.kind === 'CODE_DATE_BEFORE' ? 'até' : 'a partir de'} {note.codeDate}
             </span>
           );
         }
         if (note.kind === 'KIT_ONLY') {
-          return (
-            <span key="k" title="Não se vende avulsa" className="rounded-sm bg-ink-100 px-1.5 text-[10px] font-bold text-ink-700 dark:bg-ink-800 dark:text-ink-300">
-              só em kit
-            </span>
-          );
+          return <span key="k" title="Não se vende avulsa" className={`${TAG} bg-secondary text-muted-foreground`}>só em kit</span>;
         }
-        return (
-          <span key="o" title="Só funciona junto da peça desta posição" className="rounded-sm bg-ink-100 px-1.5 text-[10px] font-bold text-ink-700 dark:bg-ink-800 dark:text-ink-300">
-            só com pos. {note.position}
-          </span>
-        );
+        return <span key="o" title="Só funciona junto da peça desta posição" className={`${TAG} bg-secondary text-muted-foreground`}>só com pos. {note.position}</span>;
       })}
     </span>
   );
@@ -199,11 +184,7 @@ export default function BriggsEnginePanel({
   const cobertura = priceCoverage(codigos, precos);
 
   if (manualsQuery.isLoading) {
-    return (
-      <section aria-busy="true" className="rounded-xl border border-ink-200 bg-white px-4 py-4 text-sm font-semibold text-ink-500 dark:border-ink-800 dark:bg-ink-900">
-        Procurando a lista de peças Briggs de {model}…
-      </section>
-    );
+    return <section aria-busy="true" className="rounded-xl border border-border bg-card px-5 py-4 text-base text-muted-foreground">Procurando a lista de peças Briggs de {model}…</section>;
   }
 
   const result = manualsQuery.data;
@@ -226,174 +207,99 @@ export default function BriggsEnginePanel({
       () => toast.error(`Não foi possível copiar. Anote: ${codigo}`),
     );
   };
+  const noOrcamento = (codigo: string) => quoteCart.items.find(item => cleanErpCode(item.effectiveCode || item.partNumber) === cleanErpCode(codigo))?.quantity ?? 0;
 
   return (
-    <section className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-100 px-4 py-2.5 dark:border-ink-800">
-        <div className="flex min-w-0 items-center gap-2">
-          <Icon name="machine" className="h-4 w-4 shrink-0 text-red-700 dark:text-red-300" />
-          <span className="truncate text-xs font-black text-ink-700 dark:text-ink-200">
-            Motor Briggs · {result.model}
-          </span>
-        </div>
+    <section aria-label={`Motor Briggs ${result.model}`} className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3">
+        <h3 className="min-w-0 truncate text-lg font-semibold">Motor Briggs · <span translate="no" className="font-code tabular-nums">{result.model}</span></h3>
         {/* Avisa o idioma ANTES do clique. Sem inglês, o atendente abre em
             outra língua de propósito, não por surpresa. */}
-        {!result.hasEnglish && principal && (
-          <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-            só em {principal.languageLabel}
-          </span>
-        )}
+        {!result.hasEnglish && principal && <span className={`${TAG} shrink-0 bg-warn-soft text-warn`}>só em {principal.languageLabel}</span>}
       </div>
 
-      {!principal && (
-        <div className="px-4 py-3 text-[11px] leading-5 text-ink-500 dark:text-ink-400">
-          Sem lista de peças para este modelo. Confira o modelo completo na plaqueta.
-        </div>
-      )}
+      {!principal && <p className="px-5 py-4 text-base text-muted-foreground">Sem lista de peças para este modelo. Confira o modelo completo na plaqueta.</p>}
 
       {principal && (
-        <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-          <a
-            href={principal.url}
-            target="_blank"
-            rel="noreferrer noopener"
-            title={`Abrir a lista de peças oficial em ${principal.languageLabel}`}
-            className="cv-touch-target inline-flex items-center gap-1.5 rounded-sm border border-red-300 bg-red-100 px-3 text-[11px] font-bold text-red-800 transition hover:bg-red-200 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200 dark:hover:bg-red-900/50"
-          >
-            📕 Lista de peças ({principal.languageLabel}) ↗
-          </a>
-          {outros.map(manual => (
-            <a
-              key={manual.url}
-              href={manual.url}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="cv-touch-target inline-flex items-center rounded-sm border border-ink-200 bg-white px-2.5 text-[10px] font-semibold text-ink-600 transition hover:bg-ink-50 dark:border-ink-700 dark:bg-ink-950 dark:text-ink-300"
-            >
-              {manual.languageLabel} ↗
+        <div className="flex flex-wrap items-center gap-2 px-5 py-3">
+          <Button asChild variant="outline">
+            <a href={principal.url} target="_blank" rel="noreferrer noopener" title={`Abrir a lista de peças oficial em ${principal.languageLabel}`}>
+              <FileText className="size-4" aria-hidden="true" />Lista de peças ({principal.languageLabel})<ExternalLink className="size-4" aria-hidden="true" />
             </a>
+          </Button>
+          {outros.map(manual => (
+            <Button key={manual.url} asChild variant="ghost" size="sm">
+              <a href={manual.url} target="_blank" rel="noreferrer noopener">{manual.languageLabel}<ExternalLink className="size-3.5" aria-hidden="true" /></a>
+            </Button>
           ))}
         </div>
       )}
 
-      {/* Só enquanto está lendo. Se a leitura falhar, este aviso desaparece e
-          não é substituído por nada — ver o comentário abaixo. */}
-      {iplQuery.isLoading && principal && (
-        <div aria-busy="true" className="border-t border-ink-100 px-4 py-2.5 text-[11px] font-semibold text-ink-500 dark:border-ink-800 dark:text-ink-400">
-          Lendo os códigos do PDF oficial…
-        </div>
-      )}
-
-      {/* Quando o parser recusa, a tela do balcão não mostra NADA sobre isso —
-          fica só o botão do PDF, como se a leitura nem tivesse sido tentada.
-          Decisão do dono: *"o atendente nao precisa saber disso"*. Ele quer a
-          peça, não o diagnóstico do parser.
-
-          O motivo continua vindo na resposta da API (status DECLINED com o
-          campo de razão), para o painel de Qualidade — que é onde este projeto
-          já mostra por que um catálogo caiu na leitura visual. Lá o número
-          serve para decidir o que ensinar ao parser; aqui só atrapalharia. */}
+      {/* Só enquanto está lendo. Se a leitura falhar ou o parser recusar, a
+          tela não diz nada: fica só o botão do PDF. Decisão do dono: *"o
+          atendente nao precisa saber disso"*. O motivo continua na resposta da
+          API, para o painel de Qualidade. */}
+      {iplQuery.isLoading && principal && <p aria-busy="true" className="border-t border-border px-5 py-3 text-base text-muted-foreground">Lendo os códigos do PDF oficial…</p>}
 
       {ipl?.status === 'READ' && (
-        <div className="border-t border-ink-100 dark:border-ink-800">
-          <div className="flex flex-wrap items-center justify-between gap-2 bg-ink-50/70 px-4 py-2 dark:bg-ink-950/40">
-            <span className="text-[10px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">
-              {ipl.parts.length} peças lidas do PDF ({ipl.language})
-              {cobertura ? <span className="ml-2 text-emerald-700 dark:text-emerald-400">· {cobertura}</span> : null}
+        <div className="border-t border-border">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-muted px-5 py-3">
+            <span className="text-base text-muted-foreground">
+              {ipl.parts.length} peças ({ipl.language})
+              {cobertura ? <span className="ml-2 text-ok">· {cobertura}</span> : null}
             </span>
-            <input
-              value={filtro}
-              onChange={event => setFiltro(event.target.value)}
-              placeholder="filtrar por código ou nome"
-              className="h-8 w-48 rounded-sm border border-ink-200 bg-white px-2 text-[11px] outline-hidden transition focus:border-red-400 dark:border-ink-700 dark:bg-ink-900 dark:text-white"
-            />
+            <Input value={filtro} onChange={event => setFiltro(event.target.value)} placeholder="Filtrar por código ou nome" aria-label="Filtrar peças do motor" className="h-10 w-64" />
           </div>
           {precoDegradado ? (
-            <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-[11px] font-semibold text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+            <p role="status" className="border-b border-warn bg-warn-soft px-5 py-3 text-base text-warn">
               Preços da loja temporariamente indisponíveis. Os códigos continuam disponíveis; confirme o valor antes de fechar.
-            </div>
+            </p>
           ) : null}
 
-          <div className="max-h-[420px] overflow-y-auto">
+          <div className="max-h-[70vh] overflow-y-auto">
             {agrupar(visiveis).map(grupo => (
               <div key={grupo.nome}>
                 {/* Cabeçalho pregado: em 283 linhas, rolando a lista, o
                     atendente perde de vista de que conjunto é a peça. */}
-                <div className="sticky top-0 z-10 border-y border-ink-100 bg-ink-50 px-4 py-1 text-[10px] font-black uppercase tracking-widest text-ink-500 dark:border-ink-800 dark:bg-ink-950 dark:text-ink-400">
-                  {grupo.nome} <span className="font-bold text-ink-400 dark:text-ink-500">· {grupo.pecas.length}</span>
-                </div>
-                <div className="divide-y divide-ink-100 dark:divide-ink-800">
-            {grupo.pecas.map(part => (
-              <div key={`${part.position}-${part.partNumber}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
-                <span className="w-12 shrink-0 font-mono text-[10px] font-bold text-ink-500 dark:text-ink-400">
-                  {part.position}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => copiar(part.partNumber)}
-                  title="Copiar o código"
-                  className="shrink-0 font-mono text-sm font-black text-ink-900 hover:underline dark:text-brand-300"
-                >
-                  {part.partNumber}
-                </button>
-                <span className="min-w-36 flex-1 truncate text-xs text-ink-700 dark:text-ink-200" title={part.qualifier || undefined}>
-                  {part.name}
-                  {/* O qualificador diz QUAL das peças iguais é esta: a mola de
-                      válvula aparece duas vezes, "-(Intake)" e "-(Exhaust)".
-                      Quando ele virou aviso reconhecido, a tarja abaixo já diz
-                      a mesma coisa em português, e repetir o inglês só ocuparia
-                      a linha. */}
-                  {part.qualifier && !part.notes?.length ? (
-                    <span className="text-ink-500 dark:text-ink-400"> · {part.qualifier}</span>
-                  ) : null}
-                </span>
-                <BriggsNotes notes={part.notes} />
-                {part.quantity && part.quantity > 1 ? (
-                  <span className="shrink-0 rounded-sm bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-                    leva {part.quantity}
-                  </span>
-                ) : null}
-                <PartPriceTag code={part.partNumber} prices={precos} />
-                <div className="flex shrink-0 gap-1.5">
-                  {onSearchPart && (
-                    <button
-                      type="button"
-                      onClick={() => onSearchPart(part.partNumber)}
-                      className="cv-touch-target rounded-sm border border-ink-200 px-2 text-[10px] font-bold text-ink-600 transition hover:border-brand-300 hover:text-brand-700 dark:border-ink-700 dark:text-ink-300"
-                    >
-                      consultar interno
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      quoteCart.addItem({
-                        partNumber: part.partNumber,
-                        manufacturer: 'Briggs & Stratton',
-                        name: part.name,
-                        model: `Motor Briggs ${ipl.model}`,
-                        section: part.section || undefined,
-                        position: part.position,
-                        quantity: part.quantity || 1,
-                      });
-                      toast.success(`${part.partNumber} no orçamento.`);
-                    }}
-                    className="cv-touch-target rounded-sm bg-accent-700 px-2 text-[10px] font-bold text-white transition hover:bg-accent-800"
-                  >
-                    + orçamento
-                  </button>
-                </div>
-              </div>
-            ))}
+                <h4 className="sticky top-0 z-10 border-y border-border bg-muted px-5 py-2 text-base font-semibold">
+                  {grupo.nome} <span className="font-normal text-muted-foreground">· {grupo.pecas.length}</span>
+                </h4>
+                <div className="space-y-2 p-3">
+                  {grupo.pecas.map(part => (
+                    <PartLine
+                      key={`${part.position}-${part.partNumber}`}
+                      position={part.position}
+                      name={part.name}
+                      code={part.partNumber}
+                      quantity={part.quantity}
+                      badges={<BriggsNotes notes={part.notes} />}
+                      /* O qualificador diz QUAL das peças iguais é esta: a mola
+                         de válvula aparece duas vezes, "-(Intake)" e "-(Exhaust)".
+                         Quando virou aviso reconhecido, a etiqueta já diz a mesma
+                         coisa em português. */
+                      notes={part.qualifier && !part.notes?.length ? <p className="mt-1 text-sm text-muted-foreground">{part.qualifier}</p> : null}
+                      priceSlot={<PartPriceTag code={part.partNumber} prices={precos} />}
+                      inCart={noOrcamento(part.partNumber)}
+                      onCopy={() => copiar(part.partNumber)}
+                      onAdd={() => {
+                        quoteCart.addItem({
+                          partNumber: part.partNumber,
+                          manufacturer: 'Briggs & Stratton',
+                          name: part.name,
+                          model: `Motor Briggs ${ipl.model}`,
+                          section: part.section || undefined,
+                          position: part.position,
+                          quantity: part.quantity || 1,
+                        });
+                      }}
+                      menu={onSearchPart ? [{ label: 'Ver preço e estoque', onSelect: () => onSearchPart(part.partNumber) }] : []}
+                    />
+                  ))}
                 </div>
               </div>
             ))}
 
-            {!visiveis.length && (
-              <div className="px-4 py-3 text-[11px] text-ink-500 dark:text-ink-400">
-                Nada com &quot;{filtro}&quot; nesta lista.
-              </div>
-            )}
+            {!visiveis.length && <p className="px-5 py-4 text-base text-muted-foreground">Nada com &quot;{filtro}&quot; nesta lista.</p>}
           </div>
         </div>
       )}
