@@ -9,7 +9,7 @@ import type { QuoteCartItem, QuoteSyncState, QuoteTextOptions } from '../context
 import { formatHusqvarnaPartNumber, cleanErpCode } from '../lib';
 import { playCopySound } from '../lib/sound';
 import { formatBRL, quoteTotals } from '../lib/quote-message';
-import { clipboardCodes } from '../lib/quote-codes';
+import { QUOTE_DEFAULTS } from '../lib/store-profile';
 import { Icon } from './icons/Icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -224,6 +224,7 @@ export default function QuickQuoteCart() {
 
   const [showCustomItemForm, setShowCustomItemForm] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
 
   // Cliente, telefone, pagamento e desconto moram no rascunho persistido, não
   // em estado local: antes, recarregar a página perdia o nome do cliente mesmo
@@ -242,7 +243,12 @@ export default function QuickQuoteCart() {
 
   const patchOptions = (patch: Partial<QuoteTextOptions>) => setDraftOptions({ ...draftOptions, ...patch });
 
-  const quoteOptions: QuoteTextOptions = { customerName, customerPhone, paymentMethod, discountPercentage };
+  // Prazo das peças e observações: digitados no orçamento. Vazios, valem os padrões do modelo da loja.
+  const leadTime = draftOptions.leadTime ?? '';
+  const defaultNotes = QUOTE_DEFAULTS.observations.join('\n');
+  const notesText = draftOptions.notes ?? defaultNotes;
+  const notesCustomized = draftOptions.notes !== undefined && draftOptions.notes !== defaultNotes;
+  const quoteOptions: QuoteTextOptions = { customerName, customerPhone, paymentMethod, discountPercentage, leadTime: draftOptions.leadTime, notes: notesCustomized ? draftOptions.notes : undefined };
   // Mesma conta do texto do WhatsApp, do PDF e do servidor (desconto arredondado antes de subtrair). Calcular
   // aqui por conta própria dava R$ 435,92 na tela e R$ 435,91 no que o cliente recebia e no orçamento arquivado.
   const { discount: discountAmount, net: netTotalPrice } = quoteTotals(items, discountPercentage);
@@ -261,22 +267,6 @@ export default function QuickQuoteCart() {
     });
     setShowCustomItemForm(false);
     toast.success(`"${name}" adicionado ao orçamento.`);
-  };
-
-  // A venda é feita no Clipp: leva todos os códigos de uma vez (um por linha, com a quantidade), em vez de um clique por item.
-  const copyAllCodes = () => {
-    const { text, count } = clipboardCodes(items);
-    if (!count) {
-      toast.error('Não há código de peça para copiar neste orçamento.');
-      return;
-    }
-    void navigator.clipboard.writeText(text).then(
-      () => {
-        playCopySound();
-        toast.success(count === 1 ? '1 código copiado.' : `${count} códigos copiados, um por linha com a quantidade.`);
-      },
-      () => toast.error('Não foi possível copiar os códigos.'),
-    );
   };
 
   // Esvaziar apaga o trabalho do atendimento: pede confirmação, como o "Encerrar".
@@ -363,6 +353,32 @@ export default function QuickQuoteCart() {
                 </select>
               </div>
 
+              <div className="space-y-1.5">
+                <label htmlFor="quote-lead-time" className="block text-sm font-medium text-muted-foreground">Prazo das peças</label>
+                <Input id="quote-lead-time" type="text" autoComplete="off" value={leadTime} onChange={e => patchOptions({ leadTime: e.target.value })} placeholder="Imediato" className="text-base" />
+              </div>
+
+              <div>
+                <Button variant="ghost" size="sm" onClick={() => setShowNotes(value => !value)} aria-expanded={showNotes} className="-ml-2 text-muted-foreground">
+                  {showNotes ? 'Esconder as observações' : 'Observações do orçamento'}
+                  {notesCustomized && !showNotes && <span className="ml-1 font-semibold text-foreground">(editadas)</span>}
+                </Button>
+                {showNotes && (
+                  <div className="mt-1 space-y-2">
+                    <textarea
+                      aria-label="Observações do orçamento"
+                      value={notesText}
+                      rows={4}
+                      onChange={e => patchOptions({ notes: e.target.value === defaultNotes ? undefined : e.target.value })}
+                      className="w-full rounded-md border border-input bg-card px-3 py-2 text-base text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/60"
+                    />
+                    {notesCustomized && (
+                      <Button variant="ghost" size="sm" onClick={() => patchOptions({ notes: undefined })} className="-ml-2 text-muted-foreground">Voltar ao texto padrão</Button>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {totalPrice > 0 && (
                 <div className="space-y-1.5">
                   <span className="block text-sm font-medium text-muted-foreground">Desconto</span>
@@ -442,10 +458,9 @@ export default function QuickQuoteCart() {
 
               {/* O PDF e o WhatsApp já arquivam o orçamento sozinhos: não há botão "Salvar",
                   que dava a impressão contrária. */}
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <Button variant="outline" onClick={() => generatePdfQuote(quoteOptions)}><Icon name="pdf" className="size-4" />PDF</Button>
                 <Button variant="outline" onClick={() => window.print()}><Icon name="printer" className="size-4" />Imprimir</Button>
-                <Button variant="outline" onClick={copyAllCodes}><Icon name="clipboard" className="size-4" />Copiar códigos</Button>
                 <Button variant="ghost" onClick={handleClear} className="text-muted-foreground hover:text-destructive">Esvaziar</Button>
               </div>
             </footer>

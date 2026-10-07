@@ -24,6 +24,10 @@ export type QuoteMessageOptions = {
   customerName?: string;
   machineModel?: string;
   paymentMethod?: string;
+  /** Prazo das peças, digitado à mão. */
+  leadTime?: string;
+  /** Observações digitadas no orçamento (substituem as padrão da loja no PDF). */
+  notes?: string;
   discountPercentage?: number;
 };
 
@@ -125,6 +129,9 @@ export function buildWhatsAppMessage(input: { items: QuoteLine[]; options: Quote
 
   out.push('');
   if (options.paymentMethod && options.paymentMethod !== PAYMENT_TO_COMBINE) out.push(`Pagamento: ${options.paymentMethod}`);
+  // O prazo das peças depende do estoque e é digitado à mão; sem ele, a mensagem não promete prazo nenhum.
+  if (options.leadTime?.trim()) out.push(`Prazo das peças: ${options.leadTime.trim()}`);
+  if (options.notes?.trim()) out.push(`Observação: ${options.notes.trim().split('\n').map(line => line.trim()).filter(Boolean).join(' · ')}`);
   out.push(`Válido até ${validUntil(now)}`);
   out.push('', STORE_SIGNATURE, manufacturerSummary(items));
 

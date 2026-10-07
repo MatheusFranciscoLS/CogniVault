@@ -5,10 +5,8 @@
 // loja imprime em toda nota e orçamento), por isso moram no código. Dado de CLIENTE, preço de custo ou qualquer
 // coisa da planilha da Husqvarna NÃO entra aqui: o repositório é público.
 export const STORE_PROFILE = {
-  /** Como o cabeçalho do modelo escreve. */
-  legalName: 'VARDÃO MAQUINAS E JARDINAGEM LTDA',
-  /** Como o rodapé do modelo escreve. */
-  legalNameFull: 'VARDÃO MAQUINAS E EQUIPAMENTOS DE JARDINAGEM LTDA',
+  /** Razão social, como está no cadastro do CNPJ (o dono confirmou em 2026-10-07; o cabeçalho do modelo em Word estava abreviado). */
+  legalName: 'VARDÃO MÁQUINAS E EQUIPAMENTOS DE JARDINAGEM LTDA',
   cnpj: '38.493.315/0001-90',
   stateRegistration: '417.617.710.115',
   street: 'Avenida Major José Levy Sobrinho, 1257',

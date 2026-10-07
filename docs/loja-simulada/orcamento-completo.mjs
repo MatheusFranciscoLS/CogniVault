@@ -143,6 +143,30 @@ await step('WhatsApp', async () => {
   }
 });
 
+await step('prazo das peças e observações (digitados à mão)', async () => {
+  // O prazo depende do estoque: o atendente digita. As observações vêm com o texto padrão da loja e podem ser editadas.
+  await gaveta.getByLabel('Prazo das peças').fill('7 dias úteis');
+  await gaveta.getByRole('button', { name: 'Observações do orçamento' }).click();
+  const caixa = gaveta.getByLabel('Observações do orçamento');
+  const padrao = await caixa.inputValue();
+  check('as observações já vêm com o texto padrão da loja', /Impostos inclusos/.test(padrao) && /Estoque rotativo/.test(padrao) && /estado de São Paulo/.test(padrao), padrao.split('\n').length + ' linhas');
+  await caixa.fill('Frete por conta do cliente\nPeça sob encomenda');
+  check('editar mostra o botão para voltar ao padrão', await gaveta.getByRole('button', { name: 'Voltar ao texto padrão' }).isVisible());
+  await gaveta.getByRole('button', { name: 'Esconder as observações' }).click();
+  check('recolhido, avisa que as observações foram editadas', (await gaveta.getByRole('button', { name: /Observações do orçamento/ }).innerText()).includes('(editadas)'));
+
+  await gaveta.getByRole('button', { name: 'Ver a mensagem antes de enviar' }).click();
+  const previa = (await gaveta.getByLabel('Mensagem do WhatsApp').innerText()).trim();
+  check('o WhatsApp diz o prazo digitado', previa.includes('Prazo das peças: 7 dias úteis'), previa.split('\n').filter(l => /Prazo/.test(l)).join(' | '));
+  check('o WhatsApp leva a observação digitada em uma linha', previa.includes('Observação: Frete por conta do cliente · Peça sob encomenda'));
+  await gaveta.getByRole('button', { name: 'Esconder a mensagem' }).click();
+
+  await page.waitForTimeout(1800);
+  const rascunho = await page.evaluate(() => fetch('/api/quotes/draft', { credentials: 'include' }).then(r => r.json()));
+  const q = rascunho?.quote ?? rascunho;
+  check('o servidor guardou o prazo e as observações do rascunho', q?.leadTime === '7 dias úteis' && /Frete por conta do cliente/.test(q?.notes ?? ''), JSON.stringify({ leadTime: q?.leadTime, notes: q?.notes }));
+});
+
 await step('PDF', async () => {
   const [download] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), gaveta.getByRole('button', { name: 'PDF' }).click()]);
   const destino = path.join(OUT, `${theme}-orcamento.pdf`);
@@ -150,6 +174,18 @@ await step('PDF', async () => {
   const bytes = fs.readFileSync(destino);
   check('o PDF baixa com nome da loja', /Orcamento_Vardao/.test(download.suggestedFilename()), download.suggestedFilename());
   check('o arquivo é um PDF de verdade e não está vazio', bytes.subarray(0, 4).toString() === '%PDF' && bytes.length > 3000, `${bytes.length} bytes`);
+  const texto = bytes.toString('latin1');
+  check('o PDF traz o prazo digitado em vez de IMEDIATO', texto.includes('7 dias úteis') && !texto.includes('IMEDIATO'));
+  check('o PDF traz as observações digitadas no lugar das padrão', texto.includes('Frete por conta do cliente') && texto.includes('Peça sob encomenda') && !texto.includes('Impostos inclusos'));
+  check('o PDF traz a razão social do cadastro do CNPJ e a validade de 20 dias', texto.includes('EQUIPAMENTOS DE JARDINAGEM LTDA') && texto.includes('20 dias'));
+});
+
+await step('voltar ao texto padrão', async () => {
+  await gaveta.getByRole('button', { name: /Observações do orçamento/ }).click();
+  await gaveta.getByRole('button', { name: 'Voltar ao texto padrão' }).click();
+  check('as observações voltam ao padrão da loja', /Impostos inclusos/.test(await gaveta.getByLabel('Observações do orçamento').inputValue()));
+  await gaveta.getByLabel('Prazo das peças').fill('');
+  await gaveta.getByRole('button', { name: 'Esconder as observações' }).click();
 });
 
 await step('imprimir', async () => {
