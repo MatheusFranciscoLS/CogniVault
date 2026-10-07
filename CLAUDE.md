@@ -796,14 +796,18 @@ grade de conjuntos. Então `kawasakiPartsLookupUrl()` aponta para
 O modelo Kawasaki é **série + spec** (`FX921V-ES06`), e vem da **plaqueta do
 motor** — o Portal Husqvarna não informa (veja a seção abaixo).
 
-**E não é só o link profundo que falta — a Kawasaki não dá para integrar**, ao
-contrário da Briggs. Medido em 2026-09-19: a lista de peças vive no ARI
-PartStream com uma app key que pertence ao site deles; a página do localizador
-roda **reCAPTCHA** (`POST /api/verify-captcha` no carregamento); e o `/manuals`
-público só tem manual do proprietário, por série, com a própria página mandando
-procurar o revendedor para o manual de serviço. Não procure um endpoint: ele não
-existe em acesso público, e a presença de reCAPTCHA é uma recusa explícita a
-acesso automatizado.
+**CORREÇÃO (2026-10-07): a Kawasaki É integrada, e este parágrafo dizia o contrário.**
+A conclusão antiga ("não dá para integrar", por causa do reCAPTCHA) estava errada:
+o reCAPTCHA protege a *página* do localizador, não os endpoints do ARI PartStream,
+que respondem do servidor em JSON. O mapa medido está em
+`docs/KAWASAKI_ARI_PARTSTREAM.md`; o código é `services/kawasaki-partstream.service.ts`,
+as rotas `/api/kawasaki/engine` e `/api/kawasaki/assembly` e a tela
+`KawasakiEnginePanel`. Hoje a Kawasaki tem o mesmo que a Husqvarna na vista explodida
+(desenho dentro do app com zoom e posições clicáveis, código, preço e prateleira da loja,
+"+ Orçamento") mais aviso de série separado do nome e filtro por conjunto. O que continua
+sem existir nela é substituição de código e "também usado em" (ver "O teto do ARI da
+Kawasaki"). O modelo (série + spec) ainda vem da plaqueta: o Portal Husqvarna não o informa.
+A app key é do site da Kawasaki; o dono decidiu usá-la, e o plano de reserva é o link do conjunto.
 
 **`hasKawasakiEvidence` não é redundante.** `formatKawasakiModelForSearch`
 reconhece `LC121P` e `LB155S`, que são cortadores **Husqvarna** — o padrão
