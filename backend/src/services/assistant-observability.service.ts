@@ -73,7 +73,7 @@ export class AssistantObservabilityService {
       completionTokens: acc.completionTokens + item.completionTokens,
     }), { calls: 0, totalTokens: 0, promptTokens: 0, completionTokens: 0 });
 
-    const interactiveActions = new Set(['CHAT_INTENT_PARSE', 'REACT_AGENT_DECISION']);
+    const interactiveActions = new Set(['CHAT_INTENT_PARSE', 'REACT_AGENT_DECISION', 'PART_PICK']);
     const interactive = actions
       .filter(item => interactiveActions.has(item.action))
       .reduce((acc, item) => ({ calls: acc.calls + item.calls, totalTokens: acc.totalTokens + item.totalTokens }), { calls: 0, totalTokens: 0 });
@@ -81,8 +81,10 @@ export class AssistantObservabilityService {
     const portfolioCoverage = portfolio ? {
       totalModels: portfolio.total,
       localIplModels: portfolio.localIpl,
-      withoutLocalIpl: portfolio.unverified,
-      localCoveragePercent: portfolio.total ? Math.round((portfolio.localIpl / portfolio.total) * 1000) / 10 : 0,
+      portalIplModels: portfolio.portalIpl,
+      coveredModels: portfolio.covered,
+      withoutSource: portfolio.unverified,
+      coveragePercent: portfolio.total ? Math.round((portfolio.covered / portfolio.total) * 1000) / 10 : 0,
       priorityGaps: rankPortfolioCoverageGaps(portfolio.items, 12),
     } : null;
 

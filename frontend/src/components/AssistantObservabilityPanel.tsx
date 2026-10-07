@@ -27,8 +27,10 @@ type AssistantPerformance = {
   portfolioCoverage: null | {
     totalModels: number;
     localIplModels: number;
-    withoutLocalIpl: number;
-    localCoveragePercent: number;
+    portalIplModels: number;
+    coveredModels: number;
+    withoutSource: number;
+    coveragePercent: number;
     priorityGaps: Array<{
       model: string;
       normalizedModel: string;
@@ -78,6 +80,7 @@ function duration(value: number) {
 function metricLabel(action: string) {
   if (action === 'CHAT_INTENT_PARSE') return 'Interpretação de pergunta';
   if (action === 'REACT_AGENT_DECISION') return 'Desempate técnico';
+  if (action === 'PART_PICK') return 'Peça escolhida pela descrição';
   if (action.includes('EXTRACTION')) return 'Extração visual';
   return action.replaceAll('_', ' ').toLowerCase();
 }
@@ -149,9 +152,9 @@ export default function AssistantObservabilityPanel() {
         <Stat label="Decisões reutilizadas" value={number(cachedDecisions)} detail="Cache persistente ainda válido" />
         <Stat label="Cache Husqvarna" value={number(data.officialHusqvarnaCacheEntries)} detail="Entradas oficiais ainda válidas" />
         <Stat
-          label="Cobertura IPL local"
-          value={portfolio ? `${portfolio.localCoveragePercent}%` : '—'}
-          detail={portfolio ? `${portfolio.localIplModels} de ${portfolio.totalModels} modelos descobertos` : 'Inventário indisponível'}
+          label="Modelos com fonte técnica"
+          value={portfolio ? `${portfolio.coveragePercent}%` : '—'}
+          detail={portfolio ? `${portfolio.coveredModels} de ${portfolio.totalModels} modelos da lista` : 'Inventário indisponível'}
         />
       </div>
 
@@ -199,8 +202,9 @@ export default function AssistantObservabilityPanel() {
             {portfolio ? (
               <>
                 <div className="flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Modelos descobertos</span><b>{portfolio.totalModels}</b></div>
-                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Com IPL local</span><b className="text-emerald-700 dark:text-emerald-300">{portfolio.localIplModels}</b></div>
-                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Sem IPL local</span><b className="text-amber-700 dark:text-amber-300">{portfolio.withoutLocalIpl}</b></div>
+                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Confirmados pelo Portal Husqvarna</span><b className="text-emerald-700 dark:text-emerald-300">{portfolio.portalIplModels}</b></div>
+                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Com catálogo da biblioteca</span><b className="text-emerald-700 dark:text-emerald-300">{portfolio.localIplModels}</b></div>
+                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Ainda sem conferência</span><b className="text-amber-700 dark:text-amber-300">{portfolio.withoutSource}</b></div>
 
                 {portfolio.priorityGaps.length > 0 && (
                   <div className="mt-3 border-t border-ink-100 pt-3 dark:border-ink-800">
@@ -226,7 +230,7 @@ export default function AssistantObservabilityPanel() {
                   </div>
                 )}
 
-                <p className="mt-3 border-t border-ink-100 pt-3 text-sm leading-4 text-ink-500 dark:text-ink-400 dark:border-ink-800">“Sem IPL local” não significa incompatível. A fila acima só prioriza onde buscar evidência primeiro; a fonte oficial continua sendo necessária antes de liberar aplicação.</p>
+                <p className="mt-3 border-t border-ink-100 pt-3 text-sm leading-4 text-ink-500 dark:text-ink-400 dark:border-ink-800">“Sem conferência” não significa sem catálogo: só que ninguém checou ainda. A lista acima mostra por onde começar.</p>
               </>
             ) : (
               <div className="text-sm text-ink-500 dark:text-ink-400">Inventário de cobertura indisponível nesta leitura.</div>

@@ -5,7 +5,9 @@ import { apiJson, cleanErpCode } from '../../lib';
 import { useQuoteCart } from '../../context/QuoteCartContext';
 import { ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import PartLine from '../parts-v2/PartLine';
+import { Input } from '@/components/ui/input';
+import PartLine, { Note } from '../parts-v2/PartLine';
+import { splitKawasakiPartName } from '../../lib/kawasaki-part-name';
 import ExplodedView from '../parts-v2/ExplodedView';
 import { useMasterPrices } from './master-part-prices';
 import PartPriceTag from './PartPriceTag';
@@ -98,6 +100,11 @@ export default function KawasakiEnginePanel({
   const precoDegradado = priceQuery.data?.degraded === true;
   // Peça em foco: o clique numa posição do desenho rola até a linha dela.
   const [focusedPosition, setFocusedPosition] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState('');
+  const termo = filtro.trim().toLocaleLowerCase('pt-BR');
+  const visiveis = termo
+    ? parts.filter(part => `${part.partNumber} ${part.name} ${part.position ?? ''}`.toLocaleLowerCase('pt-BR').includes(termo))
+    : parts;
 
   const copy = (code: string) => {
     void navigator.clipboard.writeText(code).then(
@@ -155,7 +162,7 @@ export default function KawasakiEnginePanel({
                 variant="outline"
                 aria-pressed={openSlug === assembly.slug}
                 className={openSlug === assembly.slug ? 'border-ring bg-selected' : undefined}
-                onClick={() => setOpenSlug(current => (current === assembly.slug ? null : assembly.slug))}
+                onClick={() => { setFiltro(''); setOpenSlug(current => (current === assembly.slug ? null : assembly.slug)); }}
               >
                 {assembly.name}
               </Button>
@@ -219,13 +226,21 @@ export default function KawasakiEnginePanel({
 
           {!detailQuery.isLoading && !parts.length && <p className="text-base text-muted-foreground">Leia o código na vista explodida acima.</p>}
 
+          {parts.length > 6 && (
+            <Input value={filtro} onChange={event => setFiltro(event.target.value)} placeholder="Filtrar por código ou nome" aria-label="Filtrar peças do conjunto" className="h-10 w-64" />
+          )}
+          {termo && !visiveis.length && <p className="text-base text-muted-foreground">Nada com &quot;{filtro}&quot; neste conjunto.</p>}
+
           <div className="space-y-2">
-            {parts.map(part => (
+            {visiveis.map(part => {
+              const { name, note } = splitKawasakiPartName(part.name);
+              return (
               <PartLine
                 key={`${part.position}-${part.partNumber}`}
                 anchorId={`kw-part-${part.position}`}
                 position={part.position}
-                name={part.name || part.partNumber}
+                name={name || part.partNumber}
+                notes={note ? <Note tone="warn">{note}</Note> : null}
                 /* Cru, como a Kawasaki publica. NÃO passar por `cleanErpCode`:
                    ele remove o hífen, e `15004-0937` sem o hífen não é código
                    de nada. */
@@ -241,7 +256,7 @@ export default function KawasakiEnginePanel({
                   quoteCart.addItem({
                     partNumber: part.partNumber,
                     manufacturer: 'Kawasaki',
-                    name: part.name || part.partNumber,
+                    name: name || part.partNumber,
                     model: catalog.fullName || catalog.model,
                     section: openAssembly.name,
                     position: part.position || undefined,
@@ -254,7 +269,8 @@ export default function KawasakiEnginePanel({
                    "Please Contact a Dealer" em toda linha. */
                 menu={[{ label: 'Ver preço e estoque', onSelect: () => onSearchPart(part.partNumber) }]}
               />
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
