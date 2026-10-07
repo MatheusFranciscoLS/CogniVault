@@ -7,6 +7,7 @@ import { useQuoteCart } from '../context/QuoteCartContext';
 import type { QuoteCartItem, QuoteSyncState, QuoteTextOptions } from '../context/QuoteCartContext';
 import { formatHusqvarnaPartNumber, cleanErpCode } from '../lib';
 import { playCopySound } from '../lib/sound';
+import { quoteTotals } from '../lib/quote-message';
 import { Icon } from './icons/Icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -208,6 +209,7 @@ export default function QuickQuoteCart() {
     removeItem,
     clearCart,
     openWhatsApp,
+    generateWhatsAppText,
     generatePdfQuote,
     addItem,
     syncState,
@@ -218,6 +220,7 @@ export default function QuickQuoteCart() {
   const { session } = useCounterSession();
 
   const [showCustomItemForm, setShowCustomItemForm] = useState(false);
+  const [showMessage, setShowMessage] = useState(false);
 
   // Cliente, telefone, pagamento e desconto moram no rascunho persistido, não
   // em estado local: antes, recarregar a página perdia o nome do cliente mesmo
@@ -237,8 +240,9 @@ export default function QuickQuoteCart() {
   const patchOptions = (patch: Partial<QuoteTextOptions>) => setDraftOptions({ ...draftOptions, ...patch });
 
   const quoteOptions: QuoteTextOptions = { customerName, customerPhone, paymentMethod, discountPercentage };
-  const discountAmount = totalPrice > 0 && discountPercentage > 0 ? (totalPrice * discountPercentage) / 100 : 0;
-  const netTotalPrice = totalPrice - discountAmount;
+  // Mesma conta do texto do WhatsApp, do PDF e do servidor (desconto arredondado antes de subtrair). Calcular
+  // aqui por conta própria dava R$ 435,92 na tela e R$ 435,91 no que o cliente recebia e no orçamento arquivado.
+  const { discount: discountAmount, net: netTotalPrice } = quoteTotals(items, discountPercentage);
 
   if (totalItems === 0 && !isOpen) {
     return null;
@@ -389,6 +393,32 @@ export default function QuickQuoteCart() {
                 <Icon name="whatsapp" className="size-5" />
                 {customerPhone ? `Enviar no WhatsApp (${customerPhone})` : 'Enviar no WhatsApp'}
               </Button>
+
+              {/* Prévia do que o cliente vai ler, igual ao que sai no link do WhatsApp. Fechada por padrão: o
+                  atendimento normal é um clique só, e quem quer conferir abre. */}
+              <div>
+                <Button variant="ghost" size="sm" onClick={() => setShowMessage(value => !value)} aria-expanded={showMessage} className="w-full text-muted-foreground">
+                  {showMessage ? 'Esconder a mensagem' : 'Ver a mensagem antes de enviar'}
+                </Button>
+                {showMessage && (
+                  <div className="mt-2 rounded-lg border border-border bg-background p-3">
+                    <pre aria-label="Mensagem do WhatsApp" className="max-h-36 overflow-y-auto whitespace-pre-wrap font-sans text-sm leading-6">{generateWhatsAppText(quoteOptions)}</pre>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(generateWhatsAppText(quoteOptions)).then(
+                          () => toast.success('Mensagem copiada.'),
+                          () => toast.error('Não foi possível copiar a mensagem.'),
+                        );
+                      }}
+                    >
+                      Copiar mensagem
+                    </Button>
+                  </div>
+                )}
+              </div>
 
               {/* O PDF e o WhatsApp já arquivam o orçamento sozinhos: não há botão "Salvar",
                   que dava a impressão contrária. */}

@@ -1,14 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { apiJson, formatHusqvarnaPartNumber } from '../lib';
+import { apiJson } from '../lib';
 import { playCartSound } from '../lib/sound';
 import { buildWhatsAppMessage } from '../lib/quote-message';
 import { quoteStorageScopeFromSession } from '../lib/quote-storage-scope';
-type JsPdfWithAutoTable = import('jspdf').jsPDF & {
-  lastAutoTable?: {
-    finalY: number;
-  };
-};
 
 export interface QuoteCartItem {
   id: string; // unique key: `${partNumber}|${manufacturer || ''}|${model}|${pnc || ''}`
@@ -693,149 +688,12 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
 
     void saveCurrentQuote(opts);
 
-    const doc = new jsPDF('p', 'pt', 'a4');
-    const now = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date());
-
-    // Header — azul-marinho #273a60 da identidade Vardão.
-    doc.setFillColor(39, 58, 96);
-    doc.rect(0, 0, doc.internal.pageSize.getWidth(), 80, 'F');
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
-    doc.setFont('helvetica', 'bold');
-    doc.text('ORÇAMENTO DE PEÇAS', 40, 40);
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Vardão Máquinas - Orçamento de balcão', 40, 60);
-
-    // Info Section
-    doc.setTextColor(30, 30, 29);
-    let yPos = 110;
-
-    doc.setFontSize(10);
-    doc.text(`Data: ${now}`, 40, yPos);
-
-    if (opts.customerName) {
-      yPos += 15;
-      doc.setFont('helvetica', 'bold');
-      doc.text('Cliente: ', 40, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(opts.customerName, 85, yPos);
-    }
-    if (opts.customerPhone) {
-      doc.setFont('helvetica', 'bold');
-      doc.text('Telefone: ', 300, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(opts.customerPhone, 355, yPos);
-    }
-
-    const modelsFound = [...new Set(items.map(i => i.model).filter(Boolean))];
-    const headerModel = opts.machineModel || (modelsFound.length === 1 ? modelsFound[0] : modelsFound.join(' / '));
-    if (headerModel) {
-      yPos += 15;
-      doc.setFont('helvetica', 'bold');
-      doc.text('Aplicação / Máquina: ', 40, yPos);
-      doc.setFont('helvetica', 'normal');
-      const manufacturers = [...new Set(items.map(item => item.manufacturer).filter(Boolean))];
-      const manufacturerLabel = manufacturers.length === 1 ? `${manufacturers[0]} ` : manufacturers.length > 1 ? 'Fabricantes diversos · ' : '';
-      doc.text(`${manufacturerLabel}${headerModel}`, 155, yPos);
-    }
-
-    yPos += 20;
-
-    // Table
-    const tableData = items.map((item, index) => {
-      const code = item.manufacturer?.toLowerCase().includes('husqvarna')
-        ? formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)
-        : (item.effectiveCode || item.partNumber);
-      let desc = item.name;
-      if (item.isSuperseded && item.originalCode) {
-         const originalCode = item.manufacturer?.toLowerCase().includes('husqvarna')
-           ? formatHusqvarnaPartNumber(item.originalCode)
-           : item.originalCode;
-         desc += `\n(Substitui: ${originalCode})`;
-      }
-
-      const unit = item.unitPrice ? `R$ ${item.unitPrice.toFixed(2).replace('.', ',')}` : '-';
-      const total = item.unitPrice ? `R$ ${(item.quantity * item.unitPrice).toFixed(2).replace('.', ',')}` : '-';
-
-      return [
-        (index + 1).toString(),
-        code,
-        desc,
-        item.quantity.toString(),
-        unit,
-        total
-      ];
-    });
-
-    autoTable(doc, {
-      startY: yPos,
-      head: [['#', 'CÓDIGO', 'DESCRIÇÃO', 'QTD', 'V. UNIT', 'SUBTOTAL']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [39, 58, 96] },
-      styles: { fontSize: 9, cellPadding: 5 },
-      columnStyles: {
-        0: { cellWidth: 30, halign: 'center' },
-        1: { cellWidth: 80, fontStyle: 'bold' },
-        3: { cellWidth: 40, halign: 'center' },
-        4: { cellWidth: 70, halign: 'right' },
-        5: { cellWidth: 80, halign: 'right' }
-      }
-    });
-
-    // Totals
-    const finalY = ((doc as JsPdfWithAutoTable).lastAutoTable?.finalY ?? yPos) + 20;
-    const hasAnyPrice = items.some(i => (i.unitPrice || 0) > 0);
-
-    if (hasAnyPrice && totalPrice > 0) {
-      doc.setFontSize(12);
-
-      if (opts.discountPercentage && opts.discountPercentage > 0) {
-        const discountAmount = (totalPrice * opts.discountPercentage) / 100;
-        const netTotal = totalPrice - discountAmount;
-
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Subtotal: R$ ${totalPrice.toFixed(2).replace('.', ',')}`, 350, finalY);
-        doc.text(`Desconto (${opts.discountPercentage}%): -R$ ${discountAmount.toFixed(2).replace('.', ',')}`, 350, finalY + 15);
-
-        doc.setFont('helvetica', 'bold');
-        doc.text(`TOTAL FINAL: R$ ${netTotal.toFixed(2).replace('.', ',')}`, 350, finalY + 35);
-      } else {
-        doc.setFont('helvetica', 'bold');
-        doc.text(`TOTAL FINAL: R$ ${totalPrice.toFixed(2).replace('.', ',')}`, 350, finalY);
-      }
-    }
-
-    let footerY = finalY + (hasAnyPrice ? 60 : 20);
-    if (opts.paymentMethod && opts.paymentMethod !== 'A Combinar no Balcão') {
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Condição de Pagamento:', 40, footerY);
-      doc.setFont('helvetica', 'normal');
-      doc.text(opts.paymentMethod, 180, footerY);
-      footerY += 15;
-    }
-
-    doc.setFontSize(9);
-    doc.setTextColor(104, 104, 103);
-    doc.text('Validade da proposta: 7 dias úteis.', 40, footerY);
-    const manufacturers = [...new Set(items.map(item => item.manufacturer).filter(Boolean))];
-    doc.text(
-      manufacturers.length === 1
-        ? `Peças originais ${manufacturers[0]}.`
-        : manufacturers.length > 1
-          ? 'Peças originais de fabricantes diversos.'
-          : 'Peças originais.',
-      40,
-      footerY + 12,
-    );
-
+    // O layout do PDF mora em lib/quote-pdf.ts (testado). Aqui só se junta o que a gaveta já tem.
+    const { buildQuotePdf } = await import('../lib/quote-pdf');
+    const doc = buildQuotePdf({ doc: new jsPDF('p', 'pt', 'a4'), autoTable, items, options: opts });
     doc.save(`Orcamento_Vardao_${Date.now()}.pdf`);
     toast.success('PDF gerado com sucesso!');
-  }, [draftOptions, items, saveCurrentQuote, totalPrice]);
+  }, [draftOptions, items, saveCurrentQuote]);
 
   const value = useMemo<QuoteCartContextType>(() => ({
     items,

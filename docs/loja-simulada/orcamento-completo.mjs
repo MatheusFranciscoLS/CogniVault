@@ -104,6 +104,18 @@ await step('cliente, telefone, pagamento e desconto', async () => {
 });
 
 await step('WhatsApp', async () => {
+  // Prévia: o que se vê antes de enviar tem que ser exatamente o que vai no link.
+  await gaveta.getByRole('button', { name: 'Ver a mensagem antes de enviar' }).click();
+  const previa = (await gaveta.getByLabel('Mensagem do WhatsApp').innerText()).trim();
+  check('a prévia mostra cliente, total e validade', previa.includes('Sr. Carlos') && /Total: R\$/.test(previa) && /Válido até \d{2}\/\d{2}\/\d{4}/.test(previa));
+  await shot(page, `${theme}-1366-orcamento-previa`);
+  await gaveta.getByRole('button', { name: 'Copiar mensagem' }).click();
+  await page.waitForTimeout(500);
+  // O Windows troca a quebra de linha simples pela dupla (CR LF) ao copiar: não é diferença de conteúdo.
+  const copiada = (await page.evaluate(() => navigator.clipboard.readText())).split(String.fromCharCode(13, 10)).join(String.fromCharCode(10)).trim();
+  const diferenca = [...previa].findIndex((c, i) => c !== copiada[i]);
+  check('"Copiar mensagem" copia a prévia inteira', copiada === previa, `prévia ${previa.length} car., copiada ${copiada.length} car., 1ª diferença em ${diferenca}: ${JSON.stringify(previa.slice(Math.max(0, diferenca - 10), diferenca + 15))} x ${JSON.stringify(copiada.slice(Math.max(0, diferenca - 10), diferenca + 15))}`);
+  await gaveta.getByRole('button', { name: 'Esconder a mensagem' }).click();
   await gaveta.getByRole('button', { name: 'Enviar no WhatsApp' }).click();
   await page.waitForTimeout(1500);
   const abertos = await page.evaluate(() => window.__aberto);
@@ -113,6 +125,11 @@ await step('WhatsApp', async () => {
     const texto = url.searchParams.get('text') ?? '';
     fs.writeFileSync(path.join(OUT, `${theme}-whatsapp.txt`), texto);
     console.log('   ---- texto enviado ao cliente ----\n' + texto.split('\n').map(l => '   | ' + l).join('\n') + '\n   ----');
+    check('o texto enviado é idêntico ao da prévia', texto.trim() === previa);
+    // O mesmo total em três lugares: na gaveta, no que o cliente lê e no que fica arquivado (centavo a centavo).
+    const naGaveta = (await gaveta.locator('footer span.text-3xl').innerText()).replace(/\s/g, '');
+    const noTexto = ((texto.match(/Total: (R\$\s?[\d.,]+)/) ?? [])[1] ?? '').replace(/\s/g, '');
+    check('o total da gaveta é igual ao total que o cliente recebe', naGaveta === noTexto, `${naGaveta} x ${noTexto}`);
     check('o número do cliente vai no link, com 55', /\/55\d{10,11}/.test(url.pathname), url.pathname);
     check('o texto traz o nome do cliente', texto.includes('Sr. Carlos'));
     check('o texto traz o total', /R\$\s?\d/.test(texto));

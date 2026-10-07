@@ -35,10 +35,8 @@ Toda tela aberta é testada em TODO o conteúdo dela, controle por controle, e n
 | | Item |
 |---|---|
 | 🔧 | Ver o que o cliente recebe hoje (texto do WhatsApp e PDF) e refazer — texto do WhatsApp escrito e testado (`quote-message.ts`, 16 testes), ainda NÃO ligado à gaveta |
-| ⏳ | Texto do WhatsApp: cliente, máquina, itens, total, condição, validade, sem poluição |
-| ⏳ | PDF: cabeçalho da loja (Vardão, selo ouro), tabela legível, total, validade, rodapé com contato |
-| ⏳ | Prévia do que será enviado antes de enviar |
-| ⏳ | Validade do orçamento ("válido até") e observação livre |
+| ✅ | Texto do WhatsApp, PDF, prévia e validade com data: feitos (ver "Gaveta do orçamento" em I) |
+| ⏳ | Observação livre no orçamento (precisa de campo novo no servidor) |
 | ⏳ | Enviar ao número do cliente quando há telefone (já existe) e arquivar sempre |
 
 ## C. Achados da varredura de uso real (loja simulada)
@@ -110,7 +108,8 @@ Regra: cada tela percorrida entra aqui com o que foi corrigido na hora (✅) e o
 | ✅ | **Texto do WhatsApp refeito** (`lib/quote-message.ts`): sem "Assistência Técnica" (a loja é revenda ouro), sem posição/seção/PNC internos, valores com separador de milhar, **data de validade** em vez de "7 dias úteis", pagamento só quando combinado |
 | ✅ | O cliente via **R$ 435,92** e o orçamento arquivado guardava **R$ 435,91** (arredondamento diferente do servidor): alinhado, travado em teste |
 | ✅ | Serviço avulso ("Mão de obra") contava como segunda máquina e o texto repetia "Máquina:" em toda peça |
-| 💡 | **PDF** ainda no modelo antigo (7 KB): refazer com cabeçalho da loja, tabela legível, total e validade; e **prévia** do texto antes de enviar |
+| ✅ | **PDF refeito** (`lib/quote-pdf.ts`, 8 testes): cabeçalho da loja, tabela com código em Courier, total em destaque, "Válido até", rodapé com "Página n de N"; **prévia** da mensagem do WhatsApp com "Copiar mensagem" |
+| ✅ | O total na gaveta estava um centavo diferente do que o cliente recebia (R$ 435,92 x 435,91): agora os três (gaveta, texto, PDF) usam a mesma conta |
 | 💡 | Texto livre para observação ("peça sob encomenda, prazo 5 dias") no WhatsApp e no PDF |
 | 💡 | Telefone digitado sem máscara ("19987654321"): formatar enquanto digita |
 
