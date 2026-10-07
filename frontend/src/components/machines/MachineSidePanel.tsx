@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Check, Copy, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import ListingBadge from './ListingBadge';
 import MachineDetail from './MachineDetail';
 import type { MachineDetailLoaded } from './MachineDetail';
 
@@ -81,6 +82,7 @@ export default function MachineSidePanel({
                 {copied ? <Check className="size-4 text-ok" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
               </button>
             </p>
+            <div className="mt-1.5"><ListingBadge pnc={pnc} /></div>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar"><X className="size-5" /></Button>
         </header>

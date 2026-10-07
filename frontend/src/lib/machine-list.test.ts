@@ -3,6 +3,7 @@ import {
   EMPTY_FILTERS,
   countNews,
   facetCounts,
+  findListedMachine,
   matchesFilters,
   priceChange,
   searchKey,
@@ -16,14 +17,14 @@ import {
 const machine = (extra: Partial<ListedMachine>): ListedMachine => ({
   pnc: '900000001', model: 'X100', description: 'MOTOSSERRA X100', category: 'MOTOSSERRA', segment: null,
   technology: 'PRODUTOS A COMBUSTÃO', application: 'PROFISSIONAL', listPrice: 1000, discontinued: false, isNew: false,
-  priceBefore: null, specs: [], details: null, ...extra,
+  priceBefore: null, sortOrder: 0, specs: [], details: null, ...extra,
 });
 
 const lista = [
-  machine({ pnc: '1', model: 'X100', category: 'MOTOSSERRA', listPrice: 1000 }),
+  machine({ pnc: '1', model: 'X100', category: 'MOTOSSERRA', listPrice: 1000, sortOrder: 1 }),
   machine({ pnc: '2', model: 'X20', category: 'MOTOSSERRA', listPrice: 500, isNew: true }),
-  machine({ pnc: '3', model: '143R II', description: 'ROÇADEIRA 143R II', category: 'ROÇADEIRA', application: 'COMERCIAL', listPrice: 2000, priceBefore: 2500 }),
-  machine({ pnc: '4', model: 'B36', description: 'SOPRADOR A BATERIA', category: 'SOPRADOR', technology: 'BATERIA', application: 'OCASIONAL', listPrice: 900 }),
+  machine({ pnc: '3', model: '143R II', description: 'ROÇADEIRA 143R II', category: 'ROÇADEIRA', application: 'COMERCIAL', listPrice: 2000, priceBefore: 2500, sortOrder: 2 }),
+  machine({ pnc: '4', model: 'B36', description: 'SOPRADOR A BATERIA', category: 'SOPRADOR', technology: 'BATERIA', application: 'OCASIONAL', listPrice: 900, sortOrder: 3 }),
 ];
 
 describe('searchKey', () => {
@@ -64,6 +65,10 @@ describe('sortMachines', () => {
   it('por categoria e depois modelo, com número natural (X20 antes de X100)', () => {
     expect(sortMachines(lista, 'category').map(m => m.pnc)).toEqual(['2', '1', '3', '4']);
   });
+  it('por categoria usa a ordem da Husqvarna, não a alfabética', () => {
+    const fora = [machine({ pnc: 'a', model: 'A1', category: 'APARADOR', sortOrder: 5 }), machine({ pnc: 'm', model: 'M1', category: 'MOTOSSERRA', sortOrder: 0 })];
+    expect(sortMachines(fora, 'category').map(m => m.pnc)).toEqual(['m', 'a']);
+  });
   it('por preço, nos dois sentidos', () => {
     expect(sortMachines(lista, 'price-asc').map(m => m.listPrice)).toEqual([500, 900, 1000, 2000]);
     expect(sortMachines(lista, 'price-desc').map(m => m.listPrice)).toEqual([2000, 1000, 900, 500]);
@@ -76,6 +81,14 @@ describe('sortMachines', () => {
 });
 
 describe('facetCounts', () => {
+  it('categorias e tecnologias saem na ordem da Husqvarna', () => {
+    const lote = [
+      machine({ pnc: 'a', category: 'APARADOR', technology: 'BATERIA', sortOrder: 9 }),
+      machine({ pnc: 'm', category: 'MOTOSSERRA', technology: 'PRODUTOS A COMBUSTÃO', sortOrder: 0 }),
+    ];
+    expect(facetCounts(lote, EMPTY_FILTERS, 'category').map(o => o.value)).toEqual(['MOTOSSERRA', 'APARADOR']);
+    expect(facetCounts(lote, EMPTY_FILTERS, 'technology').map(o => o.value)).toEqual(['PRODUTOS A COMBUSTÃO', 'BATERIA']);
+  });
   it('conta cada opção respeitando os OUTROS filtros, não o próprio', () => {
     const filtros = { ...EMPTY_FILTERS, technology: 'BATERIA' };
     // Com tecnologia = bateria, a categoria só oferece SOPRADOR…
@@ -101,5 +114,25 @@ describe('rótulos', () => {
     expect(technologyLabel('PRODUTOS A COMBUSTÃO')).toBe('Combustão');
     expect(technologyLabel(null)).toBe('Outros');
     expect(categoryLabel('ROÇADEIRA COSTAL')).toBe('Roçadeira costal');
+  });
+});
+
+describe('findListedMachine', () => {
+  const lote = [
+    machine({ pnc: '967332901', model: '143R II' }),
+    machine({ pnc: '96041044000', model: 'TS 142' }),
+    machine({ pnc: '970592606CJ', model: 'Kit' }),
+  ];
+  it('PNC igual, com ou sem espaço e traço', () => {
+    expect(findListedMachine(lote, '967 33 29-01')?.model).toBe('143R II');
+  });
+  it('etiqueta de 11 dígitos acha o artigo de 9, e o contrário', () => {
+    expect(findListedMachine(lote, '960410440')?.model).toBe('TS 142');
+    expect(findListedMachine(lote, '96733290100')?.model).toBe('143R II');
+  });
+  it('não casa por semelhança: outro artigo, sufixo de letras ou texto vazio', () => {
+    expect(findListedMachine(lote, '967332902')).toBeNull();
+    expect(findListedMachine(lote, '970592606')).toBeNull();
+    expect(findListedMachine(lote, '')).toBeNull();
   });
 });

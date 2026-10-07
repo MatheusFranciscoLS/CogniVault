@@ -268,6 +268,8 @@ model MachineListing {
   isNew         Boolean  @default(false)
   /// Preço da lista anterior quando mudou.
   priceBefore   Float?
+  /// Posição na ordem de exibição da Husqvarna (tecnologia, categoria, ordem da máquina).
+  sortOrder     Int      @default(0)
   /// [{ label, value }] na ordem de exibição.
   specs         Json
   details       String?

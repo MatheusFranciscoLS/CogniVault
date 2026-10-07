@@ -19,7 +19,7 @@ export class MachineListingController {
     try {
       const rows = await prisma.machineListing.findMany({
         where: { tenantId: req.user.tenantId },
-        orderBy: [{ category: 'asc' }, { model: 'asc' }],
+        orderBy: [{ sortOrder: 'asc' }, { model: 'asc' }],
         select: {
           pnc: true,
           model: true,
@@ -32,6 +32,7 @@ export class MachineListingController {
           discontinued: true,
           isNew: true,
           priceBefore: true,
+          sortOrder: true,
           specs: true,
           details: true,
           listDate: true,

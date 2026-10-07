@@ -24,15 +24,39 @@ type DocWithTable = JsPdf & { lastAutoTable?: { finalY: number } };
 export type QuotePdfOptions = QuoteMessageOptions & { customerPhone?: string };
 
 // Azul-marinho da identidade Vardão e o laranja de ação (docs/IDENTIDADE_VISUAL_VARDAO.md).
-const NAVY: [number, number, number] = [39, 58, 96];
-const NAVY_DARK: [number, number, number] = [31, 39, 66];
+export const NAVY: [number, number, number] = [39, 58, 96];
+export const NAVY_DARK: [number, number, number] = [31, 39, 66];
 const GOLD: [number, number, number] = [255, 200, 0];
-const INK: [number, number, number] = [30, 30, 29];
-const MUTED: [number, number, number] = [104, 104, 103];
-const ZEBRA: [number, number, number] = [244, 245, 248];
-const RULE: [number, number, number] = [212, 216, 226];
+export const INK: [number, number, number] = [30, 30, 29];
+export const MUTED: [number, number, number] = [104, 104, 103];
+export const ZEBRA: [number, number, number] = [244, 245, 248];
+export const RULE: [number, number, number] = [212, 216, 226];
 
-const MARGIN = 40;
+export const MARGIN = 40;
+
+/** Faixa azul da loja com o dourado embaixo; o documento (orçamento, ficha) e a data entram à direita. */
+export function drawStoreHeader(doc: JsPdf, title: string, dateText: string): void {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  doc.setFillColor(...NAVY);
+  doc.rect(0, 0, pageWidth, 92, 'F');
+  doc.setFillColor(...GOLD);
+  doc.rect(0, 92, pageWidth, 4, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(24);
+  doc.text('VARDÃO MÁQUINAS', MARGIN, 46);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text('Revenda Autorizada Ouro Husqvarna', MARGIN, 66);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text(title, pageWidth - MARGIN, 44, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(dateText, pageWidth - MARGIN, 64, { align: 'right' });
+}
 
 /** (11) 98765-4321 a partir de só dígitos; o que não casa volta como veio. */
 export function formatPhoneBr(raw: string | undefined): string {
@@ -56,26 +80,7 @@ export function buildQuotePdf(input: {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
-  // ── Cabeçalho da loja ────────────────────────────────────────────────────────────────────────────
-  doc.setFillColor(...NAVY);
-  doc.rect(0, 0, pageWidth, 92, 'F');
-  doc.setFillColor(...GOLD);
-  doc.rect(0, 92, pageWidth, 4, 'F');
-
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(24);
-  doc.text('VARDÃO MÁQUINAS', MARGIN, 46);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text('Revenda Autorizada Ouro Husqvarna', MARGIN, 66);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.text('ORÇAMENTO', pageWidth - MARGIN, 44, { align: 'right' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(formatDate(now), pageWidth - MARGIN, 64, { align: 'right' });
+  drawStoreHeader(doc, 'ORÇAMENTO', formatDate(now));
 
   // ── Dados do atendimento ─────────────────────────────────────────────────────────────────────────
   const models = [...new Set(items.filter(item => !isServiceLine(item)).map(item => item.model).filter(Boolean))];
