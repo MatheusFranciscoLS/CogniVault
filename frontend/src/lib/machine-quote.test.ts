@@ -7,9 +7,13 @@ import {
   engineStroke,
   formatPower,
   machineQuoteDescription,
+  machineVariantNote,
+  decimalComma,
+  defaultIncludeEquipment,
   machineQuoteFileName,
   machineQuoteReference,
   parseMoneyInput,
+  suggestComplement,
   type MachineQuoteFields,
 } from './machine-quote';
 import type { ListedMachine } from './machine-list';
@@ -138,5 +142,122 @@ describe('buildMachineQuotePdf', () => {
     const muita = { included: Array.from({ length: 14 }, (_, i) => ({ name: `Acessório ${i + 1} com um nome um pouco longo para ocupar a linha`, value: 'valor' })), notIncluded: [] };
     const doc = build({ complement: 'x'.repeat(900) }, muita);
     expect(doc.getNumberOfPages()).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('descrição por tipo de máquina', () => {
+  const bateria: ListedMachine = {
+    ...rocadeira, model: 'B300', category: 'ROÇADEIRA', technology: 'BATERIA', listPrice: 2999,
+    specs: [
+      { label: 'Potência', value: '0,8 kW' }, { label: 'Motor', value: 'Elétrico sem escovas (BLDC)' },
+      { label: 'Combustível', value: 'Bateria' }, { label: 'Tensão', value: '36 V' }, { label: 'Peso', value: '2,63 kg' },
+    ],
+  };
+  const gerador: ListedMachine = {
+    ...rocadeira, model: 'G5000', category: 'GERADOR', technology: 'PRODUTOS A COMBUSTÃO',
+    specs: [
+      { label: 'Cilindrada', value: '390 cm³' }, { label: 'Potência', value: '7,5 hp (5,5 kW / 5.500 W)' },
+      { label: 'Motor', value: 'Monocilíndrico, 4 tempos' }, { label: 'Tanque', value: '27 L' }, { label: 'Tensão', value: '127/220 V AC' }, { label: 'Peso', value: '88 kg' },
+    ],
+  };
+
+  it('a bateria descreve o motor elétrico e a tensão, sem inventar cilindrada nem tempos', () => {
+    expect(machineQuoteDescription(bateria)).toBe(
+      'Roçadeira, modelo B300 equipado com motor elétrico sem escovas (BLDC), alimentado por bateria de 36 V, potência de 0,8 KW, peso de 2,63 kg.',
+    );
+  });
+
+  it('gerador traz a tensão de saída', () => {
+    expect(machineQuoteDescription(gerador)).toContain('equipado com motor 4 tempos de 390 cm³, tensão de 127/220 V AC, potência de 5,5 KW/ 7,5 HP');
+  });
+
+  it('tensão que não é tensão (dado ruim da lista) fica de fora', () => {
+    const ruim = { ...bateria, specs: [...bateria.specs.filter(item => item.label !== 'Tensão'), { label: 'Tensão', value: 'Relação de transmissão 13:1' }] };
+    expect(machineQuoteDescription(ruim)).not.toContain('alimentado por bateria');
+  });
+});
+
+describe('suggestComplement (tirado do Portal)', () => {
+  const portal = {
+    features: [{ name: 'Motor Profissional' }, { name: 'Transmissão Parker HTE' }, { name: 'Ajuste de altura da plataforma em 13 posições' }],
+    specifications: [
+      { group: 'Capacidade', name: 'Velocidade à frente, min-máx min', value: '0 km/h' },
+      { group: 'Capacidade', name: 'Velocidade à frente, min-máx max', value: '16 km/h' },
+      { group: 'Sistema', name: 'Velocidade da marcha à ré, min-máx max', value: '5 km/h' },
+    ],
+  };
+
+  it('junta transmissão, altura e velocidade máxima à frente, no estilo do modelo da loja', () => {
+    expect(suggestComplement(giroZero, portal)).toBe('com transmissão Parker HTE, 13 posições para regulagem da altura de corte e velocidade máxima de 16 km/h');
+  });
+
+  it('o que o Portal não diz fica de fora, sem chute', () => {
+    expect(suggestComplement(giroZero, { features: [{ name: 'Motor Profissional' }], specifications: [] })).toBe('');
+    expect(suggestComplement(giroZero, { features: [{ name: 'Transmissão hidrostática operada por pedal' }] })).toBe('com transmissão hidrostática operada por pedal');
+  });
+
+  it('só para máquinas de cortar grama sentado; roçadeira e Portal fora do ar não sugerem nada', () => {
+    expect(suggestComplement(rocadeira, portal)).toBe('');
+    expect(suggestComplement(giroZero, undefined)).toBe('');
+  });
+});
+
+describe('machineVariantNote', () => {
+  const serra = (pnc: string, description: string) => ({ ...rocadeira, pnc, model: '272XP', category: 'MOTOSSERRA', description });
+  const lote = [serra('1', 'MOTOSSERRA MOD272XP 13"PD 3/8"'), serra('2', 'MOTOSSERRA MOD272XP 20"PD 3/8"'), rocadeira];
+
+  it('modelo com mais de uma versão na lista diz só o que distingue a versão', () => {
+    expect(machineVariantNote(lote[0], lote)).toBe('13"PD 3/8"');
+    expect(machineVariantNote({ ...lote[0], description: 'SOPRADOR 120iB CJ', model: '120iB', category: 'SOPRADOR' }, [{ model: '120iB' }, { model: '120iB' }])).toBe('CJ');
+    expect(machineQuoteDescription(serra('1', 'x'), '', '13"PD 3/8"')).toContain('modelo 272XP (13"PD 3/8")');
+  });
+
+  it('modelo único, ou versão sem nada que a distinga, não leva nota', () => {
+    expect(machineVariantNote(rocadeira, lote)).toBeNull();
+    expect(machineVariantNote({ ...lote[0], description: 'MOTOSSERRA 272XP' }, lote)).toBeNull();
+  });
+});
+
+describe('o que muda por tipo de máquina', () => {
+  const equipamento = { included: [{ name: 'Lâmina', value: 'Multi 330-2' }, { name: 'Cinturão', value: 'Balance 55' }], notIncluded: [] };
+
+  it('motosserra fala de sabre, não de largura de corte', () => {
+    const serra = { ...rocadeira, model: '272XP', category: 'MOTOSSERRA', specs: [{ label: 'Largura de trabalho', value: '38 cm' }] };
+    expect(machineQuoteDescription(serra)).toContain('comprimento do sabre de 38 cm');
+    expect(machineQuoteDescription(serra)).not.toContain('largura de corte');
+  });
+
+  it('"conjunto composto por" entra sozinho só na roçadeira', () => {
+    expect(defaultIncludeEquipment(rocadeira, equipamento)).toBe(true);
+    expect(defaultIncludeEquipment({ category: 'MOTOSSERRA' }, equipamento)).toBe(false);
+    expect(defaultIncludeEquipment(rocadeira, null)).toBe(false);
+    expect(defaultIncludeEquipment(rocadeira, { included: Array.from({ length: 9 }, (_, i) => ({ name: 'x' + i, value: null })), notIncluded: [] })).toBe(false);
+  });
+});
+
+describe('acabamento do texto', () => {
+  it('ponto decimal vira vírgula, mas milhar fica', () => {
+    expect(decimalComma('3.5 kg')).toBe('3,5 kg');
+    expect(decimalComma('0.35 kW')).toBe('0,35 kW');
+    expect(decimalComma('7.890 kg')).toBe('7.890 kg');
+    expect(decimalComma(null)).toBeNull();
+  });
+
+  it('sem motor na ficha a frase vira lista com vírgulas, sem "modelo X peso de"', () => {
+    const robo = { ...rocadeira, model: 'AM1', category: 'AUTOMOWER', technology: 'ROBÓTICA', specs: [{ label: 'Peso', value: '18.1 kg' }, { label: 'Largura de trabalho', value: '22 cm' }] };
+    expect(machineQuoteDescription(robo)).toBe('Automower, modelo AM1, peso de 18,1 kg, largura de corte de 22 cm.');
+  });
+});
+
+describe('fichas que vêm da lista (transmissão, velocidade, área do robô)', () => {
+  it('a ficha da lista manda na sugestão e o Portal só completa', () => {
+    const ride = { ...giroZero, specs: [...giroZero.specs, { label: 'Transmissão', value: 'Parker  HTE10 - Hidrostática' }, { label: 'Velocidade máxima', value: '16 km/h' }] };
+    expect(suggestComplement(ride, undefined)).toBe('com transmissão Parker HTE10 - Hidrostática e velocidade máxima de 16 km/h');
+    expect(suggestComplement(ride, { features: [{ name: 'Transmissão Outra' }], specifications: [] })).toContain('com transmissão Parker HTE10 - Hidrostática');
+  });
+
+  it('o robô diz a área de trabalho e a inclinação máxima', () => {
+    const robo = { ...rocadeira, model: 'AM9', category: 'AUTOMOWER', technology: 'ROBÓTICA', specs: [{ label: 'Área de trabalho', value: '1.500 m²' }, { label: 'Inclinação máxima', value: '22 ° (40%)' }, { label: 'Peso', value: '9 kg' }] };
+    expect(machineQuoteDescription(robo)).toBe('Automower, modelo AM9, área de trabalho de até 1.500 m², inclinação máxima de 22 ° (40%), peso de 9 kg.');
   });
 });

@@ -27,7 +27,8 @@ function measure(dataUrl: string): Promise<{ width: number; height: number }> {
  * Só aceita https. Devolve `null` se não carregar (rede, CDN fora): o orçamento sai sem a foto, nunca falha por ela.
  */
 export async function loadProductImage(url: string, maxWidth = 640): Promise<PdfImage | null> {
-  if (!/^https:\/\//i.test(url)) return null;
+  // https (CDN da Husqvarna) ou o caminho da própria API (foto da lista, com o cookie da sessão).
+  if (!/^https:\/\//i.test(url) && !url.startsWith('/api/')) return null;
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 12_000);
   try {

@@ -4,6 +4,7 @@ import { prisma } from '../config/prisma';
 import { normalizeIdentifier } from '../utils/normalize';
 import { HusqvarnaOfficialDetailService } from '../services/husqvarna-official-detail.service';
 import { HusqvarnaPortalGraphqlService } from '../services/husqvarna-portal-graphql.service';
+import { portalResultMatchesModel } from '../services/portfolio-coverage';
 import { HusqvarnaProductSearchService } from '../services/husqvarna-product-search.service';
 import { HusqvarnaPublicSupportService } from '../services/husqvarna-public-support.service';
 import { HusqvarnaReplacementHistoryService } from '../services/husqvarna-replacement-history.service';
@@ -49,7 +50,11 @@ export class HusqvarnaOfficialController {
     }
 
     try {
-      const results = await HusqvarnaProductSearchService.search(query);
+      const found = await HusqvarnaProductSearchService.search(query);
+      // `exact=1`: só o produto cujo título é este modelo (foto e ficha da máquina), nunca a família parecida.
+      const results = req.query.exact === '1'
+        ? found.filter(item => item.kind === 'PRODUCT' && portalResultMatchesModel(item.title, query))
+        : found;
       res.json({ results });
     } catch (error) {
       console.error('❌ Erro na busca oficial Husqvarna por %j:', query, error);

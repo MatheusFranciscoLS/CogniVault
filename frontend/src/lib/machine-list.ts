@@ -18,6 +18,8 @@ export type ListedMachine = {
   /** Posição na ordem de exibição da Husqvarna (tecnologia, categoria, ordem da máquina). */
   sortOrder: number;
   specs: MachineSpec[];
+  /** A lista tem a foto desta máquina (`/api/machine-list/:pnc/photo`). */
+  hasPhoto?: boolean;
   details: string | null;
 };
 
@@ -143,6 +145,9 @@ export function countNews(machines: ListedMachine[]): number {
  * sem "leve junto", sem vista explodida e sem o selo "Em linha". Os outros sufixos (`CJ`, `CJ1`, `S12`: conjunto) são
  * outro item e continuam como vieram.
  */
+/** Foto da própria lista (banco privado), só para quem está logado. */
+export const machinePhotoUrl = (pnc: string): string => `/api/machine-list/${encodeURIComponent(pnc)}/photo`;
+
 export const portalPnc = (pnc: string): string => pnc.trim().replace(/(?<=\d)BR$/i, '');
 
 const pncKey = (pnc: string): string => portalPnc(pnc.replace(/[^a-z0-9]/gi, '')).toUpperCase();
