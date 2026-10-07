@@ -3,7 +3,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import test from 'node:test';
 import { prisma } from '../config/prisma';
-import { storageBucket, supabase } from '../config/supabase-storage';
+import { supabase } from '../config/supabase-storage';
 import { DocumentProducer } from '../queues/producer';
 import { DocumentService } from './document.service';
 

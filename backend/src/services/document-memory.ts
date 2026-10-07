@@ -1,10 +1,8 @@
-import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { GEMINI_EMBEDDING_MODEL, getGeminiClient } from '../config/gemini';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { withTransientAIRetry } from '../utils/ai-retry';
 import {
-  consumeSemanticQueryBudget,
   semanticChunkBudgetPerDocument,
   semanticIndexingEnabled,
 } from './semantic-indexing-policy';
@@ -189,104 +187,5 @@ export async function rebuildDocumentMemory(
   } catch (error) {
     console.warn('⚠️ Memória técnica criada sem embeddings opcionais.', error instanceof Error ? error.message : error);
     return { chunks: chunks.length, embedded: 0 };
-  }
-}
-
-function memoryFilters(tenantId: string, model?: string, pnc?: string, documentId?: string): Prisma.Sql[] {
-  const filters: Prisma.Sql[] = [
-    Prisma.sql`d."tenantId" = ${tenantId}`,
-    Prisma.sql`d."status" = 'COMPLETED'`,
-    Prisma.sql`d."archivedAt" IS NULL`,
-  ];
-  const normalizedModel = normalizeIdentifier(model);
-  const normalizedPnc = normalizeIdentifier(pnc);
-  if (normalizedModel) filters.push(Prisma.sql`c."normalizedModel" = ${normalizedModel}`);
-  if (normalizedPnc) filters.push(Prisma.sql`(c."normalizedPnc" = ${normalizedPnc} OR c."normalizedPnc" IS NULL)`);
-  if (documentId) filters.push(Prisma.sql`c."documentId" = ${documentId}`);
-  return filters;
-}
-
-export async function retrieveTechnicalContext(
-  tenantId: string,
-  question: string,
-  options: { model?: string; pnc?: string; documentId?: string; limit?: number } = {},
-): Promise<TechnicalContextHit[]> {
-  const query = normalizeText(question).trim();
-  if (query.length < 2) return [];
-  const filters = memoryFilters(tenantId, options.model, options.pnc, options.documentId);
-  const limit = Math.max(1, Math.min(8, options.limit || 4));
-  type Raw = Omit<TechnicalContextHit, 'score' | 'method'> & { score: number | string };
-
-  const fullText = await prisma.$queryRaw<Raw[]>(Prisma.sql`
-    SELECT c."id", c."documentId", d."filename", c."content", c."page", c."section", c."model", c."pnc",
-      ts_rank_cd(
-        to_tsvector('simple'::regconfig, COALESCE(c."searchText", '')),
-        websearch_to_tsquery('simple'::regconfig, ${query}), 32
-      ) AS "score"
-    FROM "DocumentChunk" c
-    INNER JOIN "Document" d ON d."id" = c."documentId"
-    WHERE ${Prisma.join(filters, ' AND ')}
-      AND to_tsvector('simple'::regconfig, COALESCE(c."searchText", ''))
-        @@ websearch_to_tsquery('simple'::regconfig, ${query})
-    ORDER BY "score" DESC
-    LIMIT ${limit}
-  `);
-  if (fullText.length) return fullText.map(row => ({ ...row, score: Number(row.score), method: 'FULL_TEXT' }));
-
-  const fuzzy = await prisma.$queryRaw<Raw[]>(Prisma.sql`
-    SELECT c."id", c."documentId", d."filename", c."content", c."page", c."section", c."model", c."pnc",
-      word_similarity(lower(${query}), lower(c."searchText")) AS "score"
-    FROM "DocumentChunk" c
-    INNER JOIN "Document" d ON d."id" = c."documentId"
-    WHERE ${Prisma.join(filters, ' AND ')}
-      AND lower(${query}) <% lower(c."searchText")
-    ORDER BY "score" DESC
-    LIMIT ${limit}
-  `);
-  const fuzzyHits = fuzzy
-    .map(row => ({ ...row, score: Number(row.score), method: 'FUZZY' as const }))
-    .filter(row => Number.isFinite(row.score) && row.score >= 0.16);
-  if (fuzzyHits.length) return fuzzyHits;
-
-  if (!semanticIndexingEnabled()) return [];
-  const hasSemanticMemory = await prisma.documentChunk.findFirst({
-    where: {
-      embeddingRevision: { gt: 0 },
-      document: { tenantId, archivedAt: null, status: 'COMPLETED' },
-      ...(options.documentId ? { documentId: options.documentId } : {}),
-      ...(options.model ? { normalizedModel: normalizeIdentifier(options.model) } : {}),
-    },
-    select: { id: true },
-  });
-  if (!hasSemanticMemory || !consumeSemanticQueryBudget()) return [];
-
-  try {
-    const ai = await getGeminiClient();
-    const result = await withTransientAIRetry(
-      () => ai.models.embedContent({
-        model: GEMINI_EMBEDDING_MODEL,
-        contents: query,
-        config: { outputDimensionality: 768, taskType: 'RETRIEVAL_QUERY' },
-      }),
-      { label: 'consulta da memória técnica' },
-    );
-    const values = result.embeddings?.[0]?.values;
-    if (!values || values.length !== 768) return [];
-    const vector = `[${values.join(',')}]`;
-    const semantic = await prisma.$queryRaw<Raw[]>(Prisma.sql`
-      SELECT c."id", c."documentId", d."filename", c."content", c."page", c."section", c."model", c."pnc",
-        1 - (c."embedding" <=> ${vector}::vector) AS "score"
-      FROM "DocumentChunk" c
-      INNER JOIN "Document" d ON d."id" = c."documentId"
-      WHERE ${Prisma.join(filters, ' AND ')} AND c."embedding" IS NOT NULL
-      ORDER BY c."embedding" <=> ${vector}::vector
-      LIMIT ${limit}
-    `);
-    return semantic
-      .map(row => ({ ...row, score: Number(row.score), method: 'SEMANTIC' as const }))
-      .filter(row => Number.isFinite(row.score) && row.score >= 0.35);
-  } catch (error) {
-    console.warn('⚠️ Memória semântica indisponível; busca textual preservada.', error instanceof Error ? error.message : error);
-    return [];
   }
 }

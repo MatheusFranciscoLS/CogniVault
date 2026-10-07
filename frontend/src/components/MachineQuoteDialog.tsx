@@ -14,7 +14,9 @@ import {
   machineVariantNote,
   machineQuoteFileName,
   machineQuoteReference,
+  parseInputDate,
   parseMoneyInput,
+  todayInputValue,
   type MachineQuoteFields,
 } from '../lib/machine-quote';
 import type { SheetEquipment } from '../lib/machine-sheet';
@@ -44,10 +46,11 @@ export default function MachineQuoteDialog({
   allMachines: ListedMachine[];
   onClose: () => void;
 }) {
-  // Foto da própria lista (todas as máquinas vigentes têm); só sem ela vale a do Portal, pelo PNC ou pelo nome do modelo.
+  // Foto do PORTAL primeiro (maior qualidade; dono, 2026-10-07), pelo PNC e, sem ela, pelo nome do modelo. A da própria
+  // lista, que toda máquina vigente tem, fica de reserva.
   const listPhoto = machine.hasPhoto ? machinePhotoUrl(machine.pnc) : null;
-  const byName = useMachinePhoto(machine.model, !listPhoto && portalSettled && !portal?.imageUrl);
-  const photoUrl = listPhoto ?? portal?.imageUrl ?? byName.data ?? null;
+  const byName = useMachinePhoto(machine.model, portalSettled && !portal?.imageUrl);
+  const photoUrl = portal?.imageUrl ?? byName.data ?? listPhoto;
   const ids = useId();
   const [customer, setCustomer] = useState('');
   const [priceText, setPriceText] = useState(() => String(machine.listPrice).replace('.', ','));
@@ -60,6 +63,9 @@ export default function MachineQuoteDialog({
   const [highlight, setHighlight] = useState(() => defaultHighlight(machine.application));
   const [typedEquipment, setTypedEquipment] = useState<boolean | null>(null);
   const [includePhoto, setIncludePhoto] = useState(true);
+  // A data do orçamento é a da negociação (dono, 2026-10-07): começa em hoje e a validade de 20 dias conta dela.
+  const [dateText, setDateText] = useState(() => todayInputValue());
+  const quoteDate = parseInputDate(dateText);
   const [busy, setBusy] = useState(false);
 
   const variant = machineVariantNote(machine, allMachines);
@@ -69,7 +75,7 @@ export default function MachineQuoteDialog({
   const includeEquipment = typedEquipment ?? defaultIncludeEquipment(machine, equipment);
 
   const download = async () => {
-    if (price === null) return;
+    if (price === null || quoteDate === null) return;
     setBusy(true);
     try {
       const [{ jsPDF }, autoTable, { buildMachineQuotePdf }, { loadStoreLogo, loadProductImage }, { attendantNameFromEmail }] = await Promise.all([
@@ -90,6 +96,7 @@ export default function MachineQuoteDialog({
         fields,
         attendantName: attendantNameFromEmail(email) || undefined,
         variant,
+        now: quoteDate,
         logo: await loadStoreLogo(),
         photo: includePhoto && photoUrl ? await loadProductImage(photoUrl) : null,
       }).save(machineQuoteFileName(machine));
@@ -122,6 +129,10 @@ export default function MachineQuoteDialog({
             <span className="block text-sm font-normal text-muted-foreground">
               {price === null ? 'Digite um valor maior que zero.' : `${formatBRL(price)} · preço da lista ${formatBRL(machine.listPrice)}`}
             </span>
+          </label>
+          <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-data`}>
+            Data do orçamento
+            <Input id={`${ids}-data`} type="date" value={dateText} onChange={event => setDateText(event.target.value)} aria-invalid={quoteDate === null} />
           </label>
           <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-pagamento`}>
             Condição de pagamento
@@ -175,7 +186,7 @@ export default function MachineQuoteDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => void download()} disabled={price === null || busy}>
+          <Button onClick={() => void download()} disabled={price === null || quoteDate === null || busy}>
             <FileText className="size-5" aria-hidden="true" /> {busy ? 'Gerando…' : 'Baixar orçamento em PDF'}
           </Button>
         </DialogFooter>

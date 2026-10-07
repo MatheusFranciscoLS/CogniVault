@@ -22,11 +22,11 @@ function measure(dataUrl: string): Promise<{ width: number; height: number }> {
 }
 
 /**
- * Foto de um produto para o PDF: baixa a imagem, reduz para no máximo `maxWidth` px e grava em JPEG sobre fundo branco.
+ * Foto de um produto para o PDF: baixa a imagem, reduz para no máximo `maxWidth` px (800: a foto do Portal vem com mais de 2 MB e a do orçamento precisa ficar nítida) e grava em JPEG sobre fundo branco.
  * O PNG da Husqvarna passa de 2 MB e é transparente; assim o PDF cresce uns 50 KB e a foto não vira um quadrado preto.
  * Só aceita https. Devolve `null` se não carregar (rede, CDN fora): o orçamento sai sem a foto, nunca falha por ela.
  */
-export async function loadProductImage(url: string, maxWidth = 640): Promise<PdfImage | null> {
+export async function loadProductImage(url: string, maxWidth = 800): Promise<PdfImage | null> {
   // https (CDN da Husqvarna) ou o caminho da própria API (foto da lista, com o cookie da sessão).
   if (!/^https:\/\//i.test(url) && !url.startsWith('/api/')) return null;
   const controller = new AbortController();

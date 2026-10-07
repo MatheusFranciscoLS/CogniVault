@@ -12,7 +12,9 @@ import {
   defaultIncludeEquipment,
   machineQuoteFileName,
   machineQuoteReference,
+  parseInputDate,
   parseMoneyInput,
+  todayInputValue,
   suggestComplement,
   type MachineQuoteFields,
 } from './machine-quote';
@@ -259,5 +261,28 @@ describe('fichas que vêm da lista (transmissão, velocidade, área do robô)', 
   it('o robô diz a área de trabalho e a inclinação máxima', () => {
     const robo = { ...rocadeira, model: 'AM9', category: 'AUTOMOWER', technology: 'ROBÓTICA', specs: [{ label: 'Área de trabalho', value: '1.500 m²' }, { label: 'Inclinação máxima', value: '22 ° (40%)' }, { label: 'Peso', value: '9 kg' }] };
     expect(machineQuoteDescription(robo)).toBe('Automower, modelo AM9, área de trabalho de até 1.500 m², inclinação máxima de 22 ° (40%), peso de 9 kg.');
+  });
+});
+
+describe('data do orçamento', () => {
+  it('hoje pela data local, com zero à esquerda', () => {
+    expect(todayInputValue(new Date(2026, 9, 7, 23, 59))).toBe('2026-10-07');
+    expect(todayInputValue(new Date(2026, 0, 3, 0, 5))).toBe('2026-01-03');
+  });
+
+  it('o texto do campo vira data ao meio-dia local, sem recuar um dia', () => {
+    const data = parseInputDate('2026-10-15');
+    expect(data?.getDate()).toBe(15);
+    expect(data?.getHours()).toBe(12);
+    expect(parseInputDate('2026-02-30')).toBeNull();
+    expect(parseInputDate('15/10/2026')).toBeNull();
+    expect(parseInputDate('')).toBeNull();
+  });
+
+  it('o PDF traz a data negociada e a validade de 20 dias contada dela', () => {
+    const doc = buildMachineQuotePdf({ doc: new jsPDF('p', 'pt', 'a4'), autoTable, machine: giroZero, equipment: null, fields, now: parseInputDate('2026-10-15') as Date });
+    const texto = new TextDecoder('latin1').decode(doc.output('arraybuffer')).replace(/\\([()])/g, '$1');
+    expect(texto).toContain('Limeira, 15 de outubro de 2026');
+    expect(texto).toContain('20 dias (até 04/11/2026)');
   });
 });

@@ -168,8 +168,9 @@ usuários** ("todos podem visualizar isso").
   ~2,7 MB no total), gravadas pelo importador na mesma transação da lista, e servidas por `GET /api/machine-list/:pnc/photo`
   só para quem está logado. **Nenhuma imagem, nem o .html, entra no repositório (público) nem nos testes**: o aviso de
   propriedade intelectual da Husqvarna segue valendo. Os testes usam máquinas e uma foto inventadas ("RIFF"). O orçamento
-  usa a foto da lista primeiro e o Portal como reserva. Subir o código antes de reimportar é seguro: sem foto no banco, a
-  gaveta cai nas fotos do Portal (139 de 151).
+  usa a foto do PORTAL primeiro (maior qualidade; dono, 2026-10-07: "utilize todas as fotos do Portal"), pelo PNC e depois pelo
+  nome do modelo, e a da lista só como reserva (hoje 139 pelo Portal e 12 pela lista, de 151). A foto é reduzida a 800 px em JPEG. Sem reimportar a lista, as 12 máquinas que o Portal não
+  tem ficam sem foto.
 - **Fichas que o importador agora lê, por categoria** (`buildCategorySpecs`): transmissão e velocidade máxima só de giro zero,
   trator, rider e cortador de grama (em motosserra o mesmo campo é velocidade da corrente, 174,9 km/h); área de trabalho e
   inclinação só de Automower. **Peso continua fora** (decisão do dono). Os testes usam máquinas inventadas.
@@ -206,7 +207,7 @@ usuários** ("todos podem visualizar isso").
   "Ref.: Orçamento <tipo> Husqvarna <modelo>", uma linha "01-) <tipo>, modelo X equipado com motor 4 tempos de ..., potência ...,
   tanque ..., largura de corte ...", destaque "Recomendado para...", Preço, Condição de Pagamento, Prazo de Entrega, Validade 20 dias,
   Observação, ATT. Código em `lib/machine-quote.ts` + `MachineQuoteDialog`. A descrição sai da ficha da lista; o que ela não traz
-  (transmissão, câmbios, velocidade) o atendente digita em "Complemento". A **foto** vem do Portal pelo PNC (`imageUrl` do detalhe, só https de domínio Husqvarna) e é reduzida a 640 px em JPEG no navegador (`loadProductImage`: o PNG original passa de 2 MB); sem foto, o orçamento sai sem ela. **O preço sugerido é o da lista mas é do atendente**: nos
+  (transmissão, câmbios, velocidade) o atendente digita em "Complemento". A **data do orçamento** é editável (começa em hoje; a validade de 20 dias conta dela), como a negociação pede. A **foto** vem do Portal pelo PNC (`imageUrl` do detalhe, só https de domínio Husqvarna) e é reduzida a 640 px em JPEG no navegador (`loadProductImage`: o PNG original passa de 2 MB); sem foto, o orçamento sai sem ela. **O preço sugerido é o da lista mas é do atendente**: nos
   orçamentos reais o valor negociado quase nunca é o da lista (por isso o campo é editável). Os preços dos orçamentos reais NÃO entram aqui: é dado da loja. Sem PNC,
   sem código. Os orçamentos reais em Word têm dado de cliente: ficam em Downloads, nunca no repositório.
 - **PNC da lista com `BR` (36 de 151 máquinas, ex.: `970743401BR`) é o MESMO artigo de 9 dígitos** (`portalPnc`): sem tirar o `BR`,
