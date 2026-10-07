@@ -4,18 +4,21 @@ import { FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import type { ListedMachine } from '../lib/machine-list';
+import { machinePhotoUrl, type ListedMachine } from '../lib/machine-list';
 import {
   MACHINE_QUOTE_DEFAULTS,
   defaultHighlight,
+  defaultIncludeEquipment,
+  suggestComplement,
   machineQuoteDescription,
+  machineVariantNote,
   machineQuoteFileName,
   machineQuoteReference,
   parseMoneyInput,
   type MachineQuoteFields,
 } from '../lib/machine-quote';
 import type { SheetEquipment } from '../lib/machine-sheet';
-import type { MachinePortalData } from '../lib/use-machine-portal';
+import { useMachinePhoto, type MachinePortalData } from '../lib/use-machine-portal';
 import { formatBRL } from '../lib/quote-message';
 
 const TEXTAREA_CLASS = 'w-full rounded-md border border-input bg-background px-3 py-2 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/60';
@@ -27,28 +30,43 @@ const TEXTAREA_CLASS = 'w-full rounded-md border border-input bg-background px-3
 export default function MachineQuoteDialog({
   machine,
   equipment,
-  photoUrl,
+  portal,
+  portalSettled,
+  allMachines,
   onClose,
 }: {
   machine: ListedMachine;
   equipment: SheetEquipment;
-  photoUrl: MachinePortalData['imageUrl'] | undefined;
+  portal: MachinePortalData | undefined;
+  /** O Portal já respondeu (ou falhou) para o PNC da lista; só então vale procurar a foto pelo nome do modelo. */
+  portalSettled: boolean;
+  /** A lista inteira, para saber se o modelo tem versões (sabre de 13 ou de 20 polegadas). */
+  allMachines: ListedMachine[];
   onClose: () => void;
 }) {
+  // Foto da própria lista (todas as máquinas vigentes têm); só sem ela vale a do Portal, pelo PNC ou pelo nome do modelo.
+  const listPhoto = machine.hasPhoto ? machinePhotoUrl(machine.pnc) : null;
+  const byName = useMachinePhoto(machine.model, !listPhoto && portalSettled && !portal?.imageUrl);
+  const photoUrl = listPhoto ?? portal?.imageUrl ?? byName.data ?? null;
   const ids = useId();
   const [customer, setCustomer] = useState('');
   const [priceText, setPriceText] = useState(() => String(machine.listPrice).replace('.', ','));
   const [payment, setPayment] = useState<string>(MACHINE_QUOTE_DEFAULTS.payment);
   const [leadTime, setLeadTime] = useState<string>(MACHINE_QUOTE_DEFAULTS.leadTime);
   const [observation, setObservation] = useState<string>(MACHINE_QUOTE_DEFAULTS.observation);
-  const [complement, setComplement] = useState('');
+  // null = o atendente ainda não mexeu: vale a sugestão do Portal (que pode chegar depois de o diálogo abrir).
+  const [typedComplement, setTypedComplement] = useState<string | null>(null);
+  const complement = typedComplement ?? suggestComplement(machine, portal);
   const [highlight, setHighlight] = useState(() => defaultHighlight(machine.application));
-  const [includeEquipment, setIncludeEquipment] = useState(false);
+  const [typedEquipment, setTypedEquipment] = useState<boolean | null>(null);
   const [includePhoto, setIncludePhoto] = useState(true);
   const [busy, setBusy] = useState(false);
 
+  const variant = machineVariantNote(machine, allMachines);
   const price = parseMoneyInput(priceText);
   const hasEquipment = (equipment?.included.length ?? 0) > 0;
+  // Roçadeira (cabeçote, cinto, lâmina) lista o que acompanha por padrão, como no modelo em Word; as outras só se marcar.
+  const includeEquipment = typedEquipment ?? defaultIncludeEquipment(machine, equipment);
 
   const download = async () => {
     if (price === null) return;
@@ -71,6 +89,7 @@ export default function MachineQuoteDialog({
         equipment,
         fields,
         attendantName: attendantNameFromEmail(email) || undefined,
+        variant,
         logo: await loadStoreLogo(),
         photo: includePhoto && photoUrl ? await loadProductImage(photoUrl) : null,
       }).save(machineQuoteFileName(machine));
@@ -119,16 +138,16 @@ export default function MachineQuoteDialog({
           <textarea
             id={`${ids}-complemento`}
             value={complement}
-            onChange={event => setComplement(event.target.value)}
+            onChange={event => setTypedComplement(event.target.value)}
             rows={2}
             maxLength={600}
-            placeholder="Ex.: com transmissão Hidrostática, 2 câmbios e 13 estágios de altura. Velocidade máxima 16,1 km/h"
+            placeholder="O que a lista não traz: transmissão, altura de corte, velocidade máxima, área recomendada"
             className={TEXTAREA_CLASS}
           />
         </label>
 
         <p className="rounded-md bg-secondary px-3 py-2 text-base leading-7 text-secondary-foreground">
-          <span className="font-medium">01-)</span> {machineQuoteDescription(machine, complement)}
+          <span className="font-medium">01-)</span> {machineQuoteDescription(machine, complement, variant)}
         </p>
 
         <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-destaque`}>
@@ -149,7 +168,7 @@ export default function MachineQuoteDialog({
 
         {hasEquipment && (
           <label className="flex items-center gap-2 text-base">
-            <input type="checkbox" checked={includeEquipment} onChange={event => setIncludeEquipment(event.target.checked)} className="size-4" />
+            <input type="checkbox" checked={includeEquipment} onChange={event => setTypedEquipment(event.target.checked)} className="size-4" />
             Listar o que acompanha a máquina ({equipment?.included.length} itens do Portal)
           </label>
         )}

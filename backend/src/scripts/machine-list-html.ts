@@ -4,8 +4,9 @@
 // <script id="catalogData">, e aqui só se lê a lista `produtos` (as peças ficam lá). Função pura:
 // recebe o texto, devolve o que leu e o que recusou; quem grava é o importador.
 //
-// O arquivo traz imagens em base64 e um aviso de propriedade intelectual: **nenhuma imagem sai
-// daqui**, só texto e número. A ficha técnica é uma seleção conservadora: o arquivo é sujo (já
+// O arquivo traz imagens em base64 e um aviso de propriedade intelectual. O leitor devolve a foto de cada
+// máquina como bytes (dono, 2026-10-07: "cada máquina vigente tem que ter foto no orçamento"); quem grava é o
+// importador, **no banco privado**, nunca no repositório (público). A ficha técnica é uma seleção conservadora: o arquivo é sujo (já
 // vimos "rotação" com o valor de potência e "peso" com 6500), então valor com cara de erro fica
 // de fora em vez de aparecer na tela do balcão como se fosse verdade.
 import { normalizeIdentifier } from '../utils/normalize';
@@ -32,7 +33,11 @@ export type ListedMachine = {
   sortOrder: number;
   specs: MachineSpec[];
   details: string | null;
+  /** Foto da própria lista (webp). Só o importador a lê; nunca vai para a tela da lista nem para o repositório. */
+  photo: MachinePhoto | null;
 };
+
+export type MachinePhoto = { mime: string; data: Buffer };
 
 export type RejectedMachine = { pnc: string; reason: 'SEM_PNC' | 'SEM_MODELO' | 'PRECO_INVALIDO' | 'PNC_REPETIDO' };
 
@@ -112,6 +117,53 @@ function bareNumberValue(text: string): number {
   return Number(/^\d{1,3}(?:\.\d{3})+$/.test(text) ? text.replace(/\./g, '') : text.replace(',', '.'));
 }
 
+const RIDE_ON = ['GIRO ZERO', 'TRATOR', 'RIDER', 'CORTADOR DE GRAMA'];
+
+const upper = (text: string | null) => (text ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+
+/**
+ * Campos que só valem em certas categorias, porque no arquivo o mesmo campo muda de sentido (velocidade de
+ * corrente de motosserra em km/h, "produtividade" sem unidade): transmissão e velocidade de quem se senta para
+ * cortar grama; área e inclinação do robô. Valor com cara de erro fica de fora.
+ */
+export function buildCategorySpecs(row: Record<string, unknown>, category: string | null): MachineSpec[] {
+  const specs: MachineSpec[] = [];
+  const kind = upper(category);
+
+  if (RIDE_ON.includes(kind)) {
+    const transmission = cleanText(row.transmissao);
+    // "Tuff Torq  K46 - Hidrostática" -> uma só vez cada espaço; valor numérico solto ("0,51") não é transmissão.
+    if (transmission && /[A-Za-zÀ-ú]{4}/.test(transmission)) specs.push({ label: 'Transmissão', value: transmission });
+    const speed = cleanText(row.velocidade_max_kmh);
+    const bare = speed?.replace(/\s*km\/h$/i, '').replace(',', '.');
+    if (speed && bare && /^\d{1,2}(?:\.\d+)?$/.test(bare) && Number(bare) > 0 && Number(bare) <= 30) {
+      specs.push({ label: 'Velocidade máxima', value: `${bare.replace('.', ',')} km/h` });
+    }
+  }
+
+  if (kind.startsWith('AUTOMOWER')) {
+    const area = cleanText(row.capacidade_maxima_area);
+    if (area && /\d\s*m²/.test(area)) specs.push({ label: 'Área de trabalho', value: area });
+    const slope = cleanText(row.inclinacao_max_graus);
+    if (slope && /\d/.test(slope)) specs.push({ label: 'Inclinação máxima', value: slope });
+  }
+  return specs;
+}
+
+const PHOTO_TYPES = ['image/webp', 'image/png', 'image/jpeg'];
+const MAX_PHOTO_BYTES = 400_000;
+
+/** Foto em data URL do dicionário `images` do arquivo, ou null se não for imagem comum e de tamanho razoável. */
+export function readPhoto(images: unknown, key: unknown): MachinePhoto | null {
+  if (!images || typeof images !== 'object' || typeof key !== 'string' || !key) return null;
+  const value = (images as Record<string, unknown>)[key];
+  if (typeof value !== 'string') return null;
+  const match = /^data:(image\/[a-z+.-]+);base64,([A-Za-z0-9+/=\s]+)$/i.exec(value);
+  if (!match || !PHOTO_TYPES.includes(match[1].toLowerCase())) return null;
+  const data = Buffer.from(match[2].replace(/\s+/g, ''), 'base64');
+  return data.length > 0 && data.length <= MAX_PHOTO_BYTES ? { mime: match[1].toLowerCase(), data } : null;
+}
+
 export function buildSpecs(row: Record<string, unknown>): MachineSpec[] {
   const specs: MachineSpec[] = [];
   for (const rule of SPEC_RULES) {
@@ -128,7 +180,7 @@ export function buildSpecs(row: Record<string, unknown>): MachineSpec[] {
     }
     specs.push({ label: rule.label, value });
   }
-  return specs;
+  return [...specs, ...buildCategorySpecs(row, cleanText(row.categoria))];
 }
 
 type ListUpdate = { pnc: string; timestamp: string; wasNew: boolean; priceBefore: number | null; priceAfter: number | null };
@@ -221,6 +273,7 @@ export function parseMachineListHtml(html: string): MachineList {
       sortOrder: 0,
       specs: buildSpecs(row),
       details: htmlToPlainLines(row.descricao_detalhada),
+      photo: readPhoto(catalog.images, row.img),
     });
     displayOrders.set(normalizedPnc, Number(cleanText(row.ordem_exibicao)) || 9999);
   }

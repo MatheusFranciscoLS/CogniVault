@@ -162,8 +162,16 @@ usuários** ("todos podem visualizar isso").
   `--apply --expect-count=<N>`). Leitor puro em `scripts/machine-list-html.ts`. Rota
   `GET /api/machine-list` (qualquer usuário logado). Tela: `MachineListPanel` + `MachineListDetail`,
   lógica de filtro/ordem em `lib/machine-list.ts`.
-- **Só texto e número entram**; nenhuma imagem da lista (aviso de propriedade intelectual; o repositório
-  é público). Os testes usam máquinas inventadas.
+- **Foto da máquina (2026-10-07, pedido do dono: "cada máquina vigente tem que ter foto no orçamento").** A lista traz uma
+  foto (webp, até ~53 KB) para cada uma das 151 máquinas, e elas vão para o banco PRIVADO (`MachineListingPhoto`, RLS ligado,
+  ~2,7 MB no total), gravadas pelo importador na mesma transação da lista, e servidas por `GET /api/machine-list/:pnc/photo`
+  só para quem está logado. **Nenhuma imagem, nem o .html, entra no repositório (público) nem nos testes**: o aviso de
+  propriedade intelectual da Husqvarna segue valendo. Os testes usam máquinas e uma foto inventadas ("RIFF"). O orçamento
+  usa a foto da lista primeiro e o Portal como reserva. Subir o código antes de reimportar é seguro: sem foto no banco, a
+  gaveta cai nas fotos do Portal (139 de 151).
+- **Fichas que o importador agora lê, por categoria** (`buildCategorySpecs`): transmissão e velocidade máxima só de giro zero,
+  trator, rider e cortador de grama (em motosserra o mesmo campo é velocidade da corrente, 174,9 km/h); área de trabalho e
+  inclinação só de Automower. **Peso continua fora** (decisão do dono). Os testes usam máquinas inventadas.
 - **A ficha técnica é uma seleção conservadora** porque o arquivo é sujo (já vimos "rotação" com o valor
   de potência e "peso" 6500). Unidade só entra em número puro e valor absurdo fica de fora.
 - "Acompanha / não acompanha" vem do Portal Husqvarna por PNC, ao abrir a gaveta

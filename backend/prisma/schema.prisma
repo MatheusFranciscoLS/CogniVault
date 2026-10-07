@@ -27,6 +27,7 @@ model Tenant {
   commercialImportRuns            CommercialImportRun[]
   createdAt                       DateTime                         @default(now())
   MachineListing                  MachineListing[]
+  MachineListingPhoto             MachineListingPhoto[]
 }
 
 enum Role {
@@ -248,6 +249,20 @@ model Part {
 /// Máquinas da lista de preços da Husqvarna (aba "Tabela de preços"). É um ESPELHO da lista
 /// vigente: a importação troca tudo, então máquina que saiu da lista sai daqui. Só texto e
 /// número — nenhuma imagem da lista entra (o arquivo traz aviso de propriedade intelectual).
+/// Foto de cada máquina da lista vigente (a da própria lista da Husqvarna), servida só a quem está logado e usada no
+/// orçamento da máquina. NUNCA vai para o repositório: só existe no banco, gravada pelo importador.
+model MachineListingPhoto {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  normalizedPnc String
+  mime          String
+  data          Bytes
+  importedAt    DateTime @default(now())
+
+  @@unique([tenantId, normalizedPnc])
+}
+
 model MachineListing {
   id            String   @id @default(uuid())
   tenantId      String

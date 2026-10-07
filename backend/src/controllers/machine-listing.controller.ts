@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../config/prisma';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { normalizeIdentifier } from '../utils/normalize';
 
 /**
  * Aba "Tabela de preços": as máquinas da lista vigente da Husqvarna.
@@ -39,11 +40,19 @@ export class MachineListingController {
         },
       });
 
+      // Quais máquinas têm foto (sem trazer os bytes): a tela só pede a foto de quem tem.
+      const photos = await prisma.machineListingPhoto.findMany({
+        where: { tenantId: req.user.tenantId },
+        select: { normalizedPnc: true },
+        take: 2000,
+      });
+      const withPhoto = new Set(photos.map(photo => photo.normalizedPnc));
+
       // A data é a mesma em todas as linhas (uma importação troca tudo).
       res.set('Cache-Control', 'private, max-age=300');
       res.json({
         listDate: rows[0]?.listDate ?? null,
-        machines: rows.map(({ listDate: _listDate, ...machine }) => machine),
+        machines: rows.map(({ listDate: _listDate, ...machine }) => ({ ...machine, hasPhoto: withPhoto.has(normalizeIdentifier(machine.pnc)) })),
       });
     } catch (error) {
       // Banco fora não pode derrubar o processo (unhandledRejection desliga o servidor).
@@ -51,6 +60,35 @@ export class MachineListingController {
       res.set('Cache-Control', 'private, no-store');
       res.status(503).json({ error: 'Tabela de preços temporariamente indisponível.' });
     }
+  }
+}
+
+/**
+ * Foto da máquina para o orçamento (a da própria lista da Husqvarna). Só para quem está logado; os bytes vêm do banco
+ * privado e são imagem comum (webp/png/jpeg), nunca texto, então não há o que executar no navegador.
+ */
+export async function machinePhoto(req: AuthenticatedRequest, res: Response): Promise<void> {
+  if (!req.user) return;
+  const key = normalizeIdentifier(String(req.params.pnc ?? '').slice(0, 40));
+  if (!key) {
+    res.status(400).json({ error: 'PNC inválido.' });
+    return;
+  }
+
+  try {
+    const photo = await prisma.machineListingPhoto.findUnique({
+      where: { tenantId_normalizedPnc: { tenantId: req.user.tenantId, normalizedPnc: key } },
+      select: { mime: true, data: true },
+    });
+    if (!photo) {
+      res.status(404).json({ error: 'Esta máquina não tem foto na lista.' });
+      return;
+    }
+    res.set({ 'Content-Type': photo.mime, 'Cache-Control': 'private, max-age=86400', 'X-Content-Type-Options': 'nosniff' });
+    res.send(Buffer.from(photo.data));
+  } catch (error) {
+    console.error('❌ Erro ao ler a foto da máquina:', error);
+    res.status(503).json({ error: 'Foto temporariamente indisponível.' });
   }
 }
 

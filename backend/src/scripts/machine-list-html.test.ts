@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildSpecs, htmlToPlainLines, parseMachineListHtml } from './machine-list-html';
+import { buildCategorySpecs, buildSpecs, htmlToPlainLines, parseMachineListHtml, readPhoto } from './machine-list-html';
 
 // Fixture INVENTADA (códigos e preços de mentira): a lista real tem aviso de propriedade intelectual e
 // nunca vai para o repositório. O formato é o que o arquivo real usa.
@@ -169,4 +169,48 @@ test('arquivo sem a lista de máquinas ou sem data é recusado inteiro', () => {
   assert.throws(() => parseMachineListHtml(page({ date: '2026-10-05T00:00:00Z' })), /produtos/);
   assert.throws(() => parseMachineListHtml(page({ produtos: [] })), /data/);
   assert.throws(() => parseMachineListHtml('<html></html>'), /catalogData/);
+});
+
+// "UklGRg==" é só o começo de um webp; o leitor não decodifica a imagem, só confere o tipo e o tamanho.
+const WEBP = 'data:image/webp;base64,UklGRg==';
+
+test('a foto da máquina vem do dicionário de imagens pela chave img, só se for imagem comum', () => {
+  const list = parseMachineListHtml(page({
+    date: '2026-10-05T20:57:26.086Z',
+    images: { aaa: WEBP, ruim: 'data:text/html;base64,PGI+', grande: `data:image/png;base64,${'A'.repeat(600_000)}` },
+    produtos: [
+      { ...base, pnc: '900000001', img: 'aaa' },
+      { ...base, pnc: '900000002', img: 'ruim' },
+      { ...base, pnc: '900000003', img: 'grande' },
+      { ...base, pnc: '900000004', img: 'sumiu' },
+      { ...base, pnc: '900000005' },
+    ],
+    updates: [],
+  }));
+  const byPnc = new Map(list.machines.map(machine => [machine.pnc, machine.photo]));
+  assert.equal(byPnc.get('900000001')?.mime, 'image/webp');
+  assert.equal(byPnc.get('900000001')?.data.subarray(0, 4).toString('latin1'), 'RIFF');
+  assert.equal(byPnc.get('900000002'), null); // HTML disfarçado de imagem
+  assert.equal(byPnc.get('900000003'), null); // grande demais
+  assert.equal(byPnc.get('900000004'), null);
+  assert.equal(byPnc.get('900000005'), null);
+  assert.equal(readPhoto(undefined, 'x'), null);
+});
+
+test('transmissão e velocidade só valem para quem se senta para cortar grama; área e inclinação, para o robô', () => {
+  const giro = buildCategorySpecs({ transmissao: 'Hydro-Gear ZT-2200 - Hidrostática', velocidade_max_kmh: '10.5 km/h' }, 'GIRO ZERO');
+  assert.deepEqual(giro, [{ label: 'Transmissão', value: 'Hydro-Gear ZT-2200 - Hidrostática' }, { label: 'Velocidade máxima', value: '10,5 km/h' }]);
+
+  // velocidade sem unidade, como o arquivo traz em alguns
+  assert.deepEqual(buildCategorySpecs({ velocidade_max_kmh: '19,3' }, 'GIRO ZERO'), [{ label: 'Velocidade máxima', value: '19,3 km/h' }]);
+
+  // motosserra: "velocidade" é da corrente (174,9 km/h) e transmissão é o tipo de corrente: nada disso entra
+  assert.deepEqual(buildCategorySpecs({ transmissao: 'Corrente H37, passo 3/8"', velocidade_max_kmh: '72 km/h' }, 'MOTOSSERRA'), []);
+  // e velocidade absurda, mesmo num giro zero, fica de fora
+  assert.deepEqual(buildCategorySpecs({ velocidade_max_kmh: '236 km/h' }, 'GIRO ZERO'), []);
+  // transmissão que é só um número não é transmissão
+  assert.deepEqual(buildCategorySpecs({ transmissao: '0,51' }, 'TRATOR'), []);
+
+  const robo = buildCategorySpecs({ capacidade_maxima_area: '1.500 m²', inclinacao_max_graus: '22 ° (40%)', transmissao: 'x' }, 'AUTOMOWER LINHA EPOS');
+  assert.deepEqual(robo, [{ label: 'Área de trabalho', value: '1.500 m²' }, { label: 'Inclinação máxima', value: '22 ° (40%)' }]);
 });
