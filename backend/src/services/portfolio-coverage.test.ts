@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { extractCommercialModels, hasStrongCommercialModelShape, portalDocumentMatchesModel, portalResultMatchesModel, rankPortfolioCoverageGaps, summarizePortfolioCoverage } from './portfolio-coverage';
+import { extractCommercialModels, hasStrongCommercialModelShape, modelKeyVariants, portalDocumentMatchesModel, stripPortalTitleNoise, portalResultMatchesModel, rankPortfolioCoverageGaps, summarizePortfolioCoverage } from './portfolio-coverage';
 
 test('extrai múltiplos modelos de aplicação comercial sem tratar a planilha como prova técnica', () => {
   assert.deepEqual(extractCommercialModels('ROC.236R/143RII'), ['236R', '143RII']);
@@ -64,7 +64,7 @@ test('prioriza lacunas e preserva evidência e diagnóstico da homologação', (
     { model: '143RII', normalizedModel: '143RII', status: 'LOCAL_IPL', source: '143RII.pdf', pnc: null, commercialSignals: 20, commercialEvidence: ['ROC.143RII'] },
     {
       model: 'Z248F', normalizedModel: 'Z248F', status: 'UNVERIFIED', source: null, pnc: null,
-      commercialSignals: 8, commercialEvidence: ['TRATOR Z 248F'], portalVerification: 'INCONCLUSIVE',
+      commercialSignals: 8, commercialEvidence: ['TRATOR Z 248F'], commercialCategory: 'TRATOR', portalVerification: 'INCONCLUSIVE',
       portalVerificationNote: 'Portal indisponível durante a consulta.',
     },
     {
@@ -78,12 +78,12 @@ test('prioriza lacunas e preserva evidência e diagnóstico da homologação', (
   assert.deepEqual(gaps, [
     {
       model: 'LC353AWD', normalizedModel: 'LC353AWD', status: 'UNVERIFIED', commercialSignals: 12,
-      commercialEvidence: ['LC353AWD/LC353V'], portalVerification: 'NO_EXACT_MATCH',
+      commercialEvidence: ['LC353AWD/LC353V'], commercialCategory: null, portalVerification: 'NO_EXACT_MATCH',
       portalVerificationNote: 'Nenhum produto exato retornado.',
     },
     {
       model: 'Z248F', normalizedModel: 'Z248F', status: 'UNVERIFIED', commercialSignals: 8,
-      commercialEvidence: ['TRATOR Z 248F'], portalVerification: 'INCONCLUSIVE',
+      commercialEvidence: ['TRATOR Z 248F'], commercialCategory: 'TRATOR', portalVerification: 'INCONCLUSIVE',
       portalVerificationNote: 'Portal indisponível durante a consulta.',
     },
   ]);
@@ -102,4 +102,28 @@ test('documento de IPL não aceita número colado, código de outro modelo na fr
   assert.equal(portalDocumentMatchesModel('IPL, PW 235R, 2006-01', '235R'), false);
   assert.equal(portalDocumentMatchesModel('Manual do operador, Husqvarna, 120i, 2017-01', '120I'), false);
   assert.equal(portalDocumentMatchesModel('IPL, Husqvarna, 120i', 'AB'), false);
+});
+
+test('o que acompanha o produto no título do Portal não reprova o modelo, mas outro modelo continua reprovado', () => {
+  assert.equal(portalResultMatchesModel('HUSQVARNA Cortador de Grama Husqvarna a bateria LC137i (sem bateria e carregador)', 'LC137I'), true);
+  assert.equal(portalResultMatchesModel('HUSQVARNA Motosserra Husqvarna a bateria 240i (sem bateria e carregador)', '240I'), true);
+  assert.equal(portalResultMatchesModel('HUSQVARNA Roçadeira a bateria Husqvarna 325iR​ (sem carregador e bateria)', '325IR'), true);
+  assert.equal(portalResultMatchesModel('HUSQVARNA Pulverizador manual Husqvarna 301SM 1.5L', '301SM'), true);
+  assert.equal(portalResultMatchesModel('HUSQVARNA Pulverizador costal manual Husqvarna 320SM 20L', '320SM'), true);
+  assert.equal(portalResultMatchesModel('HUSQVARNA Motosserra Husqvarna a bateria 540i XP® (sem bateria e carregador)', '540I'), false);
+  // Outro modelo da mesma família não vale como prova.
+  assert.equal(portalResultMatchesModel('HUSQVARNA 240 e-series', '240I'), false);
+  assert.equal(portalResultMatchesModel('Husqvarna K 540i', '540I'), false);
+  assert.equal(portalResultMatchesModel('HUSQVARNA 543RS', '543R'), false);
+  assert.equal(stripPortalTitleNoise('X 8L'), 'X');
+});
+
+test('número + uma letra aceita a ordem do Portal (750K = K750), e só isso', () => {
+  assert.deepEqual(modelKeyVariants('750K'), ['750K', 'K750']);
+  assert.deepEqual(modelKeyVariants('543R'), ['543R', 'R543']);
+  assert.deepEqual(modelKeyVariants('LC137I'), ['LC137I']);
+  assert.deepEqual(modelKeyVariants('325HE3X'), ['325HE3X']);
+  assert.equal(portalDocumentMatchesModel('IPL, K750, K 750, 2010-02', '750K'), true);
+  assert.equal(portalResultMatchesModel('Husqvarna K 750', '750K'), true);
+  assert.equal(portalResultMatchesModel('PW K 750', '750K'), false); // código curto de outro modelo na frente continua barrado
 });

@@ -256,8 +256,16 @@ manual que olhava sempre os mesmos 8 modelos. O dono não quer subir PDF à mão
   `portalDocumentMatchesModel` exige o modelo inteiro no título, sem número colado (`1120i` não é `120i`) e sem
   código curto de outro modelo na frente (`PW 235R`). Lista estruturada continua ganhando do documento.
   A versão da política do cache subiu para 2 (respostas antigas não conheciam documento).
-- Resultado medido na loja simulada, em 1m40: **17% → 80%** (289 de 362). Os 73 que sobram são de verdade:
-  Automower (`AM…`), bateria, e marcas do grupo (Poulan, McCulloch, Weed Eater, Jonsered).
+- **O título do produto no Portal traz ruído** ("(sem bateria e carregador)", "®", "1.5L"): `stripPortalTitleNoise` tira
+  isso antes de comparar, senão `LC137i` nunca casava com o próprio produto. Outro modelo continua barrado
+  (`240 e-series` não é `240i`, `K 540i` não é `540i`, `543RS` não é `543R`).
+- Duas segundas tentativas, ambas estreitas: o nome comercial completo (`540i` → `540i XP`, só 1 a 3 letras a mais,
+  `commercialNameAlternatives`) e a troca número+uma letra (`750K` = `K750`, `modelKeyVariants`).
+- **Resultado medido na loja simulada: 17% → 84%** (305 de 362). **Correção:** eu havia dito que os que sobravam eram
+  "marcas do grupo"; medindo, os **57** que sobram são: Automower 12 (o Portal BR não tem produto nenhum), roçadeiras 10,
+  tratores 6, cortadores de grama 5, motocultores 4, giro zero 3, e o resto são acessórios Husqvarna que o Portal publica só
+  com manual (bateria BLi, cabeçotes e acoplamentos HA/PA/TA, aparadores ECA/ESA, derriçadeiras 226K). A categoria da
+  lista comercial aparece ao lado de cada modelo na Qualidade.
 
 ## Atendimento e máquinas são UMA tela (a aba Máquinas não existe mais)
 

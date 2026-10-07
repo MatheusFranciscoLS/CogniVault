@@ -5,6 +5,7 @@ import {
   buildPortalCoverageCacheKey,
   isCacheablePortalCoverageOutcome,
   portalAuditToCoverageOutcome,
+  commercialNameAlternatives,
   portalCoverageRequestCacheState,
   resolvePortalCoverageOutcome,
 } from './bounded-portal-coverage.service';
@@ -248,4 +249,11 @@ test('sem produto estruturado, o IPL em documento do Portal conta como fonte e n
 
   // Sem documento, a ausência segue sendo ausência.
   assert.equal(portalAuditToCoverageOutcome(audit({ exactProductCount: 0 })).state, 'NO_EXACT_MATCH');
+});
+
+test('segunda tentativa só com o nome comercial completo do mesmo modelo', () => {
+  assert.deepEqual(commercialNameAlternatives('540i', ['540i XP']), ['540i XP']);
+  assert.deepEqual(commercialNameAlternatives('T540i', ['T540i XP', 'T540i']), ['T540i XP']);
+  // outro modelo não vale: letras demais ou número diferente
+  assert.deepEqual(commercialNameAlternatives('540i', ['540i XPERT', '5400i', 'K 540i']), []);
 });

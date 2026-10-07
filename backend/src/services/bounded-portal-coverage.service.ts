@@ -19,8 +19,10 @@ import {
 
 const PORTAL_COVERAGE_CACHE_SOURCE = 'HUSQVARNA_PORTAL';
 const PORTAL_COVERAGE_CACHE_RESOURCE = 'PORTAL_BR_MODEL_COVERAGE';
-// Versão 2: passou a reconhecer o IPL em documento (PDF) do Portal; respostas da versão 1 não o conheciam.
-const PORTAL_COVERAGE_POLICY_VERSION = 2;
+// Versão 2: passou a reconhecer o IPL em documento (PDF) do Portal.
+// Versão 3: o título do produto deixou de ser reprovado por "(sem bateria e carregador)", "®" e litragem.
+// Versão 4: tenta o nome comercial completo ("540i XP") e a troca número+letra ("750K" = "K750").
+const PORTAL_COVERAGE_POLICY_VERSION = 4;
 // A resposta do Portal sobre "esse modelo tem IPL?" muda em semanas, não em horas.
 const PORTAL_COVERAGE_FRESH_MS = 7 * 24 * 60 * 60 * 1000;
 const PORTAL_COVERAGE_STALE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -147,9 +149,36 @@ function statusFromOutcome(outcome: PortalCoverageVerificationOutcome, current: 
   return current;
 }
 
+const OUTCOME_RANK: Record<PortalVerificationState, number> = {
+  VERIFIED: 3,
+  DOCUMENT_ONLY: 2,
+  NO_IPL: 1,
+  NO_EXACT_MATCH: 0,
+  INCONCLUSIVE: 0,
+  NOT_CHECKED: 0,
+};
+
+/**
+ * Nomes que a lista comercial usa para o MESMO modelo e que valem uma segunda tentativa:
+ * o modelo seguido de 1 a 3 letras ("540i" -> "540i XP"). Qualquer outra coisa é outro modelo.
+ */
+export function commercialNameAlternatives(model: string, evidence: string[]): string[] {
+  const base = normalizeIdentifier(model);
+  if (!base) return [];
+  const found = new Set<string>();
+  for (const text of evidence) {
+    const key = normalizeIdentifier(text);
+    if (key.length > base.length && key.length <= base.length + 3 && key.startsWith(base) && /^[A-Z]+$/.test(key.slice(base.length))) {
+      found.add(text.replace(/\s+/g, ' ').trim());
+    }
+  }
+  return [...found];
+}
+
 export async function resolvePortalCoverageOutcome(
   model: string,
   loader: PortalAuditLoader = auditPortalModel,
+  alternatives: string[] = [],
 ): Promise<CachedPortalCoverageOutcome> {
   const normalizedModel = normalizeIdentifier(model);
   const key = buildPortalCoverageCacheKey(normalizedModel);
@@ -165,8 +194,13 @@ export async function resolvePortalCoverageOutcome(
       staleMs: PORTAL_COVERAGE_STALE_MS,
     },
     async () => {
-      const audit = await loader(model);
-      liveOutcome = portalAuditToCoverageOutcome(audit);
+      let best = portalAuditToCoverageOutcome(await loader(model));
+      for (const alternative of alternatives.slice(0, 2)) {
+        if (best.state === 'VERIFIED') break;
+        const outcome = portalAuditToCoverageOutcome(await loader(alternative));
+        if (OUTCOME_RANK[outcome.state] > OUTCOME_RANK[best.state]) best = outcome;
+      }
+      liveOutcome = best;
 
       // INCONCLUSIVE representa indisponibilidade ou evidência insuficiente.
       // O resultado ainda é devolvido nesta execução, mas não vira verdade
@@ -258,7 +292,11 @@ export async function buildBoundedPortalCoverage(
   const resolved = await mapWithConcurrency(
     candidates,
     options.concurrency ?? 2,
-    candidate => resolvePortalCoverageOutcome(candidate.model),
+    candidate => resolvePortalCoverageOutcome(
+      candidate.model,
+      auditPortalModel,
+      commercialNameAlternatives(candidate.model, candidate.commercialEvidence),
+    ),
   );
 
   const outcomes = new Map(
