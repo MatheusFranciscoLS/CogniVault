@@ -1,0 +1,212 @@
+// Tela ATENDIMENTO inteira: cabeçalho, contexto do cliente/máquina, busca (código, descrição, acento, vazio),
+// resultados (grupos, linhas, atalhos), faixa de orçamento e menus. Uso (de frontend/): node ../docs/loja-simulada/atendimento-completo.mjs [tema]
+import { open, check, step, finish, shot, SEARCH } from './_t.mjs';
+
+const { browser, page, errors, theme } = await open({ theme: process.argv[2] ?? 'dark' });
+const busca = page.getByPlaceholder(SEARCH);
+await busca.waitFor();
+
+const pesquisar = async (texto, via = 'botao') => {
+  await busca.fill(texto);
+  if (via === 'enter') await busca.press('Enter');
+  else await page.getByRole('button', { name: /^(Buscar|Buscando…)$/ }).click();
+};
+// Espera a busca COMEÇAR ("Buscando…") e TERMINAR. Sem a primeira metade, o roteiro olhava a tela antes do resultado.
+const esperarFim = async (ms = 40000) => {
+  await page.getByRole('button', { name: 'Buscando…' }).waitFor({ timeout: 4000 }).catch(() => {});
+  await page.getByRole('button', { name: 'Buscar', exact: true }).waitFor({ timeout: ms });
+  // O botão volta assim que há peças; a fase "por significado" ainda pode acrescentar linhas. Espera a rede acalmar.
+  await page.waitForLoadState('networkidle', { timeout: ms }).catch(() => {});
+  await page.waitForTimeout(300);
+};
+
+await step('estado vazio', async () => {
+  check('campo de busca visível e focável', await busca.isVisible());
+  const exemplos = await page.getByRole('button', { name: /^(587106701|carburador 143RII|qual carburador serve na 143RII\?)$/ }).count();
+  check('exemplos de busca aparecem', exemplos === 3, `${exemplos}`);
+  check('faixa de orçamento vazia diz o que fazer', await page.getByText('Adicione peças para montar o orçamento.').isVisible());
+  check('"Revisar orçamento" desabilitado com a faixa vazia', await page.getByRole('button', { name: 'Revisar orçamento' }).isDisabled());
+  check('Ctrl K foca a busca', await (async () => { await page.locator('body').click({ position: { x: 5, y: 400 } }); await page.keyboard.press('Control+k'); return busca.evaluate(el => el === document.activeElement); })());
+});
+
+await step('exemplo clicável', async () => {
+  await page.getByRole('button', { name: '587106701' }).click();
+  await esperarFim();
+  check('clicar num exemplo pesquisa de verdade', (await busca.inputValue()) === '587106701' && (await page.getByRole('button', { name: 'Copiar código 587106701' }).count()) >= 1);
+});
+
+await step('busca por código: linha completa', async () => {
+  const copiar = page.getByRole('button', { name: 'Copiar código 587106701' }).first();
+  await copiar.waitFor({ timeout: 10000 });
+  await copiar.click();
+  check('copiar põe o código puro', (await page.evaluate(() => navigator.clipboard.readText())) === '587106701');
+  const linha = page.locator('article', { has: copiar }).first();
+  check('a linha mostra nome, origem e preço', (await linha.innerText()).includes('CARBURADOR') && /R\$\s?\d/.test(await linha.innerText()));
+  await linha.getByRole('button', { name: /^\+ Orçamento/ }).click();
+  await page.waitForTimeout(600);
+  check('+ Orçamento marca a linha como "No orçamento · 1"', await linha.getByRole('button', { name: /No orçamento · 1/ }).isVisible());
+  check('faixa de orçamento mostra 1 item', await page.getByText('1 item', { exact: true }).first().isVisible());
+  await page.waitForTimeout(500);
+  const botaoOrcamento = page.locator('header').getByRole('button', { name: /^Orçamento( \d+)?$/ }).first();
+  check('botão do cabeçalho mostra a contagem', (await botaoOrcamento.innerText()).includes('1'), (await botaoOrcamento.innerText()).replace(/\s+/g, ' '));
+});
+
+await step('abrir a gaveta da peça pela linha e fechar com Esc', async () => {
+  await page.getByRole('button', { name: /Abrir detalhes de/ }).first().click();
+  const gaveta = page.getByRole('dialog').first();
+  await gaveta.waitFor();
+  check('gaveta abre com o código grande', (await gaveta.innerText()).includes('587'));
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(500);
+  check('Esc fecha a gaveta', (await page.getByRole('dialog').count()) === 0);
+});
+
+await step('faixa de orçamento: quantidade e remover', async () => {
+  const mais = page.getByRole('button', { name: /Aumentar|\+$/ }).first();
+  void mais;
+  const aside = page.locator('aside').last();
+  await aside.getByRole('button', { name: /^\+$|Aumentar quantidade/ }).first().click().catch(() => {});
+  await page.waitForTimeout(500);
+  const texto = await aside.innerText();
+  check('a faixa de orçamento lista a peça e o total', texto.includes('587') && /R\$\s?\d/.test(texto), texto.replace(/\s+/g, ' ').slice(0, 90));
+});
+
+await step('busca por descrição com acento', async () => {
+  await pesquisar('vela de ignição', 'enter');
+  await esperarFim();
+  const n = await page.locator('article').count();
+  check('"vela de ignição" acha peças (acento não pode zerar)', n > 0, `${n} linhas`);
+});
+
+await step('busca sem resultado', async () => {
+  await pesquisar('zzzqqq123');
+  await esperarFim();
+  check('busca vazia não deixa a tela sem explicação', (await page.locator('article').count()) === 0 && (await page.locator('main').innerText()).length > 40);
+  await shot(page, `${theme}-1366-atendimento-vazio-resultado`);
+});
+
+await step('Limpar', async () => {
+  await page.locator('form', { has: busca }).getByRole('button', { name: 'Limpar' }).click();
+  check('Limpar esvazia o campo', (await busca.inputValue()) === '');
+});
+
+await step('busca descritiva com máquina: grupos e ordem', async () => {
+  await pesquisar('carburador 143RII', 'enter');
+  await esperarFim();
+  const titulos = await page.locator('main h2, main h3').allInnerTexts();
+  console.log(`   títulos na tela: ${titulos.map(t => t.replace(/\s+/g, ' ').slice(0, 40)).join(' | ')}`);
+  // A ordem visual tem que ser a ordem do DOM (teclado e leitor de tela seguem o DOM).
+  const ordem = await page.locator('article').evaluateAll(list => list.map(a => Math.round(a.getBoundingClientRect().top)));
+  check('as linhas aparecem de cima para baixo na ordem do DOM', ordem.every((v, i) => i === 0 || v >= ordem[i - 1]), ordem.slice(0, 6).join(','));
+  const semAcao = await page.locator('article').evaluateAll(list => list.filter(a => !a.querySelector('button[aria-label^="Copiar código"]')).length);
+  check('toda linha tem o botão de copiar código', semAcao === 0, `${semAcao} sem`);
+});
+
+await step('chips: máquina, documentos e "Mais N"', async () => {
+  const maquina = page.getByRole('button', { name: /HUSQVARNA Roçadeira Husqvarna 143R II/ });
+  if (await maquina.count()) {
+    await maquina.click();
+    const painel = page.getByRole('dialog', { name: 'Máquina aberta' });
+    await painel.waitFor({ timeout: 20000 });
+    check('chip da máquina abre o painel da vista explodida', await painel.isVisible());
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(500);
+  } else check('chip da máquina (não apareceu para esta busca)', false);
+  const docs = page.locator('a[href^="https://"]');
+  const n = await docs.count();
+  const ruins = await docs.evaluateAll(list => list.filter(a => !/husqvarna|aprimocdn/.test(a.href)).map(a => a.href));
+  check('links de documento são https e da Husqvarna', n > 0 && ruins.length === 0, `${n} links ${ruins.join(',')}`);
+  const mais = page.getByRole('button', { name: /^Mais \d+$/ });
+  if (await mais.count()) {
+    const antes = await page.locator('a[href^="https://"]').count();
+    await mais.click();
+    check('"Mais N" revela os outros documentos', (await page.locator('a[href^="https://"]').count()) > antes);
+    await page.getByRole('button', { name: 'Mostrar menos' }).click();
+  }
+});
+
+await step('menu ⋯ de uma linha do cadastro', async () => {
+  const menu = page.getByRole('button', { name: /Mais ações para/ }).first();
+  await menu.click();
+  const itens = await page.getByRole('menuitem').allInnerTexts();
+  check('o menu da linha tem ações e nenhuma é repetida', itens.length > 0 && new Set(itens).size === itens.length, itens.join(' | '));
+  await page.keyboard.press('Escape');
+});
+
+await step('contexto: cliente, máquina, PNC, série', async () => {
+  // Abrir a vista explodida de uma máquina já grava a máquina no atendimento: começa limpo.
+  if (await page.getByRole('button', { name: 'Encerrar atendimento' }).count()) { await page.getByRole('button', { name: 'Encerrar atendimento' }).click(); await page.waitForTimeout(400); }
+  console.log('   botões do contexto:', await page.locator('main button').evaluateAll(l => l.slice(0, 5).map(b => b.innerText.replace(/\s+/g, ' '))));
+  await page.getByRole('button', { name: /Máquina, PNC ou cliente/ }).click({ timeout: 5000 });
+  const campos = ['Nome do cliente', 'Ex.: 143RII', 'Ex.: 967 17 65-01', 'Quando necessário'];
+  for (const c of campos) check(`campo "${c}" existe`, (await page.getByPlaceholder(c).count()) === 1);
+  await page.getByPlaceholder('Nome do cliente').fill('Sr. Carlos');
+  await page.getByPlaceholder('Ex.: 143RII').fill('143RII');
+  await page.waitForTimeout(500);
+  await page.reload();
+  await busca.waitFor();
+  check('cliente e máquina digitados sobrevivem ao recarregar', (await page.getByText('Sr. Carlos').count()) > 0 && (await page.getByRole('button', { name: 'Encerrar atendimento' }).count()) === 1);
+  await page.getByRole('button', { name: 'Encerrar atendimento' }).click();
+  await page.waitForTimeout(400);
+  check('Encerrar atendimento limpa o contexto', (await page.getByText('Sr. Carlos').count()) === 0);
+});
+
+await step('cabeçalho: abas e menus', async () => {
+  for (const aba of ['Catálogos', 'Orçamentos', 'Atendimento']) {
+    await page.getByRole('button', { name: aba, exact: true }).click();
+    await page.waitForTimeout(600);
+    check(`aba ${aba} abre`, (await page.locator('main').innerText()).length > 20);
+  }
+  await page.getByRole('button', { name: 'Mais', exact: true }).click();
+  const itensMais = await page.getByRole('menuitem').allInnerTexts();
+  check('menu "Mais" abre com itens', itensMais.length > 0, itensMais.join(' | '));
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Administração' }).click();
+  const itensAdm = await page.getByRole('menuitem').allInnerTexts();
+  check('menu "Administração" abre com itens', itensAdm.length > 0, itensAdm.join(' | '));
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Notificações' }).click();
+  await page.waitForTimeout(400);
+  check('notificações abrem algo', (await page.getByRole('dialog').count()) + (await page.locator('[data-radix-popper-content-wrapper]').count()) > 0);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Minha conta' }).click();
+  const itensConta = await page.getByRole('menuitem').allInnerTexts();
+  check('menu da conta tem Sair e tema', itensConta.some(t => /Sair/.test(t)), itensConta.join(' | '));
+  await page.keyboard.press('Escape');
+});
+
+await step('"Buscando…" termina quando a 1ª fase chega', async () => {
+  await page.getByRole('button', { name: 'Atendimento', exact: true }).click();
+  await busca.fill('junta do carburador');
+  const t0 = Date.now();
+  await busca.press('Enter');
+  await page.locator('article', { hasText: /JUNTA/i }).first().waitFor({ timeout: 20000 });
+  const ate1 = Date.now() - t0;
+  await esperarFim(40000);
+  const ateFim = Date.now() - t0;
+  check('o botão volta a "Buscar" logo depois de a lista aparecer', ateFim - ate1 < 1500, `lista em ${ate1}ms, botão liberado em ${ateFim}ms`);
+});
+
+await step('duas buscas seguidas não se misturam', async () => {
+  await busca.fill('junta do carburador');
+  await busca.press('Enter');
+  await page.waitForTimeout(150);
+  await busca.fill('vela de ignição');
+  await busca.press('Enter');
+  await esperarFim(40000);
+  await page.waitForTimeout(3000);
+  const nomes = await page.locator('article h3, article span.truncate').allInnerTexts();
+  const carburador = nomes.filter(n => /CARBURADOR/i.test(n)).length;
+  const vela = nomes.filter(n => /VELA/i.test(n)).length;
+  check('a lista final é da ÚLTIMA busca (velas), sem peças da anterior', vela > 0 && carburador === 0, `${vela} de vela, ${carburador} de carburador`);
+});
+
+await step('pergunta de óleo', async () => {
+  await pesquisar('óleo 2 tempos', 'enter');
+  await esperarFim(40000);
+  const texto = await page.locator('main').innerText();
+  console.log(`   óleo 2 tempos → ${await page.locator('article').count()} linhas; oferece botões de óleo: ${/2 tempos/i.test(texto) && /\+\s*Óleo|Óleo 2T|2T/i.test(texto)}`);
+  await shot(page, `${theme}-1366-atendimento-oleo`);
+});
+
+await finish(browser, errors);

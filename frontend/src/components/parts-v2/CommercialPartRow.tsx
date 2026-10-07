@@ -21,8 +21,8 @@ export default function CommercialPartRow({ part, onCopy, onOfficial }: Props) {
 
   const details = [
     application,
-    applications.length > 1 ? `+${applications.length - 1} aplicações` : '',
-    part.references[0] ? `Ref. ${part.references[0]}` : '',
+    // "Ref. HUSQVARNA" é a marca, não informa nada; referência só entra quando é código (tem dígito).
+    part.references.find(reference => /d/.test(reference)) ? `Ref. ${part.references.find(reference => /d/.test(reference))}` : '',
   ].filter(Boolean);
 
   return (

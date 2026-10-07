@@ -76,6 +76,38 @@ Pedido: colocar a lista de preços inteira no site, em **uma aba totalmente sepa
 | ❓ | Quem vê: balcão e admin, ou só admin? (tabela com todos os preços é mais sensível que um item no orçamento) |
 Dados ficam no banco, nunca no repositório (repo público). Entra depois de A, B e C, antes da auditoria "zero erros" (para a auditoria já cobrir a aba nova).
 
+## I. Melhorias achadas ao percorrer cada tela (fonte: roteiros de `docs/loja-simulada/`)
+Regra: cada tela percorrida entra aqui com o que foi corrigido na hora (✅) e o que fica como ideia (💡) ou decisão (❓).
+
+### Atendimento
+| | Achado |
+|---|---|
+| ✅ | "Buscando…" ficava até 4,5 s depois de a lista já estar na tela: agora libera quando há peças (e a busca nova cancela a anterior, para não misturar resultados) |
+| ✅ | "+ 7" solto ao lado dos documentos virou "Mais 7"; "+19 aplicações" saiu da linha (é o "onde usa"); "Ref. HUSQVARNA" (a marca) saiu |
+| ✅ | `Button` agora é `type="button"` por padrão: dentro de formulário, "+ Orçamento" podia refazer a busca |
+| 💡 | **Copiar todos os códigos do orçamento de uma vez** (um por linha, com quantidade) para colar no Clipp: a venda é lá, então é o caminho de saída natural do orçamento |
+| 💡 | Teclado primeiro: ↑/↓ percorrem as linhas e Enter copia o código (hoje só Ctrl K e Enter na busca) |
+| 💡 | Últimas buscas ao focar o campo (some a tela Histórico) |
+| 💡 | Linhas se reordenam quando a fase "por significado" acrescenta peças: marcar o que chegou depois, ou só anexar no fim do grupo |
+| 💡 | Abrir uma máquina grava a máquina no atendimento sem avisar: mostrar que foi gravada |
+| 💡 | Pergunta de óleo devolve 20+ linhas de filtro/vela: oferecer os botões de óleo no topo |
+| ❓ | Contexto (cliente/máquina) sobrevive ao recarregar: manter? hoje fica até "Encerrar atendimento" |
+
+### Painel da máquina / vista explodida
+| | Achado |
+|---|---|
+| ✅ | Tela inteira refeita e testada controle a controle (34 verificações) |
+| 💡 | Posições sobrepostas no desenho da Husqvarna (ex.: a 1 fica embaixo da 4, duas peças na posição 7): destacar a linha ao passar o mouse na lista e vice-versa |
+| 💡 | "Selecionar todas desta vista" + copiar só os códigos selecionados |
+| 💡 | Lembrar a última vista aberta por máquina |
+
+### Motores Briggs e Kawasaki
+| | Achado |
+|---|---|
+| ✅ | Refeitos com a mesma linha de peça das outras marcas; 16 verificações |
+| 💡 | Kawasaki: nome da peça às vezes traz aviso de série no texto ("FOR FX921V SERIAL NUMBERS THROUGH…"): separar o aviso do nome |
+| 💡 | Briggs/Kawasaki: filtro por nome também nos conjuntos da Kawasaki |
+
 ## F. Depois do visual (ordem combinada com o dono)
 1. ⏳ **Auditoria "zero erros"**: varredura completa de lógica, programação e código.
 2. ⏳ **Clipp**: pedir a exportação de produtos pela tela do Clipp (Referência, preço, descrição complementar, última compra, estoque); importador testado em banco descartável; aprovação; só então gravar.

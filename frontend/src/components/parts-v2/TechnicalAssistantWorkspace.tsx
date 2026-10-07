@@ -252,6 +252,9 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
   const suggestionsAbortRef = useRef<AbortController | null>(null);
+  // A busca em andamento. Uma busca nova cancela a anterior: sem isso, a fase "por significado" da busca
+  // velha chegava depois e misturava peças dela na lista da nova.
+  const searchAbortRef = useRef<AbortController | null>(null);
   const [quickFavorites, setQuickFavorites] = useState<FavoriteItem[]>([]);
   const [lastSearch, setLastSearch] = useState<SearchHistoryItem | null>(null);
   const [showAllExtras, setShowAllExtras] = useState(false);
@@ -363,9 +366,14 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     }
   }, []);
 
-  const runSearch = useCallback(async (value: string, signal?: AbortSignal) => {
+  const runSearch = useCallback(async (value: string, externalSignal?: AbortSignal) => {
     const clean = value.trim();
     if (clean.length < 2) return;
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+    externalSignal?.addEventListener('abort', () => controller.abort(), { once: true });
+    const signal = controller.signal;
     setLoading(true);
     setHasSearched(true);
     setLastQuery(clean);
@@ -384,6 +392,9 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       if (signal?.aborted) return;
       const technicalQuery = buildTechnicalQuery(resolvedQuery);
       const commercialPromise = fetchCommercial(resolvedQuery, '', signal);
+      // Cadastro de preços respondeu com peças: o balcão já tem o que vender, mesmo que a busca técnica
+      // ainda esteja na fase "por significado".
+      void commercialPromise.then(found => { if (found.length > 0 && !signal.aborted) setLoading(false); }).catch(() => {});
       // `typed` é o texto do atendente; `q` leva o contexto anexado. O
       // servidor precisa dos dois: o contexto melhora a busca de peça, e a
       // decisão de consultar máquina tem que olhar o que foi digitado.
@@ -400,6 +411,9 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           accumulated = (message.parts ?? []).map(part => ({ ...part, source: 'CATALOG' as const }));
           setParts(accumulated);
           setDocuments(message.documents ?? []);
+          // Já há peças na tela: o balcão não precisa esperar a fase "por significado" (até alguns segundos,
+          // esperando a IA) para buscar de novo. Sem peças, continua "Buscando…" para não mostrar "nada achado" cedo.
+          if (accumulated.length > 0 && !signal.aborted) setLoading(false);
           return;
         }
         if (message.type === 'machines') {
@@ -753,7 +767,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           ))}
           {sortedExtras.length > 3 && (
             <Button variant="ghost" size="sm" onClick={() => setShowAllExtras(value => !value)} aria-expanded={showAllExtras}>
-              {showAllExtras ? 'Mostrar menos' : `+ ${sortedExtras.length - 3}`}
+              {showAllExtras ? 'Mostrar menos' : `Mais ${sortedExtras.length - 3}`}
             </Button>
           )}
         </div>

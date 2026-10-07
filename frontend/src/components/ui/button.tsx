@@ -51,6 +51,7 @@ function Button({
   variant = "default",
   size = "default",
   asChild = false,
+  type,
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
@@ -61,6 +62,9 @@ function Button({
   return (
     <Comp
       data-slot="button"
+      // Sem `type`, o navegador trata <button> como "submit": dentro de um formulário (a busca),
+      // "+ Orçamento" refaria a pesquisa. Link (asChild) não leva `type`.
+      {...(asChild ? {} : { type: type ?? 'button' })}
       data-variant={variant}
       data-size={size}
       className={cn(buttonVariants({ variant, size, className }))}
