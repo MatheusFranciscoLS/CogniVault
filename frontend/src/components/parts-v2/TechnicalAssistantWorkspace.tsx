@@ -696,7 +696,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
             aria-expanded={suggestionsOpen && suggestions.length > 0}
             aria-controls="parts-search-suggestions"
             aria-autocomplete="list"
-            className="h-12 rounded-xl bg-card pl-12 pr-20 text-lg font-medium md:text-lg"
+            className="h-12 rounded-xl bg-card pl-12 pr-20 text-lg font-medium"
           />
           {!query && <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-border px-1.5 text-sm text-muted-foreground">Ctrl&nbsp;K</kbd>}
           {suggestionsOpen && suggestions.length > 0 && (

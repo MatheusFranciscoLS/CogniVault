@@ -551,14 +551,9 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       return [...current, { ...item, id, quantity: qty }];
     });
 
+    // Sem aviso por peça: o botão da linha passa a "No orçamento · N", o contador do cabeçalho e o
+    // orçamento lateral sobem na hora, e o som já toca. O aviso repetia isso e ainda cobria a tela.
     playCartSound();
-
-    toast.success(`Peça "${item.name}" adicionada ao orçamento.`, {
-      action: {
-        label: 'Ver Cesta',
-        onClick: () => setIsOpen(true),
-      },
-    });
   }, [applyItems]);
 
   const addItems = useCallback((itemsToAdd: Array<Omit<QuoteCartItem, 'quantity' | 'id'> & { quantity?: number }>) => {

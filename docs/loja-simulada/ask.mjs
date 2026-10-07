@@ -1,5 +1,7 @@
 // Faz perguntas ao cadastro de preços da LOJA SIMULADA, como o balcão. Uso: node ask.mjs "pergunta 1" "pergunta 2" ...
-import { chromium } from '@playwright/test';
+import { createRequire } from 'node:module';
+// O Playwright é procurado a partir da pasta ONDE O COMANDO RODA (frontend/), não ao lado deste arquivo.
+const { chromium } = createRequire(process.cwd() + '/package.json')('@playwright/test');
 const queries = process.argv.slice(2);
 const browser = await chromium.launch();
 const page = await (await browser.newContext()).newPage();

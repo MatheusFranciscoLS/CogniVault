@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import ReloadPrompt from './components/ReloadPrompt';
 import QuickQuoteCart from './components/QuickQuoteCart';
-import QuoteCartOverlayLifecycle from './components/QuoteCartOverlayLifecycle';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { QuoteCartProvider } from './context/QuoteCartContext';
 import { CounterSessionProvider } from './context/CounterSessionProvider';
@@ -54,7 +53,6 @@ function RouteScopedQuoteExperience() {
   if (pathname === '/' || pathname === '/login') return null;
   return (
     <>
-      <QuoteCartOverlayLifecycle />
       <QuickQuoteCart />
     </>
   );
