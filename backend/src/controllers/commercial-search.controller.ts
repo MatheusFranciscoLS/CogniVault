@@ -55,8 +55,9 @@ function scoreCommercialPart(
   if (normalizedQuery && name === normalizedQuery) score += 800;
   else if (normalizedQuery && name.includes(normalizedQuery)) score += 500;
   if (normalizedQuery && sectionText.includes(normalizedQuery)) score += 450;
-  if (tokens.length && tokens.every(token => haystack.includes(token))) score += 350;
-  score += tokens.filter(token => haystack.includes(token)).length * 35;
+  const appears = (token: string) => wordForms(token).some(form => haystack.includes(form));
+  if (tokens.length && tokens.every(appears)) score += 350;
+  score += tokens.filter(appears).length * 35;
 
   return score;
 }
@@ -173,6 +174,27 @@ async function availableSections(tenantId: string): Promise<CommercialSection[]>
 const SEARCH_STOPWORDS = new Set(['de', 'da', 'do', 'das', 'dos', 'para', 'pra', 'com', 'e', 'o', 'a', 'um', 'uma', 'no', 'na']);
 const MAX_SEARCH_TOKENS = 6;
 
+/**
+ * Palavras que o balcão fala e a LISTA escreve de outro jeito. Só entra o que foi medido na lista da Husqvarna
+ * (loja simulada, 22 mil códigos), onde a busca devolvia zero:
+ *
+ * - "fio de nylon": a lista escreve **NAILON** ("CARRETEL PARA FIO DE NAILON"). Nylon, nilon e nailon são a mesma palavra.
+ * - "bomba primer": a bombinha de partida a frio é "BOMBA MANUAL DO CARBURADOR" na lista; ninguém ali escreve "primer".
+ *
+ * Cada entrada ACRESCENTA formas para procurar; a forma digitada continua valendo. Vale também na pontuação.
+ */
+const WORD_ALTERNATIVES: Record<string, string[]> = {
+  nylon: ['nilon', 'nailon'],
+  nilon: ['nylon', 'nailon'],
+  nailon: ['nylon', 'nilon'],
+  primer: ['bomba manual'],
+};
+
+/** Formas pelas quais uma palavra pode aparecer na lista (a própria e as equivalentes). */
+export function wordForms(plain: string): string[] {
+  return [plain, ...(WORD_ALTERNATIVES[plain] ?? [])];
+}
+
 /** Cada palavra útil da pergunta, na forma digitada e sem acento (sem repetir). */
 export function commercialSearchWords(query: string): Array<{ plain: string; variants: string[] }> {
   const seen = new Set<string>();
@@ -181,7 +203,7 @@ export function commercialSearchWords(query: string): Array<{ plain: string; var
     const plain = normalizeText(raw);
     if (plain.length < 2 || SEARCH_STOPWORDS.has(plain) || seen.has(plain)) continue;
     seen.add(plain);
-    words.push({ plain, variants: [...new Set([raw.toLowerCase(), plain])] });
+    words.push({ plain, variants: [...new Set([raw.toLowerCase(), ...wordForms(plain)])] });
     if (words.length === MAX_SEARCH_TOKENS) break;
   }
   return words;
@@ -230,6 +252,8 @@ export function buildCommercialTextFilters(query: string): Prisma.MasterPartWher
   // vêm com ("ROÇADEIRA"), então só uma das formas deixaria um dos dois casos de fora.
   const words = commercialSearchWords(query);
   if (words.length >= 2) filters.push({ AND: words.map(word => ({ OR: word.variants.flatMap(fieldsFor) })) });
+  // Uma palavra só: as equivalentes ("primer" → "bomba manual") não estão na frase digitada.
+  if (words.length === 1) filters.push(...words[0].variants.filter(form => !phrases.includes(form)).flatMap(fieldsFor));
   return filters;
 }
 
