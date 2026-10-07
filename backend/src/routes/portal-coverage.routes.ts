@@ -5,7 +5,7 @@ import {
   buildBoundedPortalCoverage,
   portalCoverageRequestCacheState,
 } from '../services/bounded-portal-coverage.service';
-import { rankPortfolioCoverageGaps } from '../services/portfolio-coverage';
+import { listNotApplicable, rankPortfolioCoverageGaps } from '../services/portfolio-coverage';
 import { normalizeIdentifier } from '../utils/normalize';
 
 const MAX_EXCLUDED_MODELS = 500;
@@ -56,6 +56,8 @@ router.post(
         localIpl: portfolio.localIpl,
         portalIpl: portfolio.portalIpl,
         portalDocument: portfolio.portalDocument,
+        notApplicable: portfolio.notApplicable,
+        outOfLine: listNotApplicable(portfolio.items),
         unverified: portfolio.unverified,
         covered: portfolio.covered,
         coverageRate: portfolio.coverageRate,

@@ -11,7 +11,7 @@ import { rebuildTenantTechnicalKnowledge } from '../services/knowledge-maintenan
 import { indexNextSemanticBatch } from '../services/semantic-index-maintenance.service';
 import { retryEligibleVisualCatalogs } from '../services/visual-catalog-retry.service';
 import { SearchIntelligenceService } from '../services/search-intelligence.service';
-import { rankPortfolioCoverageGaps } from '../services/portfolio-coverage';
+import { listNotApplicable, rankPortfolioCoverageGaps } from '../services/portfolio-coverage';
 import { buildPortfolioCoverageWithPortalCache } from '../services/bounded-portal-coverage.service';
 import { selectPortalVerificationCandidates } from '../services/portal-verification-candidates';
 
@@ -56,6 +56,8 @@ export class QualityController {
           localIpl: portfolio.localIpl,
           portalIpl: portfolio.portalIpl,
           portalDocument: portfolio.portalDocument,
+          notApplicable: portfolio.notApplicable,
+          outOfLine: listNotApplicable(portfolio.items),
           unverified: portfolio.unverified,
           covered: portfolio.covered,
           coverageRate: portfolio.coverageRate,

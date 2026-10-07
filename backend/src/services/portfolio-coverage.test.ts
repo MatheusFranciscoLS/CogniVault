@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { extractCommercialModels, hasStrongCommercialModelShape, modelKeyVariants, portalDocumentMatchesModel, stripPortalTitleNoise, portalResultMatchesModel, rankPortfolioCoverageGaps, summarizePortfolioCoverage } from './portfolio-coverage';
+import { extractCommercialModels, hasStrongCommercialModelShape, markNotInLine, modelKeyVariants, portalDocumentMatchesModel, stripPortalTitleNoise, portalResultMatchesModel, rankPortfolioCoverageGaps, summarizePortfolioCoverage } from './portfolio-coverage';
 
 test('extrai múltiplos modelos de aplicação comercial sem tratar a planilha como prova técnica', () => {
   assert.deepEqual(extractCommercialModels('ROC.236R/143RII'), ['236R', '143RII']);
@@ -126,4 +126,27 @@ test('número + uma letra aceita a ordem do Portal (750K = K750), e só isso', (
   assert.equal(portalDocumentMatchesModel('IPL, K750, K 750, 2010-02', '750K'), true);
   assert.equal(portalResultMatchesModel('Husqvarna K 750', '750K'), true);
   assert.equal(portalResultMatchesModel('PW K 750', '750K'), false); // código curto de outro modelo na frente continua barrado
+});
+
+test('modelo sem lista no Portal e fora da lista vigente deixa de ser lacuna; o que está em linha continua', () => {
+  const base = { source: null, pnc: null, commercialSignals: 1, commercialEvidence: [] as string[] };
+  const items = [
+    { ...base, model: 'AM315', normalizedModel: 'AM315', status: 'UNVERIFIED' as const, portalVerification: 'NO_EXACT_MATCH' as const },
+    { ...base, model: 'MAC407B', normalizedModel: 'MAC407B', status: 'UNVERIFIED' as const, portalVerification: 'NO_EXACT_MATCH' as const },
+    { ...base, model: 'BLI300', normalizedModel: 'BLI300', status: 'UNVERIFIED' as const, portalVerification: 'NO_IPL' as const },
+    { ...base, model: 'NOVO1', normalizedModel: 'NOVO1', status: 'UNVERIFIED' as const, portalVerification: 'NOT_CHECKED' as const },
+    { ...base, model: 'Z460', normalizedModel: 'Z460', status: 'PORTAL_IPL' as const, portalVerification: 'VERIFIED' as const },
+  ];
+
+  const marcados = markNotInLine(items, ['AM315 Mark II', '143R II']);
+  assert.deepEqual(marcados.map(item => item.status), ['UNVERIFIED', 'NOT_APPLICABLE', 'NOT_APPLICABLE', 'UNVERIFIED', 'PORTAL_IPL']);
+
+  // sem lista de máquinas importada, nada se conclui
+  assert.deepEqual(markNotInLine(items, []).map(item => item.status), items.map(item => item.status));
+
+  // a cobertura não conta o que não tem vista a esperar
+  const resumo = summarizePortfolioCoverage(marcados);
+  assert.equal(resumo.notApplicable, 2);
+  assert.equal(resumo.unverified, 2);
+  assert.equal(resumo.coverageRate, 1 / 3);
 });
