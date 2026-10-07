@@ -68,7 +68,7 @@ await step('gaveta da peça de catálogo', async () => {
   await g2.getByRole('button', { name: 'Mais ações' }).click();
   const itens = await page.getByRole('menuitem').allInnerTexts();
   console.log(`   menu ⋯: ${itens.join(' | ')}`);
-  check('menu ⋯ tem as 3 ações que ficaram (Favoritar saiu com a tela de Favoritos)', ['Husqvarna', 'conferência', 'IA'].every(t => itens.some(i => i.includes(t))) && !itens.some(i => i.includes('Favoritar')));
+  check('menu ⋯ tem só as 2 ações que ficaram (sem Favoritar e sem Perguntar à IA: os dois saíram)', ['Husqvarna', 'conferência'].every(t => itens.some(i => i.includes(t))) && itens.length === 2 && !itens.some(i => /Favoritar|IA/.test(i)), itens.join(' | '));
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   check('Esc fecha o menu e a gaveta continua', (await page.getByRole('dialog').count()) >= 1);
@@ -106,17 +106,6 @@ await step('registrar conferência', async () => {
   await form.waitFor({ state: 'detached', timeout: 10000 });
   check('enviar para aprovação fecha o diálogo', (await form.count()) === 0);
   check('e avisa que a conferência foi enviada', await page.getByText('Conferência enviada para aprovação.').isVisible());
-});
-
-await step('perguntar à IA', async () => {
-  const g = page.getByRole('dialog').first();
-  if (!(await g.count())) { await abrirGaveta('587106701'); }
-  await page.getByRole('dialog').first().getByRole('button', { name: 'Mais ações' }).click();
-  await page.getByRole('menuitem', { name: /IA/ }).click();
-  await page.waitForTimeout(1500);
-  check('"Perguntar à IA" abre alguma coisa', (await page.getByRole('dialog').count()) >= 1 || (await page.getByPlaceholder(/pergunt|mensagem/i).count()) >= 1);
-  await shot(page, `${theme}-1366-gaveta-ia`);
-  await page.keyboard.press('Escape');
 });
 
 await step('favoritar (decisão pendente: Favoritos)', async () => {

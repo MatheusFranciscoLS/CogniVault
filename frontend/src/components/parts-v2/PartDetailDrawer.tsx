@@ -31,7 +31,6 @@ type Props = {
   onOpenPdf: (documentId: string, page: number | null, title: string) => void;
   onOpenRelated: (id: string) => void;
   onVerify: () => void;
-  onAskAi: (prompt: string) => void;
   /** Há algo por cima (visualizador de PDF, conferência, IA) que fecha com o Esc: a gaveta fica. */
   escapeBlocked?: boolean;
 };
@@ -49,7 +48,7 @@ function useCopyFlash(onCopy: (code: string) => void) {
   return { copied, copy };
 }
 
-export default function PartDetailDrawer({ detail, verification, liveData, onClose, onCopy, onOpenPdf, onOpenRelated, onVerify, onAskAi, escapeBlocked = false }: Props) {
+export default function PartDetailDrawer({ detail, verification, liveData, onClose, onCopy, onOpenPdf, onOpenRelated, onVerify, escapeBlocked = false }: Props) {
   const quoteCart = useQuoteCart();
   const [workContext, setWorkContext] = useState<WorkContext | null>(null);
   const { copied, copy } = useCopyFlash(onCopy);
@@ -109,7 +108,6 @@ export default function PartDetailDrawer({ detail, verification, liveData, onClo
               <DropdownMenuContent align="end" className="min-w-56">
                 <DropdownMenuItem asChild className="h-10 text-base"><a href={officialUrl} target="_blank" rel="noreferrer noopener">{officialPortalLabel(effectiveCode, quoteManufacturer)} ↗</a></DropdownMenuItem>
                 <DropdownMenuItem onSelect={onVerify} className="h-10 text-base">Registrar conferência</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => onAskAi(`Analise a peça ${detail.name}, código ${effectiveCode}, aplicada em ${detail.model}.`)} className="h-10 text-base">Perguntar à IA</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar"><X className="size-5" /></Button>

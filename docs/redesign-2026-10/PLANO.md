@@ -42,7 +42,7 @@ Regra do dono (2026-10-07): **tudo que ele passar entra aqui na hora**, porque h
 | 4 | Observações fixas (imposto etc.) em todo orçamento? | "O que você acha melhor?" Ele colocou por causa de imposto | **Recomendação adotada:** as 3 observações entram em TODO orçamento por padrão e podem ser editadas por orçamento (campo recolhido na gaveta). ✅ feito: 3 observações por padrão, editáveis por orçamento (`Quote.notes`), "Voltar ao texto padrão" |
 | 5 | Formato do "Copiar códigos" para o Clipp | **Não faz sentido: o Clipp recebe 1 código por vez**; só precisa colocar o código e copiar | **Tirar o botão "Copiar códigos"** (foi excesso meu) e a função; fica o copiar um código, que já existe. ✅ botão, função e testes removidos |
 | 6 | Pasta dos orçamentos de máquinas | Manda quando chegar em casa | Aguardar (3b) |
-| 7 | Sino só para admin; assistente de IA em gaveta | "Faça o que achar melhor e recomendado" | **Recomendação adotada:** sino só para o administrador; tirar o assistente de IA em gaveta (`ChatPanel`) do balcão. ⏳ |
+| 7 | Sino só para admin; assistente de IA em gaveta | "Faça o que achar melhor e recomendado" | **Recomendação adotada:** sino só para o administrador; tirar o assistente de IA em gaveta (`ChatPanel`) do balcão. ✅ feito: sino só para o administrador (o balcão nem consulta as notificações); assistente de IA em gaveta (`ChatPanel` e `chat/*`) removido, junto com "Perguntar à IA", "Pedir orientação" e o exemplo de pergunta. **O backend do chat (`/api/chat`, `react-agent`) continua no servidor, sem uso na tela: podar depois, com cuidado** |
 Depois disso: "continue com os planos e melhorias que faltam" (Biblioteca, Negócio, Qualidade, Visão geral; peças de manutenção preventiva por PNC).
 
 ## Regra de teste (dono, 2026-10-07)
@@ -85,10 +85,10 @@ Toda tela aberta é testada em TODO o conteúdo dela, controle por controle, e n
 | ℹ️ | Os 4–6 s da busca técnica na simulação são a fase "por significado" esperando o Gemini com chave falsa: artefato, não defeito | — |
 
 ## D. Decisões do dono (❓) — em `analise-critica.md`
-1. ❓ Assistente de IA em gaveta (`ChatPanel`): recomendo tirar.
+1. ✅ Assistente de IA em gaveta (`ChatPanel`): removido em 2026-10-07 (dono: "faça o que achar melhor"; recomendei tirar).
 2. ✅ Tela Histórico: dobrada na busca (últimas buscas) e apagada, autorizado pelo dono em 2026-10-07.
 3. ✅ Administração: Negócio, Visão geral (com o registro de ações), Usuários, Qualidade; Feedback tirado, autorizado pelo dono.
-4. ❓ Sino de notificações só para administrador.
+4. ✅ Sino de notificações só para administrador (feito, 2026-10-07).
 5. ✅ Favoritos: tela, botão e código removidos, autorizado pelo dono.
 
 ## E. Ideias para o dia a dia (a avaliar, dentro de "vista explodida + orçamento")
