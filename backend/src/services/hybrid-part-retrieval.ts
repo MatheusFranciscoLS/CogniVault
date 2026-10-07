@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
-import type { SearchIntent } from './chat-intent.service';
+import type { SearchIntent } from './search-intent';
 import { shouldRunFuzzyPartRetrieval } from './hybrid-retrieval-policy';
 import { lexicalTerms } from './part-vocabulary';
 

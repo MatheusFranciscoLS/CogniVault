@@ -303,7 +303,7 @@ export class QualityController {
           where: { tenantId, status: { in: unresolvedStatuses } },
           data: { status: 'RESOLVED' },
         });
-        AuditService.record({
+        void AuditService.record({
           tenantId,
           userId: req.user.id,
           action: 'SEARCH_RADAR_CLEARED',
@@ -331,7 +331,7 @@ export class QualityController {
         data: { status: 'RESOLVED' },
       });
 
-      AuditService.record({
+      void AuditService.record({
         tenantId,
         userId: req.user.id,
         action: 'SEARCH_RADAR_ITEM_DISMISSED',

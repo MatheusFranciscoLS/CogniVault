@@ -4,7 +4,6 @@ import { CATALOG_UPLOAD_LIMITS } from '../config/upload-limits';
 
 import { DocumentController } from '../controllers/document.controller';
 import { DocumentAccessController } from '../controllers/document-access.controller';
-import { ChatController } from '../controllers/chat.controller';
 import { AuthController } from '../controllers/auth.controller';
 import { FeedbackController } from '../controllers/feedback.controller';
 import { AdminController } from '../controllers/admin.controller';
@@ -36,7 +35,6 @@ import { QuoteController } from '../controllers/quote.controller';
 import { BusinessInsightsController } from '../controllers/business-insights.controller';
 import { ExportController } from '../controllers/export.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
-import { chatSessionContextMiddleware } from '../middleware/chat-session-context.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
 import { uploadConcurrencyMiddleware } from '../middleware/upload-concurrency.middleware';
 import { searchSingleFlightMiddleware } from '../middleware/search-single-flight.middleware';
@@ -77,7 +75,6 @@ const router = Router();
 
 const documentController = new DocumentController();
 const documentAccessController = new DocumentAccessController();
-const chatController = new ChatController();
 const authController = new AuthController();
 const feedbackController = new FeedbackController();
 const adminController = new AdminController();
@@ -212,7 +209,6 @@ router.post('/documents/:id/reprocess', authMiddleware, adminOnly, validateEntit
 router.post('/documents/:id/refresh-health', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.refreshHealth(req, res));
 router.delete('/documents/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.remove(req, res));
 
-router.post('/chat', authMiddleware, chatSessionContextMiddleware, (req, res) => chatController.ask(req, res));
 router.post('/feedback', authMiddleware, invalidateAdminOverviewAfterMutation, invalidateQualityAfterMutation, (req, res) => feedbackController.create(req, res));
 router.patch('/feedback/:id', authMiddleware, validateEntityIdParam, invalidateQualityAfterMutation, (req, res) => feedbackController.update(req, res));
 

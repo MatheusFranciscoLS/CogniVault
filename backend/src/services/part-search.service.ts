@@ -3,7 +3,7 @@ import { prisma } from '../config/prisma';
 import { GEMINI_EMBEDDING_MODEL, getGeminiClient } from '../config/gemini';
 import { normalizeIdentifier } from '../utils/normalize';
 import { engineModelVariants } from '../utils/engine-model';
-import type { SearchIntent } from './chat-intent.service';
+import type { SearchIntent } from './search-intent';
 import {
   buildSearchGroups,
   findPartConcepts,

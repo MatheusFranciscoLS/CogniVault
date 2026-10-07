@@ -9,7 +9,6 @@ import { buildSearchGroups, scorePartText } from '../services/part-vocabulary';
 import { allRelatedPartNumbers, preferCurrentPartNumbers } from '../services/part-supersession';
 import { filterCandidatesByMarket } from '../services/catalog-market';
 import { PartSearchService, invalidatePartSearchCaches } from '../services/part-search.service';
-import { invalidateChatResponseCache } from '../services/chat.service';
 import { invalidateHomeResponseCache } from './home.controller';
 import { invalidatePartDetailResponseCache } from './part-detail.controller';
 import {
@@ -47,7 +46,6 @@ export function invalidateHomeCountsCache(tenantId?: string): void {
     invalidateHomeResponseCache(tenantId);
     invalidatePartDetailResponseCache(tenantId);
     invalidatePartSearchCaches(tenantId);
-    invalidateChatResponseCache(tenantId);
 }
 
 export class OperationalController {
