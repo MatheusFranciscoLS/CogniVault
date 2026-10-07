@@ -121,12 +121,12 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <a href="#conteudo" className="sr-only z-50 rounded-md bg-primary px-4 py-2 text-base font-semibold text-primary-foreground focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Ir para o conteúdo</a>
       <header className="sticky top-0 z-30 border-b border-black/20 bg-bar text-bar-foreground">
-        <div className="mx-auto flex h-14 w-full max-w-[1800px] items-center gap-5 px-5">
+        <div className="mx-auto flex h-14 w-full max-w-[1800px] items-center gap-3 px-3 sm:gap-5 sm:px-5">
           {/* "Balcão · Peças" e o selo ouro identificam o sistema e a revenda; o atendente
               usa este app ao lado do Vardão CRM e precisa saber em qual está. */}
           <div className="flex shrink-0 items-center gap-3">
             <img src="/favicon.png" alt="" width={32} height={32} className="size-8 rounded-md bg-white/10 object-cover" />
-            <span translate="no" className="text-lg font-bold tracking-tight">CogniVault</span>
+            <span translate="no" className="hidden text-lg font-bold tracking-tight sm:inline">CogniVault</span>
             <span className="hidden rounded-full border border-[#ffc80080] px-2.5 py-0.5 text-sm font-semibold text-[#ffc800] xl:inline">Revenda ouro Husqvarna</span>
           </div>
 
@@ -138,7 +138,7 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="bar" size="sm" className="md:hidden" aria-label="Abrir menu"><Icon name="menu" className="h-4 w-4" />Menu</Button>
+              <Button variant="bar" size="sm" className="md:hidden" aria-label="Abrir menu"><Icon name="menu" className="h-4 w-4" /><span className="sr-only sm:not-sr-only">Menu</span></Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-52">
               {allNav.map(item => (

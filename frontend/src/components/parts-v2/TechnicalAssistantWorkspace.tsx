@@ -728,7 +728,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
                 setOpenMachine({ pnc: item.pnc as string, name: item.title });
               }}
               title={[item.categoryName || item.subtitle, item.discontinued ? 'fora de linha' : null].filter(Boolean).join(' · ')}
-              className="max-w-[28rem] border-primary/50"
+              className="max-w-full border-primary/50 sm:max-w-[28rem]"
             >
               <Icon name="machine" className="size-4" />
               <span className="truncate">{item.title}</span>
@@ -736,7 +736,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
             </Button>
           ))}
           {(showAllExtras ? officialExtras : officialExtras.slice(0, 4)).map(item => (
-            <Button key={`${item.kind}-${item.id}`} variant="outline" size="sm" asChild className="max-w-72">
+            <Button key={`${item.kind}-${item.id}`} variant="outline" size="sm" asChild className="max-w-full sm:max-w-72">
               <a
                 href={item.portalUrl as string}
                 target="_blank"
