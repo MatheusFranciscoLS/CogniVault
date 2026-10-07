@@ -22,6 +22,41 @@ function measure(dataUrl: string): Promise<{ width: number; height: number }> {
 }
 
 /**
+ * Foto de um produto para o PDF: baixa a imagem, reduz para no máximo `maxWidth` px e grava em JPEG sobre fundo branco.
+ * O PNG da Husqvarna passa de 2 MB e é transparente; assim o PDF cresce uns 50 KB e a foto não vira um quadrado preto.
+ * Só aceita https. Devolve `null` se não carregar (rede, CDN fora): o orçamento sai sem a foto, nunca falha por ela.
+ */
+export async function loadProductImage(url: string, maxWidth = 640): Promise<PdfImage | null> {
+  if (!/^https:\/\//i.test(url)) return null;
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 12_000);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    if (!blob.type.startsWith('image/')) return null;
+    const bitmap = await createImageBitmap(blob);
+    const scale = Math.min(1, maxWidth / bitmap.width);
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, width, height);
+    context.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+    return { dataUrl: canvas.toDataURL('image/jpeg', 0.88), width, height };
+  } catch {
+    return null;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+/**
  * Logo horizontal da Vardão (a mesma do login) para o cabeçalho do PDF. Carregada uma vez por sessão.
  * Devolve `null` se não carregar (offline, arquivo fora do ar): o PDF sai sem a imagem, com o nome da loja em
  * texto, em vez de falhar na frente do cliente.

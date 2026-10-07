@@ -248,3 +248,15 @@ test('Kawasaki: o portal manda ler a plaqueta, e é isso que a tela recebe', () 
   // Sem modelo, o link cai no localizador — nunca num endereço que abre vazio.
   assert.equal(motor.manualUrl, 'https://kawasakienginesusa.com/parts-lookup?aribrand=kwe');
 });
+
+test('a foto oficial da máquina só passa se for https de domínio Husqvarna', () => {
+  const com = (url: unknown) => parseOfficialProductDetails({
+    site: { articles: { byIds: [{ id: '965195201', name: { productName: 'HUSQVARNA 327P5x' }, mainImage: { url } }] } },
+  }, '965195201');
+
+  assert.equal(com('https://media.husqvarnagroup.com/image/H210-0677.png')?.imageUrl, 'https://media.husqvarnagroup.com/image/H210-0677.png');
+  assert.equal(com('http://media.husqvarnagroup.com/image/x.png')?.imageUrl, null);
+  assert.equal(com('https://media.husqvarnagroup.com.atacante.net/x.png')?.imageUrl, null);
+  assert.equal(com('javascript:alert(1)')?.imageUrl, null);
+  assert.equal(com(undefined)?.imageUrl, null);
+});

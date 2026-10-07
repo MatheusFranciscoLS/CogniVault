@@ -238,7 +238,7 @@ export default function MachineListDetail({
           )}
         </div>
       </SheetContent>
-      {quoting && <MachineQuoteDialog machine={machine} equipment={portalQuery.data?.equipment ?? null} onClose={() => setQuoting(false)} />}
+      {quoting && <MachineQuoteDialog machine={machine} equipment={portalQuery.data?.equipment ?? null} photoUrl={portalQuery.data?.imageUrl} onClose={() => setQuoting(false)} />}
     </Sheet>
   );
 }

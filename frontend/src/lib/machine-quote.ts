@@ -155,6 +155,8 @@ export function buildMachineQuotePdf(input: {
   fields: MachineQuoteFields;
   attendantName?: string;
   logo?: PdfImage | null;
+  /** Foto da máquina (opcional): entra entre a descrição e o preço, como no modelo em Word. */
+  photo?: PdfImage | null;
   now?: Date;
 }): JsPdf {
   const { doc, autoTable, machine, equipment, fields } = input;
@@ -201,6 +203,19 @@ export function buildMachineQuotePdf(input: {
       y += wrapped.length * 14;
     }
     y += 6;
+  }
+
+  if (input.photo) {
+    // Até 190 pt de altura e 300 de largura, centralizada, sem esticar.
+    const ratio = input.photo.width / input.photo.height;
+    const height = Math.min(190, 300 / ratio);
+    const width = height * ratio;
+    if (y + height + 200 > pageHeight - FOOTER_SPACE) {
+      doc.addPage();
+      y = 60;
+    }
+    doc.addImage(input.photo.dataUrl, 'JPEG', (pageWidth - width) / 2, y, width, height);
+    y += height + 14;
   }
 
   if (fields.highlight.trim()) {
