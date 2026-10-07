@@ -4,6 +4,7 @@ import {
   countNews,
   facetCounts,
   findListedMachine,
+  portalPnc,
   matchesFilters,
   priceChange,
   searchKey,
@@ -129,6 +130,15 @@ describe('findListedMachine', () => {
   it('etiqueta de 11 dígitos acha o artigo de 9, e o contrário', () => {
     expect(findListedMachine(lote, '960410440')?.model).toBe('TS 142');
     expect(findListedMachine(lote, '96733290100')?.model).toBe('143R II');
+  });
+  it('o BR da versão brasileira é o mesmo artigo; CJ e outros sufixos não', () => {
+    const brasil = [machine({ pnc: '970743401BR', model: '143RST' }), machine({ pnc: '970592606CJ', model: 'Kit' })];
+    expect(findListedMachine(brasil, '970743401')?.model).toBe('143RST');
+    expect(findListedMachine(brasil, '970743401BR')?.model).toBe('143RST');
+    expect(findListedMachine(brasil, '970592606')).toBeNull();
+    expect(portalPnc('970743401BR')).toBe('970743401');
+    expect(portalPnc('970592606CJ')).toBe('970592606CJ');
+    expect(portalPnc('967332901')).toBe('967332901');
   });
   it('não casa por semelhança: outro artigo, sufixo de letras ou texto vazio', () => {
     expect(findListedMachine(lote, '967332902')).toBeNull();

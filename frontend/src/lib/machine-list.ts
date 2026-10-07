@@ -137,7 +137,15 @@ export function countNews(machines: ListedMachine[]): number {
   return machines.filter(machine => machine.isNew || machine.priceBefore !== null).length;
 }
 
-const pncKey = (pnc: string): string => pnc.replace(/[^a-z0-9]/gi, '').toUpperCase();
+/**
+ * A lista escreve 36 das 151 máquinas com `BR` depois do artigo (`970743401BR`: a versão do Brasil), mas o Portal e a
+ * busca conhecem só os 9 dígitos. Sem tirar o `BR`, o Portal respondia 400 e a máquina ficava sem "o que acompanha",
+ * sem "leve junto", sem vista explodida e sem o selo "Em linha". Os outros sufixos (`CJ`, `CJ1`, `S12`: conjunto) são
+ * outro item e continuam como vieram.
+ */
+export const portalPnc = (pnc: string): string => pnc.trim().replace(/(?<=\d)BR$/i, '');
+
+const pncKey = (pnc: string): string => portalPnc(pnc.replace(/[^a-z0-9]/gi, '')).toUpperCase();
 
 /**
  * Acha na lista a máquina de um PNC. A etiqueta pode trazer 11 dígitos e o Portal usa os 9 primeiros (o artigo
