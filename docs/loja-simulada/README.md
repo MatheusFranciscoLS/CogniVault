@@ -31,6 +31,8 @@ cd backend
 npx tsx src/scripts/seed-e2e.ts
 npx tsx src/scripts/sim-seed.ts "C:\DadosLoja\LISTA_DE_PRECOS.html" --models=60
 npm run report:price-list-html -- "C:\DadosLoja\LISTA_DE_PRECOS.html" --apply --expect-changed=0 --expect-added=<N do relatório>
+# 2b. máquinas da Tabela de preços (aba nova), ainda dentro de backend/
+npm run import:machine-list-html -- "C:\DadosLoja\LISTA_DE_PRECOS.html" --apply --expect-count=<N do relatório>
 cd ..
 
 # 3. backend (3333) e frontend (5173)
@@ -72,6 +74,7 @@ node docs/loja-simulada/sim-db.cjs down
   máquina oficial aparecem de verdade.
 
 ## Armadilhas já pagas
+- `sim-db.cjs migrate` **apaga o schema inteiro** (usuários, catálogo, preços) antes de recriar: depois dele, repita o passo 2 inteiro.
 - O backend só aceita as origens de `CORS_ORIGINS`; o script libera `localhost` e `127.0.0.1`.
 - `String.replace` do JavaScript trata `$$` e `$&` do texto novo como especiais: ao gerar SQL
   com `DO $$ ... $$` por substituição, use função (`replace(a, () => b)`).

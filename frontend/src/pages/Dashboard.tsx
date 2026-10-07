@@ -19,6 +19,7 @@ const UsersPanel = lazy(() => import('../components/admin/UsersPanel'));
 const AuditPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.AuditPanel })));
 const QualityPanel = lazy(() => import('../components/QualityPanel'));
 const SavedQuotesPanel = lazy(() => import('../components/SavedQuotesPanel'));
+const MachineListPanel = lazy(() => import('../components/MachineListPanel'));
 
 function cleanNavigationValue(value: string | null | undefined) {
   const clean = (value ?? '').trim();
@@ -98,7 +99,10 @@ export default function Dashboard() {
   // Antes havia estado de máquina aqui (montagem, PNC, busca e um evento de
   // janela para trocar a máquina aberta sem desmontar o workspace): nada disso
   // é preciso quando a máquina não é mais uma tela irmã.
-  const machinePncFromUrl = initialPncParam;
+  // O PNC vale só para a versão do Atendimento montada para ele (`forVersion`): uma busca feita depois
+  // remonta o Atendimento com outra versão e não reabre a mesma máquina.
+  const [machineOpen, setMachineOpen] = useState({ pnc: initialPncParam, forVersion: 0 });
+  const machinePnc = machineOpen.forVersion === searchVersion ? machineOpen.pnc : '';
   const sectionRef = useRef(section);
 
   useEffect(() => {
@@ -168,6 +172,17 @@ export default function Dashboard() {
     setSearchVersion(version => version + 1);
     setSection('parts');
     updateUrl('parts', clean || undefined);
+  };
+
+  // Abre a vista explodida de uma máquina vinda de outra tela (a Tabela de preços). O Atendimento lê o PNC só
+  // ao montar, por isso a troca de `searchVersion` (remonta).
+  const openMachine = (pnc: string) => {
+    const version = searchVersion + 1;
+    setMachineOpen({ pnc, forVersion: version });
+    setGlobalQuery('');
+    setSearchVersion(version);
+    setSection('parts');
+    updateUrl('parts');
   };
 
   const updatePartQuery = (query: string) => {
@@ -270,7 +285,7 @@ export default function Dashboard() {
             initialQuery={globalQuery}
             onQueryChange={updatePartQuery}
             storageScope={user.id}
-            initialMachinePnc={machinePncFromUrl}
+            initialMachinePnc={machinePnc}
           />
         </div>
       )}
@@ -286,6 +301,7 @@ export default function Dashboard() {
           />
         )}
         {section === 'quotes' && <SavedQuotesPanel />}
+        {section === 'prices' && <MachineListPanel onOpenMachine={openMachine} />}
         {section === 'overview' && user.role === 'ADMIN' && (
           <>
             <OverviewPanel />

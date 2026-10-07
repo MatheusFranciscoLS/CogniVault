@@ -16,6 +16,7 @@
     "import:price-list": "tsx src/scripts/import-price-list-with-history.ts",
     "import:price-list:core": "tsx src/scripts/import-price-list.ts",
     "report:price-list-html": "tsx src/scripts/import-price-list-html.ts",
+    "import:machine-list-html": "tsx src/scripts/import-machine-list-html.ts",
     "audit:catalogs": "tsx src/scripts/audit-catalog-integrity.ts",
     "audit:portfolio": "tsx src/scripts/audit-portfolio-coverage.ts",
     "audit:portfolio:portal": "tsx src/scripts/audit-portfolio-coverage.ts --portal",

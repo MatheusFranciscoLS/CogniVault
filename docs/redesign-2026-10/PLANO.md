@@ -28,7 +28,7 @@ Toda tela aberta é testada em TODO o conteúdo dela, controle por controle, e n
 | ✅ | Login | PR #209 |
 | ✅ | Painel lateral da máquina / vista explodida oficial: Sheet, uma linha por peça, código copiável, sem especificações/acessórios/"onde usa"; variantes em menu | PR #209 |
 | ✅ | Painéis de motor Kawasaki e Briggs (linha de peça compartilhada `PartLine`) | PR #209 |
-| ⏳ | Administração: Negócio, Usuários, Qualidade, Visão geral, Auditoria | ver D |
+| 🔧 | Administração: Usuários ✅ e telas restiladas ✅; Favoritos, Histórico e Feedback removidos e Auditoria virou "Registro de ações" dentro da Visão geral ✅ (dono autorizou em 2026-10-07). Falta refazer por dentro Negócio, Qualidade e Visão geral | ver D |
 | ⏳ | Gerenciar biblioteca (`CatalogsPanel`, 1.365 linhas) | admin |
 
 ## B. Orçamento para o cliente (pedido: "melhorar o local de orçamento, WhatsApp e PDF")
@@ -46,16 +46,17 @@ Toda tela aberta é testada em TODO o conteúdo dela, controle por controle, e n
 | ✅ | Linhas repetidas do mesmo código | PR #209 |
 | ✅ | Ordem dos grupos: não há mais CSS `order`; o roteiro confere que a ordem visual é a do DOM | — |
 | ✅ | O botão ficava "Buscando…" até 6 s com o resultado já na tela | liberado quando há peças; busca nova cancela a anterior |
-| ✅ | "fio de nylon" (a lista escreve NAILON) e "bomba primer" (a lista diz BOMBA MANUAL) achavam zero: 0→49 e 0→3 | PR #212 (**confirmar com o dono** que "primer" = bomba manual do carburador) |
+| ✅ | "fio de nylon" (a lista escreve NAILON) e "bomba primer" (a lista diz BOMBA MANUAL) achavam zero: 0→49 e 0→3 | PR #212 (dono confirmou: "primer" = bomba manual do carburador); no ar |
 | ✅ | Pergunta de óleo: os 4 óleos da loja como botões no topo (item avulso); "filtro de óleo" não os mostra; a faixa de orçamento não mostra mais o código interno `SRV-` | #209 |
+| ✅ | **A Husqvarna removeu o campo `mainImageData` da API pública**, e a consulta inteira passou a ser recusada: a busca de máquina voltou vazia e o painel da máquina abria sem vistas explodidas. Achado pelo roteiro de Atendimento, não por log. Conserto no ar (#213): 143RII 0→13 resultados, vistas 0→19, peças relacionadas 0→39. Teste de contrato impede a volta do campo antigo | #213 |
 | ℹ️ | Os 4–6 s da busca técnica na simulação são a fase "por significado" esperando o Gemini com chave falsa: artefato, não defeito | — |
 
 ## D. Decisões do dono (❓) — em `analise-critica.md`
 1. ❓ Assistente de IA em gaveta (`ChatPanel`): recomendo tirar.
-2. ❓ Tela Histórico: recomendo dobrar na busca e apagar a tela.
-3. ❓ Painéis de administração: manter Negócio, Usuários, Qualidade; juntar Visão geral + Auditoria; tirar Feedback.
+2. ✅ Tela Histórico: dobrada na busca (últimas buscas) e apagada, autorizado pelo dono em 2026-10-07.
+3. ✅ Administração: Negócio, Visão geral (com o registro de ações), Usuários, Qualidade; Feedback tirado, autorizado pelo dono.
 4. ❓ Sino de notificações só para administrador.
-5. ❓ Favoritos: a tela e o botão ainda existem no código (só saíram da Atendimento e do Catálogo).
+5. ✅ Favoritos: tela, botão e código removidos, autorizado pelo dono.
 
 ## E. Ideias para o dia a dia (a avaliar, dentro de "vista explodida + orçamento")
 - Orçamento: atalho "Repetir último orçamento deste cliente"; texto padrão de condições da loja.
@@ -69,14 +70,33 @@ Pedido: colocar a lista de preços inteira no site, em **uma aba totalmente sepa
 | | Item |
 |---|---|
 | ✅ | **Verificado na lista de 05/10/2026 (só leitura):** `produtos` = **151 máquinas** (99 a combustão, 39 bateria, 10 robótica, 3 manual; 35 motosserras, 15 roçadeiras, 12 sopradores, 9 cortadores de grama, 5 giro zero…), todas com preço, PNC, modelo, categoria, aplicação (profissional/comercial/ocasional), ficha técnica (cilindrada, potência, tanque, peso…), IPI e foto; 1 marcada `descontinuado`. `updates` = 1.485 novidades entre listas (**82 são de máquinas**: novas ou com preço alterado, ex.: roçadeira 321C de R$ 1.049 para R$ 949). `pecas` traz `modelo`/`pnc` por peça. Ou seja: dá para montar "máquinas em vigência" só com o que já está na lista, sem consultar o Portal |
-| ⏳ | "O que vem junto" / "não acompanha": já existe na API do Portal (`equipment.included/notIncluded`); foi tirado do painel da máquina e volta aqui |
-| ⏳ | Aba própria, só consulta: filtro por categoria/modelo, em vigência x descontinuada, preço de venda (consumidor ÷ 0,92), sem custo |
-| ❓ | Quem vê: balcão e admin, ou só admin? (tabela com todos os preços é mais sensível que um item no orçamento) |
-| ❓ | **O preço de máquina também é consumidor ÷ 0,92?** A regra foi confirmada só para PEÇA (print do dono). Não vou assumir para máquina |
-| ❓ | "O que vem junto": a lista só tem a descrição curta (ex.: "Sabre 16\" + corrente X-CUT"). O "acompanha / não acompanha" completo vem do Portal Husqvarna por PNC (já temos a consulta). Mostrar do Portal, ao vivo, ao abrir a máquina? |
-| 💡 | Aba "Novidades da lista": as 82 máquinas novas/alteradas, com preço antes e depois. Responde "o que mudou nesta lista" |
+| ✅ | "Acompanha / não acompanha": vem do Portal Husqvarna por PNC ao abrir a gaveta da máquina; se o Portal não responde, a seção some sem aviso |
+| ✅ | **Aba pronta** ("Tabela de preços", para todos): busca por várias palavras sem acento, filtros (tecnologia, categoria, aplicação), "Novidades da lista", ordenar por modelo/preço, gaveta com ficha técnica e descrição, "Abrir vista explodida". Roteiro `tabela-precos-completo.mjs`: 54/54 nos dois temas; e2e 16/16; só texto e número (nenhuma imagem). **Falta importar na produção** (ver abaixo) |
+| ❓ | **Aprovar a importação em produção**: `npm run import:machine-list-html -- "<lista.html>"` (só lê) e, aprovado o relatório (151 máquinas), `--apply --expect-count=151`. A migração cria a tabela vazia no deploy |
+| ℹ️ | Na lista de 05/10/2026 **a 143R II não está** (só 143RS e 143RST): a tabela passa a responder "essa máquina ainda está em vigência?" |
+| ✅ | Quem vê: **todos** (dono, 2026-10-07: "todos podem visualizar isso") |
+| ✅ | **Só o preço da lista**, sem dividir por 0,92 (dono, 2026-10-07: "pode deixar somente o preço da lista") |
+| ✅ | "Novidades da lista" virou um botão-filtro na própria aba (37 máquinas: novas ou com preço alterado, mostrando "Baixou de / Subiu de") |
+| 💡 | Ficha técnica do arquivo é suja (rotação com valor de potência, peso 6500): hoje só entram campos seguros. Rotação, consumo e velocidade ficaram de fora até alguém conferir com a Husqvarna |
+| 💡 | Comparar duas máquinas lado a lado (por exemplo, 135 e 143RS) |
+| 💡 | Foto da máquina: o arquivo traz imagens, mas o aviso de propriedade intelectual proíbe copiá-las; a foto pode vir do Portal Husqvarna, ao vivo, como em "Acompanha" |
+| 💡 | "Tabela de preços" mostra o preço da lista; quando o dono quiser o preço de venda de máquina, é só decidir a regra (hoje não há) |
 | ⚠️ | O aviso de propriedade intelectual da lista continua valendo: os dados vão para o BANCO (como os preços de peça, já aprovado), nunca para o repositório |
 Dados ficam no banco, nunca no repositório (repo público). Entra depois de A, B e C, antes da auditoria "zero erros" (para a auditoria já cobrir a aba nova).
+
+## J. O que a página da lista de preços faz e vale levar para o site (análise de 2026-10-07)
+Pedido do dono: pegar o que for útil da lista, principalmente funcionalidade, "completo mas não poluído". Estudei a página (só o que ela FAZ; nenhum código, texto ou visual dela vai para o repositório, por causa do aviso de propriedade intelectual). Ela tem: busca global com atalho `/` e ranking por relevância, **cadeia de similaridade de códigos**, ficha técnica comercial em PDF e WhatsApp, lista de compras com exportação (CSV para o Portal Parceiro, XLSX, PDF), "Novidades" com preço antes/depois, ordem de categorias definida pela Husqvarna, e dados que NÃO usávamos: `similaridade` (4.224 peças, 120 acessórios, 34 máquinas), `reparo` (preventivo/corretivo) e `modelo`+`pnc` em cada uma das 64.440 peças.
+| | Ideia | Situação |
+|---|---|---|
+| ⏳ | **Código antigo → código vigente** (`similaridade`): a Husqvarna diz quais códigos cada peça substituiu e se existe um mais novo fora da lista. Cliente chega com o código velho: a busca acha o atual, com preço e aviso "substitui X". É a regra "nunca vender o código errado" servida pela própria fonte | PR próprio (tabela nova com RLS + importador + busca + gaveta) |
+| ⏳ | **Máquina em vigência dentro do atendimento**: no painel da máquina (vista explodida), selo "Na lista de preços · R$ X" ou "Fora da lista atual"; e o PNC vem sozinho da Tabela de preços (já há o botão "Abrir vista explodida") | PR próprio |
+| ⏳ | **Ficha da máquina para o cliente** (WhatsApp e PDF): modelo, preço da lista, ficha técnica, o que acompanha. Reaproveita o PDF e o texto do orçamento | PR próprio |
+| ⏳ | **Acessórios da categoria** na gaveta da máquina ("Leve junto": sabre, corrente, afiador para motosserra), com "+ Orçamento" | PR próprio |
+| ⏳ | **Ordem de categorias da Husqvarna** na Tabela de preços (Motosserra e Roçadeira primeiro, que é o que a loja mais vende) em vez de ordem alfabética | PR próprio |
+| 💡 | **Peças de manutenção preventiva por PNC** (`reparo` + `pnc` das 64.440 linhas): cobre as máquinas que o catálogo interno não cobre; só com tabela nova de ligação peça↔PNC | avaliar depois da similaridade |
+| 💡 | Atalho `/` para focar a busca (hoje só Ctrl K) | pequeno |
+| 💡 | Lista de compras / CSV para o Portal Parceiro: é fluxo de COMPRA, fora do "vista explodida + orçamento"; só se o dono pedir |
+| ➖ | Carrossel de destaques, modo cards/tabela, lista de compras salva: enfeite ou fora do escopo; não levar |
 
 ## I. Melhorias achadas ao percorrer cada tela (fonte: roteiros de `docs/loja-simulada/`)
 Regra: cada tela percorrida entra aqui com o que foi corrigido na hora (✅) e o que fica como ideia (💡) ou decisão (❓).
@@ -89,7 +109,7 @@ Regra: cada tela percorrida entra aqui com o que foi corrigido na hora (✅) e o
 | ✅ | `Button` agora é `type="button"` por padrão: dentro de formulário, "+ Orçamento" podia refazer a busca |
 | 💡 | **Copiar todos os códigos do orçamento de uma vez** (um por linha, com quantidade) para colar no Clipp: a venda é lá, então é o caminho de saída natural do orçamento |
 | 💡 | Teclado primeiro: ↑/↓ percorrem as linhas e Enter copia o código (hoje só Ctrl K e Enter na busca) |
-| 💡 | Últimas buscas ao focar o campo (some a tela Histórico) |
+| ✅ | Últimas buscas ao focar o campo vazio (↑/↓, Enter, Esc); a tela Histórico foi apagada |
 | 💡 | Linhas se reordenam quando a fase "por significado" acrescenta peças: marcar o que chegou depois, ou só anexar no fim do grupo |
 | 💡 | Abrir uma máquina grava a máquina no atendimento sem avisar: mostrar que foi gravada |
 | 💡 | Pergunta de óleo devolve 20+ linhas de filtro/vela: oferecer os botões de óleo no topo |
@@ -143,14 +163,14 @@ Todas as telas abaixo receberam: escala `ink`/`--cv-*` alinhadas ao tema novo (m
 Todas com texto de 9 a 12 px e frases que explicam o sistema; nenhuma tem erro nem rolagem horizontal.
 | Tela | Controles | O que vi |
 |---|---|---|
-| Favoritos | 2 | vazia ("Nenhum favorito encontrado"); o botão de favoritar já saiu da gaveta de busca. **Recomendo apagar a tela.** |
-| Histórico | 50 | 20 consultas; **consultas "Analise a peça …" são o texto automático do "Perguntar à IA", não o que o atendente digitou** (poluição do histórico). Recomendo dobrar na busca (últimas buscas) e apagar a tela |
+| Favoritos | 2 | ✅ **apagada** (tela, botão e código) |
+| Histórico | 50 | ✅ **apagada**: virou "Últimas buscas" no campo de busca; o texto automático "Analise a peça …" do "Perguntar à IA" fica de fora (`lib/recent-searches.ts`, 5 testes) |
 | Negócio | 9 | números e gráfico bons; cartões na paleta antiga |
-| Visão geral | 6 | números técnicos (catálogos, peças indexadas): juntar com Auditoria |
+| Visão geral | 6 | números técnicos (catálogos, peças indexadas); agora traz o "Registro de ações" (a antiga Auditoria) |
 | Usuários | 8 | ✅ **refeita** (`admin/UsersPanel.tsx`, `admin/AdminPage.tsx`): lista limpa, ações em menu ⋯, confirmação antes de mudar perfil ou bloquear, redefinição de senha em diálogo; 24 verificações. Saiu a coluna "Feedback" |
-| Feedback | 5 | 0 avaliações registradas: recomendo tirar (dono já viu que é pouco uso) |
+| Feedback | 5 | ✅ **removida** (0 avaliações registradas). O voto 👍/👎 continua alimentando o ranking; só a tela de leitura saiu |
 | Qualidade | 6 | 2.659 caracteres de texto; manter, refazer |
-| Auditoria | 1 | 100 eventos, só leitura; juntar com Visão geral |
+| Auditoria | 1 | ✅ **dobrada** na Visão geral como "Registro de ações"; links antigos (`?tab=audit`) caem lá |
 
 ### Desempenho do servidor (achado pelo roteiro do Atendimento)
 | | Achado |

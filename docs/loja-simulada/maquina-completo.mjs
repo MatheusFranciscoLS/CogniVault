@@ -1,36 +1,16 @@
 // Percorre TODO o conteúdo do painel da máquina na LOJA SIMULADA e diz o que passou e o que falhou.
 // Regra do dono: toda tela aberta é testada em todo o conteúdo, não só no que aparece no topo.
 // Uso (de dentro de frontend/): node ../docs/loja-simulada/maquina-completo.mjs [PNC=967332901] [tema=dark]
-import { createRequire } from 'node:module';
-const { chromium } = createRequire(process.cwd() + '/package.json')('@playwright/test');
-import fs from 'node:fs';
+import { open, check, step, finish, OUT, BASE } from './_t.mjs';
 import path from 'node:path';
 
-const BASE = 'http://127.0.0.1:5173';
-const OUT = path.join(process.env.LOCALAPPDATA ?? '.', 'Temp', 'cvsim', 'shots');
-fs.mkdirSync(OUT, { recursive: true });
-const pnc = process.argv[2] ?? '967332901';
-const theme = process.argv[3] ?? 'dark';
+// Aceita `[PNC] [tema]` e também só `[tema]` (como o todos-roteiros.sh chama os outros).
+const args = process.argv.slice(2);
+const temaArg = args.find(a => a === 'dark' || a === 'light');
+const pnc = args.find(a => /^\d{9,}$/.test(a)) ?? '967332901';
+const theme = temaArg ?? 'dark';
 
-const results = [];
-const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'OK    ' : 'FALHOU'} ${name}${detail ? ' — ' + detail : ''}`); };
-const step = async (name, fn) => { try { await fn(); } catch (e) { check(name, false, String(e.message).split('\n')[0]); } };
-
-const browser = await chromium.launch();
-const context = await browser.newContext({ viewport: { width: 1366, height: 768 }, permissions: ['clipboard-read', 'clipboard-write'] });
-await context.addInitScript(t => localStorage.setItem('cognivault-theme', t), theme);
-const page = await context.newPage();
-const errors = [];
-page.on('console', m => { if (m.type() === 'error') errors.push(m.text().slice(0, 200)); });
-page.on('pageerror', e => errors.push('pageerror: ' + String(e).slice(0, 200)));
-
-await page.goto(BASE + '/login');
-await page.getByLabel('E-mail').fill('admin.e2e@cognivault.local');
-await page.locator('#login-password').fill('CogniVault-E2E-2026!');
-await page.getByRole('button', { name: 'Entrar', exact: true }).click();
-await page.waitForURL(/\/dashboard/);
-// Orçamento limpo: o teste conta itens.
-await page.evaluate(() => fetch('/api/quotes/draft', { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [], options: {} }) }));
+const { browser, page, errors } = await open({ theme });
 await page.goto(`${BASE}/dashboard?tab=machines&pnc=${pnc}`);
 
 const painel = page.getByRole('dialog', { name: 'Máquina aberta' });
@@ -235,9 +215,4 @@ await step('ver preço e estoque + Esc', async () => {
 
 // Limpa o que o teste pôs no orçamento.
 await page.evaluate(() => fetch('/api/quotes/draft', { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [], options: {} }) }));
-check('nenhum erro no console durante todo o roteiro', errors.length === 0, errors.slice(0, 3).join(' | '));
-
-await browser.close();
-const falhas = results.filter(r => !r.ok);
-console.log(`\n${results.length - falhas.length}/${results.length} verificações passaram.`);
-process.exit(falhas.length ? 1 : 0);
+await finish(browser, errors);

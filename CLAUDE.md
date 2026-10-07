@@ -141,6 +141,32 @@ minutos ilimitados).
   relativo quando começa com `/` — antes, um valor não-string virava
   `https://portal.husqvarnagroup.com/42`, link válido feito de lixo.
 
+## Tabela de preços: as máquinas da lista vigente (aba, 2026-10-07)
+
+Pedido do dono: *"quais máquinas estão em vigência na Husqvarna, quais posso vender, o que vem
+junto"*, numa aba **separada** do atendimento e do orçamento. É só consulta, **para todos os
+usuários** ("todos podem visualizar isso").
+
+- **O preço é o da lista, sem ÷ 0,92.** A divisão vale para PEÇA (print do dono); para máquina o dono
+  disse "somente o preço da lista". Não aplique a divisão aqui sem ele pedir.
+- **"Em vigência" = estar na lista.** A importação é um **espelho**: troca tudo e máquina que saiu da
+  lista sai da tela (na lista de 05/10/2026 a 143R II não está; só 143RS e 143RST — a busca não achar
+  a 143R II ali é a resposta certa, não defeito).
+- Dados: tabela `MachineListing` (RLS ligado, migração `20261007120000_machine_listing`), gravada só
+  por `npm run import:machine-list-html -- "<lista.html>"` (sem `--apply` só lê; gravar exige
+  `--apply --expect-count=<N>`). Leitor puro em `scripts/machine-list-html.ts`. Rota
+  `GET /api/machine-list` (qualquer usuário logado). Tela: `MachineListPanel` + `MachineListDetail`,
+  lógica de filtro/ordem em `lib/machine-list.ts`.
+- **Só texto e número entram**; nenhuma imagem da lista (aviso de propriedade intelectual; o repositório
+  é público). Os testes usam máquinas inventadas.
+- **A ficha técnica é uma seleção conservadora** porque o arquivo é sujo (já vimos "rotação" com o valor
+  de potência e "peso" 6500). Unidade só entra em número puro e valor absurdo fica de fora.
+- "Acompanha / não acompanha" vem do Portal Husqvarna por PNC, ao abrir a gaveta
+  (`/api/husqvarna/products/:pnc/details`, campo `equipment`); se o Portal não responde, a seção some,
+  sem aviso de erro.
+- **Gravar em produção precisa da aprovação do dono** (olhar o relatório, depois `--apply`). A migração
+  cria a tabela vazia no deploy; a aba mostra "ainda não foi carregada" até a importação.
+
 ## Atendimento e máquinas são UMA tela (a aba Máquinas não existe mais)
 
 Até 2026-09-19 havia duas abas para a mesma pergunta do balcão, e o dono disse

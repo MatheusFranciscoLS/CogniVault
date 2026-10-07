@@ -202,3 +202,18 @@ test('detalhe da peça abre e fecha com a barreira de erro em volta', async ({ p
   await gaveta.getByRole('button', { name: /^Fechar/ }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
+
+/**
+ * A aba "Tabela de preços" é para todos, inclusive o balcão. No CI a tabela vem vazia (só a loja
+ * real tem a lista da Husqvarna importada), então o teste vale nos dois casos: lista ou aviso.
+ */
+test('o balcão abre a Tabela de preços', async ({ page }) => {
+  await login(page, MECHANIC_EMAIL);
+
+  await page.getByRole('button', { name: 'Tabela de preços', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Tabela de preços', level: 1 })).toBeVisible();
+  await expect(
+    page.getByLabel('Buscar máquina na tabela').or(page.getByText('A tabela de preços ainda não foi carregada.')),
+  ).toBeVisible();
+  await expect(page.getByText('Não foi possível carregar a tabela de preços.')).toHaveCount(0);
+});

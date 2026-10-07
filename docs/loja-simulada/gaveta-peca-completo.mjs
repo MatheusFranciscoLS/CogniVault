@@ -68,7 +68,7 @@ await step('gaveta da peça de catálogo', async () => {
   await g2.getByRole('button', { name: 'Mais ações' }).click();
   const itens = await page.getByRole('menuitem').allInnerTexts();
   console.log(`   menu ⋯: ${itens.join(' | ')}`);
-  check('menu ⋯ tem as 4 ações combinadas', ['Favoritar', 'Husqvarna', 'conferência', 'IA'].every(t => itens.some(i => i.includes(t))));
+  check('menu ⋯ tem as 3 ações que ficaram (Favoritar saiu com a tela de Favoritos)', ['Husqvarna', 'conferência', 'IA'].every(t => itens.some(i => i.includes(t))) && !itens.some(i => i.includes('Favoritar')));
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   check('Esc fecha o menu e a gaveta continua', (await page.getByRole('dialog').count()) >= 1);
