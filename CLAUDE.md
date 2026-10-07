@@ -177,6 +177,29 @@ usuários** ("todos podem visualizar isso").
 - **Gravar em produção precisa da aprovação do dono** (olhar o relatório, depois `--apply`). A migração
   cria a tabela vazia no deploy; a aba mostra "ainda não foi carregada" até a importação.
 
+## Troca de código: o PORTAL manda, e o último da cadeia é o que se pede (2026-10-07)
+
+Dono: *"na hora de pedir na Husqvarna ela aceita só o código novo, nem sempre o similar dá certo"* e *"não quero
+fazer nada manual"*.
+
+- **Fonte de verdade é o `replacementHistory` do Portal** (`husqvarna-replacement-history.service.ts`). O
+  `livePart.replacedBy` é o código MAIS RECENTE da cadeia (`history[0]`), com `replacementChain` no meio.
+  **Bug já cometido:** `replacedBy` era o PRÓXIMO passo (506027201 → 506027207), que também já tinha sido
+  trocado (o último é 587329503). Travado em `husqvarna-live-part.test.ts` (cadeia longa), com prova de mordida.
+- **A checagem é automática** quando o texto digitado é só um código (`lib/bare-code.ts`): `CodeReplacementCheck`
+  consulta `/api/parts/:code/live-data` e mostra a faixa `CodeReplacementBanner` ("A Husqvarna substituiu o código
+  X · Peça este: Y"), com o que foi digitado à vista. Antes só aparecia ao abrir a gaveta ou quando nada era achado.
+  Frase com código no meio ("carburador 587106701") **não** consulta: o código ali é contexto.
+  A faixa traz **preço, prateleira e "+ Orçamento" já com o código novo** (o item guarda o antigo como "era");
+  **não há "buscar de novo"**, porque é a mesma peça (dono, 2026-10-07).
+- **Não redirecionar em silêncio.** O que o atendente digitou continua visível ao lado do código novo, para ele ver
+  que o código dele foi reconhecido.
+- **A "similaridade" da lista de preços (HTML) NÃO é fonte de troca de código.** Medido em 40 códigos antigos:
+  26 concordam com o Portal e 9 divergem (o Portal diz que o antigo já é o mais recente, ou termina em outro).
+  Parser, importador e tabela ficaram prontos e parados (stash `similaridade-da-lista`); só valeriam como dica
+  secundária ("similar, confirme") com o Portal fora do ar.
+- **Peso e "estoque recomendado" do Portal não entram em tela nenhuma** (dono). A consulta não pede mais peso.
+
 ## Atendimento e máquinas são UMA tela (a aba Máquinas não existe mais)
 
 Até 2026-09-19 havia duas abas para a mesma pergunta do balcão, e o dono disse

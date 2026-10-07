@@ -256,6 +256,7 @@ export class WorkIntelligenceController {
               name: livePart.name,
               imageUrl: livePart.imageUrl || null,
               replacedBy: livePart.replacedBy ? cleanCode(livePart.replacedBy) : null,
+              replacementChain: livePart.replacementChain ?? [],
               fitsTo: livePart.fitsTo || [],
               specifications: livePart.specifications || null,
               url: livePart.originalPartUrl || HUSQVARNA_SPARE_PARTS_URL,

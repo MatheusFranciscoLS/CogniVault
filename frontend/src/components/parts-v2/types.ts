@@ -72,13 +72,13 @@ export type SearchStreamMessage = {
 export type HusqvarnaLivePart = {
   name?: string;
   imageUrl?: string;
+  /** Código MAIS RECENTE da cadeia de substituição (o que a Husqvarna aceita no pedido). */
   replacedBy?: string;
+  replacementChain?: Array<{ from: string; to: string }>;
   fitsTo?: string[];
   originalPartUrl?: string;
   specifications?: {
     ean?: string | null;
-    netWeight?: string | null;
-    grossWeight?: string | null;
   };
 };
 

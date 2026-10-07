@@ -110,7 +110,7 @@ test('ficha técnica: unidade só em número puro; valor com cara de erro fica d
     cilindrada: '35 cm³',
     potencia: '1,44 kW (1,93 hp)',
     tanque_l: '0,25',
-    peso_produto: '6500', // gramas ou erro: não pode aparecer como "6500 kg"
+    peso_produto: '4,4', // peso NÃO entra na ficha (o dono não quer dado de peso em tela nenhuma)
     largura_trabalho_cm: '45',
     rotacao_rpm: '2,9 kW (3,9 hp)', // campo trocado no arquivo: nem é lido
     ipi: '5,2',
@@ -125,7 +125,7 @@ test('ficha técnica: unidade só em número puro; valor com cara de erro fica d
     { label: 'IPI', value: '5,2 %' },
     { label: 'NCM', value: '84678100' },
   ]);
-  assert.deepEqual(buildSpecs({ peso_produto: '4,4' }), [{ label: 'Peso', value: '4,4 kg' }]);
+  assert.deepEqual(buildSpecs({ peso_produto: '4,4' }), []);
 });
 
 test('a ordem de exibição é a da Husqvarna: tecnologia, categoria e depois a ordem da máquina', () => {
