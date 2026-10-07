@@ -1,3 +1,4 @@
+import { prisma } from '../config/prisma';
 import { normalizeIdentifier } from '../utils/normalize';
 import {
   buildOfficialSourceCacheKey,
@@ -6,6 +7,7 @@ import {
 } from './official-source-cache.service';
 import {
   buildPortfolioCoverage,
+  markNotInLine,
   summarizePortfolioCoverage,
   type PortalVerificationState,
   type PortfolioCoverageItem,
@@ -277,17 +279,25 @@ export async function applyCachedPortalOutcomes(items: PortfolioCoverageItem[]):
   });
 }
 
+/** Modelos da lista vigente de máquinas da Husqvarna (vazio quando a lista ainda não foi importada). */
+async function listedMachineModels(tenantId: string): Promise<string[]> {
+  const rows = await prisma.machineListing.findMany({ where: { tenantId }, select: { model: true }, take: 2000 });
+  return rows.map(row => row.model);
+}
+
 /** O portfólio com o que o Portal já confirmou, sem nenhuma chamada nova ao Portal. */
 export async function buildPortfolioCoverageWithPortalCache(tenantId: string) {
   const base = await buildPortfolioCoverage(tenantId);
-  return summarizePortfolioCoverage(await applyCachedPortalOutcomes(base.items));
+  const merged = await applyCachedPortalOutcomes(base.items);
+  return summarizePortfolioCoverage(markNotInLine(merged, await listedMachineModels(tenantId)));
 }
 
 export async function buildBoundedPortalCoverage(
   tenantId: string,
   options: { limit?: number; concurrency?: number; exclude?: ReadonlySet<string> } = {},
 ) {
-  const base = summarizePortfolioCoverage(await applyCachedPortalOutcomes((await buildPortfolioCoverage(tenantId)).items));
+  const listed = await listedMachineModels(tenantId);
+  const base = summarizePortfolioCoverage(markNotInLine(await applyCachedPortalOutcomes((await buildPortfolioCoverage(tenantId)).items), listed));
   const candidates = selectPortalVerificationCandidates(base.items, options.limit ?? 8, options.exclude);
   const resolved = await mapWithConcurrency(
     candidates,
@@ -324,14 +334,16 @@ export async function buildBoundedPortalCoverage(
     };
   });
 
+  const finalItems = markNotInLine(items, listed);
+
   return {
-    ...summarizePortfolioCoverage(items),
+    ...summarizePortfolioCoverage(finalItems),
     portalChecked: true,
     checkedModels: candidates.map(candidate => candidate.model),
     checkedCount: candidates.length,
     // O que ainda falta conferir depois desta rodada (sem contar o que já foi tentado e não fechou).
     remaining: selectPortalVerificationCandidates(
-      items,
+      finalItems,
       Number.MAX_SAFE_INTEGER,
       new Set([...(options.exclude ?? []), ...candidates.map(candidate => candidate.normalizedModel)]),
     ).length,

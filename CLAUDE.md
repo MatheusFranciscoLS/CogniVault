@@ -261,6 +261,7 @@ manual que olhava sempre os mesmos 8 modelos. O dono não quer subir PDF à mão
   (`240 e-series` não é `240i`, `K 540i` não é `540i`, `543RS` não é `543R`).
 - Duas segundas tentativas, ambas estreitas: o nome comercial completo (`540i` → `540i XP`, só 1 a 3 letras a mais,
   `commercialNameAlternatives`) e a troca número+uma letra (`750K` = `K750`, `modelKeyVariants`).
+- **Fora de linha (`NOT_APPLICABLE`, 2026-10-07, pedido do dono: "quero zerado").** Modelo que o Portal já conferiu SEM lista de peças e que **não consta na lista vigente de máquinas** (`MachineListing`) não é lacuna: é fora de linha, acessório ou marca secundária, e não entra na base da cobertura (`markNotInLine`). Modelo que consta na lista vigente e o Portal não publica continua lacuna de verdade (hoje 12: Automower, 226KS12, 345BT, LE322R, W25P) e a única saída é o SAC da Husqvarna. Sem a lista de máquinas importada, nada é marcado. O que sobrou é mostrado, não escondido: a Qualidade lista os fora de linha numa seção recolhida.
 - **Resultado medido na loja simulada: 17% → 84%** (305 de 362). **Correção:** eu havia dito que os que sobravam eram
   "marcas do grupo"; medindo, os **57** que sobram são: Automower 12 (o Portal BR não tem produto nenhum), roçadeiras 10,
   tratores 6, cortadores de grama 5, motocultores 4, giro zero 3, e o resto são acessórios Husqvarna que o Portal publica só

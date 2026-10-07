@@ -31,6 +31,7 @@ type AssistantPerformance = {
     portalDocumentModels: number;
     coveredModels: number;
     withoutSource: number;
+    notApplicableModels: number;
     coveragePercent: number;
     priorityGaps: Array<{
       model: string;
@@ -206,7 +207,8 @@ export default function AssistantObservabilityPanel() {
                 <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Portal Husqvarna, lista de peças</span><b className="text-emerald-700 dark:text-emerald-300">{portfolio.portalIplModels}</b></div>
                 <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Portal Husqvarna, IPL em PDF</span><b className="text-emerald-700 dark:text-emerald-300">{portfolio.portalDocumentModels}</b></div>
                 <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Com catálogo da biblioteca</span><b className="text-emerald-700 dark:text-emerald-300">{portfolio.localIplModels}</b></div>
-                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Ainda sem conferência</span><b className="text-amber-700 dark:text-amber-300">{portfolio.withoutSource}</b></div>
+                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Em linha, sem vista no Portal</span><b className="text-amber-700 dark:text-amber-300">{portfolio.withoutSource}</b></div>
+                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Fora de linha</span><b>{portfolio.notApplicableModels}</b></div>
 
                 {portfolio.priorityGaps.length > 0 && (
                   <div className="mt-3 border-t border-ink-100 pt-3 dark:border-ink-800">
@@ -232,7 +234,7 @@ export default function AssistantObservabilityPanel() {
                   </div>
                 )}
 
-                <p className="mt-3 border-t border-ink-100 pt-3 text-sm leading-4 text-ink-500 dark:text-ink-400 dark:border-ink-800">“Sem conferência” não significa sem catálogo: só que ninguém checou ainda. A lista acima mostra por onde começar.</p>
+                <p className="mt-3 border-t border-ink-100 pt-3 text-sm leading-4 text-ink-500 dark:text-ink-400 dark:border-ink-800">“Em linha, sem vista” são modelos que a Husqvarna vende hoje e o Portal não publica. “Fora de linha” são os que não constam na lista vigente.</p>
               </>
             ) : (
               <div className="text-sm text-ink-500 dark:text-ink-400">Inventário de cobertura indisponível nesta leitura.</div>

@@ -4,7 +4,7 @@ import { capRegexInput } from '../utils/regex-input';
 import { HusqvarnaOfficialDetailService } from './husqvarna-official-detail.service';
 import { HusqvarnaProductSearchService } from './husqvarna-product-search.service';
 
-export type PortfolioCoverageStatus = 'LOCAL_IPL' | 'PORTAL_IPL' | 'PORTAL_DOCUMENT' | 'UNVERIFIED';
+export type PortfolioCoverageStatus = 'LOCAL_IPL' | 'PORTAL_IPL' | 'PORTAL_DOCUMENT' | 'NOT_APPLICABLE' | 'UNVERIFIED';
 export type PortalVerificationState = 'NOT_CHECKED' | 'VERIFIED' | 'DOCUMENT_ONLY' | 'NO_EXACT_MATCH' | 'NO_IPL' | 'INCONCLUSIVE';
 
 export type PortfolioCoverageItem = {
@@ -114,6 +114,30 @@ function hasDistinctShortCodePrefix(title: string, modelKey: string): boolean {
 
   const prefix = tokens[tokens.length - consumed - 1] || '';
   return /^[A-Z]{1,3}$/.test(prefix) && prefix !== 'HUSQVARNA';
+}
+
+/**
+ * Modelo que o Portal já conferiu e NÃO tem lista de peças, e que também não está na lista
+ * vigente de máquinas da Husqvarna, é modelo fora de linha, acessório ou marca secundária:
+ * não há vista explodida a esperar, então não conta como lacuna (nem entra na base da
+ * cobertura). Modelo que está na lista vigente continua lacuna de verdade.
+ * Sem lista de máquinas importada não se conclui nada: nada é marcado.
+ */
+export function markNotInLine(items: PortfolioCoverageItem[], listedModels: string[]): PortfolioCoverageItem[] {
+  const listed = listedModels.map(model => normalizeIdentifier(model)).filter(Boolean);
+  if (!listed.length) return items;
+  const inLine = (key: string) => listed.some(entry => {
+    if (entry === key) return true;
+    // "AM315" na lista comercial e "AM315 Mark II" na lista de máquinas: mesma máquina, até 6 letras a mais.
+    if (entry.startsWith(key)) return /^[A-Z]{1,6}$/.test(entry.slice(key.length));
+    if (key.startsWith(entry)) return /^[A-Z]{1,3}$/.test(key.slice(entry.length));
+    return false;
+  });
+  return items.map(item => {
+    if (item.status !== 'UNVERIFIED') return item;
+    if (item.portalVerification !== 'NO_EXACT_MATCH' && item.portalVerification !== 'NO_IPL') return item;
+    return inLine(normalizeIdentifier(item.model)) ? item : { ...item, status: 'NOT_APPLICABLE' as const };
+  });
 }
 
 /**
@@ -347,6 +371,13 @@ async function mapWithConcurrency<T, R>(items: T[], concurrency: number, worker:
   return results;
 }
 
+export function listNotApplicable(items: PortfolioCoverageItem[]) {
+  return items
+    .filter(item => item.status === 'NOT_APPLICABLE')
+    .sort((a, b) => (a.commercialCategory || '').localeCompare(b.commercialCategory || '') || a.model.localeCompare(b.model))
+    .map(item => ({ model: item.model, normalizedModel: item.normalizedModel, commercialCategory: item.commercialCategory ?? null }));
+}
+
 export function rankPortfolioCoverageGaps(items: PortfolioCoverageItem[], limit = 12) {
   return items
     .filter(item => item.status === 'UNVERIFIED')
@@ -477,17 +508,18 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
 }
 
 export function summarizePortfolioCoverage(items: PortfolioCoverageItem[]) {
-  const counts = { localIpl: 0, portalIpl: 0, portalDocument: 0, unverified: 0, total: items.length };
+  const counts = { localIpl: 0, portalIpl: 0, portalDocument: 0, notApplicable: 0, unverified: 0, total: items.length };
   for (const item of items) {
     if (item.status === 'LOCAL_IPL') counts.localIpl += 1;
     else if (item.status === 'PORTAL_IPL') counts.portalIpl += 1;
     else if (item.status === 'PORTAL_DOCUMENT') counts.portalDocument += 1;
+    else if (item.status === 'NOT_APPLICABLE') counts.notApplicable += 1;
     else counts.unverified += 1;
   }
   return {
     ...counts,
     covered: counts.localIpl + counts.portalIpl + counts.portalDocument,
-    coverageRate: counts.total ? (counts.localIpl + counts.portalIpl + counts.portalDocument) / counts.total : 0,
+    coverageRate: counts.total - counts.notApplicable > 0 ? (counts.localIpl + counts.portalIpl + counts.portalDocument) / (counts.total - counts.notApplicable) : 0,
     items,
   };
 }

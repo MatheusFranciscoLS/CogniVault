@@ -32,6 +32,9 @@ export type PortfolioCoverage = {
   portalIpl: number;
   /** Modelos que o Portal só tem como IPL em documento (PDF), sem lista estruturada. */
   portalDocument?: number;
+  /** Sem lista no Portal e fora da lista vigente de máquinas: fora de linha, acessório ou marca secundária. */
+  notApplicable?: number;
+  outOfLine?: Array<{ model: string; normalizedModel: string; commercialCategory: string | null }>;
   unverified: number;
   covered: number;
   coverageRate: number;
@@ -156,7 +159,7 @@ export default function PortfolioCoveragePanel({
           <div className="rounded-2xl border border-ink-200 bg-white p-4 dark:border-ink-700 dark:bg-ink-800">
             <div className="text-sm font-bold   text-ink-500 dark:text-ink-400">Cobertura técnica</div>
             <div className="mt-2 text-2xl font-semibold text-ink-900 dark:text-ink-100">{coveragePercent}%</div>
-            <div className="mt-1 text-sm text-ink-500 dark:text-ink-400">{displayCoverage.covered} de {displayCoverage.total} modelos com fonte técnica</div>
+            <div className="mt-1 text-sm text-ink-500 dark:text-ink-400">{displayCoverage.covered} de {displayCoverage.total - (displayCoverage.notApplicable ?? 0)} modelos em linha com fonte técnica</div>
           </div>
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
             <div className="text-sm font-bold   text-emerald-700 dark:text-emerald-300">IPL local</div>
@@ -171,9 +174,9 @@ export default function PortfolioCoveragePanel({
             </div>
           </div>
           <div className={`rounded-2xl border p-4 ${displayCoverage.unverified ? 'border-amber-200 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-900/20' : 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-800 dark:bg-emerald-900/20'}`}>
-            <div className={`text-sm font-bold   ${displayCoverage.unverified ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>Sem fonte técnica comprovada</div>
+            <div className={`text-sm font-bold   ${displayCoverage.unverified ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>Em linha, sem vista no Portal</div>
             <div className={`mt-2 text-2xl font-semibold ${displayCoverage.unverified ? 'text-amber-950 dark:text-amber-200' : 'text-emerald-950 dark:text-emerald-200'}`}>{displayCoverage.unverified}</div>
-            <div className={`mt-1 text-sm ${displayCoverage.unverified ? 'text-amber-800 dark:text-amber-200' : 'text-emerald-800 dark:text-emerald-200'}`}>{checkingPortal ? 'Conferência no Portal em andamento' : displayCoverage.remaining ? 'Ainda falta conferir no Portal' : 'Já conferidos no Portal, sem resultado'}</div>
+            <div className={`mt-1 text-sm ${displayCoverage.unverified ? 'text-amber-800 dark:text-amber-200' : 'text-emerald-800 dark:text-emerald-200'}`}>{checkingPortal ? 'Conferência no Portal em andamento' : displayCoverage.remaining ? 'Ainda falta conferir no Portal' : 'A Husqvarna vende hoje e o Portal não publica a vista'}</div>
           </div>
         </div>
 
@@ -191,20 +194,35 @@ export default function PortfolioCoveragePanel({
           </div>
         ) : (
           <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm leading-5 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
-            Todos os modelos já foram conferidos no Portal. Os que continuam abaixo não têm lista de peças publicada no Portal (a categoria ao lado ajuda a reconhecer o que é).
+            Todos os modelos já foram conferidos. {displayCoverage.notApplicable ?? 0} estão fora de linha (não constam na lista vigente de máquinas e o Portal não tem lista). Os {displayCoverage.unverified} abaixo constam na lista vigente e o Portal não publica a vista explodida.
           </div>
         )}
 
         <div className="mt-5 flex items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">Modelos sem fonte oficial</h3>
-            <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">{displayCoverage.remaining ? 'Os que ainda não foram conferidos aparecem como pendentes. ' : 'O Portal foi conferido e não tem lista de peças para estes. '}Ordenados pela quantidade de aplicações na base comercial.</p>
+            <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">Em linha, sem vista explodida no Portal</h3>
+            <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">{displayCoverage.remaining ? 'Os que ainda não foram conferidos aparecem como pendentes. ' : 'Para estes, a única saída é o SAC da Husqvarna. '}Ordenados pela quantidade de aplicações na base comercial.</p>
           </div>
           <span className="text-sm font-semibold text-ink-500 dark:text-ink-400">{gaps.length} {gaps.length === 1 ? 'modelo' : 'modelos'}</span>
         </div>
 
+        {(displayCoverage.outOfLine?.length ?? 0) > 0 && (
+          <details className="mt-4 rounded-2xl border border-ink-200 dark:border-ink-700">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-ink-700 dark:text-ink-200">
+              Fora de linha: {displayCoverage.outOfLine?.length} modelos (não constam na lista vigente de máquinas e o Portal não tem lista de peças)
+            </summary>
+            <div className="flex flex-wrap gap-2 border-t border-ink-100 px-4 py-3 dark:border-ink-800">
+              {displayCoverage.outOfLine?.map(item => (
+                <span key={item.normalizedModel} className="rounded-full border border-ink-200 bg-ink-50 px-2 py-0.5 text-sm text-ink-600 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-300">
+                  <b>{item.model}</b>{item.commercialCategory ? ` · ${item.commercialCategory}` : ''}
+                </span>
+              ))}
+            </div>
+          </details>
+        )}
+
         {gaps.length === 0 ? (
-          <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 text-sm font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">Nenhuma lacuna técnica identificada.</div>
+          <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 text-sm font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">Nenhum modelo em linha está sem vista explodida.</div>
         ) : (
           <div className="mt-3 max-h-[520px] divide-y divide-ink-100 overflow-auto rounded-2xl border border-ink-200 dark:divide-ink-800 dark:border-ink-700">
             {gaps.map(gap => (

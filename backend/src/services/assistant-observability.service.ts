@@ -86,7 +86,8 @@ export class AssistantObservabilityService {
       portalDocumentModels: portfolio.portalDocument,
       coveredModels: portfolio.covered,
       withoutSource: portfolio.unverified,
-      coveragePercent: portfolio.total ? Math.round((portfolio.covered / portfolio.total) * 1000) / 10 : 0,
+      notApplicableModels: portfolio.notApplicable,
+      coveragePercent: Math.round(portfolio.coverageRate * 1000) / 10,
       priorityGaps: rankPortfolioCoverageGaps(portfolio.items, 12),
     } : null;
 
