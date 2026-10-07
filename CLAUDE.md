@@ -207,6 +207,18 @@ fazer nada manual"*.
   secundária ("similar, confirme") com o Portal fora do ar.
 - **Peso e "estoque recomendado" do Portal não entram em tela nenhuma** (dono). A consulta não pede mais peso.
 
+## Teclado primeiro e saída para o Clipp (2026-10-07)
+
+O balcão é mouse e teclado, e a venda acontece no Clipp. Dois atalhos que valem o dia:
+
+- **Lista de resultados** (`lib/results-keyboard.ts`, ligada no `ResultsTable`): ↓ no campo de busca vai ao código da primeira linha;
+  ↓/↑ percorrem as linhas **na ordem da tela** (a ordem dos grupos pode mudar por CSS, então manda a posição vertical,
+  não a do DOM); Enter copia o código (é o próprio botão); **+** põe a linha no orçamento; ↑ na primeira volta à busca. As
+  setas não são roubadas de campo de texto nem de menu aberto, e Ctrl/Alt/Meta passam direto. `/` e Ctrl K focam a busca.
+- **"Copiar códigos"** na gaveta do orçamento (`lib/quote-codes.ts`): um código por linha, `código<TAB>quantidade`, código limpo
+  como o Clipp guarda, somando o mesmo código repetido e **sem o serviço avulso** (`SRV-`, ex.: óleo). É interno do balcão: o
+  que vai ao CLIENTE nunca leva código. O formato exato que o Clipp aceita colar ainda precisa de confirmação do dono.
+
 ## Atendimento e máquinas são UMA tela (a aba Máquinas não existe mais)
 
 Até 2026-09-19 havia duas abas para a mesma pergunta do balcão, e o dono disse

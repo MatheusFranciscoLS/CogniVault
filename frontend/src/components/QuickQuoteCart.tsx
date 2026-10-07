@@ -9,6 +9,7 @@ import type { QuoteCartItem, QuoteSyncState, QuoteTextOptions } from '../context
 import { formatHusqvarnaPartNumber, cleanErpCode } from '../lib';
 import { playCopySound } from '../lib/sound';
 import { formatBRL, quoteTotals } from '../lib/quote-message';
+import { clipboardCodes } from '../lib/quote-codes';
 import { Icon } from './icons/Icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -262,6 +263,22 @@ export default function QuickQuoteCart() {
     toast.success(`"${name}" adicionado ao orçamento.`);
   };
 
+  // A venda é feita no Clipp: leva todos os códigos de uma vez (um por linha, com a quantidade), em vez de um clique por item.
+  const copyAllCodes = () => {
+    const { text, count } = clipboardCodes(items);
+    if (!count) {
+      toast.error('Não há código de peça para copiar neste orçamento.');
+      return;
+    }
+    void navigator.clipboard.writeText(text).then(
+      () => {
+        playCopySound();
+        toast.success(count === 1 ? '1 código copiado.' : `${count} códigos copiados, um por linha com a quantidade.`);
+      },
+      () => toast.error('Não foi possível copiar os códigos.'),
+    );
+  };
+
   // Esvaziar apaga o trabalho do atendimento: pede confirmação, como o "Encerrar".
   const handleClear = async () => {
     const confirmed = await confirm({ title: 'Esvaziar o orçamento?', description: totalItems === 1 ? 'O item será removido.' : `Os ${totalItems} itens serão removidos.`, confirmLabel: 'Esvaziar', destructive: true });
@@ -425,9 +442,10 @@ export default function QuickQuoteCart() {
 
               {/* O PDF e o WhatsApp já arquivam o orçamento sozinhos: não há botão "Salvar",
                   que dava a impressão contrária. */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <Button variant="outline" onClick={() => generatePdfQuote(quoteOptions)}><Icon name="pdf" className="size-4" />PDF</Button>
                 <Button variant="outline" onClick={() => window.print()}><Icon name="printer" className="size-4" />Imprimir</Button>
+                <Button variant="outline" onClick={copyAllCodes}><Icon name="clipboard" className="size-4" />Copiar códigos</Button>
                 <Button variant="ghost" onClick={handleClear} className="text-muted-foreground hover:text-destructive">Esvaziar</Button>
               </div>
             </footer>

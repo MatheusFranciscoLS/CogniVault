@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { onResultsKeyDown } from '../../lib/results-keyboard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PART_ROW_GRID } from './PartRow';
 import { cn } from '@/lib/utils';
@@ -6,7 +7,7 @@ import { cn } from '@/lib/utils';
 /** Tabela de resultados: cabeçalho de colunas e grupos em régua, não pilha de cartões. */
 export function ResultsTable({ children }: { children: ReactNode }) {
   return (
-    <section aria-label="Resultados" className="flex flex-col overflow-hidden rounded-xl border border-border bg-card">
+    <section aria-label="Resultados" onKeyDown={onResultsKeyDown} className="flex flex-col overflow-hidden rounded-xl border border-border bg-card">
       <div className={cn('hidden h-10 items-center gap-x-4 border-b border-border bg-muted px-4 text-sm font-semibold text-muted-foreground lg:grid', PART_ROW_GRID)}>
         <span>Código</span>
         <span>Peça</span>

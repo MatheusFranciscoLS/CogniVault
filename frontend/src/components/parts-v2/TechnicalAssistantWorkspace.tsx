@@ -22,6 +22,7 @@ import { useRecentMachines } from '../machines/recent-machines';
 import KawasakiEnginePanel from '../machines/KawasakiEnginePanel';
 import OilQuickAdd from './OilQuickAdd';
 import CodeReplacementCheck from './CodeReplacementCheck';
+import { focusFirstResult } from '../../lib/results-keyboard';
 import BriggsEnginePanel from '../machines/BriggsEnginePanel';
 import OfficialPartOrigin from '../machines/OfficialPartOrigin';
 import PartGuesses from './PartGuesses';
@@ -685,6 +686,11 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
                 if (event.key === 'ArrowUp') { event.preventDefault(); setActiveRecent(current => (current <= 0 ? recent.length - 1 : current - 1)); return; }
                 if (event.key === 'Enter' && activeRecent >= 0) { event.preventDefault(); setRecentOpen(false); beginSearch(recent[activeRecent].replay); return; }
                 if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setRecentOpen(false); return; }
+              }
+              // Sem sugestões abertas, ↓ leva à primeira peça da lista (teclado primeiro).
+              if (event.key === 'ArrowDown' && !(suggestionsOpen && suggestions.length)) {
+                if (focusFirstResult()) event.preventDefault();
+                return;
               }
               if (!suggestionsOpen || !suggestions.length) return;
               if (event.key === 'ArrowDown') {

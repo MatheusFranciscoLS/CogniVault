@@ -57,11 +57,12 @@ export default function PartRow({ code, name, details, origin, tags, price, pric
       className={cn(
         'group relative grid items-center gap-x-4 gap-y-2 border-b border-border px-4 py-3 transition-colors last:border-b-0',
         PART_ROW_GRID,
-        'hover:bg-muted',
+        'hover:bg-muted focus-within:bg-muted',
       )}
     >
       <button
         type="button"
+        data-row-copy=""
         onClick={copyCode}
         aria-label={`Copiar código ${code}`}
         title="Copiar código"
@@ -87,7 +88,7 @@ export default function PartRow({ code, name, details, origin, tags, price, pric
         )}
       </div>
 
-      <Button variant={inCart ? 'added' : 'add'} onClick={onAdd} className="w-full">
+      <Button variant={inCart ? 'added' : 'add'} onClick={onAdd} data-row-add="" className="w-full">
         {inCart ? <><Icon name="check" className="size-4" />No orçamento · {quantityInCart}</> : '+ Orçamento'}
         <span className="sr-only">, {name}</span>
       </Button>
