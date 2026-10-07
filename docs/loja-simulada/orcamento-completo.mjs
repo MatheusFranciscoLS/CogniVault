@@ -148,7 +148,11 @@ await step('WhatsApp', async () => {
 
 await step('prazo das peças e observações (digitados à mão)', async () => {
   // O prazo depende do estoque: o atendente digita. As observações vêm com o texto padrão da loja e podem ser editadas.
-  await gaveta.getByLabel('Prazo das peças').fill('7 dias úteis');
+  const grupoPrazo = gaveta.getByRole('group', { name: 'Prazo das peças' });
+  check('o prazo é uma escolha: Imediato, Encomenda ou Sem prazo (começa sem prazo)', (await grupoPrazo.getByRole('button').allInnerTexts()).join('|') === 'Imediato|Encomenda|Sem prazo' && (await grupoPrazo.getByRole('button', { name: 'Sem prazo' }).getAttribute('aria-pressed')) === 'true');
+  await grupoPrazo.getByRole('button', { name: 'Encomenda' }).click();
+  check('Encomenda já vem com 7 a 10 dias, editável', (await gaveta.getByLabel('Prazo da encomenda').inputValue()) === '7 a 10 dias');
+  await gaveta.getByLabel('Prazo da encomenda').fill('7 dias úteis');
   await gaveta.getByRole('button', { name: 'Observações do orçamento' }).click();
   const caixa = gaveta.getByLabel('Observações do orçamento');
   const padrao = await caixa.inputValue();
@@ -183,11 +187,31 @@ await step('PDF', async () => {
   check('o PDF traz a razão social do cadastro do CNPJ e a validade de 20 dias', texto.includes('EQUIPAMENTOS DE JARDINAGEM LTDA') && texto.includes('20 dias'));
 });
 
+await step('prazo escolhido sai no PDF: Imediato, Encomenda e Sem prazo (orçamento expresso)', async () => {
+  const baixar = async nome => {
+    const [download] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), gaveta.getByRole('button', { name: 'PDF' }).click()]);
+    const destino = path.join(OUT, `${theme}-orcamento-${nome}.pdf`);
+    await download.saveAs(destino);
+    return fs.readFileSync(destino).toString('latin1');
+  };
+  const grupoPrazo = gaveta.getByRole('group', { name: 'Prazo das peças' });
+  await grupoPrazo.getByRole('button', { name: 'Imediato' }).click();
+  const imediato = await baixar('imediato');
+  check('Imediato: o PDF tem a coluna PRAZO e diz Imediato', imediato.includes('PRAZO') && imediato.includes('Imediato'));
+  await grupoPrazo.getByRole('button', { name: 'Sem prazo' }).click();
+  const expresso = await baixar('expresso');
+  check('Sem prazo: o PDF não tem coluna de prazo, só descrição, quantidade e valores', !expresso.includes('PRAZO') && !expresso.includes('Imediato') && expresso.includes('VALOR TOTAL'));
+  await gaveta.getByRole('button', { name: 'Ver a mensagem antes de enviar' }).click();
+  const previa = (await gaveta.getByLabel('Mensagem do WhatsApp').innerText()).trim();
+  check('Sem prazo: a mensagem do WhatsApp não fala de prazo', previa.length > 50 && !/Prazo das peças/.test(previa));
+  await gaveta.getByRole('button', { name: 'Esconder a mensagem' }).click();
+});
+
 await step('voltar ao texto padrão', async () => {
   await gaveta.getByRole('button', { name: /Observações do orçamento/ }).click();
   await gaveta.getByRole('button', { name: 'Voltar ao texto padrão' }).click();
   check('as observações voltam ao padrão da loja', /Impostos inclusos/.test(await gaveta.getByLabel('Observações do orçamento').inputValue()));
-  await gaveta.getByLabel('Prazo das peças').fill('');
+  await gaveta.getByRole('group', { name: 'Prazo das peças' }).getByRole('button', { name: 'Sem prazo' }).click();
   await gaveta.getByRole('button', { name: 'Esconder as observações' }).click();
 });
 

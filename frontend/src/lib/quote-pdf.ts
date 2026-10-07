@@ -158,8 +158,10 @@ export function buildQuotePdf(input: {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const validityDays = options.validityDays ?? QUOTE_DEFAULTS.validityDays;
-  // O prazo é digitado à mão em cada orçamento (depende do estoque); vazio volta ao padrão do modelo.
-  const leadTime = options.leadTime?.trim() || QUOTE_DEFAULTS.leadTime;
+  // O prazo é ESCOLHIDO em cada orçamento (Imediato, Encomenda ou nenhum). Sem prazo, o PDF não tem a coluna: orçamento
+  // expresso, só nome, quantidade e valor (dono, 2026-10-07).
+  const leadTime = options.leadTime?.trim() ?? '';
+  const showLead = leadTime !== '';
 
   let y = drawLetterhead(doc, { logo: input.logo, title: 'ORÇAMENTO' });
   doc.setFont('helvetica', 'normal');
@@ -198,28 +200,42 @@ export function buildQuotePdf(input: {
     return [
       String(index + 1),
       description,
-      leadTime,
+      ...(showLead ? [leadTime] : []),
       String(item.quantity),
       priced ? formatBRL(item.unitPrice as number) : 'Sob consulta',
       priced ? formatBRL(item.quantity * (item.unitPrice as number)) : 'Sob consulta',
     ];
   });
 
+  const columns: Record<number, { cellWidth: number; halign: 'center' | 'right'; textColor?: [number, number, number]; fontSize?: number; fontStyle?: 'bold' }> = showLead
+      ? {
+          0: { cellWidth: 24, halign: 'center', textColor: MUTED },
+          2: { cellWidth: 62, halign: 'center', fontSize: 9 },
+          3: { cellWidth: 32, halign: 'center' },
+          4: { cellWidth: 76, halign: 'right' },
+          5: { cellWidth: 82, halign: 'right', fontStyle: 'bold' },
+        }
+      : {
+          0: { cellWidth: 24, halign: 'center', textColor: MUTED },
+          2: { cellWidth: 40, halign: 'center' },
+          3: { cellWidth: 90, halign: 'right' },
+          4: { cellWidth: 100, halign: 'right', fontStyle: 'bold' },
+        };
+
   autoTable(doc, {
     startY: y,
-    head: [['#', 'DESCRIÇÃO', 'PRAZO', 'QTD', 'VALOR UNIT.', 'VALOR TOTAL']],
+    head: [['#', 'DESCRIÇÃO', ...(showLead ? ['PRAZO'] : []), 'QTD', 'VALOR UNIT.', 'VALOR TOTAL']],
     body,
     theme: 'plain',
     margin: { left: MARGIN, right: MARGIN, bottom: FOOTER_SPACE },
     headStyles: { fillColor: NAVY_DARK, textColor: 255, fontStyle: 'bold', fontSize: 8.5, cellPadding: { top: 7, bottom: 7, left: 6, right: 6 } },
     styles: { fontSize: 10, cellPadding: { top: 7, bottom: 7, left: 6, right: 6 }, textColor: INK, lineColor: RULE, lineWidth: 0 },
     alternateRowStyles: { fillColor: ZEBRA },
-    columnStyles: {
-      0: { cellWidth: 24, halign: 'center', textColor: MUTED },
-      2: { cellWidth: 62, halign: 'center', fontSize: 9 },
-      3: { cellWidth: 32, halign: 'center' },
-      4: { cellWidth: 76, halign: 'right' },
-      5: { cellWidth: 82, halign: 'right', fontStyle: 'bold' },
+    columnStyles: columns,
+    // O título da coluna segue o alinhamento dos valores dela (QTD no centro, valores à direita).
+    didParseCell: data => {
+      const align = columns[data.column.index]?.halign;
+      if (data.section === 'head' && align) data.cell.styles.halign = align;
     },
     didDrawCell: data => {
       if (data.section !== 'body') return;

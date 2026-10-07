@@ -9,6 +9,7 @@ import type { QuoteCartItem, QuoteSyncState, QuoteTextOptions } from '../context
 import { formatHusqvarnaPartNumber, cleanErpCode } from '../lib';
 import { playCopySound } from '../lib/sound';
 import { formatBRL, quoteTotals } from '../lib/quote-message';
+import { leadMode, leadTimeFor } from '../lib/lead-time';
 import { QUOTE_DEFAULTS } from '../lib/store-profile';
 import { maskPhoneInput } from '../lib/phone';
 import { Icon } from './icons/Icon';
@@ -244,8 +245,9 @@ export default function QuickQuoteCart() {
 
   const patchOptions = (patch: Partial<QuoteTextOptions>) => setDraftOptions({ ...draftOptions, ...patch });
 
-  // Prazo das peças e observações: digitados no orçamento. Vazios, valem os padrões do modelo da loja.
+  // Prazo das peças: escolhido (Imediato, Encomenda ou nenhum). Observações: vazias, valem as padrão da loja.
   const leadTime = draftOptions.leadTime ?? '';
+  const mode = leadMode(leadTime);
   const defaultNotes = QUOTE_DEFAULTS.observations.join('\n');
   const notesText = draftOptions.notes ?? defaultNotes;
   const notesCustomized = draftOptions.notes !== undefined && draftOptions.notes !== defaultNotes;
@@ -355,8 +357,15 @@ export default function QuickQuoteCart() {
               </div>
 
               <div className="space-y-1.5">
-                <label htmlFor="quote-lead-time" className="block text-sm font-medium text-muted-foreground">Prazo das peças</label>
-                <Input id="quote-lead-time" type="text" autoComplete="off" value={leadTime} onChange={e => patchOptions({ leadTime: e.target.value })} placeholder="Imediato" className="text-base" />
+                <span id="quote-lead-time-label" className="block text-sm font-medium text-muted-foreground">Prazo das peças</span>
+                <div role="group" aria-labelledby="quote-lead-time-label" className="flex flex-wrap gap-2">
+                  {([['NOW', 'Imediato'], ['ORDER', 'Encomenda'], ['NONE', 'Sem prazo']] as const).map(([value, label]) => (
+                    <Button key={value} type="button" size="sm" variant={mode === value ? 'default' : 'outline'} aria-pressed={mode === value} onClick={() => patchOptions({ leadTime: leadTimeFor(value, leadTime) })}>{label}</Button>
+                  ))}
+                </div>
+                {mode === 'ORDER' && (
+                  <Input id="quote-lead-time" aria-label="Prazo da encomenda" type="text" autoComplete="off" value={leadTime} onChange={e => patchOptions({ leadTime: e.target.value })} placeholder="7 a 10 dias" className="text-base" />
+                )}
               </div>
 
               <div>

@@ -29,7 +29,7 @@ export interface QuoteTextOptions {
   customerName?: string;
   customerPhone?: string;
   paymentMethod?: string;
-  /** Prazo das peças, digitado à mão (depende do estoque). Vazio = IMEDIATO. */
+  /** Prazo das peças: "Imediato", o prazo da encomenda (ex.: "7 a 10 dias") ou vazio = orçamento expresso, sem prazo. */
   leadTime?: string;
   /** Observações do orçamento. Vazio = as observações padrão da loja. */
   notes?: string;
