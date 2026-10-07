@@ -140,7 +140,7 @@ Todas com texto de 9 a 12 px e frases que explicam o sistema; nenhuma tem erro n
 | Histórico | 50 | 20 consultas; **consultas "Analise a peça …" são o texto automático do "Perguntar à IA", não o que o atendente digitou** (poluição do histórico). Recomendo dobrar na busca (últimas buscas) e apagar a tela |
 | Negócio | 9 | números e gráfico bons; cartões na paleta antiga |
 | Visão geral | 6 | números técnicos (catálogos, peças indexadas): juntar com Auditoria |
-| Usuários | 8 | criar, perfil, bloquear, redefinir senha: manter |
+| Usuários | 8 | ✅ **refeita** (`admin/UsersPanel.tsx`, `admin/AdminPage.tsx`): lista limpa, ações em menu ⋯, confirmação antes de mudar perfil ou bloquear, redefinição de senha em diálogo; 24 verificações. Saiu a coluna "Feedback" |
 | Feedback | 5 | 0 avaliações registradas: recomendo tirar (dono já viu que é pouco uso) |
 | Qualidade | 6 | 2.659 caracteres de texto; manter, refazer |
 | Auditoria | 1 | 100 eventos, só leitura; juntar com Visão geral |

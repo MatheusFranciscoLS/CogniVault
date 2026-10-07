@@ -15,7 +15,7 @@ const CatalogsWorkspace = lazy(() => import('../components/CatalogsWorkspace'));
 const OverviewPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.OverviewPanel })));
 const BusinessPanel = lazy(() => import('../components/BusinessPanel'));
 const AssistantObservabilityPanel = lazy(() => import('../components/AssistantObservabilityPanel'));
-const UsersPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.UsersPanel })));
+const UsersPanel = lazy(() => import('../components/admin/UsersPanel'));
 const AuditPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.AuditPanel })));
 const AdminFeedbackPanel = lazy(() => import('../components/AdminFeedbackPanel'));
 const QualityPanel = lazy(() => import('../components/QualityPanel'));
