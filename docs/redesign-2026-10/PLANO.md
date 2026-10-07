@@ -33,6 +33,16 @@ Regra do dono (2026-10-07): **tudo que ele passar entra aqui na hora**, porque h
 | 3b | **Orçamento de MÁQUINAS automatizado.** O dono faz "tudo manual" e disse que é "bem bacana"; quer que o site gere. Os orçamentos reais estão em **Word, em pastas por grupo, no PC da loja** (o `.rar` que ele mandou continha só um atalho). **Ele coloca a pasta no computador ao chegar em casa**; até lá, nada a fazer. Depois: ler 2 ou 3 de cada grupo, mapear campos e blocos e gerar do mesmo jeito (a Tabela de preços já tem preço, ficha, "acompanha" e "leve junto"). Dados de cliente dos exemplos NUNCA vão para o repositório | ⏳ aguarda a pasta |
 | 3c | **Lista curta do que o dono precisa responder** (ele está no celular e as mensagens são muitas): mandar sempre em poucas linhas, numeradas, com a resposta mais provável já sugerida. Mantida na seção "Perguntas pendentes ao dono" abaixo | ✅ feita nesta rodada |
 
+### Pedido do dono (2026-10-07, depois das respostas): auditoria geral e melhorias da administração e da IA
+> "Tem melhorias para ser feito nessa aba de administração? E até mesmo melhorias da IA, essa cobertura técnica e tudo mais? Melhoria para o meu site em geral, **fazer toda a parte do backend ficar sem erros e da melhor forma possível**."
+
+| # | Frente | Situação |
+|---|---|---|
+| A1 | **Auditoria "zero erros" do backend** (a do item 8 da fila, agora pedida de forma explícita): varredura de lógica, rotas sem tratamento de erro, validação de entrada, consultas pesadas, transações, código morto, segurança básica (CodeQL, `npm audit`, RLS), cobertura de teste. Cada achado é medido antes de mexer | 🔧 1ª leva feita (PR `feat/auditoria-backend`): todo `findMany` sem `take` é limitado por `where`; todo fetch externo tem timeout; sem módulo morto fora do chat; única falha latente achada estava no chat-intent (podado). Falta: `npm audit --omit=dev`, validação de corpo nas rotas restantes, exports sem uso |
+| A2 | **Poda do chat que sobrou no servidor** (`/api/chat`, `react-agent`): sem tela desde que o assistente em gaveta saiu, mas as rotas seguem expostas a quem está logado e podem gastar IA | ✅ podado: `/api/chat`, chat/react-agent/confidence-gate e afins, mais as rotas de escrita sem tela (favoritos, feedback POST/PATCH, uso de busca). 745 testes (eram 786), só os 3 do RabbitMQ falham sem broker. Rotas sem tela que ficaram: `GET /home`, `commercial-imports`, `search-intelligence`, `index-semantics` e leitura de feedback do admin |
+| A3 | **Administração, melhorias**: Visão geral com larguras desencontradas (a faixa de cima é estreita e as de baixo, largas), texto "Operação do assistente" que ficou sem sentido sem o assistente; Qualidade: a "cobertura técnica" (17%, 60 de 362 modelos) é útil mas o painel é só leitura: oferecer o próximo passo | ⏳ |
+| A4 | **IA e cobertura técnica**: o que mede e o que poderia agir (ver A3); regra de custo zero continua | ⏳ avaliar com os números reais |
+
 ### Respostas do dono (2026-10-07, à noite) e o que cada uma virou
 | # | Pergunta | Resposta | O que fazer / situação |
 |---|---|---|---|

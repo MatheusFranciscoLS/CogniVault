@@ -1,6 +1,6 @@
 import { normalizeIdentifier, normalizeText } from '../utils/normalize';
 import { capRegexInput } from '../utils/regex-input';
-import type { CandidateForAi, SearchIntent } from './chat-intent.service';
+import type { CandidateForAi, SearchIntent } from './search-intent';
 import {
   extractExplicitSerialNumber,
   relationSpecificityBonus,

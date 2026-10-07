@@ -92,7 +92,7 @@ export class AuthController {
 
             setSessionCookie(res, token);
 
-            AuditService.record({
+            void AuditService.record({
                 tenantId: user.tenantId,
                 userId: user.id,
                 action: 'USER_LOGIN',

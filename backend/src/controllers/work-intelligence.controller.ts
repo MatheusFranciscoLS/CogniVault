@@ -5,11 +5,10 @@ import { normalizeIdentifier } from '../utils/normalize';
 import { AuditService } from '../services/audit.service';
 import { HusqvarnaLivePartService } from '../services/husqvarna-live-part.service';
 import { HusqvarnaPortalGraphqlService } from '../services/husqvarna-portal-graphql.service';
-import { parseOperationalPartCode, parseOptionalOperationalPartId, parseQuoteUsageItems } from '../services/operational-input-validation';
+import { parseQuoteUsageItems } from '../services/operational-input-validation';
 
 const HUSQVARNA_SPARE_PARTS_URL = 'https://www.husqvarna.com/br/pecas-sobressalentes/';
 const HUSQVARNA_PORTAL_URL = 'https://portal.husqvarnagroup.com/br/';
-const SEARCH_DEDUP_MS = 2 * 60 * 1000;
 
 function cleanCode(value: unknown): string {
   return String(value || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
@@ -20,75 +19,6 @@ function cleanCode(value: unknown): string {
  * Busca comercial e work-context possuem controllers dedicados e otimizados.
  */
 export class WorkIntelligenceController {
-  async recordSearchUsage(req: AuthenticatedRequest, res: Response): Promise<void> {
-    if (!req.user) return;
-
-    const query = String(req.body?.query || '').trim().slice(0, 500);
-    const parsedPartId = parseOptionalOperationalPartId(req.body?.partId);
-    const partId = parsedPartId.value;
-    const resultCode = parseOperationalPartCode(req.body?.partNumber);
-    const resultLabel = String(req.body?.name || '').trim().slice(0, 500) || resultCode;
-    const resultModel = String(req.body?.model || '').trim().slice(0, 200) || null;
-    const resultPnc = String(req.body?.pnc || '').trim().slice(0, 200) || null;
-    const sourceFilename = String(req.body?.sourceFilename || '').trim().slice(0, 500) || null;
-
-    if (!query || !resultCode) {
-      res.status(400).json({ error: 'Consulta e código são obrigatórios.' });
-      return;
-    }
-    if (!parsedPartId.valid) {
-      res.status(400).json({ error: 'Identificador da peça inválido.' });
-      return;
-    }
-
-    try {
-      const recent = await prisma.searchHistory.findFirst({
-        where: {
-          tenantId: req.user.tenantId,
-          userId: req.user.id,
-          resultCode,
-          query,
-          createdAt: { gte: new Date(Date.now() - SEARCH_DEDUP_MS) },
-        },
-        select: { id: true },
-      });
-
-      if (!recent) {
-        let validPartId: string | undefined;
-        if (partId) {
-          const part = await prisma.part.findFirst({
-            where: {
-              id: partId,
-              active: true,
-              document: { tenantId: req.user.tenantId, archivedAt: null },
-            },
-            select: { id: true },
-          });
-          validPartId = part?.id;
-        }
-
-        await prisma.searchHistory.create({
-          data: {
-            tenantId: req.user.tenantId,
-            userId: req.user.id,
-            query,
-            status: 'FOUND',
-            resultPartId: validPartId,
-            resultLabel,
-            resultCode,
-            resultModel,
-            resultPnc,
-            sourceFilename,
-          },
-        });
-      }
-
-      res.status(204).end();
-    } catch (error) {
-      console.error('❌ Erro ao registrar consulta operacional:', error);
-      res.status(204).end();
-    }
-  }
 
   async setLocation(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;

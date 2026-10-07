@@ -9,7 +9,6 @@ import { buildSearchGroups, scorePartText } from '../services/part-vocabulary';
 import { allRelatedPartNumbers, preferCurrentPartNumbers } from '../services/part-supersession';
 import { filterCandidatesByMarket } from '../services/catalog-market';
 import { PartSearchService, invalidatePartSearchCaches } from '../services/part-search.service';
-import { invalidateChatResponseCache } from '../services/chat.service';
 import { invalidateHomeResponseCache } from './home.controller';
 import { invalidatePartDetailResponseCache } from './part-detail.controller';
 import {
@@ -47,7 +46,6 @@ export function invalidateHomeCountsCache(tenantId?: string): void {
     invalidateHomeResponseCache(tenantId);
     invalidatePartDetailResponseCache(tenantId);
     invalidatePartSearchCaches(tenantId);
-    invalidateChatResponseCache(tenantId);
 }
 
 export class OperationalController {
@@ -1002,102 +1000,6 @@ export class OperationalController {
         } catch (error) {
             console.error('❌ Erro ao carregar histórico:', error);
             res.status(500).json({ error: 'Erro ao carregar o histórico de buscas.', history: [] });
-        }
-    }
-
-    async favorites(req: AuthenticatedRequest, res: Response): Promise<void> {
-        if (!req.user) return;
-        try {
-            const favorites = await prisma.favorite.findMany({
-                where: { tenantId: req.user.tenantId, userId: req.user.id },
-                orderBy: { createdAt: 'desc' },
-                take: 100,
-                select: {
-                    id: true,
-                    kind: true,
-                    label: true,
-                    reference: true,
-                    model: true,
-                    pnc: true,
-                    partId: true,
-                    documentId: true,
-                    createdAt: true,
-                    part: {
-                        select: {
-                            documentId: true,
-                            section: true,
-                            position: true,
-                            page: true,
-                            document: { select: { filename: true } },
-                        },
-                    },
-                    document: { select: { filename: true } },
-                },
-            });
-            res.json({
-                favorites: favorites.map(({ part, document, ...favorite }) => ({
-                    ...favorite,
-                    documentId: favorite.documentId || part?.documentId || null,
-                    sourceFilename: part?.document.filename || document?.filename || null,
-                    section: part?.section || null,
-                    position: part?.position || null,
-                    page: part?.page || null,
-                })),
-            });
-        } catch (error) {
-            console.error('❌ Erro ao carregar favoritos:', error);
-            res.status(500).json({ error: 'Erro ao carregar os itens favoritos.', favorites: [] });
-        }
-    }
-
-    async addFavorite(req: AuthenticatedRequest, res: Response): Promise<void> {
-        if (!req.user) return;
-        const { partId, documentId } = req.body;
-        if ((partId && documentId) || (!partId && !documentId)) {
-            res.status(400).json({ error: 'Informe uma peça ou um catálogo.' });
-            return;
-        }
-
-        try {
-            if (partId) {
-                const part = await prisma.part.findFirst({
-                    where: { id: String(partId), active: true, document: { tenantId: req.user.tenantId, archivedAt: null } },
-                    include: { document: { select: { filename: true } } },
-                });
-                if (!part) { res.status(404).json({ error: 'Peça não encontrada.' }); return; }
-                const favorite = await prisma.favorite.upsert({
-                    where: { userId_partId: { userId: req.user.id, partId: part.id } },
-                    update: { label: part.name, reference: part.partNumber, model: part.model, pnc: part.pnc },
-                    create: { tenantId: req.user.tenantId, userId: req.user.id, kind: 'PART', label: part.name, reference: part.partNumber, model: part.model, pnc: part.pnc, partId: part.id },
-                });
-                res.status(201).json({ favorite });
-                return;
-            }
-
-            const document = await prisma.document.findFirst({ where: { id: String(documentId), tenantId: req.user.tenantId, archivedAt: null } });
-            if (!document) { res.status(404).json({ error: 'Catálogo não encontrado.' }); return; }
-            const favorite = await prisma.favorite.upsert({
-                where: { userId_documentId: { userId: req.user.id, documentId: document.id } },
-                update: { label: document.filename, model: document.model, pnc: document.pnc },
-                create: { tenantId: req.user.tenantId, userId: req.user.id, kind: 'DOCUMENT', label: document.filename, model: document.model, pnc: document.pnc, documentId: document.id },
-            });
-            res.status(201).json({ favorite });
-        } catch (error) {
-            console.error('❌ Erro ao adicionar favorito:', error);
-            res.status(500).json({ error: 'Erro ao salvar favorito.' });
-        }
-    }
-
-    async removeFavorite(req: AuthenticatedRequest, res: Response): Promise<void> {
-        if (!req.user) return;
-        try {
-            const favorite = await prisma.favorite.findFirst({ where: { id: String(req.params.id), tenantId: req.user.tenantId, userId: req.user.id } });
-            if (!favorite) { res.status(404).json({ error: 'Favorito não encontrado.' }); return; }
-            await prisma.favorite.delete({ where: { id: favorite.id } });
-            res.json({ message: 'Favorito removido.' });
-        } catch (error) {
-            console.error('❌ Erro ao remover favorito:', error);
-            res.status(500).json({ error: 'Erro ao remover o favorito.' });
         }
     }
 

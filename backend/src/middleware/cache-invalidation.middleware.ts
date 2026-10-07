@@ -73,23 +73,6 @@ export function invalidateWorkContextAfterQuoteUsage(
   next();
 }
 
-export function invalidateFavoriteCachesAfterMutation(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction,
-): void {
-  const tenantId = req.user?.tenantId;
-  const userId = req.user?.id;
-
-  res.once('finish', () => {
-    if (!tenantId || !successful(res.statusCode)) return;
-    invalidateHomeResponseCache(tenantId, userId);
-    invalidatePartDetailResponseCache(tenantId);
-  });
-
-  next();
-}
-
 export function invalidateNotificationsAfterMutation(
   req: AuthenticatedRequest,
   res: Response,

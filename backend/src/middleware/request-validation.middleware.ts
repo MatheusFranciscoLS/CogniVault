@@ -1,7 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
 import {
-  MAX_OPERATIONAL_PART_CODE_LENGTH,
-  MAX_OPERATIONAL_PART_ID_LENGTH,
   parseOperationalText,
   parseOptionalOperationalText,
 } from '../services/operational-input-validation';
@@ -127,19 +125,6 @@ export function validateEntityIdParam(req: Request, res: Response, next: NextFun
   next();
 }
 
-export function validateFavoriteMutationBody(req: Request, res: Response, next: NextFunction): void {
-  const partId = parseOptionalOperationalText(req.body?.partId, MAX_ENTITY_ID_LENGTH);
-  const documentId = parseOptionalOperationalText(req.body?.documentId, MAX_ENTITY_ID_LENGTH);
-  const hasPartId = Boolean(partId.value);
-  const hasDocumentId = Boolean(documentId.value);
-
-  if (!partId.valid || !documentId.valid || hasPartId === hasDocumentId) {
-    res.status(400).json({ error: 'Informe exatamente uma peça ou um documento válido para favoritar.' });
-    return;
-  }
-  next();
-}
-
 export function validateWorkContextModel(req: Request, res: Response, next: NextFunction): void {
   const model = stringQueryParam(req, 'model');
   if (model === null || model.length > 160) {
@@ -153,22 +138,6 @@ export function validateModelParam(req: Request, res: Response, next: NextFuncti
   const model = String(req.params.model || '').trim();
   if (!model || model.length > 160) {
     res.status(400).json({ error: 'Modelo inválido.' });
-    return;
-  }
-  next();
-}
-
-export function validateOperationalSearchUsage(req: Request, res: Response, next: NextFunction): void {
-  const query = parseOperationalText(req.body?.query, 500);
-  const partNumber = parseOperationalText(req.body?.partNumber, MAX_OPERATIONAL_PART_CODE_LENGTH);
-  const partId = parseOptionalOperationalText(req.body?.partId, MAX_OPERATIONAL_PART_ID_LENGTH);
-  const name = parseOptionalOperationalText(req.body?.name, 500);
-  const model = parseOptionalOperationalText(req.body?.model, 200);
-  const pnc = parseOptionalOperationalText(req.body?.pnc, 200);
-  const sourceFilename = parseOptionalOperationalText(req.body?.sourceFilename, 500);
-
-  if (!query || !partNumber || !partId.valid || !name.valid || !model.valid || !pnc.valid || !sourceFilename.valid) {
-    res.status(400).json({ error: 'Dados da consulta operacional inválidos.' });
     return;
   }
   next();

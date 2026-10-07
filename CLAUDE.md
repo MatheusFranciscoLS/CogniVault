@@ -42,6 +42,11 @@ minutos ilimitados).
 
 ## Comandos
 
+- Auditoria de código do backend (promessas soltas, `await` desnecessário etc.):
+  `frontend/node_modules/.bin/eslint -c frontend/.audit/eslint.config.mjs backend/src`.
+  Não faz parte do CI; é ferramenta de varredura. Para import sem uso:
+  `cd backend && npx tsc --noEmit --noUnusedLocals`.
+
 - Backend typecheck: `cd backend && npx tsc --noEmit`.
 - Backend build+test real: `cd backend && npm test` (roda `tsc`, a **guarda do
   banco** e depois `node --test dist/**/*.test.js` — precisa de build passar
@@ -287,14 +292,17 @@ máquinas"*. Hoje o atendente escreve num campo só e recebe peça **e** máquin
 
 ## IA (Gemini)
 
-- Modelo: `gemini-3.7-flash` (extração de PDF, interpretação de chat,
-  embeddings). Configurável via env, ver `backend/src/config/gemini.ts`.
-- **Feedback do atendente (👍/👎) é real, não decorativo**: entra no
-  ranking de busca via `feedback-learning.ts`/`confidence-gate.ts`. Não
-  assumir que é só um painel de leitura antes de verificar o código.
+- Modelo: `gemini-3.7-flash` (extração de PDF, escolha de peça em lista
+  fechada, embeddings). O chat do servidor (`/api/chat`, `chat.service`,
+  `react-agent`, `confidence-gate`) foi podado em 2026-10-07: não tinha tela
+  desde que o assistente em gaveta saiu e a rota gastava IA de quem estivesse
+  logado. A interpretação de busca que sobrou mora em `services/search-intent.ts`. Configurável via env, ver `backend/src/config/gemini.ts`.
+- **Feedback do atendente (👍/👎) não tem mais tela nem rota de gravação**
+  (podadas em 2026-10-07, junto com Favoritos e o registro de uso de busca). Os
+  votos que já estão no banco continuam entrando no ranking via
+  `feedback-learning.ts` (`part-search.service.ts`); não há voto novo.
 - Sem fine-tuning (não faz sentido pra esse porte de app). As alavancas
-  reais são prompt engineering e o `confidence-gate.ts` (scorer manual,
-  bem ajustado, com comentários explicando casos de borda).
+  reais são prompt engineering e a lista fechada do `part-picker.service.ts`.
 - **Embedding de feedback: removido em 2026-09-19.** Ele calculava e gravava o
   vetor do texto digitado e **nada lia de volta** para o ranking. Saiu por
   quatro motivos, e o primeiro é a regra de custo zero: cada voto virava
