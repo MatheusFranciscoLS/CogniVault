@@ -6,6 +6,13 @@ cuida de vista explodida e orçamento; a venda acontece no sistema da loja (Clip
 
 Legenda: ✅ feito · 🔧 em andamento · ⏳ a fazer · ❓ decisão do dono
 
+## Ordem de trabalho (decidida em 2026-10-07, a pedido do dono: "do mais necessário pro menos necessário")
+1. **A inteira, do mais usado no balcão para o menos usado**: vista explodida da máquina → motores Kawasaki/Briggs → Favoritos/Histórico (cortar ou dobrar) → administração → biblioteca.
+2. **B** (orçamento para o cliente). O texto do WhatsApp já está pronto e testado em `frontend/src/lib/quote-message.ts`; falta ligar na gaveta, fazer o PDF e a prévia.
+3. **C** (achados da varredura).
+4. **F**: auditoria "zero erros" e só então o Clipp.
+Regra: não abrir frente nova antes de fechar a anterior.
+
 ## A. Visual (direção A, aprovada pelo dono)
 | | Item | Onde |
 |---|---|---|
@@ -24,7 +31,7 @@ Legenda: ✅ feito · 🔧 em andamento · ⏳ a fazer · ❓ decisão do dono
 ## B. Orçamento para o cliente (pedido: "melhorar o local de orçamento, WhatsApp e PDF")
 | | Item |
 |---|---|
-| 🔧 | Ver o que o cliente recebe hoje (texto do WhatsApp e PDF) e refazer |
+| 🔧 | Ver o que o cliente recebe hoje (texto do WhatsApp e PDF) e refazer — texto do WhatsApp escrito e testado (`quote-message.ts`, 16 testes), ainda NÃO ligado à gaveta |
 | ⏳ | Texto do WhatsApp: cliente, máquina, itens, total, condição, validade, sem poluição |
 | ⏳ | PDF: cabeçalho da loja (Vardão, selo ouro), tabela legível, total, validade, rodapé com contato |
 | ⏳ | Prévia do que será enviado antes de enviar |
