@@ -397,7 +397,10 @@ model Quote {
   customerName       String?
   customerPhone      String?
   paymentMethod      String?
+  /// Prazo das peças, digitado à mão ("Imediato", "7 dias úteis"). Nulo = padrão do modelo da loja.
+  leadTime           String?
   machineModel       String?
+  /// Observações do orçamento (texto das condições). Nulo = as observações padrão da loja.
   notes              String?
   discountPercentage Float   @default(0)
 

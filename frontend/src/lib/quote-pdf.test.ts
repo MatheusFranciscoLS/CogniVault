@@ -48,7 +48,6 @@ describe('buildQuotePdf (modelo com timbre da loja)', () => {
     expect(texto).toContain(`CNPJ ${STORE_PROFILE.cnpj}`);
     expect(texto).toContain(`IE ${STORE_PROFILE.stateRegistration}`);
     expect(texto).toContain(STORE_PROFILE.phones[0]);
-    expect(texto).toContain(STORE_PROFILE.legalNameFull);
     expect(texto).toContain(`E-mail: ${STORE_PROFILE.email}`);
   });
 
@@ -120,6 +119,21 @@ describe('buildQuotePdf: padrões e opções', () => {
     expect(t).not.toContain('Impostos inclusos');
   });
 
+  it('o prazo digitado vale no lugar de IMEDIATO; vazio ou só espaço volta ao padrão', () => {
+    expect(gerar([carburador], { leadTime: '7 dias úteis' }).texto).toContain('7 dias úteis');
+    expect(gerar([carburador], { leadTime: '7 dias úteis' }).texto).not.toContain('IMEDIATO');
+    expect(gerar([carburador], { leadTime: '   ' }).texto).toContain('IMEDIATO');
+  });
+
+  it('as observações digitadas (uma por linha) substituem as padrão da loja', () => {
+    const { texto: t } = gerar([carburador], { notes: 'Frete por conta do cliente\n- Peça sob encomenda\n\n' });
+    expect(t).toContain('Frete por conta do cliente');
+    expect(t).toContain('Peça sob encomenda');
+    expect(t).not.toContain('Impostos inclusos');
+    // Sem observação digitada, valem as três do modelo.
+    expect(gerar([carburador], { notes: '  ' }).texto).toContain('Impostos inclusos');
+  });
+
   it('observações vazias tiram a linha inteira', () => {
     const { texto: t } = gerar([carburador], { observations: [] });
     expect(t).not.toContain('Observação:');
@@ -147,6 +161,6 @@ describe('buildQuotePdf: padrões e opções', () => {
     expect(t).toContain(`Página 1 de ${paginas}`);
     expect(t).toContain(`Página ${paginas} de ${paginas}`);
     // O timbre do rodapé aparece em TODAS as páginas.
-    expect(t.split(STORE_PROFILE.legalNameFull).length - 1).toBe(paginas);
+    expect(t.split(STORE_PROFILE.legalName).length - 1).toBe(paginas + 1);
   });
 });

@@ -180,6 +180,12 @@ usuários** ("todos podem visualizar isso").
   no código; dado de cliente nunca), "Cidade, data", A/C, Ref., tabela com prazo, condição de pagamento, **validade de
   20 dias corridos** (era 7 dias úteis), transportadora, observações e "ATT. nome" (o nome sai do e-mail do atendente).
   Os padrões estão em `QUOTE_DEFAULTS` e cada orçamento pode sobrescrever. A ficha da máquina usa o mesmo timbre.
+- **Prazo das peças é DIGITADO À MÃO em cada orçamento** (dono, 2026-10-07): a validade de 20 dias é do orçamento, mas o prazo
+  de chegada (ex.: "7 dias úteis") depende do estoque. Campo "Prazo das peças" na gaveta (vazio = IMEDIATO), coluna
+  `Quote.leadTime`, sai no PDF e no WhatsApp. **As observações** vêm com as 3 do modelo (imposto, faturamento em SP, estoque
+  rotativo), valem em todo orçamento e podem ser editadas por orçamento (campo recolhido; `Quote.notes`; vazio = padrão).
+- **Razão social** do PDF é a do cadastro do CNPJ: VARDÃO MÁQUINAS E EQUIPAMENTOS DE JARDINAGEM LTDA (o cabeçalho do modelo
+  em Word estava abreviado).
 - "Leve junto" na gaveta vem dos acessórios que o PORTAL indica para a máquina e que a loja tem no cadastro.
 - **Gravar em produção precisa da aprovação do dono** (olhar o relatório, depois `--apply`). A migração
   cria a tabela vazia no deploy; a aba mostra "ainda não foi carregada" até a importação.
@@ -215,9 +221,8 @@ O balcão é mouse e teclado, e a venda acontece no Clipp. Dois atalhos que vale
   ↓/↑ percorrem as linhas **na ordem da tela** (a ordem dos grupos pode mudar por CSS, então manda a posição vertical,
   não a do DOM); Enter copia o código (é o próprio botão); **+** põe a linha no orçamento; ↑ na primeira volta à busca. As
   setas não são roubadas de campo de texto nem de menu aberto, e Ctrl/Alt/Meta passam direto. `/` e Ctrl K focam a busca.
-- **"Copiar códigos"** na gaveta do orçamento (`lib/quote-codes.ts`): um código por linha, `código<TAB>quantidade`, código limpo
-  como o Clipp guarda, somando o mesmo código repetido e **sem o serviço avulso** (`SRV-`, ex.: óleo). É interno do balcão: o
-  que vai ao CLIENTE nunca leva código. O formato exato que o Clipp aceita colar ainda precisa de confirmação do dono.
+- **NÃO existe "Copiar códigos" em lote.** Eu construí e o dono disse que não faz sentido: *"é 1 código por vez"* no Clipp, então
+  basta copiar o código da linha (que já existe). Foi removido em 2026-10-07; não proponha de novo.
 
 ## Atendimento e máquinas são UMA tela (a aba Máquinas não existe mais)
 

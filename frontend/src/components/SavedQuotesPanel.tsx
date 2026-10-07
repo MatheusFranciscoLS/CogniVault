@@ -18,6 +18,8 @@ interface ApiQuoteListItem {
   customerName: string | null;
   customerPhone: string | null;
   paymentMethod: string | null;
+  leadTime: string | null;
+  notes: string | null;
   machineModel: string | null;
   discountPercentage: number;
   totalItems: number;
@@ -57,6 +59,8 @@ function toSavedQuote(quote: ApiQuoteListItem): SavedQuote {
     customerName: quote.customerName ?? undefined,
     customerPhone: quote.customerPhone ?? undefined,
     paymentMethod: quote.paymentMethod ?? undefined,
+    leadTime: quote.leadTime ?? undefined,
+    notes: quote.notes ?? undefined,
     machineModel: quote.machineModel ?? undefined,
     discountPercentage: quote.discountPercentage || undefined,
     totalPrice: quote.grossTotal,

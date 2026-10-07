@@ -36,11 +36,11 @@ Regra do dono (2026-10-07): **tudo que ele passar entra aqui na hora**, porque h
 ### Respostas do dono (2026-10-07, à noite) e o que cada uma virou
 | # | Pergunta | Resposta | O que fazer / situação |
 |---|---|---|---|
-| 1 | Importar as 151 máquinas em produção | **Sim** | Relatório só de leitura, depois gravar com `--apply --expect-count`; conferir depois. ⏳ em andamento |
-| 2 | Validade de 20 dias | **Sim.** A validade de 20 dias é do ORÇAMENTO. Os "7 dias úteis" são o PRAZO PARA AS PEÇAS CHEGAREM e dependem do estoque: **o prazo é digitado à mão em cada orçamento** | Campo "Prazo" editável no orçamento (padrão IMEDIATO), saindo no PDF e no WhatsApp. ⏳ |
-| 3 | Razão social do cabeçalho | **A certa é "VARDÃO MÁQUINAS E EQUIPAMENTOS DE JARDINAGEM LTDA"** (consultar o CNPJ se precisar) | Usar essa em cabeçalho e rodapé; conferir no cadastro do CNPJ. ⏳ |
-| 4 | Observações fixas (imposto etc.) em todo orçamento? | "O que você acha melhor?" Ele colocou por causa de imposto | **Recomendação adotada:** as 3 observações entram em TODO orçamento por padrão e podem ser editadas por orçamento (campo recolhido na gaveta). ⏳ |
-| 5 | Formato do "Copiar códigos" para o Clipp | **Não faz sentido: o Clipp recebe 1 código por vez**; só precisa colocar o código e copiar | **Tirar o botão "Copiar códigos"** (foi excesso meu) e a função; fica o copiar um código, que já existe. ⏳ |
+| 1 | Importar as 151 máquinas em produção | **Sim** | Relatório só de leitura, depois gravar com `--apply --expect-count`; conferir depois. ✅ **feito em 2026-10-07**: relatório (151 lidas, 0 recusadas) e gravação com `--apply --expect-count=151`, releitura sem diferença |
+| 2 | Validade de 20 dias | **Sim.** A validade de 20 dias é do ORÇAMENTO. Os "7 dias úteis" são o PRAZO PARA AS PEÇAS CHEGAREM e dependem do estoque: **o prazo é digitado à mão em cada orçamento** | Campo "Prazo" editável no orçamento (padrão IMEDIATO), saindo no PDF e no WhatsApp. ✅ feito: campo "Prazo das peças" na gaveta (vazio = IMEDIATO), coluna `Quote.leadTime` (migração `20261007200000_quote_lead_time`), PDF e WhatsApp |
+| 3 | Razão social do cabeçalho | **A certa é "VARDÃO MÁQUINAS E EQUIPAMENTOS DE JARDINAGEM LTDA"** (consultar o CNPJ se precisar) | Usar essa em cabeçalho e rodapé; conferir no cadastro do CNPJ. ✅ feito (cadastro do CNPJ conferido na BrasilAPI: VARDAO MAQUINAS E EQUIPAMENTOS DE JARDINAGEM LTDA, mesmo endereço) |
+| 4 | Observações fixas (imposto etc.) em todo orçamento? | "O que você acha melhor?" Ele colocou por causa de imposto | **Recomendação adotada:** as 3 observações entram em TODO orçamento por padrão e podem ser editadas por orçamento (campo recolhido na gaveta). ✅ feito: 3 observações por padrão, editáveis por orçamento (`Quote.notes`), "Voltar ao texto padrão" |
+| 5 | Formato do "Copiar códigos" para o Clipp | **Não faz sentido: o Clipp recebe 1 código por vez**; só precisa colocar o código e copiar | **Tirar o botão "Copiar códigos"** (foi excesso meu) e a função; fica o copiar um código, que já existe. ✅ botão, função e testes removidos |
 | 6 | Pasta dos orçamentos de máquinas | Manda quando chegar em casa | Aguardar (3b) |
 | 7 | Sino só para admin; assistente de IA em gaveta | "Faça o que achar melhor e recomendado" | **Recomendação adotada:** sino só para o administrador; tirar o assistente de IA em gaveta (`ChatPanel`) do balcão. ⏳ |
 Depois disso: "continue com os planos e melhorias que faltam" (Biblioteca, Negócio, Qualidade, Visão geral; peças de manutenção preventiva por PNC).
@@ -140,7 +140,7 @@ Regra: cada tela percorrida entra aqui com o que foi corrigido na hora (✅) e o
 | ✅ | "Buscando…" ficava até 4,5 s depois de a lista já estar na tela: agora libera quando há peças (e a busca nova cancela a anterior, para não misturar resultados) |
 | ✅ | "+ 7" solto ao lado dos documentos virou "Mais 7"; "+19 aplicações" saiu da linha (é o "onde usa"); "Ref. HUSQVARNA" (a marca) saiu |
 | ✅ | `Button` agora é `type="button"` por padrão: dentro de formulário, "+ Orçamento" podia refazer a busca |
-| ✅ | **Copiar todos os códigos do orçamento de uma vez** (feito, 2026-10-07): botão "Copiar códigos" na gaveta do orçamento; um por linha, "código TAB quantidade", código limpo como o Clipp guarda, soma o mesmo código repetido e deixa o serviço avulso (óleo) de fora. **Formato a confirmar com o dono** (o que o Clipp aceita colar) |
+| ➖ | **Copiar todos os códigos do orçamento de uma vez**: construído e **removido** no mesmo dia (dono: o Clipp recebe 1 código por vez; basta copiar o da linha) |
 | ✅ | Teclado primeiro (feito): ↓ no campo de busca vai ao código da primeira linha, ↓/↑ percorrem as linhas (na ordem da TELA), Enter copia o código, **+** põe no orçamento, ↑ na primeira volta à busca; `/` e Ctrl K já focavam a busca |
 | ✅ | Últimas buscas ao focar o campo vazio (↑/↓, Enter, Esc); a tela Histórico foi apagada |
 | 💡 | Linhas se reordenam quando a fase "por significado" acrescenta peças: marcar o que chegou depois, ou só anexar no fim do grupo |

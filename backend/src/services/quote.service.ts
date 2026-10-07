@@ -43,6 +43,7 @@ export interface QuoteOptionsInput {
   customerName?: string | null;
   customerPhone?: string | null;
   paymentMethod?: string | null;
+  leadTime?: string | null;
   machineModel?: string | null;
   notes?: string | null;
   discountPercentage?: number | null;
@@ -54,6 +55,7 @@ export interface QuotePayload {
   customerName: string | null;
   customerPhone: string | null;
   paymentMethod: string | null;
+  leadTime: string | null;
   machineModel: string | null;
   notes: string | null;
   discountPercentage: number;
@@ -170,6 +172,7 @@ export function parseQuoteOptions(value: unknown): QuoteOptionsInput | null {
     customerName: text(input.customerName, 200),
     customerPhone: text(input.customerPhone, 40),
     paymentMethod: text(input.paymentMethod, 120),
+    leadTime: text(input.leadTime, 120),
     machineModel: text(input.machineModel, 160),
     notes: text(input.notes, 2000),
     discountPercentage,
@@ -216,6 +219,7 @@ export function serializeQuote(quote: QuoteWithItems): QuotePayload {
     customerName: quote.customerName,
     customerPhone: quote.customerPhone,
     paymentMethod: quote.paymentMethod,
+    leadTime: quote.leadTime,
     machineModel: quote.machineModel,
     notes: quote.notes,
     discountPercentage: quote.discountPercentage,
@@ -352,6 +356,7 @@ export class QuoteService {
           customerName: options.customerName ?? null,
           customerPhone: options.customerPhone ?? null,
           paymentMethod: options.paymentMethod ?? null,
+          leadTime: options.leadTime ?? null,
           machineModel: options.machineModel ?? null,
           notes: options.notes ?? null,
           discountPercentage,
@@ -392,6 +397,7 @@ export class QuoteService {
         customerName: options.customerName ?? null,
         customerPhone: options.customerPhone ?? null,
         paymentMethod: options.paymentMethod ?? null,
+        leadTime: options.leadTime ?? null,
         machineModel: options.machineModel ?? null,
         notes: options.notes ?? null,
         discountPercentage,
@@ -453,6 +459,7 @@ export class QuoteService {
           customerName: options.customerName ?? existing.customerName,
           customerPhone: options.customerPhone ?? existing.customerPhone,
           paymentMethod: options.paymentMethod ?? existing.paymentMethod,
+          leadTime: options.leadTime ?? existing.leadTime,
           machineModel: options.machineModel ?? existing.machineModel,
           notes: options.notes ?? existing.notes,
           discountPercentage,

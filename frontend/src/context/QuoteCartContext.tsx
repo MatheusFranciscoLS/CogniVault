@@ -29,6 +29,10 @@ export interface QuoteTextOptions {
   customerName?: string;
   customerPhone?: string;
   paymentMethod?: string;
+  /** Prazo das peças, digitado à mão (depende do estoque). Vazio = IMEDIATO. */
+  leadTime?: string;
+  /** Observações do orçamento. Vazio = as observações padrão da loja. */
+  notes?: string;
   discountPercentage?: number;
 }
 
@@ -38,6 +42,8 @@ export interface SavedQuote {
   customerName?: string;
   customerPhone?: string;
   paymentMethod?: string;
+  leadTime?: string;
+  notes?: string;
   machineModel?: string;
   discountPercentage?: number;
   items: QuoteCartItem[];
@@ -128,6 +134,7 @@ interface ApiQuote {
   customerName: string | null;
   customerPhone: string | null;
   paymentMethod: string | null;
+  leadTime: string | null;
   machineModel: string | null;
   notes: string | null;
   discountPercentage: number;
@@ -194,6 +201,8 @@ function toApiOptions(options: QuoteTextOptions) {
     customerName: options.customerName?.trim() || null,
     customerPhone: options.customerPhone?.trim() || null,
     paymentMethod: options.paymentMethod || null,
+    leadTime: options.leadTime?.trim() || null,
+    notes: options.notes?.trim() || null,
     machineModel: options.machineModel?.trim() || null,
     discountPercentage: options.discountPercentage ?? 0,
   };
@@ -204,6 +213,8 @@ function fromApiOptions(quote: ApiQuote): QuoteTextOptions {
     customerName: quote.customerName ?? undefined,
     customerPhone: quote.customerPhone ?? undefined,
     paymentMethod: quote.paymentMethod ?? undefined,
+    leadTime: quote.leadTime ?? undefined,
+    notes: quote.notes ?? undefined,
     machineModel: quote.machineModel ?? undefined,
     discountPercentage: quote.discountPercentage || 0,
   };
@@ -216,6 +227,8 @@ function toSavedQuote(quote: ApiQuote): SavedQuote {
     customerName: quote.customerName ?? undefined,
     customerPhone: quote.customerPhone ?? undefined,
     paymentMethod: quote.paymentMethod ?? undefined,
+    leadTime: quote.leadTime ?? undefined,
+    notes: quote.notes ?? undefined,
     machineModel: quote.machineModel ?? undefined,
     discountPercentage: quote.discountPercentage || undefined,
     items: fromApiItems(quote.items),
@@ -491,6 +504,8 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       customerName: savedQuote.customerName,
       customerPhone: savedQuote.customerPhone,
       paymentMethod: savedQuote.paymentMethod,
+      leadTime: savedQuote.leadTime,
+      notes: savedQuote.notes,
       machineModel: savedQuote.machineModel,
       discountPercentage: savedQuote.discountPercentage || 0,
     };

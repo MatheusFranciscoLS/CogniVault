@@ -120,6 +120,14 @@ describe('buildWhatsAppMessage', () => {
     expect(text).not.toMatch(/587 ?10 ?66|587106601|Substitui/);
   });
 
+  it('prazo e observação digitados entram na mensagem; sem eles, a mensagem não promete prazo', () => {
+    const com = buildWhatsAppMessage({ items: [carburador], options: { leadTime: ' 7 dias úteis ', notes: 'Frete por conta do cliente\nPeça sob encomenda' }, now: quarta });
+    expect(com).toContain('Prazo das peças: 7 dias úteis');
+    expect(com).toContain('Observação: Frete por conta do cliente · Peça sob encomenda');
+    const sem = buildWhatsAppMessage({ items: [carburador], options: {}, now: quarta });
+    expect(sem).not.toMatch(/Prazo|Observação|IMEDIATO/);
+  });
+
   it('serviço avulso não conta como segunda máquina', () => {
     const text = buildWhatsAppMessage({
       items: [carburador, vela, { partNumber: 'SRV-1', name: 'Mão de obra', model: 'Balcão', quantity: 1, unitPrice: 80 }],

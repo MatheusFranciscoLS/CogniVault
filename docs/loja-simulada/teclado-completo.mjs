@@ -1,6 +1,6 @@
-// TECLADO PRIMEIRO no Atendimento e "Copiar códigos" do orçamento (para colar no Clipp).
+// TECLADO PRIMEIRO no Atendimento: setas, Enter, + e a barra. (O "Copiar códigos" saiu: o Clipp recebe 1 código por vez.)
 // Uso (de dentro de frontend/): node ../docs/loja-simulada/teclado-completo.mjs [tema]
-import { open, check, step, finish, shot, clearQuote, SEARCH } from './_t.mjs';
+import { open, check, step, finish, shot, SEARCH } from './_t.mjs';
 
 const { browser, page, errors, theme } = await open({ theme: process.argv[2] ?? 'dark' });
 const campo = () => page.getByPlaceholder(SEARCH);
@@ -14,31 +14,6 @@ async function buscarVela() {
   await copiarBotoes().first().waitFor({ timeout: 30000 });
   await page.waitForTimeout(1500);
 }
-
-await step('Copiar códigos do orçamento (para o Clipp)', async () => {
-  await buscarVela();
-  // Duas peças diferentes, uma delas duas vezes, e um óleo avulso (serviço, sem código de peça).
-  const rotulos = await copiarBotoes().evaluateAll(l => l.slice(0, 2).map(e => e.getAttribute('aria-label')));
-  const adicionar = n => page.locator('[data-row-add]').nth(n).click();
-  await adicionar(0);
-  await adicionar(0);
-  await adicionar(1);
-  await page.waitForTimeout(800);
-  await page.getByRole('button', { name: 'Revisar orçamento' }).click();
-  const gaveta = page.getByRole('dialog').first();
-  await gaveta.waitFor({ timeout: 8000 });
-  await gaveta.getByRole('button', { name: 'Copiar códigos' }).click();
-  await page.waitForTimeout(500);
-  const texto = (await page.evaluate(() => navigator.clipboard.readText())).split('\r\n').join('\n');
-  const linhas = texto.split('\n');
-  check('uma linha por código diferente', linhas.length === 2, linhas.join(' | '));
-  check('cada linha é "código", TAB e quantidade', linhas.every(l => /^[A-Z0-9]{6,}\t\d+$/.test(l)));
-  check('a peça adicionada duas vezes sai com quantidade 2', linhas[0].endsWith('\t2') && linhas[1].endsWith('\t1'), linhas.join(' | '));
-  check('os códigos são os das linhas buscadas, sem máscara', linhas[0].startsWith(codigoDe(rotulos[0])) && linhas[1].startsWith(codigoDe(rotulos[1])), `${rotulos.join(' | ')}`);
-  await shot(page, `${theme}-1366-copiar-codigos`);
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(500);
-});
 
 await step('percorrer a lista com o teclado', async () => {
   await buscarVela();

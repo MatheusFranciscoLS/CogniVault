@@ -30,7 +30,6 @@ export type QuotePdfOptions = QuoteMessageOptions & {
   attendantName?: string;
   /** "Ref.:" (assunto). */
   reference?: string;
-  leadTime?: string;
   shipping?: string;
   observations?: readonly string[];
   validityDays?: number;
@@ -135,7 +134,7 @@ export function drawLetterFooter(doc: JsPdf, extra?: string): void {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
-    doc.text(`${p.legalNameFull} - ${p.city.toUpperCase()}-${p.state}`, pageWidth / 2, pageHeight - 56, { align: 'center' });
+    doc.text(`${p.legalName} - ${p.city.toUpperCase()}-${p.state}`, pageWidth / 2, pageHeight - 56, { align: 'center' });
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...MUTED);
     doc.text(`${p.street}, ${p.neighborhood}, CEP ${p.zip}, ${p.city} - ${p.stateName} · Telefone: ${p.phones[0]}`, pageWidth / 2, pageHeight - 45, { align: 'center' });
@@ -159,7 +158,8 @@ export function buildQuotePdf(input: {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const validityDays = options.validityDays ?? QUOTE_DEFAULTS.validityDays;
-  const leadTime = options.leadTime ?? QUOTE_DEFAULTS.leadTime;
+  // O prazo é digitado à mão em cada orçamento (depende do estoque); vazio volta ao padrão do modelo.
+  const leadTime = options.leadTime?.trim() || QUOTE_DEFAULTS.leadTime;
 
   let y = drawLetterhead(doc, { logo: input.logo, title: 'ORÇAMENTO' });
   doc.setFont('helvetica', 'normal');
@@ -264,7 +264,9 @@ export function buildQuotePdf(input: {
 
   // ── Condições, como no modelo da loja ────────────────────────────────────────────────────────────
   const payment = options.paymentMethod && options.paymentMethod !== PAYMENT_TO_COMBINE ? options.paymentMethod : QUOTE_DEFAULTS.paymentTerms;
-  const observations = options.observations ?? QUOTE_DEFAULTS.observations;
+  // Observações digitadas no orçamento (uma por linha) substituem as padrão da loja.
+  const typedNotes = (options.notes ?? '').split('\n').map(line => line.replace(/^[\s•–-]+/, '').trim()).filter(Boolean);
+  const observations = options.observations ?? (typedNotes.length ? typedNotes : QUOTE_DEFAULTS.observations);
   const conditions: string[][] = [
     ['Condição de Pagamento:', payment],
     ['Validade do Orçamento:', `${validityDays} dias (até ${validUntil(now, validityDays)})`],
