@@ -227,6 +227,21 @@ export function suggestComplement(
   return `${pieces.slice(0, -1).join(', ')} e ${pieces[pieces.length - 1]}`;
 }
 
+/** Hoje, no formato do campo de data (`aaaa-mm-dd`), pela data LOCAL do balcão (não a UTC do servidor). */
+export function todayInputValue(now: Date = new Date()): string {
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+/** `aaaa-mm-dd` -> data ao meio-dia local (sem virar o dia anterior por fuso). Texto inválido -> null. */
+export function parseInputDate(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0);
+  return date.getFullYear() === Number(match[1]) && date.getMonth() === Number(match[2]) - 1 && date.getDate() === Number(match[3]) ? date : null;
+}
+
 /** "R$ 79.900,00", "79900", "79.900" -> 79900. Texto sem número -> null. */
 export function parseMoneyInput(input: string): number | null {
   const cleaned = input.replace(/[^\d.,]/g, '');
