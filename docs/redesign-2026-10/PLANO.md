@@ -26,6 +26,23 @@ Regra do dono (2026-10-07): **tudo que ele passar entra aqui na hora**, porque h
 | 7 | Atalho `/` para a busca; "Peças de manutenção preventiva por PNC" (campo `reparo` da lista); lista de compras/CSV do Portal Parceiro (só se o dono pedir) | 💡 |
 | 8 | Refazer por dentro Negócio, Qualidade, Visão geral e a Biblioteca; decidir ChatPanel; auditoria "zero erros"; Clipp (pedir a exportação de produtos) | ⏳ depois |
 
+### Pedidos novos do dono (2026-10-07, pelo celular) — entram na fila acima, em ordem de importância
+| # | Pedido | Situação |
+|---|---|---|
+| 3a | **PDF do orçamento IGUAL ao modelo em Word (`ORÇAMENTO TIMBRE PEÇAS.doc`), com a logo da loja "e essas outras coisas que acho muito necessário para um orçamento"** (dono, reforço do item 3). Sem códigos de peça. Estrutura do modelo: dados da loja no cabeçalho e no rodapé, "Cidade, data", "A/C", "Ref.", tabela DESCRIÇÃO/prazo/VALOR UNIT/VALOR TOTAL, condição de pagamento, validade, transportadora, observações fixas, "ATT. atendente". **Falta as respostas dele (lista curta enviada)** | ⏳ aguarda respostas |
+| 3b | **Orçamento de MÁQUINAS automatizado.** O dono faz "tudo manual" e disse que é "bem bacana"; quer que o site gere. Mandou um `.rar`, mas dentro havia só um **atalho** (`ORÇAMENTOS MAQUINAS.lnk`, 947 bytes), sem os arquivos. **Preciso do arquivo de verdade** (Word, Excel ou PDF de um orçamento de máquina já feito, de preferência 2 ou 3 exemplos, com os dados de cliente apagados). A aba Tabela de preços já tem preço, ficha técnica, "acompanha" e "leve junto" para alimentar isso | ⏳ aguarda o arquivo |
+| 3c | **Lista curta do que o dono precisa responder** (ele está no celular e as mensagens são muitas): mandar sempre em poucas linhas, numeradas, com a resposta mais provável já sugerida. Mantida na seção "Perguntas pendentes ao dono" abaixo | ✅ feita nesta rodada |
+
+### Perguntas pendentes ao dono (responder com o número; recomendação entre parênteses)
+1. **Importar as 151 máquinas da lista de preços na produção?** (sim; eu rodo o relatório, mostro e só então gravo)
+2. **Validade do orçamento de peças: 20 dias, como no modelo, em vez de 7 dias úteis?** (20 dias)
+3. **Dados da loja no cabeçalho do PDF** (razão social, CNPJ, inscrição, endereço, telefones, e-mail): usar os do modelo em Word? (sim; ficam em configuração do servidor, nunca no repositório público)
+4. **Observações fixas do modelo** ("preços para faturamento no estado de SP", "impostos inclusos", "estoque rotativo sujeito a venda diária") entram em todo orçamento? (sim, editáveis)
+5. **"A/C" (a quem se destina) e "Ref." (assunto)** viram campos do orçamento? (A/C = nome do cliente; Ref. fixa "Estimativa de Preço Peças de Reposição", editável)
+6. **Transportadora "Retira" e prazo "IMEDIATO"** são padrão? (sim, com opção de mudar por orçamento)
+7. **Assinatura "ATT. nome"**: usar o nome do atendente logado? (sim)
+8. **Orçamento de máquinas:** mandar um exemplo de verdade (ver 3b)
+
 ## Regra de teste (dono, 2026-10-07)
 Toda tela aberta é testada em TODO o conteúdo dela, controle por controle, e não só no que aparece no topo. Roteiros em `docs/loja-simulada/` (`maquina-completo.mjs`, `motores.mjs`, ...); uma tela só fecha com o roteiro 100% e as capturas olhadas até o fim.
 
