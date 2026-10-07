@@ -105,6 +105,12 @@ app.use(cors({
 
 app.use(compression());
 app.use(express.json({ limit: '2mb' }));
+// No Express 5, requisição sem corpo deixa `req.body` indefinido, e todo controller que
+// desestrutura o corpo respondia 500 (e logava erro) em vez de 400 de validação.
+app.use((req, _res, next) => {
+  if (req.body === undefined) req.body = {};
+  next();
+});
 
 // Métricas rolling em memória: não aumentam o banco e permitem enxergar
 // média/p95/máximo por endpoint no painel administrativo.

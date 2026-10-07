@@ -53,3 +53,13 @@ test('HEAD /health/live stays lightweight and cache-free', async (t) => {
   assert.equal(response.headers.get('cache-control'), 'no-store');
   assert.equal(await response.text(), '');
 });
+
+test('POST sem corpo cai na validação (400), não em erro interno (500)', async (t) => {
+  const server = app.listen(0);
+  t.after(() => closeServer(server));
+  await new Promise<void>((resolve) => server.once('listening', resolve));
+  const address = server.address() as AddressInfo;
+  const response = await fetch(`http://127.0.0.1:${address.port}/api/login`, { method: 'POST' });
+
+  assert.equal(response.status, 400);
+});
