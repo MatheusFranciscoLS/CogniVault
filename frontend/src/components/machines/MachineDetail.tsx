@@ -32,7 +32,6 @@ export default function MachineDetail({
   contextModel,
   onOpenPnc,
   onOpenPart,
-  onOpenSearch,
   onLoaded,
 }: {
   pnc: string;
@@ -40,7 +39,6 @@ export default function MachineDetail({
   contextModel?: string;
   onOpenPnc: (pnc: string) => void;
   onOpenPart: (code: string) => void;
-  onOpenSearch?: (term: string) => void;
   onLoaded?: (machine: MachineDetailLoaded) => void;
 }) {
   const machineQuery = useQuery({
@@ -82,36 +80,26 @@ export default function MachineDetail({
   }, [machine?.name, contextModel]);
 
   if (machineQuery.isLoading) {
-    return (
-      <div aria-busy="true" className="rounded-card border border-ink-200 bg-white px-5 py-8 text-center text-sm font-semibold text-ink-500 dark:border-ink-800 dark:bg-ink-900">
-        Abrindo as vistas oficiais desta máquina…
-      </div>
-    );
+    return <p aria-busy="true" className="py-16 text-center text-base text-muted-foreground">Abrindo as vistas desta máquina…</p>;
   }
 
   if (machineQuery.error) {
     const message = machineQuery.error instanceof Error
       ? machineQuery.error.message
       : 'Não foi possível consultar a Husqvarna.';
-    return (
-      <div role="alert" className="rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
-        {message}
-      </div>
-    );
+    return <p role="alert" className="rounded-lg border border-warn bg-warn-soft px-4 py-3 text-base text-warn">{message}</p>;
   }
 
   if (!machine) return null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <OfficialDocumentShortcuts documents={machine.documents ?? []} />
       <OfficialHusqvarnaPanel
         key={machine.pnc || machine.query}
         result={machine}
-        autoExpand
         onOpenPnc={onOpenPnc}
         onOpenPart={onOpenPart}
-        onOpenSearch={onOpenSearch}
       />
       {kitModel && <MaintenanceKitPanel model={kitModel} pnc={machine.pnc ?? pnc} />}
     </div>

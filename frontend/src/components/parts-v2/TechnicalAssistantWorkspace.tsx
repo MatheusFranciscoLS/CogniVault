@@ -884,7 +884,6 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
             onClose={() => setOpenMachine(null)}
             onOpenPnc={pnc => setOpenMachine({ pnc, name: `PNC ${pnc}` })}
             onOpenPart={code => { setOpenMachine(null); void beginSearch(code); }}
-            onOpenSearch={term => { setOpenMachine(null); void beginSearch(term); }}
             onLoaded={rememberMachine}
           />
         </PanelErrorBoundary>

@@ -23,7 +23,7 @@ Regra: não abrir frente nova antes de fechar a anterior.
 | ✅ | Lista de Orçamentos | PR #209 |
 | ✅ | Catálogos | PR #209 |
 | ✅ | Login | PR #209 |
-| ⏳ | Painel lateral da máquina / vista explodida oficial (`MachineSidePanel`) | |
+| ✅ | Painel lateral da máquina / vista explodida oficial: Sheet, uma linha por peça, código copiável, sem especificações/acessórios/"onde usa"; variantes em menu | PR #209 |
 | ⏳ | Painéis de motor Kawasaki e Briggs | |
 | ⏳ | Administração: Negócio, Usuários, Qualidade, Visão geral, Auditoria | ver D |
 | ⏳ | Gerenciar biblioteca (`CatalogsPanel`, 1.365 linhas) | admin |
@@ -62,6 +62,16 @@ Regra: não abrir frente nova antes de fechar a anterior.
 - Vista explodida: abrir na página certa a partir da linha da peça (hoje só na gaveta).
 - Peça sem preço: caminho único para consultar no Portal Parceiro e preencher o preço no orçamento.
 - Prateleira e estoque assim que o Clipp entrar (aparecem só se existirem).
+
+## H. Tabela de preços da Husqvarna como aba separada (ideia do dono, 2026-10-07)
+Pedido: colocar a lista de preços inteira no site, em **uma aba totalmente separada** do atendimento e do orçamento (nome provisório: "Tabela de preço" ou "Máquinas em vigência"), para saber quais máquinas estão em vigência na Husqvarna, quais podem ser vendidas e o que vem junto.
+| | Item |
+|---|---|
+| ⏳ | Verificar o que a lista de preços realmente contém (máquinas? só peças?) antes de desenhar a tela |
+| ⏳ | "O que vem junto" / "não acompanha": já existe na API do Portal (`equipment.included/notIncluded`); foi tirado do painel da máquina e volta aqui |
+| ⏳ | Aba própria, só consulta: filtro por categoria/modelo, em vigência x descontinuada, preço de venda (consumidor ÷ 0,92), sem custo |
+| ❓ | Quem vê: balcão e admin, ou só admin? (tabela com todos os preços é mais sensível que um item no orçamento) |
+Dados ficam no banco, nunca no repositório (repo público). Entra depois de A, B e C, antes da auditoria "zero erros" (para a auditoria já cobrir a aba nova).
 
 ## F. Depois do visual (ordem combinada com o dono)
 1. ⏳ **Auditoria "zero erros"**: varredura completa de lógica, programação e código.

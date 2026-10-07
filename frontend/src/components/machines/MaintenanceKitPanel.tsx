@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { apiJson, cleanErpCode } from '../../lib';
+import { apiJson, cleanErpCode, formatHusqvarnaPartNumber } from '../../lib';
+import { Button } from '@/components/ui/button';
 import { useQuoteCart } from '../../context/QuoteCartContext';
 import type { MaintenanceKitItem } from '../../types';
 
@@ -41,40 +42,29 @@ export default function MaintenanceKitPanel({ model, pnc }: Props) {
   if (!loading && !items.length) return null;
 
   return (
-    <section className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-100 px-4 py-3 dark:border-ink-800">
-        <div>
-          <div className="text-[9px] font-black uppercase tracking-[.13em] text-brand-600 dark:text-brand-300">Revisão rápida</div>
-          <div className="mt-0.5 text-sm font-black text-ink-900 dark:text-white">Kit de manutenção · {cleanModel}</div>
-        </div>
+    <section aria-label="Kit de manutenção" className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <h3 className="text-lg font-semibold">Kit de manutenção · {cleanModel}</h3>
         {items.length > 0 && (
-          <button type="button" onClick={() => quoteCart.addItems(cartItems)} className="h-9 rounded-lg bg-ink-900 px-3 text-[11px] font-black text-white transition hover:bg-ink-950">
-            Adicionar kit ao orçamento
-          </button>
+          <Button variant="add" onClick={() => quoteCart.addItems(cartItems)}>Adicionar kit ao orçamento</Button>
         )}
       </div>
 
       {loading ? (
-        <div className="px-4 py-6 text-xs font-semibold text-ink-500 dark:text-ink-400">Montando o kit de manutenção deste modelo…</div>
+        <p aria-busy="true" className="px-4 py-6 text-base text-muted-foreground">Montando o kit deste modelo…</p>
       ) : (
-        <div className="grid gap-px bg-ink-100 sm:grid-cols-2 dark:bg-ink-800">
+        <ul className="divide-y divide-border">
           {items.map((item, index) => (
-            <div key={`${item.category}-${item.part.id}`} className="bg-white px-4 py-3 dark:bg-ink-900">
-              <div className="text-[9px] font-black uppercase tracking-[.12em] text-ink-500 dark:text-ink-400">{item.label}</div>
-              <div className="mt-1 truncate text-xs font-bold text-ink-800 dark:text-ink-100" title={item.part.name}>{item.part.name}</div>
-              <div className="mt-1.5 flex items-center justify-between gap-3">
-                <span className="font-mono text-xs font-black text-ink-900 dark:text-brand-300">{cleanErpCode(item.part.partNumber)}</span>
-                <button
-                  type="button"
-                  onClick={() => quoteCart.addItem(cartItems[index])}
-                  className="rounded-lg border border-ink-200 px-2.5 py-1.5 text-[10px] font-black text-ink-600 transition hover:border-brand-300 hover:text-brand-600 dark:border-ink-700 dark:text-ink-300"
-                >
-                  + Orçamento
-                </button>
+            <li key={`${item.category}-${item.part.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <div className="text-sm text-muted-foreground">{item.label}</div>
+                <div className="truncate text-base font-semibold" title={item.part.name}>{item.part.name}</div>
               </div>
-            </div>
+              <span translate="no" className="font-code text-xl font-semibold tabular-nums">{formatHusqvarnaPartNumber(cleanErpCode(item.part.partNumber)) || cleanErpCode(item.part.partNumber)}</span>
+              <Button variant="add" onClick={() => quoteCart.addItem(cartItems[index])}>+ Orçamento<span className="sr-only">, {item.part.name}</span></Button>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </section>
   );

@@ -1,66 +1,50 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Check, ChevronDown, Copy, ExternalLink, Search } from 'lucide-react';
 import { toast } from 'sonner';
-import { apiJson, cleanErpCode } from '../../lib';
+import { apiJson, cleanErpCode, formatHusqvarnaPartNumber } from '../../lib';
 import { useQuoteCart } from '../../context/QuoteCartContext';
+import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import ExplodedView from './ExplodedView';
-import SourceBadge from './SourceBadge';
 import type {
   HusqvarnaOfficialIplPart,
   HusqvarnaOfficialPartDetails,
   HusqvarnaOfficialProductDetails,
   HusqvarnaOfficialRelatedSparePart,
-  HusqvarnaOfficialSearchResult,
-  HusqvarnaOfficialSpecification,
   OfficialFallbackResult,
 } from './types';
 
-type Tab = 'IPL' | 'SPECS' | 'DOCS' | 'VARIANTS' | 'FEATURES' | 'ACCESSORIES' | 'USES' | 'SPARE_PARTS';
+/**
+ * A máquina aberta: vista explodida + peças da vista, com o código a um clique.
+ *
+ * O produto cuida de vista explodida e orçamento (a venda é no Clipp). Por isso este painel
+ * mostra só o que o balcão usa com o cliente na frente: escolher a vista, achar a posição,
+ * COPIAR o código e pôr no orçamento. Ficaram de fora, por decisão do dono, especificações,
+ * características, acessórios, "também usado em" e as "aplicações" de cada peça: são
+ * informação de vitrine, não de balcão.
+ *
+ * Variantes do mesmo modelo continuam acessíveis (PNC diferente = peça diferente), em um
+ * menu, e não como aba.
+ */
+
+type Tab = 'IPL' | 'SPARE_PARTS';
 type InspectablePart = HusqvarnaOfficialIplPart | HusqvarnaOfficialRelatedSparePart;
 type Props = {
   result: OfficialFallbackResult;
-  /** Abre as vistas assim que o painel monta, sem o clique extra do balcão. */
-  autoExpand?: boolean;
   /** Navega para outro PNC dentro da aplicação em vez de recarregar a página. */
   onOpenPnc: (pnc: string) => void;
   /** Leva um código para a busca interna (estoque, localização e preço). */
   onOpenPart: (partNumber: string) => void;
-  /** Pesquisa uma aplicação na fonte oficial sem recarregar a página. */
-  onOpenSearch?: (query: string) => void;
 };
 type MachinePartMatch = { sectionId: string; sectionName: string; key: string; part: HusqvarnaOfficialIplPart };
 
-function money(value: number | null | undefined): string {
-  return typeof value === 'number'
-    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-    : 'Sem preço cadastrado';
-}
-
-function labelForType(type: string): string {
-  if (type === 'OM') return 'Manual do operador';
-  if (type === 'IPL') return 'Catálogo de peças (IPL)';
-  return type || 'Documento';
-}
-
-function equipmentName(item: { id: string; name: string }): string {
-  if (item.id === 'PT1966') return 'Bateria';
-  if (item.id === 'PT1968') return 'Carregador de bateria';
-  return item.name;
-}
-
-function formatDocumentDate(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat('pt-BR', { month: '2-digit', year: 'numeric' }).format(date);
-}
+const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 function normalizeSearch(value: unknown): string {
-  return String(value || '').toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-}
-
-function normalizeComparable(value: unknown): string {
-  return normalizeSearch(value).replace(/^husqvarna\s+/, '').replace(/[^a-z0-9]/g, '');
+  return String(value || '').toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
 function sectionShortId(id: string): string {
@@ -71,38 +55,13 @@ function partKey(sectionId: string, index: number, part: HusqvarnaOfficialIplPar
   return `${sectionId}|${index}|${part.partNumber || part.position || part.name}`;
 }
 
-function spareKey(part: HusqvarnaOfficialRelatedSparePart): string {
-  return `spare|${part.partNumber}`;
-}
-
 function domId(key: string): string {
   return `husq-part-${key.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
 }
 
-function uniqueStrings(values: Array<string | null | undefined>): string[] {
-  return [...new Set(values.map(value => String(value || '').trim()).filter(Boolean))];
-}
-
-function additionalApplications(part: InspectablePart, detail: HusqvarnaOfficialPartDetails | undefined): string[] {
-  if (!detail) return [];
-  const alreadyVisible = new Set(uniqueStrings(part.commercial?.applications || []).map(normalizeComparable));
-  return uniqueStrings(detail.fitsTo || []).filter(value => !alreadyVisible.has(normalizeComparable(value)));
-}
-
-function detailHasUsefulExtra(part: InspectablePart, detail: HusqvarnaOfficialPartDetails): boolean {
-  if (detail.replacementChain?.length) return true;
-  if (additionalApplications(part, detail).length) return true;
-  if (detail.specifications?.ean) return true;
-  if (detail.officialUrl && !part.url) return true;
-  const shownName = part.commercial?.name || part.name;
-  if (detail.name && normalizeComparable(detail.name) !== normalizeComparable(shownName)) return true;
-  return false;
-}
-
-function applicabilityLabel(comment: string): string {
-  return /(serial|s\/n|série|serie|a partir|até|\bate\b|before|after|from|variant|variante|modelo|model|pnc)/i.test(comment)
-    ? 'Aplicabilidade / serial'
-    : 'Observação técnica';
+/** Texto do catálogo que decide se a peça serve (serial, variante). O resto é observação. */
+function isApplicabilityNote(comment: string): boolean {
+  return /(serial|s\/n|série|serie|a partir|até|\bate\b|before|after|from|variant|variante|modelo|model|pnc)/i.test(comment);
 }
 
 function hotspotFromCoordinates(
@@ -143,14 +102,124 @@ function hotspotFromCoordinates(
   return null;
 }
 
-export default function OfficialHusqvarnaPanel({ result, autoExpand = false, onOpenPnc, onOpenPart, onOpenSearch }: Props) {
+type LineProps = {
+  position?: string | null;
+  name: string;
+  code: string;
+  price: number | null | undefined;
+  quantity?: number | null;
+  imageUrl?: string | null;
+  /** Observações que mudam a venda: serial, outra variante, pacote fechado, motor. */
+  notes?: React.ReactNode;
+  replaces?: string[];
+  selected?: boolean;
+  highlighted?: boolean;
+  inCart: number;
+  onToggleSelect?: () => void;
+  onCopy: () => void;
+  onAdd: () => void;
+  menu: Array<{ label: string; onSelect: () => void }>;
+  anchorId?: string;
+};
+
+function PartLine({ position, name, code, price, quantity, imageUrl, notes, replaces, selected, highlighted, inCart, onToggleSelect, onCopy, onAdd, menu, anchorId }: LineProps) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    onCopy();
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  };
+  const shown = formatHusqvarnaPartNumber(code) || code;
+
+  return (
+    <article
+      id={anchorId}
+      className={cn(
+        'flex gap-3 rounded-lg border bg-card px-4 py-3 transition-colors',
+        highlighted ? 'border-primary ring-2 ring-primary/30' : selected ? 'border-ring bg-selected' : 'border-border hover:bg-muted',
+      )}
+    >
+      {onToggleSelect && code && (
+        <input
+          type="checkbox"
+          checked={Boolean(selected)}
+          onChange={onToggleSelect}
+          aria-label={`Selecionar ${name}`}
+          className="mt-1.5 size-5 shrink-0 cursor-pointer accent-[var(--primary)]"
+        />
+      )}
+      {imageUrl && <img src={imageUrl} alt="" className="size-14 shrink-0 rounded-md border border-border bg-white object-contain p-0.5" loading="lazy" />}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start gap-2">
+          {position && <span className="mt-0.5 grid h-7 min-w-7 shrink-0 place-items-center rounded-md bg-secondary px-1.5 font-code text-base font-semibold tabular-nums" title="Posição na vista explodida">{position}</span>}
+          <h4 className="min-w-0 flex-1 text-[17px] font-semibold leading-7">{name}</h4>
+          {quantity ? <span className="shrink-0 text-sm text-muted-foreground">Qtd. {quantity}</span> : null}
+        </div>
+
+        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2">
+          {code ? (
+            <button
+              type="button"
+              onClick={copy}
+              aria-label={`Copiar código ${shown}`}
+              title="Copiar código"
+              className="group/copy -ml-1 flex items-center gap-2 rounded-md px-1 py-0.5 outline-none transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/60"
+            >
+              <span translate="no" className="font-code text-[22px] font-semibold leading-7 tracking-wide tabular-nums">{shown}</span>
+              {copied ? <Check className="size-4 text-ok" aria-hidden="true" /> : <Copy className="size-4 text-muted-foreground group-hover/copy:text-foreground" aria-hidden="true" />}
+            </button>
+          ) : (
+            <span className="text-sm text-muted-foreground">Sem código nesta vista</span>
+          )}
+          {price != null ? (
+            <span className="font-code text-xl font-bold tabular-nums">{brl.format(price)}</span>
+          ) : code ? (
+            <span className="text-sm text-muted-foreground">Sem preço</span>
+          ) : null}
+          {code && (
+            <div className="ml-auto flex items-center gap-1">
+              <Button variant={inCart > 0 ? 'added' : 'add'} onClick={onAdd}>
+                {inCart > 0 ? <><Check className="size-4" />No orçamento · {inCart}</> : '+ Orçamento'}
+                <span className="sr-only">, {name}</span>
+              </Button>
+              {menu.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" aria-label={`Mais ações para ${name}`}>
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="size-5" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-56">
+                    {menu.map(item => <DropdownMenuItem key={item.label} onSelect={item.onSelect} className="h-10 text-base">{item.label}</DropdownMenuItem>)}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          )}
+        </div>
+
+        {replaces && replaces.length > 0 && (
+          <p className="mt-1 text-sm text-muted-foreground">Substitui <span translate="no" className="font-code tabular-nums">{replaces.map(value => formatHusqvarnaPartNumber(value) || value).join(', ')}</span></p>
+        )}
+        {notes}
+      </div>
+    </article>
+  );
+}
+
+function Note({ tone = 'muted', children }: { tone?: 'muted' | 'warn'; children: React.ReactNode }) {
+  return (
+    <p className={cn('mt-2 rounded-md px-3 py-2 text-sm', tone === 'warn' ? 'border border-warn bg-warn-soft text-warn' : 'bg-secondary text-muted-foreground')}>{children}</p>
+  );
+}
+
+export default function OfficialHusqvarnaPanel({ result, onOpenPnc, onOpenPart }: Props) {
   const quoteCart = useQuoteCart();
-  const [expanded, setExpanded] = useState(autoExpand);
   const [tab, setTab] = useState<Tab>('IPL');
 
   const detailsQuery = useQuery({
     queryKey: ['husqvarna-product-details', result.pnc],
-    enabled: expanded && Boolean(result.pnc),
+    enabled: Boolean(result.pnc),
     queryFn: async () => {
       const response = await apiJson<{ product: HusqvarnaOfficialProductDetails }>(`/api/husqvarna/products/${encodeURIComponent(result.pnc as string)}/details`, { timeoutMs: 20_000 });
       return response.product;
@@ -159,17 +228,12 @@ export default function OfficialHusqvarnaPanel({ result, autoExpand = false, onO
   const details = detailsQuery.data ?? null;
   const loading = detailsQuery.isLoading;
   const error = detailsQuery.error
-    ? (detailsQuery.error instanceof Error ? detailsQuery.error.message : 'Não foi possível carregar os dados oficiais.')
+    ? (detailsQuery.error instanceof Error ? detailsQuery.error.message : 'Não foi possível carregar as vistas desta máquina.')
     : '';
   const [sectionId, setSectionId] = useState('');
   const [machineSearch, setMachineSearch] = useState('');
   const [selectedParts, setSelectedParts] = useState<Set<string>>(() => new Set());
   const [highlightedPart, setHighlightedPart] = useState<string | null>(null);
-  const [expandedPartKeys, setExpandedPartKeys] = useState<Set<string>>(() => new Set());
-  const [noExtraDetailKeys, setNoExtraDetailKeys] = useState<Set<string>>(() => new Set());
-  const [partDetailsByCode, setPartDetailsByCode] = useState<Map<string, HusqvarnaOfficialPartDetails>>(() => new Map());
-  const [partLoadingCodes, setPartLoadingCodes] = useState<Set<string>>(() => new Set());
-  const [partErrorsByCode, setPartErrorsByCode] = useState<Map<string, string>>(() => new Map());
 
   const selectedSection = useMemo(() => {
     if (!details?.iplSections.length) return null;
@@ -190,7 +254,7 @@ export default function OfficialHusqvarnaPanel({ result, autoExpand = false, onO
       section.parts.forEach((part, index) => {
         const haystack = normalizeSearch([
           section.name, part.position, part.partNumber, part.name, part.description, part.comment,
-          part.commercial?.name, part.commercial?.applications?.join(' '),
+          part.commercial?.name,
         ].filter(Boolean).join(' '));
         if (!haystack.includes(query)) return;
         matches.push({ sectionId: section.id, sectionName: section.name, key: partKey(section.id, index, part), part });
@@ -206,188 +270,69 @@ export default function OfficialHusqvarnaPanel({ result, autoExpand = false, onO
       .filter(item => item.point !== null);
   }, [selectedSection]);
 
-  const variantDifferenceKeys = useMemo(() => {
-    const variants = details?.variants || [];
-    const valuesByKey = new Map<string, Set<string>>();
-    for (const variant of variants) {
-      for (const spec of variant.specifications || []) {
-        const key = `${spec.group}|${spec.name}`;
-        const values = valuesByKey.get(key) || new Set<string>();
-        values.add(spec.value);
-        valuesByKey.set(key, values);
-      }
-    }
-    return new Set([...valuesByKey.entries()].filter(([, values]) => values.size > 1).map(([key]) => key));
-  }, [details]);
+  const spareCount = details?.spareParts.length || 0;
+  const variants = details?.variants || [];
+  // Alguns PNCs voltam sem vistas estruturadas: a aba de peças relacionadas assume.
+  const activeTab: Tab = tab === 'SPARE_PARTS' && spareCount > 0 ? 'SPARE_PARTS' : (details && !details.iplSections.length && spareCount > 0 ? 'SPARE_PARTS' : 'IPL');
 
-  const visibleTabs = useMemo(() => {
-    const all: Array<{ id: Tab; label: string; count: number }> = [
-      { id: 'IPL', label: 'Vistas explodidas', count: details?.iplSections.length || 0 },
-      { id: 'SPARE_PARTS', label: 'Peças relacionadas', count: details?.spareParts.length || 0 },
-      { id: 'SPECS', label: 'Especificações', count: details?.specifications.length || 0 },
-      { id: 'DOCS', label: 'Documentos', count: details?.documents.length || 0 },
-      { id: 'VARIANTS', label: 'Variantes', count: details?.variants.length || 0 },
-      { id: 'FEATURES', label: 'Características', count: details?.features?.length || 0 },
-      { id: 'ACCESSORIES', label: 'Acessórios', count: details?.accessories.length || 0 },
-      { id: 'USES', label: 'Também usado em', count: details?.alsoUsedIn.length || 0 },
-    ];
-    return all.filter(item => item.id === 'IPL' || item.count > 0);
-  }, [details]);
-
-  // Alguns PNCs voltam sem vistas estruturadas. Em vez de abrir uma aba vazia,
-  // a primeira aba com conteúdo assume — sem precisar corrigir estado depois da
-  // resposta da Husqvarna.
-  const activeTab = useMemo<Tab>(() => {
-    const current = visibleTabs.find(item => item.id === tab);
-    if (current && current.count > 0) return current.id;
-    return visibleTabs.find(item => item.count > 0)?.id ?? 'IPL';
-  }, [tab, visibleTabs]);
-
-  const openPnc = (value: string) => onOpenPnc(value);
-
-  const toggleDetails = () => {
-    if (!result.pnc) return;
-    setExpanded(current => !current);
+  const quantityInCart = (partNumber: string | null | undefined) => {
+    const code = cleanErpCode(partNumber);
+    if (!code) return 0;
+    return quoteCart.items.find(item => cleanErpCode(item.effectiveCode || item.partNumber) === code)?.quantity ?? 0;
   };
 
-  const fetchPartDetail = async (part: InspectablePart): Promise<HusqvarnaOfficialPartDetails> => {
-    if (!part.partNumber) throw new Error('Peça sem código oficial.');
-    const code = cleanErpCode(part.partNumber);
-    const cached = partDetailsByCode.get(code);
-    if (cached) return cached;
-    setPartLoadingCodes(current => new Set(current).add(code));
+  const copyPart = async (partNumber: string) => {
+    const code = cleanErpCode(partNumber);
     try {
-      const response = await apiJson<{ part: HusqvarnaOfficialPartDetails }>(`/api/husqvarna/parts/${encodeURIComponent(code)}/details`, { timeoutMs: 20_000 });
-      setPartDetailsByCode(current => new Map(current).set(code, response.part));
-      return response.part;
-    } finally {
-      setPartLoadingCodes(current => {
-        const next = new Set(current);
-        next.delete(code);
-        return next;
-      });
+      await navigator.clipboard.writeText(code);
+      toast.success(`Código ${code} copiado.`);
+    } catch {
+      toast.info(`Código: ${code}`);
     }
   };
 
-  const toggleInlineDetails = async (part: InspectablePart, cardKey: string) => {
-    if (!part.partNumber) return;
-    if (expandedPartKeys.has(cardKey)) {
-      setExpandedPartKeys(current => { const next = new Set(current); next.delete(cardKey); return next; });
-      return;
-    }
-    setPartErrorsByCode(current => { const next = new Map(current); next.delete(cleanErpCode(part.partNumber!)); return next; });
-    try {
-      const detail = await fetchPartDetail(part);
-      if (!detailHasUsefulExtra(part, detail)) {
-        setNoExtraDetailKeys(current => new Set(current).add(cardKey));
-        toast.info('A fonte oficial não trouxe informação adicional para esta peça.');
-        return;
-      }
-      setExpandedPartKeys(current => new Set(current).add(cardKey));
-    } catch (partError) {
-      const message = partError instanceof Error ? partError.message : 'Não foi possível consultar os detalhes da peça.';
-      setPartErrorsByCode(current => new Map(current).set(cleanErpCode(part.partNumber!), message));
-      setExpandedPartKeys(current => new Set(current).add(cardKey));
-    }
-  };
-
-  const retryInlineDetails = async (part: InspectablePart, cardKey: string) => {
-    if (!part.partNumber) return;
-    const code = cleanErpCode(part.partNumber);
-    setPartDetailsByCode(current => { const next = new Map(current); next.delete(code); return next; });
-    setPartErrorsByCode(current => { const next = new Map(current); next.delete(code); return next; });
-    setExpandedPartKeys(current => { const next = new Set(current); next.delete(cardKey); return next; });
-    await toggleInlineDetails(part, cardKey);
-  };
-
+  // O link da peça no Portal só vem quando a Husqvarna o informa; senão pergunta uma vez.
   const openOfficialPart = async (part: InspectablePart) => {
     const code = part.partNumber ? cleanErpCode(part.partNumber) : '';
-    const directUrl = part.url || (code ? partDetailsByCode.get(code)?.officialUrl : null);
-    if (directUrl) {
-      window.open(directUrl, '_blank', 'noopener,noreferrer');
+    if (part.url) {
+      window.open(part.url, '_blank', 'noopener,noreferrer');
       return;
     }
+    if (!code) return;
     const popup = window.open('about:blank', '_blank');
     try {
-      const detail = await fetchPartDetail(part);
-      if (!detail.officialUrl) throw new Error('A Husqvarna não forneceu um link direto para esta peça.');
-      if (popup) popup.location.href = detail.officialUrl;
-      else window.location.href = detail.officialUrl;
+      const response = await apiJson<{ part: HusqvarnaOfficialPartDetails }>(`/api/husqvarna/parts/${encodeURIComponent(code)}/details`, { timeoutMs: 20_000 });
+      if (!response.part.officialUrl) throw new Error('A Husqvarna não forneceu um link direto para esta peça.');
+      if (popup) popup.location.href = response.part.officialUrl;
+      else window.open(response.part.officialUrl, '_blank', 'noopener,noreferrer');
     } catch (openError) {
       popup?.close();
       toast.error(openError instanceof Error ? openError.message : 'Não foi possível abrir a peça.');
     }
   };
 
-  const openApplication = async (application: string) => {
-    const query = application.trim();
-    if (!query) return;
-    try {
-      const response = await apiJson<{ results: unknown }>(`/api/husqvarna/products/search?q=${encodeURIComponent(query)}`, { timeoutMs: 12_000 });
-      const raw = Array.isArray(response.results) ? response.results : [];
-      const products: Array<Pick<HusqvarnaOfficialSearchResult, 'pnc' | 'title'>> = raw.flatMap(rawItem => {
-        const item = rawItem as Record<string, unknown>;
-        if (item.kind === 'PRODUCT' && typeof item.pnc === 'string' && typeof item.title === 'string') {
-          return [{ pnc: item.pnc, title: item.title }];
-        }
-        if (typeof item.productName === 'string' && typeof item.pnc === 'string') {
-          return [{ pnc: item.pnc, title: item.productName }];
-        }
-        return [];
-      });
-      const expected = normalizeComparable(query);
-      const exact = products.filter(item => normalizeComparable(item.title) === expected);
-      if (exact.length === 1 && exact[0].pnc) {
-        onOpenPnc(exact[0].pnc);
-        return;
-      }
-    } catch {
-      // A página de busca oficial é o fallback seguro quando não há uma resolução única.
-    }
-    // `onOpenSearch` segue opcional: nem toda tela tem uma busca para receber
-    // a aplicação. Quando não tem, não fazer nada é melhor que recarregar.
-    onOpenSearch?.(query);
-  };
-
-  const copyPart = async (partNumber: string) => {
-    try {
-      await navigator.clipboard.writeText(cleanErpCode(partNumber));
-      toast.success(`Código ${cleanErpCode(partNumber)} copiado.`);
-    } catch {
-      toast.info(`Código: ${cleanErpCode(partNumber)}`);
-    }
-  };
+  const cartItem = (part: HusqvarnaOfficialIplPart | HusqvarnaOfficialRelatedSparePart, section: string | null, position?: string | null, comment?: string | null, quantity?: number | null) => ({
+    partNumber: part.partNumber as string,
+    effectiveCode: part.partNumber as string,
+    manufacturer: 'Husqvarna',
+    name: part.commercial?.name || part.name,
+    model: details?.model ?? '',
+    pnc: details?.pnc,
+    section,
+    position: position ?? undefined,
+    notes: comment ?? undefined,
+    unitPrice: part.commercial?.price ?? undefined,
+    quantity: quantity && quantity > 0 ? quantity : 1,
+  });
 
   const addToQuote = (part: HusqvarnaOfficialIplPart, sectionName = selectedSection?.name || null) => {
     if (!part.partNumber || !details) return;
-    quoteCart.addItem({
-      partNumber: part.partNumber,
-      effectiveCode: part.partNumber,
-      manufacturer: 'Husqvarna',
-      name: part.commercial?.name || part.name,
-      model: details.model,
-      pnc: details.pnc,
-      section: sectionName,
-      position: part.position,
-      notes: part.comment,
-      unitPrice: part.commercial?.price ?? undefined,
-      quantity: part.quantity && part.quantity > 0 ? part.quantity : 1,
-    });
+    quoteCart.addItem(cartItem(part, sectionName, part.position, part.comment, part.quantity));
   };
 
   const addSpareToQuote = (part: HusqvarnaOfficialRelatedSparePart) => {
     if (!details) return;
-    quoteCart.addItem({
-      partNumber: part.partNumber,
-      effectiveCode: part.partNumber,
-      manufacturer: 'Husqvarna',
-      name: part.commercial?.name || part.name,
-      model: details.model,
-      pnc: details.pnc,
-      section: 'Peças de reposição relacionadas',
-      unitPrice: part.commercial?.price ?? undefined,
-      quantity: 1,
-    });
+    quoteCart.addItem(cartItem(part, 'Peças de reposição relacionadas'));
   };
 
   const toggleSelected = (key: string) => {
@@ -413,21 +358,8 @@ export default function OfficialHusqvarnaPanel({ result, autoExpand = false, onO
     const items: Parameters<typeof quoteCart.addItems>[0] = [];
     for (const section of details.iplSections) {
       section.parts.forEach((part, index) => {
-        const key = partKey(section.id, index, part);
-        if (!selectedParts.has(key) || !part.partNumber) return;
-        items.push({
-          partNumber: part.partNumber,
-          effectiveCode: part.partNumber,
-          manufacturer: 'Husqvarna',
-          name: part.commercial?.name || part.name,
-          model: details.model,
-          pnc: details.pnc,
-          section: section.name,
-          position: part.position,
-          notes: part.comment,
-          unitPrice: part.commercial?.price ?? undefined,
-          quantity: part.quantity && part.quantity > 0 ? part.quantity : 1,
-        });
+        if (!selectedParts.has(partKey(section.id, index, part)) || !part.partNumber) return;
+        items.push(cartItem(part, section.name, part.position, part.comment, part.quantity));
       });
     }
     if (!items.length) return;
@@ -443,107 +375,207 @@ export default function OfficialHusqvarnaPanel({ result, autoExpand = false, onO
     window.setTimeout(() => setHighlightedPart(current => current === key ? null : current), 2500);
   };
 
-  const renderApplications = (applications: Array<string | null> | undefined, limit = 3) => {
-    const values = uniqueStrings(applications || []);
-    if (!values.length) return null;
-    return <div className="mt-2 flex flex-wrap items-center gap-1.5">
-      {values.slice(0, limit).map(item => <button key={item} type="button" onClick={() => void openApplication(item)} className="rounded-full border border-ink-200 dark:border-ink-700 bg-ink-50 dark:bg-ink-950/40 px-2 py-1 text-[10px] font-bold text-ink-500 dark:text-ink-400 transition hover:border-brand-300 dark:hover:border-brand-700 hover:text-brand-700" title="Localizar esta aplicação na Husqvarna">{item}</button>)}
-      {values.length > limit && <span className="text-[10px] font-bold text-ink-500 dark:text-ink-400">+{values.length - limit}</span>}
-    </div>;
+  const menuFor = (part: InspectablePart) => {
+    const code = part.partNumber ? cleanErpCode(part.partNumber) : '';
+    return [
+      { label: 'Ver preço e estoque', onSelect: () => onOpenPart(code) },
+      { label: 'Ver na Husqvarna', onSelect: () => void openOfficialPart(part) },
+    ];
   };
 
-  const renderInlineDetails = (part: InspectablePart, cardKey: string) => {
-    if (!part.partNumber || !expandedPartKeys.has(cardKey)) return null;
-    const code = cleanErpCode(part.partNumber);
-    const detail = partDetailsByCode.get(code);
-    const detailError = partErrorsByCode.get(code);
-    const extras = additionalApplications(part, detail);
-    const ean = detail?.specifications?.ean;
+  const noteBlocks = (part: HusqvarnaOfficialIplPart) => (
+    <>
+      {part.comment && <Note tone={isApplicabilityNote(part.comment) ? 'warn' : 'muted'}>{part.comment}</Note>}
+      {part.servesThisPnc === false && <Note tone="warn">Peça de outra variante deste modelo. O catálogo não a lista para este PNC.</Note>}
+      {part.multipackQuantity ? <Note>Vendida em pacote fechado de {part.multipackQuantity} unidades.</Note> : null}
+      {part.engine ? (
+        <Note>
+          {part.engine.model ? `Motor ${part.engine.brand ? `${part.engine.brand} ` : ''}${part.engine.model}` : `Motor ${part.engine.brand || 'de terceiro'}`}
+          {part.engine.modelOnPlate && ' · Leia o modelo e a spec na plaqueta do motor.'}
+          {part.engine.manualUrl && <a href={part.engine.manualUrl} target="_blank" rel="noreferrer noopener" className="ml-2 inline-flex items-center gap-1 font-semibold text-foreground underline underline-offset-4">Catálogo do motor <ExternalLink className="size-3.5" aria-hidden="true" /></a>}
+        </Note>
+      ) : null}
+    </>
+  );
 
-    return <div id={`${domId(cardKey)}-details`} className="mt-3 rounded-xl border border-brand-200 bg-brand-50/60 p-3 dark:border-brand-900 dark:bg-brand-950/20">
-      {detailError && <div className="flex flex-wrap items-center justify-between gap-2"><div className="text-xs font-semibold text-rose-700 dark:text-rose-300">{detailError}</div><button type="button" onClick={() => void retryInlineDetails(part, cardKey)} className="rounded-lg border border-rose-200 dark:border-rose-900 bg-white dark:bg-ink-900 px-2.5 py-1.5 text-[10px] font-black text-rose-700 dark:text-rose-300">Tentar novamente</button></div>}
-      {detail && !detailError && <>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><div className="text-[10px] font-black uppercase tracking-wide text-brand-700 dark:text-brand-300">Informações adicionais oficiais</div>{normalizeComparable(detail.name) !== normalizeComparable(part.commercial?.name || part.name) && <div className="mt-1 text-xs font-black">{detail.name}</div>}</div>
-          {detail.officialUrl && !part.url && <button type="button" onClick={() => void openOfficialPart(part)} className="rounded-lg border border-brand-200 dark:border-brand-900 bg-white dark:bg-ink-900 px-3 py-2 text-[10px] font-black text-brand-700 dark:text-brand-300">Abrir peça ↗</button>}
-        </div>
-        {detail.replacementChain?.length > 0 && <div className="mt-3 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-3 text-[11px] text-amber-900 dark:text-amber-200"><div className="font-black">Substituição confirmada</div><div className="mt-1 flex flex-wrap items-center gap-1 font-mono font-bold"><span>{cleanErpCode(detail.replacementChain[0].from)}</span>{detail.replacementChain.map(link => <span key={`${link.from}-${link.to}`} className="contents"><span>→</span><span>{cleanErpCode(link.to)}</span></span>)}</div></div>}
-        {extras.length > 0 && <div className="mt-3"><div className="text-[9px] font-black uppercase tracking-wide text-brand-700 dark:text-brand-300">Aplicações adicionais encontradas</div><div className="mt-2 flex flex-wrap gap-1.5">{extras.slice(0, 40).map(item => <button key={item} type="button" onClick={() => void openApplication(item)} className="rounded-full border border-brand-200 dark:border-brand-900 bg-white dark:bg-ink-900 px-2 py-1 text-[10px] font-bold text-ink-700 dark:text-ink-200 hover:text-brand-700">{item}</button>)}</div></div>}
-        {ean && <div className="mt-3 text-[11px]"><span className="font-bold text-ink-500 dark:text-ink-400">EAN</span><span className="ml-2 font-mono font-bold">{ean}</span></div>}
-      </>}
-    </div>;
-  };
+  return (
+    <section aria-label="Vistas explodidas da máquina" className="space-y-4">
+      {error && <p role="alert" className="rounded-lg border border-destructive bg-destructive/10 px-4 py-3 text-base text-destructive">{error}</p>}
+      {loading && <p aria-busy="true" className="py-10 text-center text-base text-muted-foreground">Abrindo as vistas desta máquina…</p>}
 
-  return <section className="rounded-2xl border border-ink-200 bg-white p-6 dark:border-ink-800 dark:bg-ink-900">
-    <div className="flex justify-center"><SourceBadge source="OFFICIAL" /></div>
-    <div className="mt-4 text-center">
-      <h2 className="text-base font-black text-ink-900 dark:text-white">{result.name}</h2>
-      <div className="mt-1 text-xs font-semibold text-ink-500 dark:text-ink-400">{result.pnc ? `PNC ${result.pnc}` : ''}{result.categoryName ? ` · ${result.categoryName}` : ''}{result.discontinued ? ' · Descontinuado' : ''}</div>
-      {result.message && <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-ink-500 dark:text-ink-400">{result.message}</p>}
-      <div className="mt-4 flex flex-wrap justify-center gap-2">
-        <button type="button" onClick={toggleDetails} disabled={!result.pnc || loading} className="rounded-xl bg-ink-900 px-4 py-2.5 text-xs font-black text-white disabled:opacity-50">{loading ? 'Carregando dados oficiais…' : expanded ? 'Ocultar detalhes' : 'Ver vistas e dados oficiais'}</button>
-        {result.url && <a href={result.url} target="_blank" rel="noreferrer" className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs font-black text-indigo-700">Abrir Portal Husqvarna ↗</a>}
-      </div>
-    </div>
+      {details && (
+        <>
+          <div className="relative flex flex-wrap items-center gap-2">
+            <div className="relative min-w-64 flex-1">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <Input value={machineSearch} onChange={event => setMachineSearch(event.target.value)} placeholder="Buscar nesta máquina: código, nome ou posição" aria-label="Buscar nesta máquina" className="h-11 pl-10" />
+              {machineSearch.trim().length >= 2 && (
+                <div className="absolute z-30 mt-1 max-h-80 w-full overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-lg">
+                  {machineMatches.length ? machineMatches.map(match => (
+                    <button key={match.key} type="button" onClick={() => { focusPart(match.sectionId, match.key); setMachineSearch(''); }} className="flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left hover:bg-accent focus-visible:bg-accent focus-visible:outline-none">
+                      <span className="min-w-0">
+                        <span className="block truncate text-base font-semibold">{match.part.commercial?.name || match.part.name}</span>
+                        <span className="block truncate text-sm text-muted-foreground">{match.sectionName} · posição {match.part.position || '—'}</span>
+                      </span>
+                      <span translate="no" className="shrink-0 font-code text-lg font-semibold tabular-nums">{match.part.partNumber ? formatHusqvarnaPartNumber(cleanErpCode(match.part.partNumber)) : 'sem código'}</span>
+                    </button>
+                  )) : <p className="px-3 py-4 text-center text-base text-muted-foreground">Nada encontrado nas vistas desta máquina.</p>}
+                </div>
+              )}
+            </div>
 
-    {expanded && <div className="mt-6 border-t border-ink-100 pt-5 text-left dark:border-ink-800">
-      {error && <div className="rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/30 px-4 py-3 text-sm text-rose-700 dark:text-rose-300">{error}</div>}
-      {loading && <div className="py-8 text-center text-sm font-semibold text-ink-500 dark:text-ink-400">Consultando dados oficiais da Husqvarna…</div>}
-      {details && <>
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-xl bg-ink-50 p-4 dark:bg-ink-950/40">
-          <div><div className="text-sm font-black">{details.productName}</div><div className="mt-1 text-xs text-ink-500 dark:text-ink-400">{details.articleDescription || details.categoryName || 'Produto confirmado pela Husqvarna'}</div></div>
-          <div className="flex flex-wrap gap-2">{details.portalUrl && <a href={details.portalUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-900 px-3 py-2 text-[11px] font-black text-ink-600 dark:text-ink-300">Portal B2B ↗</a>}{details.publicSupportUrl && <a href={details.publicSupportUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-900 px-3 py-2 text-[11px] font-black text-ink-600 dark:text-ink-300">Suporte público ↗</a>}</div>
-        </div>
+            {variants.length > 1 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="h-11">Variante {details.pnc}<ChevronDown className="size-4" aria-hidden="true" /></Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-72">
+                  {variants.map(variant => (
+                    <DropdownMenuItem key={variant.pnc} onSelect={() => { if (variant.pnc !== details.pnc) onOpenPnc(variant.pnc); }} className="h-auto min-h-10 flex-col items-start gap-0 py-2">
+                      <span translate="no" className="font-code text-lg font-semibold tabular-nums">{variant.pnc}{variant.pnc === details.pnc ? ' · aberta' : ''}</span>
+                      {variant.description && <span className="text-sm text-muted-foreground">{variant.description}</span>}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
-        {!!details.equipment?.notIncluded.length && <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200"><span className="font-black">Não acompanha: </span>{details.equipment.notIncluded.map(equipmentName).join(' · ')}</div>}
+            {(details.portalUrl || result.url) && (
+              <Button asChild variant="outline" className="h-11">
+                <a href={details.portalUrl || result.url || '#'} target="_blank" rel="noreferrer noopener">Portal Husqvarna <ExternalLink className="size-4" aria-hidden="true" /></a>
+              </Button>
+            )}
+          </div>
 
-        <div className="relative mb-4">
-          <input value={machineSearch} onChange={event => setMachineSearch(event.target.value)} placeholder="Buscar nesta máquina: código, nome, posição ou seção…" className="w-full rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm font-semibold outline-hidden focus:border-brand-400 dark:border-ink-700 dark:bg-ink-950" />
-          {machineSearch.trim().length >= 2 && <div className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-ink-200 bg-white p-2 shadow-xl dark:border-ink-700 dark:bg-ink-900">{machineMatches.length ? machineMatches.map(match => <button key={match.key} type="button" onClick={() => { focusPart(match.sectionId, match.key); setMachineSearch(''); }} className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left hover:bg-ink-50 dark:hover:bg-ink-800"><div className="min-w-0"><div className="truncate text-xs font-black">{match.part.commercial?.name || match.part.name}</div><div className="mt-0.5 text-[10px] text-ink-500 dark:text-ink-400">{match.sectionName} · posição {match.part.position || '—'}</div></div><div className="shrink-0 font-mono text-xs font-black text-ink-900 dark:text-brand-300">{match.part.partNumber ? cleanErpCode(match.part.partNumber) : 'sem código'}</div></button>) : <div className="px-3 py-4 text-center text-xs text-ink-500 dark:text-ink-400">Nada encontrado nas vistas desta máquina.</div>}</div>}
-        </div>
+          {spareCount > 0 && details.iplSections.length > 0 && (
+            <div role="tablist" aria-label="Conteúdo da máquina" className="flex gap-2">
+              {([['IPL', `Vistas explodidas · ${details.iplSections.length}`], ['SPARE_PARTS', `Peças relacionadas · ${spareCount}`]] as const).map(([id, label]) => (
+                <Button key={id} role="tab" aria-selected={activeTab === id} variant="outline" size="sm" className={activeTab === id ? 'border-ring bg-selected' : undefined} onClick={() => setTab(id)}>{label}</Button>
+              ))}
+            </div>
+          )}
 
-        {selectedParts.size > 0 && <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-200 dark:border-brand-900 bg-brand-50 dark:bg-brand-950/30 px-4 py-3"><div className="text-xs font-bold text-brand-900 dark:text-brand-200">{selectedParts.size} posição(ões) selecionada(s)</div><div className="flex gap-2"><button type="button" onClick={() => setSelectedParts(new Set())} className="rounded-lg border border-brand-200 dark:border-brand-900 bg-white dark:bg-ink-900 px-3 py-2 text-[10px] font-black text-brand-700 dark:text-brand-300">Limpar</button><button type="button" onClick={addSelectedToQuote} className="rounded-lg bg-ink-900 px-3 py-2 text-[10px] font-black text-white">Adicionar selecionadas ao orçamento</button></div></div>}
+          {activeTab === 'IPL' && (
+            details.iplSections.length === 0 ? (
+              <p className="py-8 text-center text-base text-muted-foreground">Este PNC não retornou vistas explodidas.</p>
+            ) : (
+              <div className="grid gap-4 lg:grid-cols-[216px_minmax(0,1fr)]">
+                <nav aria-label="Vistas da máquina" className="max-h-[calc(100vh-260px)] space-y-1 overflow-y-auto rounded-lg border border-border bg-card p-1.5 lg:sticky lg:top-0">
+                  {details.iplSections.map(section => {
+                    const duplicate = (duplicateSectionNames.get(section.name) || 0) > 1;
+                    const active = selectedSection?.id === section.id;
+                    return (
+                      <button
+                        key={section.id}
+                        type="button"
+                        aria-current={active ? 'true' : undefined}
+                        onClick={() => setSectionId(section.id)}
+                        className={cn('w-full rounded-md px-3 py-2 text-left outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/60', active ? 'bg-selected font-semibold' : 'hover:bg-accent')}
+                      >
+                        <span className="block text-base leading-5">{section.name}{duplicate && <span translate="no" className="ml-1 font-code text-sm text-muted-foreground">· {sectionShortId(section.id)}</span>}</span>
+                        <span className="block text-sm font-normal text-muted-foreground">{section.parts.length} posições</span>
+                      </button>
+                    );
+                  })}
+                </nav>
 
-        <div className="mb-5 flex gap-2 overflow-x-auto pb-1">{visibleTabs.map(item => <button key={item.id} type="button" onClick={() => setTab(item.id)} className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-[11px] font-black ${activeTab === item.id ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 bg-white text-ink-500 dark:border-ink-700 dark:bg-ink-900'}`}>{item.label} · {item.count}</button>)}</div>
+                {selectedSection && (
+                  <div className="min-w-0 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <h3 className="text-xl font-semibold leading-7">{selectedSection.name}</h3>
+                      <Button variant="outline" size="sm" onClick={toggleCurrentSection}>Selecionar todas desta vista</Button>
+                    </div>
 
-        {activeTab === 'IPL' && <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <div className="max-h-[680px] space-y-1 overflow-y-auto rounded-xl border border-ink-200 p-2 dark:border-ink-800">{details.iplSections.length ? details.iplSections.map(section => { const duplicate = (duplicateSectionNames.get(section.name) || 0) > 1; return <button key={section.id} type="button" onClick={() => setSectionId(section.id)} className={`w-full rounded-lg px-3 py-2 text-left text-xs font-bold ${selectedSection?.id === section.id ? 'bg-brand-50 text-ink-900 dark:bg-brand-950/30 dark:text-brand-200' : 'text-ink-600 hover:bg-ink-50 dark:text-ink-300 dark:hover:bg-ink-800'}`}><div>{section.name}{duplicate ? <span className="ml-1 font-mono text-[9px] text-ink-500 dark:text-ink-400">· {sectionShortId(section.id)}</span> : null}</div><div className="mt-0.5 text-[10px] font-normal text-ink-500 dark:text-ink-400">{section.parts.length} posições</div></button>; }) : <div className="p-4 text-xs text-ink-500 dark:text-ink-400">Este PNC não retornou vistas estruturadas.</div>}</div>
+                    {selectedSection.imageUrl && (
+                      <ExplodedView
+                        imageUrl={selectedSection.imageUrl}
+                        alt={`Vista explodida ${selectedSection.name}`}
+                        hotspots={selectedSectionHotspots.flatMap(({ index, part, point }) => {
+                          if (!point) return [];
+                          const key = partKey(selectedSection.id, index, part);
+                          return [{
+                            key,
+                            left: point.left,
+                            top: point.top,
+                            label: part.position || '•',
+                            active: highlightedPart === key,
+                            onSelect: () => focusPart(selectedSection.id, key),
+                            tooltip: (
+                              <div className="pointer-events-none mb-2 hidden w-64 rounded-lg border border-border bg-popover p-3 text-left text-popover-foreground shadow-lg group-hover:block group-focus-within:block">
+                                <div className="text-sm font-semibold">{part.commercial?.name || part.name}</div>
+                                {part.partNumber && <div translate="no" className="mt-1 font-code text-lg font-semibold tabular-nums">{formatHusqvarnaPartNumber(cleanErpCode(part.partNumber))}</div>}
+                                {part.commercial?.price != null && <div className="font-code text-base font-bold tabular-nums">{brl.format(part.commercial.price)}</div>}
+                              </div>
+                            ),
+                          }];
+                        })}
+                      />
+                    )}
 
-          {selectedSection && <div className="min-w-0">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><div className="text-sm font-black">{selectedSection.name}</div><div className="text-[10px] text-ink-500 dark:text-ink-400">{selectedSection.id} · fonte oficial Husqvarna</div></div><div className="flex items-center gap-2">{selectedSectionHotspots.length > 0 && <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">{selectedSectionHotspots.length} posição(ões) clicável(is)</span>}<button type="button" onClick={toggleCurrentSection} className="rounded-lg border border-ink-200 dark:border-ink-700 px-3 py-2 text-[10px] font-black text-ink-600 dark:text-ink-300">Selecionar seção</button></div></div>
+                    <div className="space-y-2">
+                      {selectedSection.parts.map((part, index) => {
+                        const key = partKey(selectedSection.id, index, part);
+                        const code = part.partNumber ? cleanErpCode(part.partNumber) : '';
+                        return (
+                          <PartLine
+                            key={key}
+                            anchorId={domId(key)}
+                            position={part.position}
+                            name={part.commercial?.name || part.name}
+                            code={code}
+                            price={part.commercial?.price}
+                            quantity={part.quantity}
+                            notes={noteBlocks(part)}
+                            replaces={part.replacementPartNumbers?.map(cleanErpCode)}
+                            selected={selectedParts.has(key)}
+                            highlighted={highlightedPart === key}
+                            inCart={quantityInCart(part.partNumber)}
+                            onToggleSelect={() => toggleSelected(key)}
+                            onCopy={() => void copyPart(code)}
+                            onAdd={() => addToQuote(part)}
+                            menu={menuFor(part)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          )}
 
-            {selectedSection.imageUrl && <div className="mb-4"><ExplodedView imageUrl={selectedSection.imageUrl} alt={`Vista explodida ${selectedSection.name}`} hotspots={selectedSectionHotspots.flatMap(({ index, part, point }) => { if (!point) return []; const key = partKey(selectedSection.id, index, part); const applications = uniqueStrings(part.commercial?.applications || []); return [{ key, left: point.left, top: point.top, label: part.position || '•', onSelect: () => focusPart(selectedSection.id, key), tooltip: <div className="pointer-events-none mb-2 hidden w-64 rounded-xl border border-ink-200 bg-white p-3 text-left shadow-xl group-hover:block group-focus-within:block dark:border-ink-700 dark:bg-ink-900"><div className="text-[10px] font-black text-ink-800 dark:text-ink-100">{part.commercial?.name || part.name}</div>{part.partNumber && <div className="mt-1 font-mono text-[10px] font-bold text-ink-900 dark:text-brand-300">{cleanErpCode(part.partNumber)}</div>}<div className="mt-1 text-[10px] font-black text-emerald-700 dark:text-emerald-400">{money(part.commercial?.price)}</div>{applications.length > 0 && <div className="mt-1 text-[9px] text-ink-500 dark:text-ink-400">{applications.slice(0, 3).join(' · ')}</div>}{part.comment && <div className="mt-2 rounded-sm bg-amber-50 px-2 py-1 text-[9px] font-semibold text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">{part.comment}</div>}</div> }]; })} /></div>}
+          {activeTab === 'SPARE_PARTS' && (
+            <div className="space-y-2">
+              {details.spareParts.map(part => {
+                const code = cleanErpCode(part.partNumber);
+                return (
+                  <PartLine
+                    key={part.partNumber}
+                    name={part.commercial?.name || part.name}
+                    code={code}
+                    price={part.commercial?.price}
+                    imageUrl={part.imageUrl}
+                    inCart={quantityInCart(part.partNumber)}
+                    onCopy={() => void copyPart(code)}
+                    onAdd={() => addSpareToQuote(part)}
+                    menu={menuFor(part)}
+                  />
+                );
+              })}
+            </div>
+          )}
 
-            <div className="space-y-2">{selectedSection.parts.map((part, index) => {
-              const key = partKey(selectedSection.id, index, part);
-              const selected = selectedParts.has(key);
-              const highlighted = highlightedPart === key;
-              const code = part.partNumber ? cleanErpCode(part.partNumber) : '';
-              const inlineOpen = expandedPartKeys.has(key);
-              const noExtra = noExtraDetailKeys.has(key);
-              const loadingPart = code ? partLoadingCodes.has(code) : false;
-              return <div id={domId(key)} key={key} className={`rounded-xl border p-3 transition ${highlighted ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-200 dark:border-brand-600 dark:bg-brand-950/30 dark:ring-brand-900' : selected ? 'border-brand-300 bg-brand-50/40 dark:border-brand-800 dark:bg-brand-950/20' : 'border-ink-200 dark:border-ink-700'}`}>
-                <div className="flex flex-wrap items-start justify-between gap-3"><div className="flex min-w-0 flex-1 gap-3">{part.partNumber && <input aria-label={`Selecionar posição ${part.position || index + 1}`} type="checkbox" checked={selected} onChange={() => toggleSelected(key)} className="mt-1 h-4 w-4 rounded-sm border-ink-300 dark:border-ink-700" />}<div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="grid min-h-7 min-w-7 place-items-center rounded-lg bg-ink-100 dark:bg-ink-800 px-2 text-xs font-black text-ink-900 dark:text-brand-300">{part.position || '—'}</span><span className="text-sm font-black">{part.commercial?.name || part.name}</span>{part.quantity ? <span className="text-[10px] font-bold text-ink-500 dark:text-ink-400">Qtd. {part.quantity}</span> : null}</div>{part.partNumber && <button type="button" onClick={() => void copyPart(part.partNumber!)} className="mt-2 font-mono text-sm font-black text-ink-900 dark:text-brand-300 hover:underline">{cleanErpCode(part.partNumber)}</button>}{part.description && part.description !== part.name && <div className="mt-1 text-xs text-ink-500 dark:text-ink-400">{part.description}</div>}{part.commercial && <div className="mt-2 text-xs"><span className="font-black text-emerald-700 dark:text-emerald-400">{money(part.commercial.price)}</span></div>}{renderApplications(part.commercial?.applications)}{part.comment && <div className={`mt-2 rounded-lg px-3 py-2 text-[10px] font-semibold ${applicabilityLabel(part.comment) === 'Aplicabilidade / serial' ? 'border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200' : 'bg-ink-50 text-ink-600 dark:bg-ink-950/40 dark:text-ink-300'}`}><span className="font-black">{applicabilityLabel(part.comment)}:</span> {part.comment}</div>}{part.servesThisPnc === false && <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">Esta peça é de outra variante deste modelo — o catálogo não a lista para o PNC consultado.</div>}{part.multipackQuantity ? <div className="mt-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-[11px] font-bold text-brand-800 dark:border-brand-800 dark:bg-brand-950/30 dark:text-brand-200">Vendida em pacote fechado de {part.multipackQuantity} unidades.</div> : null}{part.engine ? <div className="mt-2 rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-[11px] dark:border-ink-700 dark:bg-ink-950/40"><span className="font-bold text-ink-800 dark:text-ink-100">{part.engine.model ? `Motor ${part.engine.brand ? part.engine.brand + " " : ""}${part.engine.model}` : `Motor ${part.engine.brand || "de terceiro"}`}</span>{part.engine.modelOnPlate && <span className="text-ink-600 dark:text-ink-300"> — o catálogo não informa o modelo. Leia a plaqueta do motor (modelo + spec).</span>}{part.engine.hasSeparateIpl && <span className="text-ink-600 dark:text-ink-300"> — tem catálogo próprio.</span>}{part.engine.manualUrl && <a href={part.engine.manualUrl} target="_blank" rel="noreferrer" className="ml-1 font-bold text-brand-700 underline dark:text-brand-300">Abrir catálogo do motor ↗</a>}</div> : null}</div></div><div className="flex flex-wrap gap-2">{part.partNumber && !noExtra && <button type="button" aria-expanded={inlineOpen} onClick={() => void toggleInlineDetails(part, key)} className={`rounded-lg border px-3 py-2 text-[10px] font-black ${inlineOpen ? 'border-brand-300 bg-brand-50 text-brand-700 dark:border-brand-800 dark:bg-brand-950/30 dark:text-brand-300' : 'border-ink-200 text-ink-600 dark:border-ink-700 dark:text-ink-300'}`}>{inlineOpen ? 'Ocultar detalhes' : loadingPart ? 'Consultando…' : 'Mais detalhes'}</button>}{onOpenPart && part.partNumber && <button type="button" onClick={() => onOpenPart(cleanErpCode(part.partNumber!))} className="rounded-lg border border-ink-200 dark:border-ink-700 px-3 py-2 text-[10px] font-black text-ink-600 dark:text-ink-300">Consultar interno</button>}{part.partNumber && <button type="button" onClick={() => void openOfficialPart(part)} className="rounded-lg border border-ink-200 dark:border-ink-700 px-3 py-2 text-[10px] font-black text-ink-600 dark:text-ink-300">Abrir peça ↗</button>}{part.partNumber && <button type="button" onClick={() => addToQuote(part)} className="rounded-lg bg-ink-900 px-3 py-2 text-[10px] font-black text-white">+ Orçamento</button>}</div></div>
-                {renderInlineDetails(part, key)}
-              </div>;
-            })}</div>
-          </div>}
-        </div>}
-
-        {activeTab === 'SPARE_PARTS' && <div><div className="mb-3 rounded-xl border border-ink-200 dark:border-ink-700 bg-ink-50 dark:bg-ink-950/40 px-4 py-3 text-xs text-ink-500 dark:text-ink-400">Peças relacionadas devolvidas pela Husqvarna para este artigo. A posição técnica continua sendo a da vista explodida.</div><div className="grid gap-3 md:grid-cols-2">{details.spareParts.map(part => { const key = spareKey(part); const code = cleanErpCode(part.partNumber); const inlineOpen = expandedPartKeys.has(key); const noExtra = noExtraDetailKeys.has(key); return <div key={part.partNumber} className="rounded-xl border border-ink-200 dark:border-ink-700 p-3"><div className="flex gap-3">{part.imageUrl && <img src={part.imageUrl} alt={part.name} className="h-16 w-16 rounded-lg object-contain" loading="lazy" />}<div className="min-w-0 flex-1"><div className="text-xs font-black">{part.commercial?.name || part.name}</div><button type="button" onClick={() => void copyPart(part.partNumber)} className="mt-1 font-mono text-xs font-black text-ink-900 dark:text-brand-300 hover:underline">{cleanErpCode(part.partNumber)}</button>{part.description && <div className="mt-1 line-clamp-2 text-[11px] text-ink-500 dark:text-ink-400">{part.description}</div>}<div className="mt-2 text-xs font-black text-emerald-700 dark:text-emerald-400">{money(part.commercial?.price)}</div>{renderApplications(part.commercial?.applications)}</div><div className="flex shrink-0 flex-col gap-2">{!noExtra && <button type="button" onClick={() => void toggleInlineDetails(part, key)} className={`rounded-lg border px-2.5 py-2 text-[10px] font-black ${inlineOpen ? 'border-brand-300 bg-brand-50 text-brand-700 dark:border-brand-800 dark:bg-brand-950/30 dark:text-brand-300' : 'border-ink-200 dark:border-ink-700'}`}>{inlineOpen ? 'Ocultar detalhes' : partLoadingCodes.has(code) ? 'Consultando…' : 'Mais detalhes'}</button>}<button type="button" onClick={() => void openOfficialPart(part)} className="rounded-lg border border-ink-200 dark:border-ink-700 px-2.5 py-2 text-[10px] font-black text-ink-600 dark:text-ink-300">Abrir peça ↗</button><button type="button" onClick={() => addSpareToQuote(part)} className="rounded-lg bg-ink-900 px-2.5 py-2 text-[10px] font-black text-white">+ Orçamento</button></div></div>{renderInlineDetails(part, key)}</div>; })}</div></div>}
-
-        {activeTab === 'SPECS' && <div>{details.specifications.length ? <div className="grid gap-2 md:grid-cols-2">{details.specifications.map((spec, index) => <div key={`${spec.group}-${spec.name}-${index}`} className="rounded-xl border border-ink-200 dark:border-ink-700 p-3"><div className="text-[10px] font-black uppercase tracking-wide text-ink-500 dark:text-ink-400">{spec.group}</div><div className="mt-1 text-xs font-bold text-ink-600 dark:text-ink-300">{spec.name}</div><div className="mt-1 text-sm font-black">{spec.value}</div></div>)}</div> : <div className="text-sm text-ink-500 dark:text-ink-400">A Husqvarna não retornou especificações estruturadas para esta variante.</div>}</div>}
-
-        {activeTab === 'DOCS' && <div className="space-y-2">{details.documents.map((document, index) => <a key={`${document.url}-${index}`} href={document.url} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-3 rounded-xl border border-ink-200 dark:border-ink-700 p-3 hover:bg-ink-50 dark:hover:bg-ink-800"><div><div className="flex flex-wrap items-center gap-2"><div className="text-xs font-black">{document.title}</div>{document.isLatest && <span className="rounded-full border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 text-[9px] font-black text-emerald-700 dark:text-emerald-400">MAIS RECENTE</span>}</div><div className="mt-1 text-[10px] text-ink-500 dark:text-ink-400">{labelForType(document.type)} · {document.languages.join(', ') || 'idioma não informado'} · {formatDocumentDate(document.lastUpdated) || 'data não informada'} · {document.fileFormat || 'arquivo'}</div></div><span className="text-xs font-black text-brand-700 dark:text-brand-300">Abrir ↗</span></a>)}</div>}
-
-        {activeTab === 'VARIANTS' && <div className="grid gap-3 md:grid-cols-2">{details.variants.map(variant => { const differences = (variant.specifications || []).filter((spec: HusqvarnaOfficialSpecification) => variantDifferenceKeys.has(`${spec.group}|${spec.name}`)).slice(0, 8); return <button type="button" onClick={() => openPnc(variant.pnc)} key={variant.pnc} className={`block w-full rounded-xl border p-3 text-left transition hover:border-brand-400 hover:bg-brand-50/40 dark:hover:bg-brand-950/20 ${variant.pnc === details.pnc ? 'border-brand-300 bg-brand-50/60 dark:border-brand-800 dark:bg-brand-950/30' : 'border-ink-200 dark:border-ink-700'}`}><div className="font-mono text-sm font-black text-ink-900 dark:text-brand-300">{variant.pnc}</div><div className="mt-1 text-xs text-ink-500 dark:text-ink-400">{variant.description || 'Descrição não informada'}</div>{differences.length > 0 && <div className="mt-3 space-y-1">{differences.map(spec => <div key={`${spec.group}-${spec.name}`} className="flex justify-between gap-3 text-[10px]"><span className="text-ink-500 dark:text-ink-400">{spec.name}</span><span className="text-right font-black text-ink-700 dark:text-ink-200">{spec.value}</span></div>)}</div>}{variant.pnc === details.pnc ? <div className="mt-2 text-[10px] font-black text-brand-700 dark:text-brand-300">VARIANTE CONSULTADA</div> : <div className="mt-2 text-[10px] font-black text-brand-600 dark:text-brand-400">Abrir esta variante →</div>}</button>; })}</div>}
-
-        {activeTab === 'FEATURES' && <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{(details.features || []).map(feature => <div key={`${feature.source}-${feature.id}`} className="overflow-hidden rounded-xl border border-ink-200 dark:border-ink-700">{feature.imageUrl && <img src={feature.imageUrl} alt={feature.name} className="h-36 w-full object-contain bg-white dark:bg-ink-900" loading="lazy" />}<div className="p-3"><div className="text-xs font-black">{feature.name}</div>{feature.description && <div className="mt-1 text-[11px] leading-5 text-ink-500 dark:text-ink-400">{feature.description}</div>}{feature.videoUrl && <a href={feature.videoUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-[10px] font-black text-brand-700 dark:text-brand-300">Ver vídeo oficial ↗</a>}</div></div>)}</div>}
-
-        {activeTab === 'ACCESSORIES' && <div className="grid gap-3 md:grid-cols-2">{details.accessories.map(accessory => <div key={accessory.id} className="flex gap-3 rounded-xl border border-ink-200 dark:border-ink-700 p-3">{accessory.imageUrl && <img src={accessory.imageUrl} alt={accessory.name} className="h-16 w-16 rounded-lg object-contain" loading="lazy" />}<div className="min-w-0 flex-1"><div className="text-xs font-black">{accessory.name}</div><div className="mt-1 text-[10px] text-ink-500 dark:text-ink-400">{accessory.category || 'Acessório'}{accessory.discontinued ? ' · descontinuado' : ''}</div>{accessory.description && <div className="mt-1 line-clamp-2 text-[11px] text-ink-500 dark:text-ink-400">{accessory.description}</div>}{accessory.url && <a href={accessory.url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-[10px] font-black text-brand-700 dark:text-brand-300">Abrir na Husqvarna ↗</a>}</div></div>)}</div>}
-
-        {activeTab === 'USES' && <div><div className="mb-3 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-xs text-amber-800 dark:text-amber-200">Produtos que a Husqvarna associa ao uso deste artigo. A relação ajuda na consulta, mas não é tratada como prova automática de intercambialidade.</div><div className="grid gap-3 md:grid-cols-2">{details.alsoUsedIn.map(item => <div key={`${item.kind}-${item.id}`} className="flex gap-3 rounded-xl border border-ink-200 dark:border-ink-700 p-3">{item.imageUrl && <img src={item.imageUrl} alt={item.name} className="h-16 w-16 rounded-lg object-contain" loading="lazy" />}<div className="min-w-0 flex-1"><div className="text-xs font-black">{item.name}</div><div className="mt-1 text-[10px] text-ink-500 dark:text-ink-400">{item.category || item.kind}{item.discontinued ? ' · descontinuado' : ''}</div>{item.pnc && <div className="mt-1 font-mono text-[11px] font-bold text-ink-900 dark:text-brand-300">PNC {item.pnc}</div>}<div className="mt-2 flex gap-2">{item.pnc && <button type="button" onClick={() => openPnc(item.pnc!)} className="text-[10px] font-black text-brand-700 dark:text-brand-300">Abrir no CogniVault →</button>}{item.url && <a href={item.url} target="_blank" rel="noreferrer" className="text-[10px] font-black text-ink-500 dark:text-ink-400">Portal ↗</a>}</div></div></div>)}</div></div>}
-      </>}
-    </div>}
-  </section>;
+          {selectedParts.size > 0 && (
+            <div className="sticky bottom-0 z-20 -mx-1 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ring bg-card px-4 py-3 shadow-lg">
+              <span className="text-base font-semibold">{selectedParts.size} {selectedParts.size === 1 ? 'peça selecionada' : 'peças selecionadas'}</span>
+              <div className="flex gap-2">
+                <Button variant="ghost" onClick={() => setSelectedParts(new Set())}>Limpar</Button>
+                <Button onClick={addSelectedToQuote}>Adicionar ao orçamento</Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
 }

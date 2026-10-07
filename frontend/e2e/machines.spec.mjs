@@ -116,8 +116,8 @@ test('PNC da etiqueta abre a vista explodida no painel lateral, sem trocar de te
 
   await expect(painel).toBeVisible();
   await expect(painel.getByText('HUSQVARNA 545 Mark II').first()).toBeVisible();
-  await expect(painel.getByText('FILTRO DE AR')).toBeVisible();
-  await expect(painel.getByText('537041901', { exact: false })).toBeVisible();
+  await expect(painel.getByRole('heading', { name: 'FILTRO DE AR' })).toBeVisible();
+  await expect(painel.getByRole('button', { name: 'Copiar código 537 04 19-01' })).toBeVisible();
 
   // Fechar devolve o atendimento no mesmo lugar, que é o ponto de ser lateral.
   await painel.getByRole('button', { name: 'Fechar' }).click();
@@ -156,7 +156,8 @@ test('posição da vista explodida leva o código para a busca interna', async (
   const painel = page.getByRole('dialog', { name: 'Máquina aberta' });
   await expect(painel.getByText('HUSQVARNA 545 Mark II').first()).toBeVisible();
 
-  await painel.getByRole('button', { name: 'Consultar interno' }).click();
+  await painel.getByRole('button', { name: /Mais ações para/ }).first().click();
+  await page.getByRole('menuitem', { name: 'Ver preço e estoque' }).click();
 
   // O painel fecha e o código cai no campo de busca, sem recarregar a página.
   await expect(painel).toHaveCount(0);

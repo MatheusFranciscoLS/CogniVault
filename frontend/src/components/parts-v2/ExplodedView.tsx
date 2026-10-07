@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { Minus, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 /**
  * Vista explodida com zoom e arraste.
@@ -21,6 +23,8 @@ export type ExplodedHotspot = {
   left: number;
   top: number;
   label: string;
+  /** Posição em destaque (a que o balcão acabou de achar). */
+  active?: boolean;
   onSelect: () => void;
   tooltip?: ReactNode;
 };
@@ -116,42 +120,20 @@ export default function ExplodedView({
   const zoomed = zoom > MIN_ZOOM;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-700 dark:bg-ink-900">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-100 px-3 py-2 dark:border-ink-800">
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => changeZoom(-ZOOM_STEP)}
-            disabled={zoom <= MIN_ZOOM}
-            aria-label="Diminuir zoom"
-            className="cv-touch-target grid w-11 place-items-center rounded-lg border border-ink-200 text-lg font-bold text-ink-700 transition hover:bg-ink-50 disabled:opacity-40 dark:border-ink-700 dark:text-ink-200 dark:hover:bg-ink-800"
-          >
-            −
-          </button>
-          <button
-            type="button"
-            onClick={() => changeZoom(ZOOM_STEP)}
-            disabled={zoom >= MAX_ZOOM}
-            aria-label="Aumentar zoom"
-            className="cv-touch-target grid w-11 place-items-center rounded-lg border border-ink-200 text-lg font-bold text-ink-700 transition hover:bg-ink-50 disabled:opacity-40 dark:border-ink-700 dark:text-ink-200 dark:hover:bg-ink-800"
-          >
-            +
-          </button>
-          <span className="ml-1 min-w-11 text-xs font-bold tabular-nums text-ink-600 dark:text-ink-300">
-            {Math.round(zoom * 100)}%
-          </span>
-          {zoomed && (
-            <button
-              type="button"
-              onClick={resetZoom}
-              className="cv-touch-target rounded-lg px-3 text-xs font-bold text-brand-700 transition hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-950/30"
-            >
-              Ajustar à tela
-            </button>
-          )}
+          <Button variant="outline" size="icon-sm" onClick={() => changeZoom(-ZOOM_STEP)} disabled={zoom <= MIN_ZOOM} aria-label="Diminuir zoom">
+            <Minus className="size-4" />
+          </Button>
+          <Button variant="outline" size="icon-sm" onClick={() => changeZoom(ZOOM_STEP)} disabled={zoom >= MAX_ZOOM} aria-label="Aumentar zoom">
+            <Plus className="size-4" />
+          </Button>
+          <span className="ml-1 min-w-12 text-base tabular-nums text-muted-foreground">{Math.round(zoom * 100)}%</span>
+          {zoomed && <Button variant="ghost" size="sm" onClick={resetZoom}>Ajustar à tela</Button>}
         </div>
-        <span className="text-[11px] text-ink-500 dark:text-ink-400">
-          {zoomed ? 'Arraste para mover o desenho' : 'Toque no número para abrir a peça'}
+        <span className="text-sm text-muted-foreground">
+          {zoomed ? 'Arraste para mover o desenho' : 'Clique no número para ir à peça'}
         </span>
       </div>
 
@@ -159,11 +141,12 @@ export default function ExplodedView({
         ref={viewportRef}
         onPointerDown={startDrag}
         style={{ maxHeight }}
-        className={`overflow-auto p-3 ${zoomed ? (dragging ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
+        className={`overflow-auto bg-white p-3 ${zoomed ? (dragging ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
       >
         {/* A escala vive aqui: imagem e posições estão no mesmo sistema de
             coordenadas, então ampliar o contêiner mantém cada número sobre a
-            peça a que ele pertence. */}
+            peça a que ele pertence. O fundo é sempre branco: o desenho do
+            fabricante é preto sobre branco e some em tema escuro. */}
         <div
           style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', width: 'fit-content' }}
           className="relative mx-auto"
@@ -186,12 +169,12 @@ export default function ExplodedView({
               <button
                 type="button"
                 onClick={hotspot.onSelect}
-                /* O alvo NÃO cresce com o zoom: 24px reais em qualquer
+                /* O alvo NÃO cresce com o zoom: 28px reais em qualquer
                    ampliação. Escalar o botão junto faria o número cobrir as
                    posições vizinhas justamente quando o atendente amplia para
                    separá-las. */
                 style={{ transform: `scale(${1 / zoom})` }}
-                className="grid h-6 min-w-6 place-items-center rounded-full border-2 border-white bg-ink-900 px-1 text-[9px] font-black text-white shadow-md transition hover:bg-accent-700 focus:outline-hidden focus:ring-2 focus:ring-brand-400"
+                className={`grid h-7 min-w-7 place-items-center rounded-full border-2 border-white px-1 font-code text-sm font-semibold tabular-nums text-white shadow-md outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring ${hotspot.active ? 'bg-primary' : 'bg-bar hover:bg-primary'}`}
               >
                 {hotspot.label}
               </button>
