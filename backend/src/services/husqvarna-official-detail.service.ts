@@ -4,7 +4,7 @@ import { husqvarnaArticleIdCandidates } from '../utils/husqvarna-article-id';
 import { iplCommentServesPnc, parseHusqvarnaIplComment } from '../utils/husqvarna-ipl-comment';
 import { briggsManualsSearchUrl } from '../utils/engine-model';
 import { kawasakiCatalogUrl } from '../utils/kawasaki-catalog';
-import { isHostOrSubdomain } from '../utils/husqvarna-url';
+import { isHostOrSubdomain, safeHusqvarnaAssetUrl } from '../utils/husqvarna-url';
 
 const GRAPHQL_URL = 'https://portal.husqvarnagroup.com/hbd/graphql?';
 const PORTAL_ORIGIN = 'https://portal.husqvarnagroup.com';
@@ -20,6 +20,7 @@ query getProductDetailsSections($siteName: String!, $articleId: ID!) {
         isNew
         isDiscontinued
         articleDescription
+        mainImage { url }
         name { productName }
         specificationValues { id formattedValue }
         included { id formattedValue specificationDefinitions { name } }
@@ -316,6 +317,8 @@ export type HusqvarnaOfficialProductDetails = {
   productName: string;
   categoryName: string | null;
   articleDescription: string | null;
+  /** Foto oficial da máquina (só https e só domínio Husqvarna). */
+  imageUrl: string | null;
   discontinued: boolean;
   equipment: HusqvarnaOfficialProductEquipment | null;
   documents: HusqvarnaOfficialDocument[];
@@ -677,6 +680,7 @@ export function parseOfficialProductDetails(payload: unknown, pncInput: string):
     productName,
     categoryName: article.product?.category?.name ? String(article.product.category.name).trim() : null,
     articleDescription: article.articleDescription ? String(article.articleDescription).trim() : null,
+    imageUrl: safeHusqvarnaAssetUrl(article.mainImage?.url),
     discontinued: Boolean(article.isDiscontinued),
     equipment: parseOfficialProductEquipment(article),
     documents,

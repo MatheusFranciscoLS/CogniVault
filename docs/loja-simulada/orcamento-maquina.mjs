@@ -47,6 +47,8 @@ await step(`orçamento da ${nome}`, async () => {
   for (const trecho of ['Fazenda Teste', 'Preço: R$ 79.900,00', 'Prazo de Entrega:', '7 dias', 'Validade do Orçamento:', 'Observação:', 'Transmissão', 'ATT.']) {
     check(`o PDF traz "${trecho.replace('Transmissão', 'transmissão')}"`, bruto.toLowerCase().includes(trecho.toLowerCase()));
   }
+  const imagens = (bruto.match(/\/Subtype \/Image/g) ?? []).length;
+  check('o PDF leva a foto da máquina além do logo (2 imagens)', imagens >= 2, `${imagens} imagens`);
   check('o PDF não traz o PNC nem o preço da lista', !bruto.includes(pnc) && !bruto.includes(Number(preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })));
   await page.getByRole('dialog', { name: new RegExp(`Orçamento da ${nome}`) }).waitFor({ state: 'detached', timeout: 5000 });
   check('o diálogo fecha depois de gerar', true);

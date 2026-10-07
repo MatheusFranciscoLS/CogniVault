@@ -15,6 +15,7 @@ import {
   type MachineQuoteFields,
 } from '../lib/machine-quote';
 import type { SheetEquipment } from '../lib/machine-sheet';
+import type { MachinePortalData } from '../lib/use-machine-portal';
 import { formatBRL } from '../lib/quote-message';
 
 const TEXTAREA_CLASS = 'w-full rounded-md border border-input bg-background px-3 py-2 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/60';
@@ -26,10 +27,12 @@ const TEXTAREA_CLASS = 'w-full rounded-md border border-input bg-background px-3
 export default function MachineQuoteDialog({
   machine,
   equipment,
+  photoUrl,
   onClose,
 }: {
   machine: ListedMachine;
   equipment: SheetEquipment;
+  photoUrl: MachinePortalData['imageUrl'] | undefined;
   onClose: () => void;
 }) {
   const ids = useId();
@@ -41,6 +44,7 @@ export default function MachineQuoteDialog({
   const [complement, setComplement] = useState('');
   const [highlight, setHighlight] = useState(() => defaultHighlight(machine.application));
   const [includeEquipment, setIncludeEquipment] = useState(false);
+  const [includePhoto, setIncludePhoto] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const price = parseMoneyInput(priceText);
@@ -50,7 +54,7 @@ export default function MachineQuoteDialog({
     if (price === null) return;
     setBusy(true);
     try {
-      const [{ jsPDF }, autoTable, { buildMachineQuotePdf }, { loadStoreLogo }, { attendantNameFromEmail }] = await Promise.all([
+      const [{ jsPDF }, autoTable, { buildMachineQuotePdf }, { loadStoreLogo, loadProductImage }, { attendantNameFromEmail }] = await Promise.all([
         import('jspdf'),
         import('jspdf-autotable').then(module => module.default),
         import('../lib/machine-quote'),
@@ -68,6 +72,7 @@ export default function MachineQuoteDialog({
         fields,
         attendantName: attendantNameFromEmail(email) || undefined,
         logo: await loadStoreLogo(),
+        photo: includePhoto && photoUrl ? await loadProductImage(photoUrl) : null,
       }).save(machineQuoteFileName(machine));
       toast.success('Orçamento em PDF gerado.');
       onClose();
@@ -134,6 +139,13 @@ export default function MachineQuoteDialog({
           Observação
           <textarea id={`${ids}-obs`} value={observation} onChange={event => setObservation(event.target.value)} rows={2} maxLength={600} className={TEXTAREA_CLASS} />
         </label>
+
+        {photoUrl && (
+          <label className="flex items-center gap-2 text-base">
+            <input type="checkbox" checked={includePhoto} onChange={event => setIncludePhoto(event.target.checked)} className="size-4" />
+            Incluir a foto da máquina
+          </label>
+        )}
 
         {hasEquipment && (
           <label className="flex items-center gap-2 text-base">
