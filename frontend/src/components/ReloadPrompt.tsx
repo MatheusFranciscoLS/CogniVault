@@ -26,7 +26,7 @@ export default function ReloadPrompt() {
     <aside
       role="status"
       aria-live="polite"
-      className="fixed inset-x-3 bottom-[max(.75rem,env(safe-area-inset-bottom))] z-[110] rounded-xl border border-ink-200 bg-white p-4 shadow-lg dark:border-ink-700 dark:bg-ink-900 sm:inset-x-auto sm:right-4 sm:w-[360px]"
+      className="fixed inset-x-3 bottom-[max(.75rem,env(safe-area-inset-bottom))] z-110 rounded-xl border border-ink-200 bg-white p-4 shadow-lg dark:border-ink-700 dark:bg-ink-900 sm:inset-x-auto sm:right-4 sm:w-[360px]"
     >
       <div className="flex items-start gap-3">
         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-50 text-xs font-black text-brand-600 dark:bg-brand-950/40 dark:text-brand-300" aria-hidden="true">

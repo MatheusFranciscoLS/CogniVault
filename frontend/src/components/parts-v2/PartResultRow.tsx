@@ -30,7 +30,7 @@ export default function PartResultRow({ part, verification, verificationLoading 
   return (
     <article
       onMouseEnter={onSelect}
-      className={`group border-b border-ink-100 bg-white transition last:border-b-0 dark:border-ink-800 dark:bg-ink-900 ${selected ? 'relative z-[1] bg-brand-50/60 shadow-[inset_3px_0_0_#273a60] dark:bg-brand-950/15' : 'hover:bg-ink-50/80 dark:hover:bg-ink-800/35'}`}
+      className={`group border-b border-ink-100 bg-white transition last:border-b-0 dark:border-ink-800 dark:bg-ink-900 ${selected ? 'relative z-1 bg-brand-50/60 shadow-[inset_3px_0_0_#273a60] dark:bg-brand-950/15' : 'hover:bg-ink-50/80 dark:hover:bg-ink-800/35'}`}
     >
       <div className="grid gap-3 px-3 py-3 lg:grid-cols-[145px_minmax(0,1fr)_170px_auto] lg:items-center lg:px-4">
         <button type="button" onClick={onOpen} onFocus={onSelect} data-part-result="true" className="min-w-0 text-left" aria-label={`Abrir detalhes de ${part.name}`}>

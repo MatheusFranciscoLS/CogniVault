@@ -187,11 +187,11 @@ export default function SavedQuotesPanel() {
         </div>
         <div>
           <label htmlFor="quote-from" className="block text-[10px] font-bold uppercase tracking-[.08em] text-ink-500">De</label>
-          <input id="quote-from" type="date" value={from} onChange={e => { setPage(0); setFrom(e.target.value); }} className="cv-field mt-1 h-11 w-full py-0 text-sm tabular-nums tablet:w-[9.5rem]" />
+          <input id="quote-from" type="date" value={from} onChange={e => { setPage(0); setFrom(e.target.value); }} className="cv-field mt-1 h-11 w-full py-0 text-sm tabular-nums tablet:w-38" />
         </div>
         <div>
           <label htmlFor="quote-to" className="block text-[10px] font-bold uppercase tracking-[.08em] text-ink-500">Até</label>
-          <input id="quote-to" type="date" value={to} onChange={e => { setPage(0); setTo(e.target.value); }} className="cv-field mt-1 h-11 w-full py-0 text-sm tabular-nums tablet:w-[9.5rem]" />
+          <input id="quote-to" type="date" value={to} onChange={e => { setPage(0); setTo(e.target.value); }} className="cv-field mt-1 h-11 w-full py-0 text-sm tabular-nums tablet:w-38" />
         </div>
         <button type="button" onClick={applyFilter} className="cv-brand-button cv-touch-target px-4 text-sm">Buscar</button>
         {hasFilters && (
@@ -206,7 +206,7 @@ export default function SavedQuotesPanel() {
       )}
 
       <div className="overflow-hidden rounded-card border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-850">
-        <div className="hidden grid-cols-[minmax(180px,1fr)_140px_minmax(180px,1fr)_150px_120px_140px] gap-4 border-b border-ink-200 px-4 py-2.5 text-[10px] font-bold uppercase tracking-[.1em] text-ink-500 dark:border-ink-800 lg:grid">
+        <div className="hidden grid-cols-[minmax(180px,1fr)_140px_minmax(180px,1fr)_150px_120px_140px] gap-4 border-b border-ink-200 px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-ink-500 dark:border-ink-800 lg:grid">
           <span>Cliente</span><span>Data</span><span>Conteúdo</span><span>Atendente</span><span>Total</span><span className="text-right">Ações</span>
         </div>
 

@@ -283,13 +283,13 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
       <div className="mb-6 flex space-x-1 rounded-xl bg-ink-200/50 dark:bg-ink-800/50 p-1">
         <button
           onClick={() => setActiveTab('geral')}
-          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all ${activeTab === 'geral' ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-white shadow' : 'text-ink-600 dark:text-ink-400 hover:text-ink-900 dark:hover:text-ink-200 hover:bg-white/50 dark:hover:bg-ink-700/50'}`}
+          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all ${activeTab === 'geral' ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-white shadow-sm' : 'text-ink-600 dark:text-ink-400 hover:text-ink-900 dark:hover:text-ink-200 hover:bg-white/50 dark:hover:bg-ink-700/50'}`}
         >
           Visão Geral
         </button>
         <button
           onClick={() => setActiveTab('acao')}
-          className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all ${activeTab === 'acao' ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-white shadow' : 'text-ink-600 dark:text-ink-400 hover:text-ink-900 dark:hover:text-ink-200 hover:bg-white/50 dark:hover:bg-ink-700/50'}`}
+          className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all ${activeTab === 'acao' ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-white shadow-sm' : 'text-ink-600 dark:text-ink-400 hover:text-ink-900 dark:hover:text-ink-200 hover:bg-white/50 dark:hover:bg-ink-700/50'}`}
         >
           Fila de Ação
           {(data.summary.needsReview > 0 || data.searchRadar.length > 0 || data.officialVerification.pending > 0) && (
@@ -300,7 +300,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
         </button>
         <button
           onClick={() => setActiveTab('tecnico')}
-          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all ${activeTab === 'tecnico' ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-white shadow' : 'text-ink-600 dark:text-ink-400 hover:text-ink-900 dark:hover:text-ink-200 hover:bg-white/50 dark:hover:bg-ink-700/50'}`}
+          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all ${activeTab === 'tecnico' ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-white shadow-sm' : 'text-ink-600 dark:text-ink-400 hover:text-ink-900 dark:hover:text-ink-200 hover:bg-white/50 dark:hover:bg-ink-700/50'}`}
         >
           Técnico & IA
         </button>
@@ -334,7 +334,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
 
           <div className="grid gap-4 lg:grid-cols-3">
             <div className={`rounded-[22px] border p-5 ${data.visualRetry.candidates ? 'border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-900/30' : 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-900/30'}`}>
-              <div className="text-[10px] font-bold uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">Leitura visual de PDFs</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-ink-500 dark:text-ink-400">Leitura visual de PDFs</div>
               <div className="mt-2 text-lg font-semibold text-ink-900 dark:text-ink-100">{data.visualRetry.candidates ? `${data.visualRetry.candidates} aguardando cota` : 'Nenhuma falha de cota'}</div>
               <p className="mt-2 text-xs leading-5 text-ink-600 dark:text-ink-400">{data.visualRetry.eligible ? `${data.visualRetry.documents[0]?.filename || 'Catálogo'} pode ser reenviado agora.` : data.visualRetry.coolingDown ? `Uma tentativa recente está no intervalo seguro de ${data.visualRetry.cooldownHours} horas.` : 'A leitura visual está sem pendências conhecidas.'}</p>
               {data.visualRetry.candidates > 0 && <button type="button" disabled={!data.visualRetry.eligible || retryingVisual} onClick={() => void retryVisualCatalogs()} className="cv-secondary mt-4 px-3 py-2 text-xs font-semibold disabled:opacity-50">{retryingVisual ? 'Reenviando…' : 'Retomar 1 catálogo'}</button>}
@@ -342,7 +342,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
 
             <div className="rounded-[22px] border border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-900/30 p-5">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-[.1em] text-emerald-800 dark:text-emerald-300">Motor de Busca Instantânea</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-800 dark:text-emerald-300">Motor de Busca Instantânea</span>
                 <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 text-[9px] font-bold uppercase text-emerald-800 dark:text-emerald-300">100% Ativo</span>
               </div>
               <div className="mt-2 text-lg font-semibold text-ink-900 dark:text-ink-100">{data.summary.parts} peças consultáveis</div>
@@ -369,7 +369,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
             </div>
 
             <div className="rounded-[22px] border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-5 shadow-[0_14px_40px_rgba(30,30,29,.04)]">
-              <div className="text-[10px] font-bold uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">Portal oficial</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-ink-500 dark:text-ink-400">Portal oficial</div>
               <div className="mt-2 text-lg font-semibold text-ink-900 dark:text-ink-100">{data.officialVerification.approved} aprovações reutilizáveis</div>
               <p className="mt-2 text-xs leading-5 text-ink-600 dark:text-ink-400">{data.officialVerification.pending} aguardando aprovação · {data.officialVerification.stale} vencidas. Cada conferência vale {data.officialVerification.cacheDays} dias e depois volta para revisão humana.</p>
               <div className="mt-4 text-xs font-semibold text-brand-600 dark:text-brand-300">Sem robô de login: cache aprovado + conferência no portal</div>
@@ -432,7 +432,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
                         type="button"
                         disabled={busyId === catalog.id}
                         onClick={() => void approveSuggestedModel(catalog)}
-                        className="inline-flex items-center gap-1 rounded-xl bg-brand-600 hover:bg-brand-700 text-white px-3 py-2 text-xs font-semibold shadow-sm transition disabled:opacity-50"
+                        className="inline-flex items-center gap-1 rounded-xl bg-brand-600 hover:bg-brand-700 text-white px-3 py-2 text-xs font-semibold shadow-xs transition disabled:opacity-50"
                       >
                         <span>✦ Aprovar modelo &quot;{catalog.suggestedModel}&quot;</span>
                       </button>

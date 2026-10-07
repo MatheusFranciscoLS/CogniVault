@@ -79,11 +79,11 @@ export default function PartGuesses({
             <span className="shrink-0 font-mono text-sm font-black text-ink-900 dark:text-brand-300">
               {guess.partNumber}
             </span>
-            <span className="min-w-[9rem] flex-1 truncate text-xs font-bold text-ink-800 dark:text-ink-100">
+            <span className="min-w-36 flex-1 truncate text-xs font-bold text-ink-800 dark:text-ink-100">
               {guess.name}
             </span>
             {guess.position ? (
-              <span className="shrink-0 rounded bg-ink-100 px-1.5 font-mono text-[10px] font-bold text-ink-600 dark:bg-ink-800 dark:text-ink-300">
+              <span className="shrink-0 rounded-sm bg-ink-100 px-1.5 font-mono text-[10px] font-bold text-ink-600 dark:bg-ink-800 dark:text-ink-300">
                 pos. {guess.position}
               </span>
             ) : null}

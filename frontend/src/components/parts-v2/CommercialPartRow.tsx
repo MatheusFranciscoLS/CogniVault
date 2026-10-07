@@ -20,7 +20,7 @@ export default function CommercialPartRow({ part, selected = false, onSelect, on
   };
 
   return (
-    <article onMouseEnter={onSelect} className={`border-b border-ink-100 bg-white transition last:border-b-0 dark:border-ink-800 dark:bg-ink-900 ${selected ? 'relative z-[1] bg-brand-50/60 shadow-[inset_3px_0_0_#273a60] dark:bg-brand-950/15' : 'hover:bg-ink-50/80 dark:hover:bg-ink-800/35'}`}>
+    <article onMouseEnter={onSelect} className={`border-b border-ink-100 bg-white transition last:border-b-0 dark:border-ink-800 dark:bg-ink-900 ${selected ? 'relative z-1 bg-brand-50/60 shadow-[inset_3px_0_0_#273a60] dark:bg-brand-950/15' : 'hover:bg-ink-50/80 dark:hover:bg-ink-800/35'}`}>
       <div className="grid gap-3 px-3 py-3 lg:grid-cols-[145px_minmax(0,1fr)_150px_auto] lg:items-center lg:px-4">
         <button type="button" onFocus={onSelect} onClick={onSelect} className="min-w-0 text-left">
           <div className="font-mono text-[15px] font-black tracking-[-.02em] text-ink-900 dark:text-brand-300">{code}</div>

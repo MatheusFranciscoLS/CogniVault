@@ -1,6 +1,145 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-surface-page: #eae8e2;
+  --color-surface-page-dark: #0f1426;
+  --color-surface-nav: #1f2742;
+
+  --color-brand-50: #f1f4f9;
+  --color-brand-100: #dfe6f1;
+  --color-brand-200: #c2d0e5;
+  --color-brand-300: #94aacd;
+  --color-brand-400: #5f7dae;
+  --color-brand-500: #3d5c90;
+  --color-brand-600: #273a60;
+  --color-brand-700: #223454;
+  --color-brand-800: #1f2742;
+  --color-brand-900: #161c2f;
+  --color-brand-950: #0d1220;
+  --color-brand: #273a60;
+
+  --color-accent-50: #fef3ee;
+  --color-accent-100: #fde2d5;
+  --color-accent-200: #fbc0a5;
+  --color-accent-300: #f8966d;
+  --color-accent-400: #f56f3e;
+  --color-accent-500: #f25420;
+  --color-accent-600: #d94512;
+  --color-accent-700: #c13d0a;
+  --color-accent-800: #9a3109;
+  --color-accent-900: #7c2a0c;
+  --color-accent: #f25420;
+
+  --color-gold-100: #fff4cc;
+  --color-gold-300: #ffdf66;
+  --color-gold-500: #ffc800;
+  --color-gold-700: #b38c00;
+  --color-gold-800: #8a6a00;
+  --color-gold: #ffc800;
+
+  --color-ink-50: #fafaf9;
+  --color-ink-100: #f4f4f3;
+  --color-ink-200: #e4e4e2;
+  --color-ink-300: #c8c8c5;
+  --color-ink-400: #a8a8a6;
+  --color-ink-500: #686867;
+  --color-ink-600: #4f5461;
+  --color-ink-700: #3d3d3c;
+  --color-ink-800: #2b3348;
+  --color-ink-850: #2a3555;
+  --color-ink-900: #1f2742;
+  --color-ink-950: #161c2f;
+  --color-ink: #1e1e1d;
+
+  --font-sans:
+    'Roboto Flex', Roboto, system-ui, -apple-system, 'Segoe UI', Arial,
+    sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+
+  --text-eyebrow: 0.75rem;
+  --text-eyebrow--line-height: 1rem;
+  --text-eyebrow--letter-spacing: 0.105em;
+  --text-eyebrow--font-weight: 700;
+  --text-seal: 0.6rem;
+  --text-seal--line-height: 0.6rem;
+  --text-seal--letter-spacing: 0.12em;
+  --text-seal--font-weight: 600;
+  --text-badge: 0.7rem;
+  --text-badge--line-height: 1.05rem;
+  --text-badge--letter-spacing: 0.025em;
+  --text-badge--font-weight: 600;
+  --text-display-lg: 2.4rem;
+  --text-display-lg--line-height: 2.64rem;
+  --text-display-lg--letter-spacing: -0.025em;
+  --text-display-lg--font-weight: 700;
+  --text-display: 2.25rem;
+  --text-display--line-height: 2.5rem;
+  --text-display--letter-spacing: -0.025em;
+  --text-display--font-weight: 700;
+  --text-display-sm: 1.875rem;
+  --text-display-sm--line-height: 2.25rem;
+  --text-display-sm--letter-spacing: -0.025em;
+  --text-display-sm--font-weight: 700;
+  --text-title: 1.125rem;
+  --text-title--line-height: 1.75rem;
+  --text-title--letter-spacing: -0.025em;
+  --text-title--font-weight: 600;
+  --text-title-sm: 0.875rem;
+  --text-title-sm--line-height: 1.203rem;
+  --text-title-sm--letter-spacing: -0.025em;
+  --text-title-sm--font-weight: 600;
+
+  --radius-card: 12px;
+  --radius-panel: 16px;
+
+  --shadow-card:
+    0 1px 2px rgba(30, 30, 29, 0.04), 0 1px 3px rgba(30, 30, 29, 0.06);
+  --shadow-raised:
+    0 12px 28px -8px rgba(39, 58, 96, 0.16),
+    0 4px 10px -4px rgba(30, 30, 29, 0.08);
+  --shadow-ringLight: 0 0 0 1px rgba(255, 255, 255, 0.15);
+
+  --background-image-section-soft: linear-gradient(
+    to bottom right,
+    #f1f4f9,
+    #f4f4f3
+  );
+  --background-image-brand-fade: linear-gradient(
+    to right,
+    #273a60,
+    rgba(39, 58, 96, 0.9),
+    rgba(39, 58, 96, 0.4)
+  );
+  --background-image-media-scrim: linear-gradient(
+    to top,
+    rgba(39, 58, 96, 0.6),
+    rgba(0, 0, 0, 0)
+  );
+
+  --breakpoint-tablet: 820px;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
 
 /*
  * Tokens da identidade Vardão Máquinas — extraídos do CSS computado de

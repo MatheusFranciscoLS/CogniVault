@@ -143,7 +143,7 @@ function QuoteChart({ insights }: { insights: BusinessInsights }) {
           const heightPercent = Math.max(4, (bucket.netTotal / maxValue) * 100);
           const intensity = bucket.quotes / maxQuotes;
           return (
-            <div key={bucket.bucket} className="flex min-w-[2.5rem] max-w-[4.5rem] flex-1 flex-col items-center gap-1">
+            <div key={bucket.bucket} className="flex min-w-10 max-w-18 flex-1 flex-col items-center gap-1">
               <span className="text-[10px] font-bold text-ink-700 tabular-nums dark:text-ink-300">{bucket.quotes}</span>
               <div className="flex h-32 w-full items-end">
                 <div
@@ -296,11 +296,11 @@ export default function BusinessPanel() {
           <div className="flex items-end gap-2">
             <div>
               <label htmlFor="insights-from" className="block text-[10px] font-bold uppercase tracking-[.08em] text-ink-500">De</label>
-              <input id="insights-from" type="date" value={range.from} onChange={e => applyCustomRange({ from: e.target.value })} className="cv-field mt-1 h-11 w-[9.5rem] py-0 text-sm tabular-nums" />
+              <input id="insights-from" type="date" value={range.from} onChange={e => applyCustomRange({ from: e.target.value })} className="cv-field mt-1 h-11 w-38 py-0 text-sm tabular-nums" />
             </div>
             <div>
               <label htmlFor="insights-to" className="block text-[10px] font-bold uppercase tracking-[.08em] text-ink-500">Até</label>
-              <input id="insights-to" type="date" value={range.to} onChange={e => applyCustomRange({ to: e.target.value })} className="cv-field mt-1 h-11 w-[9.5rem] py-0 text-sm tabular-nums" />
+              <input id="insights-to" type="date" value={range.to} onChange={e => applyCustomRange({ to: e.target.value })} className="cv-field mt-1 h-11 w-38 py-0 text-sm tabular-nums" />
             </div>
           </div>
         </div>
@@ -446,7 +446,7 @@ export default function BusinessPanel() {
                 </button>
               </div>
               {insights.unpricedParts.length ? (
-                <div className="max-h-[26rem] overflow-y-auto">
+                <div className="max-h-104 overflow-y-auto">
                   <table className="w-full text-left text-xs">
                     <thead className="sticky top-0 bg-white dark:bg-ink-850">
                       <tr className="text-[10px] font-bold uppercase tracking-[.08em] text-ink-500">

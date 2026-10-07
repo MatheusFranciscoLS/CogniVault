@@ -47,7 +47,7 @@ export default function ResultCard({
   const classification = part.classification || classifyPartKind(part.name, part.section, part.notes);
 
   return (
-    <div className="mt-3 rounded-2xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-4 text-ink-800 dark:text-ink-200 shadow-sm transition hover:shadow-md">
+    <div className="mt-3 rounded-2xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-4 text-ink-800 dark:text-ink-200 shadow-xs transition hover:shadow-md">
       <div className="flex flex-wrap justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[10px] font-bold uppercase tracking-[.15em] text-brand-600 dark:text-brand-300">Resultado técnico</div>
@@ -75,7 +75,7 @@ export default function ResultCard({
 
       {/* Destaque Visual da Vista Explodida do Catálogo */}
       {(part.page || part.position || response.diagramHighlight) && (
-        <div className="mt-3 rounded-2xl border-2 border-brand-200 dark:border-brand-800/80 bg-gradient-to-br from-brand-50/90 via-indigo-50/40 to-ink-50 dark:from-brand-600/80 dark:via-ink-800/80 dark:to-ink-900/90 p-3.5 shadow-2xs">
+        <div className="mt-3 rounded-2xl border-2 border-brand-200 dark:border-brand-800/80 bg-linear-to-br from-brand-50/90 via-indigo-50/40 to-ink-50 dark:from-brand-600/80 dark:via-ink-800/80 dark:to-ink-900/90 p-3.5 shadow-2xs">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="grid h-8 w-8 place-items-center rounded-xl bg-brand-600 text-white text-sm font-black shadow-2xs">
@@ -159,10 +159,10 @@ export default function ResultCard({
         <div className="rounded-xl bg-ink-50 dark:bg-ink-800/50 p-3">Seção<b className="mt-1 block">{part.section || '—'}</b></div>
         <div className="rounded-xl bg-ink-50 dark:bg-ink-800/50 p-3">Posição / página<b className="mt-1 block">{part.position || '—'} · pág. {part.page ?? '—'}</b></div>
       </div>
-      <div className="mt-3 rounded-xl border border-ink-200 dark:border-ink-700 p-3 text-xs">Catálogo<b className="mt-1 block break-words">{part.filename}</b></div>
+      <div className="mt-3 rounded-xl border border-ink-200 dark:border-ink-700 p-3 text-xs">Catálogo<b className="mt-1 block wrap-break-word">{part.filename}</b></div>
       {part.notes ? (
         part.notes.includes('Substituição oficial') ? (
-          <div className="mt-3 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50/90 dark:bg-amber-950/40 p-3.5 text-xs text-amber-900 dark:text-amber-200 shadow-sm">
+          <div className="mt-3 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50/90 dark:bg-amber-950/40 p-3.5 text-xs text-amber-900 dark:text-amber-200 shadow-xs">
             <div className="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-300">
               <span className="text-base leading-none">★</span>
               <span>Substituição Oficial</span>
@@ -172,7 +172,7 @@ export default function ResultCard({
               href={officialPortalUrl(part.partNumber, part.manufacturer)}
               target="_blank"
               rel="noreferrer"
-              className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-amber-600 dark:bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700 dark:hover:bg-amber-600"
+              className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-amber-600 dark:bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-amber-700 dark:hover:bg-amber-600"
             >
               {officialPortalLabel(part.partNumber, part.manufacturer)} ↗
             </a>
@@ -187,7 +187,7 @@ export default function ResultCard({
 
       {(part.applications?.length || 0) > 1 ? (
         <div className="mt-3 rounded-xl border border-brand-100 dark:border-brand-700 bg-brand-50 dark:bg-ink-900/60 p-3">
-          <div className="text-[10px] font-bold uppercase tracking-[.1em] text-brand-700 dark:text-brand-300">Aplicações confirmadas deste código</div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-brand-700 dark:text-brand-300">Aplicações confirmadas deste código</div>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {part.applications?.map(application => <span key={`${application.model}-${application.pnc}`} className="rounded-full bg-white dark:bg-ink-800 px-2.5 py-1 text-[10px] font-medium text-brand-800 dark:text-brand-300 ring-1 ring-brand-100">{application.model} · PNC {application.pnc}</span>)}
           </div>
@@ -205,7 +205,7 @@ export default function ResultCard({
 
       {/* Venda Sugerida / Peças Recomendadas */}
       {part.suggestedAddons && part.suggestedAddons.items.length > 0 && (
-        <div className="mt-3 rounded-2xl border-2 border-amber-300 dark:border-amber-700 bg-gradient-to-br from-amber-50/90 via-orange-50/40 to-yellow-50/30 dark:from-amber-950/40 dark:via-ink-800 dark:to-ink-900 p-3.5 shadow-2xs">
+        <div className="mt-3 rounded-2xl border-2 border-amber-300 dark:border-amber-700 bg-linear-to-br from-amber-50/90 via-orange-50/40 to-yellow-50/30 dark:from-amber-950/40 dark:via-ink-800 dark:to-ink-900 p-3.5 shadow-2xs">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-500 text-ink-950 text-sm font-black shadow-2xs">
@@ -299,10 +299,10 @@ export default function ResultCard({
             });
             toast.success(`Peça adicionada ao orçamento de balcão!`);
           }}
-          className={`rounded-xl px-3.5 py-2 text-xs font-bold transition flex items-center gap-1.5 shadow-xs active:scale-95 ${
+          className={`rounded-xl px-3.5 py-2 text-xs font-bold transition flex items-center gap-1.5 shadow-2xs active:scale-95 ${
             inCart
               ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
-              : 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-ink-950 shadow-amber-500/20'
+              : 'bg-linear-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-ink-950 shadow-amber-500/20'
           }`}
         >
           <span>{inCart ? '✓' : '+'}</span>

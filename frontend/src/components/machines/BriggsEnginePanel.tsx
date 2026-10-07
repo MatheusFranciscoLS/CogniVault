@@ -58,14 +58,14 @@ function BriggsNotes({ notes }: { notes?: BriggsPartNote[] }) {
       {[...notes].sort((a, b) => ordem(a) - ordem(b)).map(note => {
         if (note.kind === 'DISCONTINUED') {
           return (
-            <span key="d" title="A Briggs não fornece mais esta peça" className="rounded bg-rose-100 px-1.5 text-[10px] font-black uppercase text-rose-800 dark:bg-rose-950/50 dark:text-rose-300">
+            <span key="d" title="A Briggs não fornece mais esta peça" className="rounded-sm bg-rose-100 px-1.5 text-[10px] font-black uppercase text-rose-800 dark:bg-rose-950/50 dark:text-rose-300">
               fora de linha
             </span>
           );
         }
         if (note.kind === 'SEE_REFERENCE') {
           return (
-            <span key="s" title="Use a peça desta posição no lugar" className="rounded bg-emerald-100 px-1.5 text-[10px] font-bold text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+            <span key="s" title="Use a peça desta posição no lugar" className="rounded-sm bg-emerald-100 px-1.5 text-[10px] font-bold text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
               usar pos. {note.position}
             </span>
           );
@@ -75,7 +75,7 @@ function BriggsNotes({ notes }: { notes?: BriggsPartNote[] }) {
             <span
               key={note.kind}
               title="Code date: a data de fabricação gravada na etiqueta do motor. Confira antes de vender."
-              className="rounded bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+              className="rounded-sm bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
             >
               motor {note.kind === 'CODE_DATE_BEFORE' ? 'até' : 'a partir de'} {note.codeDate}
             </span>
@@ -83,13 +83,13 @@ function BriggsNotes({ notes }: { notes?: BriggsPartNote[] }) {
         }
         if (note.kind === 'KIT_ONLY') {
           return (
-            <span key="k" title="Não se vende avulsa" className="rounded bg-ink-100 px-1.5 text-[10px] font-bold text-ink-700 dark:bg-ink-800 dark:text-ink-300">
+            <span key="k" title="Não se vende avulsa" className="rounded-sm bg-ink-100 px-1.5 text-[10px] font-bold text-ink-700 dark:bg-ink-800 dark:text-ink-300">
               só em kit
             </span>
           );
         }
         return (
-          <span key="o" title="Só funciona junto da peça desta posição" className="rounded bg-ink-100 px-1.5 text-[10px] font-bold text-ink-700 dark:bg-ink-800 dark:text-ink-300">
+          <span key="o" title="Só funciona junto da peça desta posição" className="rounded-sm bg-ink-100 px-1.5 text-[10px] font-bold text-ink-700 dark:bg-ink-800 dark:text-ink-300">
             só com pos. {note.position}
           </span>
         );
@@ -258,7 +258,7 @@ export default function BriggsEnginePanel({
             target="_blank"
             rel="noreferrer noopener"
             title={`Abrir a lista de peças oficial em ${principal.languageLabel}`}
-            className="cv-touch-target inline-flex items-center gap-1.5 rounded border border-red-300 bg-red-100 px-3 text-[11px] font-bold text-red-800 transition hover:bg-red-200 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200 dark:hover:bg-red-900/50"
+            className="cv-touch-target inline-flex items-center gap-1.5 rounded-sm border border-red-300 bg-red-100 px-3 text-[11px] font-bold text-red-800 transition hover:bg-red-200 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200 dark:hover:bg-red-900/50"
           >
             📕 Lista de peças ({principal.languageLabel}) ↗
           </a>
@@ -268,7 +268,7 @@ export default function BriggsEnginePanel({
               href={manual.url}
               target="_blank"
               rel="noreferrer noopener"
-              className="cv-touch-target inline-flex items-center rounded border border-ink-200 bg-white px-2.5 text-[10px] font-semibold text-ink-600 transition hover:bg-ink-50 dark:border-ink-700 dark:bg-ink-950 dark:text-ink-300"
+              className="cv-touch-target inline-flex items-center rounded-sm border border-ink-200 bg-white px-2.5 text-[10px] font-semibold text-ink-600 transition hover:bg-ink-50 dark:border-ink-700 dark:bg-ink-950 dark:text-ink-300"
             >
               {manual.languageLabel} ↗
             </a>
@@ -305,7 +305,7 @@ export default function BriggsEnginePanel({
               value={filtro}
               onChange={event => setFiltro(event.target.value)}
               placeholder="filtrar por código ou nome"
-              className="h-8 w-48 rounded border border-ink-200 bg-white px-2 text-[11px] outline-none transition focus:border-red-400 dark:border-ink-700 dark:bg-ink-900 dark:text-white"
+              className="h-8 w-48 rounded-sm border border-ink-200 bg-white px-2 text-[11px] outline-hidden transition focus:border-red-400 dark:border-ink-700 dark:bg-ink-900 dark:text-white"
             />
           </div>
           {precoDegradado ? (
@@ -319,7 +319,7 @@ export default function BriggsEnginePanel({
               <div key={grupo.nome}>
                 {/* Cabeçalho pregado: em 283 linhas, rolando a lista, o
                     atendente perde de vista de que conjunto é a peça. */}
-                <div className="sticky top-0 z-10 border-y border-ink-100 bg-ink-50 px-4 py-1 text-[10px] font-black uppercase tracking-[.1em] text-ink-500 dark:border-ink-800 dark:bg-ink-950 dark:text-ink-400">
+                <div className="sticky top-0 z-10 border-y border-ink-100 bg-ink-50 px-4 py-1 text-[10px] font-black uppercase tracking-widest text-ink-500 dark:border-ink-800 dark:bg-ink-950 dark:text-ink-400">
                   {grupo.nome} <span className="font-bold text-ink-400 dark:text-ink-500">· {grupo.pecas.length}</span>
                 </div>
                 <div className="divide-y divide-ink-100 dark:divide-ink-800">
@@ -336,7 +336,7 @@ export default function BriggsEnginePanel({
                 >
                   {part.partNumber}
                 </button>
-                <span className="min-w-[9rem] flex-1 truncate text-xs text-ink-700 dark:text-ink-200" title={part.qualifier || undefined}>
+                <span className="min-w-36 flex-1 truncate text-xs text-ink-700 dark:text-ink-200" title={part.qualifier || undefined}>
                   {part.name}
                   {/* O qualificador diz QUAL das peças iguais é esta: a mola de
                       válvula aparece duas vezes, "-(Intake)" e "-(Exhaust)".
@@ -349,7 +349,7 @@ export default function BriggsEnginePanel({
                 </span>
                 <BriggsNotes notes={part.notes} />
                 {part.quantity && part.quantity > 1 ? (
-                  <span className="shrink-0 rounded bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                  <span className="shrink-0 rounded-sm bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
                     leva {part.quantity}
                   </span>
                 ) : null}
@@ -359,7 +359,7 @@ export default function BriggsEnginePanel({
                     <button
                       type="button"
                       onClick={() => onSearchPart(part.partNumber)}
-                      className="cv-touch-target rounded border border-ink-200 px-2 text-[10px] font-bold text-ink-600 transition hover:border-brand-300 hover:text-brand-700 dark:border-ink-700 dark:text-ink-300"
+                      className="cv-touch-target rounded-sm border border-ink-200 px-2 text-[10px] font-bold text-ink-600 transition hover:border-brand-300 hover:text-brand-700 dark:border-ink-700 dark:text-ink-300"
                     >
                       consultar interno
                     </button>
@@ -378,7 +378,7 @@ export default function BriggsEnginePanel({
                       });
                       toast.success(`${part.partNumber} no orçamento.`);
                     }}
-                    className="cv-touch-target rounded bg-accent-700 px-2 text-[10px] font-bold text-white transition hover:bg-accent-800"
+                    className="cv-touch-target rounded-sm bg-accent-700 px-2 text-[10px] font-bold text-white transition hover:bg-accent-800"
                   >
                     + orçamento
                   </button>

@@ -51,7 +51,7 @@ export default function MachineSidePanel({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-[85] flex justify-end">
+    <div className="fixed inset-0 z-85 flex justify-end">
       <button
         type="button"
         aria-label="Fechar máquina"

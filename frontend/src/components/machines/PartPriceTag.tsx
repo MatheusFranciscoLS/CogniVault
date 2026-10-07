@@ -36,14 +36,14 @@ export default function PartPriceTag({ code, prices }: { code: string; prices: M
       {hit.location ? (
         <span
           title="Prateleira"
-          className="rounded bg-brand-50 px-1.5 font-mono text-[10px] font-bold text-brand-800 dark:bg-brand-950/50 dark:text-brand-300"
+          className="rounded-sm bg-brand-50 px-1.5 font-mono text-[10px] font-bold text-brand-800 dark:bg-brand-950/50 dark:text-brand-300"
         >
           {hit.location}
         </span>
       ) : null}
 
       {hit.stock != null && hit.stock <= 0 ? (
-        <span className="rounded bg-ink-100 px-1.5 text-[10px] font-bold text-ink-600 dark:bg-ink-800 dark:text-ink-300">
+        <span className="rounded-sm bg-ink-100 px-1.5 text-[10px] font-bold text-ink-600 dark:bg-ink-800 dark:text-ink-300">
           sem estoque
         </span>
       ) : null}

@@ -133,7 +133,7 @@ function Starter({
         >
           <Icon name="history" className="h-5 w-5 shrink-0 text-brand-700 dark:text-brand-300" />
           <span className="min-w-0 flex-1">
-            <span className="block text-[10px] font-black uppercase tracking-[.1em] text-brand-700 dark:text-brand-300">Retomar última busca</span>
+            <span className="block text-[10px] font-black uppercase tracking-widest text-brand-700 dark:text-brand-300">Retomar última busca</span>
             <span className="mt-0.5 block truncate text-sm font-bold text-ink-900 dark:text-white">{lastSearch.resultLabel || lastSearch.query}</span>
           </span>
           <span className="shrink-0 text-xs font-bold text-brand-700 opacity-0 transition group-hover:opacity-100 dark:text-brand-300">Abrir →</span>
@@ -156,7 +156,7 @@ function Starter({
               onClick={() => onExample(example.value)}
               className="cv-touch-target flex flex-col justify-center rounded-lg border border-ink-200 bg-ink-50 px-3 py-3 text-left transition hover:border-accent-300 hover:bg-accent-50 dark:border-ink-700 dark:bg-ink-850 dark:hover:border-accent-700 dark:hover:bg-accent-950/20"
             >
-              <span className="block text-[10px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">{example.label}</span>
+              <span className="block text-[10px] font-black uppercase tracking-widest text-ink-500 dark:text-ink-400">{example.label}</span>
               <span className="mt-1 block truncate text-sm font-bold text-ink-900 dark:text-white">{example.value}</span>
             </button>
           ))}
@@ -165,7 +165,7 @@ function Starter({
 
       {favorites.length > 0 && (
         <div className="rounded-xl border border-ink-200 bg-white p-4 dark:border-ink-800 dark:bg-ink-900">
-          <div className="text-[10px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">Seus favoritos</div>
+          <div className="text-[10px] font-black uppercase tracking-widest text-ink-500 dark:text-ink-400">Seus favoritos</div>
           <div className="mt-2 grid gap-2 sm:grid-cols-2 tablet:grid-cols-3">
             {favorites.map(favorite => (
               <button
@@ -190,10 +190,10 @@ function LoadingRows() {
     <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
       {[0, 1, 2].map(item => (
         <div key={item} className="grid animate-pulse gap-3 border-b border-ink-100 px-4 py-4 last:border-0 dark:border-ink-800 lg:grid-cols-[145px_minmax(0,1fr)_170px_auto]">
-          <div className="h-4 w-28 rounded bg-ink-100 dark:bg-ink-800" />
-          <div className="h-4 w-3/5 rounded bg-ink-100 dark:bg-ink-800" />
-          <div className="h-4 w-24 rounded bg-ink-100 dark:bg-ink-800" />
-          <div className="h-8 w-28 rounded bg-ink-100 dark:bg-ink-800" />
+          <div className="h-4 w-28 rounded-sm bg-ink-100 dark:bg-ink-800" />
+          <div className="h-4 w-3/5 rounded-sm bg-ink-100 dark:bg-ink-800" />
+          <div className="h-4 w-24 rounded-sm bg-ink-100 dark:bg-ink-800" />
+          <div className="h-8 w-28 rounded-sm bg-ink-100 dark:bg-ink-800" />
         </div>
       ))}
     </div>
@@ -710,7 +710,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           trabalho o rótulo da seção já vem do cabeçalho do app, e o campo de
           busca se explica sozinho — o espaço devolvido é o que faltava acima
           da dobra no laptop do balcão. */}
-      <form onSubmit={submit} className="overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm dark:border-ink-800 dark:bg-ink-900">
+      <form onSubmit={submit} className="overflow-hidden rounded-xl border border-ink-200 bg-white shadow-xs dark:border-ink-800 dark:bg-ink-900">
         <div className="flex items-center gap-2 p-2">
           <div className="relative min-w-0 flex-1">
             <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-500 dark:text-ink-400">⌕</span>
@@ -744,7 +744,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
               aria-expanded={suggestionsOpen && suggestions.length > 0}
               aria-controls="parts-search-suggestions"
               aria-autocomplete="list"
-              className="h-[52px] w-full rounded-lg border-0 bg-ink-50 pl-10 pr-4 sm:h-12 text-sm font-semibold text-ink-900 outline-none transition placeholder:text-ink-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:bg-ink-800 dark:text-white dark:focus:bg-ink-800"
+              className="h-[52px] w-full rounded-lg border-0 bg-ink-50 pl-10 pr-4 sm:h-12 text-sm font-semibold text-ink-900 outline-hidden transition placeholder:text-ink-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:bg-ink-800 dark:text-white dark:focus:bg-ink-800"
             />
             {suggestionsOpen && suggestions.length > 0 && (
               <div id="parts-search-suggestions">
@@ -902,7 +902,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
               <div className="mb-2 flex flex-wrap items-center justify-between gap-3 px-1">
                 <div className="flex items-center gap-2"><SourceBadge source="PRICE_LIST" /><span className="text-xs font-black text-ink-700 dark:text-ink-200">Cadastro comercial</span><span className="text-[10px] text-ink-500 dark:text-ink-400">{commercialLoading ? 'Consultando…' : `${commercialParts.length} resultado${commercialParts.length === 1 ? '' : 's'}`}</span></div>
                 {priceSections.length > 1 && (
-                  <select value={priceSection} onChange={event => changePriceSection(event.target.value)} className="h-8 rounded-lg border border-ink-200 bg-white px-2 text-[10px] font-bold text-ink-600 outline-none dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300">
+                  <select value={priceSection} onChange={event => changePriceSection(event.target.value)} className="h-8 rounded-lg border border-ink-200 bg-white px-2 text-[10px] font-bold text-ink-600 outline-hidden dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300">
                     <option value="">Todas as seções</option>
                     {priceSections.map(section => <option key={section.name} value={section.name}>{section.name} · {section.count}</option>)}
                   </select>
@@ -1024,7 +1024,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       {crossReference && <CrossReferenceDialog partCode={crossReference.code} partName={crossReference.name} onClose={() => setCrossReference(null)} />}
 
       {pdf && (
-        <div className="fixed inset-0 z-[90] bg-ink-950/90 p-3 md:p-5">
+        <div className="fixed inset-0 z-90 bg-ink-950/90 p-3 md:p-5">
           <div className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-2xl bg-white dark:bg-ink-900">
             <div className="flex items-center justify-between border-b border-ink-200 px-4 py-3 dark:border-ink-800"><div className="truncate text-sm font-black">{pdf.title}</div><button type="button" onClick={() => setPdf(null)} className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-bold dark:border-ink-700">Fechar</button></div>
             <iframe title={pdf.title} src={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} className="h-full w-full border-0" />
@@ -1033,7 +1033,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       )}
 
       {aiOpen && (
-        <div className="fixed inset-0 z-[80] flex justify-end">
+        <div className="fixed inset-0 z-80 flex justify-end">
           <button type="button" aria-label="Fechar assistente" onClick={() => setAiOpen(false)} className="absolute inset-0 bg-ink-950/45 backdrop-blur-[1px]" />
           <div className="relative z-10 h-full w-full max-w-[600px] bg-white shadow-2xl dark:bg-ink-900"><ChatPanel storageScope={storageScope || 'balcao-v3'} initialPrompt={aiPrompt} onClose={() => setAiOpen(false)} isDrawer /></div>
         </div>

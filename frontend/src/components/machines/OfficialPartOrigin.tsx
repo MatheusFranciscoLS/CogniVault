@@ -89,10 +89,10 @@ export default function OfficialPartOrigin({
             key={`${hit.source}-${hit.engineModel}-${hit.position}`}
             className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5"
           >
-            <span className="shrink-0 rounded bg-ink-100 px-1.5 text-[10px] font-black uppercase text-ink-600 dark:bg-ink-800 dark:text-ink-300">
+            <span className="shrink-0 rounded-sm bg-ink-100 px-1.5 text-[10px] font-black uppercase text-ink-600 dark:bg-ink-800 dark:text-ink-300">
               {MARCA[hit.source]}
             </span>
-            <span className="min-w-[9rem] flex-1 truncate font-mono text-xs font-bold text-ink-800 dark:text-ink-100">
+            <span className="min-w-36 flex-1 truncate font-mono text-xs font-bold text-ink-800 dark:text-ink-100">
               {hit.engineModel}
               {hit.assembly ? (
                 <span className="font-sans font-normal text-ink-500 dark:text-ink-400"> · {hit.assembly}</span>
@@ -104,7 +104,7 @@ export default function OfficialPartOrigin({
               </span>
             ) : null}
             {hit.quantity && hit.quantity > 1 ? (
-              <span className="shrink-0 rounded bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+              <span className="shrink-0 rounded-sm bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
                 leva {hit.quantity}
               </span>
             ) : null}
@@ -114,7 +114,7 @@ export default function OfficialPartOrigin({
                 <button
                   type="button"
                   onClick={() => onSearchPart(hit.engineModel)}
-                  className="cv-touch-target rounded border border-ink-200 px-2 text-[10px] font-bold text-ink-600 transition hover:border-brand-300 hover:text-brand-700 dark:border-ink-700 dark:text-ink-300"
+                  className="cv-touch-target rounded-sm border border-ink-200 px-2 text-[10px] font-bold text-ink-600 transition hover:border-brand-300 hover:text-brand-700 dark:border-ink-700 dark:text-ink-300"
                 >
                   abrir motor
                 </button>
@@ -133,7 +133,7 @@ export default function OfficialPartOrigin({
                   });
                   toast.success(`${hit.partNumber} no orçamento.`);
                 }}
-                className="cv-touch-target rounded bg-accent-700 px-2 text-[10px] font-bold text-white transition hover:bg-accent-800"
+                className="cv-touch-target rounded-sm bg-accent-700 px-2 text-[10px] font-bold text-white transition hover:bg-accent-800"
               >
                 + orçamento
               </button>

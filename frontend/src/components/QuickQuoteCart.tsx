@@ -278,7 +278,7 @@ function CartItemRow({
             aria-label={`Preço unitário de ${item.name}`}
             value={item.unitPrice ?? ''}
             onChange={e => onUpdateUnitPrice(e.target.value === '' ? undefined : Number(e.target.value))}
-            className="cv-field h-11 w-[5.5rem] py-0 text-right text-sm font-bold tabular-nums"
+            className="cv-field h-11 w-22 py-0 text-right text-sm font-bold tabular-nums"
           />
           {/* Subtotal da linha em cinza e rotulado. Antes era verde e negrito,
               igual ao total do orçamento na barra fixa — e com um item só na
@@ -390,7 +390,7 @@ export default function QuickQuoteCart() {
           tem o botão "Orçamento" com o contador, sempre visível, e o balcão
           via a mesma informação em dois lugares na mesma tela. */}
       {isOpen && (
-        <div className="fixed inset-0 z-[80] flex justify-end bg-brand-900/45">
+        <div className="fixed inset-0 z-80 flex justify-end bg-brand-900/45">
           <div className="fixed inset-0" onClick={() => setIsOpen(false)} aria-hidden="true" />
           <aside
             role="dialog"
@@ -656,7 +656,7 @@ export default function QuickQuoteCart() {
         </div>
       )}
 
-      <div id="printable-quote" className="fixed inset-0 z-[9999] hidden bg-white p-8 text-ink-900 print:block">
+      <div id="printable-quote" className="fixed inset-0 z-9999 hidden bg-white p-8 text-ink-900 print:block">
         <div className="mb-6 border-b-2 border-brand-600 pb-4">
           <div className="flex items-start justify-between">
             <div>

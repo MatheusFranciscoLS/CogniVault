@@ -30,7 +30,7 @@ function KawasakiPartsLink({ model, url }: { model: string; url: string }) {
         target="_blank"
         rel="noreferrer noopener"
         title="Abrir o catálogo oficial de peças da Kawasaki. Cole o modelo no campo Model e CLIQUE na opção que aparecer."
-        className="cv-touch-target inline-flex items-center gap-1 rounded border border-emerald-300 bg-emerald-50 px-2 text-[10px] font-bold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200 dark:hover:bg-emerald-900/40"
+        className="cv-touch-target inline-flex items-center gap-1 rounded-sm border border-emerald-300 bg-emerald-50 px-2 text-[10px] font-bold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200 dark:hover:bg-emerald-900/40"
       >
         ⚙ Catálogo Kawasaki ↗
       </a>
@@ -43,7 +43,7 @@ function KawasakiPartsLink({ model, url }: { model: string; url: string }) {
           );
         }}
         title="Copiar o modelo para colar na busca da Kawasaki"
-        className="cv-touch-target inline-flex items-center gap-1 rounded border border-ink-200 bg-white px-2 font-mono text-[10px] font-bold text-ink-700 transition hover:bg-ink-50 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-200"
+        className="cv-touch-target inline-flex items-center gap-1 rounded-sm border border-ink-200 bg-white px-2 font-mono text-[10px] font-bold text-ink-700 transition hover:bg-ink-50 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-200"
       >
         {model} ⧉
       </button>
@@ -167,12 +167,12 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
         {admin && <button type="button" onClick={() => setManagementOpen(true)} className="self-start rounded-lg border border-ink-200 px-3 py-2 text-xs font-bold text-ink-600 transition hover:border-brand-300 hover:text-brand-600 dark:border-ink-700 dark:text-ink-300">Gerenciar biblioteca</button>}
       </div>
 
-      <div className="flex flex-col gap-2 rounded-xl border border-ink-200 bg-white p-3 shadow-sm dark:border-ink-800 dark:bg-ink-900 md:flex-row md:items-center">
+      <div className="flex flex-col gap-2 rounded-xl border border-ink-200 bg-white p-3 shadow-xs dark:border-ink-800 dark:bg-ink-900 md:flex-row md:items-center">
         <div className="relative min-w-0 flex-1">
           <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-500 dark:text-ink-400">⌕</span>
-          <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Modelo, arquivo, PNC ou aplicação…" className="h-11 w-full rounded-lg border border-ink-200 bg-ink-50 pl-10 pr-3 text-sm font-semibold outline-none transition focus:border-brand-600 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:border-ink-700 dark:bg-ink-800 dark:text-white" />
+          <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Modelo, arquivo, PNC ou aplicação…" className="h-11 w-full rounded-lg border border-ink-200 bg-ink-50 pl-10 pr-3 text-sm font-semibold outline-hidden transition focus:border-brand-600 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:border-ink-700 dark:bg-ink-800 dark:text-white" />
         </div>
-        <select value={category} onChange={event => setCategory(event.target.value)} className="h-11 rounded-lg border border-ink-200 bg-white px-3 text-xs font-bold text-ink-600 outline-none dark:border-ink-700 dark:bg-ink-800 dark:text-ink-300">
+        <select value={category} onChange={event => setCategory(event.target.value)} className="h-11 rounded-lg border border-ink-200 bg-white px-3 text-xs font-bold text-ink-600 outline-hidden dark:border-ink-700 dark:bg-ink-800 dark:text-ink-300">
           <option value="ALL">Todas as categorias</option>
           {categories.map(item => <option key={item} value={item}>{item}</option>)}
         </select>
@@ -182,7 +182,7 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
       {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">{error instanceof Error ? error.message : 'Não foi possível carregar os catálogos.'}</div>}
 
       <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
-        <div className="hidden grid-cols-[minmax(220px,1.4fr)_minmax(170px,.8fr)_110px_100px_130px] gap-4 border-b border-ink-100 px-4 py-2.5 text-[10px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400 lg:grid dark:border-ink-800">
+        <div className="hidden grid-cols-[minmax(220px,1.4fr)_minmax(170px,.8fr)_110px_100px_130px] gap-4 border-b border-ink-100 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-ink-500 dark:text-ink-400 lg:grid dark:border-ink-800">
           <span>Modelo / catálogo</span><span>Categoria</span><span>Peças</span><span>Status</span><span className="text-right">Ações</span>
         </div>
 
@@ -213,7 +213,7 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
                       target="_blank"
                       rel="noreferrer noopener"
                       title={`Abrir a lista de peças oficial do motor ${document.briggsEngineModel} — inglês quando a Briggs publica; senão, o idioma disponível`}
-                      className="cv-touch-target inline-flex items-center gap-1 rounded border border-red-300 bg-red-100 px-2 text-[10px] font-bold text-red-800 transition hover:bg-red-200 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200 dark:hover:bg-red-900/50"
+                      className="cv-touch-target inline-flex items-center gap-1 rounded-sm border border-red-300 bg-red-100 px-2 text-[10px] font-bold text-red-800 transition hover:bg-red-200 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200 dark:hover:bg-red-900/50"
                     >
                       📕 Lista de peças Briggs ↗
                     </a>
@@ -223,7 +223,7 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
                         target="_blank"
                         rel="noreferrer noopener"
                         title="Todos os manuais deste motor no site da Briggs (inclui manual do operador)"
-                        className="cv-touch-target inline-flex items-center rounded border border-ink-200 bg-white px-2 text-[10px] font-semibold text-ink-600 transition hover:bg-ink-50 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300"
+                        className="cv-touch-target inline-flex items-center rounded-sm border border-ink-200 bg-white px-2 text-[10px] font-semibold text-ink-600 transition hover:bg-ink-50 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300"
                       >
                         todos ↗
                       </a>
@@ -235,7 +235,7 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
                     target="_blank"
                     rel="noreferrer noopener"
                     title="Abrir manuais oficiais no site da Briggs & Stratton"
-                    className="mt-1 inline-flex items-center gap-1 rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-700 transition hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-900/40"
+                    className="mt-1 inline-flex items-center gap-1 rounded-sm border border-red-200 bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-700 transition hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-900/40"
                   >
                     📕 Manuais Briggs ↗
                   </a>
@@ -258,7 +258,7 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
         )}
       </div>
 
-      {pdf && <div className="fixed inset-0 z-[90] bg-ink-950/90 p-3 md:p-5"><div className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-2xl bg-white dark:bg-ink-900"><div className="flex items-center justify-between border-b border-ink-200 px-4 py-3 dark:border-ink-800"><div className="truncate text-sm font-black">{pdf.title}</div><button type="button" onClick={() => setPdf(null)} className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-bold dark:border-ink-700">Fechar</button></div><iframe title={pdf.title} src={pdf.url} className="h-full w-full border-0" /></div></div>}
+      {pdf && <div className="fixed inset-0 z-90 bg-ink-950/90 p-3 md:p-5"><div className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-2xl bg-white dark:bg-ink-900"><div className="flex items-center justify-between border-b border-ink-200 px-4 py-3 dark:border-ink-800"><div className="truncate text-sm font-black">{pdf.title}</div><button type="button" onClick={() => setPdf(null)} className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-bold dark:border-ink-700">Fechar</button></div><iframe title={pdf.title} src={pdf.url} className="h-full w-full border-0" /></div></div>}
     </section>
   );
 }

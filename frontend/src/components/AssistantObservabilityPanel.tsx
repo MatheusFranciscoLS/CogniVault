@@ -85,7 +85,7 @@ function metricLabel(action: string) {
 function Stat({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <div className="rounded-xl border border-ink-200 bg-white px-4 py-3 dark:border-ink-800 dark:bg-ink-900">
-      <div className="text-[9px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">{label}</div>
+      <div className="text-[9px] font-black uppercase tracking-widest text-ink-500 dark:text-ink-400">{label}</div>
       <div className="mt-1 text-xl font-black tracking-tight text-ink-950 dark:text-white">{value}</div>
       <div className="mt-1 text-[11px] leading-4 text-ink-500 dark:text-ink-400">{detail}</div>
     </div>
@@ -178,7 +178,7 @@ export default function AssistantObservabilityPanel() {
 
       <div className="grid gap-4 border-t border-ink-100 p-4 lg:grid-cols-[1.2fr_.8fr] dark:border-ink-800">
         <div>
-          <div className="mb-2 text-[9px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">Onde a IA foi usada hoje</div>
+          <div className="mb-2 text-[9px] font-black uppercase tracking-widest text-ink-500 dark:text-ink-400">Onde a IA foi usada hoje</div>
           {!data.actions.length ? (
             <div className="rounded-lg bg-ink-50 px-3 py-3 text-xs text-ink-500 dark:bg-ink-950/40 dark:text-ink-400">Nenhuma chamada de IA registrada hoje. A operação ficou nos caminhos locais/cacheados.</div>
           ) : (
@@ -195,7 +195,7 @@ export default function AssistantObservabilityPanel() {
         </div>
 
         <div>
-          <div className="mb-2 text-[9px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">Cobertura de portfólio</div>
+          <div className="mb-2 text-[9px] font-black uppercase tracking-widest text-ink-500 dark:text-ink-400">Cobertura de portfólio</div>
           <div className="rounded-lg border border-ink-200 p-3 dark:border-ink-800">
             {portfolio ? (
               <>
@@ -206,7 +206,7 @@ export default function AssistantObservabilityPanel() {
                 {portfolio.priorityGaps.length > 0 && (
                   <div className="mt-3 border-t border-ink-100 pt-3 dark:border-ink-800">
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <span className="text-[9px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400">Prioridade de cobertura</span>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-ink-500 dark:text-ink-400">Prioridade de cobertura</span>
                       <span className="text-[9px] font-semibold text-ink-500 dark:text-ink-400">sinais comerciais</span>
                     </div>
                     <div className="space-y-1.5">

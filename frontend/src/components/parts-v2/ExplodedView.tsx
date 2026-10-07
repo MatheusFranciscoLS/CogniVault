@@ -191,7 +191,7 @@ export default function ExplodedView({
                    posições vizinhas justamente quando o atendente amplia para
                    separá-las. */
                 style={{ transform: `scale(${1 / zoom})` }}
-                className="grid h-6 min-w-6 place-items-center rounded-full border-2 border-white bg-ink-900 px-1 text-[9px] font-black text-white shadow-md transition hover:bg-accent-700 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                className="grid h-6 min-w-6 place-items-center rounded-full border-2 border-white bg-ink-900 px-1 text-[9px] font-black text-white shadow-md transition hover:bg-accent-700 focus:outline-hidden focus:ring-2 focus:ring-brand-400"
               >
                 {hotspot.label}
               </button>

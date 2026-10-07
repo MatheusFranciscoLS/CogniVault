@@ -143,14 +143,14 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
 
   return (
     <div
-      className="fixed inset-0 z-[85] flex items-end justify-center bg-ink-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-85 flex items-end justify-center bg-ink-950/50 p-0 backdrop-blur-xs sm:items-center sm:p-4"
       onMouseDown={event => {
         if (event.target === event.currentTarget && !saving) onClose();
       }}
     >
       <form
         onSubmit={submit}
-        className="max-h-[100dvh] w-full max-w-xl overflow-auto rounded-t-2xl bg-white p-4 shadow-2xl dark:bg-ink-900 sm:max-h-[92dvh] sm:rounded-2xl sm:p-6"
+        className="max-h-dvh w-full max-w-xl overflow-auto rounded-t-2xl bg-white p-4 shadow-2xl dark:bg-ink-900 sm:max-h-[92dvh] sm:rounded-2xl sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby="verification-dialog-title"
@@ -175,7 +175,7 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
         {error && <div role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-900/30 dark:text-rose-300">{error}</div>}
 
         <div className="mt-5 rounded-xl border border-brand-100 bg-brand-50 p-4 dark:border-brand-700 dark:bg-ink-900/50">
-          <div className="text-[10px] font-bold uppercase tracking-[.1em] text-brand-700 dark:text-brand-300">Peça conferida</div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-brand-700 dark:text-brand-300">Peça conferida</div>
           <div className="mt-1 text-sm font-semibold text-ink-800 dark:text-ink-200">{target.name}</div>
           <div className="mt-1 break-all font-mono text-lg font-bold text-brand-600 dark:text-brand-300">{target.partNumber}</div>
           <a href={husqvarnaPortalUrl(target.partNumber)} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-lg border border-brand-200 bg-white px-4 py-2.5 text-sm font-semibold text-brand-600 dark:border-brand-600 dark:bg-ink-800 dark:text-brand-300">
@@ -191,7 +191,7 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
             value={currentPartNumber}
             onChange={event => setCurrentPartNumber(event.target.value)}
             placeholder="Digite ou cole o código atual"
-            className="mt-1 w-full rounded-xl border border-ink-200 bg-white p-3 text-sm text-ink-900 outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10 dark:border-ink-700 dark:bg-ink-800 dark:text-white"
+            className="mt-1 w-full rounded-xl border border-ink-200 bg-white p-3 text-sm text-ink-900 outline-hidden focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10 dark:border-ink-700 dark:bg-ink-800 dark:text-white"
           />
         </label>
 
@@ -205,7 +205,7 @@ export default function PartVerificationDialog({ target, existing, onClose, onSa
 
         <label className="mt-4 block text-xs font-semibold text-ink-600 dark:text-ink-400">
           Observação opcional
-          <textarea value={note} onChange={event => setNote(event.target.value)} maxLength={2000} rows={3} placeholder="Ex.: conferido na tela de spare parts; descrição apresentada no portal." className="mt-1 w-full rounded-xl border border-ink-200 bg-white p-3 text-sm text-ink-900 outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10 dark:border-ink-700 dark:bg-ink-800 dark:text-white" />
+          <textarea value={note} onChange={event => setNote(event.target.value)} maxLength={2000} rows={3} placeholder="Ex.: conferido na tela de spare parts; descrição apresentada no portal." className="mt-1 w-full rounded-xl border border-ink-200 bg-white p-3 text-sm text-ink-900 outline-hidden focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10 dark:border-ink-700 dark:bg-ink-800 dark:text-white" />
         </label>
 
         <div className="mt-3 rounded-xl bg-ink-50 p-3 text-[11px] leading-5 text-ink-500 dark:bg-ink-800/50 dark:text-ink-400">

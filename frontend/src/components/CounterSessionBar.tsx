@@ -11,7 +11,7 @@ function Field({ label, value, placeholder, onChange }: { label: string; value: 
         value={value}
         onChange={event => onChange(event.target.value)}
         placeholder={placeholder}
-        className="h-10 w-full rounded-lg border border-ink-200 bg-white px-3 text-sm font-semibold text-ink-800 outline-none transition placeholder:font-medium placeholder:text-ink-500 focus:border-brand-600 focus:ring-4 focus:ring-brand-500/10 dark:border-ink-700 dark:bg-ink-950 dark:text-ink-100"
+        className="h-10 w-full rounded-lg border border-ink-200 bg-white px-3 text-sm font-semibold text-ink-800 outline-hidden transition placeholder:font-medium placeholder:text-ink-500 focus:border-brand-600 focus:ring-4 focus:ring-brand-500/10 dark:border-ink-700 dark:bg-ink-950 dark:text-ink-100"
       />
     </label>
   );
@@ -63,7 +63,7 @@ export default function CounterSessionBar({ onOpenMachine }: Props) {
   // cliente vai para o orçamento —, mas só aparecem quando o atendente pede.
   if (!temContexto) {
     return (
-      <section className="overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm dark:border-ink-800 dark:bg-ink-900">
+      <section className="overflow-hidden rounded-xl border border-ink-200 bg-white shadow-xs dark:border-ink-800 dark:bg-ink-900">
         <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5">
           <button
             type="button"
@@ -86,7 +86,7 @@ export default function CounterSessionBar({ onOpenMachine }: Props) {
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm dark:border-ink-800 dark:bg-ink-900">
+    <section className="overflow-hidden rounded-xl border border-ink-200 bg-white shadow-xs dark:border-ink-800 dark:bg-ink-900">
       <div className="flex min-h-12 flex-wrap items-center gap-3 px-4 py-2.5">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           {/* O ponto reflete o CONTEXTO, não a cesta. */}

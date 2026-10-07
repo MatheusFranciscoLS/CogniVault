@@ -166,7 +166,7 @@ export default function KawasakiEnginePanel({
       {catalog.assemblies.length > 0 && (
         <div className="px-4 py-3">
           {precoDegradado ? (
-            <div role="status" className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+            <div role="status" className="mb-3 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
               Preços da loja temporariamente indisponíveis. Os códigos continuam disponíveis; confirme o valor antes de fechar.
             </div>
           ) : null}
@@ -202,7 +202,7 @@ export default function KawasakiEnginePanel({
               href={openAssembly.viewerUrl}
               target="_blank"
               rel="noreferrer noopener"
-              className="cv-touch-target inline-flex shrink-0 items-center gap-1 rounded border border-emerald-300 bg-emerald-50 px-2.5 text-[10px] font-bold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200"
+              className="cv-touch-target inline-flex shrink-0 items-center gap-1 rounded-sm border border-emerald-300 bg-emerald-50 px-2.5 text-[10px] font-bold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200"
             >
               ⚙ Ver vista explodida ↗
             </a>
@@ -284,12 +284,12 @@ export default function KawasakiEnginePanel({
                       hífen não é código de nada. */}
                   {part.partNumber}
                 </button>
-                <span className="min-w-[9rem] flex-1 truncate text-xs text-ink-700 dark:text-ink-200">{part.name}</span>
+                <span className="min-w-36 flex-1 truncate text-xs text-ink-700 dark:text-ink-200">{part.name}</span>
                 <PartPriceTag code={part.partNumber} prices={precos} />
                 {/* Quantidade só quando a fonte informa. `11061-7057` leva 2 —
                     sem isso o balcão venderia 1 e o cliente voltaria. */}
                 {part.quantity && part.quantity > 1 ? (
-                  <span className="shrink-0 rounded bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                  <span className="shrink-0 rounded-sm bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
                     leva {part.quantity}
                   </span>
                 ) : null}
@@ -300,7 +300,7 @@ export default function KawasakiEnginePanel({
                   <button
                     type="button"
                     onClick={() => onSearchPart(part.partNumber)}
-                    className="cv-touch-target rounded border border-ink-200 px-2 text-[10px] font-bold text-ink-600 transition hover:border-brand-300 hover:text-brand-700 dark:border-ink-700 dark:text-ink-300"
+                    className="cv-touch-target rounded-sm border border-ink-200 px-2 text-[10px] font-bold text-ink-600 transition hover:border-brand-300 hover:text-brand-700 dark:border-ink-700 dark:text-ink-300"
                   >
                     consultar interno
                   </button>
@@ -320,7 +320,7 @@ export default function KawasakiEnginePanel({
                       });
                       toast.success(`${part.partNumber} no orçamento.`);
                     }}
-                    className="cv-touch-target rounded bg-accent-700 px-2 text-[10px] font-bold text-white transition hover:bg-accent-800"
+                    className="cv-touch-target rounded-sm bg-accent-700 px-2 text-[10px] font-bold text-white transition hover:bg-accent-800"
                   >
                     + orçamento
                   </button>

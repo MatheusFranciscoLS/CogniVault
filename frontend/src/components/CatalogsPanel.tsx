@@ -194,7 +194,7 @@ function failureGuidance(document: DocumentItem): FailureGuidance | null {
  * como pop-up não solicitado.
  */
 function BriggsManualsLink({ url, model, compact = false }: { url?: string | null; model?: string | null; compact?: boolean }) {
-  const base = `inline-flex items-center gap-1 rounded border font-semibold transition cursor-pointer ${compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-1 text-[10px]'}`;
+  const base = `inline-flex items-center gap-1 rounded-sm border font-semibold transition cursor-pointer ${compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-1 text-[10px]'}`;
 
   if (model) {
     return (
@@ -671,7 +671,7 @@ export default function CatalogsPanel({
                 aria-haspopup="listbox"
                 aria-expanded={sortOpen}
                 onClick={() => setSortOpen(prev => !prev)}
-                className="group flex items-center gap-2 rounded-xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 px-3 py-1.5 text-xs font-semibold text-ink-700 dark:text-ink-200 shadow-xs hover:border-ink-300 dark:hover:border-ink-600 hover:bg-ink-50 dark:hover:bg-ink-700/60 transition active:scale-95 cursor-pointer"
+                className="group flex items-center gap-2 rounded-xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 px-3 py-1.5 text-xs font-semibold text-ink-700 dark:text-ink-200 shadow-2xs hover:border-ink-300 dark:hover:border-ink-600 hover:bg-ink-50 dark:hover:bg-ink-700/60 transition active:scale-95 cursor-pointer"
                 title="Ordenar catálogo por nome, data ou quantidade de peças"
               >
                 <span className="flex items-center gap-1.5 text-ink-500 dark:text-ink-400 font-medium">
@@ -748,7 +748,7 @@ export default function CatalogsPanel({
                 title="Visualização em Grade"
                 className={`rounded-lg px-2.5 py-1 text-xs font-bold transition flex items-center gap-1 ${
                   viewMode === 'grid'
-                    ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-brand-300 shadow-xs'
+                    ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-brand-300 shadow-2xs'
                     : 'text-ink-500 hover:text-ink-800 dark:hover:text-ink-200'
                 }`}
               >
@@ -761,7 +761,7 @@ export default function CatalogsPanel({
                 title="Visualização em Tabela"
                 className={`rounded-lg px-2.5 py-1 text-xs font-bold transition flex items-center gap-1 ${
                   viewMode === 'table'
-                    ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-brand-300 shadow-xs'
+                    ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-brand-300 shadow-2xs'
                     : 'text-ink-500 hover:text-ink-800 dark:hover:text-ink-200'
                 }`}
               >
@@ -808,7 +808,7 @@ export default function CatalogsPanel({
               return (
                 <article
                   key={document.id}
-                  className="flex flex-col justify-between rounded-2xl border border-ink-200/80 dark:border-ink-800 bg-white dark:bg-ink-800/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md group"
+                  className="flex flex-col justify-between rounded-2xl border border-ink-200/80 dark:border-ink-800 bg-white dark:bg-ink-800/80 p-4 shadow-xs transition hover:-translate-y-0.5 hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md group"
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2">
@@ -820,7 +820,7 @@ export default function CatalogsPanel({
                             disabled={busy || document.processingActive}
                             value={document.category}
                             onChange={event => void setCategory(document, event.target.value)}
-                            className="rounded-full border border-ink-200 dark:border-ink-700 bg-ink-100/90 dark:bg-ink-700/60 pl-6 pr-4 py-1 text-[11px] font-medium text-ink-700 dark:text-ink-300 hover:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-500 max-w-[160px] truncate cursor-pointer transition disabled:opacity-50"
+                            className="rounded-full border border-ink-200 dark:border-ink-700 bg-ink-100/90 dark:bg-ink-700/60 pl-6 pr-4 py-1 text-[11px] font-medium text-ink-700 dark:text-ink-300 hover:border-brand-400 focus:outline-hidden focus:ring-1 focus:ring-brand-500 max-w-[160px] truncate cursor-pointer transition disabled:opacity-50"
                           >
                             {categories.map(cat => (
                               <option key={cat} value={cat}>{cat}</option>
@@ -964,7 +964,7 @@ export default function CatalogsPanel({
                           <button
                             type="button"
                             onClick={() => onSearch(document.model || document.filename)}
-                            className="flex-1 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-ink-950 px-2.5 py-1.5 text-center text-xs font-bold transition shadow-xs active:scale-95"
+                            className="flex-1 rounded-xl bg-linear-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-ink-950 px-2.5 py-1.5 text-center text-xs font-bold transition shadow-2xs active:scale-95"
                           >
                             🔍 Peças
                           </button>
@@ -1090,7 +1090,7 @@ export default function CatalogsPanel({
                                 type="button"
                                 onClick={() => onSearch ? onSearch(app.machineModel) : setSearch(app.machineModel)}
                                 title={`Filtrar / buscar peças da máquina ${app.machineModel}`}
-                                className="inline-flex items-center gap-1 rounded bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded-sm bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition cursor-pointer"
                               >
                                 <span>⚡</span>
                                 <span>{app.label}</span>
@@ -1107,7 +1107,7 @@ export default function CatalogsPanel({
                                 type="button"
                                 onClick={() => setSearch(app.engineModel)}
                                 title={`Filtrar pelo motor ${app.engineModel}`}
-                                className="inline-flex items-center gap-1 rounded bg-brand-50 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-800/50 px-1.5 py-0.5 text-[9px] font-semibold text-brand-800 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/60 transition cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded-sm bg-brand-50 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-800/50 px-1.5 py-0.5 text-[9px] font-semibold text-brand-800 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/60 transition cursor-pointer"
                               >
                                 <span>⚙️</span>
                                 <span>{app.label}</span>
@@ -1186,7 +1186,7 @@ export default function CatalogsPanel({
                                 <button
                                   type="button"
                                   onClick={() => onSearch(document.model || document.filename)}
-                                  className="rounded-lg bg-amber-400 hover:bg-amber-300 text-ink-950 px-2.5 py-1.5 text-xs font-bold transition shadow-xs"
+                                  className="rounded-lg bg-amber-400 hover:bg-amber-300 text-ink-950 px-2.5 py-1.5 text-xs font-bold transition shadow-2xs"
                                 >
                                   Ver Peças
                                 </button>
@@ -1307,7 +1307,7 @@ export default function CatalogsPanel({
                         setCategoryFilter('ALL');
                         setStatusFilter('ALL');
                       }}
-                      className="rounded-xl bg-brand-700 hover:bg-brand-800 text-white px-3 py-1.5 text-xs font-semibold transition shadow-xs"
+                      className="rounded-xl bg-brand-700 hover:bg-brand-800 text-white px-3 py-1.5 text-xs font-semibold transition shadow-2xs"
                     >
                       Redefinir todos os filtros
                     </button>
@@ -1320,7 +1320,7 @@ export default function CatalogsPanel({
       </div>
 
       {pdf && (
-        <div onMouseDown={e => { if (e.target === e.currentTarget) setPdf(null); }} className="fixed inset-0 z-[90] bg-ink-950/90 p-3 md:p-6">
+        <div onMouseDown={e => { if (e.target === e.currentTarget) setPdf(null); }} className="fixed inset-0 z-90 bg-ink-950/90 p-3 md:p-6">
           <div id="catalog-pdf-modal-container" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white dark:bg-ink-800">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200 dark:border-ink-700 px-4 py-3">
               <div>

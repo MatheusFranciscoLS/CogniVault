@@ -163,7 +163,7 @@ export default function Login() {
   const statusDot = serverState === 'ready' ? 'bg-emerald-500' : 'bg-amber-400';
 
   return (
-    <main className="min-h-[100dvh] bg-ink-100 text-ink-950 lg:grid lg:min-h-[100dvh] lg:grid-cols-[1.1fr_1fr] dark:bg-ink-950 dark:text-white">
+    <main className="min-h-dvh bg-ink-100 text-ink-950 lg:grid lg:min-h-dvh lg:grid-cols-[1.1fr_1fr] dark:bg-ink-950 dark:text-white">
       {/* Painel da marca. Fica escondido abaixo de lg: no tablet/celular do
           balcão a tela é para entrar rápido, não para ler apresentação. */}
       <aside className="relative hidden overflow-hidden border-white/10 bg-brand-600 p-10 text-white lg:flex lg:flex-col lg:justify-between lg:border-r xl:p-12">
@@ -174,7 +174,7 @@ export default function Login() {
             é #161c2f, exatamente o mesmo valor de `ink-950`, que é o fundo da
             página no tema escuro. Terminando ali, o canto do painel ficava
             pixel a pixel igual ao fundo e o painel parecia cortado no meio. */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand-600 via-brand-700 to-brand-800" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-linear-to-br from-brand-600 via-brand-700 to-brand-800" />
 
         {/* Marca d'água: o símbolo oficial da Husqvarna, centralizado e inteiro.
 
@@ -243,7 +243,7 @@ export default function Login() {
       </aside>
 
       {/* Lado do formulário */}
-      <section className="relative flex min-h-[100dvh] flex-col lg:min-h-0">
+      <section className="relative flex min-h-dvh flex-col lg:min-h-0">
         <div aria-hidden="true" className="absolute inset-x-0 top-0 h-[3px] bg-brand-fade lg:hidden" />
 
         {/* Cabeçalho compacto só no celular/tablet, onde o painel da marca não
@@ -362,7 +362,7 @@ export default function Login() {
           </div>
         </div>
 
-        <footer className="px-5 pb-5 text-center text-[10px] font-semibold uppercase tracking-[.1em] text-ink-500 sm:px-8 dark:text-ink-400">
+        <footer className="px-5 pb-5 text-center text-[10px] font-semibold uppercase tracking-widest text-ink-500 sm:px-8 dark:text-ink-400">
           Vardão Máquinas · CogniVault
         </footer>
       </section>

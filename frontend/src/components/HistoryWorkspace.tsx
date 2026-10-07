@@ -91,12 +91,12 @@ export default function HistoryWorkspace({ onSearch }: { onSearch: (query: strin
         <div className="text-xs font-semibold text-ink-500 dark:text-ink-400">{history.length} {history.length === 1 ? 'consulta' : 'consultas'}</div>
       </div>
 
-      <div className="flex flex-col gap-2 rounded-xl border border-ink-200 bg-white p-3 shadow-sm dark:border-ink-800 dark:bg-ink-900 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-2 rounded-xl border border-ink-200 bg-white p-3 shadow-xs dark:border-ink-800 dark:bg-ink-900 sm:flex-row sm:items-center">
         <div className="relative min-w-0 flex-1">
           <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-500 dark:text-ink-400">⌕</span>
-          <input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Consulta, código, modelo ou PNC…" className="h-11 w-full rounded-lg border border-ink-200 bg-ink-50 pl-10 pr-3 text-sm font-semibold outline-none transition focus:border-brand-600 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:border-ink-700 dark:bg-ink-800 dark:text-white" />
+          <input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Consulta, código, modelo ou PNC…" className="h-11 w-full rounded-lg border border-ink-200 bg-ink-50 pl-10 pr-3 text-sm font-semibold outline-hidden transition focus:border-brand-600 focus:bg-white focus:ring-4 focus:ring-brand-500/10 dark:border-ink-700 dark:bg-ink-800 dark:text-white" />
         </div>
-        <select value={status} onChange={event => setStatus(event.target.value as 'ALL' | SearchStatus)} className="h-11 rounded-lg border border-ink-200 bg-white px-3 text-xs font-bold text-ink-600 outline-none dark:border-ink-700 dark:bg-ink-800 dark:text-ink-300">
+        <select value={status} onChange={event => setStatus(event.target.value as 'ALL' | SearchStatus)} className="h-11 rounded-lg border border-ink-200 bg-white px-3 text-xs font-bold text-ink-600 outline-hidden dark:border-ink-700 dark:bg-ink-800 dark:text-ink-300">
           <option value="ALL">Todas as situações</option>
           <option value="FOUND">Encontradas</option>
           <option value="PNC_REQUIRED">Faltou PNC</option>
@@ -111,7 +111,7 @@ export default function HistoryWorkspace({ onSearch }: { onSearch: (query: strin
       {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">{error}</div>}
 
       <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
-        <div className="hidden grid-cols-[minmax(250px,1.35fr)_minmax(230px,1fr)_120px_130px] gap-4 border-b border-ink-100 px-4 py-2.5 text-[10px] font-black uppercase tracking-[.1em] text-ink-500 dark:text-ink-400 lg:grid dark:border-ink-800">
+        <div className="hidden grid-cols-[minmax(250px,1.35fr)_minmax(230px,1fr)_120px_130px] gap-4 border-b border-ink-100 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-ink-500 dark:text-ink-400 lg:grid dark:border-ink-800">
           <span>Consulta</span><span>Resultado</span><span>Situação</span><span className="text-right">Ações</span>
         </div>
 

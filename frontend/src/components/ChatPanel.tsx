@@ -456,7 +456,7 @@ export default function ChatPanel({
       {!messages.length ? (
         <div className="py-6 px-2 text-center">
           <div className="mx-auto max-w-lg">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 dark:bg-brand-900/20 text-xl text-brand-600 dark:text-brand-400 shadow-xs">✦</div>
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 dark:bg-brand-900/20 text-xl text-brand-600 dark:text-brand-400 shadow-2xs">✦</div>
             <h2 className="mt-3 font-semibold text-ink-900 dark:text-white">Dúvida sobre uma peça ou equipamento?</h2>
             <p className="mt-1 text-xs text-ink-500 dark:text-ink-400">
               Digite o código, modelo ou sintoma para consultar os catálogos oficiais da Husqvarna.
@@ -499,7 +499,7 @@ export default function ChatPanel({
           transition={{ duration: 0.3, ease: 'easeOut' }}
           className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}
         >
-          <div className={`max-w-[94%] rounded-2xl px-4 py-3 text-sm shadow-sm ${message.role === 'user' ? 'bg-brand-600 text-white rounded-br-sm' : 'bg-white dark:bg-ink-800/80 text-ink-800 dark:text-ink-200 rounded-bl-sm border border-ink-200/60 dark:border-ink-700/50'}`}>
+          <div className={`max-w-[94%] rounded-2xl px-4 py-3 text-sm shadow-xs ${message.role === 'user' ? 'bg-brand-600 text-white rounded-br-sm' : 'bg-white dark:bg-ink-800/80 text-ink-800 dark:text-ink-200 rounded-bl-sm border border-ink-200/60 dark:border-ink-700/50'}`}>
             {message.role === 'user' ? <div>{message.text}</div> : (
               <>
                 {message.response ? <Guidance response={message.response} /> : null}
@@ -613,7 +613,7 @@ export default function ChatPanel({
         placeholder="Digite a dúvida sobre a peça…"
         minLength={2}
         required
-        className="rounded-xl border-none bg-ink-100/50 dark:bg-ink-800/40 px-3.5 py-2.5 sm:px-4 sm:py-3 text-sm outline-none transition-all focus:bg-white dark:focus:bg-ink-800 focus:ring-2 focus:ring-brand-600/20 dark:focus:ring-brand-500/30 min-w-0 flex-1"
+        className="rounded-xl border-none bg-ink-100/50 dark:bg-ink-800/40 px-3.5 py-2.5 sm:px-4 sm:py-3 text-sm outline-hidden transition-all focus:bg-white dark:focus:bg-ink-800 focus:ring-2 focus:ring-brand-600/20 dark:focus:ring-brand-500/30 min-w-0 flex-1"
       />
       {question ? (
         <button
@@ -631,7 +631,7 @@ export default function ChatPanel({
   );
 
   const pdfModal = pdf ? (
-    <div onMouseDown={e => { if (e.target === e.currentTarget) setPdf(null); }} className="fixed inset-0 z-[90] bg-ink-950/90 p-3 md:p-6">
+    <div onMouseDown={e => { if (e.target === e.currentTarget) setPdf(null); }} className="fixed inset-0 z-90 bg-ink-950/90 p-3 md:p-6">
       <div role="dialog" aria-modal="true" aria-labelledby="assistant-pdf-title" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white dark:bg-ink-800">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200 dark:border-ink-700 px-4 py-3">
           <div>
@@ -651,10 +651,10 @@ export default function ChatPanel({
   if (isDrawer) {
     return (
       <section className="flex h-full flex-col overflow-hidden bg-white dark:bg-ink-900">
-        {notice ? <div role="status" aria-live="polite" className="fixed right-5 top-20 z-[100] rounded-xl bg-ink-900 px-4 py-2.5 text-sm text-white shadow-lg">{notice}</div> : null}
+        {notice ? <div role="status" aria-live="polite" className="fixed right-5 top-20 z-100 rounded-xl bg-ink-900 px-4 py-2.5 text-sm text-white shadow-lg">{notice}</div> : null}
 
         {/* Drawer Header */}
-        <div className="flex items-center justify-between border-b border-ink-200 dark:border-ink-800 bg-ink-50/90 dark:bg-ink-800/90 px-4 py-3 backdrop-blur">
+        <div className="flex items-center justify-between border-b border-ink-200 dark:border-ink-800 bg-ink-50/90 dark:bg-ink-800/90 px-4 py-3 backdrop-blur-sm">
           <div className="flex items-center gap-2.5">
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-brand-100 dark:bg-brand-900/60 text-brand-600 dark:text-brand-300 font-bold text-sm">✦</span>
             <div>
@@ -703,7 +703,7 @@ export default function ChatPanel({
 
   return (
     <section>
-      {notice ? <div role="status" aria-live="polite" className="fixed right-5 top-20 z-[100] rounded-xl bg-ink-900 px-4 py-2.5 text-sm text-white shadow-lg">{notice}</div> : null}
+      {notice ? <div role="status" aria-live="polite" className="fixed right-5 top-20 z-100 rounded-xl bg-ink-900 px-4 py-2.5 text-sm text-white shadow-lg">{notice}</div> : null}
 
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -719,19 +719,19 @@ export default function ChatPanel({
           <div className="grid gap-4 border-b border-ink-200 dark:border-ink-800/60 bg-transparent p-5 sm:grid-cols-2 lg:grid-cols-4">
             <label className="group flex flex-col gap-1.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-ink-500 dark:text-ink-500 transition-colors group-focus-within:text-brand-600 dark:group-focus-within:text-brand-400">Fabricante</span>
-              <input value={manufacturer} onChange={event => setManufacturer(event.target.value)} placeholder="Ex.: Husqvarna" className="rounded-xl border-none bg-ink-100/50 dark:bg-ink-800/40 px-3 py-2.5 text-sm outline-none transition-all focus:bg-white dark:focus:bg-ink-800 focus:ring-2 focus:ring-brand-600/20 dark:focus:ring-brand-500/30" />
+              <input value={manufacturer} onChange={event => setManufacturer(event.target.value)} placeholder="Ex.: Husqvarna" className="rounded-xl border-none bg-ink-100/50 dark:bg-ink-800/40 px-3 py-2.5 text-sm outline-hidden transition-all focus:bg-white dark:focus:bg-ink-800 focus:ring-2 focus:ring-brand-600/20 dark:focus:ring-brand-500/30" />
             </label>
             <label className="group flex flex-col gap-1.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-ink-500 dark:text-ink-500 transition-colors group-focus-within:text-brand-600 dark:group-focus-within:text-brand-400">Modelo</span>
-              <input value={model} onChange={event => setModel(event.target.value)} placeholder="Ex.: 143RS" className="rounded-xl border-none bg-ink-100/50 dark:bg-ink-800/40 px-3 py-2.5 text-sm outline-none transition-all focus:bg-white dark:focus:bg-ink-800 focus:ring-2 focus:ring-brand-600/20 dark:focus:ring-brand-500/30" />
+              <input value={model} onChange={event => setModel(event.target.value)} placeholder="Ex.: 143RS" className="rounded-xl border-none bg-ink-100/50 dark:bg-ink-800/40 px-3 py-2.5 text-sm outline-hidden transition-all focus:bg-white dark:focus:bg-ink-800 focus:ring-2 focus:ring-brand-600/20 dark:focus:ring-brand-500/30" />
             </label>
             <label className="group flex flex-col gap-1.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-ink-500 dark:text-ink-500 transition-colors group-focus-within:text-brand-600 dark:group-focus-within:text-brand-400">PNC</span>
-              <input value={pnc} onChange={event => setPnc(event.target.value)} placeholder="Ex.: 967 33 26-01" className="rounded-xl border-none bg-ink-100/50 dark:bg-ink-800/40 px-3 py-2.5 text-sm outline-none transition-all focus:bg-white dark:focus:bg-ink-800 focus:ring-2 focus:ring-brand-600/20 dark:focus:ring-brand-500/30" />
+              <input value={pnc} onChange={event => setPnc(event.target.value)} placeholder="Ex.: 967 33 26-01" className="rounded-xl border-none bg-ink-100/50 dark:bg-ink-800/40 px-3 py-2.5 text-sm outline-hidden transition-all focus:bg-white dark:focus:bg-ink-800 focus:ring-2 focus:ring-brand-600/20 dark:focus:ring-brand-500/30" />
             </label>
             <label className="group flex flex-col gap-1.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-ink-500 dark:text-ink-500 transition-colors group-focus-within:text-brand-600 dark:group-focus-within:text-brand-400 flex justify-between">S/N <span className="normal-case tracking-normal opacity-60">opcional</span></span>
-              <input inputMode="numeric" autoComplete="off" value={serial} onChange={event => setSerial(event.target.value.replace(/\D/g, '').slice(0, 16))} placeholder="Ex.: 20240200001" className="rounded-xl border-none bg-ink-100/50 dark:bg-ink-800/40 px-3 py-2.5 text-sm outline-none transition-all focus:bg-white dark:focus:bg-ink-800 focus:ring-2 focus:ring-brand-600/20 dark:focus:ring-brand-500/30" />
+              <input inputMode="numeric" autoComplete="off" value={serial} onChange={event => setSerial(event.target.value.replace(/\D/g, '').slice(0, 16))} placeholder="Ex.: 20240200001" className="rounded-xl border-none bg-ink-100/50 dark:bg-ink-800/40 px-3 py-2.5 text-sm outline-hidden transition-all focus:bg-white dark:focus:bg-ink-800 focus:ring-2 focus:ring-brand-600/20 dark:focus:ring-brand-500/30" />
             </label>
             <div className="flex flex-wrap items-center gap-2 sm:col-span-2 lg:col-span-4 mt-1">
               <button type="button" onClick={saveEquipment} className="rounded-xl border border-ink-200 dark:border-ink-700 bg-white/50 dark:bg-ink-800/50 px-3 py-1.5 text-[11px] font-semibold transition-colors hover:bg-white dark:hover:bg-ink-700">☆ Salvar para próximas buscas</button>
