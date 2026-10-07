@@ -19,7 +19,11 @@ import {
 
 const PORTAL_COVERAGE_CACHE_SOURCE = 'HUSQVARNA_PORTAL';
 const PORTAL_COVERAGE_CACHE_RESOURCE = 'PORTAL_BR_MODEL_COVERAGE';
-const PORTAL_COVERAGE_POLICY_VERSION = 1;
+// Versão 2: passou a reconhecer o IPL em documento (PDF) do Portal; respostas da versão 1 não o conheciam.
+const PORTAL_COVERAGE_POLICY_VERSION = 2;
+// A resposta do Portal sobre "esse modelo tem IPL?" muda em semanas, não em horas.
+const PORTAL_COVERAGE_FRESH_MS = 7 * 24 * 60 * 60 * 1000;
+const PORTAL_COVERAGE_STALE_MS = 30 * 24 * 60 * 60 * 1000;
 
 export type PortalCoverageVerificationOutcome = {
   state: PortalVerificationState;
@@ -38,6 +42,14 @@ export type PortalCoverageCacheSummary = Record<OfficialSourceCacheState, number
 type PortalAuditLoader = (model: string) => Promise<PortalModelAudit>;
 
 export function portalAuditToCoverageOutcome(audit: PortalModelAudit): PortalCoverageVerificationOutcome {
+  const document = audit.iplDocuments?.[0] ?? null;
+  const documentOutcome = (pnc: string | null): PortalCoverageVerificationOutcome => ({
+    state: 'DOCUMENT_ONLY',
+    pnc,
+    source: document?.url || `Portal Husqvarna · ${document?.title ?? 'IPL'}`,
+    note: `O Portal tem o IPL deste modelo em documento (PDF): ${document?.title}. Abra e leia o código no desenho.`,
+  });
+
   if (audit.searchResultCount === 0) {
     return audit.portalAvailableWhenSearchEmpty
       ? {
@@ -55,6 +67,7 @@ export function portalAuditToCoverageOutcome(audit: PortalModelAudit): PortalCov
   }
 
   if (audit.exactProductCount === 0) {
+    if (document) return documentOutcome(null);
     return {
       state: 'NO_EXACT_MATCH',
       pnc: null,
@@ -85,6 +98,7 @@ export function portalAuditToCoverageOutcome(audit: PortalModelAudit): PortalCov
 
   const resolved = audit.products.find(product => product.detailResolved);
   if (resolved) {
+    if (document) return documentOutcome(resolved.pnc);
     return {
       state: 'NO_IPL',
       pnc: resolved.pnc,
@@ -127,6 +141,12 @@ export function buildPortalCoverageCacheKey(model: string, site = PORTAL_BR_SITE
   );
 }
 
+function statusFromOutcome(outcome: PortalCoverageVerificationOutcome, current: PortfolioCoverageItem['status']): PortfolioCoverageItem['status'] {
+  if (outcome.state === 'VERIFIED') return 'PORTAL_IPL';
+  if (outcome.state === 'DOCUMENT_ONLY') return 'PORTAL_DOCUMENT';
+  return current;
+}
+
 export async function resolvePortalCoverageOutcome(
   model: string,
   loader: PortalAuditLoader = auditPortalModel,
@@ -141,6 +161,8 @@ export async function resolvePortalCoverageOutcome(
       source: PORTAL_COVERAGE_CACHE_SOURCE,
       resourceType: PORTAL_COVERAGE_CACHE_RESOURCE,
       resourceId: `${PORTAL_BR_SITE}:${normalizedModel}`,
+      freshMs: PORTAL_COVERAGE_FRESH_MS,
+      staleMs: PORTAL_COVERAGE_STALE_MS,
     },
     async () => {
       const audit = await loader(model);
@@ -194,12 +216,45 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
+/**
+ * Soma ao portfólio o que o Portal já respondeu antes (só lê o cache, nunca chama o
+ * Portal). Sem isso, cada carga da tela começava do zero e o painel nunca refletia
+ * o que já tinha sido conferido.
+ */
+export async function applyCachedPortalOutcomes(items: PortfolioCoverageItem[]): Promise<PortfolioCoverageItem[]> {
+  const pending = items.filter(item => item.status === 'UNVERIFIED');
+  if (!pending.length) return items;
+  const cached = await OfficialSourceCacheService.peekMany<PortalCoverageVerificationOutcome>(
+    pending.map(item => buildPortalCoverageCacheKey(item.model)),
+  );
+  if (!cached.size) return items;
+  return items.map(item => {
+    if (item.status !== 'UNVERIFIED') return item;
+    const outcome = cached.get(buildPortalCoverageCacheKey(item.model));
+    if (!outcome) return item;
+    return {
+      ...item,
+      status: statusFromOutcome(outcome, item.status),
+      source: outcome.state === 'VERIFIED' || outcome.state === 'DOCUMENT_ONLY' ? outcome.source : item.source,
+      pnc: outcome.pnc || item.pnc,
+      portalVerification: outcome.state,
+      portalVerificationNote: outcome.note,
+    };
+  });
+}
+
+/** O portfólio com o que o Portal já confirmou, sem nenhuma chamada nova ao Portal. */
+export async function buildPortfolioCoverageWithPortalCache(tenantId: string) {
+  const base = await buildPortfolioCoverage(tenantId);
+  return summarizePortfolioCoverage(await applyCachedPortalOutcomes(base.items));
+}
+
 export async function buildBoundedPortalCoverage(
   tenantId: string,
-  options: { limit?: number; concurrency?: number } = {},
+  options: { limit?: number; concurrency?: number; exclude?: ReadonlySet<string> } = {},
 ) {
-  const base = await buildPortfolioCoverage(tenantId);
-  const candidates = selectPortalVerificationCandidates(base.items, options.limit ?? 8);
+  const base = summarizePortfolioCoverage(await applyCachedPortalOutcomes((await buildPortfolioCoverage(tenantId)).items));
+  const candidates = selectPortalVerificationCandidates(base.items, options.limit ?? 8, options.exclude);
   const resolved = await mapWithConcurrency(
     candidates,
     options.concurrency ?? 2,
@@ -223,8 +278,8 @@ export async function buildBoundedPortalCoverage(
     if (!outcome) return item;
     return {
       ...item,
-      status: outcome.state === 'VERIFIED' ? 'PORTAL_IPL' : item.status,
-      source: outcome.state === 'VERIFIED' ? outcome.source : item.source,
+      status: statusFromOutcome(outcome, item.status),
+      source: outcome.state === 'VERIFIED' || outcome.state === 'DOCUMENT_ONLY' ? outcome.source : item.source,
       pnc: outcome.pnc || item.pnc,
       portalVerification: outcome.state,
       portalVerificationNote: outcome.note,
@@ -236,6 +291,12 @@ export async function buildBoundedPortalCoverage(
     portalChecked: true,
     checkedModels: candidates.map(candidate => candidate.model),
     checkedCount: candidates.length,
+    // O que ainda falta conferir depois desta rodada (sem contar o que já foi tentado e não fechou).
+    remaining: selectPortalVerificationCandidates(
+      items,
+      Number.MAX_SAFE_INTEGER,
+      new Set([...(options.exclude ?? []), ...candidates.map(candidate => candidate.normalizedModel)]),
+    ).length,
     portalCache: cacheStates,
   };
 }

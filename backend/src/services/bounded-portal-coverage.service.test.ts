@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  applyCachedPortalOutcomes,
   buildPortalCoverageCacheKey,
   isCacheablePortalCoverageOutcome,
   portalAuditToCoverageOutcome,
@@ -179,4 +180,72 @@ test('INCONCLUSIVE não é persistido e a próxima tentativa consulta o Portal n
   } finally {
     await OfficialSourceCacheService.invalidate(key);
   }
+});
+
+test('o que o Portal já confirmou entra no portfólio sem nova consulta externa', async () => {
+  const model = 'SOMA445E';
+  const outro = 'SOMAJAMAIS';
+  const key = buildPortalCoverageCacheKey(model);
+  await OfficialSourceCacheService.invalidate(key);
+
+  const loader = async (): Promise<PortalModelAudit> => audit({
+    model,
+    products: [{
+      title: 'HUSQVARNA SOMA445E',
+      pnc: '965083236',
+      portalUrl: 'https://portal.husqvarnagroup.com/br/teste/?article=965083236',
+      detailResolved: true,
+      iplSectionCount: 2,
+      structuredPartCount: 27,
+    }],
+  });
+
+  const base = (nome: string) => ({
+    model: nome,
+    normalizedModel: nome,
+    status: 'UNVERIFIED' as const,
+    source: null,
+    pnc: null,
+    commercialSignals: 3,
+    commercialEvidence: [],
+  });
+
+  try {
+    await resolvePortalCoverageOutcome(model, loader);
+    const merged = await applyCachedPortalOutcomes([base(model), base(outro)]);
+
+    const confirmado = merged.find(item => item.normalizedModel === model);
+    const intocado = merged.find(item => item.normalizedModel === outro);
+    assert.equal(confirmado?.status, 'PORTAL_IPL');
+    assert.equal(confirmado?.pnc, '965083236');
+    assert.equal(intocado?.status, 'UNVERIFIED');
+    assert.equal(intocado?.portalVerification, undefined);
+  } finally {
+    await OfficialSourceCacheService.invalidate(key);
+  }
+});
+
+test('sem produto estruturado, o IPL em documento do Portal conta como fonte e nunca como ausência', () => {
+  const doc = { title: 'IPL, Husqvarna, 120i, 2017-01', url: 'https://portal.husqvarnagroup.com/doc/120i.pdf' };
+
+  const semProduto = portalAuditToCoverageOutcome(audit({ exactProductCount: 0, iplDocuments: [doc] }));
+  assert.equal(semProduto.state, 'DOCUMENT_ONLY');
+  assert.equal(semProduto.source, doc.url);
+
+  const semPecas = portalAuditToCoverageOutcome(audit({
+    iplDocuments: [doc],
+    products: [{ title: 'HUSQVARNA 120i', pnc: '970000001', portalUrl: null, detailResolved: true, iplSectionCount: 0, structuredPartCount: 0 }],
+  }));
+  assert.equal(semPecas.state, 'DOCUMENT_ONLY');
+  assert.equal(semPecas.pnc, '970000001');
+
+  // Lista estruturada continua ganhando do documento.
+  const estruturada = portalAuditToCoverageOutcome(audit({
+    iplDocuments: [doc],
+    products: [{ title: 'HUSQVARNA 120i', pnc: '970000001', portalUrl: null, detailResolved: true, iplSectionCount: 2, structuredPartCount: 20 }],
+  }));
+  assert.equal(estruturada.state, 'VERIFIED');
+
+  // Sem documento, a ausência segue sendo ausência.
+  assert.equal(portalAuditToCoverageOutcome(audit({ exactProductCount: 0 })).state, 'NO_EXACT_MATCH');
 });

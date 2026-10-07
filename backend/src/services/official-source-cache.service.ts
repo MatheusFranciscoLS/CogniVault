@@ -214,6 +214,27 @@ export class OfficialSourceCacheService {
   }
 
   /**
+   * Lê várias entradas de uma vez, SEM consultar a fonte: devolve só o que ainda
+   * está dentro da janela de validade (fresca ou revalidável). Serve para somar o
+   * que já foi conferido a um painel, sem disparar uma chamada externa por item.
+   */
+  static async peekMany<T>(keys: string[]): Promise<Map<string, T>> {
+    const unique = [...new Set(keys)];
+    const found = new Map<string, T>();
+    if (!unique.length) return found;
+    const rows = await prisma.officialSourceCache.findMany({
+      where: { key: { in: unique }, staleUntil: { gt: new Date() } },
+      select: { key: true, payload: true },
+      take: unique.length,
+    });
+    for (const row of rows) {
+      const value = unwrap<T>(row.payload);
+      if (value !== null) found.set(row.key, value);
+    }
+    return found;
+  }
+
+  /**
    * Remove uma entrada específica para permitir revalidação forçada e testes
    * isolados. Não apaga dados em massa nem altera a política normal de SWR.
    */

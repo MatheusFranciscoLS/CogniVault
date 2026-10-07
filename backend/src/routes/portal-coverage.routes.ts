@@ -6,6 +6,21 @@ import {
   portalCoverageRequestCacheState,
 } from '../services/bounded-portal-coverage.service';
 import { rankPortfolioCoverageGaps } from '../services/portfolio-coverage';
+import { normalizeIdentifier } from '../utils/normalize';
+
+const MAX_EXCLUDED_MODELS = 500;
+
+/** Modelos que a tela já tentou nesta rodada; só serve para a próxima chamada não repetir. */
+function parseExcludedModels(body: unknown): Set<string> {
+  const raw = (body as { exclude?: unknown } | undefined)?.exclude;
+  if (!Array.isArray(raw)) return new Set();
+  return new Set(
+    raw
+      .filter((item): item is string => typeof item === 'string' && item.length <= 80)
+      .slice(0, MAX_EXCLUDED_MODELS)
+      .map(item => normalizeIdentifier(item)),
+  );
+}
 
 const router = Router();
 
@@ -25,6 +40,7 @@ router.post(
       const portfolio = await buildBoundedPortalCoverage(authReq.user.tenantId, {
         limit: 8,
         concurrency: 2,
+        exclude: parseExcludedModels(req.body),
       });
       const cacheState = portalCoverageRequestCacheState(portfolio.portalCache);
       if (cacheState) res.set('X-CogniVault-Cache', cacheState);
@@ -34,10 +50,12 @@ router.post(
         portalChecked: true,
         checkedCount: portfolio.checkedCount,
         checkedModels: portfolio.checkedModels,
+        remaining: portfolio.remaining,
         portalCache: portfolio.portalCache,
         total: portfolio.total,
         localIpl: portfolio.localIpl,
         portalIpl: portfolio.portalIpl,
+        portalDocument: portfolio.portalDocument,
         unverified: portfolio.unverified,
         covered: portfolio.covered,
         coverageRate: portfolio.coverageRate,

@@ -31,3 +31,19 @@ test('limite inválido ou não positivo não dispara homologação', () => {
   assert.deepEqual(selectPortalVerificationCandidates(items, -3), []);
   assert.deepEqual(selectPortalVerificationCandidates(items, Number.NaN), []);
 });
+
+test('não repete modelo que o Portal já respondeu nem o que a tela já tentou, mas insiste no inconclusivo', () => {
+  const lista = [
+    { model: 'A1', normalizedModel: 'A1', status: 'UNVERIFIED' as const, commercialSignals: 9, portalVerification: 'NO_EXACT_MATCH' as const },
+    { model: 'B2', normalizedModel: 'B2', status: 'UNVERIFIED' as const, commercialSignals: 8, portalVerification: 'NO_IPL' as const },
+    { model: 'C3', normalizedModel: 'C3', status: 'UNVERIFIED' as const, commercialSignals: 7, portalVerification: 'INCONCLUSIVE' as const },
+    { model: 'D4', normalizedModel: 'D4', status: 'UNVERIFIED' as const, commercialSignals: 6 },
+    { model: 'E5', normalizedModel: 'E5', status: 'UNVERIFIED' as const, commercialSignals: 5 },
+  ];
+
+  assert.deepEqual(selectPortalVerificationCandidates(lista, 8).map(item => item.normalizedModel), ['C3', 'D4', 'E5']);
+  assert.deepEqual(
+    selectPortalVerificationCandidates(lista, 8, new Set(['C3'])).map(item => item.normalizedModel),
+    ['D4', 'E5'],
+  );
+});

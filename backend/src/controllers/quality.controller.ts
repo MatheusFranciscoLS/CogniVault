@@ -11,7 +11,9 @@ import { rebuildTenantTechnicalKnowledge } from '../services/knowledge-maintenan
 import { indexNextSemanticBatch } from '../services/semantic-index-maintenance.service';
 import { retryEligibleVisualCatalogs } from '../services/visual-catalog-retry.service';
 import { SearchIntelligenceService } from '../services/search-intelligence.service';
-import { buildPortfolioCoverage, rankPortfolioCoverageGaps } from '../services/portfolio-coverage';
+import { rankPortfolioCoverageGaps } from '../services/portfolio-coverage';
+import { buildPortfolioCoverageWithPortalCache } from '../services/bounded-portal-coverage.service';
+import { selectPortalVerificationCandidates } from '../services/portal-verification-candidates';
 
 const documentService = new DocumentService();
 
@@ -43,7 +45,7 @@ export class QualityController {
       const tenantId = req.user.tenantId;
       const [quality, portfolio] = await Promise.all([
         AiQualityService.overview(tenantId),
-        buildPortfolioCoverage(tenantId),
+        buildPortfolioCoverageWithPortalCache(tenantId),
       ]);
       res.json({
         quality,
@@ -53,9 +55,11 @@ export class QualityController {
           total: portfolio.total,
           localIpl: portfolio.localIpl,
           portalIpl: portfolio.portalIpl,
+          portalDocument: portfolio.portalDocument,
           unverified: portfolio.unverified,
           covered: portfolio.covered,
           coverageRate: portfolio.coverageRate,
+          remaining: selectPortalVerificationCandidates(portfolio.items, Number.MAX_SAFE_INTEGER).length,
           gaps: rankPortfolioCoverageGaps(portfolio.items, 20),
         },
       });

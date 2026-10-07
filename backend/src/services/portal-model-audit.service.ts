@@ -1,6 +1,6 @@
 import { HusqvarnaOfficialDetailService } from './husqvarna-official-detail.service';
 import { HusqvarnaProductSearchService } from './husqvarna-product-search.service';
-import { portalResultMatchesModel } from './portfolio-coverage';
+import { portalDocumentMatchesModel, portalResultMatchesModel } from './portfolio-coverage';
 
 const GRAPHQL_URL = 'https://portal.husqvarnagroup.com/hbd/graphql?';
 const PORTAL_ORIGIN = 'https://portal.husqvarnagroup.com';
@@ -23,6 +23,8 @@ export type PortalModelAudit = {
   exactProductCount: number;
   portalAvailableWhenSearchEmpty: boolean | null;
   products: PortalProductAudit[];
+  /** Documentos de IPL (PDF) do Portal que citam o modelo: fonte oficial mesmo sem produto estruturado. */
+  iplDocuments?: Array<{ title: string; url: string | null }>;
 };
 
 let probeCache: { available: boolean; expiresAt: number } | null = null;
@@ -80,6 +82,11 @@ export async function auditPortalModel(model: string): Promise<PortalModelAudit>
     .filter(result => result.kind === 'PRODUCT' && result.pnc && portalResultMatchesModel(result.title, model))
     .slice(0, 4);
 
+  const iplDocuments = results
+    .filter(result => result.kind === 'DOCUMENT' && portalDocumentMatchesModel(result.title, model))
+    .slice(0, 3)
+    .map(result => ({ title: result.title, url: result.portalUrl ?? null }));
+
   const products: PortalProductAudit[] = [];
   for (const product of exactProducts) {
     try {
@@ -112,6 +119,7 @@ export async function auditPortalModel(model: string): Promise<PortalModelAudit>
     exactProductCount: exactProducts.length,
     portalAvailableWhenSearchEmpty: results.length === 0 ? await probePortalAvailability() : null,
     products,
+    iplDocuments,
   };
 }
 

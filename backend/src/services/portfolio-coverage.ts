@@ -1,10 +1,11 @@
 import { prisma } from '../config/prisma';
 import { normalizeIdentifier } from '../utils/normalize';
+import { capRegexInput } from '../utils/regex-input';
 import { HusqvarnaOfficialDetailService } from './husqvarna-official-detail.service';
 import { HusqvarnaProductSearchService } from './husqvarna-product-search.service';
 
-export type PortfolioCoverageStatus = 'LOCAL_IPL' | 'PORTAL_IPL' | 'UNVERIFIED';
-export type PortalVerificationState = 'NOT_CHECKED' | 'VERIFIED' | 'NO_EXACT_MATCH' | 'NO_IPL' | 'INCONCLUSIVE';
+export type PortfolioCoverageStatus = 'LOCAL_IPL' | 'PORTAL_IPL' | 'PORTAL_DOCUMENT' | 'UNVERIFIED';
+export type PortalVerificationState = 'NOT_CHECKED' | 'VERIFIED' | 'DOCUMENT_ONLY' | 'NO_EXACT_MATCH' | 'NO_IPL' | 'INCONCLUSIVE';
 
 export type PortfolioCoverageItem = {
   model: string;
@@ -110,6 +111,24 @@ function hasDistinctShortCodePrefix(title: string, modelKey: string): boolean {
 
   const prefix = tokens[tokens.length - consumed - 1] || '';
   return /^[A-Z]{1,3}$/.test(prefix) && prefix !== 'HUSQVARNA';
+}
+
+/**
+ * O Portal guarda a lista de peças de muita máquina antiga só como DOCUMENTO (PDF de IPL),
+ * sem produto estruturado. Esse documento também é fonte oficial: o balcão abre e lê o
+ * código no desenho. O título precisa citar o modelo inteiro, sem letra ou número colado
+ * (`1120i` não é `120i`) e sem um código curto de outro modelo na frente (`PW 235R`).
+ */
+export function portalDocumentMatchesModel(title: string, model: string): boolean {
+  const key = normalizeIdentifier(capRegexInput(String(model ?? ''), 40));
+  const text = capRegexInput(String(title ?? ''), 300);
+  if (key.length < 3 || !/\bIPL\b/i.test(text)) return false;
+  const pattern = [...key].join('[\\s\\-./]*');
+  const match = new RegExp(`(?<![A-Z0-9])${pattern}(?![A-Z0-9])`, 'i').exec(text);
+  if (!match) return false;
+  const before = text.slice(0, match.index);
+  const prefix = /(?:^|[^A-Z0-9])([A-Z]{1,3})[\s-]*$/i.exec(before)?.[1]?.toUpperCase();
+  return !prefix || prefix === 'IPL';
 }
 
 /**
@@ -404,8 +423,8 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
     if (!portal) return item;
     return {
       ...item,
-      status: portal.state === 'VERIFIED' ? 'PORTAL_IPL' as const : item.status,
-      source: portal.state === 'VERIFIED' ? portal.source : item.source,
+      status: portal.state === 'VERIFIED' ? 'PORTAL_IPL' as const : portal.state === 'DOCUMENT_ONLY' ? 'PORTAL_DOCUMENT' as const : item.status,
+      source: portal.state === 'VERIFIED' || portal.state === 'DOCUMENT_ONLY' ? portal.source : item.source,
       pnc: portal.pnc || item.pnc,
       portalVerification: portal.state,
       portalVerificationNote: portal.note,
@@ -415,16 +434,17 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
 }
 
 export function summarizePortfolioCoverage(items: PortfolioCoverageItem[]) {
-  const counts = { localIpl: 0, portalIpl: 0, unverified: 0, total: items.length };
+  const counts = { localIpl: 0, portalIpl: 0, portalDocument: 0, unverified: 0, total: items.length };
   for (const item of items) {
     if (item.status === 'LOCAL_IPL') counts.localIpl += 1;
     else if (item.status === 'PORTAL_IPL') counts.portalIpl += 1;
+    else if (item.status === 'PORTAL_DOCUMENT') counts.portalDocument += 1;
     else counts.unverified += 1;
   }
   return {
     ...counts,
-    covered: counts.localIpl + counts.portalIpl,
-    coverageRate: counts.total ? (counts.localIpl + counts.portalIpl) / counts.total : 0,
+    covered: counts.localIpl + counts.portalIpl + counts.portalDocument,
+    coverageRate: counts.total ? (counts.localIpl + counts.portalIpl + counts.portalDocument) / counts.total : 0,
     items,
   };
 }
