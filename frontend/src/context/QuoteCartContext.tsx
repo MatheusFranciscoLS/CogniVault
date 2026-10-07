@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { toast } from 'sonner';
 import { apiJson, formatHusqvarnaPartNumber } from '../lib';
 import { playCartSound } from '../lib/sound';
+import { buildWhatsAppMessage } from '../lib/quote-message';
 import { quoteStorageScopeFromSession } from '../lib/quote-storage-scope';
 type JsPdfWithAutoTable = import('jspdf').jsPDF & {
   lastAutoTable?: {
@@ -638,75 +639,10 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       ? { ...draftOptions, machineModel: optionsOrModel }
       : { ...draftOptions, ...(optionsOrModel || {}) };
 
-    const now = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date());
-    const modelsFound = [...new Set(items.map(i => i.model).filter(Boolean))];
-    const headerModel = opts.machineModel || (modelsFound.length === 1 ? modelsFound[0] : modelsFound.join(' / '));
-    const hasAnyPrice = items.some(i => (i.unitPrice || 0) > 0);
-
-    let text = `🛠️ *ORÇAMENTO DE PEÇAS — VARDÃO MÁQUINAS*\n`;
-    text += `📅 Data: ${now}\n`;
-    if (opts.customerName) {
-      text += `👤 Cliente: *${opts.customerName}*\n`;
-    }
-    if (headerModel) {
-      const manufacturers = [...new Set(items.map(item => item.manufacturer).filter(Boolean))];
-      const manufacturerLabel = manufacturers.length === 1 ? manufacturers[0] : manufacturers.length > 1 ? 'Fabricantes diversos' : '';
-      text += `⚙️ Aplicação / Modelo: *${manufacturerLabel ? `${manufacturerLabel} ` : ''}${headerModel}*\n`;
-    }
-    text += `\n📋 *Itens Selecionados:*\n`;
-
-    items.forEach((item, index) => {
-      const formattedCode = item.manufacturer?.toLowerCase().includes('husqvarna')
-        ? formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber)
-        : (item.effectiveCode || item.partNumber);
-      text += `\n${index + 1}. *${item.name}* (Qtd: ${item.quantity}x)\n`;
-      text += `   • Código: \`${formattedCode}\`\n`;
-      if (item.unitPrice && item.unitPrice > 0) {
-        const itemTotal = item.quantity * item.unitPrice;
-        text += `   • Preço: R$ ${item.unitPrice.toFixed(2).replace('.', ',')} un. (Subtotal: R$ ${itemTotal.toFixed(2).replace('.', ',')})\n`;
-      }
-      if (item.isSuperseded && item.originalCode) {
-        const originalCode = item.manufacturer?.toLowerCase().includes('husqvarna')
-          ? formatHusqvarnaPartNumber(item.originalCode)
-          : item.originalCode;
-        text += `   • Substituição oficial de: \`${originalCode}\`\n`;
-      }
-      if (item.position) {
-        text += `   • Vista/Posição: Pos. ${item.position}${item.section ? ` · ${item.section}` : ''}\n`;
-      }
-      if (item.model && modelsFound.length > 1) {
-        text += `   • Máquina: ${item.model}${item.pnc ? ` (PNC ${item.pnc})` : ''}\n`;
-      }
-    });
-
-    if (hasAnyPrice && totalPrice > 0) {
-      if (opts.discountPercentage && opts.discountPercentage > 0) {
-        const discountAmount = (totalPrice * opts.discountPercentage) / 100;
-        const netTotal = totalPrice - discountAmount;
-        text += `\nSubtotal: R$ ${totalPrice.toFixed(2).replace('.', ',')}\n`;
-        text += `🎁 Desconto Comercial (${opts.discountPercentage}%): -R$ ${discountAmount.toFixed(2).replace('.', ',')}\n`;
-        text += `💰 *VALOR FINAL COM DESCONTO: R$ ${netTotal.toFixed(2).replace('.', ',')}*\n`;
-      } else {
-        text += `\n💰 *VALOR TOTAL ESTIMADO: R$ ${totalPrice.toFixed(2).replace('.', ',')}*\n`;
-      }
-    }
-
-    if (opts.paymentMethod && opts.paymentMethod !== 'A Combinar no Balcão') {
-      text += `💳 Condição: *${opts.paymentMethod}*\n`;
-    }
-
-    text += `⏱️ Validade da Proposta: 7 dias úteis\n`;
-    text += `\n━━━━━━━━━━━━━━━━━━━━\n`;
-    const manufacturers = [...new Set(items.map(item => item.manufacturer).filter(Boolean))];
-    text += manufacturers.length === 1
-      ? `✅ *Peças originais ${manufacturers[0]}*\n`
-      : manufacturers.length > 1
-        ? `✅ *Peças originais de fabricantes diversos*\n`
-        : `✅ *Peças originais*\n`;
-    text += `🏬 *Vardão Máquinas* · Assistência Técnica Autorizada`;
-
-    return text;
-  }, [draftOptions, items, totalPrice]);
+    // O texto que o CLIENTE recebe mora em lib/quote-message.ts (puro e testado). Posição na vista,
+    // seção do catálogo e PNC são do balcão e não vão na mensagem.
+    return buildWhatsAppMessage({ items, options: opts });
+  }, [draftOptions, items]);
 
   const openWhatsApp = useCallback((optionsOrModel?: string | QuoteTextOptions) => {
     const text = generateWhatsAppText(optionsOrModel);

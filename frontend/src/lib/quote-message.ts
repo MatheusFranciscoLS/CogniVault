@@ -73,10 +73,17 @@ export function manufacturerSummary(lines: QuoteLine[]): string {
   return 'Peças originais';
 }
 
+/** Mesmo arredondamento do servidor (`roundMoney` em quote.service.ts): o cliente tem que ver o MESMO total que fica arquivado. */
+export function roundMoney(value: number): number {
+  return Number.isFinite(value) ? Math.round(value * 100) / 100 : 0;
+}
+
 export function quoteTotals(lines: QuoteLine[], discountPercentage = 0) {
-  const gross = lines.reduce((sum, line) => sum + line.quantity * (line.unitPrice || 0), 0);
-  const discount = gross > 0 && discountPercentage > 0 ? (gross * discountPercentage) / 100 : 0;
-  return { gross, discount, net: gross - discount, hasAnyPrice: lines.some(line => (line.unitPrice || 0) > 0) };
+  const gross = roundMoney(lines.reduce((sum, line) => sum + line.quantity * (line.unitPrice || 0), 0));
+  // O desconto é arredondado ANTES de subtrair, como no servidor: 484,35 com 10% dá desconto 48,44 e total 435,91
+  // (arredondar só o total dava 435,92, um centavo a mais do que o orçamento arquivado).
+  const discount = gross > 0 && discountPercentage > 0 ? roundMoney((gross * discountPercentage) / 100) : 0;
+  return { gross, discount, net: roundMoney(gross - discount), hasAnyPrice: lines.some(line => (line.unitPrice || 0) > 0) };
 }
 
 export function buildWhatsAppMessage(input: { items: QuoteLine[]; options: QuoteMessageOptions; now?: Date }): string {
@@ -85,10 +92,11 @@ export function buildWhatsAppMessage(input: { items: QuoteLine[]; options: Quote
   const now = input.now ?? new Date();
   const totals = quoteTotals(items, options.discountPercentage);
 
-  const models = [...new Set(items.map(item => item.model).filter(Boolean))];
+  // Serviço avulso (SRV-) não é máquina: com ele na conta, um orçamento de uma máquina só parecia ter duas.
+  const models = [...new Set(items.filter(item => !isServiceLine(item)).map(item => item.model).filter(Boolean))];
   const several = models.length > 1;
   const machine = options.machineModel || (models.length === 1 ? models[0] : '');
-  const manufacturers = [...new Set(items.map(item => item.manufacturer).filter((value): value is string => Boolean(value)))];
+  const manufacturers = [...new Set(items.filter(item => !isServiceLine(item)).map(item => item.manufacturer).filter((value): value is string => Boolean(value)))];
   const brand = manufacturers.length === 1 ? `${manufacturers[0]} ` : '';
 
   const out: string[] = [];

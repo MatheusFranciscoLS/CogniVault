@@ -32,6 +32,8 @@ type Props = {
   onToggleFavorite: () => void;
   onVerify: () => void;
   onAskAi: (prompt: string) => void;
+  /** Há algo por cima (visualizador de PDF, conferência, IA) que fecha com o Esc: a gaveta fica. */
+  escapeBlocked?: boolean;
 };
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -47,7 +49,7 @@ function useCopyFlash(onCopy: (code: string) => void) {
   return { copied, copy };
 }
 
-export default function PartDetailDrawer({ detail, verification, liveData, onClose, onCopy, onOpenPdf, onOpenRelated, onToggleFavorite, onVerify, onAskAi }: Props) {
+export default function PartDetailDrawer({ detail, verification, liveData, onClose, onCopy, onOpenPdf, onOpenRelated, onToggleFavorite, onVerify, onAskAi, escapeBlocked = false }: Props) {
   const quoteCart = useQuoteCart();
   const [workContext, setWorkContext] = useState<WorkContext | null>(null);
   const { copied, copy } = useCopyFlash(onCopy);
@@ -92,7 +94,7 @@ export default function PartDetailDrawer({ detail, verification, liveData, onClo
 
   return (
     <Sheet open onOpenChange={open => { if (!open) onClose(); }}>
-      <SheetContent side="right" showCloseButton={false} className="w-full gap-0 border-border bg-background p-0 sm:max-w-[560px]">
+      <SheetContent side="right" showCloseButton={false} onEscapeKeyDown={event => { if (escapeBlocked) event.preventDefault(); }} className="w-full gap-0 border-border bg-background p-0 sm:max-w-[560px]">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border bg-card px-6 py-4">
           <div className="min-w-0">
             <SheetTitle className="truncate text-2xl font-semibold leading-8 text-foreground">{detail.name}</SheetTitle>

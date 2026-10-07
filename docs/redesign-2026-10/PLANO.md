@@ -92,6 +92,34 @@ Regra: cada tela percorrida entra aqui com o que foi corrigido na hora (✅) e o
 | 💡 | Abrir uma máquina grava a máquina no atendimento sem avisar: mostrar que foi gravada |
 | 💡 | Pergunta de óleo devolve 20+ linhas de filtro/vela: oferecer os botões de óleo no topo |
 | ❓ | Contexto (cliente/máquina) sobrevive ao recarregar: manter? hoje fica até "Encerrar atendimento" |
+| 💡 | A máquina aparece duas vezes: na barra de contexto e como chip "recente" logo abaixo da busca |
+| 💡 | **9 diálogos nativos do navegador (`window.confirm`)**: Encerrar atendimento, Esvaziar orçamento, Retomar e Excluir orçamento (balcão) e mais 5 na administração/biblioteca. Trocar por um diálogo do próprio site, com o texto do que será perdido e botão claro |
+
+### Gaveta da peça
+| | Achado |
+|---|---|
+| ✅ | O Esc que fecha o menu ⋯ fechava a gaveta inteira (tratador global duplicado): corrigido |
+| 💡 | **"Registrar conferência"** é um modal feito à mão, no estilo antigo, sem `role="dialog"` (leitor de tela e foco não o tratam como diálogo) e com texto que explica o sistema ("CONFERÊNCIA ASSISTIDA…"): refazer com o diálogo do shadcn e cortar a explicação |
+| 💡 | "Leve junto": companheiro sem nome mostra o código duas vezes ("595353 / 595353") |
+| 💡 | Falha ao abrir o PDF mostra um aviso no canto, bom; poderia oferecer "tentar de novo" |
+
+### Gaveta do orçamento (26 verificações)
+| | Achado |
+|---|---|
+| ✅ | O "−" na quantidade 1 apagava o item em silêncio (sem confirmar, sem desfazer): agora fica desabilitado, com a dica "use o ×" |
+| ✅ | **Texto do WhatsApp refeito** (`lib/quote-message.ts`): sem "Assistência Técnica" (a loja é revenda ouro), sem posição/seção/PNC internos, valores com separador de milhar, **data de validade** em vez de "7 dias úteis", pagamento só quando combinado |
+| ✅ | O cliente via **R$ 435,92** e o orçamento arquivado guardava **R$ 435,91** (arredondamento diferente do servidor): alinhado, travado em teste |
+| ✅ | Serviço avulso ("Mão de obra") contava como segunda máquina e o texto repetia "Máquina:" em toda peça |
+| 💡 | **PDF** ainda no modelo antigo (7 KB): refazer com cabeçalho da loja, tabela legível, total e validade; e **prévia** do texto antes de enviar |
+| 💡 | Texto livre para observação ("peça sob encomenda, prazo 5 dias") no WhatsApp e no PDF |
+| 💡 | Telefone digitado sem máscara ("19987654321"): formatar enquanto digita |
+
+### Orçamentos (arquivo) (24 verificações)
+| | Achado |
+|---|---|
+| ✅ | **"Buscar" travava a tela em "Carregando orçamentos…" para sempre** quando o filtro não mudava (por exemplo, depois de preencher as datas): sempre recarrega agora |
+| 💡 | Datas filtram a cada campo preenchido e o botão Buscar fica redundante: escolher um dos dois |
+| 💡 | Retomar abre a gaveta por cima da lista (bom) mas substitui a cesta atual com um `confirm` nativo |
 
 ### Painel da máquina / vista explodida
 | | Achado |

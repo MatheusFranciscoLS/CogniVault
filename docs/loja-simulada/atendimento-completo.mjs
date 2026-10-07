@@ -15,9 +15,8 @@ const pesquisar = async (texto, via = 'botao') => {
 const esperarFim = async (ms = 40000) => {
   await page.getByRole('button', { name: 'Buscando…' }).waitFor({ timeout: 4000 }).catch(() => {});
   await page.getByRole('button', { name: 'Buscar', exact: true }).waitFor({ timeout: ms });
-  // O botão volta assim que há peças; a fase "por significado" ainda pode acrescentar linhas. Espera a rede acalmar.
-  await page.waitForLoadState('networkidle', { timeout: ms }).catch(() => {});
-  await page.waitForTimeout(300);
+  // O botão volta assim que há peças; a fase "por significado" ainda pode acrescentar linhas. (A rede nunca fica "idle" nesta tela, então espera um tempo fixo.)
+  await page.waitForTimeout(1500);
 };
 
 await step('estado vazio', async () => {
@@ -135,8 +134,11 @@ await step('menu ⋯ de uma linha do cadastro', async () => {
 
 await step('contexto: cliente, máquina, PNC, série', async () => {
   // Abrir a vista explodida de uma máquina já grava a máquina no atendimento: começa limpo.
-  if (await page.getByRole('button', { name: 'Encerrar atendimento' }).count()) { await page.getByRole('button', { name: 'Encerrar atendimento' }).click(); await page.waitForTimeout(400); }
+  console.log('   botões "Encerrar atendimento":', await page.getByRole('button', { name: 'Encerrar atendimento' }).count());
+  await page.getByRole('button', { name: 'Encerrar atendimento' }).first().click({ timeout: 3000 }).catch(e => console.log('   clique falhou:', String(e.message).slice(0, 200)));
+  await page.waitForTimeout(800);
   console.log('   botões do contexto:', await page.locator('main button').evaluateAll(l => l.slice(0, 5).map(b => b.innerText.replace(/\s+/g, ' '))));
+  await shot(page, `${theme}-1366-atendimento-contexto-antes`);
   await page.getByRole('button', { name: /Máquina, PNC ou cliente/ }).click({ timeout: 5000 });
   const campos = ['Nome do cliente', 'Ex.: 143RII', 'Ex.: 967 17 65-01', 'Quando necessário'];
   for (const c of campos) check(`campo "${c}" existe`, (await page.getByPlaceholder(c).count()) === 1);
@@ -177,14 +179,18 @@ await step('cabeçalho: abas e menus', async () => {
 
 await step('"Buscando…" termina quando a 1ª fase chega', async () => {
   await page.getByRole('button', { name: 'Atendimento', exact: true }).click();
+  await page.locator('form', { has: busca }).getByRole('button', { name: 'Limpar' }).click();
+  await page.waitForTimeout(500);
   await busca.fill('junta do carburador');
   const t0 = Date.now();
   await busca.press('Enter');
   await page.locator('article', { hasText: /JUNTA/i }).first().waitFor({ timeout: 20000 });
   const ate1 = Date.now() - t0;
+  // A fase "por significado" pode levar vários segundos; o balcão não espera por ela para buscar de novo.
+  await page.waitForTimeout(400);
+  const texto = (await page.locator('form', { has: busca }).locator('button[type=submit]').first().innerText()).trim();
+  check('com peças na tela o botão já está em "Buscar", não em "Buscando…"', texto === 'Buscar', `lista em ${ate1}ms, botão: ${texto}`);
   await esperarFim(40000);
-  const ateFim = Date.now() - t0;
-  check('o botão volta a "Buscar" logo depois de a lista aparecer', ateFim - ate1 < 1500, `lista em ${ate1}ms, botão liberado em ${ateFim}ms`);
 });
 
 await step('duas buscas seguidas não se misturam', async () => {

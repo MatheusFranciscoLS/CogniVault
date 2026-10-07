@@ -20,6 +20,9 @@ export async function open({ theme = 'dark', width = 1366, height = 768, login =
   await context.addInitScript(t => localStorage.setItem('cognivault-theme', t), theme);
   const page = await context.newPage();
   const errors = [];
+  // Diálogos nativos (confirm/alert) são cancelados sozinhos pelo Playwright. Aceita e registra: cada um é
+  // uma tela feia do navegador que o balcão vê e que devia ser um diálogo do próprio site.
+  page.on('dialog', d => { console.log(`   [diálogo nativo do navegador] ${d.type()}: ${d.message()}`); void d.accept(); });
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text().slice(0, 200)); });
   page.on('pageerror', e => errors.push('pageerror: ' + String(e).slice(0, 200)));
   if (login) {

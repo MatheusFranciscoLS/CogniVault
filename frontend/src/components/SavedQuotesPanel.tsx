@@ -139,19 +139,22 @@ export default function SavedQuotesPanel() {
 
   // A busca é no servidor porque o histórico agora é do banco, não do
   // navegador: filtrar em memória só acharia a primeira página.
+  //
+  // Sempre passa por `reload()`: ligar só o "Carregando…" sem nada que dispare a busca (filtro igual ao que já
+  // estava aplicado, ou datas que já recarregaram a lista) deixava a tela presa em "Carregando orçamentos…".
   const applyFilter = () => {
-    setLoading(true);
     setPage(0);
     setAppliedFilter(filter.trim());
+    reload();
   };
 
   const clearFilters = () => {
-    setLoading(true);
     setFilter('');
     setAppliedFilter('');
     setFrom('');
     setTo('');
     setPage(0);
+    reload();
   };
 
   const handleRestore = (quote: ApiQuoteListItem) => {

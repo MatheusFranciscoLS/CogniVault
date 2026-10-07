@@ -171,7 +171,7 @@ function CartItemRow({
 
       <div className="flex items-center justify-between gap-3">
         <div className="inline-flex items-center overflow-hidden rounded-md border border-input">
-          <button type="button" onClick={() => onUpdateQuantity(-1)} aria-label={`Diminuir quantidade de ${item.name}`} className="grid size-10 place-items-center hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"><Minus className="size-4" /></button>
+          <button type="button" onClick={() => onUpdateQuantity(-1)} disabled={item.quantity <= 1} title={item.quantity <= 1 ? 'Para tirar o item, use o ×' : undefined} aria-label={`Diminuir quantidade de ${item.name}`} className="grid size-10 place-items-center hover:bg-accent focus-visible:bg-accent focus-visible:outline-none disabled:opacity-40"><Minus className="size-4" /></button>
           <span className="min-w-10 text-center text-base font-semibold tabular-nums">{item.quantity}</span>
           <button type="button" onClick={() => onUpdateQuantity(1)} aria-label={`Aumentar quantidade de ${item.name}`} className="grid size-10 place-items-center hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"><Plus className="size-4" /></button>
         </div>

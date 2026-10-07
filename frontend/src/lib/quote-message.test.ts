@@ -35,6 +35,12 @@ describe('quoteTotals', () => {
     expect(totals.hasAnyPrice).toBe(true);
   });
 
+  it('arredonda como o servidor: 484,35 com 10% é desconto 48,44 e total 435,91 (não 435,92)', () => {
+    const totals = quoteTotals([{ ...carburador, quantity: 1, unitPrice: 484.35 }], 10);
+    expect(totals.discount).toBe(48.44);
+    expect(totals.net).toBe(435.91);
+  });
+
   it('sem preço nenhum, não há total', () => {
     const totals = quoteTotals([{ ...carburador, unitPrice: undefined }]);
     expect(totals.hasAnyPrice).toBe(false);
@@ -108,6 +114,16 @@ describe('buildWhatsAppMessage', () => {
     const service = text.split('2. *')[0];
     expect(service).not.toContain('Código:');
     expect(text).toContain('Substitui o código `587 10 66-01`');
+  });
+
+  it('serviço avulso não conta como segunda máquina', () => {
+    const text = buildWhatsAppMessage({
+      items: [carburador, vela, { partNumber: 'SRV-1', name: 'Mão de obra', model: 'Balcão', quantity: 1, unitPrice: 80 }],
+      options: {},
+      now: quarta,
+    });
+    expect(text.match(/Máquina:/g)).toHaveLength(1);
+    expect(text).toContain('Máquina: Husqvarna 143RII');
   });
 
   it('vários modelos: cada peça diz a máquina dela; um só modelo não repete', () => {

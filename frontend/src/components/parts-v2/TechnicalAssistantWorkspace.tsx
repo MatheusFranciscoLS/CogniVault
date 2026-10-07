@@ -654,7 +654,8 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
         if (aiOpen) setAiOpen(false);
         else if (pdf) setPdf(null);
         else if (verificationTarget) setVerificationTarget(null);
-        else if (detail) setDetail(null);
+        // A gaveta da peça é um Sheet do Radix e fecha o próprio Esc. Fechá-la aqui também fazia o Esc que
+        // fecha o menu "⋯" levar a gaveta junto.
         return;
       }
       if (event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey && !isTypingTarget(event.target)) {
@@ -903,7 +904,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
         </PanelErrorBoundary>
       )}
 
-      {detail && <PanelErrorBoundary key={`peca-${detail.partNumber}`} onClose={() => setDetail(null)}><PartDetailDrawer detail={detail} verification={detailVerification} liveData={liveData} onClose={() => setDetail(null)} onCopy={code => void copyCode(code)} onOpenPdf={(documentId, page, title) => void accessPdf(documentId, page, title)} onOpenRelated={id => void openPart(id)} onToggleFavorite={() => void toggleFavorite()} onVerify={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} onAskAi={openAi} /></PanelErrorBoundary>}
+      {detail && <PanelErrorBoundary key={`peca-${detail.partNumber}`} onClose={() => setDetail(null)}><PartDetailDrawer detail={detail} verification={detailVerification} liveData={liveData} onClose={() => setDetail(null)} onCopy={code => void copyCode(code)} onOpenPdf={(documentId, page, title) => void accessPdf(documentId, page, title)} onOpenRelated={id => void openPart(id)} onToggleFavorite={() => void toggleFavorite()} onVerify={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} onAskAi={openAi} escapeBlocked={aiOpen || Boolean(pdf) || Boolean(verificationTarget)} /></PanelErrorBoundary>}
       {verificationTarget && <PartVerificationDialog target={verificationTarget} existing={verifications[normalizePartCode(verificationTarget.partNumber)]} onClose={() => setVerificationTarget(null)} onSaved={() => { setVerificationTarget(null); toast.success('Conferência enviada para aprovação.'); if (detail) void loadVerifications([detail]); }} />}
 
       {pdf && (
