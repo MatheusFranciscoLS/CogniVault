@@ -60,7 +60,7 @@ export class QualityController {
           covered: portfolio.covered,
           coverageRate: portfolio.coverageRate,
           remaining: selectPortalVerificationCandidates(portfolio.items, Number.MAX_SAFE_INTEGER).length,
-          gaps: rankPortfolioCoverageGaps(portfolio.items, 20),
+          gaps: rankPortfolioCoverageGaps(portfolio.items, 120),
         },
       });
     } catch (error) {

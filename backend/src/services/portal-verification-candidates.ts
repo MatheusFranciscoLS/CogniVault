@@ -3,6 +3,7 @@ export type PortalVerificationCandidate = {
   normalizedModel: string;
   status: 'LOCAL_IPL' | 'PORTAL_IPL' | 'PORTAL_DOCUMENT' | 'UNVERIFIED';
   commercialSignals: number;
+  commercialEvidence?: string[];
   /** Quando já há resposta guardada do Portal, o modelo não precisa ser consultado de novo. */
   portalVerification?: 'NOT_CHECKED' | 'VERIFIED' | 'DOCUMENT_ONLY' | 'NO_EXACT_MATCH' | 'NO_IPL' | 'INCONCLUSIVE';
 };

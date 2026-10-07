@@ -7,10 +7,13 @@ const { browser, page, errors, theme } = await open({ theme: process.argv[2] ?? 
 await step('Qualidade confere o Portal sozinha', async () => {
   await page.getByRole('button', { name: 'Administração', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Qualidade' }).click();
+  // Com o cache cheio (segunda abertura), não há o que conferir: a tela já abre concluída.
   const andamento = page.getByText(/Conferindo os modelos no Portal/);
-  await andamento.waitFor({ timeout: 20000 });
-  check('a conferência começa sozinha', true);
-  await shot(page, `${theme}-1366-qualidade-conferindo`);
+  const concluida = page.getByText(/Todos os modelos já foram conferidos no Portal/);
+  await andamento.or(concluida).first().waitFor({ timeout: 20000 });
+  const comeco = await andamento.isVisible();
+  console.log('   ' + (comeco ? 'a conferência começou sozinha' : 'já estava concluída (respostas guardadas)'));
+  if (comeco) await shot(page, `${theme}-1366-qualidade-conferindo`);
   await page.getByText(/Todos os modelos já foram conferidos no Portal/).waitFor({ timeout: 280000 });
   check('a conferência termina e avisa', true);
   const texto = (await page.locator('main').innerText()).replace(/\s+/g, ' ');

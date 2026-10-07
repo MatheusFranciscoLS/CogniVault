@@ -17,6 +17,8 @@ export type PortfolioCoverageItem = {
   commercialEvidence: string[];
   portalVerification?: PortalVerificationState;
   portalVerificationNote?: string | null;
+  /** Categoria da lista comercial (ex.: AUTOMOWER, TRATOR), para o dono ler a lacuna sem decifrar o modelo. */
+  commercialCategory?: string | null;
 };
 
 type PortalVerificationOutcome = {
@@ -34,6 +36,7 @@ type LocalCoverageRow = {
 
 type CommercialApplicationRow = {
   application: string;
+  category: string | null;
 };
 
 const NOISE_TOKENS = new Set([
@@ -120,7 +123,11 @@ function hasDistinctShortCodePrefix(title: string, modelKey: string): boolean {
  * (`1120i` não é `120i`) e sem um código curto de outro modelo na frente (`PW 235R`).
  */
 export function portalDocumentMatchesModel(title: string, model: string): boolean {
-  const key = normalizeIdentifier(capRegexInput(String(model ?? ''), 40));
+  return modelKeyVariants(capRegexInput(String(model ?? ''), 40)).some(variant => portalDocumentMatchesKey(title, variant));
+}
+
+function portalDocumentMatchesKey(title: string, model: string): boolean {
+  const key = normalizeIdentifier(model);
   const text = capRegexInput(String(title ?? ''), 300);
   if (key.length < 3 || !/\bIPL\b/i.test(text)) return false;
   const pattern = [...key].join('[\\s\\-./]*');
@@ -139,7 +146,39 @@ export function portalDocumentMatchesModel(title: string, model: string): boolea
  * nomenclatura histórica `445 e-series` -> `445E` (e o mesmo padrão para outros
  * modelos terminados em E).
  */
-export function portalResultMatchesModel(title: string, model: string): boolean {
+/**
+ * O Portal acrescenta ao nome do produto o que NÃO faz parte do modelo: o que acompanha
+ * ("(sem bateria e carregador)"), a marca registrada ("540i XP®") e a capacidade do
+ * pulverizador ("301SM 1.5L"). Sem tirar isso, `LC137i` nunca casava com
+ * "Cortador de Grama Husqvarna a bateria LC137i (sem bateria e carregador)".
+ */
+export function stripPortalTitleNoise(title: string): string {
+  return capRegexInput(String(title ?? ''), 300)
+    .replace(/[\u200b-\u200d\u2060\ufeff]/g, '')
+    .replace(/\([^)]{0,80}\)/g, ' ')
+    .replace(/[®™]/g, '')
+    .replace(/\s+\d{1,3}(?:[.,]\d)?\s?L\s*$/i, '')
+    .trim();
+}
+
+/**
+ * A lista comercial escreve `750K` e o Portal `K750` (mesma serra). Só vale para número + UMA letra:
+ * qualquer outra reordenação seria chute.
+ */
+export function modelKeyVariants(model: string): string[] {
+  const key = normalizeIdentifier(model);
+  const swapped = /^(\d{2,4})([A-Z])$/.exec(key);
+  return swapped ? [key, `${swapped[2]}${swapped[1]}`] : [key];
+}
+
+export function portalResultMatchesModel(rawTitle: string, model: string): boolean {
+  const variants = modelKeyVariants(model);
+  if (variants.length > 1) return variants.some(variant => portalResultMatchesKey(rawTitle, variant));
+  return portalResultMatchesKey(rawTitle, variants[0] ?? '');
+}
+
+function portalResultMatchesKey(rawTitle: string, model: string): boolean {
+  const title = stripPortalTitleNoise(rawTitle);
   const titleKey = normalizeIdentifier(title);
   const modelKey = normalizeIdentifier(model);
   if (!titleKey || !modelKey) return false;
@@ -319,6 +358,7 @@ export function rankPortfolioCoverageGaps(items: PortfolioCoverageItem[], limit 
       status: item.status,
       commercialSignals: item.commercialSignals,
       commercialEvidence: item.commercialEvidence,
+      commercialCategory: item.commercialCategory ?? null,
       portalVerification: item.portalVerification || 'NOT_CHECKED',
       portalVerificationNote: item.portalVerificationNote || null,
     }));
@@ -345,16 +385,17 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
       ORDER BY p."normalizedModel" ASC
     `,
     prisma.$queryRaw<CommercialApplicationRow[]>`
-      SELECT DISTINCT mps.application AS "application"
+      SELECT mps.application AS "application", MIN(mps."productCategory") AS "category"
       FROM "MasterPartSection" mps
       WHERE mps."tenantId" = ${tenantId}
         AND mps.application IS NOT NULL
+      GROUP BY mps.application
       ORDER BY mps.application ASC
     `,
   ]);
 
   const localByModel = new Map(localRows.map(row => [row.normalizedModel, row]));
-  const commercialModels = new Map<string, { model: string; signals: number; evidence: string[] }>();
+  const commercialModels = new Map<string, { model: string; signals: number; evidence: string[]; category?: string | null }>();
   for (const row of commercialRows) {
     if (!row.application) continue;
     const application = row.application.trim();
@@ -367,7 +408,7 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
           current.evidence.push(application);
         }
       } else {
-        commercialModels.set(key, { model, signals: 1, evidence: application ? [application] : [] });
+        commercialModels.set(key, { model, signals: 1, evidence: application ? [application] : [], category: row.category });
       }
     }
   }
@@ -376,7 +417,7 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
   // que ainda não apareçam na planilha comercial atual.
   for (const row of localRows) {
     if (!commercialModels.has(row.normalizedModel)) {
-      commercialModels.set(row.normalizedModel, { model: row.model, signals: 0, evidence: [] });
+      commercialModels.set(row.normalizedModel, { model: row.model, signals: 0, evidence: [], category: null });
     }
   }
 
@@ -393,6 +434,7 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
             pnc: null,
             commercialSignals: commercial.signals,
             commercialEvidence: commercial.evidence,
+            commercialCategory: commercial.category ?? null,
             portalVerification: 'NOT_CHECKED' as const,
             portalVerificationNote: null,
           }
@@ -404,6 +446,7 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
             pnc: null,
             commercialSignals: commercial.signals,
             commercialEvidence: commercial.evidence,
+            commercialCategory: commercial.category ?? null,
             portalVerification: 'NOT_CHECKED' as const,
             portalVerificationNote: null,
           };

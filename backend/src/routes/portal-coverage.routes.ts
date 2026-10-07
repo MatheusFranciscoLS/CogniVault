@@ -59,7 +59,7 @@ router.post(
         unverified: portfolio.unverified,
         covered: portfolio.covered,
         coverageRate: portfolio.coverageRate,
-        gaps: rankPortfolioCoverageGaps(portfolio.items, 20),
+        gaps: rankPortfolioCoverageGaps(portfolio.items, 120),
       });
     } catch (error) {
       console.error('❌ Erro ao homologar cobertura no Portal BR:', error);
