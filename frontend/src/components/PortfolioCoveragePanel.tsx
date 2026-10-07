@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { apiJson } from '../lib';
+import { ApiError, apiJson } from '../lib';
+import { retryTransient } from '../lib/transient-retry';
 
 type PortfolioCoverageGap = {
   model: string;
@@ -41,6 +42,17 @@ export type PortfolioCoverage = {
   gaps: PortfolioCoverageGap[];
 };
 
+/**
+ * Falha que passa sozinha: outra conferência ainda rodando no servidor (409), servidor reiniciando por um deploy ou acordando
+ * (502/503/504), Portal lento (500/429) ou a conexão que caiu. A conferência espera e tenta de novo em vez de parar no primeiro erro.
+ */
+function isTransientCoverageError(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false;
+  return error.status === null || [409, 429, 500, 502, 503, 504].includes(error.status);
+}
+
+const RETRY_WAIT_MS = [5_000, 10_000, 20_000, 30_000, 45_000];
+
 function signalLabel(count: number) {
   return `${count} referência${count === 1 ? '' : 's'} comercial${count === 1 ? '' : 'is'}`;
 }
@@ -67,6 +79,7 @@ export default function PortfolioCoveragePanel({
   const [checkingPortal, setCheckingPortal] = useState(false);
   const [portalError, setPortalError] = useState('');
   const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [waiting, setWaiting] = useState(false);
   const stopped = useRef(false);
   const started = useRef(false);
   const displayCoverage = portalCoverage ?? coverage;
@@ -86,20 +99,27 @@ export default function PortfolioCoveragePanel({
     setProgress({ done: 0, total: coverage.remaining ?? 0 });
     try {
       for (let round = 0; round < 80 && !stopped.current; round += 1) {
-        const result = await apiJson<PortfolioCoverage>('/api/admin/quality/portal-coverage', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ exclude: [...attempted] }),
-          timeoutMs: 120_000,
-        });
+        const result = await retryTransient(
+          () => apiJson<PortfolioCoverage>('/api/admin/quality/portal-coverage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ exclude: [...attempted] }),
+            timeoutMs: 120_000,
+          }),
+          { isTransient: isTransientCoverageError, waits: RETRY_WAIT_MS, onWaiting: setWaiting, shouldStop: () => stopped.current },
+        );
+        if (result === null) return;
         for (const model of result.checkedModels ?? []) attempted.add(model);
         setPortalCoverage(result);
         setProgress(current => ({ done: attempted.size, total: Math.max(current.total, attempted.size) }));
         if (!result.remaining || !result.checkedCount) break;
       }
     } catch (error) {
-      setPortalError(error instanceof Error ? error.message : 'Não foi possível consultar o Portal Husqvarna Brasil agora.');
+      setPortalError(isTransientCoverageError(error)
+        ? 'O servidor está ocupado ou reiniciando. O que já foi conferido ficou guardado; use o botão para continuar.'
+        : (error instanceof Error ? error.message : 'Não foi possível consultar o Portal Husqvarna Brasil agora.'));
     } finally {
+      setWaiting(false);
       setCheckingPortal(false);
     }
   };
@@ -186,7 +206,7 @@ export default function PortfolioCoveragePanel({
 
         {checkingPortal ? (
           <div role="status" className="mt-4 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3 text-sm leading-5 text-brand-800 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-300">
-            Conferindo os modelos no Portal Husqvarna Brasil, 8 por vez ({progress.done} de {progress.total}). Pode continuar usando o sistema.
+            {waiting ? 'O servidor está ocupado; tentando de novo em instantes. ' : ''}Conferindo os modelos no Portal Husqvarna Brasil, 8 por vez ({progress.done} de {progress.total}). Pode continuar usando o sistema.
           </div>
         ) : displayCoverage.remaining ? (
           <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 text-sm leading-5 text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
