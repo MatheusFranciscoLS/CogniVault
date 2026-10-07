@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "./theme.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -165,11 +166,11 @@
  *   custa frame e deixa a leitura de código de peça pior, não melhor.
  */
 :root {
-  font-family: "Roboto Flex", Roboto, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  font-family: "Barlow", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
   color: #1e1e1d;
   /* Página afastada do card branco: 1,10 -> 1,23 de separação, medido.
      Mantém o neutro quente do site da loja. */
-  background: #eae8e2;
+  background: var(--background);
 
   --cv-brand: #273a60;
   --cv-brand-dark: #1f2742;
@@ -202,42 +203,10 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
 }
 
 * { box-sizing: border-box; }
-html { background: var(--cv-neutral); }
+html { background: var(--background); }
 body { margin: 0; min-width: 320px; min-height: 100vh; overflow-x: hidden; }
 /* Dentro de @layer base DE PROPÓSITO. No Tailwind 4 uma regra de elemento fora
    de camada vence TODA classe utilitária: `button { font: inherit }` solta fazia
@@ -581,7 +550,7 @@ input[type="number"],
   color: #f4f4f3;
   /* Página mais profunda que o card (ink-900): 1,15 -> 1,24. O card não muda,
      porque ink-900 também é cor de texto em 108 lugares. */
-  background: #0f1426;
+  background: var(--background);
 
   --cv-brand: #94aacd;
   --cv-brand-dark: #5f7dae;
@@ -603,42 +572,11 @@ input[type="number"],
 
   --cv-shadow-card: 0 1px 2px rgba(0, 0, 0, .3), 0 1px 3px rgba(0, 0, 0, .24);
   --cv-shadow-raised: 0 12px 28px -8px rgba(0, 0, 0, .55), 0 4px 10px -4px rgba(0, 0, 0, .35);
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
 }
 
 /* Acompanha a superfície de página do tema escuro. Só aparece em overscroll,
    mas ficar num tom diferente do app entrega a emenda. */
-html.dark { background: #0f1426; }
+html.dark { background: var(--background); }
 
 .dark .cv-app-shell {
   background: linear-gradient(to bottom right, #1f2742, #161c2f);
@@ -687,7 +625,16 @@ html.dark { background: #0f1426; }
 */
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Barlow', system-ui, sans-serif;
+  --font-sans: 'Barlow', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  --font-code: 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif;
+  --color-bar: var(--bar);
+  --color-bar-foreground: var(--bar-foreground);
+  --color-gold: var(--gold);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-selected: var(--selected);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
