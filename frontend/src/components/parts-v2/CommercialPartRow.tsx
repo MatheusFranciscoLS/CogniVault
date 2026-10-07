@@ -5,9 +5,9 @@ import { recordQuoteUsage } from './quoteUsage';
 import PartRow from './PartRow';
 import type { CommercialPart } from './types';
 
-type Props = { part: CommercialPart; selected?: boolean; onSelect: () => void; onCopy: (code: string) => void; onOfficial: (part: CommercialPart) => void };
+type Props = { part: CommercialPart; onCopy: (code: string) => void; onOfficial: (part: CommercialPart) => void };
 
-export default function CommercialPartRow({ part, selected = false, onSelect, onCopy, onOfficial }: Props) {
+export default function CommercialPartRow({ part, onCopy, onOfficial }: Props) {
   const quoteCart = useQuoteCart();
   const code = cleanErpCode(part.partNumber);
   const applications = part.applications?.length ? part.applications : part.application ? [part.application] : [];
@@ -44,11 +44,9 @@ export default function CommercialPartRow({ part, selected = false, onSelect, on
         </button>
       }
       quantityInCart={inCart?.quantity}
-      selected={selected}
-      onSelect={onSelect}
+      onCopy={() => onCopy(code)}
       onAdd={addToQuote}
       menu={[
-        { label: 'Copiar código', onSelect: () => onCopy(code) },
         { label: 'Conferir na Husqvarna', onSelect: () => onOfficial(part) },
       ]}
     />

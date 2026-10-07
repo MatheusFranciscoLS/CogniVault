@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 /** Tabela de resultados: cabeçalho de colunas e grupos em régua, não pilha de cartões. */
 export function ResultsTable({ children }: { children: ReactNode }) {
   return (
-    <section aria-label="Resultados" className="overflow-hidden rounded-xl border border-border bg-card">
+    <section aria-label="Resultados" className="flex flex-col overflow-hidden rounded-xl border border-border bg-card">
       <div className={cn('hidden h-10 items-center gap-x-4 border-b border-border bg-muted px-4 text-sm font-semibold text-muted-foreground lg:grid', PART_ROW_GRID)}>
         <span>Código</span>
         <span>Peça</span>
@@ -20,10 +20,10 @@ export function ResultsTable({ children }: { children: ReactNode }) {
 }
 
 /** Título de um grupo de linhas (ex.: "No catálogo", "No cadastro de preços"). */
-export function ResultsGroup({ title, count, aside, showHeader = true, children }: { title: string; count?: string; aside?: ReactNode; showHeader?: boolean; children: ReactNode }) {
-  if (!showHeader) return <div>{children}</div>;
+export function ResultsGroup({ title, count, aside, showHeader = true, order, children }: { title: string; count?: string; aside?: ReactNode; showHeader?: boolean; /** Posição entre os grupos (menor vem primeiro). */ order?: number; children: ReactNode }) {
+  if (!showHeader) return <div style={{ order }}>{children}</div>;
   return (
-    <div>
+    <div style={{ order }}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted px-4 py-2">
         <div className="flex items-baseline gap-3">
           <h2 className="text-base font-semibold">{title}</h2>

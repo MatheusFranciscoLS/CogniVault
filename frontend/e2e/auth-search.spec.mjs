@@ -22,7 +22,8 @@ async function searchCarburettor(page) {
   await page.getByRole('button', { name: 'Buscar' }).click();
   const technicalResult = page.getByRole('button', { name: 'Abrir detalhes de CARBURADOR' });
   await expect(technicalResult).toBeVisible();
-  await expect(technicalResult.getByText('587106701', { exact: true })).toBeVisible();
+  // O código é um botão de copiar, ao lado do nome (que abre os detalhes).
+  await expect(page.getByRole('button', { name: 'Copiar código 587106701' }).first()).toBeVisible();
 }
 
 test('rota protegida rejeita navegador sem sessão', async ({ page }) => {

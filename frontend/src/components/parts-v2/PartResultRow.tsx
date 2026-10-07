@@ -2,21 +2,28 @@ import { useMemo } from 'react';
 import type { OfficialVerification } from '../../types';
 import { cleanErpCode, classifyPartKind } from '../../lib';
 import { useQuoteCart } from '../../context/QuoteCartContext';
-import { effectivePartNumber, isSupersededForCode, normalizePartCode, VerificationBadge } from '../PartVerificationDialog';
+import { effectivePartNumber, isSupersededForCode, normalizePartCode } from '../PartVerificationDialog';
 import { recordQuoteUsage } from './quoteUsage';
+import { alsoInLabel } from './group-parts';
 import PartRow from './PartRow';
 import type { SearchResultPart } from './types';
 
-type Props = { part: SearchResultPart; verification?: OfficialVerification; verificationLoading?: boolean; selected?: boolean; opening?: boolean; onSelect: () => void; onOpen: () => void; onCopy: (code: string) => void; onCrossReference: (code: string, name: string) => void };
+type Props = {
+  part: SearchResultPart;
+  /** O mesmo código em outros modelos/PNCs. A linha mostra "também em ..."; nada é perdido. */
+  others?: SearchResultPart[];
+  verification?: OfficialVerification;
+  opening?: boolean;
+  onOpen: () => void;
+  onCopy: (code: string) => void;
+};
 
-/** Só "conjunto" e "kit" mudam a venda; o resto da classificação era ruído na linha. */
-function classificationTag(kind: string) {
-  if (kind === 'ASSEMBLY') return <span className="rounded bg-ok-soft px-1.5 text-sm font-semibold text-ok">Conjunto completo</span>;
-  if (kind === 'REPAIR_KIT') return <span className="rounded bg-warn-soft px-1.5 text-sm font-semibold text-warn">Kit de reparo</span>;
-  return null;
+/** Só o que muda a venda vira etiqueta. O resto (origem, "não verificado") é ruído na linha. */
+function Tag({ tone, children }: { tone: 'ok' | 'warn'; children: string }) {
+  return <span className={`rounded px-1.5 text-sm font-semibold ${tone === 'ok' ? 'bg-ok-soft text-ok' : 'bg-warn-soft text-warn'}`}>{children}</span>;
 }
 
-export default function PartResultRow({ part, verification, verificationLoading = false, selected = false, opening = false, onSelect, onOpen, onCopy, onCrossReference }: Props) {
+export default function PartResultRow({ part, others = [], verification, opening = false, onOpen, onCopy }: Props) {
   const quoteCart = useQuoteCart();
   const superseded = isSupersededForCode(part.partNumber, verification);
   const rawCode = cleanErpCode(effectivePartNumber(part.partNumber, verification));
@@ -29,12 +36,13 @@ export default function PartResultRow({ part, verification, verificationLoading 
     quoteCart.addItem({ partNumber: rawCode, effectiveCode: rawCode, manufacturer: part.manufacturer, name: part.name, model: part.model, pnc: part.pnc, section: part.section, position: part.position, filename: part.filename, page: part.page, isSuperseded: superseded, originalCode: superseded ? originalRawCode : undefined, notes: part.notes, unitPrice: part.price ?? undefined });
   };
 
+  const alsoIn = alsoInLabel(part.model, others);
   const details = [
     part.model,
     part.pnc ? `PNC ${part.pnc}` : '',
     part.position ? `Pos. ${part.position}` : '',
     part.page ? `Pág. ${part.page}` : '',
-    superseded ? `substitui ${originalRawCode}` : '',
+    alsoIn ? `também em ${alsoIn}` : '',
   ].filter(Boolean);
 
   return (
@@ -43,19 +51,22 @@ export default function PartResultRow({ part, verification, verificationLoading 
       name={part.name}
       details={details}
       origin="CATALOG"
-      tags={<>{classificationTag(classification.kind)}<VerificationBadge verification={verification} loading={verificationLoading} /></>}
+      tags={
+        <>
+          {classification.kind === 'ASSEMBLY' && <Tag tone="ok">Conjunto completo</Tag>}
+          {classification.kind === 'REPAIR_KIT' && <Tag tone="warn">Kit de reparo</Tag>}
+          {/* "Substituído" só quando o código MUDOU: dizer "substituído" de um código que
+              continua o mesmo contradiz o próprio texto da linha. */}
+          {superseded && <Tag tone="warn">{`Código atualizado (era ${originalRawCode})`}</Tag>}
+          {!superseded && verification?.state === 'REVIEW' && <Tag tone="warn">Conferir código</Tag>}
+        </>
+      }
       price={part.price ?? null}
       quantityInCart={inCart?.quantity}
-      selected={selected}
       opening={opening}
-      onSelect={onSelect}
       onOpen={onOpen}
+      onCopy={() => onCopy(rawCode)}
       onAdd={addToQuote}
-      menu={[
-        { label: 'Copiar código', onSelect: () => onCopy(rawCode) },
-        { label: 'Onde usa esta peça', onSelect: () => onCrossReference(rawCode, part.name) },
-        { label: opening ? 'Abrindo…' : 'Ver detalhes', onSelect: onOpen },
-      ]}
     />
   );
 }

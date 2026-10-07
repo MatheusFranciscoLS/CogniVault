@@ -6,7 +6,6 @@ import { playCopySound } from '../../lib/sound';
 import { useCounterSession } from '../../context/CounterSessionContext';
 import type { FavoriteItem, OfficialVerification, PartDetail, SearchHistoryItem } from '../../types';
 import PartVerificationDialog, { isSupersededForCode, looksLikePartNumber, normalizePartCode } from '../PartVerificationDialog';
-import CrossReferenceDialog from '../CrossReferenceDialog';
 import ChatPanel from '../ChatPanel';
 import { Icon } from '../icons/Icon';
 import CounterSessionBar from '../CounterSessionBar';
@@ -24,6 +23,7 @@ import BriggsEnginePanel from '../machines/BriggsEnginePanel';
 import OfficialPartOrigin from '../machines/OfficialPartOrigin';
 import PartGuesses from './PartGuesses';
 import { ResultsGroup, ResultsSkeleton, ResultsTable } from './ResultsTable';
+import { groupPartsByCode, nameContainsPhrase } from './group-parts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -49,7 +49,6 @@ type Props = {
    */
   initialMachinePnc?: string;
 };
-type Selection = { kind: 'technical' | 'commercial'; id: string } | null;
 
 // Mesmo limite de backend/src/controllers/commercial-search.controller.ts
 // (loadCommercialSearch corta em .slice(0, 50)). Não há pacote compartilhado
@@ -62,6 +61,13 @@ const examples = [
   { label: 'Peça + modelo', value: 'carburador 143RII' },
   { label: 'Pergunta técnica', value: 'qual carburador serve na 143RII?' },
 ];
+
+/** Menor vem primeiro: português antes de outros idiomas, manual (OM) antes de lista de peças (IPL). */
+function extraRank(item: { title: string; languages: string[] }) {
+  const portuguese = item.languages.some(language => /^pt/i.test(language)) ? 0 : 2;
+  const manual = /^OM\b/i.test(item.title) ? 0 : 1;
+  return portuguese + manual;
+}
 
 function isTypingTarget(target: EventTarget | null) {
   return target instanceof HTMLInputElement
@@ -227,13 +233,10 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   // o cliente na frente é o atrito que a tela existe para tirar.
   const { recent: recentMachines, remember: rememberMachine } = useRecentMachines(storageScope);
   const [commercialParts, setCommercialParts] = useState<CommercialPart[]>([]);
-  const [priceSections, setPriceSections] = useState<PriceSection[]>([]);
-  const [priceSection, setPriceSection] = useState('');
   const [loading, setLoading] = useState(false);
   const [commercialLoading, setCommercialLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState('');
-  const [selection, setSelection] = useState<Selection>(null);
   const [officialResult, setOfficialResult] = useState<OfficialFallbackResult | null>(null);
   const [officialLoading, setOfficialLoading] = useState(false);
   const [detail, setDetail] = useState<PartDetail | null>(null);
@@ -241,9 +244,8 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   const [liveData, setLiveData] = useState<HusqvarnaLivePart | null>(null);
   const [pdf, setPdf] = useState<PdfPreview | null>(null);
   const [verifications, setVerifications] = useState<Record<string, OfficialVerification>>({});
-  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [, setVerificationLoading] = useState(false);
   const [verificationTarget, setVerificationTarget] = useState<{ partNumber: string; name: string } | null>(null);
-  const [crossReference, setCrossReference] = useState<{ code: string; name: string } | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [suggestions, setSuggestions] = useState<SearchResultPart[]>([]);
@@ -327,7 +329,6 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       const data = await apiJson<{ parts: CommercialPart[]; sections: PriceSection[] }>(`/api/master-parts/search?q=${encodeURIComponent(value)}${sectionQuery}`, signal ? { signal, timeoutMs: 45_000 } : { timeoutMs: 45_000 });
       if (signal?.aborted) return [];
       setCommercialParts(data.parts);
-      setPriceSections(data.sections);
       return data.parts;
     } catch (commercialError) {
       if (commercialError instanceof Error && commercialError.name === 'AbortError') return [];
@@ -376,8 +377,6 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     setBriggsModel('');
     setCommercialParts([]);
     setOfficialResult(null);
-    setPriceSection('');
-    setSelection(null);
     setVerifications({});
 
     try {
@@ -401,7 +400,6 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           accumulated = (message.parts ?? []).map(part => ({ ...part, source: 'CATALOG' as const }));
           setParts(accumulated);
           setDocuments(message.documents ?? []);
-          if (accumulated[0]) setSelection({ kind: 'technical', id: accumulated[0].id });
           return;
         }
         if (message.type === 'machines') {
@@ -430,8 +428,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       const commercial = await commercialPromise;
       if (signal?.aborted) return;
       if (accumulated.length > 0) void loadVerifications(accumulated, true);
-      else if (commercial[0]) setSelection({ kind: 'commercial', id: commercial[0].id });
-      else await consultOfficial(resolvedQuery);
+      else if (!commercial[0]) await consultOfficial(resolvedQuery);
     } catch (searchError) {
       if (searchError instanceof Error && searchError.name === 'AbortError') return;
       setError(searchError instanceof Error ? searchError.message : 'Erro ao pesquisar.');
@@ -510,8 +507,27 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   }, [closeSuggestions, initialQuery, onQueryChange, runSearch]);
 
   const hasLocalResults = parts.length > 0 || commercialParts.length > 0;
-  const hasCommercialGroup = commercialParts.length > 0 || commercialLoading || priceSections.length > 0;
-  const showGroupHeaders = parts.length > 0 && hasCommercialGroup;
+  // Uma linha por código. O cadastro de preços só mostra o que o catálogo ainda não mostrou: a mesma
+  // peça, com o mesmo preço, em dois grupos era a mesma linha duas vezes.
+  const partGroups = useMemo(() => groupPartsByCode(parts), [parts]);
+  const visibleCommercial = useMemo(() => {
+    const shown = new Set(partGroups.map(group => normalizePartCode(group.main.partNumber)));
+    return commercialParts.filter(item => !shown.has(normalizePartCode(item.partNumber)));
+  }, [commercialParts, partGroups]);
+  const hasCommercialGroup = visibleCommercial.length > 0 || commercialLoading;
+  const showGroupHeaders = partGroups.length > 0 && hasCommercialGroup;
+  // Vem primeiro o grupo que tem o NOME que o cliente falou. "vela de ignição" achava 21 chaves e
+  // fivelas no catálogo e deixava as velas de verdade, do cadastro, lá embaixo.
+  // Conta quantas peças de cada grupo têm esse nome (44 velas contra 1 plugue de teste); empate fica com o catálogo.
+  const commercialFirst = visibleCommercial.filter(item => nameContainsPhrase(item.name, lastQuery)).length
+    > partGroups.filter(group => nameContainsPhrase(group.main.name, lastQuery)).length;
+  // Atalhos de documento: o manual em português primeiro, o manual antes da lista de peças, sem repetir.
+  const sortedExtras = useMemo(() => {
+    const seen = new Set<string>();
+    return [...officialExtras]
+      .filter(item => { const key = `${item.title}|${item.languages.join(',')}`; if (seen.has(key)) return false; seen.add(key); return true; })
+      .sort((a, b) => extraRank(a) - extraRank(b));
+  }, [officialExtras]);
 
   const copyCode = useCallback(async (code: string) => {
     const raw = cleanErpCode(code);
@@ -565,9 +581,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     setCommercialParts([]);
     setOfficialResult(null);
     setHasSearched(false);
-    setSelection(null);
     setError('');
-    setPriceSection('');
     onQueryChange('');
     window.requestAnimationFrame(() => inputRef.current?.focus());
   };
@@ -620,23 +634,12 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     }
   }, [detail]);
 
-  const changePriceSection = (section: string) => {
-    setPriceSection(section);
-    setSelection(null);
-    if (lastQuery.length >= 2) {
-      void fetchCommercial(lastQuery, section).then(items => {
-        if (items?.[0]) setSelection({ kind: 'commercial', id: items[0].id });
-      });
-    }
-  };
-
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         if (aiOpen) setAiOpen(false);
         else if (pdf) setPdf(null);
         else if (verificationTarget) setVerificationTarget(null);
-        else if (crossReference) setCrossReference(null);
         else if (detail) setDetail(null);
         return;
       }
@@ -648,7 +651,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [aiOpen, crossReference, detail, pdf, verificationTarget]);
+  }, [aiOpen, detail, pdf, verificationTarget]);
 
   const detailVerification = detail ? verifications[normalizePartCode(detail.partNumber)] : undefined;
 
@@ -710,7 +713,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
 
       {/* Máquina e documentos viram atalhos pequenos, em uma linha: a peça buscada vem
           primeiro. Antes eram uma lista de 12 linhas na frente do resultado. */}
-      {(machines.length > 0 || officialExtras.length > 0 || recentMachines.length > 0) && (
+      {(machines.length > 0 || sortedExtras.length > 0 || recentMachines.length > 0) && (
         <div className="flex flex-wrap items-center gap-2">
           {recentMachines.map(item => (
             <Button key={item.pnc} variant="outline" size="sm" onClick={() => setOpenMachine({ pnc: item.pnc, name: item.name })} title={item.meta || `PNC ${item.pnc}`} className="max-w-64">
@@ -735,7 +738,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
               <span className="font-code text-sm font-medium text-muted-foreground tabular-nums">PNC {item.pnc}</span>
             </Button>
           ))}
-          {(showAllExtras ? officialExtras : officialExtras.slice(0, 4)).map(item => (
+          {(showAllExtras ? sortedExtras : sortedExtras.slice(0, 3)).map(item => (
             <Button key={`${item.kind}-${item.id}`} variant="outline" size="sm" asChild className="max-w-full sm:max-w-72">
               <a
                 href={item.portalUrl as string}
@@ -748,9 +751,9 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
               </a>
             </Button>
           ))}
-          {officialExtras.length > 4 && (
+          {sortedExtras.length > 3 && (
             <Button variant="ghost" size="sm" onClick={() => setShowAllExtras(value => !value)} aria-expanded={showAllExtras}>
-              {showAllExtras ? 'Mostrar menos' : `+ ${officialExtras.length - 4}`}
+              {showAllExtras ? 'Mostrar menos' : `+ ${sortedExtras.length - 3}`}
             </Button>
           )}
         </div>
@@ -772,45 +775,32 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
               o fabricante. */}
           {hasSearched && <OfficialPartOrigin code={lastQuery} onSearchPart={beginSearch} />}
 
-          {(parts.length > 0 || commercialParts.length > 0 || commercialLoading || priceSections.length > 0) && (
+          {(partGroups.length > 0 || hasCommercialGroup) && (
             <ResultsTable>
-              {parts.length > 0 && (
-                <ResultsGroup title="No catálogo" showHeader={showGroupHeaders} count={`${parts.length} resultado${parts.length === 1 ? '' : 's'}`}>
-                  {parts.map(part => (
+              {partGroups.length > 0 && (
+                <ResultsGroup title="No catálogo" order={commercialFirst ? 2 : 1} showHeader={showGroupHeaders} count={`${partGroups.length} resultado${partGroups.length === 1 ? '' : 's'}`}>
+                  {partGroups.map(({ main: part, others }) => (
                     <PartResultRow
                       key={part.id}
                       part={part}
+                      others={others}
                       verification={verifications[normalizePartCode(part.partNumber)]}
-                      verificationLoading={verificationLoading}
-                      selected={selection?.kind === 'technical' && selection.id === part.id}
                       opening={detailLoadingId === part.id}
-                      onSelect={() => setSelection({ kind: 'technical', id: part.id })}
                       onOpen={() => void openPart(part.id)}
                       onCopy={code => void copyCode(code)}
-                      onCrossReference={(code, name) => setCrossReference({ code, name })}
                     />
                   ))}
                 </ResultsGroup>
               )}
 
-              {(commercialParts.length > 0 || commercialLoading || priceSections.length > 0) && (
+              {hasCommercialGroup && (
                 <ResultsGroup
                   title="Cadastro de preços"
-                  showHeader={showGroupHeaders || priceSections.length > 1}
-                  count={commercialLoading ? 'Consultando…' : `${commercialParts.length} resultado${commercialParts.length === 1 ? '' : 's'}`}
-                  aside={priceSections.length > 1 ? (
-                    <select
-                      value={priceSection}
-                      onChange={event => changePriceSection(event.target.value)}
-                      aria-label="Filtrar por seção"
-                      className="h-9 rounded-md border border-input bg-card px-2 text-sm font-medium text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/60"
-                    >
-                      <option value="">Todas as seções</option>
-                      {priceSections.map(section => <option key={section.name} value={section.name}>{section.name} · {section.count}</option>)}
-                    </select>
-                  ) : undefined}
+                  order={commercialFirst ? 1 : 2}
+                  showHeader={showGroupHeaders}
+                  count={commercialLoading ? 'Consultando…' : `${visibleCommercial.length} resultado${visibleCommercial.length === 1 ? '' : 's'}`}
                 >
-                  {commercialParts.map(part => <CommercialPartRow key={part.id} part={part} selected={selection?.kind === 'commercial' && selection.id === part.id} onSelect={() => setSelection({ kind: 'commercial', id: part.id })} onCopy={code => void copyCode(code)} onOfficial={item => void consultOfficial(item.partNumber)} />)}
+                  {visibleCommercial.map(part => <CommercialPartRow key={part.id} part={part} onCopy={code => void copyCode(code)} onOfficial={item => void consultOfficial(item.partNumber)} />)}
                   {commercialParts.length === COMMERCIAL_RESULTS_CAP && (
                     <div className="border-t border-border bg-muted px-4 py-2.5 text-sm text-muted-foreground">
                       Mostrando os {COMMERCIAL_RESULTS_CAP} primeiros. Refine a busca para ver os demais.
@@ -900,9 +890,8 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
         </PanelErrorBoundary>
       )}
 
-      {detail && <PanelErrorBoundary key={`peca-${detail.partNumber}`} onClose={() => setDetail(null)}><PartDetailDrawer detail={detail} verification={detailVerification} verificationLoading={verificationLoading} liveData={liveData} onClose={() => setDetail(null)} onCopy={code => void copyCode(code)} onOpenPdf={(documentId, page, title) => void accessPdf(documentId, page, title)} onOpenRelated={id => void openPart(id)} onToggleFavorite={() => void toggleFavorite()} onVerify={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} onCrossReference={(code, name) => setCrossReference({ code, name })} onAskAi={openAi} /></PanelErrorBoundary>}
+      {detail && <PanelErrorBoundary key={`peca-${detail.partNumber}`} onClose={() => setDetail(null)}><PartDetailDrawer detail={detail} verification={detailVerification} liveData={liveData} onClose={() => setDetail(null)} onCopy={code => void copyCode(code)} onOpenPdf={(documentId, page, title) => void accessPdf(documentId, page, title)} onOpenRelated={id => void openPart(id)} onToggleFavorite={() => void toggleFavorite()} onVerify={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} onAskAi={openAi} /></PanelErrorBoundary>}
       {verificationTarget && <PartVerificationDialog target={verificationTarget} existing={verifications[normalizePartCode(verificationTarget.partNumber)]} onClose={() => setVerificationTarget(null)} onSaved={() => { setVerificationTarget(null); toast.success('Conferência enviada para aprovação.'); if (detail) void loadVerifications([detail]); }} />}
-      {crossReference && <CrossReferenceDialog partCode={crossReference.code} partName={crossReference.name} onClose={() => setCrossReference(null)} />}
 
       {pdf && (
         <div className="fixed inset-0 z-90 bg-ink-950/90 p-3 md:p-5">

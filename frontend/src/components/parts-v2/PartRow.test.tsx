@@ -12,6 +12,7 @@ const base = {
   price: 187.4,
   onSelect: () => undefined,
   onAdd: () => undefined,
+  onCopy: () => undefined,
   menu: [{ label: 'Copiar código', onSelect: () => undefined }],
 };
 
@@ -43,11 +44,17 @@ describe('PartRow', () => {
     expect(screen.queryByRole('button', { name: /\+ Orçamento/ })).toBeNull();
   });
 
-  it('o código abre os detalhes e tem o nome que o e2e e o leitor de tela esperam', () => {
+  it('o nome abre os detalhes e o código copia com um clique', () => {
     const onOpen = vi.fn();
-    render(<PartRow {...base} onOpen={onOpen} />);
+    const onCopy = vi.fn();
+    render(<PartRow {...base} onOpen={onOpen} onCopy={onCopy} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir detalhes de CARBURADOR' }));
+    expect(onOpen).toHaveBeenCalledTimes(1);
+
+    // O sistema de venda é outro: copiar o código é a ação mais usada do balcão.
+    fireEvent.click(screen.getByRole('button', { name: 'Copiar código 587106701' }));
+    expect(onCopy).toHaveBeenCalledTimes(1);
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
