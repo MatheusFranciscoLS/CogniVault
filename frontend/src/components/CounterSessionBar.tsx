@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useCounterSession } from '../context/CounterSessionContext';
+import { useConfirm } from '../context/confirm';
 import type { CounterSession } from '../context/CounterSessionContext';
 import { useQuoteCart } from '../context/QuoteCartContext';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ type Props = { onOpenMachine?: (pnc: string) => void };
 export default function CounterSessionBar({ onOpenMachine }: Props) {
   const { session, updateSession, clearSession } = useCounterSession();
   const quoteCart = useQuoteCart();
+  const confirm = useConfirm();
   const [expanded, setExpanded] = useState(false);
   const temContexto = Boolean(session.customerName.trim() || session.machineModel.trim() || session.pnc.trim() || session.serial.trim());
   const hasAnything = temContexto || quoteCart.totalItems > 0;
@@ -37,10 +39,10 @@ export default function CounterSessionBar({ onOpenMachine }: Props) {
   // plausível o atalho só levaria o balcão a um erro.
   const machinePnc = /^\d{8,14}$/.test(session.pnc.replace(/\D/g, '')) ? session.pnc.replace(/\D/g, '') : '';
 
-  const endSession = () => {
+  const endSession = async () => {
     if (!hasAnything) return;
     if (quoteCart.totalItems > 0) {
-      const confirmed = window.confirm('Encerrar o atendimento e limpar o orçamento atual?');
+      const confirmed = await confirm({ title: 'Encerrar o atendimento?', description: 'O orçamento atual será esvaziado.', confirmLabel: 'Encerrar', destructive: true });
       if (!confirmed) return;
       quoteCart.clearCart();
     }

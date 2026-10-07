@@ -11,6 +11,7 @@ export const OUT = path.join(process.env.LOCALAPPDATA ?? '.', 'Temp', 'cvsim', '
 fs.mkdirSync(OUT, { recursive: true });
 
 const results = [];
+export const nativeDialogs = [];
 export const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'OK    ' : 'FALHOU'} ${name}${detail ? ' — ' + detail : ''}`); };
 export const step = async (name, fn) => { try { await fn(); } catch (e) { check(name, false, String(e.message).split('\n')[0]); } };
 
@@ -22,7 +23,7 @@ export async function open({ theme = 'dark', width = 1366, height = 768, login =
   const errors = [];
   // Diálogos nativos (confirm/alert) são cancelados sozinhos pelo Playwright. Aceita e registra: cada um é
   // uma tela feia do navegador que o balcão vê e que devia ser um diálogo do próprio site.
-  page.on('dialog', d => { console.log(`   [diálogo nativo do navegador] ${d.type()}: ${d.message()}`); void d.accept(); });
+  page.on('dialog', d => { nativeDialogs.push(`${d.type()}: ${d.message()}`); console.log(`   [diálogo nativo do navegador] ${d.type()}: ${d.message()}`); void d.accept(); });
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text().slice(0, 200)); });
   page.on('pageerror', e => errors.push('pageerror: ' + String(e).slice(0, 200)));
   if (login) {
@@ -32,6 +33,9 @@ export async function open({ theme = 'dark', width = 1366, height = 768, login =
     await page.getByRole('button', { name: 'Entrar', exact: true }).click();
     await page.waitForURL(/\/dashboard/);
     await clearQuote(page);
+    // A tela já tinha lido o rascunho antigo: sem recarregar, ela mostraria itens que o servidor já não tem.
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
   }
   return { browser, page, errors, theme };
 }
@@ -39,7 +43,17 @@ export async function open({ theme = 'dark', width = 1366, height = 768, login =
 export const clearQuote = page => page.evaluate(() => fetch('/api/quotes/draft', { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [], options: {} }) }));
 export const shot = (page, name) => page.screenshot({ path: path.join(OUT, `${name}.png`) });
 
+/** Clica no botão do diálogo de confirmação do SITE (AlertDialog), se ele aparecer. */
+export async function confirmar(page, nome, { obrigatorio = true } = {}) {
+  const dialogo = page.getByRole('alertdialog');
+  try { await dialogo.waitFor({ timeout: obrigatorio ? 5000 : 1200 }); } catch { if (obrigatorio) throw new Error(`o diálogo de confirmação não apareceu (${nome})`); return false; }
+  await dialogo.getByRole('button', { name: nome }).click();
+  await page.waitForTimeout(400);
+  return true;
+}
+
 export async function finish(browser, errors) {
+  check('nenhum diálogo nativo do navegador apareceu (as confirmações são do próprio site)', nativeDialogs.length === 0, nativeDialogs.join(' | '));
   check('nenhum erro no console durante todo o roteiro', errors.length === 0, errors.slice(0, 3).join(' | '));
   await browser.close();
   const falhas = results.filter(r => !r.ok);

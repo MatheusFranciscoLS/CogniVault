@@ -5,6 +5,7 @@ import ReloadPrompt from './components/ReloadPrompt';
 import QuickQuoteCart from './components/QuickQuoteCart';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { QuoteCartProvider } from './context/QuoteCartContext';
+import { ConfirmProvider } from './context/ConfirmProvider';
 import { CounterSessionProvider } from './context/CounterSessionProvider';
 import { activateQuoteStorageScope, quoteStorageScopeFromSession } from './lib/quote-storage-scope';
 
@@ -70,6 +71,7 @@ function SessionScopedApplication() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <ConfirmProvider>
       <QuoteCartProvider key={`quote:${storageScope}`}>
         <CounterSessionProvider key={`counter:${storageScope}`}>
           <Suspense fallback={<RouteLoading />}>
@@ -85,6 +87,7 @@ function SessionScopedApplication() {
           <ReloadPrompt />
         </CounterSessionProvider>
       </QuoteCartProvider>
+      </ConfirmProvider>
     </QueryClientProvider>
   );
 }

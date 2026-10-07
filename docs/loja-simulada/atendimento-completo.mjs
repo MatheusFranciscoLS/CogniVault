@@ -1,6 +1,6 @@
 // Tela ATENDIMENTO inteira: cabeçalho, contexto do cliente/máquina, busca (código, descrição, acento, vazio),
 // resultados (grupos, linhas, atalhos), faixa de orçamento e menus. Uso (de frontend/): node ../docs/loja-simulada/atendimento-completo.mjs [tema]
-import { open, check, step, finish, shot, SEARCH } from './_t.mjs';
+import { open, check, step, finish, shot, confirmar, SEARCH } from './_t.mjs';
 
 const { browser, page, errors, theme } = await open({ theme: process.argv[2] ?? 'dark' });
 const busca = page.getByPlaceholder(SEARCH);
@@ -136,6 +136,9 @@ await step('contexto: cliente, máquina, PNC, série', async () => {
   // Abrir a vista explodida de uma máquina já grava a máquina no atendimento: começa limpo.
   console.log('   botões "Encerrar atendimento":', await page.getByRole('button', { name: 'Encerrar atendimento' }).count());
   await page.getByRole('button', { name: 'Encerrar atendimento' }).first().click({ timeout: 3000 }).catch(e => console.log('   clique falhou:', String(e.message).slice(0, 200)));
+  // Com itens no orçamento o site pergunta antes de esvaziar (diálogo do próprio site, não do navegador).
+  const perguntou = await confirmar(page, 'Encerrar', { obrigatorio: false });
+  check('encerrar com itens no orçamento pergunta antes (diálogo do site)', perguntou);
   await page.waitForTimeout(800);
   console.log('   botões do contexto:', await page.locator('main button').evaluateAll(l => l.slice(0, 5).map(b => b.innerText.replace(/\s+/g, ' '))));
   await shot(page, `${theme}-1366-atendimento-contexto-antes`);
@@ -197,14 +200,27 @@ await step('duas buscas seguidas não se misturam', async () => {
   await busca.fill('junta do carburador');
   await busca.press('Enter');
   await page.waitForTimeout(150);
+  // Espera a resposta da busca NOVA (na simulação o servidor pode levar vários segundos, porque a busca anterior
+  // ainda ocupa a fase "por significado"): sem ela não há o que comparar.
+  const respostaDaNova = page.waitForResponse(r => /master-parts\/search/.test(r.url()) && /vela/.test(decodeURIComponent(r.url())), { timeout: 45000 });
   await busca.fill('vela de ignição');
   await busca.press('Enter');
+  await respostaDaNova;
+  await page.waitForTimeout(1500);
   await esperarFim(40000);
-  await page.waitForTimeout(3000);
-  const nomes = await page.locator('article h3, article span.truncate').allInnerTexts();
-  const carburador = nomes.filter(n => /CARBURADOR/i.test(n)).length;
-  const vela = nomes.filter(n => /VELA/i.test(n)).length;
-  check('a lista final é da ÚLTIMA busca (velas), sem peças da anterior', vela > 0 && carburador === 0, `${vela} de vela, ${carburador} de carburador`);
+  await page.waitForTimeout(1500);
+  // Compara os CÓDIGOS na tela com o que a API devolve para cada busca: determinístico, sem depender da fase
+  // "por significado" (que na simulação usa uma IA de mentira e traz peças variadas).
+  const codigosDaApi = q => page.evaluate(async q => {
+    const r = await fetch('/api/master-parts/search?q=' + encodeURIComponent(q), { credentials: 'include' }).then(x => x.json());
+    return (r.parts ?? []).map(p => String(p.partNumber).replace(/[^A-Za-z0-9]/g, '').toUpperCase());
+  }, q);
+  const primeira = new Set(await codigosDaApi('junta do carburador'));
+  const segunda = new Set(await codigosDaApi('vela de ignição'));
+  const naTela = (await page.locator('article button[aria-label^="Copiar código"]').evaluateAll(l => l.map(b => b.getAttribute('aria-label').replace('Copiar código ', '').replace(/[^A-Za-z0-9]/g, '').toUpperCase())));
+  const daAnterior = naTela.filter(c => primeira.has(c) && !segunda.has(c));
+  const daUltima = naTela.filter(c => segunda.has(c));
+  check('a lista final é da ÚLTIMA busca: tem peças dela e nenhuma que só a anterior traria', daUltima.length > 0 && daAnterior.length === 0, `${daUltima.length} da última, ${daAnterior.length} só da anterior`);
 });
 
 await step('pergunta de óleo', async () => {

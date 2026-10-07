@@ -145,6 +145,17 @@ Todas com texto de 9 a 12 px e frases que explicam o sistema; nenhuma tem erro n
 | Qualidade | 6 | 2.659 caracteres de texto; manter, refazer |
 | Auditoria | 1 | 100 eventos, só leitura; juntar com Visão geral |
 
+### Desempenho do servidor (achado pelo roteiro do Atendimento)
+| | Achado |
+|---|---|
+| ✅ | **Uma busca descritiva congelava o servidor inteiro por 5 a 10 s** (até o `/health/live` ficava sem resposta). Perfil de CPU: 12 de 15 s estavam em `part-vocabulary.ts` e `normalizeText`, que renormalizavam o vocabulário todo a cada peça candidata. Corrigido guardando o que não muda; **8.325 ms → 459 ms** ("junta do carburador"), 4.056 textos e 3.000 peças comparados com a versão antiga: **0 diferenças**. Vai em PR separado (é backend, afeta a produção) |
+| 💡 | O Render free tem CPU bem menor que esta máquina: antes da correção o mesmo congelamento seria muito pior lá, e o health check podia dar timeout |
+
+### Diálogos de confirmação
+| | Achado |
+|---|---|
+| ✅ | Os 9 `window.confirm` do navegador viraram um diálogo do site (`useConfirm`, AlertDialog do shadcn): texto do que será perdido, botão com o nome da ação ("Esvaziar", "Excluir"), vermelho quando apaga; os roteiros agora falham se um diálogo nativo aparecer |
+
 ### Painel da máquina / vista explodida
 | | Achado |
 |---|---|

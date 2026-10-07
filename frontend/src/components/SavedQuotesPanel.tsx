@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { useConfirm } from '../context/confirm';
 import { useQuoteCart } from '../context/QuoteCartContext';
 import type { SavedQuote } from '../context/QuoteCartContext';
 import { apiJson, cleanErpCode, formatHusqvarnaPartNumber } from '../lib';
@@ -93,6 +94,7 @@ function copyCode(code: string) {
 
 export default function SavedQuotesPanel() {
   const { restoreQuote, deleteSavedQuote, refreshSavedQuotes } = useQuoteCart();
+  const confirm = useConfirm();
 
   const [filter, setFilter] = useState('');
   const [appliedFilter, setAppliedFilter] = useState('');
@@ -157,13 +159,13 @@ export default function SavedQuotesPanel() {
     reload();
   };
 
-  const handleRestore = (quote: ApiQuoteListItem) => {
-    if (!confirm('Retomar este orçamento substituirá os itens da cesta atual. Continuar?')) return;
+  const handleRestore = async (quote: ApiQuoteListItem) => {
+    if (!(await confirm({ title: 'Retomar este orçamento?', description: 'Os itens da cesta atual serão substituídos pelos deste orçamento.', confirmLabel: 'Retomar' }))) return;
     restoreQuote(toSavedQuote(quote));
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Excluir este orçamento do histórico? Esta ação não pode ser desfeita.')) return;
+    if (!(await confirm({ title: 'Excluir este orçamento?', description: 'Ele sai do histórico e não dá para desfazer.', confirmLabel: 'Excluir', destructive: true }))) return;
     await deleteSavedQuote(id);
     await refreshSavedQuotes();
     reload();

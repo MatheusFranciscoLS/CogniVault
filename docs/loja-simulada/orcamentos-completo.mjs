@@ -1,6 +1,6 @@
 // Tela ORÇAMENTOS (arquivo) inteira: contagem, filtros (texto e datas), linhas, itens, copiar código, retomar e excluir.
 // Uso (de dentro de frontend/): node ../docs/loja-simulada/orcamentos-completo.mjs [tema]
-import { open, check, step, finish, shot } from './_t.mjs';
+import { open, check, step, finish, shot, confirmar } from './_t.mjs';
 
 const { browser, page, errors, theme } = await open({ theme: process.argv[2] ?? 'dark' });
 
@@ -91,6 +91,7 @@ await step('abrir os itens e copiar código', async () => {
 await step('retomar', async () => {
   const linha = page.locator('tr, article, li').filter({ hasText: 'Maria Souza' }).first();
   await linha.getByRole('button', { name: 'Retomar' }).click();
+  await confirmar(page, 'Retomar');
   await page.waitForTimeout(2000);
   const gaveta = page.getByRole('dialog').first();
   check('retomar abre a gaveta do orçamento com a cesta restaurada', (await gaveta.getByPlaceholder('Nome do cliente').inputValue()) === 'Maria Souza' && /2 itens|1 item/.test(await gaveta.innerText()));
@@ -110,6 +111,8 @@ await step('excluir', async () => {
   console.log('   linhas com João Pereira:', await page.locator('main').getByText('João Pereira').count(), '| botões Excluir:', await page.getByRole('button', { name: 'Excluir orçamento' }).count());
   const linha = page.locator('main').getByText('João Pereira').first().locator('xpath=ancestor::*[.//button[@aria-label="Excluir orçamento"]][1]');
   await linha.getByRole('button', { name: 'Excluir orçamento' }).click();
+  check('excluir pergunta antes, avisando que não dá para desfazer', (await page.getByRole('alertdialog').innerText()).includes('desfazer'));
+  await confirmar(page, 'Excluir');
   await pronto();
   check('excluir tira o orçamento da lista', (await contagem()) === antes - 1, `${antes} → ${await contagem()}`);
 });

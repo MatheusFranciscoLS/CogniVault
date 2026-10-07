@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { useConfirm } from '../context/confirm';
 import { Check, Copy, Minus, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCounterSession } from '../context/CounterSessionContext';
@@ -7,7 +8,7 @@ import { useQuoteCart } from '../context/QuoteCartContext';
 import type { QuoteCartItem, QuoteSyncState, QuoteTextOptions } from '../context/QuoteCartContext';
 import { formatHusqvarnaPartNumber, cleanErpCode } from '../lib';
 import { playCopySound } from '../lib/sound';
-import { quoteTotals } from '../lib/quote-message';
+import { formatBRL, quoteTotals } from '../lib/quote-message';
 import { Icon } from './icons/Icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,9 +40,9 @@ const CUSTOM_ITEM_PRESETS = [
   'Mão de obra / Revisão Geral',
 ];
 
-function money(value: number): string {
-  return `R$ ${value.toFixed(2).replace('.', ',')}`;
-}
+// Mesma formatação do texto e do PDF que o cliente recebe, com ponto de milhar ("R$ 1.202,87"): a tela do
+// balcão mostrava "R$ 1202,87", e o atendente lia o total de um jeito e o cliente recebia de outro.
+const money = formatBRL;
 
 /**
  * Onde o orçamento está guardado. O atendente precisa dessa informação na tela:
@@ -218,6 +219,7 @@ export default function QuickQuoteCart() {
   } = useQuoteCart();
 
   const { session } = useCounterSession();
+  const confirm = useConfirm();
 
   const [showCustomItemForm, setShowCustomItemForm] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
@@ -261,8 +263,9 @@ export default function QuickQuoteCart() {
   };
 
   // Esvaziar apaga o trabalho do atendimento: pede confirmação, como o "Encerrar".
-  const handleClear = () => {
-    if (window.confirm('Esvaziar o orçamento?')) clearCart();
+  const handleClear = async () => {
+    const confirmed = await confirm({ title: 'Esvaziar o orçamento?', description: totalItems === 1 ? 'O item será removido.' : `Os ${totalItems} itens serão removidos.`, confirmLabel: 'Esvaziar', destructive: true });
+    if (confirmed) clearCart();
   };
 
   return (

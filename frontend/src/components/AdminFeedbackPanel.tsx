@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, fmtDate, json } from '../lib';
+import { useConfirm } from '../context/confirm';
 import type { AdminFeedback } from '../types';
 
 const reasonLabel: Record<string, string> = {
@@ -12,6 +13,7 @@ const reasonLabel: Record<string, string> = {
 };
 
 export default function AdminFeedbackPanel() {
+  const confirm = useConfirm();
   const [items, setItems] = useState<AdminFeedback[]>([]);
   const [summary, setSummary] = useState<{
     total: number;
@@ -56,7 +58,7 @@ export default function AdminFeedbackPanel() {
   }, []);
 
   async function seedKnowledge() {
-    if (!window.confirm('Inicializar sinais verificados com peças de alto giro encontradas nos catálogos?')) return;
+    if (!(await confirm({ title: 'Inicializar sinais verificados?', description: 'Cria sinais de confiança com as peças de alto giro encontradas nos catálogos.', confirmLabel: 'Inicializar' }))) return;
     setSeeding(true); setError(''); setNotice('');
     try {
       const response = await json<{ message: string; createdCount: number }>(await api('/api/admin/feedback/seed-knowledge', { method: 'POST' }));
@@ -68,7 +70,7 @@ export default function AdminFeedbackPanel() {
   }
 
   async function deleteFeedback(id: string) {
-    if (!window.confirm('Deseja excluir este registro de feedback?')) return;
+    if (!(await confirm({ title: 'Excluir este feedback?', description: 'O registro será removido.', confirmLabel: 'Excluir', destructive: true }))) return;
     setDeletingId(id); setError(''); setNotice('');
     try {
       await json<{ message: string }>(await api(`/api/admin/feedback/${id}`, { method: 'DELETE' }));

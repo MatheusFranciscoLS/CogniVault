@@ -2,7 +2,7 @@
 // pagamento, desconto, WhatsApp (texto e número), PDF, imprimir, esvaziar e arquivamento.
 // Uso (de dentro de frontend/): node ../docs/loja-simulada/orcamento-completo.mjs [tema]
 import fs from 'node:fs';
-import { open, check, step, finish, shot, SEARCH, OUT } from './_t.mjs';
+import { open, check, step, finish, shot, confirmar, SEARCH, OUT } from './_t.mjs';
 import path from 'node:path';
 
 const { browser, page, errors, theme } = await open({ theme: process.argv[2] ?? 'dark' });
@@ -21,9 +21,13 @@ await busca.waitFor();
 
 await busca.fill('carburador 143RII');
 await busca.press('Enter');
-await page.waitForTimeout(3500);
-const botoes = page.getByRole('button', { name: /^\+ Orçamento/ });
-for (let i = 0; i < 3; i++) await botoes.first().click();
+// Espera a busca assentar (a fase "por significado" pode acrescentar linhas) e adiciona as 3 primeiras linhas.
+await page.getByRole('button', { name: 'Buscar', exact: true }).waitFor({ timeout: 40000 });
+await page.waitForTimeout(6000);
+for (let i = 0; i < 3; i++) {
+  await page.getByRole('button', { name: /^\+ Orçamento/ }).first().click();
+  await page.waitForTimeout(500);
+}
 await page.waitForTimeout(800);
 await page.getByRole('button', { name: 'Revisar orçamento' }).click();
 const gaveta = page.getByRole('dialog').first();
@@ -165,6 +169,8 @@ await step('remover e esvaziar', async () => {
   await page.waitForTimeout(400);
   check('remover tira exatamente um item', (await gaveta.getByRole('button', { name: /^Remover / }).count()) === antesDeRemover - 1, `${antesDeRemover} → ${await gaveta.getByRole('button', { name: /^Remover / }).count()}`);
   await gaveta.getByRole('button', { name: 'Esvaziar' }).click();
+  check('esvaziar pergunta antes, no diálogo do site, dizendo quantos itens vão', (await page.getByRole('alertdialog').innerText()).includes('itens'));
+  await confirmar(page, 'Esvaziar');
   await page.waitForTimeout(800);
   check('esvaziar limpa o orçamento', (await page.getByRole('dialog').count()) === 0 || (await page.getByText('Adicione peças').count()) > 0);
 });

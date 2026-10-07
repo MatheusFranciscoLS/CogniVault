@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiJson, fmtDate } from '../lib';
+import { useConfirm } from '../context/confirm';
 import type { AiQualityData, BenchmarkRun, QualityCatalog, SearchRadarItem } from '../types';
 import PortfolioCoveragePanel from './PortfolioCoveragePanel';
 import type { PortfolioCoverage } from './PortfolioCoveragePanel';
@@ -48,6 +49,7 @@ function latestBenchmark(data: AiQualityData | null): BenchmarkRun | null {
 }
 
 export default function QualityPanel({ onSearch }: { onSearch?: (query: string) => void }) {
+  const confirm = useConfirm();
   const [data, setData] = useState<AiQualityData | null>(null);
   const [coverage, setCoverage] = useState<PortfolioCoverage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -129,7 +131,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
   };
 
   const clearSemantics = async () => {
-    if (!window.confirm('Deseja remover os embeddings antigos das peças e seções para manter a busca 100% direta e limpa?')) return;
+    if (!(await confirm({ title: 'Remover os embeddings antigos?', description: 'Tira os vetores antigos das peças e seções para a busca ficar direta e limpa.', confirmLabel: 'Remover', destructive: true }))) return;
     setClearingSemantics(true); setError(''); setNotice('');
     try {
       const response = await apiJson<{ message: string }>('/api/admin/quality/clear-semantics', {
@@ -235,7 +237,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
   };
 
   const clearAllRadar = async () => {
-    if (!window.confirm('Deseja dispensar todas as consultas pendentes do radar?')) return;
+    if (!(await confirm({ title: 'Dispensar as consultas pendentes?', description: 'Todas as consultas pendentes do radar serão dispensadas.', confirmLabel: 'Dispensar' }))) return;
     setResolvingRadar(true); setError(''); setNotice('');
     try {
       const res = await apiJson<{ message: string }>('/api/admin/quality/radar/resolve', {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useConfirm } from '../context/confirm';
 import { api, apiJson, fmtDate, formatEngineOrCatalogModel, json } from '../lib';
 import { toast } from 'sonner';
 import type { DocumentItem, FavoriteItem } from '../types';
@@ -260,6 +261,7 @@ export default function CatalogsPanel({
   initialSearch?: string;
   onSearch?: (query: string) => void;
 }) {
+  const confirm = useConfirm();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const cleanInitialSearch = (initialSearch && initialSearch.trim() !== 'null' && initialSearch.trim() !== 'undefined') ? initialSearch.trim() : '';
@@ -475,7 +477,7 @@ export default function CatalogsPanel({
   };
 
   const action = async (id: string, actionName: 'archive' | 'restore' | 'reprocess') => {
-    if (actionName === 'archive' && !window.confirm('Arquivar este catálogo? Ele deixará de aparecer nas buscas, mas poderá ser restaurado.')) return;
+    if (actionName === 'archive' && !(await confirm({ title: 'Arquivar este catálogo?', description: 'Ele deixa de aparecer nas buscas, mas pode ser restaurado.', confirmLabel: 'Arquivar' }))) return;
     setBusy(true);
     setError('');
     try {
@@ -490,7 +492,7 @@ export default function CatalogsPanel({
   };
 
   const removePdf = async (document: DocumentItem) => {
-    if (!window.confirm(`Excluir definitivamente o PDF "${document.filename}"? O arquivo não poderá ser restaurado, mas o registro de auditoria será mantido.`)) return;
+    if (!(await confirm({ title: `Excluir o PDF "${document.filename}"?`, description: 'O arquivo não poderá ser restaurado. O registro de auditoria é mantido.', confirmLabel: 'Excluir', destructive: true }))) return;
     setBusy(true);
     setError('');
     try {
