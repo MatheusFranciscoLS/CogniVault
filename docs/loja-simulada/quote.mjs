@@ -56,6 +56,16 @@ for (const theme of themes) {
     await page.evaluate(() => { const d = document.querySelector('[role="dialog"]'); if (d) { const s = [...d.querySelectorAll('*')].find(e => e.scrollHeight > e.clientHeight + 40 && getComputedStyle(e).overflowY !== 'visible'); if (s) s.scrollTop = s.scrollHeight; } });
   });
   await shot('11-orcamento-gaveta-fim');
+  // Enviar no WhatsApp arquiva o orçamento (é o que a tela "Orçamentos" lista).
+  await step('enviar no WhatsApp', async () => {
+    await page.locator('#quote-customer-name').fill('Sr. Carlos');
+    const [popup] = await Promise.all([
+      context.waitForEvent('page', { timeout: 8000 }).catch(() => null),
+      page.getByRole('button', { name: /Enviar no WhatsApp/ }).click(),
+    ]);
+    if (popup) await popup.close();
+    await page.waitForTimeout(1500);
+  });
   await step('fechar', async () => { await page.keyboard.press('Escape'); });
 
   await step('orçamentos salvos', async () => { await page.goto(BASE + '/dashboard?tab=quotes'); await page.waitForTimeout(1500); });

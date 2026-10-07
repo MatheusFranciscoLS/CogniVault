@@ -127,7 +127,8 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
           <div className="flex shrink-0 items-center gap-3">
             <img src="/favicon.png" alt="" width={32} height={32} className="size-8 rounded-md bg-white/10 object-cover" />
             <span translate="no" className="hidden text-lg font-bold tracking-tight sm:inline">CogniVault</span>
-            <span className="hidden rounded-full border border-[#ffc80080] px-2.5 py-0.5 text-sm font-semibold text-[#ffc800] xl:inline">Revenda ouro Husqvarna</span>
+            {/* Onde há o campo de busca no cabeçalho, o selo só cabe em tela larga; no Atendimento, que não tem esse campo, ele fica sempre. */}
+            <span className={`hidden rounded-full border border-[#ffc80080] px-2.5 py-0.5 text-sm font-semibold text-[#ffc800] ${isCounter ? 'xl:inline' : '2xl:inline'}`}>Revenda ouro Husqvarna</span>
           </div>
 
           <nav aria-label="Principal" className="hidden h-full md:flex">
@@ -161,7 +162,7 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
                   spellCheck={false}
                   value={query}
                   onChange={event => setQuery(event.target.value)}
-                  placeholder="Código, descrição, modelo ou PNC…"
+                  placeholder="Buscar peça ou código…"
                   className="h-10 w-full rounded-md border border-transparent bg-white pl-9 pr-16 text-base text-[#1b2234] outline-none placeholder:text-[#5f667a] focus-visible:ring-3 focus-visible:ring-[#ff9a73]"
                 />
                 <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-[#c4cada] px-1.5 text-sm text-[#5f667a]">Ctrl&nbsp;K</kbd>
