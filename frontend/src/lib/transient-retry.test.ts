@@ -15,7 +15,7 @@ describe('retryTransient', () => {
       .mockRejectedValueOnce(new Error('502'))
       .mockRejectedValueOnce(new Error('502'))
       .mockResolvedValueOnce('conferido');
-    const sleep = vi.fn(async (_ms: number) => undefined);
+    const sleep = vi.fn<(ms: number) => Promise<void>>().mockResolvedValue(undefined);
     const onWaiting = vi.fn();
     expect(await retryTransient(run, { isTransient: passageiro, waits: [5, 10, 20], sleep, onWaiting })).toBe('conferido');
     expect(sleep.mock.calls.map(call => call[0])).toEqual([5, 10]);
