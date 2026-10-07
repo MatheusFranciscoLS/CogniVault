@@ -226,9 +226,17 @@ await step('duas buscas seguidas não se misturam', async () => {
 await step('pergunta de óleo', async () => {
   await pesquisar('óleo 2 tempos', 'enter');
   await esperarFim(40000);
-  const texto = await page.locator('main').innerText();
-  console.log(`   óleo 2 tempos → ${await page.locator('article').count()} linhas; oferece botões de óleo: ${/2 tempos/i.test(texto) && /\+\s*Óleo|Óleo 2T|2T/i.test(texto)}`);
+  const oleo = page.getByRole('region', { name: 'Óleo' });
+  check('a pergunta de óleo mostra os quatro óleos da loja no topo', (await oleo.getByRole('button').count()) === 4, (await oleo.innerText().catch(() => '')).replace(/\s+/g, ' '));
+  await oleo.getByRole('button', { name: /Óleo 2 tempos/ }).click();
+  await page.waitForTimeout(500);
+  check('o botão põe o óleo no orçamento como item avulso (sem código de peça)', (await page.locator('aside').last().innerText()).includes('Óleo 2 tempos'));
+  check('a faixa de orçamento mostra só o nome do óleo, sem o código interno SRV-', !(await page.locator('aside').last().innerText()).includes('SRV-'));
+  check('e o botão passa a dizer que já está no orçamento', await oleo.getByRole('button', { name: /Óleo 2 tempos · no orçamento/ }).isVisible());
   await shot(page, `${theme}-1366-atendimento-oleo`);
+  await pesquisar('filtro de óleo', 'enter');
+  await esperarFim(40000);
+  check('"filtro de óleo" é peça: não oferece os botões de óleo', (await page.getByRole('region', { name: 'Óleo' }).count()) === 0);
 });
 
 await finish(browser, errors);

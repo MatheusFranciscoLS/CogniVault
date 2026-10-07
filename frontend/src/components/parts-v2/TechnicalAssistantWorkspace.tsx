@@ -19,6 +19,7 @@ import { PanelErrorBoundary } from '../PanelErrorBoundary';
 import { useOfficialMachineSearch } from '../machines/official-machine-search';
 import { useRecentMachines } from '../machines/recent-machines';
 import KawasakiEnginePanel from '../machines/KawasakiEnginePanel';
+import OilQuickAdd from './OilQuickAdd';
 import BriggsEnginePanel from '../machines/BriggsEnginePanel';
 import OfficialPartOrigin from '../machines/OfficialPartOrigin';
 import PartGuesses from './PartGuesses';
@@ -778,6 +779,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
         <div className="min-w-0 space-y-4">
           {!hasSearched && <Starter onExample={beginSearch} favorites={quickFavorites} lastSearch={lastSearch} onReplay={beginSearch} />}
           {loading && !hasLocalResults ? <ResultsSkeleton /> : null}
+          {hasSearched && <OilQuickAdd query={lastQuery} machineModel={session.machineModel.trim() || undefined} />}
 
           {/* Motor Kawasaki: os códigos E a vista explodida de cada conjunto. Vem antes
               porque, quando o atendente digitou o modelo do motor, é o catálogo dele que

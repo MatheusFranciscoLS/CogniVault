@@ -44,10 +44,10 @@ Toda tela aberta é testada em TODO o conteúdo dela, controle por controle, e n
 |---|---|---|
 | ✅ | Busca com acento devolvia zero ("vela de ignição") | PR #210, no ar |
 | ✅ | Linhas repetidas do mesmo código | PR #209 |
-| ⏳ | A ordem dos grupos é CSS (`order`): teclado e leitor de tela seguem outra ordem | reordenar no JSX |
-| ⏳ | O botão fica "Buscando…" até a fase "por significado" acabar, com o resultado já na tela | liberar na 1ª fase |
-| ⏳ | "fio de nylon" e "bomba primer" não acham nada: ver se existe na lista e por que não casa | investigar |
-| ⏳ | Pergunta de óleo ("óleo 2 tempos") devolve filtro de óleo; óleo é item avulso | oferecer os botões de óleo na busca |
+| ✅ | Ordem dos grupos: não há mais CSS `order`; o roteiro confere que a ordem visual é a do DOM | — |
+| ✅ | O botão ficava "Buscando…" até 6 s com o resultado já na tela | liberado quando há peças; busca nova cancela a anterior |
+| ✅ | "fio de nylon" (a lista escreve NAILON) e "bomba primer" (a lista diz BOMBA MANUAL) achavam zero: 0→49 e 0→3 | PR #212 (**confirmar com o dono** que "primer" = bomba manual do carburador) |
+| ✅ | Pergunta de óleo: os 4 óleos da loja como botões no topo (item avulso); "filtro de óleo" não os mostra; a faixa de orçamento não mostra mais o código interno `SRV-` | #209 |
 | ℹ️ | Os 4–6 s da busca técnica na simulação são a fase "por significado" esperando o Gemini com chave falsa: artefato, não defeito | — |
 
 ## D. Decisões do dono (❓) — em `analise-critica.md`

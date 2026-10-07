@@ -29,10 +29,17 @@ export default function CounterQuoteRail() {
             <li key={item.id} className="space-y-2 px-4 py-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div translate="no" className="break-all font-code text-lg font-semibold tabular-nums">
-                    {item.manufacturer?.toLowerCase().includes('husqvarna') ? formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber) : (item.effectiveCode || item.partNumber)}
-                  </div>
-                  <div className="truncate text-base" title={item.name}>{item.name}</div>
+                  {/* Serviço/item avulso (SRV-, como o óleo) não tem código de peça: mostrar "SRV-OLEO-2T" confundia. */}
+                  {item.partNumber.toUpperCase().startsWith('SRV-') ? (
+                    <div className="truncate text-lg font-semibold" title={item.name}>{item.name}</div>
+                  ) : (
+                    <>
+                      <div translate="no" className="break-all font-code text-lg font-semibold tabular-nums">
+                        {item.manufacturer?.toLowerCase().includes('husqvarna') ? formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber) : (item.effectiveCode || item.partNumber)}
+                      </div>
+                      <div className="truncate text-base" title={item.name}>{item.name}</div>
+                    </>
+                  )}
                 </div>
                 {/* Ação destrutiva: menor que o resto e longe do "−", mas com alvo de clique de 40 px. */}
                 <Button variant="ghost" size="icon-sm" onClick={() => quoteCart.removeItem(item.id)} aria-label={`Remover ${item.name}`} className="-mr-2 -mt-1 shrink-0 hover:text-destructive">
@@ -41,7 +48,7 @@ export default function CounterQuoteRail() {
               </div>
               <div className="flex items-center justify-between gap-3">
                 <div className="inline-flex items-center overflow-hidden rounded-md border border-input">
-                  <button type="button" onClick={() => quoteCart.updateQuantity(item.id, -1)} className="grid size-9 place-items-center text-lg hover:bg-accent focus-visible:bg-accent focus-visible:outline-none" aria-label={`Diminuir quantidade de ${item.name}`}>−</button>
+                  <button type="button" onClick={() => quoteCart.updateQuantity(item.id, -1)} disabled={item.quantity <= 1} title={item.quantity <= 1 ? 'Para tirar o item, use o ×' : undefined} className="grid size-9 place-items-center text-lg hover:bg-accent focus-visible:bg-accent focus-visible:outline-none disabled:opacity-40" aria-label={`Diminuir quantidade de ${item.name}`}>−</button>
                   <span className="min-w-9 text-center text-base font-semibold tabular-nums">{item.quantity}</span>
                   <button type="button" onClick={() => quoteCart.updateQuantity(item.id, 1)} className="grid size-9 place-items-center text-lg hover:bg-accent focus-visible:bg-accent focus-visible:outline-none" aria-label={`Aumentar quantidade de ${item.name}`}>+</button>
                 </div>
