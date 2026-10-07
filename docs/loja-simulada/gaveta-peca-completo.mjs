@@ -1,7 +1,9 @@
 // GAVETA DA PEÇA inteira: código, copiar, preço, vista explodida, "Leve junto", óleo e o menu ⋯ com cada ação.
 // Uso (de dentro de frontend/): node ../docs/loja-simulada/gaveta-peca-completo.mjs [tema]
-import { open, check, step, finish, shot, SEARCH } from './_t.mjs';
+import { open, check, step, finish, shot, sqlSim, SEARCH } from './_t.mjs';
 
+// O servidor recusa a mesma conferência pendente duas vezes (409, certo): começa sem pendências na simulação.
+sqlSim('DELETE FROM "OfficialPartVerification"');
 const { browser, page, errors, theme } = await open({ theme: process.argv[2] ?? 'dark' });
 const busca = page.getByPlaceholder(SEARCH);
 await busca.waitFor();
@@ -76,14 +78,34 @@ await step('registrar conferência', async () => {
   const g = page.getByRole('dialog').first();
   await g.getByRole('button', { name: 'Mais ações' }).click();
   await page.getByRole('menuitem', { name: /conferência/ }).click();
-  await page.waitForTimeout(800);
-  const aberto = await page.getByText('Registrar conferência Husqvarna').isVisible();
-  check('"Registrar conferência" abre o formulário', aberto);
-  // Este formulário é um modal feito à mão, sem role="dialog": leitor de tela e foco não o tratam como diálogo.
-  console.log(`   o formulário de conferência tem role="dialog": ${(await page.getByRole('dialog').filter({ hasText: 'Registrar conferência Husqvarna' }).count()) > 0}`);
+  const form = page.getByRole('dialog', { name: 'Registrar conferência' });
+  await form.waitFor({ timeout: 5000 });
+  check('"Registrar conferência" abre um diálogo de verdade (role=dialog, com título)', await form.isVisible());
+  const texto = await form.innerText();
+  check('mostra a peça (nome e código) e o link do Portal Husqvarna', texto.includes('503443201') || /\d{6,}/.test(texto));
+  const link = form.getByRole('link', { name: /Portal Husqvarna/ });
+  check('o link do Portal é https da Husqvarna', /^https:\/\/portal\.husqvarnagroup\.com/.test((await link.getAttribute('href')) ?? ''));
+  check('sem texto que explica o sistema ("registra usuário, data, fonte")', !/registra usuário|automaticamente|cache/i.test(texto));
+  const codigo = form.getByLabel('Código atual no Portal');
+  const enviar = form.getByRole('button', { name: 'Enviar para aprovação' });
+  const original = await codigo.inputValue();
+  check('o código atual já vem preenchido com o da peça e mostra "continua o mesmo"', original.length >= 6 && (await form.getByText('O código continua o mesmo.').isVisible()));
+  await codigo.fill('123');
+  check('código inválido desabilita o envio', await enviar.isDisabled());
+  await codigo.fill('999888777');
+  check('código diferente mostra a substituição e avisa que o administrador aprova', (await form.innerText()).includes('Substituição') && /administrador/i.test(await form.innerText()));
   await shot(page, `${theme}-1366-conferencia`);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(500);
+  check('Esc fecha só o diálogo; a gaveta da peça continua aberta', (await form.count()) === 0 && (await page.getByRole('dialog').count()) === 1);
+  // envio de verdade (só na simulação): fecha o diálogo e confirma
+  await page.getByRole('dialog').first().getByRole('button', { name: 'Mais ações' }).click();
+  await page.getByRole('menuitem', { name: /conferência/ }).click();
+  await form.waitFor();
+  await form.getByRole('button', { name: 'Enviar para aprovação' }).click();
+  await form.waitFor({ state: 'detached', timeout: 10000 });
+  check('enviar para aprovação fecha o diálogo', (await form.count()) === 0);
+  check('e avisa que a conferência foi enviada', await page.getByText('Conferência enviada para aprovação.').isVisible());
 });
 
 await step('perguntar à IA', async () => {

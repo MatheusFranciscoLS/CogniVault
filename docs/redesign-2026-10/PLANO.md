@@ -97,7 +97,7 @@ Regra: cada tela percorrida entra aqui com o que foi corrigido na hora (✅) e o
 | | Achado |
 |---|---|
 | ✅ | O Esc que fecha o menu ⋯ fechava a gaveta inteira (tratador global duplicado): corrigido |
-| 💡 | **"Registrar conferência"** é um modal feito à mão, no estilo antigo, sem `role="dialog"` (leitor de tela e foco não o tratam como diálogo) e com texto que explica o sistema ("CONFERÊNCIA ASSISTIDA…"): refazer com o diálogo do shadcn e cortar a explicação |
+| ✅ | **"Registrar conferência"** refeito com o diálogo do shadcn (foco preso, `role="dialog"`, Esc fecha só ele) e sem o texto que explicava o sistema; 9 verificações novas no roteiro da gaveta |
 | 💡 | "Leve junto": companheiro sem nome mostra o código duas vezes ("595353 / 595353") |
 | 💡 | Falha ao abrir o PDF mostra um aviso no canto, bom; poderia oferecer "tentar de novo" |
 
