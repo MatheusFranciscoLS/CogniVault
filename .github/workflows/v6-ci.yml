@@ -156,6 +156,8 @@ jobs:
       - name: Block critical vulnerabilities in build tooling
         run: npm audit --prefix . --workspaces=false --audit-level=critical
       - run: npm run lint
+      - name: Unit tests (error boundary, cart resend)
+        run: npm test
       - name: Build production bundle with hostile API override
         env:
           VITE_API_URL: https://cognivault-api.onrender.com
@@ -164,12 +166,15 @@ jobs:
         run: npm run verify:production-origin
 
   e2e:
-    needs: [changes, backend, frontend]
-    # Mesmas condições, mais: backend e frontend precisam ter PASSADO. Sem o
-    # `always`/`!cancelled` o job seria pulado quando eles são pulados — que é o
-    # comportamento desejado em PR de texto — mas também quando a detecção falha, e
-    # aí o e2e "passaria" sem rodar. Por isso a condição é explícita.
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') && needs.backend.result == 'success' && needs.frontend.result == 'success' }}
+    # Roda EM PARALELO com backend e frontend. Antes esperava os dois terminarem
+    # (~1m20), mas ele não usa nada deles: instala, compila e sobe o próprio backend e
+    # o próprio frontend. O gate continua igual, porque os três checks são
+    # obrigatórios e qualquer um que falhe bloqueia o merge. O custo é rodar o e2e
+    # (de graça, repositório público) mesmo quando o backend reprova.
+    needs: changes
+    # Pulado em PR de texto, como os outros. A condição é explícita porque, se a
+    # detecção falhar, o e2e tem que RODAR, e não passar sem rodar.
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:

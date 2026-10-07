@@ -17,3 +17,15 @@ backend/uploads/
 # raiz do repo, não só esta.
 *.xlsm
 *.xlsx
+*.xls
+
+# Dados da loja. O repositório é PÚBLICO: exportação do ERP (Clipp/CompuFour,
+# Firebird), backup de banco, lista de preços da Husqvarna e arquivos compactados
+# com qualquer um desses nunca entram no git. Os arquivos de trabalho ficam FORA
+# da pasta do projeto e fora do OneDrive (ex.: C:\DadosLoja).
+*.csv
+*.fdb
+*.fbk
+*.rar
+*.7z
+LISTA_DE_PRECOS*
