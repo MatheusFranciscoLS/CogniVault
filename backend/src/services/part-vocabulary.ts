@@ -207,8 +207,17 @@ const VOCABULARY: VocabularyEntry[] = [
   { key: 'filter', terms: ['filtro', 'filter'] },
 ];
 
+const SEARCHABLE_CACHE = new Map<string, string>();
+
 function searchable(value: string): string {
-  return normalizeText(value).replace(/[^a-z0-9]+/g, ' ').trim();
+  const hit = SEARCHABLE_CACHE.get(value);
+  if (hit !== undefined) return hit;
+  const result = normalizeText(value).replace(/[^a-z0-9]+/g, ' ').trim();
+  if (value.length <= 300) {
+    if (SEARCHABLE_CACHE.size >= 30_000) SEARCHABLE_CACHE.clear();
+    SEARCHABLE_CACHE.set(value, result);
+  }
+  return result;
 }
 
 function words(value: string): string[] {
@@ -252,13 +261,43 @@ function entryMatches(query: string, queryWords: string[], entry: VocabularyEntr
   });
 }
 
-function normalizedVariants(entry: VocabularyEntry): string[] {
-  const variants = entry.terms.flatMap(term => {
+/**
+ * O vocabulário é fixo: normalizar cada termo a CADA chamada (e `conceptOccurrences` roda por peça candidata, milhares
+ * de vezes por busca) custou 6 s de CPU numa busca descritiva e travou o servidor. Prepara uma vez, na primeira
+ * chamada; o resultado é idêntico ao do cálculo antigo, na mesma ordem.
+ */
+type PreparedEntry = { entry: VocabularyEntry; variants: string[]; needles: Array<{ needle: string; needleWords: string[] }> };
+let preparedVocabulary: Map<VocabularyEntry, PreparedEntry> | null = null;
+
+function prepared(entry: VocabularyEntry): PreparedEntry {
+  if (!preparedVocabulary) {
+    preparedVocabulary = new Map();
+    for (const item of VOCABULARY) {
+      const variants = [...new Set(item.terms.flatMap(term => {
+        const plain = normalizeText(term);
+        const spaced = searchable(term);
+        return plain === spaced ? [plain] : [plain, spaced];
+      }).filter(Boolean))];
+      const needles = variants
+        .map(variant => searchable(variant))
+        .filter(Boolean)
+        .map(needle => ({ needle, needleWords: needle.split(' ') }));
+      preparedVocabulary.set(item, { entry: item, variants, needles });
+    }
+  }
+  const found = preparedVocabulary.get(entry);
+  if (found) return found;
+  // Entrada que não é do vocabulário (teste, uso externo): calcula na hora, sem guardar.
+  const variants = [...new Set(entry.terms.flatMap(term => {
     const plain = normalizeText(term);
     const spaced = searchable(term);
     return plain === spaced ? [plain] : [plain, spaced];
-  });
-  return [...new Set(variants.filter(Boolean))];
+  }).filter(Boolean))];
+  return { entry, variants, needles: variants.map(variant => searchable(variant)).filter(Boolean).map(needle => ({ needle, needleWords: needle.split(' ') })) };
+}
+
+function normalizedVariants(entry: VocabularyEntry): string[] {
+  return [...prepared(entry).variants];
 }
 
 function conceptOccurrences(value: string): Array<{ group: SearchGroup; index: number; end: number; length: number }> {
@@ -266,12 +305,13 @@ function conceptOccurrences(value: string): Array<{ group: SearchGroup; index: n
   const queryWords = query.split(' ');
   const matches: Array<{ group: SearchGroup; index: number; end: number; length: number }> = [];
 
+  const queryWordSet = new Set(queryWords);
   for (const entry of VOCABULARY) {
     let best: { index: number; end: number; length: number } | null = null;
-    for (const term of normalizedVariants(entry)) {
-      const needle = searchable(term);
-      if (!needle) continue;
-      const needleWords = needle.split(' ');
+    const preparedEntry = prepared(entry);
+    for (const { needle, needleWords } of preparedEntry.needles) {
+      // Uma janela só pode ser igual ao termo se a primeira palavra do termo aparece na consulta.
+      if (!queryWordSet.has(needleWords[0])) continue;
       for (let wordIndex = 0; wordIndex <= queryWords.length - needleWords.length; wordIndex += 1) {
         const window = queryWords.slice(wordIndex, wordIndex + needleWords.length).join(' ');
         if (window !== needle) continue;
@@ -282,7 +322,7 @@ function conceptOccurrences(value: string): Array<{ group: SearchGroup; index: n
         break;
       }
     }
-    if (best) matches.push({ group: { key: entry.key, variants: normalizedVariants(entry) }, ...best });
+    if (best) matches.push({ group: { key: entry.key, variants: [...preparedEntry.variants] }, ...best });
   }
 
   // Descarta correspondências de sub-termos que estão estritamente contidas em uma expressão composta maior
