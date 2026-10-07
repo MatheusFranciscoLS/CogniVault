@@ -33,15 +33,17 @@ Regra do dono (2026-10-07): **tudo que ele passar entra aqui na hora**, porque h
 | 3b | **Orçamento de MÁQUINAS automatizado.** O dono faz "tudo manual" e disse que é "bem bacana"; quer que o site gere. Os orçamentos reais estão em **Word, em pastas por grupo, no PC da loja** (o `.rar` que ele mandou continha só um atalho). **Ele coloca a pasta no computador ao chegar em casa**; até lá, nada a fazer. Depois: ler 2 ou 3 de cada grupo, mapear campos e blocos e gerar do mesmo jeito (a Tabela de preços já tem preço, ficha, "acompanha" e "leve junto"). Dados de cliente dos exemplos NUNCA vão para o repositório | ⏳ aguarda a pasta |
 | 3c | **Lista curta do que o dono precisa responder** (ele está no celular e as mensagens são muitas): mandar sempre em poucas linhas, numeradas, com a resposta mais provável já sugerida. Mantida na seção "Perguntas pendentes ao dono" abaixo | ✅ feita nesta rodada |
 
-### Perguntas pendentes ao dono (responder com o número; recomendação entre parênteses)
-1. **Importar as 151 máquinas da lista de preços na produção?** (sim; eu rodo o relatório, mostro e só então gravo)
-2. **Validade do orçamento de peças: 20 dias, como no modelo, em vez de 7 dias úteis?** (20 dias)
-3. **Dados da loja no cabeçalho do PDF** (razão social, CNPJ, inscrição, endereço, telefones, e-mail): usar os do modelo em Word? (sim; ficam em configuração do servidor, nunca no repositório público)
-4. **Observações fixas do modelo** ("preços para faturamento no estado de SP", "impostos inclusos", "estoque rotativo sujeito a venda diária") entram em todo orçamento? (sim, editáveis)
-5. **"A/C" (a quem se destina) e "Ref." (assunto)** viram campos do orçamento? (A/C = nome do cliente; Ref. fixa "Estimativa de Preço Peças de Reposição", editável)
-6. **Transportadora "Retira" e prazo "IMEDIATO"** são padrão? (sim, com opção de mudar por orçamento)
-7. **Assinatura "ATT. nome"**: usar o nome do atendente logado? (sim)
-8. **Orçamento de máquinas:** mandar um exemplo de verdade (ver 3b)
+### Respostas do dono (2026-10-07, à noite) e o que cada uma virou
+| # | Pergunta | Resposta | O que fazer / situação |
+|---|---|---|---|
+| 1 | Importar as 151 máquinas em produção | **Sim** | Relatório só de leitura, depois gravar com `--apply --expect-count`; conferir depois. ⏳ em andamento |
+| 2 | Validade de 20 dias | **Sim.** A validade de 20 dias é do ORÇAMENTO. Os "7 dias úteis" são o PRAZO PARA AS PEÇAS CHEGAREM e dependem do estoque: **o prazo é digitado à mão em cada orçamento** | Campo "Prazo" editável no orçamento (padrão IMEDIATO), saindo no PDF e no WhatsApp. ⏳ |
+| 3 | Razão social do cabeçalho | **A certa é "VARDÃO MÁQUINAS E EQUIPAMENTOS DE JARDINAGEM LTDA"** (consultar o CNPJ se precisar) | Usar essa em cabeçalho e rodapé; conferir no cadastro do CNPJ. ⏳ |
+| 4 | Observações fixas (imposto etc.) em todo orçamento? | "O que você acha melhor?" Ele colocou por causa de imposto | **Recomendação adotada:** as 3 observações entram em TODO orçamento por padrão e podem ser editadas por orçamento (campo recolhido na gaveta). ⏳ |
+| 5 | Formato do "Copiar códigos" para o Clipp | **Não faz sentido: o Clipp recebe 1 código por vez**; só precisa colocar o código e copiar | **Tirar o botão "Copiar códigos"** (foi excesso meu) e a função; fica o copiar um código, que já existe. ⏳ |
+| 6 | Pasta dos orçamentos de máquinas | Manda quando chegar em casa | Aguardar (3b) |
+| 7 | Sino só para admin; assistente de IA em gaveta | "Faça o que achar melhor e recomendado" | **Recomendação adotada:** sino só para o administrador; tirar o assistente de IA em gaveta (`ChatPanel`) do balcão. ⏳ |
+Depois disso: "continue com os planos e melhorias que faltam" (Biblioteca, Negócio, Qualidade, Visão geral; peças de manutenção preventiva por PNC).
 
 ## Regra de teste (dono, 2026-10-07)
 Toda tela aberta é testada em TODO o conteúdo dela, controle por controle, e não só no que aparece no topo. Roteiros em `docs/loja-simulada/` (`maquina-completo.mjs`, `motores.mjs`, ...); uma tela só fecha com o roteiro 100% e as capturas olhadas até o fim.
