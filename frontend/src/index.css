@@ -206,7 +206,7 @@
 }
 
 * { box-sizing: border-box; }
-html { background: var(--background); }
+html { background: var(--background); color-scheme: light; scroll-padding-top: 4.5rem; }
 body { margin: 0; min-width: 320px; min-height: 100vh; overflow-x: hidden; }
 /* Dentro de @layer base DE PROPÓSITO. No Tailwind 4 uma regra de elemento fora
    de camada vence TODA classe utilitária: `button { font: inherit }` solta fazia
@@ -576,7 +576,7 @@ input[type="number"],
 
 /* Acompanha a superfície de página do tema escuro. Só aparece em overscroll,
    mas ficar num tom diferente do app entrega a emenda. */
-html.dark { background: var(--background); }
+html.dark { background: var(--background); color-scheme: dark; }
 
 .dark .cv-app-shell {
   background: linear-gradient(to bottom right, #1f2742, #161c2f);

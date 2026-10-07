@@ -654,6 +654,9 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
 
   return (
     <section className="flex flex-1 flex-col gap-4">
+      <h1 className="sr-only">Atendimento</h1>
+      <p role="status" className="sr-only">{loading ? 'Buscando…' : hasSearched ? `${parts.length + commercialParts.length} resultados` : ''}</p>
+
       <CounterSessionBar onOpenMachine={pnc => setOpenMachine({ pnc, name: session.machineModel || `PNC ${pnc}` })} />
 
       <form onSubmit={submit} className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
@@ -679,7 +682,9 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
                 closeSuggestions();
               }
             }}
-            placeholder={hasContext ? 'Peça, código ou pergunta sobre este equipamento' : 'Código, peça ou modelo'}
+            placeholder={hasContext ? 'Peça, código ou pergunta sobre este equipamento…' : 'Código, peça ou modelo…'}
+            name="busca"
+            spellCheck={false}
             /* O campo principal do produto não tinha rótulo, só placeholder, que some
                quando o atendente digita. */
             aria-label="Buscar peça, código ou modelo"
@@ -690,7 +695,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
             aria-autocomplete="list"
             className="h-12 rounded-xl bg-card pl-12 pr-20 text-lg font-medium md:text-lg"
           />
-          {!query && <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-border px-1.5 text-sm text-muted-foreground">Ctrl K</kbd>}
+          {!query && <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-border px-1.5 text-sm text-muted-foreground">Ctrl&nbsp;K</kbd>}
           {suggestionsOpen && suggestions.length > 0 && (
             <div id="parts-search-suggestions">
               <SuggestionsDropdown suggestions={suggestions} activeIndex={activeSuggestion} onPick={selectSuggestion} />
@@ -798,7 +803,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
                       value={priceSection}
                       onChange={event => changePriceSection(event.target.value)}
                       aria-label="Filtrar por seção"
-                      className="h-9 rounded-md border border-input bg-card px-2 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/60"
+                      className="h-9 rounded-md border border-input bg-card px-2 text-sm font-medium text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/60"
                     >
                       <option value="">Todas as seções</option>
                       {priceSections.map(section => <option key={section.name} value={section.name}>{section.name} · {section.count}</option>)}

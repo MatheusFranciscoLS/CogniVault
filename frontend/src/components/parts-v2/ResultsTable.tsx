@@ -40,6 +40,7 @@ export function ResultsGroup({ title, count, aside, showHeader = true, children 
 export function ResultsSkeleton() {
   return (
     <ResultsTable>
+      <span role="status" className="sr-only">Buscando…</span>
       {[0, 1, 2, 3].map(item => (
         <div key={item} className={cn('grid items-center gap-x-4 gap-y-2 border-b border-border px-4 py-4 last:border-b-0', PART_ROW_GRID)} aria-hidden="true">
           <Skeleton className="h-6 w-32" />

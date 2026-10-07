@@ -55,7 +55,7 @@ export default function PartRow({ code, name, details, origin, tags, price, pric
       )}
     >
       <Region {...regionProps} {...(onOpen ? { 'aria-label': `Abrir detalhes de ${name}` } : {})} data-part-result={onOpen ? 'true' : undefined} className="min-w-0 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/60 rounded-sm">
-        <span className="block break-all font-code text-[22px] font-semibold leading-7 tracking-wide tabular-nums">{code}</span>
+        <span translate="no" className="block break-all font-code text-[22px] font-semibold leading-7 tracking-wide tabular-nums">{code}</span>
       </Region>
 
       <Region {...regionProps} className="min-w-0 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/60 rounded-sm">

@@ -119,13 +119,14 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <a href="#conteudo" className="sr-only z-50 rounded-md bg-primary px-4 py-2 text-base font-semibold text-primary-foreground focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Ir para o conteúdo</a>
       <header className="sticky top-0 z-30 border-b border-black/20 bg-bar text-bar-foreground">
         <div className="mx-auto flex h-14 w-full max-w-[1800px] items-center gap-5 px-5">
           {/* "Balcão · Peças" e o selo ouro identificam o sistema e a revenda; o atendente
               usa este app ao lado do Vardão CRM e precisa saber em qual está. */}
           <div className="flex shrink-0 items-center gap-3">
-            <img src="/favicon.png" alt="" className="size-8 rounded-md bg-white/10 object-cover" />
-            <span className="text-lg font-bold tracking-tight">CogniVault</span>
+            <img src="/favicon.png" alt="" width={32} height={32} className="size-8 rounded-md bg-white/10 object-cover" />
+            <span translate="no" className="text-lg font-bold tracking-tight">CogniVault</span>
             <span className="hidden rounded-full border border-[#ffc80080] px-2.5 py-0.5 text-sm font-semibold text-[#ffc800] xl:inline">Revenda ouro Husqvarna</span>
           </div>
 
@@ -155,12 +156,15 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
                 <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5f667a]" />
                 <input
                   id="cv-workspace-search"
+                  aria-label="Buscar código, descrição, modelo ou PNC"
+                  autoComplete="off"
+                  spellCheck={false}
                   value={query}
                   onChange={event => setQuery(event.target.value)}
-                  placeholder="Buscar código, descrição, modelo ou PNC"
+                  placeholder="Código, descrição, modelo ou PNC…"
                   className="h-10 w-full rounded-md border border-transparent bg-white pl-9 pr-16 text-base text-[#1b2234] outline-none placeholder:text-[#5f667a] focus-visible:ring-3 focus-visible:ring-[#ff9a73]"
                 />
-                <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-[#c4cada] px-1.5 text-sm text-[#5f667a]">Ctrl K</kbd>
+                <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-[#c4cada] px-1.5 text-sm text-[#5f667a]">Ctrl&nbsp;K</kbd>
               </div>
             </form>
           )}
@@ -220,7 +224,7 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
         </div>
       </header>
 
-      <main className={`mx-auto flex w-full flex-1 flex-col px-5 py-5 ${isCounter ? 'max-w-[1560px]' : 'max-w-[1500px]'}`}>{children}</main>
+      <main id="conteudo" tabIndex={-1} className={`mx-auto flex w-full flex-1 flex-col px-5 py-5 outline-none ${isCounter ? 'max-w-[1560px]' : 'max-w-[1500px]'}`}>{children}</main>
     </div>
   );
 }

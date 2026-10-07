@@ -29,7 +29,7 @@ export default function CounterQuoteRail() {
             <li key={item.id} className="space-y-2 px-4 py-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="break-all font-code text-lg font-semibold tabular-nums">
+                  <div translate="no" className="break-all font-code text-lg font-semibold tabular-nums">
                     {item.manufacturer?.toLowerCase().includes('husqvarna') ? formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber) : (item.effectiveCode || item.partNumber)}
                   </div>
                   <div className="truncate text-base" title={item.name}>{item.name}</div>

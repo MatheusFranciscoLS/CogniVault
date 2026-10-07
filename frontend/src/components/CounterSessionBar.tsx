@@ -9,7 +9,7 @@ function Field({ label, value, placeholder, onChange }: { label: string; value: 
   return (
     <label className="min-w-0 flex-1 space-y-1.5">
       <span className="block text-sm font-medium text-muted-foreground">{label}</span>
-      <Input value={value} onChange={event => onChange(event.target.value)} placeholder={placeholder} className="h-10 bg-card text-base" />
+      <Input value={value} onChange={event => onChange(event.target.value)} placeholder={placeholder} autoComplete="off" spellCheck={false} className="h-10 bg-card text-base" />
     </label>
   );
 }
