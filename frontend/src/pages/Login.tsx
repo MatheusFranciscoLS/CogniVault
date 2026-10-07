@@ -3,6 +3,8 @@ import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiJson, ensureApiReady, isApiRecentlyReady } from '../lib';
 import { activateQuoteStorageScope } from '../lib/quote-storage-scope';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 type SessionUser = {
   id: string;
@@ -16,21 +18,6 @@ type LoginResponse = {
 };
 
 type ServerState = 'checking' | 'ready' | 'slow';
-
-const CAPABILITIES = [
-  {
-    title: 'Peça certa na primeira consulta',
-    detail: 'Código, descrição, modelo ou pergunta técnica — com a evidência da fonte que confirmou.',
-  },
-  {
-    title: 'Fonte oficial Husqvarna',
-    detail: 'Catálogo do Portal, vista explodida, documentos e substituição de código conferida.',
-  },
-  {
-    title: 'Orçamento de balcão',
-    detail: 'Monta a cesta, manda no WhatsApp ou em PDF e fica salvo para retomar depois.',
-  },
-];
 
 /** Selo dourado da revenda, no ouro real do site da loja (#ffc800). */
 function GoldSeal() {
@@ -155,13 +142,6 @@ export default function Login() {
   };
 
   const preparing = loading && serverState !== 'ready';
-  const statusLabel = serverState === 'ready'
-    ? 'Servidor disponível'
-    : serverState === 'checking'
-      ? 'Preparando servidor'
-      : 'Servidor em inicialização';
-  const statusDot = serverState === 'ready' ? 'bg-emerald-500' : 'bg-amber-400';
-
   return (
     <main className="min-h-dvh bg-ink-100 text-ink-950 lg:grid lg:min-h-dvh lg:grid-cols-[1.1fr_1fr] dark:bg-ink-950 dark:text-white">
       {/* Painel da marca. Fica escondido abaixo de lg: no tablet/celular do
@@ -210,31 +190,9 @@ export default function Login() {
                azul-marinho com filtro CSS. */
             className="h-9 w-auto max-w-[230px] object-contain"
           />
-          <div className="mt-2 text-[11px] font-bold uppercase tracking-[.16em] text-brand-200">
+          <div className="mt-2 text-sm font-medium text-brand-200">
             Máquinas e peças · Limeira/SP
           </div>
-        </div>
-
-        <div className="relative max-w-[460px]">
-          <h1 className="text-display-lg text-white">
-            O balcão inteiro em uma tela.
-          </h1>
-          <p className="mt-3 text-sm leading-6 text-brand-200">
-            O CogniVault reúne catálogo técnico, cadastro comercial, fonte oficial e orçamento
-            no mesmo atendimento — para o cliente não esperar e a peça não voltar.
-          </p>
-
-          <ul className="mt-7 space-y-4">
-            {CAPABILITIES.map(item => (
-              <li key={item.title} className="flex gap-3">
-                <span aria-hidden="true" className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-gold-500" />
-                <div>
-                  <div className="text-sm font-bold text-white">{item.title}</div>
-                  <div className="mt-0.5 text-xs leading-5 text-brand-200">{item.detail}</div>
-                </div>
-              </li>
-            ))}
-          </ul>
         </div>
 
         <div className="relative">
@@ -263,28 +221,23 @@ export default function Login() {
               que é o aparelho do balcão. Nessas larguras ele ganha superfície
               de card; a partir de lg o painel já dá a estrutura e o card sai. */}
           <div className="w-full max-w-[420px] rounded-panel border border-ink-200 bg-white p-6 shadow-raised dark:border-ink-800 dark:bg-ink-900 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none dark:lg:bg-transparent">
-            <div className="cv-kicker">Acesso seguro</div>
-            <h2 className="mt-1.5 text-display-sm text-brand-600 dark:text-white">Entrar no CogniVault</h2>
-            <p className="mt-2 text-sm leading-6 text-ink-500 dark:text-ink-400">
-              Use o e-mail cadastrado pela administração da loja.
-            </p>
+            <h2 className="text-display-sm text-brand-600 dark:text-white">Entrar no CogniVault</h2>
+            <p className="mt-2 text-base text-ink-500 dark:text-ink-400">Use o e-mail da loja.</p>
 
             {error && (
               <div
                 role="alert"
                 aria-live="polite"
-                className="mt-5 rounded-card border border-rose-200 bg-rose-50 px-3.5 py-3 text-xs leading-5 text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"
+                className="mt-5 rounded-lg border border-destructive bg-destructive/10 px-3.5 py-3 text-base font-medium text-destructive"
               >
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleLogin} className="mt-5 space-y-4" aria-busy={loading}>
-              <div>
-                <label htmlFor="login-email" className="mb-1.5 block text-xs font-bold text-ink-600 dark:text-ink-300">
-                  E-mail
-                </label>
-                <input
+            <form onSubmit={handleLogin} className="mt-6 space-y-4" aria-busy={loading}>
+              <div className="space-y-1.5">
+                <label htmlFor="login-email" className="block text-base font-medium">E-mail</label>
+                <Input
                   id="login-email"
                   type="email"
                   value={email}
@@ -293,19 +246,14 @@ export default function Login() {
                   autoFocus
                   required
                   placeholder="seuemail@empresa.com"
-                  className="cv-field h-12 py-0 text-base"
+                  className="h-12 text-base"
                 />
               </div>
 
-              <div>
-                <div className="mb-1.5 flex items-center justify-between gap-3">
-                  <label htmlFor="login-password" className="text-xs font-bold text-ink-600 dark:text-ink-300">
-                    Senha
-                  </label>
-                  <span className="text-[10px] font-semibold uppercase tracking-[.08em] text-ink-500 dark:text-ink-400">Uso interno</span>
-                </div>
+              <div className="space-y-1.5">
+                <label htmlFor="login-password" className="block text-base font-medium">Senha</label>
                 <div className="relative">
-                  <input
+                  <Input
                     id="login-password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
@@ -313,46 +261,31 @@ export default function Login() {
                     autoComplete="current-password"
                     required
                     placeholder="••••••••"
-                    className="cv-field h-12 py-0 pr-24 text-base"
+                    className="h-12 pr-24 text-base"
                   />
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setShowPassword(value => !value)}
-                    className="cv-touch-target absolute inset-y-0 right-1 my-auto rounded-card px-3 text-[11px] font-bold text-ink-500 transition hover:bg-ink-100 hover:text-brand-600 dark:hover:bg-ink-800 dark:hover:text-brand-300"
+                    className="absolute inset-y-0 right-1 my-auto"
                     aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                   >
                     {showPassword ? 'Ocultar' : 'Mostrar'}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
-              <button
-                disabled={loading}
-                className="cv-primary flex h-12 w-full items-center justify-center gap-2 text-base disabled:cursor-not-allowed"
-              >
+              <Button type="submit" size="lg" disabled={loading} className="h-12 w-full">
                 {loading && (
                   <span
                     aria-hidden="true"
-                    className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white"
+                    className="size-4 animate-spin rounded-full border-2 border-white/35 border-t-white"
                   />
                 )}
                 {loading ? (preparing ? 'Preparando o CogniVault…' : 'Validando acesso…') : 'Entrar'}
-              </button>
+              </Button>
             </form>
-
-            <div
-              className="mt-5 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 text-[11px] font-semibold text-ink-500 dark:text-ink-400"
-              aria-live="polite"
-            >
-              <span className="flex items-center gap-1.5">
-                <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} />
-                {statusLabel}
-              </span>
-              <span aria-hidden="true" className="text-ink-300 dark:text-ink-700">·</span>
-              <span>Sessão de 8h</span>
-              <span aria-hidden="true" className="text-ink-300 dark:text-ink-700">·</span>
-              <span>Cookie protegido</span>
-            </div>
 
             {/* No celular o painel da marca não existe, então a autorização
                 Husqvarna aparece aqui — é o que dá credibilidade à tela. */}
@@ -362,7 +295,7 @@ export default function Login() {
           </div>
         </div>
 
-        <footer className="px-5 pb-5 text-center text-[10px] font-semibold uppercase tracking-widest text-ink-500 sm:px-8 dark:text-ink-400">
+        <footer className="px-5 pb-5 text-center text-sm text-ink-500 sm:px-8 dark:text-ink-400">
           Vardão Máquinas · CogniVault
         </footer>
       </section>
