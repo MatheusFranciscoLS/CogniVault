@@ -169,6 +169,70 @@ async function availableSections(tenantId: string): Promise<CommercialSection[]>
   return sections;
 }
 
+
+const SEARCH_STOPWORDS = new Set(['de', 'da', 'do', 'das', 'dos', 'para', 'pra', 'com', 'e', 'o', 'a', 'um', 'uma', 'no', 'na']);
+const MAX_SEARCH_TOKENS = 6;
+
+/** Cada palavra útil da pergunta, na forma digitada e sem acento (sem repetir). */
+export function commercialSearchWords(query: string): Array<{ plain: string; variants: string[] }> {
+  const seen = new Set<string>();
+  const words: Array<{ plain: string; variants: string[] }> = [];
+  for (const raw of query.trim().split(/\s+/)) {
+    const plain = normalizeText(raw);
+    if (plain.length < 2 || SEARCH_STOPWORDS.has(plain) || seen.has(plain)) continue;
+    seen.add(plain);
+    words.push({ plain, variants: [...new Set([raw.toLowerCase(), plain])] });
+    if (words.length === MAX_SEARCH_TOKENS) break;
+  }
+  return words;
+}
+
+/** Palavras da pergunta, sem acento, sem "de/da/para…" e sem repetir. Máximo de 6. */
+export function commercialSearchTokens(query: string): string[] {
+  const tokens = normalizeText(query)
+    .split(/\s+/)
+    .filter(token => token.length >= 2 && !SEARCH_STOPWORDS.has(token));
+  return [...new Set(tokens)].slice(0, MAX_SEARCH_TOKENS);
+}
+
+/**
+ * Candidatos do cadastro de preços por TEXTO.
+ *
+ * Duas falhas reais, vistas com a lista de preços da Husqvarna: (1) a lista vem SEM
+ * acento ("VELA DE IGNICAO"), e o Prisma compara `contains` sem ignorar acento, então
+ * "vela de ignição" devolvia ZERO; (2) a frase tinha que aparecer colada, então
+ * "filtro ar roçadeira" não achava nada. Agora a frase é tentada com e sem acento, e
+ * pergunta de várias palavras também aceita a peça que tenha TODAS as palavras, em
+ * qualquer ordem e em qualquer campo.
+ */
+export function buildCommercialTextFilters(query: string): Prisma.MasterPartWhereInput[] {
+  const fieldsFor = (term: string): Prisma.MasterPartWhereInput[] => [
+    { name: { contains: term, mode: 'insensitive' } },
+    { description: { contains: term, mode: 'insensitive' } },
+    { brand: { contains: term, mode: 'insensitive' } },
+    {
+      sections: {
+        some: {
+          OR: [
+            { application: { contains: term, mode: 'insensitive' } },
+            { reference: { contains: term, mode: 'insensitive' } },
+            { productCategory: { contains: term, mode: 'insensitive' } },
+          ],
+        },
+      },
+    },
+  ];
+
+  const phrases = [...new Set([query.trim(), normalizeText(query)].filter(Boolean))];
+  const filters = phrases.flatMap(fieldsFor);
+
+  // Cada palavra nas DUAS formas: a lista de preços vem sem acento ("IGNICAO"), mas as categorias
+  // vêm com ("ROÇADEIRA"), então só uma das formas deixaria um dos dois casos de fora.
+  const words = commercialSearchWords(query);
+  if (words.length >= 2) filters.push({ AND: words.map(word => ({ OR: word.variants.flatMap(fieldsFor) })) });
+  return filters;
+}
+
 async function loadCommercialSearch(
   tenantId: string,
   query: string,
@@ -217,22 +281,7 @@ async function loadCommercialSearch(
     }
   }
 
-  const orFilters: Prisma.MasterPartWhereInput[] = [
-    { name: { contains: query, mode: 'insensitive' } },
-    { description: { contains: query, mode: 'insensitive' } },
-    { brand: { contains: query, mode: 'insensitive' } },
-    {
-      sections: {
-        some: {
-          OR: [
-            { application: { contains: query, mode: 'insensitive' } },
-            { reference: { contains: query, mode: 'insensitive' } },
-            { productCategory: { contains: query, mode: 'insensitive' } },
-          ],
-        },
-      },
-    },
-  ];
+  const orFilters = buildCommercialTextFilters(query);
 
   if (normalizedCode.length >= 2 && shouldSearchCommercialPartNumber(query)) {
     orFilters.unshift({ normalizedNumber: { contains: normalizedCode } });
