@@ -17,10 +17,7 @@ const BusinessPanel = lazy(() => import('../components/BusinessPanel'));
 const AssistantObservabilityPanel = lazy(() => import('../components/AssistantObservabilityPanel'));
 const UsersPanel = lazy(() => import('../components/admin/UsersPanel'));
 const AuditPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.AuditPanel })));
-const AdminFeedbackPanel = lazy(() => import('../components/AdminFeedbackPanel'));
 const QualityPanel = lazy(() => import('../components/QualityPanel'));
-const HistoryWorkspace = lazy(() => import('../components/HistoryWorkspace'));
-const FavoritesWorkspace = lazy(() => import('../components/FavoritesWorkspace'));
 const SavedQuotesPanel = lazy(() => import('../components/SavedQuotesPanel'));
 
 function cleanNavigationValue(value: string | null | undefined) {
@@ -59,7 +56,11 @@ function PanelLoading() {
 export default function Dashboard() {
   const navigate = useNavigate();
   const [initialParams] = useState(() => new URLSearchParams(window.location.search));
-  const initialSectionParam = initialParams.get('tab') as Section | null;
+  // Abas que deixaram de existir: o link antigo cai na tela que ficou com o assunto (favoritos e histórico viraram
+  // "últimas buscas" no Atendimento; feedback foi para Qualidade; auditoria entrou na Visão geral).
+  const LEGACY_TABS: Record<string, Section> = { history: 'parts', favorites: 'parts', feedback: 'quality', audit: 'overview' };
+  const rawSectionParam = initialParams.get('tab');
+  const initialSectionParam = ((rawSectionParam && LEGACY_TABS[rawSectionParam]) || rawSectionParam) as Section | null;
   const initialQueryParam = cleanNavigationValue(
     initialParams.get('code')
     || initialParams.get('part')
@@ -285,19 +286,16 @@ export default function Dashboard() {
           />
         )}
         {section === 'quotes' && <SavedQuotesPanel />}
-        {section === 'history' && <HistoryWorkspace onSearch={search} />}
-        {section === 'favorites' && <FavoritesWorkspace onSearch={search} />}
         {section === 'overview' && user.role === 'ADMIN' && (
           <>
             <OverviewPanel />
             <AssistantObservabilityPanel />
+            <AuditPanel />
           </>
         )}
         {section === 'business' && user.role === 'ADMIN' && <BusinessPanel />}
         {section === 'users' && user.role === 'ADMIN' && <UsersPanel />}
-        {section === 'feedback' && user.role === 'ADMIN' && <AdminFeedbackPanel />}
         {section === 'quality' && user.role === 'ADMIN' && <div className="cv-quality-workspace"><QualityPanel onSearch={search} /></div>}
-        {section === 'audit' && user.role === 'ADMIN' && <AuditPanel />}
       </Suspense>
     </ShellV2>
   );

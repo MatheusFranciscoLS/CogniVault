@@ -132,6 +132,33 @@ await step('menu ⋯ de uma linha do cadastro', async () => {
   await page.keyboard.press('Escape');
 });
 
+await step('últimas buscas (no lugar do Histórico)', async () => {
+  await page.getByRole('button', { name: 'Atendimento', exact: true }).click();
+  await page.locator('form', { has: busca }).getByRole('button', { name: 'Limpar' }).click().catch(() => {});
+  await busca.fill('');
+  await page.keyboard.press('Tab');
+  await busca.focus();
+  const lista = page.getByRole('listbox', { name: 'Últimas buscas' });
+  await lista.waitFor({ timeout: 8000 });
+  const itens = await lista.getByRole('option').allInnerTexts();
+  check('ao focar o campo vazio aparecem as últimas buscas', itens.length > 0, itens.map(t => t.replace(/\s+/g, ' ')).join(' | ').slice(0, 120));
+  check('sem repetição e sem o texto automático da IA', new Set(itens.map(t => t.split('\n')[0].toLowerCase())).size === itens.length && !itens.some(t => /^Analise a pe/i.test(t)));
+  await shot(page, `${theme}-1366-atendimento-ultimas-buscas`);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(1200);
+  const escolhida = (await busca.inputValue()).trim();
+  check('↓ e Enter refazem a busca escolhida', escolhida.length >= 2 && itens.some(t => t.startsWith(escolhida)), escolhida);
+  await busca.fill('');
+  await busca.focus();
+  await lista.waitFor({ timeout: 8000 });
+  await page.keyboard.press('Escape');
+  check('Esc fecha a lista sem apagar nada', (await lista.count()) === 0);
+  await busca.fill('c');
+  check('digitar fecha a lista de últimas buscas', (await lista.count()) === 0);
+  await busca.fill('');
+});
+
 await step('contexto: cliente, máquina, PNC, série', async () => {
   // Abrir a vista explodida de uma máquina já grava a máquina no atendimento: começa limpo.
   console.log('   botões "Encerrar atendimento":', await page.getByRole('button', { name: 'Encerrar atendimento' }).count());
@@ -162,13 +189,10 @@ await step('cabeçalho: abas e menus', async () => {
     await page.waitForTimeout(600);
     check(`aba ${aba} abre`, (await page.locator('main').innerText()).length > 20);
   }
-  await page.getByRole('button', { name: 'Mais', exact: true }).click();
-  const itensMais = await page.getByRole('menuitem').allInnerTexts();
-  check('menu "Mais" abre com itens', itensMais.length > 0, itensMais.join(' | '));
-  await page.keyboard.press('Escape');
+  check('não existe mais o menu "Mais" (Favoritos e Histórico saíram)', (await page.getByRole('button', { name: 'Mais', exact: true }).count()) === 0);
   await page.getByRole('button', { name: 'Administração' }).click();
   const itensAdm = await page.getByRole('menuitem').allInnerTexts();
-  check('menu "Administração" abre com itens', itensAdm.length > 0, itensAdm.join(' | '));
+  check('menu "Administração" tem Negócio, Visão geral, Usuários e Qualidade (e só eles)', JSON.stringify(itensAdm.map(t => t.trim())) === JSON.stringify(['Negócio', 'Visão geral', 'Usuários', 'Qualidade']), itensAdm.join(' | '));
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Notificações' }).click();
   await page.waitForTimeout(400);

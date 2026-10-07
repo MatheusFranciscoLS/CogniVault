@@ -38,18 +38,11 @@ const primaryNav: NavItem[] = [
   { id: 'quotes', label: 'Orçamentos', icon: 'quote' },
 ];
 
-const secondaryNav: NavItem[] = [
-  { id: 'favorites', label: 'Favoritos', icon: 'favorite' },
-  { id: 'history', label: 'Histórico', icon: 'history' },
-];
-
 const adminNav: NavItem[] = [
   { id: 'business', label: 'Negócio', icon: 'money' },
   { id: 'overview', label: 'Visão geral', icon: 'dashboard' },
   { id: 'users', label: 'Usuários', icon: 'users' },
-  { id: 'feedback', label: 'Feedback', icon: 'feedback' },
   { id: 'quality', label: 'Qualidade', icon: 'quality' },
-  { id: 'audit', label: 'Auditoria', icon: 'audit' },
 ];
 
 // Aba da barra superior. Texto de apoio em hex fixo (não opacidade): contraste
@@ -115,7 +108,7 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
   const toggleSoundPreference = () => setSoundEnabled(toggleSound());
   const activeSection: Section = section === 'home' || section === 'assistant' ? 'parts' : section;
-  const allNav = [...primaryNav, ...secondaryNav, ...(isAdmin ? adminNav : [])];
+  const allNav = [...primaryNav, ...(isAdmin ? adminNav : [])];
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
@@ -133,7 +126,6 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
 
           <nav aria-label="Principal" className="hidden h-full md:flex">
             {primaryNav.map(item => <Tab key={item.id} item={item} active={activeSection === item.id} onSelect={onSection} />)}
-            <GroupTab label="Mais" items={secondaryNav} section={section} onSelect={onSection} />
             {isAdmin && <GroupTab label="Administração" items={adminNav} section={section} onSelect={onSection} />}
           </nav>
 

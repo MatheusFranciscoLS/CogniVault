@@ -18,7 +18,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/
  * Por isso a ação principal é COPIAR O CÓDIGO, e a gaveta mostra só o que ajuda a
  * vender: código, preço, onde a peça está na vista explodida, o que levar junto. O que
  * era informação sobre o sistema (confiabilidade, fontes, "onde usa", "também serve em")
- * saiu; o raro (favoritar, conferir, perguntar à IA) mora no menu "⋯".
+ * saiu; o raro (conferir, perguntar à IA) mora no menu "⋯".
  */
 
 type Props = {
@@ -29,7 +29,6 @@ type Props = {
   onCopy: (code: string) => void;
   onOpenPdf: (documentId: string, page: number | null, title: string) => void;
   onOpenRelated: (id: string) => void;
-  onToggleFavorite: () => void;
   onVerify: () => void;
   onAskAi: (prompt: string) => void;
   /** Há algo por cima (visualizador de PDF, conferência, IA) que fecha com o Esc: a gaveta fica. */
@@ -49,7 +48,7 @@ function useCopyFlash(onCopy: (code: string) => void) {
   return { copied, copy };
 }
 
-export default function PartDetailDrawer({ detail, verification, liveData, onClose, onCopy, onOpenPdf, onOpenRelated, onToggleFavorite, onVerify, onAskAi, escapeBlocked = false }: Props) {
+export default function PartDetailDrawer({ detail, verification, liveData, onClose, onCopy, onOpenPdf, onOpenRelated, onVerify, onAskAi, escapeBlocked = false }: Props) {
   const quoteCart = useQuoteCart();
   const [workContext, setWorkContext] = useState<WorkContext | null>(null);
   const { copied, copy } = useCopyFlash(onCopy);
@@ -107,7 +106,6 @@ export default function PartDetailDrawer({ detail, verification, liveData, onClo
                 <Button variant="ghost" size="icon" aria-label="Mais ações"><MoreHorizontal className="size-5" /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-56">
-                <DropdownMenuItem onSelect={onToggleFavorite} className="h-10 text-base">{detail.favoriteId ? 'Remover dos favoritos' : 'Favoritar peça'}</DropdownMenuItem>
                 <DropdownMenuItem asChild className="h-10 text-base"><a href={officialUrl} target="_blank" rel="noreferrer noopener">{officialPortalLabel(effectiveCode, quoteManufacturer)} ↗</a></DropdownMenuItem>
                 <DropdownMenuItem onSelect={onVerify} className="h-10 text-base">Registrar conferência</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => onAskAi(`Analise a peça ${detail.name}, código ${effectiveCode}, aplicada em ${detail.model}.`)} className="h-10 text-base">Perguntar à IA</DropdownMenuItem>

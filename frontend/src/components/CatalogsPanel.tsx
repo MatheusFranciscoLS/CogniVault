@@ -3,10 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useConfirm } from '../context/confirm';
 import { api, apiJson, fmtDate, formatEngineOrCatalogModel, json } from '../lib';
 import { toast } from 'sonner';
-import type { DocumentItem, FavoriteItem } from '../types';
+import type { DocumentItem } from '../types';
 import BatchCatalogUploader from './BatchCatalogUploader';
 
-type CatalogData = { documents: DocumentItem[]; favorites: FavoriteItem[]; categories: string[] };
+type CatalogData = { documents: DocumentItem[]; categories: string[] };
 type StatusFilter = 'ALL' | 'FAILED' | 'REVIEW' | 'READY';
 export type CatalogSortMode = 'NAME_ASC' | 'NAME_DESC' | 'NEWEST' | 'PARTS_DESC';
 
@@ -78,13 +78,9 @@ type FailureGuidance = {
 };
 
 async function fetchCatalogData(admin: boolean, archived: boolean): Promise<CatalogData> {
-  const [documentsData, favoritesData] = await Promise.all([
-    apiJson<{ documents: DocumentItem[]; categories: string[] }>(`/api/documents${admin && archived ? '?includeArchived=true' : ''}`),
-    apiJson<{ favorites: FavoriteItem[] }>('/api/favorites'),
-  ]);
+  const documentsData = await apiJson<{ documents: DocumentItem[]; categories: string[] }>(`/api/documents${admin && archived ? '?includeArchived=true' : ''}`);
   return {
     documents: documentsData.documents,
-    favorites: favoritesData.favorites,
     categories: documentsData.categories || [],
   };
 }
@@ -346,7 +342,6 @@ export default function CatalogsPanel({
   });
 
   const docs = useMemo(() => data?.documents || [], [data?.documents]);
-  const favorites = useMemo(() => data?.favorites || [], [data?.favorites]);
   const categories = useMemo(() => data?.categories || [], [data?.categories]);
 
   const error = actionError || (loadError instanceof Error ? loadError.message : loadError ? 'Erro ao carregar catálogos.' : '');
@@ -387,8 +382,6 @@ export default function CatalogsPanel({
     });
     return list.sort((a, b) => compareCatalogs(a, b, sortMode));
   }, [activeDocs, effectiveCategoryFilter, normalizedSearch, statusFilter, sortMode]);
-
-  const favoritesByDocument = useMemo(() => new Map(favorites.filter(item => item.documentId).map(item => [item.documentId!, item])), [favorites]);
 
   const flash = (text: string) => { toast.success(text); };
 
@@ -434,26 +427,6 @@ export default function CatalogsPanel({
       setError(analyzeError instanceof Error ? analyzeError.message : 'Não foi possível analisar os catálogos.');
     } finally {
       setAnalyzingQuality(false);
-    }
-  };
-
-  const toggleFavorite = async (document: DocumentItem) => {
-    try {
-      const current = favoritesByDocument.get(document.id);
-      if (current) {
-        await json(await api(`/api/favorites/${current.id}`, { method: 'DELETE' }));
-        flash('Catálogo removido dos favoritos.');
-      } else {
-        await apiJson('/api/favorites', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ documentId: document.id }),
-        });
-        flash('Catálogo adicionado aos favoritos.');
-      }
-      await load();
-    } catch (favoriteError) {
-      setError(favoriteError instanceof Error ? favoriteError.message : 'Não foi possível atualizar o favorito.');
     }
   };
 
@@ -791,7 +764,6 @@ export default function CatalogsPanel({
             {filtered.map(document => {
               const recovery = failureGuidance(document);
               const pncs = catalogPncs(document);
-              const isFav = favoritesByDocument.has(document.id);
               const icon = categoryIcon(document.category);
 
               return (
@@ -822,15 +794,6 @@ export default function CatalogsPanel({
                           <span className="truncate max-w-[140px]">{document.category}</span>
                         </span>
                       )}
-                      <button
-                        type="button"
-                        title={isFav ? 'Remover dos favoritos' : 'Favoritar catálogo'}
-                        onClick={() => void toggleFavorite(document)}
-                        disabled={Boolean(document.archivedAt)}
-                        className="text-lg leading-none text-amber-400 hover:scale-110 transition disabled:opacity-30"
-                      >
-                        {isFav ? '★' : '☆'}
-                      </button>
                     </div>
 
                     <div className="mt-3">
@@ -1024,16 +987,6 @@ export default function CatalogsPanel({
                     <tr key={document.id} className="border-t border-ink-100 dark:border-ink-800 transition hover:bg-ink-50/60 dark:bg-ink-800">
                       <td className="p-4">
                         <div className="flex items-start gap-2">
-                          <button
-                            type="button"
-                            title="Favoritar"
-                            aria-label={favoritesByDocument.has(document.id) ? `Remover ${document.filename} dos favoritos` : `Favoritar ${document.filename}`}
-                            disabled={Boolean(document.archivedAt)}
-                            onClick={() => void toggleFavorite(document)}
-                            className="text-lg leading-5 text-amber-500 disabled:opacity-30"
-                          >
-                            {favoritesByDocument.has(document.id) ? '★' : '☆'}
-                          </button>
                           <div>
                             <b className="font-semibold text-ink-800 dark:text-ink-200">{document.filename}</b>
                             <div className="mt-1 text-sm text-ink-500 dark:text-ink-400">{document.manufacturer || 'Husqvarna'} · {fmtDate(document.createdAt)}</div>

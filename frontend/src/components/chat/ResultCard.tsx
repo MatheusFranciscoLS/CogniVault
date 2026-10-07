@@ -20,17 +20,11 @@ function confidencePresentation(response: ChatResponse) {
 
 export default function ResultCard({
   response,
-  favorite,
-  favoritePending,
-  onToggleFavorite,
   onCopyCode,
   onCopySummary,
   onAccess,
 }: {
   response: ChatResponse;
-  favorite: boolean;
-  favoritePending: boolean;
-  onToggleFavorite: () => void;
   onCopyCode: () => void;
   onCopySummary: () => void;
   onAccess: (mode: 'view' | 'download') => void;
@@ -331,7 +325,6 @@ export default function ResultCard({
           <span>🔁</span>
           <span>Onde mais é usada?</span>
         </button>
-        <button type="button" disabled={favoritePending} onClick={onToggleFavorite} className={`rounded-xl border px-3 py-2 text-xs font-semibold transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50 ${favorite?'border-amber-300 bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300':'border-ink-300 dark:border-ink-600 text-ink-700 dark:text-ink-300'}`}>{favorite?'★ Favoritada':'☆ Favoritar peça'}</button>
         <button type="button" onClick={onCopyCode} className="rounded-xl bg-brand-600 dark:bg-brand-600/80 px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90">Copiar código</button>
         <button type="button" onClick={onCopySummary} className="rounded-xl border border-ink-300 dark:border-ink-600 px-3 py-2 text-xs font-semibold transition hover:bg-ink-50 dark:bg-ink-800/50">Copiar ficha</button>
         <button type="button" onClick={() => onAccess('view')} className="rounded-xl border border-ink-300 dark:border-ink-600 px-3 py-2 text-xs font-semibold transition hover:bg-ink-50 dark:bg-ink-800/50">Abrir na página</button>

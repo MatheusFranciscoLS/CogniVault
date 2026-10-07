@@ -1,19 +1,14 @@
-// Percorre as telas que ainda não foram refeitas (Favoritos, Histórico, Negócio, Visão geral, Usuários, Feedback,
-// Qualidade, Auditoria): abre cada uma, lista os controles, confere erro, estouro horizontal e fonte pequena, e tira
+// Percorre as telas de administração que ainda não foram refeitas por dentro (Negócio, Visão geral, Qualidade): abre cada uma, lista os controles, confere erro, estouro horizontal e fonte pequena, e tira
 // captura. Serve para decidir o que refazer, cortar ou manter. Uso (de dentro de frontend/): node ../docs/loja-simulada/telas-restantes.mjs [tema]
 import { open, check, step, finish, shot } from './_t.mjs';
 
 const { browser, page, errors, theme } = await open({ theme: process.argv[2] ?? 'dark' });
 
 const telas = [
-  { menu: 'Mais', item: 'Favoritos', slug: 'favoritos' },
-  { menu: 'Mais', item: 'Histórico', slug: 'historico' },
   { menu: 'Administração', item: 'Negócio', slug: 'negocio' },
   { menu: 'Administração', item: 'Visão geral', slug: 'visao-geral' },
   { menu: 'Administração', item: 'Usuários', slug: 'usuarios' },
-  { menu: 'Administração', item: 'Feedback', slug: 'feedback' },
   { menu: 'Administração', item: 'Qualidade', slug: 'qualidade' },
-  { menu: 'Administração', item: 'Auditoria', slug: 'auditoria' },
 ];
 
 for (const tela of telas) {
@@ -39,6 +34,7 @@ for (const tela of telas) {
     console.log(`   ${texto.slice(0, 220)}`);
     check(`${tela.item} abre com conteúdo`, texto.length > 60 && !pendente);
     check(`${tela.item} sem rolagem horizontal`, !estouro);
+    if (tela.item === 'Visão geral') check('Visão geral traz o registro de ações (a antiga Auditoria)', /Registro de ações/.test(texto));
     await shot(page, `${theme}-1366-${tela.slug}`);
   });
 }

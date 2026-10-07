@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { toast } from 'sonner';
-import { api, apiJson, cleanErpCode, replayQuery } from '../../lib';
+import { api, apiJson, cleanErpCode } from '../../lib';
 import { playCopySound } from '../../lib/sound';
 import { useCounterSession } from '../../context/CounterSessionContext';
-import type { FavoriteItem, OfficialVerification, PartDetail, SearchHistoryItem } from '../../types';
+import type { OfficialVerification, PartDetail, SearchHistoryItem } from '../../types';
+import { recentSearchesFrom, type RecentSearch } from '../../lib/recent-searches';
 import PartVerificationDialog, { isSupersededForCode, looksLikePartNumber, normalizePartCode } from '../PartVerificationDialog';
 import ChatPanel from '../ChatPanel';
 import { Icon } from '../icons/Icon';
@@ -112,29 +113,48 @@ async function consumeSearchStream(response: Response, signal: AbortSignal | und
   }
 }
 
+function RecentSearchesDropdown({ recent, activeIndex, onPick }: { recent: RecentSearch[]; activeIndex: number; onPick: (value: string) => void }) {
+  return (
+    <div role="listbox" aria-label="Últimas buscas" className="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-lg">
+      <div className="px-4 pt-2 text-sm text-muted-foreground">Últimas buscas</div>
+      {recent.map((item, index) => (
+        <button
+          key={item.query}
+          type="button"
+          role="option"
+          aria-selected={index === activeIndex}
+          onMouseDown={event => { event.preventDefault(); onPick(item.replay); }}
+          className={cn('flex min-h-11 w-full items-center justify-between gap-4 px-4 py-2 text-left transition-colors', index === activeIndex ? 'bg-accent' : 'hover:bg-muted')}
+        >
+          <span className="truncate text-base font-semibold">{item.query}</span>
+          {item.label && item.label !== item.query && <span className="max-w-[45%] shrink-0 truncate text-sm text-muted-foreground">{item.label}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Starter({
   onExample,
-  favorites,
-  lastSearch,
+  recent,
   onReplay,
 }: {
   onExample: (value: string) => void;
-  favorites: FavoriteItem[];
-  lastSearch: SearchHistoryItem | null;
+  recent: RecentSearch[];
   onReplay: (value: string) => void;
 }) {
-  // Estado vazio útil: o que o atendente provavelmente quer fazer agora (voltar à
-  // última busca, abrir um favorito, ver como se pesquisa). Sem texto sobre o sistema.
+  // Estado vazio útil: voltar a uma busca recente ou ver como se pesquisa. Sem texto sobre o sistema.
   return (
     <div className="space-y-4">
-      {lastSearch && (
-        <Button variant="outline" size="lg" onClick={() => onReplay(replayQuery(lastSearch))} className="h-auto min-h-12 w-full justify-start gap-3 py-3 text-left">
-          <Icon name="history" className="size-5 shrink-0 text-muted-foreground" />
-          <span className="min-w-0">
-            <span className="block text-sm font-medium text-muted-foreground">Última busca</span>
-            <span className="block truncate text-lg font-semibold">{lastSearch.resultLabel || lastSearch.query}</span>
-          </span>
-        </Button>
+      {recent.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-base text-muted-foreground">Últimas buscas</span>
+          {recent.slice(0, 6).map(item => (
+            <Button key={item.query} variant="outline" size="sm" onClick={() => onReplay(item.replay)} title={item.label || undefined} className="max-w-72 font-medium">
+              <span className="truncate">{item.query}</span>
+            </Button>
+          ))}
+        </div>
       )}
 
       <div className="flex flex-wrap items-center gap-2">
@@ -143,20 +163,6 @@ function Starter({
           <Button key={example.label} variant="outline" size="sm" onClick={() => onExample(example.value)} className="font-medium">{example.value}</Button>
         ))}
       </div>
-
-      {favorites.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="text-base font-semibold">Favoritos</h2>
-          <div className="flex flex-wrap gap-2">
-            {favorites.map(favorite => (
-              <Button key={favorite.id} variant="outline" onClick={() => onExample(favorite.reference as string)} className="h-auto flex-col items-start gap-0 py-2 text-left">
-                <span className="max-w-64 truncate text-base font-semibold">{favorite.label}</span>
-                <span className="font-code text-sm font-medium text-muted-foreground tabular-nums">{favorite.reference}</span>
-              </Button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -256,20 +262,18 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   // A busca em andamento. Uma busca nova cancela a anterior: sem isso, a fase "por significado" da busca
   // velha chegava depois e misturava peças dela na lista da nova.
   const searchAbortRef = useRef<AbortController | null>(null);
-  const [quickFavorites, setQuickFavorites] = useState<FavoriteItem[]>([]);
-  const [lastSearch, setLastSearch] = useState<SearchHistoryItem | null>(null);
+  const [recent, setRecent] = useState<RecentSearch[]>([]);
+  const [recentOpen, setRecentOpen] = useState(false);
+  const [activeRecent, setActiveRecent] = useState(-1);
   const [showAllExtras, setShowAllExtras] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    void apiJson<{ favorites: FavoriteItem[] }>('/api/favorites')
-      .then(data => { if (active) setQuickFavorites(data.favorites.filter(item => item.kind === 'PART' && item.reference).slice(0, 6)); })
-      .catch(() => undefined);
+  const loadRecent = useCallback(() => {
     void apiJson<{ history: SearchHistoryItem[] }>('/api/history')
-      .then(data => { if (active) setLastSearch(data.history[0] || null); })
+      .then(data => setRecent(recentSearchesFrom(data.history)))
       .catch(() => undefined);
-    return () => { active = false; };
   }, []);
+
+  useEffect(() => { loadRecent(); }, [loadRecent]);
 
   const loadVerifications = useCallback(async (items: Array<{ partNumber: string }>, replace = false) => {
     if (!items.length) {
@@ -628,26 +632,6 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     }
   }, []);
 
-  const toggleFavorite = useCallback(async () => {
-    if (!detail) return;
-    try {
-      if (detail.favoriteId) {
-        await apiJson(`/api/favorites/${detail.favoriteId}`, { method: 'DELETE' });
-        setDetail(current => current ? { ...current, favoriteId: null } : current);
-        toast.success('Removida dos favoritos.');
-      } else {
-        const data = await apiJson<{ favorite: { id: string } }>('/api/favorites', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ partId: detail.id }),
-        });
-        setDetail(current => current ? { ...current, favoriteId: data.favorite.id } : current);
-        toast.success('Adicionada aos favoritos.');
-      }
-    } catch (favoriteError) {
-      toast.error(favoriteError instanceof Error ? favoriteError.message : 'Não foi possível atualizar o favorito.');
-    }
-  }, [detail]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -684,10 +668,23 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           <Input
             ref={inputRef}
             value={query}
-            onChange={event => setQuery(event.target.value)}
-            onFocus={() => { if (suggestions.length > 0) setSuggestionsOpen(true); }}
-            onBlur={() => setSuggestionsOpen(false)}
+            onChange={event => {
+              setQuery(event.target.value);
+              setActiveRecent(-1);
+              setRecentOpen(!event.target.value.trim() && recent.length > 0);
+            }}
+            onFocus={() => {
+              if (suggestions.length > 0) setSuggestionsOpen(true);
+              if (!query.trim()) { loadRecent(); setRecentOpen(recent.length > 0); }
+            }}
+            onBlur={() => { setSuggestionsOpen(false); setRecentOpen(false); }}
             onKeyDown={event => {
+              if (recentOpen && recent.length) {
+                if (event.key === 'ArrowDown') { event.preventDefault(); setActiveRecent(current => (current + 1) % recent.length); return; }
+                if (event.key === 'ArrowUp') { event.preventDefault(); setActiveRecent(current => (current <= 0 ? recent.length - 1 : current - 1)); return; }
+                if (event.key === 'Enter' && activeRecent >= 0) { event.preventDefault(); setRecentOpen(false); beginSearch(recent[activeRecent].replay); return; }
+                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setRecentOpen(false); return; }
+              }
               if (!suggestionsOpen || !suggestions.length) return;
               if (event.key === 'ArrowDown') {
                 event.preventDefault();
@@ -709,12 +706,15 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
             aria-label="Buscar peça, código ou modelo"
             autoComplete="off"
             role="combobox"
-            aria-expanded={suggestionsOpen && suggestions.length > 0}
+            aria-expanded={(suggestionsOpen && suggestions.length > 0) || (recentOpen && recent.length > 0 && !query.trim())}
             aria-controls="parts-search-suggestions"
             aria-autocomplete="list"
             className="h-12 rounded-xl bg-card pl-12 pr-20 text-lg font-medium"
           />
           {!query && <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-border px-1.5 text-sm text-muted-foreground">Ctrl&nbsp;K</kbd>}
+          {recentOpen && recent.length > 0 && !query.trim() && (
+            <RecentSearchesDropdown recent={recent} activeIndex={activeRecent} onPick={value => { setRecentOpen(false); beginSearch(value); }} />
+          )}
           {suggestionsOpen && suggestions.length > 0 && (
             <div id="parts-search-suggestions">
               <SuggestionsDropdown suggestions={suggestions} activeIndex={activeSuggestion} onPick={selectSuggestion} />
@@ -777,7 +777,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
 
       <div className="grid flex-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-4">
-          {!hasSearched && <Starter onExample={beginSearch} favorites={quickFavorites} lastSearch={lastSearch} onReplay={beginSearch} />}
+          {!hasSearched && <Starter onExample={beginSearch} recent={recent} onReplay={beginSearch} />}
           {loading && !hasLocalResults ? <ResultsSkeleton /> : null}
           {hasSearched && <OilQuickAdd query={lastQuery} machineModel={session.machineModel.trim() || undefined} />}
 
@@ -906,7 +906,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
         </PanelErrorBoundary>
       )}
 
-      {detail && <PanelErrorBoundary key={`peca-${detail.partNumber}`} onClose={() => setDetail(null)}><PartDetailDrawer detail={detail} verification={detailVerification} liveData={liveData} onClose={() => setDetail(null)} onCopy={code => void copyCode(code)} onOpenPdf={(documentId, page, title) => void accessPdf(documentId, page, title)} onOpenRelated={id => void openPart(id)} onToggleFavorite={() => void toggleFavorite()} onVerify={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} onAskAi={openAi} escapeBlocked={aiOpen || Boolean(pdf) || Boolean(verificationTarget)} /></PanelErrorBoundary>}
+      {detail && <PanelErrorBoundary key={`peca-${detail.partNumber}`} onClose={() => setDetail(null)}><PartDetailDrawer detail={detail} verification={detailVerification} liveData={liveData} onClose={() => setDetail(null)} onCopy={code => void copyCode(code)} onOpenPdf={(documentId, page, title) => void accessPdf(documentId, page, title)} onOpenRelated={id => void openPart(id)} onVerify={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} onAskAi={openAi} escapeBlocked={aiOpen || Boolean(pdf) || Boolean(verificationTarget)} /></PanelErrorBoundary>}
       {verificationTarget && <PartVerificationDialog target={verificationTarget} existing={verifications[normalizePartCode(verificationTarget.partNumber)]} onClose={() => setVerificationTarget(null)} onSaved={() => { setVerificationTarget(null); toast.success('Conferência enviada para aprovação.'); if (detail) void loadVerifications([detail]); }} />}
 
       {pdf && (

@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { api, fmtDate, json } from '../lib';
 import type { AuditLog, Overview } from '../types';
 
-function AdminHeading({ title, action }: { title: string; action?: React.ReactNode }) {
+function AdminHeading({ title, action, level = 1 }: { title: string; action?: React.ReactNode; level?: 1 | 2 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-3xl font-semibold leading-9">{title}</h1>
+      {level === 1
+        ? <h1 className="text-3xl font-semibold leading-9">{title}</h1>
+        : <h2 className="text-2xl font-semibold leading-8">{title}</h2>}
       {action}
     </div>
   );
@@ -94,7 +96,7 @@ export function AuditPanel() {
 
   return (
     <section className="mx-auto max-w-[1400px] space-y-4">
-      <AdminHeading title="Auditoria" />
+      <AdminHeading level={2} title="Registro de ações" />
       {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"><span>{error}</span><button type="button" onClick={() => { setError(''); setRetry(value => value + 1); }} className="rounded-lg border border-rose-300 px-3 py-1.5 text-sm font-bold dark:border-rose-700">Tentar novamente</button></div>}
       <div className="flex items-center gap-2 rounded-xl border border-ink-200 bg-white p-3 dark:border-ink-800 dark:bg-ink-900"><div className="relative min-w-0 flex-1"><span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-500 dark:text-ink-400">⌕</span><input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Ação, usuário ou recurso…" className="h-10 w-full rounded-lg border border-ink-200 bg-ink-50 pl-10 pr-3 text-sm outline-hidden dark:border-ink-700 dark:bg-ink-800" /></div><span className="px-1 text-sm font-semibold text-ink-500 dark:text-ink-400">{filtered.length} eventos</span></div>
       <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">

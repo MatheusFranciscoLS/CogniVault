@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { motion } from 'framer-motion';
 import { api, json } from '../lib';
 import { pdfPageUrl } from '../pdf';
-import type { ChatResponse, FavoriteItem, FeedbackOption } from '../types';
+import type { ChatResponse, FeedbackOption } from '../types';
 
 import Guidance from './chat/Guidance';
 import SerialFollowUp from './chat/SerialFollowUp';
@@ -111,8 +111,6 @@ export default function ChatPanel({
   const [loading, setLoading] = useState(false);
   const [equipment, setEquipment] = useState<Equipment[]>(() => read<Equipment[]>(equipmentKey, []));
   const [recent, setRecent] = useState<Recent[]>(() => read<Recent[]>(recentKey, []));
-  const [favoriteByPartId, setFavoriteByPartId] = useState<Record<string,string>>({});
-  const [favoritePendingId, setFavoritePendingId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [pdf, setPdf] = useState<{ url: string; page: number | null; title: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -143,20 +141,6 @@ export default function ChatPanel({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [pdf]);
-
-  useEffect(() => {
-    let active = true;
-    void api('/api/favorites')
-      .then(response => json<{ favorites: FavoriteItem[] }>(response))
-      .then(data => {
-        if (!active) return;
-        const next: Record<string,string> = {};
-        for (const item of data.favorites) if (item.partId) next[item.partId] = item.id;
-        setFavoriteByPartId(next);
-      })
-      .catch(() => { /* Favoritos indisponíveis não devem bloquear uma consulta. */ });
-    return () => { active = false; };
-  }, []);
 
 
   useEffect(() => () => {
@@ -232,35 +216,6 @@ export default function ChatPanel({
   };
 
   const cancel = () => requestRef.current?.abort();
-
-  const toggleFavorite = async (partId: string) => {
-    if (!partId || favoritePendingId) return;
-    setFavoritePendingId(partId);
-    const currentFavoriteId = favoriteByPartId[partId];
-    try {
-      if (currentFavoriteId) {
-        await json(await api(`/api/favorites/${currentFavoriteId}`, { method: 'DELETE' }));
-        setFavoriteByPartId(current => {
-          const next = { ...current };
-          delete next[partId];
-          return next;
-        });
-        notify('Peça removida dos favoritos.');
-      } else {
-        const result = await json<{ favorite: { id: string } }>(await api('/api/favorites', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ partId }),
-        }));
-        setFavoriteByPartId(current => ({ ...current, [partId]: result.favorite.id }));
-        notify('Peça adicionada aos favoritos.');
-      }
-    } catch (error) {
-      notify(error instanceof Error ? error.message : 'Não foi possível atualizar o favorito.');
-    } finally {
-      setFavoritePendingId(null);
-    }
-  };
 
   const positiveFeedback = async (index: number) => {
     const message = messages[index];
@@ -509,9 +464,6 @@ export default function ChatPanel({
                 {message.response?.part ? (
                   <ResultCard
                     response={message.response}
-                    favorite={Boolean(favoriteByPartId[message.response.part.id])}
-                    favoritePending={favoritePendingId===message.response.part.id}
-                    onToggleFavorite={() => void toggleFavorite(message.response!.part!.id)}
                     onCopyCode={() => void copy(message.response?.part?.partNumber || '')}
                     onCopySummary={() => copySummary(message.response!)}
                     onAccess={mode => void access(message.response?.part?.documentId || '', mode, message.response?.part?.page ?? null, message.response?.part?.filename || 'Catálogo')}
