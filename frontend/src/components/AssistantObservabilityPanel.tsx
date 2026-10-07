@@ -123,7 +123,7 @@ export default function AssistantObservabilityPanel() {
   }
 
   if (!data || !performance) {
-    return <div className="mt-5 rounded-xl border border-ink-200 bg-white px-4 py-4 text-sm text-ink-500 dark:text-ink-400 dark:border-ink-800 dark:bg-ink-900">Carregando operação do assistente…</div>;
+    return <div className="mt-5 rounded-xl border border-ink-200 bg-white px-4 py-4 text-sm text-ink-500 dark:text-ink-400 dark:border-ink-800 dark:bg-ink-900">Carregando uso de IA…</div>;
   }
 
   const portfolio = data.portfolioCoverage;
@@ -135,8 +135,7 @@ export default function AssistantObservabilityPanel() {
     <section className="mt-6 overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-ink-100 px-5 py-4 dark:border-ink-800">
         <div>
-          <div className="text-sm font-semibold text-brand-600 dark:text-brand-300">Operação do assistente</div>
-          <h2 className="mt-1 text-base font-semibold text-ink-950 dark:text-white">Uso, cache e cobertura técnica</h2>
+          <h2 className="text-base font-semibold text-ink-950 dark:text-white">Uso de IA e cobertura técnica</h2>
           <p className="mt-1 max-w-2xl text-sm leading-5 text-ink-500 dark:text-ink-400">Métricas do dia para acompanhar custo de IA e quanto do trabalho já é resolvido por evidência reutilizável.</p>
         </div>
         <span className={`rounded-full border px-2.5 py-1 text-sm font-bold ${data.interactive.allowed ? 'border-emerald-200 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300' : 'border-amber-200 text-amber-700 dark:border-amber-800 dark:text-amber-300'}`}>

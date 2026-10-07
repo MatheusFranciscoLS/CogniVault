@@ -305,8 +305,10 @@ export default function Dashboard() {
         {section === 'overview' && user.role === 'ADMIN' && (
           <>
             <OverviewPanel />
-            <AssistantObservabilityPanel />
-            <AuditPanel />
+            <div className="mx-auto w-full max-w-[1400px]">
+              <AssistantObservabilityPanel />
+              <AuditPanel />
+            </div>
           </>
         )}
         {section === 'business' && user.role === 'ADMIN' && <BusinessPanel />}
