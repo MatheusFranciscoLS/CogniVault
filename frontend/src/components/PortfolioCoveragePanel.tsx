@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiJson } from '../lib';
 
 type PortfolioCoverageGap = {
@@ -7,7 +7,7 @@ type PortfolioCoverageGap = {
   status: 'UNVERIFIED';
   commercialSignals: number;
   commercialEvidence: string[];
-  portalVerification: 'NOT_CHECKED' | 'VERIFIED' | 'NO_EXACT_MATCH' | 'NO_IPL' | 'INCONCLUSIVE';
+  portalVerification: 'NOT_CHECKED' | 'VERIFIED' | 'DOCUMENT_ONLY' | 'NO_EXACT_MATCH' | 'NO_IPL' | 'INCONCLUSIVE';
   portalVerificationNote: string | null;
 };
 
@@ -22,10 +22,15 @@ export type PortfolioCoverage = {
   scope: 'BR_LOCAL';
   portalChecked: boolean;
   checkedCount?: number;
+  checkedModels?: string[];
+  /** Modelos ainda sem resposta do Portal (o que a conferência automática vai percorrer). */
+  remaining?: number;
   portalCache?: PortalCacheSummary;
   total: number;
   localIpl: number;
   portalIpl: number;
+  /** Modelos que o Portal só tem como IPL em documento (PDF), sem lista estruturada. */
+  portalDocument?: number;
   unverified: number;
   covered: number;
   coverageRate: number;
@@ -37,21 +42,12 @@ function signalLabel(count: number) {
 }
 
 function portalDiagnostic(state: PortfolioCoverageGap['portalVerification']) {
-  if (state === 'NO_EXACT_MATCH') return 'Sem match exato no Portal BR';
-  if (state === 'NO_IPL') return 'Produto exato sem IPL estruturada';
-  if (state === 'INCONCLUSIVE') return 'Consulta ao Portal inconclusiva';
-  if (state === 'VERIFIED') return 'IPL confirmada no Portal BR';
-  return 'Portal não consultado';
-}
-
-function portalCacheLabel(cache?: PortalCacheSummary) {
-  if (!cache) return null;
-  const parts: string[] = [];
-  if (cache.HIT) parts.push(`${cache.HIT} reaproveitado${cache.HIT === 1 ? '' : 's'}`);
-  if (cache.MISS) parts.push(`${cache.MISS} consulta${cache.MISS === 1 ? '' : 's'} nova${cache.MISS === 1 ? '' : 's'}`);
-  if (cache.STALE) parts.push(`${cache.STALE} em revalidação`);
-  if (cache.FALLBACK) parts.push(`${cache.FALLBACK} fallback${cache.FALLBACK === 1 ? '' : 's'}`);
-  return parts.length ? parts.join(' · ') : null;
+  if (state === 'NO_EXACT_MATCH') return 'Portal: sem produto com esse nome';
+  if (state === 'NO_IPL') return 'Portal: produto sem lista de peças';
+  if (state === 'INCONCLUSIVE') return 'Portal: não respondeu, tentar de novo';
+  if (state === 'VERIFIED') return 'Lista de peças confirmada no Portal';
+  if (state === 'DOCUMENT_ONLY') return 'Portal: IPL em PDF';
+  return 'Ainda não conferido no Portal';
 }
 
 export default function PortfolioCoveragePanel({
@@ -66,6 +62,9 @@ export default function PortfolioCoveragePanel({
   const [portalCoverage, setPortalCoverage] = useState<PortfolioCoverage | null>(null);
   const [checkingPortal, setCheckingPortal] = useState(false);
   const [portalError, setPortalError] = useState('');
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const stopped = useRef(false);
+  const started = useRef(false);
   const displayCoverage = portalCoverage ?? coverage;
 
   const refreshLocal = async () => {
@@ -74,15 +73,26 @@ export default function PortfolioCoveragePanel({
     await onRefresh?.();
   };
 
+  // Confere no Portal os modelos que ainda não têm resposta, 8 por vez. Cada resposta fica
+  // guardada no servidor, então abrir a tela de novo só consulta o que falta ou venceu.
   const checkPortal = async () => {
     setCheckingPortal(true);
     setPortalError('');
+    const attempted = new Set<string>();
+    setProgress({ done: 0, total: coverage.remaining ?? 0 });
     try {
-      const result = await apiJson<PortfolioCoverage>('/api/admin/quality/portal-coverage', {
-        method: 'POST',
-        timeoutMs: 120_000,
-      });
-      setPortalCoverage(result);
+      for (let round = 0; round < 80 && !stopped.current; round += 1) {
+        const result = await apiJson<PortfolioCoverage>('/api/admin/quality/portal-coverage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ exclude: [...attempted] }),
+          timeoutMs: 120_000,
+        });
+        for (const model of result.checkedModels ?? []) attempted.add(model);
+        setPortalCoverage(result);
+        setProgress(current => ({ done: attempted.size, total: Math.max(current.total, attempted.size) }));
+        if (!result.remaining || !result.checkedCount) break;
+      }
     } catch (error) {
       setPortalError(error instanceof Error ? error.message : 'Não foi possível consultar o Portal Husqvarna Brasil agora.');
     } finally {
@@ -90,9 +100,18 @@ export default function PortfolioCoveragePanel({
     }
   };
 
+  // Abrir a tela já começa a conferência do que falta; sair da tela interrompe.
+  useEffect(() => {
+    stopped.current = false;
+    if (started.current || !(coverage.remaining && coverage.remaining > 0)) return undefined;
+    started.current = true;
+    const timer = window.setTimeout(() => void checkPortal(), 0);
+    return () => { window.clearTimeout(timer); stopped.current = true; started.current = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coverage.remaining]);
+
   const coveragePercent = Math.round(displayCoverage.coverageRate * 100);
   const gaps = displayCoverage.gaps.slice(0, 8);
-  const cacheLabel = portalCacheLabel(displayCoverage.portalCache);
 
   return (
     <section className="cv-surface mb-5 overflow-hidden rounded-[24px]">
@@ -115,11 +134,11 @@ export default function PortfolioCoveragePanel({
             )}
             <button
               type="button"
-              disabled={checkingPortal || refreshing || gaps.length === 0}
+              disabled={checkingPortal || refreshing || gaps.length === 0 || !(displayCoverage.remaining ?? coverage.remaining)}
               onClick={() => void checkPortal()}
               className="cv-secondary px-3 py-2 text-sm font-semibold disabled:opacity-50"
             >
-              {checkingPortal ? 'Consultando Portal BR…' : 'Consultar Portal BR (Top 8)'}
+              {checkingPortal ? `Conferindo no Portal… ${progress.done} de ${progress.total}` : 'Conferir no Portal de novo'}
             </button>
           </div>
         </div>
@@ -145,15 +164,15 @@ export default function PortfolioCoveragePanel({
           </div>
           <div className="rounded-2xl border border-brand-200 bg-brand-50/70 p-4 dark:border-brand-800 dark:bg-brand-900/20">
             <div className="text-sm font-bold   text-brand-700 dark:text-brand-300">Portal BR</div>
-            <div className="mt-2 text-2xl font-semibold text-brand-950 dark:text-brand-200">{displayCoverage.portalIpl}</div>
+            <div className="mt-2 text-2xl font-semibold text-brand-950 dark:text-brand-200">{displayCoverage.portalIpl + (displayCoverage.portalDocument ?? 0)}</div>
             <div className="mt-1 text-sm text-brand-800 dark:text-brand-200">
-              {displayCoverage.portalChecked ? 'IPLs oficiais confirmadas nesta consulta' : 'Portal ainda não consultado nesta carga'}
+              {displayCoverage.portalIpl} com lista de peças · {displayCoverage.portalDocument ?? 0} só com IPL em PDF
             </div>
           </div>
           <div className={`rounded-2xl border p-4 ${displayCoverage.unverified ? 'border-amber-200 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-900/20' : 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-800 dark:bg-emerald-900/20'}`}>
             <div className={`text-sm font-bold   ${displayCoverage.unverified ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>Sem fonte técnica comprovada</div>
             <div className={`mt-2 text-2xl font-semibold ${displayCoverage.unverified ? 'text-amber-950 dark:text-amber-200' : 'text-emerald-950 dark:text-emerald-200'}`}>{displayCoverage.unverified}</div>
-            <div className={`mt-1 text-sm ${displayCoverage.unverified ? 'text-amber-800 dark:text-amber-200' : 'text-emerald-800 dark:text-emerald-200'}`}>Pendências priorizadas pelas referências comerciais</div>
+            <div className={`mt-1 text-sm ${displayCoverage.unverified ? 'text-amber-800 dark:text-amber-200' : 'text-emerald-800 dark:text-emerald-200'}`}>{checkingPortal ? 'Conferência no Portal em andamento' : displayCoverage.remaining ? 'Ainda falta conferir no Portal' : 'Já conferidos no Portal, sem resultado'}</div>
           </div>
         </div>
 
@@ -161,18 +180,17 @@ export default function PortfolioCoveragePanel({
           <div className="h-full rounded-full bg-brand-600 transition-all duration-500" style={{ width: `${coveragePercent}%` }} />
         </div>
 
-        {!displayCoverage.portalChecked ? (
-          <div className="mt-4 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3 text-sm leading-5 text-brand-800 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-300">
-            O Portal Husqvarna Brasil não é consultado automaticamente. Use o botão acima para homologar somente as <b>8 maiores lacunas</b>, com limite e concorrência controlados. Uma pendência significa apenas ausência de fonte técnica comprovada até aqui.
+        {checkingPortal ? (
+          <div role="status" className="mt-4 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3 text-sm leading-5 text-brand-800 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-300">
+            Conferindo os modelos no Portal Husqvarna Brasil, 8 por vez ({progress.done} de {progress.total}). Pode continuar usando o sistema.
+          </div>
+        ) : displayCoverage.remaining ? (
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 text-sm leading-5 text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+            Faltam {displayCoverage.remaining} modelos para conferir no Portal. Use o botão acima para continuar.
           </div>
         ) : (
           <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm leading-5 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
-            Portal Husqvarna Brasil consultado para <b>{displayCoverage.checkedCount ?? 0} modelo(s)</b> priorizado(s). Uma consulta inconclusiva nunca é tratada como ausência de IPL, e a lista comercial continua separada da evidência técnica oficial.
-            {cacheLabel && (
-              <div className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-200">
-                Cache do Portal: {cacheLabel}.
-              </div>
-            )}
+            Todos os modelos já foram conferidos no Portal. Os que continuam abaixo não têm produto com esse nome ou não têm lista de peças lá, e valem a investigação.
           </div>
         )}
 
@@ -193,15 +211,12 @@ export default function PortfolioCoveragePanel({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <b className="text-sm text-ink-900 dark:text-ink-100">{gap.model}</b>
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-sm font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300">Sem IPL local</span>
-                    {displayCoverage.portalChecked && (
-                      <span className="rounded-full border border-ink-200 bg-ink-50 px-2 py-0.5 text-sm font-semibold text-ink-600 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-300">
-                        {portalDiagnostic(gap.portalVerification)}
-                      </span>
-                    )}
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-sm font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                      {portalDiagnostic(gap.portalVerification)}
+                    </span>
                   </div>
                   {gap.commercialEvidence[0] && <div className="mt-1 truncate text-sm text-ink-500 dark:text-ink-400" title={gap.commercialEvidence[0]}>Exemplo comercial: {gap.commercialEvidence[0]}</div>}
-                  {displayCoverage.portalChecked && gap.portalVerificationNote && (
+                  {gap.portalVerificationNote && gap.portalVerification !== 'NOT_CHECKED' && (
                     <div className="mt-1 text-sm leading-4 text-ink-500 dark:text-ink-400">Portal BR: {gap.portalVerificationNote}</div>
                   )}
                 </div>

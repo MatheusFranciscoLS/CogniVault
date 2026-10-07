@@ -28,6 +28,7 @@ type AssistantPerformance = {
     totalModels: number;
     localIplModels: number;
     portalIplModels: number;
+    portalDocumentModels: number;
     coveredModels: number;
     withoutSource: number;
     coveragePercent: number;
@@ -202,7 +203,8 @@ export default function AssistantObservabilityPanel() {
             {portfolio ? (
               <>
                 <div className="flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Modelos descobertos</span><b>{portfolio.totalModels}</b></div>
-                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Confirmados pelo Portal Husqvarna</span><b className="text-emerald-700 dark:text-emerald-300">{portfolio.portalIplModels}</b></div>
+                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Portal Husqvarna, lista de peças</span><b className="text-emerald-700 dark:text-emerald-300">{portfolio.portalIplModels}</b></div>
+                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Portal Husqvarna, IPL em PDF</span><b className="text-emerald-700 dark:text-emerald-300">{portfolio.portalDocumentModels}</b></div>
                 <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Com catálogo da biblioteca</span><b className="text-emerald-700 dark:text-emerald-300">{portfolio.localIplModels}</b></div>
                 <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Ainda sem conferência</span><b className="text-amber-700 dark:text-amber-300">{portfolio.withoutSource}</b></div>
 

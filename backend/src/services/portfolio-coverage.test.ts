@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { extractCommercialModels, hasStrongCommercialModelShape, portalResultMatchesModel, rankPortfolioCoverageGaps, summarizePortfolioCoverage } from './portfolio-coverage';
+import { extractCommercialModels, hasStrongCommercialModelShape, portalDocumentMatchesModel, portalResultMatchesModel, rankPortfolioCoverageGaps, summarizePortfolioCoverage } from './portfolio-coverage';
 
 test('extrai múltiplos modelos de aplicação comercial sem tratar a planilha como prova técnica', () => {
   assert.deepEqual(extractCommercialModels('ROC.236R/143RII'), ['236R', '143RII']);
@@ -87,4 +87,19 @@ test('prioriza lacunas e preserva evidência e diagnóstico da homologação', (
       portalVerificationNote: 'Portal indisponível durante a consulta.',
     },
   ]);
+});
+
+test('documento de IPL do Portal só vale quando cita o modelo inteiro', () => {
+  assert.equal(portalDocumentMatchesModel('IPL, Husqvarna, 120i, 2017-01', '120I'), true);
+  assert.equal(portalDocumentMatchesModel('IPL, 123 HD65x, 2007-02', '123HD65X'), true);
+  assert.equal(portalDocumentMatchesModel('IPL, 325 HDA55 X-series, 323 HE3, 325 HE3 X-series, HA110, 2005-10', '325HE3X'), true);
+  assert.equal(portalDocumentMatchesModel('IPL update, 440e II, 2019-03, Starter', '440E'), true);
+});
+
+test('documento de IPL não aceita número colado, código de outro modelo na frente nem documento que não é IPL', () => {
+  assert.equal(portalDocumentMatchesModel('IPL, Husqvarna, 1120i, 2017-01', '120I'), false);
+  assert.equal(portalDocumentMatchesModel('IPL, Husqvarna, 120iX, 2017-01', '120I'), false);
+  assert.equal(portalDocumentMatchesModel('IPL, PW 235R, 2006-01', '235R'), false);
+  assert.equal(portalDocumentMatchesModel('Manual do operador, Husqvarna, 120i, 2017-01', '120I'), false);
+  assert.equal(portalDocumentMatchesModel('IPL, Husqvarna, 120i', 'AB'), false);
 });

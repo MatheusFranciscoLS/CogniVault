@@ -1,7 +1,8 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { interactiveAiBudgetStatus } from './interactive-ai-budget';
-import { buildPortfolioCoverage, rankPortfolioCoverageGaps } from './portfolio-coverage';
+import { rankPortfolioCoverageGaps } from './portfolio-coverage';
+import { buildPortfolioCoverageWithPortalCache } from './bounded-portal-coverage.service';
 
 type CacheCountRow = { purpose: string; count: bigint | number };
 
@@ -46,7 +47,7 @@ export class AssistantObservabilityService {
         ORDER BY "purpose"
       `.catch(() => [] as CacheCountRow[]),
       prisma.officialSourceCache.count({ where: { source: 'HUSQVARNA', staleUntil: { gt: new Date() } } }),
-      buildPortfolioCoverage(tenantId).catch(() => null),
+      buildPortfolioCoverageWithPortalCache(tenantId).catch(() => null),
     ]);
 
     const byAction = new Map<string, ActionMetrics>();
@@ -82,6 +83,7 @@ export class AssistantObservabilityService {
       totalModels: portfolio.total,
       localIplModels: portfolio.localIpl,
       portalIplModels: portfolio.portalIpl,
+      portalDocumentModels: portfolio.portalDocument,
       coveredModels: portfolio.covered,
       withoutSource: portfolio.unverified,
       coveragePercent: portfolio.total ? Math.round((portfolio.covered / portfolio.total) * 1000) / 10 : 0,

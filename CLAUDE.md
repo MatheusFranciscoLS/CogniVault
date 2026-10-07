@@ -238,6 +238,27 @@ O balcão é mouse e teclado, e a venda acontece no Clipp. Dois atalhos que vale
 - **Sino de notificações só para o administrador**: as pendências são conferências e qualidade. O balcão não vê nem consulta `/api/notifications`.
 - **"Copiar códigos" em lote** e **Favoritos/Histórico/Feedback**: removidos (ver as seções acima e o PLANO).
 
+## Cobertura técnica (Qualidade): o Portal é conferido sozinho (2026-10-07)
+
+O cartão "Cobertura técnica" dizia 17% (60 de 362 modelos) e "302 sem fonte comprovada", e
+parecia alarme. Não era: só contava PDF subido à mão, e a conferência no Portal era um botão
+manual que olhava sempre os mesmos 8 modelos. O dono não quer subir PDF à mão.
+
+- **Ao abrir Qualidade, a tela confere no Portal os modelos que faltam**, 8 por vez, com progresso
+  ("Conferindo no Portal… X de Y"). `POST /api/admin/quality/portal-coverage` aceita `exclude` (o que a tela
+  já tentou) e devolve `remaining`. **Cada resposta fica guardada** (`OfficialSourceCache`, 7 dias fresca e
+  30 revalidável), então a próxima abertura só consulta o que falta ou venceu.
+- `applyCachedPortalOutcomes` soma ao portfólio o que já foi respondido, **sem chamar o Portal**; é o que faz
+  Visão geral e Qualidade mostrarem o mesmo número. `selectPortalVerificationCandidates` nunca repete modelo
+  já respondido nem o que a tela já tentou, mas **insiste no INCONCLUSIVE** (não é cacheado de propósito).
+- **Terceiro tipo de fonte: `PORTAL_DOCUMENT`** (estado `DOCUMENT_ONLY`). O Portal guarda o IPL de muita máquina
+  antiga só como documento (PDF), sem produto estruturado. Medido em 190 modelos sem produto: **121 têm IPL em PDF**.
+  `portalDocumentMatchesModel` exige o modelo inteiro no título, sem número colado (`1120i` não é `120i`) e sem
+  código curto de outro modelo na frente (`PW 235R`). Lista estruturada continua ganhando do documento.
+  A versão da política do cache subiu para 2 (respostas antigas não conheciam documento).
+- Resultado medido na loja simulada, em 1m40: **17% → 80%** (289 de 362). Os 73 que sobram são de verdade:
+  Automower (`AM…`), bateria, e marcas do grupo (Poulan, McCulloch, Weed Eater, Jonsered).
+
 ## Atendimento e máquinas são UMA tela (a aba Máquinas não existe mais)
 
 Até 2026-09-19 havia duas abas para a mesma pergunta do balcão, e o dono disse
