@@ -307,6 +307,13 @@ máquinas"*. Hoje o atendente escreve num campo só e recebe peça **e** máquin
   - **Descrição pura não gasta nada**: "carburador", "junta", "filtro de ar"
     não produzem consulta externa. Medido no navegador: zero chamadas.
   Travado em `machine-query.test.ts`, incluindo o lado negativo.
+- **O modelo pesquisado vem primeiro (2026-10-07, achado do dono).** Pesquisando "122 HD60", as fichas vinham em ordem alfabética
+  do Portal (522HD60S, 522iHD60, 536LiHD60X) e a do 122 HD60 aparecia em quarto, com o nome cortado antes do modelo ("HUSQVARNA Aparador
+  de Cerca Viva Husqvarn…"). Agora `lib/model-search-rank.ts`: 0 = título cita o modelo inteiro, 1 = contém dentro de outro nome
+  (122HD60S), 2 = o resto; o chip mostra o MODELO em negrito e a descrição ao lado. O servidor anuncia só "HD60" (o "122" solto é
+  número), então `searchModelTerm` junta o número solto ao token ("122" + "HD60") a partir do que foi digitado. As máquinas da lista
+  vigente que o texto cita entram antes, mesmo que o Portal não as devolva. Manual do operador (OM) não aparece entre os atalhos.
+  Roteiro `busca-modelo.mjs`.
 - **O stream só ANUNCIA; a tela busca.** `searchStream` manda
   `{ type: 'machines', machineTerm | machinePnc }` sem tocar no Portal. Duas
   razões: o `done` do stream não pode esperar o Portal (teto de 8s, e a peça já

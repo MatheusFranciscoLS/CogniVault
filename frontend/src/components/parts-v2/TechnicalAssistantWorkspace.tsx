@@ -17,6 +17,9 @@ import type { CommercialPart, HusqvarnaLivePart, OfficialFallbackResult, PdfPrev
 import MachineSidePanel from '../machines/MachineSidePanel';
 import { PanelErrorBoundary } from '../PanelErrorBoundary';
 import { useOfficialMachineSearch } from '../machines/official-machine-search';
+import { useMachineList } from '../../lib/use-machine-list';
+import { modelMatchTier, rankByModel, machineChipLabel, searchModelTerm } from '../../lib/model-search-rank';
+import { portalPnc } from '../../lib/machine-list';
 import { useRecentMachines } from '../machines/recent-machines';
 import KawasakiEnginePanel from '../machines/KawasakiEnginePanel';
 import OilQuickAdd from './OilQuickAdd';
@@ -64,11 +67,9 @@ const examples = [
   { label: 'Peça + modelo', value: 'carburador 143RII' },
 ];
 
-/** Menor vem primeiro: português antes de outros idiomas, manual (OM) antes de lista de peças (IPL). */
+/** Menor vem primeiro: português antes de outros idiomas. Manual do operador nem entra (dono, 2026-10-07: só vista explodida). */
 function extraRank(item: { title: string; languages: string[] }) {
-  const portuguese = item.languages.some(language => /^pt/i.test(language)) ? 0 : 2;
-  const manual = /^OM\b/i.test(item.title) ? 0 : 1;
-  return portuguese + manual;
+  return item.languages.some(language => /^pt/i.test(language)) ? 0 : 1;
 }
 
 function isTypingTarget(target: EventTarget | null) {
@@ -220,14 +221,25 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   // busca oficial mostrava cinco grupos. Peça por CÓDIGO já vem pelos caminhos
   // de peça, mas acessório, documento e categoria não vêm por lugar nenhum — e
   // acessório é justamente o que o balcão vende junto.
+  // O modelo PESQUISADO vem primeiro (o Portal devolve em ordem alfabética, e "522HD60S" passava na frente do "122 HD60").
+  const modelTerm = useMemo(() => searchModelTerm(lastQuery, machineTerm), [lastQuery, machineTerm]);
   const machines = useMemo(
-    () => (machineSearch.data ?? []).filter(item => item.kind === 'PRODUCT' && item.pnc),
-    [machineSearch.data],
+    () => rankByModel((machineSearch.data ?? []).filter(item => item.kind === 'PRODUCT' && item.pnc), modelTerm),
+    [machineSearch.data, modelTerm],
   );
   const officialExtras = useMemo(
-    () => (machineSearch.data ?? []).filter(item => item.kind !== 'PRODUCT' && item.portalUrl),
+    () => (machineSearch.data ?? []).filter(item => item.kind !== 'PRODUCT' && item.portalUrl && item.documentType !== 'OM' && !/^OM\b/i.test(item.title)),
     [machineSearch.data],
   );
+  // As máquinas da lista VIGENTE da Husqvarna que o texto cita entram antes de tudo: se o modelo existe na lista, ele aparece,
+  // mesmo que o Portal o devolva depois (ou nem devolva). O que o Portal já trouxe pelo mesmo PNC não repete.
+  const machineList = useMachineList(Boolean(machineTerm) && !/^\d+$/.test(machineTerm.replace(/\s+/g, '')));
+  const listedHits = useMemo(() => {
+    const portalPncs = new Set(machines.map(item => portalPnc(item.pnc ?? '')));
+    return (machineList.data?.machines ?? [])
+      .filter(item => modelMatchTier(item.model, modelTerm) === 0 && !portalPncs.has(portalPnc(item.pnc)))
+      .slice(0, 4);
+  }, [machineList.data, machines, modelTerm]);
   // Atalho para a máquina que este atendente já abriu, agora no atendimento:
   // no balcão poucas máquinas repetem muito, e redigitar o PNC da etiqueta com
   // o cliente na frente é o atrito que a tela existe para tirar.
@@ -538,6 +550,8 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       .filter(item => { const key = `${item.title}|${item.languages.join(',')}`; if (seen.has(key)) return false; seen.add(key); return true; })
       .sort((a, b) => extraRank(a) - extraRank(b));
   }, [officialExtras]);
+  // O documento do modelo pesquisado ("IPL, 122 HD60") passa na frente dos de outras máquinas.
+  const rankedExtras = useMemo(() => rankByModel(sortedExtras, modelTerm), [sortedExtras, modelTerm]);
 
   const copyCode = useCallback(async (code: string) => {
     const raw = cleanErpCode(code);
@@ -718,12 +732,29 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
 
       {/* Máquina e documentos viram atalhos pequenos, em uma linha: a peça buscada vem
           primeiro. Antes eram uma lista de 12 linhas na frente do resultado. */}
-      {(machines.length > 0 || sortedExtras.length > 0 || recentMachines.length > 0) && (
+      {(machines.length > 0 || listedHits.length > 0 || sortedExtras.length > 0 || recentMachines.length > 0) && (
         <div className="flex flex-wrap items-center gap-2">
           {/* A máquina que já está no contexto ou nos atalhos desta busca não repete como "recente". */}
           {recentMachines.filter(item => item.pnc !== session.pnc && !machines.some(found => found.pnc === item.pnc)).map(item => (
             <Button key={item.pnc} variant="outline" size="sm" onClick={() => setOpenMachine({ pnc: item.pnc, name: item.name })} title={item.meta || `PNC ${item.pnc}`} className="max-w-64">
               <span className="truncate">{item.name}</span>
+            </Button>
+          ))}
+          {listedHits.map(item => (
+            <Button
+              key={`lista-${item.pnc}`}
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                updateSession({ machineModel: item.model, pnc: portalPnc(item.pnc) });
+                setOpenMachine({ pnc: portalPnc(item.pnc), name: `Husqvarna ${item.model}` });
+              }}
+              title={`${item.description} · na lista vigente`}
+              className="max-w-full border-primary/50 sm:max-w-[28rem]"
+            >
+              <Icon name="machine" className="size-4" />
+              <span className="truncate font-semibold">{item.model}</span>
+              <span className="font-code text-sm font-medium text-muted-foreground tabular-nums">PNC {portalPnc(item.pnc)}</span>
             </Button>
           ))}
           {machines.map(item => (
@@ -740,11 +771,14 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
               className="max-w-full border-primary/50 sm:max-w-[28rem]"
             >
               <Icon name="machine" className="size-4" />
-              <span className="truncate">{item.title}</span>
+              <span className="truncate">
+                <span className="font-semibold">{machineChipLabel(item.title).model}</span>
+                {machineChipLabel(item.title).kind && <span className="font-normal text-muted-foreground"> · {machineChipLabel(item.title).kind}</span>}
+              </span>
               <span className="font-code text-sm font-medium text-muted-foreground tabular-nums">PNC {item.pnc}</span>
             </Button>
           ))}
-          {(showAllExtras ? sortedExtras : sortedExtras.slice(0, 3)).map(item => (
+          {(showAllExtras ? rankedExtras : rankedExtras.slice(0, 3)).map(item => (
             <Button key={`${item.kind}-${item.id}`} variant="outline" size="sm" asChild className="max-w-full sm:max-w-72">
               <a
                 href={item.portalUrl as string}
@@ -757,9 +791,9 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
               </a>
             </Button>
           ))}
-          {sortedExtras.length > 3 && (
+          {rankedExtras.length > 3 && (
             <Button variant="ghost" size="sm" onClick={() => setShowAllExtras(value => !value)} aria-expanded={showAllExtras}>
-              {showAllExtras ? 'Mostrar menos' : `Mais ${sortedExtras.length - 3}`}
+              {showAllExtras ? 'Mostrar menos' : `Mais ${rankedExtras.length - 3}`}
             </Button>
           )}
         </div>
