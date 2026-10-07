@@ -29,3 +29,7 @@ backend/uploads/
 *.rar
 *.7z
 LISTA_DE_PRECOS*
+
+# Artefatos do Playwright (o CI também os gera)
+test-results/
+playwright-report/
