@@ -7,7 +7,6 @@ import type { jsPDF as JsPdf } from 'jspdf';
 import type autoTableFn from 'jspdf-autotable';
 import {
   STORE_SIGNATURE,
-  displayCode,
   formatBRL,
   formatDate,
   isServiceLine,
@@ -113,13 +112,12 @@ export function buildQuotePdf(input: {
 
   // ── Tabela de peças ──────────────────────────────────────────────────────────────────────────────
   const body = items.map((item, index) => {
+    // Sem o código da peça: o cliente poderia cotar o mesmo código em outra revenda (dono, 2026-10-07).
     let description = item.name;
-    if (item.isSuperseded && item.originalCode) description += `\nSubstitui o código ${displayCode(item, item.originalCode)}`;
     if (item.model && models.length > 1 && !isServiceLine(item)) description += `\nMáquina: ${item.model}`;
     const priced = (item.unitPrice ?? 0) > 0;
     return [
       String(index + 1),
-      isServiceLine(item) ? '' : displayCode(item),
       description,
       String(item.quantity),
       priced ? formatBRL(item.unitPrice as number) : 'Sob consulta',
@@ -129,7 +127,7 @@ export function buildQuotePdf(input: {
 
   autoTable(doc, {
     startY: y,
-    head: [['#', 'Código', 'Descrição', 'Qtd', 'Valor unit.', 'Subtotal']],
+    head: [['#', 'Descrição', 'Qtd', 'Valor unit.', 'Subtotal']],
     body,
     theme: 'plain',
     margin: { left: MARGIN, right: MARGIN, bottom: 70 },
@@ -138,11 +136,9 @@ export function buildQuotePdf(input: {
     alternateRowStyles: { fillColor: ZEBRA },
     columnStyles: {
       0: { cellWidth: 26, halign: 'center', textColor: MUTED },
-      // Código em Courier negrito: é o que o cliente confere na peça e o que ele lê para outra pessoa.
-      1: { cellWidth: 92, font: 'courier', fontStyle: 'bold', fontSize: 10.5 },
-      3: { cellWidth: 34, halign: 'center' },
-      4: { cellWidth: 74, halign: 'right' },
-      5: { cellWidth: 78, halign: 'right', fontStyle: 'bold' },
+      2: { cellWidth: 34, halign: 'center' },
+      3: { cellWidth: 80, halign: 'right' },
+      4: { cellWidth: 84, halign: 'right', fontStyle: 'bold' },
     },
     didDrawCell: data => {
       if (data.section !== 'body') return;

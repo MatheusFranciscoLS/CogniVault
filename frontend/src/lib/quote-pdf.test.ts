@@ -40,8 +40,8 @@ describe('buildQuotePdf', () => {
     expect(texto).toContain('16/10/2026');
   });
 
-  it('traz os códigos como a etiqueta, os valores com milhar e o total igual ao do servidor', () => {
-    expect(texto).toContain('587 10 67-01');
+  it('traz os valores com milhar e o total igual ao do servidor, e NENHUM código de peça', () => {
+    expect(texto).not.toMatch(/587 ?10 ?67|587106701|501691702|Código/);
     expect(texto).toContain('R$ 378,26');
     expect(texto).toContain('R$ 420,56');
     // 420,56 com 10%: desconto 42,06 e total 378,50 (arredondado como o servidor faz)
