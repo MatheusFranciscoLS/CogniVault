@@ -1,6 +1,6 @@
 // Tela ATENDIMENTO inteira: cabeçalho, contexto do cliente/máquina, busca (código, descrição, acento, vazio),
 // resultados (grupos, linhas, atalhos), faixa de orçamento e menus. Uso (de frontend/): node ../docs/loja-simulada/atendimento-completo.mjs [tema]
-import { open, check, step, finish, shot, confirmar, SEARCH } from './_t.mjs';
+import { open, check, step, finish, shot, confirmar, SEARCH, BASE } from './_t.mjs';
 
 const { browser, page, errors, theme } = await open({ theme: process.argv[2] ?? 'dark' });
 const busca = page.getByPlaceholder(SEARCH);
@@ -21,8 +21,8 @@ const esperarFim = async (ms = 40000) => {
 
 await step('estado vazio', async () => {
   check('campo de busca visível e focável', await busca.isVisible());
-  const exemplos = await page.getByRole('button', { name: /^(587106701|carburador 143RII|qual carburador serve na 143RII\?)$/ }).count();
-  check('exemplos de busca aparecem', exemplos === 3, `${exemplos}`);
+  const exemplos = await page.getByRole('button', { name: /^(587106701|carburador 143RII)$/ }).count();
+  check('exemplos de busca aparecem (o da pergunta saiu junto com o assistente de IA)', exemplos === 2, `${exemplos}`);
   check('faixa de orçamento vazia diz o que fazer', await page.getByText('Adicione peças para montar o orçamento.').isVisible());
   check('"Revisar orçamento" desabilitado com a faixa vazia', await page.getByRole('button', { name: 'Revisar orçamento' }).isDisabled());
   check('Ctrl K foca a busca', await (async () => { await page.locator('body').click({ position: { x: 5, y: 400 } }); await page.keyboard.press('Control+k'); return busca.evaluate(el => el === document.activeElement); })());
@@ -261,6 +261,25 @@ await step('pergunta de óleo', async () => {
   await pesquisar('filtro de óleo', 'enter');
   await esperarFim(40000);
   check('"filtro de óleo" é peça: não oferece os botões de óleo', (await page.getByRole('region', { name: 'Óleo' }).count()) === 0);
+});
+
+await step('sino só do administrador', async () => {
+  check('o administrador vê o sino', (await page.getByRole('button', { name: 'Notificações' }).count()) === 1);
+  // Balcão: entra por API, em outro contexto, e conta as consultas às notificações.
+  const outro = await browser.newContext({ viewport: { width: 1366, height: 768 } });
+  const pagina = await outro.newPage();
+  const consultas = [];
+  pagina.on('request', r => { if (/\/api\/notifications/.test(r.url())) consultas.push(r.url()); });
+  const entrada = await pagina.request.post(BASE + '/api/login', { data: { email: 'mecanico.e2e@cognivault.local', password: 'CogniVault-E2E-2026!' }, headers: { Origin: BASE } });
+  const eu = (await (await pagina.request.get(BASE + '/api/me')).json()).user;
+  await outro.addInitScript(u => { localStorage.setItem('cognivault_tenant', u.tenantId); localStorage.setItem('cognivault_role', u.role); localStorage.setItem('cognivault_email', u.email); }, eu);
+  await pagina.goto(BASE + '/dashboard');
+  await pagina.getByPlaceholder(SEARCH).waitFor({ timeout: 20000 });
+  await pagina.waitForTimeout(2500);
+  check('o balcão entra normalmente', entrada.ok());
+  check('o balcão NÃO vê o sino', (await pagina.getByRole('button', { name: 'Notificações' }).count()) === 0);
+  check('o balcão nem consulta as notificações (menos uma chamada por minuto ao servidor)', consultas.length === 0, consultas.join(' | '));
+  await outro.close();
 });
 
 await finish(browser, errors);

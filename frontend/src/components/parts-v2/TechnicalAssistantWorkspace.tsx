@@ -7,7 +7,6 @@ import { useCounterSession } from '../../context/CounterSessionContext';
 import type { OfficialVerification, PartDetail, SearchHistoryItem } from '../../types';
 import { recentSearchesFrom, type RecentSearch } from '../../lib/recent-searches';
 import PartVerificationDialog, { isSupersededForCode, looksLikePartNumber, normalizePartCode } from '../PartVerificationDialog';
-import ChatPanel from '../ChatPanel';
 import { Icon } from '../icons/Icon';
 import CounterSessionBar from '../CounterSessionBar';
 import CounterQuoteRail from '../CounterQuoteRail';
@@ -63,7 +62,6 @@ const COMMERCIAL_RESULTS_CAP = 50;
 const examples = [
   { label: 'Código exato', value: '587106701' },
   { label: 'Peça + modelo', value: 'carburador 143RII' },
-  { label: 'Pergunta técnica', value: 'qual carburador serve na 143RII?' },
 ];
 
 /** Menor vem primeiro: português antes de outros idiomas, manual (OM) antes de lista de peças (IPL). */
@@ -78,13 +76,6 @@ function isTypingTarget(target: EventTarget | null) {
     || target instanceof HTMLTextAreaElement
     || target instanceof HTMLSelectElement
     || (target instanceof HTMLElement && target.isContentEditable);
-}
-
-function looksLikeQuestion(value: string) {
-  const clean = value.trim().toLocaleLowerCase('pt-BR');
-  if (!clean) return false;
-  if (clean.includes('?')) return true;
-  return /^(qual|quais|como|onde|por que|porque|o que|posso|pode|preciso|serve|essa|esse|esta|este|me ajude|tenho uma dúvida)\b/.test(clean);
 }
 
 async function consumeSearchStream(response: Response, signal: AbortSignal | undefined, onMessage: (message: SearchStreamMessage) => void) {
@@ -255,8 +246,6 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   const [verifications, setVerifications] = useState<Record<string, OfficialVerification>>({});
   const [, setVerificationLoading] = useState(false);
   const [verificationTarget, setVerificationTarget] = useState<{ partNumber: string; name: string } | null>(null);
-  const [aiOpen, setAiOpen] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState('');
   const [suggestions, setSuggestions] = useState<SearchResultPart[]>([]);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
@@ -561,20 +550,14 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     }
   }, []);
 
-  const openAi = useCallback((prompt: string) => {
-    setAiPrompt(prompt);
-    setAiOpen(true);
-  }, []);
-
   const beginSearch = useCallback((value: string) => {
     const clean = value.trim();
     if (clean.length < 2) return;
     closeSuggestions();
     setQuery(clean);
-    if (looksLikeQuestion(clean)) openAi(buildTechnicalQuery(clean));
     if (clean !== initialQuery.trim()) onQueryChange(clean);
     else void runSearch(clean);
-  }, [buildTechnicalQuery, closeSuggestions, initialQuery, onQueryChange, openAi, runSearch]);
+  }, [closeSuggestions, initialQuery, onQueryChange, runSearch]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -638,8 +621,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        if (aiOpen) setAiOpen(false);
-        else if (pdf) setPdf(null);
+        if (pdf) setPdf(null);
         else if (verificationTarget) setVerificationTarget(null);
         // A gaveta da peça é um Sheet do Radix e fecha o próprio Esc. Fechá-la aqui também fazia o Esc que
         // fecha o menu "⋯" levar a gaveta junto.
@@ -653,7 +635,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [aiOpen, detail, pdf, verificationTarget]);
+  }, [detail, pdf, verificationTarget]);
 
   const detailVerification = detail ? verifications[normalizePartCode(detail.partNumber)] : undefined;
 
@@ -875,7 +857,6 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
                     <Button onClick={() => setOpenMachine({ pnc: officialMachinePnc, name: officialResult?.name || `PNC ${officialMachinePnc}` })}>Abrir vista explodida</Button>
                   )}
                   {officialResult?.partNumber && <Button variant="outline" onClick={() => void copyCode(officialResult.partNumber!)}>Copiar código</Button>}
-                  <Button variant="outline" onClick={() => openAi(buildTechnicalQuery(lastQuery))}>Pedir orientação</Button>
                 </div>
               </div>
             </section>
@@ -916,7 +897,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
         </PanelErrorBoundary>
       )}
 
-      {detail && <PanelErrorBoundary key={`peca-${detail.partNumber}`} onClose={() => setDetail(null)}><PartDetailDrawer detail={detail} verification={detailVerification} liveData={liveData} onClose={() => setDetail(null)} onCopy={code => void copyCode(code)} onOpenPdf={(documentId, page, title) => void accessPdf(documentId, page, title)} onOpenRelated={id => void openPart(id)} onVerify={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} onAskAi={openAi} escapeBlocked={aiOpen || Boolean(pdf) || Boolean(verificationTarget)} /></PanelErrorBoundary>}
+      {detail && <PanelErrorBoundary key={`peca-${detail.partNumber}`} onClose={() => setDetail(null)}><PartDetailDrawer detail={detail} verification={detailVerification} liveData={liveData} onClose={() => setDetail(null)} onCopy={code => void copyCode(code)} onOpenPdf={(documentId, page, title) => void accessPdf(documentId, page, title)} onOpenRelated={id => void openPart(id)} onVerify={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} escapeBlocked={Boolean(pdf) || Boolean(verificationTarget)} /></PanelErrorBoundary>}
       {verificationTarget && <PartVerificationDialog target={verificationTarget} existing={verifications[normalizePartCode(verificationTarget.partNumber)]} onClose={() => setVerificationTarget(null)} onSaved={() => { setVerificationTarget(null); toast.success('Conferência enviada para aprovação.'); if (detail) void loadVerifications([detail]); }} />}
 
       {pdf && (
@@ -925,13 +906,6 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
             <div className="flex items-center justify-between border-b border-ink-200 px-4 py-3 dark:border-ink-800"><div className="truncate text-sm font-black">{pdf.title}</div><button type="button" onClick={() => setPdf(null)} className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-bold dark:border-ink-700">Fechar</button></div>
             <iframe title={pdf.title} src={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} className="h-full w-full border-0" />
           </div>
-        </div>
-      )}
-
-      {aiOpen && (
-        <div className="fixed inset-0 z-80 flex justify-end">
-          <button type="button" aria-label="Fechar assistente" onClick={() => setAiOpen(false)} className="absolute inset-0 bg-ink-950/45 backdrop-blur-[1px]" />
-          <div className="relative z-10 h-full w-full max-w-[600px] bg-white shadow-2xl dark:bg-ink-900"><ChatPanel storageScope={storageScope || 'balcao-v3'} initialPrompt={aiPrompt} onClose={() => setAiOpen(false)} isDrawer /></div>
         </div>
       )}
     </section>

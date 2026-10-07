@@ -224,6 +224,15 @@ O balcão é mouse e teclado, e a venda acontece no Clipp. Dois atalhos que vale
 - **NÃO existe "Copiar códigos" em lote.** Eu construí e o dono disse que não faz sentido: *"é 1 código por vez"* no Clipp, então
   basta copiar o código da linha (que já existe). Foi removido em 2026-10-07; não proponha de novo.
 
+## O que saiu do balcão em 2026-10-07 (não proponha de novo sem o dono)
+
+- **Assistente de IA em gaveta** (`ChatPanel`, `chat/*`, "Perguntar à IA", "Pedir orientação", pergunta digitada abrindo o chat): removido.
+  O dono pediu "o que for melhor e recomendado" e a recomendação foi tirar: o atendente quer a peça, não uma conversa. O **backend do chat**
+  (`/api/chat`, `react-agent.service.ts`) continua no servidor, sem uso na tela; podar com cuidado (tem teste e serviço compartilhados).
+  A IA que fica é a de **lista fechada** (`PartGuesses`, `/api/parts/guess`): ela só escolhe entre as peças da máquina.
+- **Sino de notificações só para o administrador**: as pendências são conferências e qualidade. O balcão não vê nem consulta `/api/notifications`.
+- **"Copiar códigos" em lote** e **Favoritos/Histórico/Feedback**: removidos (ver as seções acima e o PLANO).
+
 ## Atendimento e máquinas são UMA tela (a aba Máquinas não existe mais)
 
 Até 2026-09-19 havia duas abas para a mesma pergunta do balcão, e o dono disse

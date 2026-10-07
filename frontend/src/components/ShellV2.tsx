@@ -91,7 +91,8 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
   const isCounter = section === 'parts' || section === 'home' || section === 'assistant';
   const isAdmin = user.role === 'ADMIN';
 
-  useEffect(() => { let active = true; const load = () => { void apiJson<{notifications:NotificationItem[]}>('/api/notifications').then(data => { if (active) setNotifications(data.notifications ?? []); }).catch(() => { if (active) setNotifications([]); }); }; load(); const timer = window.setInterval(load, 60_000); return () => { active = false; window.clearInterval(timer); }; }, []);
+  // O sino é só do administrador (dono, 2026-10-07): as pendências são conferências e qualidade. O balcão nem consulta.
+  useEffect(() => { if (!isAdmin) return undefined; let active = true; const load = () => { void apiJson<{notifications:NotificationItem[]}>('/api/notifications').then(data => { if (active) setNotifications(data.notifications ?? []); }).catch(() => { if (active) setNotifications([]); }); }; load(); const timer = window.setInterval(load, 60_000); return () => { active = false; window.clearInterval(timer); }; }, [isAdmin]);
 
   useHotkeys('ctrl+k, meta+k', event => {
     event.preventDefault();
@@ -170,24 +171,26 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
               {quoteCart.totalItems > 0 && <span className="grid min-w-6 place-items-center rounded-full bg-primary px-1.5 text-sm font-bold tabular-nums text-primary-foreground">{quoteCart.totalItems}</span>}
             </Button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="bar" size="icon" aria-label="Notificações" className="relative">
-                  <Icon name="bell" className="h-[18px] w-[18px]" />
-                  {notifications.length > 0 && <span className="absolute right-2 top-2 size-2 rounded-full bg-[#ff9a73] ring-2 ring-bar" />}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="max-h-96 w-80 overflow-y-auto">
-                <DropdownMenuLabel className="text-base">Notificações</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {notifications.length ? notifications.map(item => (
-                  <div key={item.id} className="px-2 py-2">
-                    <div className="text-base font-semibold">{item.title}</div>
-                    <div className="text-sm text-muted-foreground">{item.description}</div>
-                  </div>
-                )) : <div className="px-2 py-4 text-center text-base text-muted-foreground">Nenhuma pendência.</div>}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {isAdmin && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="bar" size="icon" aria-label="Notificações" className="relative">
+                    <Icon name="bell" className="h-[18px] w-[18px]" />
+                    {notifications.length > 0 && <span className="absolute right-2 top-2 size-2 rounded-full bg-[#ff9a73] ring-2 ring-bar" />}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="max-h-96 w-80 overflow-y-auto">
+                  <DropdownMenuLabel className="text-base">Notificações</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {notifications.length ? notifications.map(item => (
+                    <div key={item.id} className="px-2 py-2">
+                      <div className="text-base font-semibold">{item.title}</div>
+                      <div className="text-sm text-muted-foreground">{item.description}</div>
+                    </div>
+                  )) : <div className="px-2 py-4 text-center text-base text-muted-foreground">Nenhuma pendência.</div>}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
