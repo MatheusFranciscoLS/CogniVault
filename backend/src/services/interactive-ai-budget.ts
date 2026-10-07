@@ -192,22 +192,3 @@ export async function settleInteractiveAiBudget(
   });
   invalidateBudget(tenantId);
 }
-
-export async function canUseInteractiveAi(tenantId: string): Promise<boolean> {
-  return (await interactiveAiBudgetStatus(tenantId)).allowed;
-}
-
-export function consumeInteractiveAiBudget(tenantId: string, tokens: unknown): void {
-  const amount = Number(tokens || 0);
-  if (!Number.isFinite(amount) || amount <= 0) return;
-  const cached = usageCache.get(tenantId);
-  if (!cached) return;
-  const usedTokens = cached.usedTokens + Math.trunc(amount);
-  const remainingTokens = Math.max(0, cached.budgetTokens - usedTokens);
-  usageCache.set(tenantId, {
-    ...cached,
-    usedTokens,
-    remainingTokens,
-    allowed: remainingTokens > 0,
-  });
-}
