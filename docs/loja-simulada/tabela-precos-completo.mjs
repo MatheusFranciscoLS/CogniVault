@@ -189,7 +189,7 @@ await step('abrir a vista explodida', async () => {
   check('leva ao Atendimento com a máquina aberta', true);
   check('o painel é da máquina pedida', (await painel.innerText()).includes(pnc));
   const selo = (await painel.innerText()).replace(/\s+/g, ' ');
-  check('o painel diz que a máquina está na lista de preços, com o valor', /Na lista de preços · R\$ [\d.]+,\d{2}/.test(selo) || /Descontinuada na lista de preços/.test(selo), (selo.match(/(Na lista de preços[^A-Z]*|Descontinuada na lista de preços|Fora da lista de preços atual)/) ?? [''])[0]);
+  check('o painel diz "Em linha", com o valor (ou "Descontinuada")', /Em linha · R\$ [\d.]+,\d{2}/.test(selo) || /Descontinuada/.test(selo), (selo.match(/(Em linha[^A-Z]*|Descontinuada|Fora de linha)/) ?? [''])[0]);
   await page.keyboard.press('Escape');
   await painel.waitFor({ state: 'hidden', timeout: 4000 });
   await page.getByPlaceholder(SEARCH).fill('vela de ignição');
@@ -206,7 +206,7 @@ await step('máquina fora da lista de preços', async () => {
   await painel.waitFor({ timeout: 30000 });
   await page.waitForTimeout(1500);
   const texto = (await painel.innerText()).replace(/\s+/g, ' ');
-  check(naLista ? 'a 143R II está na lista: o painel mostra o valor' : 'a 143R II NÃO está na lista: o painel avisa "Fora da lista de preços atual"', naLista ? /Na lista de preços/.test(texto) : /Fora da lista de preços atual/.test(texto), (texto.match(/(Na lista de preços[^A-Z]*|Fora da lista de preços atual)/) ?? ['(sem selo)'])[0]);
+  check(naLista ? 'a 143R II está na lista: o painel diz "Em linha" com o valor' : 'a 143R II NÃO está na lista: o painel diz "Fora de linha"', naLista ? /Em linha/.test(texto) : /Fora de linha/.test(texto), (texto.match(/(Em linha[^A-Z]*|Fora de linha)/) ?? ['(sem selo)'])[0]);
   await shot(page, `${theme}-1366-maquina-fora-da-lista`);
   await page.keyboard.press('Escape');
 });

@@ -166,8 +166,8 @@ usuários** ("todos podem visualizar isso").
   sem aviso de erro.
 - **A ordem é a da Husqvarna** (`sortOrder`, calculado no importador a partir de `technologyOrder`,
   `categoryOrder` e `ordem_exibicao` do arquivo), não a alfabética: motosserra e roçadeira primeiro.
-- **O painel da máquina (Atendimento) mostra se ela está na lista** (`ListingBadge`): "Na lista de preços ·
-  R$ X", "Descontinuada na lista" ou "Fora da lista de preços atual". O PNC casa por igualdade ou pelos 9
+- **O painel da máquina (Atendimento) mostra se ela está na lista** (`ListingBadge`): "Em linha ·
+  R$ X", "Descontinuada" ou "Fora de linha" (a máquina não está na lista; palavra do balcão, escolhida pelo dono). O PNC casa por igualdade ou pelos 9
   primeiros dígitos (`findListedMachine`); sem lista importada o selo fica em silêncio.
 - **A ficha para o cliente (WhatsApp/PDF, `lib/machine-sheet.ts`) não leva o PNC** nem selo de novidade, e
   cita a data da tabela. **Regra do dono (2026-10-07): o que o cliente recebe NÃO leva código de peça**, para
