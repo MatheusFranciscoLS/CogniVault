@@ -18,7 +18,8 @@ describe('perfil e padrões da loja', () => {
   it('os padrões são os do modelo em Word', () => {
     expect(QUOTE_DEFAULTS.validityDays).toBe(20);
     expect(QUOTE_DEFAULTS.shipping).toBe('Retira');
-    expect(QUOTE_DEFAULTS.leadTime).toBe('IMEDIATO');
+    expect(QUOTE_DEFAULTS.leadTimeNow).toBe('Imediato');
+    expect(QUOTE_DEFAULTS.leadTimeOrder).toBe('7 a 10 dias');
     expect(QUOTE_DEFAULTS.observations).toHaveLength(3);
   });
   it('o CNPJ tem a máscara completa', () => {

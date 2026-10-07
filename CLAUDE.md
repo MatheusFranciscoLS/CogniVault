@@ -134,8 +134,9 @@ minutos ilimitados).
   (`HusqvarnaQuickDocument`), a rota expõe, e o painel da máquina mostra uma
   faixa de atalho (`OfficialDocumentShortcuts`). **Custo zero**: a query GraphQL já
   pedia `url`/`publicationTitle`/`fileFormat` e a carga já estava em cache.
-  Ordem é PT primeiro, depois `OM` (manual) antes de `IPL` — é o que o balcão
-  abre toda hora.
+  **Manual do operador (`OM`) não aparece mais no balcão** (dono, 2026-10-07: "queria somente as vistas explodidas"): a faixa
+  de atalho mostra só `IPL`. Medido: os documentos são 0,2 a 0,5% do que o detalhe da máquina guarda (menos de 1 KB de uns 150
+  a 270 KB) e são só links, não arquivos; então tirar o manual **não economiza dado nem tempo**, só tira ruído da tela.
 - **URL vinda do Portal passa por `utils/husqvarna-url.ts`.** Só `https` e só
   domínio Husqvarna (`husqvarnagroup.com`, `husqvarna.com`, `aprimocdn.net`).
   Esse dado vira `href` na tela do balcão, então `javascript:`/`data:`/domínio
@@ -193,9 +194,10 @@ usuários** ("todos podem visualizar isso").
   no código; dado de cliente nunca), "Cidade, data", A/C, Ref., tabela com prazo, condição de pagamento, **validade de
   20 dias corridos** (era 7 dias úteis), transportadora, observações e "ATT. nome" (o nome sai do e-mail do atendente).
   Os padrões estão em `QUOTE_DEFAULTS` e cada orçamento pode sobrescrever. A ficha da máquina usa o mesmo timbre.
-- **Prazo das peças é DIGITADO À MÃO em cada orçamento** (dono, 2026-10-07): a validade de 20 dias é do orçamento, mas o prazo
-  de chegada (ex.: "7 dias úteis") depende do estoque. Campo "Prazo das peças" na gaveta (vazio = IMEDIATO), coluna
-  `Quote.leadTime`, sai no PDF e no WhatsApp. **As observações** vêm com as 3 do modelo (imposto, faturamento em SP, estoque
+- **Prazo das peças é ESCOLHIDO em cada orçamento** (dono, 2026-10-07): três botões na gaveta, **Imediato** (pronta entrega), **Encomenda**
+  (a Husqvarna leva de 7 a 10 dias; vem com "7 a 10 dias", editável) e **Sem prazo** (o padrão: orçamento expresso, só por curiosidade do
+  cliente). Sem prazo, o PDF **não tem a coluna PRAZO** e o WhatsApp não fala de prazo. Peças não levam foto. Código em `lib/lead-time.ts`;
+  o valor guardado continua sendo o texto em `Quote.leadTime` (vazio = sem prazo). **As observações** vêm com as 3 do modelo (imposto, faturamento em SP, estoque
   rotativo), valem em todo orçamento e podem ser editadas por orçamento (campo recolhido; `Quote.notes`; vazio = padrão).
 - **Razão social** do PDF é a do cadastro do CNPJ: VARDÃO MÁQUINAS E EQUIPAMENTOS DE JARDINAGEM LTDA (o cabeçalho do modelo
   em Word estava abreviado).

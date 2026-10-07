@@ -29,7 +29,8 @@ await step('cabeçalho', async () => {
 await step('documentos', async () => {
   const docs = painel.getByRole('group', { name: 'Documentos oficiais' }).getByRole('link');
   const n = await docs.count();
-  check('há atalhos de documento', n > 0, `${n}`);
+  // Só vista de peças (IPL): manual do operador não aparece no balcão. Máquina que só tem manual fica sem a fileira.
+  check('nenhum atalho é manual do operador', !(await docs.allInnerTexts()).some(texto => /Manual/i.test(texto)), `${n} atalhos`);
   for (let i = 0; i < n; i++) {
     const href = await docs.nth(i).getAttribute('href');
     check(`documento ${i + 1} é link https da Husqvarna`, /^https:\/\/[^/]*(husqvarna|aprimocdn)/.test(href ?? ''), href?.slice(0, 70));

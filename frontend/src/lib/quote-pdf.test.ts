@@ -62,9 +62,10 @@ describe('buildQuotePdf (modelo com timbre da loja)', () => {
     expect(texto).toContain('Husqvarna 143RII');
   });
 
-  it('a tabela tem descrição, prazo, quantidade e valores, e o prazo padrão é IMEDIATO', () => {
-    for (const titulo of ['DESCRIÇÃO', 'PRAZO', 'QTD', 'VALOR UNIT.', 'VALOR TOTAL']) expect(texto).toContain(titulo);
-    expect(texto).toContain('IMEDIATO');
+  it('a tabela tem descrição, quantidade e valores, e sem escolha de prazo não tem coluna de prazo', () => {
+    for (const titulo of ['DESCRIÇÃO', 'QTD', 'VALOR UNIT.', 'VALOR TOTAL']) expect(texto).toContain(titulo);
+    expect(texto).not.toContain('PRAZO');
+    expect(texto).not.toContain('IMEDIATO');
   });
 
   it('valores com milhar e total igual ao do servidor, e NENHUM código de peça', () => {
@@ -119,10 +120,11 @@ describe('buildQuotePdf: padrões e opções', () => {
     expect(t).not.toContain('Impostos inclusos');
   });
 
-  it('o prazo digitado vale no lugar de IMEDIATO; vazio ou só espaço volta ao padrão', () => {
-    expect(gerar([carburador], { leadTime: '7 dias úteis' }).texto).toContain('7 dias úteis');
-    expect(gerar([carburador], { leadTime: '7 dias úteis' }).texto).not.toContain('IMEDIATO');
-    expect(gerar([carburador], { leadTime: '   ' }).texto).toContain('IMEDIATO');
+  it('Encomenda e Imediato aparecem na coluna de prazo; vazio ou só espaço é orçamento expresso, sem a coluna', () => {
+    expect(gerar([carburador], { leadTime: '7 a 10 dias' }).texto).toContain('7 a 10 dias');
+    expect(gerar([carburador], { leadTime: '7 a 10 dias' }).texto).toContain('PRAZO');
+    expect(gerar([carburador], { leadTime: 'Imediato' }).texto).toContain('Imediato');
+    expect(gerar([carburador], { leadTime: '   ' }).texto).not.toContain('PRAZO');
   });
 
   it('as observações digitadas (uma por linha) substituem as padrão da loja', () => {
