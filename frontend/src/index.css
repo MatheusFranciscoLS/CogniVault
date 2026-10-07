@@ -42,18 +42,26 @@
   --color-gold-800: #8a6a00;
   --color-gold: #ffc800;
 
-  --color-ink-50: #fafaf9;
-  --color-ink-100: #f4f4f3;
-  --color-ink-200: #e4e4e2;
-  --color-ink-300: #c8c8c5;
-  --color-ink-400: #a8a8a6;
-  --color-ink-500: #686867;
-  --color-ink-600: #4f5461;
-  --color-ink-700: #3d3d3c;
-  --color-ink-800: #2b3348;
-  --color-ink-850: #2a3555;
-  --color-ink-900: #1f2742;
-  --color-ink-950: #161c2f;
+  /*
+   * Escala `ink`: usada pelas telas que ainda não foram refeitas (administração, biblioteca, favoritos,
+   * histórico). Os degraus foram alinhados ao tema novo (src/theme.css) para que elas tenham o MESMO claro e o
+   * MESMO escuro das telas refeitas, até serem substituídas uma a uma:
+   *   claro:  50 = muted, 100 = background, 200 = border, 300 = input
+   *   escuro: 950 = background, 900 = card, 850 = muted/secondary, 800 = border, 700 = input
+   * A cor do texto não muda de papel: 500 = texto de apoio, 400 = texto de apoio no escuro.
+   */
+  --color-ink-50: #f6f7fa;
+  --color-ink-100: #eef0f4;
+  --color-ink-200: #d9dde6;
+  --color-ink-300: #c4cada;
+  --color-ink-400: #8e99b4;
+  --color-ink-500: #5f667a;
+  --color-ink-600: #4a5266;
+  --color-ink-700: #3b4870;
+  --color-ink-800: #2b3858;
+  --color-ink-850: #1c2745;
+  --color-ink-900: #151d33;
+  --color-ink-950: #0e1424;
   --color-ink: #1e1e1d;
 
   --font-sans:
@@ -185,11 +193,11 @@
   --cv-gold: #ffc800;
   --cv-gold-text: #8a6a00;
 
-  --cv-ink: #1e1e1d;
-  --cv-ink-strong: #3d3d3c;
-  --cv-ink-muted: #686867;
-  --cv-border: #e4e4e2;
-  --cv-neutral: #eae8e2;
+  --cv-ink: #1b2234;
+  --cv-ink-strong: #3b4870;
+  --cv-ink-muted: #5f667a;
+  --cv-border: #d9dde6;
+  --cv-neutral: #eef0f4;
   --cv-surface: #ffffff;
 
   --cv-radius-sm: 6px;
@@ -350,10 +358,8 @@ input[type="number"],
 
 .cv-stat-label {
   color: var(--cv-ink-muted);
-  font-size: .72rem;
-  font-weight: 700;
-  letter-spacing: .105em;
-  text-transform: uppercase;
+  font-size: .95rem;
+  font-weight: 600;
 }
 
 .cv-stat-icon {
@@ -372,7 +378,7 @@ input[type="number"],
 .cv-stat-value {
   margin-top: .45rem;
   color: var(--cv-ink);
-  font-size: 1.8rem;
+  font-size: 2.25rem;
   font-weight: 700;
   letter-spacing: -.025em;
   font-variant-numeric: tabular-nums;
@@ -381,7 +387,7 @@ input[type="number"],
 .cv-stat-caption {
   margin-top: .25rem;
   color: var(--cv-ink-muted);
-  font-size: .72rem;
+  font-size: .9rem;
 }
 
 .cv-quick-action {
@@ -481,10 +487,8 @@ input[type="number"],
 /* Eyebrow do site: maiúsculo, laranja legível, tracking largo. */
 .cv-kicker {
   color: var(--cv-accent-text);
-  font-size: .75rem;
-  font-weight: 700;
-  letter-spacing: .105em;
-  text-transform: uppercase;
+  font-size: .9rem;
+  font-weight: 600;
 }
 
 .cv-page-title {
@@ -563,12 +567,12 @@ input[type="number"],
 
   --cv-gold-text: #ffdf66;
 
-  --cv-ink: #f4f4f3;
-  --cv-ink-strong: #d6d6d3;
-  --cv-ink-muted: #a8a8a6;
-  --cv-border: #2b3348;
-  --cv-neutral: #1f2742;
-  --cv-surface: #222b44;
+  --cv-ink: #eef1f7;
+  --cv-ink-strong: #c9d1e4;
+  --cv-ink-muted: #8e99b4;
+  --cv-border: #2b3858;
+  --cv-neutral: #0e1424;
+  --cv-surface: #151d33;
 
   --cv-shadow-card: 0 1px 2px rgba(0, 0, 0, .3), 0 1px 3px rgba(0, 0, 0, .24);
   --cv-shadow-raised: 0 12px 28px -8px rgba(0, 0, 0, .55), 0 4px 10px -4px rgba(0, 0, 0, .35);
@@ -579,7 +583,7 @@ input[type="number"],
 html.dark { background: var(--background); color-scheme: dark; }
 
 .dark .cv-app-shell {
-  background: linear-gradient(to bottom right, #1f2742, #161c2f);
+  background: var(--background);
 }
 
 /* No escuro o laranja puro vibra demais como fundo de botão grande; o tom 400

@@ -115,7 +115,7 @@ test('qualidade compartilha uma única fonte de dados sob StrictMode', async ({ 
   expect((await qualityResponse).ok()).toBe(true);
 
   await expect(page.getByRole('heading', { name: 'Cobertura do portfólio BR' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Confiabilidade' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Qualidade', level: 1 })).toBeVisible();
 
   // O E2E usa Vite dev + React StrictMode. Em desenvolvimento, o React remonta
   // efeitos uma vez para detectar efeitos colaterais, então uma única fonte lógica

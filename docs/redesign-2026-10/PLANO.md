@@ -132,6 +132,9 @@ Regra: cada tela percorrida entra aqui com o que foi corrigido na hora (✅) e o
 | ✅ | Quem já estava logado e abria `/login` via o formulário de novo: agora vai direto ao painel |
 | 💡 | Depois de "Sair", o rascunho do orçamento daquele e-mail continua no navegador (separado por e-mail, então outro atendente não vê); em PC compartilhado, limpar ao sair? |
 
+### Telas de administração e secundárias (passada de 2026-10-07)
+Todas as telas abaixo receberam: escala `ink`/`--cv-*` alinhadas ao tema novo (mesmo claro e escuro das telas refeitas), **nenhum texto abaixo de 14 px**, sem caixa-alta, sem "kicker" e sem subtítulo que só descreve a tela, títulos no mesmo padrão (`text-3xl`), botões de ação secundária no `Button` do shadcn, diálogos de confirmação do site. **Qualidade** deixou de se chamar "Confiabilidade" no título (o menu já dizia Qualidade). Ainda NÃO foram redesenhadas por dentro: Negócio, Qualidade, Visão geral, Auditoria, Feedback, Favoritos, Histórico, Biblioteca; isso espera as decisões abaixo.
+
 ### Telas ainda no estilo antigo (percorridas: abrem e funcionam, 17 verificações)
 Todas com texto de 9 a 12 px e frases que explicam o sistema; nenhuma tem erro nem rolagem horizontal.
 | Tela | Controles | O que vi |

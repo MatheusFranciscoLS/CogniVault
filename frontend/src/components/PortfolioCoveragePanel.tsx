@@ -101,15 +101,15 @@ export default function PortfolioCoveragePanel({
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-base font-semibold text-ink-900 dark:text-ink-100">Cobertura do portfólio BR</h2>
-              <span className="rounded-full border border-brand-200 bg-brand-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-brand-700 dark:border-brand-800 dark:bg-brand-900/30 dark:text-brand-300">Brasil/local</span>
+              <span className="rounded-full border border-brand-200 bg-brand-50 px-2 py-1 text-sm font-bold   text-brand-700 dark:border-brand-800 dark:bg-brand-900/30 dark:text-brand-300">Brasil/local</span>
             </div>
-            <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-500 dark:text-ink-400">
+            <p className="mt-1 max-w-3xl text-sm leading-5 text-ink-500 dark:text-ink-400">
               Mostra quais modelos citados na lista comercial brasileira têm fonte técnica comprovada. Aplicações comerciais servem apenas para priorizar investigação e nunca comprovam compatibilidade de peça, PNC ou número de série.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             {onRefresh && (
-              <button type="button" disabled={refreshing || checkingPortal} onClick={() => void refreshLocal()} className="cv-secondary px-3 py-2 text-xs font-semibold disabled:opacity-50">
+              <button type="button" disabled={refreshing || checkingPortal} onClick={() => void refreshLocal()} className="cv-secondary px-3 py-2 text-sm font-semibold disabled:opacity-50">
                 {refreshing ? 'Recarregando…' : 'Recarregar base local'}
               </button>
             )}
@@ -117,7 +117,7 @@ export default function PortfolioCoveragePanel({
               type="button"
               disabled={checkingPortal || refreshing || gaps.length === 0}
               onClick={() => void checkPortal()}
-              className="cv-secondary px-3 py-2 text-xs font-semibold disabled:opacity-50"
+              className="cv-secondary px-3 py-2 text-sm font-semibold disabled:opacity-50"
             >
               {checkingPortal ? 'Consultando Portal BR…' : 'Consultar Portal BR (Top 8)'}
             </button>
@@ -127,33 +127,33 @@ export default function PortfolioCoveragePanel({
 
       <div className="p-5">
         {portalError && (
-          <div role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50/70 px-4 py-3 text-xs text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
+          <div role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50/70 px-4 py-3 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
             {portalError}
           </div>
         )}
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-ink-200 bg-white p-4 dark:border-ink-700 dark:bg-ink-800">
-            <div className="text-[10px] font-bold uppercase tracking-[.09em] text-ink-500 dark:text-ink-400">Cobertura técnica</div>
+            <div className="text-sm font-bold   text-ink-500 dark:text-ink-400">Cobertura técnica</div>
             <div className="mt-2 text-2xl font-semibold text-ink-900 dark:text-ink-100">{coveragePercent}%</div>
-            <div className="mt-1 text-xs text-ink-500 dark:text-ink-400">{displayCoverage.covered} de {displayCoverage.total} modelos com fonte técnica</div>
+            <div className="mt-1 text-sm text-ink-500 dark:text-ink-400">{displayCoverage.covered} de {displayCoverage.total} modelos com fonte técnica</div>
           </div>
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
-            <div className="text-[10px] font-bold uppercase tracking-[.09em] text-emerald-700 dark:text-emerald-300">IPL local</div>
+            <div className="text-sm font-bold   text-emerald-700 dark:text-emerald-300">IPL local</div>
             <div className="mt-2 text-2xl font-semibold text-emerald-950 dark:text-emerald-200">{displayCoverage.localIpl}</div>
-            <div className="mt-1 text-xs text-emerald-800 dark:text-emerald-200">Catálogos técnicos presentes no CogniVault</div>
+            <div className="mt-1 text-sm text-emerald-800 dark:text-emerald-200">Catálogos técnicos presentes no CogniVault</div>
           </div>
           <div className="rounded-2xl border border-brand-200 bg-brand-50/70 p-4 dark:border-brand-800 dark:bg-brand-900/20">
-            <div className="text-[10px] font-bold uppercase tracking-[.09em] text-brand-700 dark:text-brand-300">Portal BR</div>
+            <div className="text-sm font-bold   text-brand-700 dark:text-brand-300">Portal BR</div>
             <div className="mt-2 text-2xl font-semibold text-brand-950 dark:text-brand-200">{displayCoverage.portalIpl}</div>
-            <div className="mt-1 text-xs text-brand-800 dark:text-brand-200">
+            <div className="mt-1 text-sm text-brand-800 dark:text-brand-200">
               {displayCoverage.portalChecked ? 'IPLs oficiais confirmadas nesta consulta' : 'Portal ainda não consultado nesta carga'}
             </div>
           </div>
           <div className={`rounded-2xl border p-4 ${displayCoverage.unverified ? 'border-amber-200 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-900/20' : 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-800 dark:bg-emerald-900/20'}`}>
-            <div className={`text-[10px] font-bold uppercase tracking-[.09em] ${displayCoverage.unverified ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>Sem fonte técnica comprovada</div>
+            <div className={`text-sm font-bold   ${displayCoverage.unverified ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>Sem fonte técnica comprovada</div>
             <div className={`mt-2 text-2xl font-semibold ${displayCoverage.unverified ? 'text-amber-950 dark:text-amber-200' : 'text-emerald-950 dark:text-emerald-200'}`}>{displayCoverage.unverified}</div>
-            <div className={`mt-1 text-xs ${displayCoverage.unverified ? 'text-amber-800 dark:text-amber-200' : 'text-emerald-800 dark:text-emerald-200'}`}>Pendências priorizadas pelas referências comerciais</div>
+            <div className={`mt-1 text-sm ${displayCoverage.unverified ? 'text-amber-800 dark:text-amber-200' : 'text-emerald-800 dark:text-emerald-200'}`}>Pendências priorizadas pelas referências comerciais</div>
           </div>
         </div>
 
@@ -162,14 +162,14 @@ export default function PortfolioCoveragePanel({
         </div>
 
         {!displayCoverage.portalChecked ? (
-          <div className="mt-4 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3 text-xs leading-5 text-brand-800 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-300">
+          <div className="mt-4 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3 text-sm leading-5 text-brand-800 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-300">
             O Portal Husqvarna Brasil não é consultado automaticamente. Use o botão acima para homologar somente as <b>8 maiores lacunas</b>, com limite e concorrência controlados. Uma pendência significa apenas ausência de fonte técnica comprovada até aqui.
           </div>
         ) : (
-          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-xs leading-5 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
+          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm leading-5 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
             Portal Husqvarna Brasil consultado para <b>{displayCoverage.checkedCount ?? 0} modelo(s)</b> priorizado(s). Uma consulta inconclusiva nunca é tratada como ausência de IPL, e a lista comercial continua separada da evidência técnica oficial.
             {cacheLabel && (
-              <div className="mt-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-200">
+              <div className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-200">
                 Cache do Portal: {cacheLabel}.
               </div>
             )}
@@ -179,9 +179,9 @@ export default function PortfolioCoveragePanel({
         <div className="mt-5 flex items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">Maiores lacunas para investigar</h3>
-            <p className="mt-1 text-xs text-ink-500 dark:text-ink-400">Ordenadas pela quantidade de vezes que o modelo aparece nas aplicações da base comercial.</p>
+            <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">Ordenadas pela quantidade de vezes que o modelo aparece nas aplicações da base comercial.</p>
           </div>
-          <span className="text-xs font-semibold text-ink-500 dark:text-ink-400">Top {gaps.length}</span>
+          <span className="text-sm font-semibold text-ink-500 dark:text-ink-400">Top {gaps.length}</span>
         </div>
 
         {gaps.length === 0 ? (
@@ -193,19 +193,19 @@ export default function PortfolioCoveragePanel({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <b className="text-sm text-ink-900 dark:text-ink-100">{gap.model}</b>
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300">Sem IPL local</span>
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-sm font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300">Sem IPL local</span>
                     {displayCoverage.portalChecked && (
-                      <span className="rounded-full border border-ink-200 bg-ink-50 px-2 py-0.5 text-[10px] font-semibold text-ink-600 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-300">
+                      <span className="rounded-full border border-ink-200 bg-ink-50 px-2 py-0.5 text-sm font-semibold text-ink-600 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-300">
                         {portalDiagnostic(gap.portalVerification)}
                       </span>
                     )}
                   </div>
-                  {gap.commercialEvidence[0] && <div className="mt-1 truncate text-[11px] text-ink-500 dark:text-ink-400" title={gap.commercialEvidence[0]}>Exemplo comercial: {gap.commercialEvidence[0]}</div>}
+                  {gap.commercialEvidence[0] && <div className="mt-1 truncate text-sm text-ink-500 dark:text-ink-400" title={gap.commercialEvidence[0]}>Exemplo comercial: {gap.commercialEvidence[0]}</div>}
                   {displayCoverage.portalChecked && gap.portalVerificationNote && (
-                    <div className="mt-1 text-[11px] leading-4 text-ink-500 dark:text-ink-400">Portal BR: {gap.portalVerificationNote}</div>
+                    <div className="mt-1 text-sm leading-4 text-ink-500 dark:text-ink-400">Portal BR: {gap.portalVerificationNote}</div>
                   )}
                 </div>
-                <span className="shrink-0 text-xs font-semibold text-ink-500 dark:text-ink-400">{signalLabel(gap.commercialSignals)}</span>
+                <span className="shrink-0 text-sm font-semibold text-ink-500 dark:text-ink-400">{signalLabel(gap.commercialSignals)}</span>
               </div>
             ))}
           </div>
