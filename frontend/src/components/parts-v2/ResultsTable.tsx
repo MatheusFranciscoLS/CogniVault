@@ -20,7 +20,8 @@ export function ResultsTable({ children }: { children: ReactNode }) {
 }
 
 /** Título de um grupo de linhas (ex.: "No catálogo", "No cadastro de preços"). */
-export function ResultsGroup({ title, count, aside, children }: { title: string; count?: string; aside?: ReactNode; children: ReactNode }) {
+export function ResultsGroup({ title, count, aside, showHeader = true, children }: { title: string; count?: string; aside?: ReactNode; showHeader?: boolean; children: ReactNode }) {
+  if (!showHeader) return <div>{children}</div>;
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted px-4 py-2">

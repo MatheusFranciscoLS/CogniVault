@@ -510,6 +510,8 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   }, [closeSuggestions, initialQuery, onQueryChange, runSearch]);
 
   const hasLocalResults = parts.length > 0 || commercialParts.length > 0;
+  const hasCommercialGroup = commercialParts.length > 0 || commercialLoading || priceSections.length > 0;
+  const showGroupHeaders = parts.length > 0 && hasCommercialGroup;
 
   const copyCode = useCallback(async (code: string) => {
     const raw = cleanErpCode(code);
@@ -654,8 +656,8 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     <section className="flex flex-1 flex-col gap-4">
       <CounterSessionBar onOpenMachine={pnc => setOpenMachine({ pnc, name: session.machineModel || `PNC ${pnc}` })} />
 
-      <form onSubmit={submit} className="flex items-center gap-3">
-        <div className="relative min-w-0 flex-1">
+      <form onSubmit={submit} className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
+        <div className="relative min-w-0 basis-full sm:basis-0 sm:flex-1">
           <Icon name="search" className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={inputRef}
@@ -721,7 +723,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
                 setOpenMachine({ pnc: item.pnc as string, name: item.title });
               }}
               title={[item.categoryName || item.subtitle, item.discontinued ? 'fora de linha' : null].filter(Boolean).join(' · ')}
-              className="max-w-80 border-primary/50"
+              className="max-w-[28rem] border-primary/50"
             >
               <Icon name="machine" className="size-4" />
               <span className="truncate">{item.title}</span>
@@ -768,7 +770,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           {(parts.length > 0 || commercialParts.length > 0 || commercialLoading || priceSections.length > 0) && (
             <ResultsTable>
               {parts.length > 0 && (
-                <ResultsGroup title="No catálogo" count={`${parts.length} resultado${parts.length === 1 ? '' : 's'}`}>
+                <ResultsGroup title="No catálogo" showHeader={showGroupHeaders} count={`${parts.length} resultado${parts.length === 1 ? '' : 's'}`}>
                   {parts.map(part => (
                     <PartResultRow
                       key={part.id}
@@ -789,6 +791,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
               {(commercialParts.length > 0 || commercialLoading || priceSections.length > 0) && (
                 <ResultsGroup
                   title="Cadastro de preços"
+                  showHeader={showGroupHeaders || priceSections.length > 1}
                   count={commercialLoading ? 'Consultando…' : `${commercialParts.length} resultado${commercialParts.length === 1 ? '' : 's'}`}
                   aside={priceSections.length > 1 ? (
                     <select

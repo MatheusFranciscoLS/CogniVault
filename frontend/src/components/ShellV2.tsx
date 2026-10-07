@@ -220,7 +220,7 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
         </div>
       </header>
 
-      <main className={`mx-auto flex w-full flex-1 flex-col px-5 py-5 ${isCounter ? 'max-w-[1800px]' : 'max-w-[1500px]'}`}>{children}</main>
+      <main className={`mx-auto flex w-full flex-1 flex-col px-5 py-5 ${isCounter ? 'max-w-[1560px]' : 'max-w-[1500px]'}`}>{children}</main>
     </div>
   );
 }

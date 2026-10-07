@@ -61,12 +61,9 @@ export default function PartRow({ code, name, details, origin, tags, price, pric
       <Region {...regionProps} className="min-w-0 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/60 rounded-sm">
         <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <span className="truncate text-[17px] font-semibold leading-6">{name}</span>
-          <span className={cn('rounded px-1.5 text-sm font-semibold', origin === 'CATALOG' ? 'bg-ok-soft text-ok' : 'bg-secondary text-muted-foreground')}>
-            {origin === 'CATALOG' ? 'Catálogo' : 'Cadastro'}
-          </span>
           {tags}
         </span>
-        {details.length > 0 && <span className="mt-0.5 block truncate text-sm text-muted-foreground">{details.join(' · ')}</span>}
+        <span className="mt-0.5 block truncate text-sm text-muted-foreground">{[origin === 'CATALOG' ? 'Catálogo' : 'Cadastro', ...details].join(' · ')}</span>
       </Region>
 
       <div className="text-left lg:text-right">

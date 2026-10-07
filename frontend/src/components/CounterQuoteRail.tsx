@@ -55,7 +55,9 @@ export default function CounterQuoteRail() {
       <div className="mt-auto space-y-3 border-t border-border bg-muted px-4 py-4">
         <div className="flex items-baseline justify-between">
           <span className="text-base text-muted-foreground">Total</span>
-          <span className="font-code text-3xl font-bold tabular-nums">{quoteCart.totalPrice > 0 ? formatMoney(quoteCart.totalPrice) : '—'}</span>
+          {quoteCart.totalPrice > 0
+            ? <span className="font-code text-3xl font-bold tabular-nums">{formatMoney(quoteCart.totalPrice)}</span>
+            : <span className="text-lg text-muted-foreground">{empty ? 'R$ 0,00' : 'Sem preço'}</span>}
         </div>
         <Button size="lg" className="w-full" disabled={empty} onClick={() => quoteCart.setIsOpen(true)}>Revisar orçamento</Button>
       </div>
