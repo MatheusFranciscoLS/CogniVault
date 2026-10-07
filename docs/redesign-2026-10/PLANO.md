@@ -68,10 +68,14 @@ Toda tela aberta é testada em TODO o conteúdo dela, controle por controle, e n
 Pedido: colocar a lista de preços inteira no site, em **uma aba totalmente separada** do atendimento e do orçamento (nome provisório: "Tabela de preço" ou "Máquinas em vigência"), para saber quais máquinas estão em vigência na Husqvarna, quais podem ser vendidas e o que vem junto.
 | | Item |
 |---|---|
-| ⏳ | Verificar o que a lista de preços realmente contém (máquinas? só peças?) antes de desenhar a tela |
+| ✅ | **Verificado na lista de 05/10/2026 (só leitura):** `produtos` = **151 máquinas** (99 a combustão, 39 bateria, 10 robótica, 3 manual; 35 motosserras, 15 roçadeiras, 12 sopradores, 9 cortadores de grama, 5 giro zero…), todas com preço, PNC, modelo, categoria, aplicação (profissional/comercial/ocasional), ficha técnica (cilindrada, potência, tanque, peso…), IPI e foto; 1 marcada `descontinuado`. `updates` = 1.485 novidades entre listas (**82 são de máquinas**: novas ou com preço alterado, ex.: roçadeira 321C de R$ 1.049 para R$ 949). `pecas` traz `modelo`/`pnc` por peça. Ou seja: dá para montar "máquinas em vigência" só com o que já está na lista, sem consultar o Portal |
 | ⏳ | "O que vem junto" / "não acompanha": já existe na API do Portal (`equipment.included/notIncluded`); foi tirado do painel da máquina e volta aqui |
 | ⏳ | Aba própria, só consulta: filtro por categoria/modelo, em vigência x descontinuada, preço de venda (consumidor ÷ 0,92), sem custo |
 | ❓ | Quem vê: balcão e admin, ou só admin? (tabela com todos os preços é mais sensível que um item no orçamento) |
+| ❓ | **O preço de máquina também é consumidor ÷ 0,92?** A regra foi confirmada só para PEÇA (print do dono). Não vou assumir para máquina |
+| ❓ | "O que vem junto": a lista só tem a descrição curta (ex.: "Sabre 16\" + corrente X-CUT"). O "acompanha / não acompanha" completo vem do Portal Husqvarna por PNC (já temos a consulta). Mostrar do Portal, ao vivo, ao abrir a máquina? |
+| 💡 | Aba "Novidades da lista": as 82 máquinas novas/alteradas, com preço antes e depois. Responde "o que mudou nesta lista" |
+| ⚠️ | O aviso de propriedade intelectual da lista continua valendo: os dados vão para o BANCO (como os preços de peça, já aprovado), nunca para o repositório |
 Dados ficam no banco, nunca no repositório (repo público). Entra depois de A, B e C, antes da auditoria "zero erros" (para a auditoria já cobrir a aba nova).
 
 ## I. Melhorias achadas ao percorrer cada tela (fonte: roteiros de `docs/loja-simulada/`)
