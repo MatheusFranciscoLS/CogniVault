@@ -69,7 +69,7 @@ query getProductDetailsSections($siteName: String!, $articleId: ID!) {
             isDiscontinued
             isNew
             name { shortName }
-            mainImage: mainImageData { url altText }
+            mainImage { url altText }
             product {
               url
               type
@@ -88,7 +88,7 @@ query getProductDetailsSections($siteName: String!, $articleId: ID!) {
             url
             isDiscontinued
             isNew
-            mainImage: mainImageData { url altText }
+            mainImage { url altText }
           }
           ... on DiamondTool {
             __typename
@@ -99,7 +99,7 @@ query getProductDetailsSections($siteName: String!, $articleId: ID!) {
             url
             isDiscontinued
             isNew
-            mainImage: mainImageData { url altText }
+            mainImage { url altText }
           }
           ... on Machine {
             __typename
@@ -110,7 +110,7 @@ query getProductDetailsSections($siteName: String!, $articleId: ID!) {
             url
             isDiscontinued
             isNew
-            mainImage: mainImageData { url altText }
+            mainImage { url altText }
           }
         }
         iplDocuments { documentId publicationTitle url }
@@ -139,7 +139,7 @@ query getProductDetailsSections($siteName: String!, $articleId: ID!) {
           description
           articleNumberFormatted
           commercialReference
-          mainImage: mainImageData { url altText }
+          mainImage { url altText }
           url
         }
       }
@@ -159,7 +159,7 @@ query searchForSpareparts($site: String!, $searchTerm: String!, $skip: Int!, $ta
             articleNumberFormatted
             commercialReference
             description
-            mainImage: mainImageData { url altText }
+            mainImage { url altText }
             name
             url
           }
@@ -180,7 +180,7 @@ query getSparePart($siteName: String!, $sparePartId: ID!) {
         commercialReference
         name
         articleDescription
-        mainImage: mainImageData { url }
+        mainImage { url }
         url
         alsoUsedIn {
           ... on Machine { name { longName } }
