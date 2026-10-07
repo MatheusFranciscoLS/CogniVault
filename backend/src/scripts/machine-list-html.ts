@@ -54,19 +54,23 @@ function parseApplication(input: unknown): ListedMachine['application'] {
 }
 
 /** "Texto" da descrição detalhada: o arquivo traz HTML (listas, <br>, spans de fonte). */
+const HTML_ENTITIES: Record<string, string> = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" };
+
 export function htmlToPlainLines(input: unknown): string | null {
   if (typeof input !== 'string') return null;
-  const text = input
+  // Entidades numa passada só (decodificar `&amp;` antes de `&lt;` desfaria duas camadas de uma vez); depois as
+  // tags saem até estabilizar, porque tirar uma tag pode juntar o resto numa nova. O texto vai para a tela como
+  // texto puro, e `<`/`>` que sobrarem são descartados: nenhuma marcação sobrevive.
+  let text = input
+    .replace(/&(nbsp|amp|lt|gt|quot|#39);/gi, (_match, name: string) => HTML_ENTITIES[name.toLowerCase()])
     .replace(/<\s*br\s*\/?\s*>/gi, '\n')
     // Abertura e fechamento de bloco quebram a linha: "<ul><li>" sozinho colaria o item no texto anterior.
-    .replace(/<\/?\s*(li|p|div|ul|ol)\b[^>]*>/gi, '\n')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'");
+    .replace(/<\/?\s*(li|p|div|ul|ol)\b[^>]*>/gi, '\n');
+  for (let previous = ''; previous !== text; ) {
+    previous = text;
+    text = text.replace(/<[^>]*>/g, '');
+  }
+  text = text.replace(/[<>]/g, '');
   const lines = text
     .split('\n')
     .map(line => line.replace(/\s+/g, ' ').trim())

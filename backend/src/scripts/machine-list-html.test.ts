@@ -131,6 +131,12 @@ test('ficha técnica: unidade só em número puro; valor com cara de erro fica d
 test('htmlToPlainLines tira marcação e linhas vazias', () => {
   assert.equal(htmlToPlainLines('<div><b>A</b><br><br> B &amp; C</div>'), 'A\nB & C');
   assert.equal(htmlToPlainLines('<br> <br>'), null);
+  // Marcação escondida em entidade ou montada pela remoção de outra não sobrevive.
+  assert.equal(htmlToPlainLines('a &lt;script&gt;x&lt;/script&gt; b'), 'a x b');
+  assert.ok(!/[<>]/.test(htmlToPlainLines('<scr<b>ipt>x</scr</b>ipt>') ?? ''), 'tag montada pela remoção de outra');
+  assert.ok(!/[<>]/.test(htmlToPlainLines('5 < 6 > 4 <i') ?? ''));
+  // `&amp;lt;` é o texto "&lt;" (uma camada só), não "<".
+  assert.equal(htmlToPlainLines('&amp;lt;'), '&lt;');
   assert.equal(htmlToPlainLines(undefined), null);
 });
 
