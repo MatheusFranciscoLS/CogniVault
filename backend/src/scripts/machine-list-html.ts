@@ -28,6 +28,8 @@ export type ListedMachine = {
   isNew: boolean;
   /** Preço da lista anterior, só quando mudou e o registro de mudança bate com o preço de hoje. */
   priceBefore: number | null;
+  /** Posição na ordem que a própria Husqvarna define (tecnologia, categoria e ordem de exibição). */
+  sortOrder: number;
   specs: MachineSpec[];
   details: string | null;
 };
@@ -168,6 +170,7 @@ export function parseMachineListHtml(html: string): MachineList {
 
   const updates = readUpdates(catalog);
   const seen = new Set<string>();
+  const displayOrders = new Map<string, number>();
   const machines: ListedMachine[] = [];
   const rejected: RejectedMachine[] = [];
 
@@ -216,10 +219,41 @@ export function parseMachineListHtml(html: string): MachineList {
       discontinued: /descontinu/i.test(cleanText(row.motivo_sem_preco) ?? ''),
       isNew: update?.wasNew === true,
       priceBefore: priceChanged ? update.priceBefore : null,
+      sortOrder: 0,
       specs: buildSpecs(row),
       details: htmlToPlainLines(row.descricao_detalhada),
     });
+    displayOrders.set(normalizedPnc, Number(cleanText(row.ordem_exibicao)) || 9999);
   }
 
+  assignSortOrder(machines, catalog, displayOrders);
   return { listDate, machines, rejected };
+}
+
+function positionIn(list: unknown, value: string | null): number {
+  const index = Array.isArray(list) && value !== null ? list.indexOf(value) : -1;
+  return index === -1 ? 999 : index;
+}
+
+/**
+ * Ordem da Husqvarna: tecnologia, depois categoria (cada tecnologia tem a sua lista) e depois a "ordem de
+ * exibição" da máquina. É a ordem em que a própria página deles mostra (motosserra e roçadeira antes de
+ * aparador e atomizador), que é também o que a loja mais vende. O que o arquivo não ordena fica no fim,
+ * na ordem em que veio.
+ */
+function assignSortOrder(machines: ListedMachine[], catalog: Record<string, unknown>, displayOrders: Map<string, number>): void {
+  const technologyOrder = (catalog.technologyOrder as Record<string, unknown> | undefined)?.produtos;
+  const categoryOrder = (catalog.categoryOrder ?? {}) as Record<string, unknown>;
+  const keyed = machines.map((machine, index) => ({
+    machine,
+    index,
+    technology: positionIn(technologyOrder, machine.technology),
+    category: positionIn(categoryOrder[`produtos\u001f${machine.technology ?? ''}`], machine.category),
+    display: displayOrders.get(machine.normalizedPnc) ?? 9999,
+  }));
+  keyed.sort((a, b) => a.technology - b.technology || a.category - b.category || a.display - b.display || a.index - b.index);
+  keyed.forEach((item, position) => {
+    item.machine.sortOrder = position;
+  });
+  machines.sort((a, b) => a.sortOrder - b.sortOrder);
 }

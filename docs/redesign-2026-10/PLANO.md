@@ -36,6 +36,7 @@ Toda tela aberta é testada em TODO o conteúdo dela, controle por controle, e n
 |---|---|
 | 🔧 | Ver o que o cliente recebe hoje (texto do WhatsApp e PDF) e refazer — texto do WhatsApp escrito e testado (`quote-message.ts`, 16 testes), ainda NÃO ligado à gaveta |
 | ✅ | Texto do WhatsApp, PDF, prévia e validade com data: feitos (ver "Gaveta do orçamento" em I) |
+| ⏳ | **PDF do cliente no modelo do timbrado da loja (pedido do dono, 2026-10-07; anotado, não feito):** o dono mandou o modelo `ORÇAMENTO TIMBRE PEÇAS.doc` ("quero algo assim ou melhor"). **Regra nova: SEM os códigos das peças no que o cliente recebe**, porque ele poderia cotar o mesmo código em outra revenda. Vale para o PDF e, por coerência, para o texto do WhatsApp (hoje os dois mostram o código). Estrutura do modelo: cabeçalho com os dados da loja (razão social, CNPJ, inscrição, endereço, telefones, e-mail); "Cidade, data"; "A/C: cliente"; "Ref.: Estimativa de Preço Peças de Reposição"; tabela DESCRIÇÃO · prazo (IMEDIATO) · VALOR UNIT · VALOR TOTAL; total; condição de pagamento (a combinar), **validade 20 dias** (hoje usamos 7 dias úteis), transportadora (Retira), observações ("preços para faturamento no estado de SP", "impostos inclusos", "estoque rotativo sujeito a venda diária") e assinatura "ATT. nome do atendente"; rodapé com os dados da loja. Perguntas ao dono: onde guardar os dados da loja (configuração, não no git); a validade passa a 20 dias?; "A/C" e "Ref." viram campos do orçamento?; as observações fixas valem para todo orçamento? |
 | ⏳ | Observação livre no orçamento (precisa de campo novo no servidor) |
 | ⏳ | Enviar ao número do cliente quando há telefone (já existe) e arquivar sempre |
 
@@ -89,10 +90,10 @@ Pedido do dono: pegar o que for útil da lista, principalmente funcionalidade, "
 | | Ideia | Situação |
 |---|---|---|
 | ⏳ | **Código antigo → código vigente** (`similaridade`): a Husqvarna diz quais códigos cada peça substituiu e se existe um mais novo fora da lista. Cliente chega com o código velho: a busca acha o atual, com preço e aviso "substitui X". É a regra "nunca vender o código errado" servida pela própria fonte | PR próprio (tabela nova com RLS + importador + busca + gaveta) |
-| ⏳ | **Máquina em vigência dentro do atendimento**: no painel da máquina (vista explodida), selo "Na lista de preços · R$ X" ou "Fora da lista atual"; e o PNC vem sozinho da Tabela de preços (já há o botão "Abrir vista explodida") | PR próprio |
-| ⏳ | **Ficha da máquina para o cliente** (WhatsApp e PDF): modelo, preço da lista, ficha técnica, o que acompanha. Reaproveita o PDF e o texto do orçamento | PR próprio |
-| ⏳ | **Acessórios da categoria** na gaveta da máquina ("Leve junto": sabre, corrente, afiador para motosserra), com "+ Orçamento" | PR próprio |
-| ⏳ | **Ordem de categorias da Husqvarna** na Tabela de preços (Motosserra e Roçadeira primeiro, que é o que a loja mais vende) em vez de ordem alfabética | PR próprio |
+| ✅ | **Máquina em vigência dentro do atendimento** (feito: selo "Na lista de preços · R$ X" / "Fora da lista de preços atual" / "Descontinuada na lista" no painel da máquina; o PNC vem sozinho da Tabela de preços pelo botão "Abrir vista explodida"): no painel da máquina (vista explodida), selo "Na lista de preços · R$ X" ou "Fora da lista atual"; e o PNC vem sozinho da Tabela de preços (já há o botão "Abrir vista explodida") | feito |
+| ✅ | **Ficha da máquina para o cliente** (WhatsApp e PDF): modelo, preço da lista, ficha técnica, o que acompanha. Reaproveita o PDF e o texto do orçamento | PR próprio |
+| ✅ | **"Leve junto"** na gaveta da máquina: acessórios que o PORTAL indica para a máquina e que a loja tem no cadastro (preço e prateleira), com "+ Orçamento". Mudei de "acessórios da categoria" para os do Portal: são os da máquina e não chute por categoria. Cobertura desigual (0 a 18 por máquina): sem item da loja, a seção some | feito |
+| ✅ | **Ordem da Husqvarna** na Tabela de preços (tecnologia, categoria e ordem da máquina: motosserra e roçadeira primeiro) em vez de alfabética; vale também para as opções dos filtros | feito |
 | 💡 | **Peças de manutenção preventiva por PNC** (`reparo` + `pnc` das 64.440 linhas): cobre as máquinas que o catálogo interno não cobre; só com tabela nova de ligação peça↔PNC | avaliar depois da similaridade |
 | 💡 | Atalho `/` para focar a busca (hoje só Ctrl K) | pequeno |
 | 💡 | Lista de compras / CSV para o Portal Parceiro: é fluxo de COMPRA, fora do "vista explodida + orçamento"; só se o dono pedir |

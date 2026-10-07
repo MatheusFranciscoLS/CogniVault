@@ -164,6 +164,16 @@ usuários** ("todos podem visualizar isso").
 - "Acompanha / não acompanha" vem do Portal Husqvarna por PNC, ao abrir a gaveta
   (`/api/husqvarna/products/:pnc/details`, campo `equipment`); se o Portal não responde, a seção some,
   sem aviso de erro.
+- **A ordem é a da Husqvarna** (`sortOrder`, calculado no importador a partir de `technologyOrder`,
+  `categoryOrder` e `ordem_exibicao` do arquivo), não a alfabética: motosserra e roçadeira primeiro.
+- **O painel da máquina (Atendimento) mostra se ela está na lista** (`ListingBadge`): "Na lista de preços ·
+  R$ X", "Descontinuada na lista" ou "Fora da lista de preços atual". O PNC casa por igualdade ou pelos 9
+  primeiros dígitos (`findListedMachine`); sem lista importada o selo fica em silêncio.
+- **A ficha para o cliente (WhatsApp/PDF, `lib/machine-sheet.ts`) não leva o PNC** nem selo de novidade, e
+  cita a data da tabela. **Regra do dono (2026-10-07): o que o cliente recebe NÃO leva código de peça**, para
+  ele não cotar em outra revenda. O PDF e o WhatsApp do ORÇAMENTO ainda mostram o código: está no PLANO (B)
+  para ser refeito no modelo do timbrado da loja.
+- "Leve junto" na gaveta vem dos acessórios que o PORTAL indica para a máquina e que a loja tem no cadastro.
 - **Gravar em produção precisa da aprovação do dono** (olhar o relatório, depois `--apply`). A migração
   cria a tabela vazia no deploy; a aba mostra "ainda não foi carregada" até a importação.
 

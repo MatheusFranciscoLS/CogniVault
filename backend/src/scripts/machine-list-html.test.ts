@@ -128,6 +128,31 @@ test('ficha técnica: unidade só em número puro; valor com cara de erro fica d
   assert.deepEqual(buildSpecs({ peso_produto: '4,4' }), [{ label: 'Peso', value: '4,4 kg' }]);
 });
 
+test('a ordem de exibição é a da Husqvarna: tecnologia, categoria e depois a ordem da máquina', () => {
+  const rows = [
+    { ...base, pnc: '900000031', model: 'B1', categoria: 'SOPRADOR', tecnologia: 'BATERIA', ordem_exibicao: '1' },
+    { ...base, pnc: '900000032', model: 'S2', categoria: 'ROÇADEIRA', tecnologia: 'PRODUTOS A COMBUSTÃO', ordem_exibicao: '2' },
+    { ...base, pnc: '900000033', model: 'S1', categoria: 'ROÇADEIRA', tecnologia: 'PRODUTOS A COMBUSTÃO', ordem_exibicao: '1' },
+    { ...base, pnc: '900000034', model: 'M1', categoria: 'MOTOSSERRA', tecnologia: 'PRODUTOS A COMBUSTÃO', ordem_exibicao: '9' },
+    { ...base, pnc: '900000035', model: 'X1', categoria: 'OUTRA', tecnologia: 'PRODUTOS A COMBUSTÃO' },
+  ];
+  const catalog = {
+    date: '2026-10-05T00:00:00Z',
+    produtos: rows,
+    technologyOrder: { produtos: ['PRODUTOS A COMBUSTÃO', 'BATERIA'] },
+    categoryOrder: { 'produtos\u001fPRODUTOS A COMBUSTÃO': ['MOTOSSERRA', 'ROÇADEIRA'], 'produtos\u001fBATERIA': ['SOPRADOR'] },
+  };
+  const { machines } = parseMachineListHtml(page(catalog));
+  assert.deepEqual(machines.map(item => item.model), ['M1', 'S1', 'S2', 'X1', 'B1']);
+  assert.deepEqual(machines.map(item => item.sortOrder), [0, 1, 2, 3, 4]);
+});
+
+test('sem a lista de ordem no arquivo, mantém a ordem em que as máquinas vieram', () => {
+  const rows = [{ ...base, pnc: '900000041', model: 'A' }, { ...base, pnc: '900000042', model: 'B' }];
+  const { machines } = parseMachineListHtml(page({ date: '2026-10-05T00:00:00Z', produtos: rows }));
+  assert.deepEqual(machines.map(item => item.model), ['A', 'B']);
+});
+
 test('htmlToPlainLines tira marcação e linhas vazias', () => {
   assert.equal(htmlToPlainLines('<div><b>A</b><br><br> B &amp; C</div>'), 'A\nB & C');
   assert.equal(htmlToPlainLines('<br> <br>'), null);

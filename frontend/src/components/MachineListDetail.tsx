@@ -1,39 +1,28 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Check, Copy, Layers, X } from 'lucide-react';
-import { apiJson } from '../lib';
-import { applicationLabel, categoryLabel, technologyLabel, type ListedMachine } from '../lib/machine-list';
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
+import { Check, Copy, Layers, MessageCircle, FileText, Send, X } from 'lucide-react';
+import { useQuoteCart } from '../context/QuoteCartContext';
+import { useMachineList } from '../lib/use-machine-list';
+import { useMachinePortal, type MachinePortalData } from '../lib/use-machine-portal';
+import { buildMachineSheetMessage, machineFacts, machineSheetFileName } from '../lib/machine-sheet';
+import type { ListedMachine } from '../lib/machine-list';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import { normalizeCode, useMasterPrices } from './machines/master-part-prices';
+import PartPriceTag from './machines/PartPriceTag';
 import { MachineBadges, MachinePrice } from './MachineListPanel';
 
-type EquipmentItem = { id: string; name: string; value: string | null };
-type ProductEquipment = { included: EquipmentItem[]; notIncluded: EquipmentItem[] } | null;
-
 /**
- * O que acompanha a máquina vem do Portal Husqvarna, por PNC, ao abrir (a lista de preços só traz a
- * descrição curta). Se o Portal não responder ou não conhecer o PNC, a seção simplesmente não aparece:
- * o atendente não precisa de aviso de erro de integração.
+ * "Acompanha / não acompanha" vem do Portal, por PNC, ao abrir (a lista de preços só traz a descrição curta).
+ * Se o Portal não responde ou não conhece o PNC, a seção não aparece.
  */
-function EquipmentSection({ pnc }: { pnc: string }) {
-  const query = useQuery({
-    queryKey: ['machine-equipment', pnc],
-    staleTime: 10 * 60 * 1000,
-    retry: false,
-    queryFn: async () => {
-      const data = await apiJson<{ product?: { equipment?: ProductEquipment } }>(
-        `/api/husqvarna/products/${encodeURIComponent(pnc)}/details`,
-        { timeoutMs: 20_000 },
-      );
-      return data.product?.equipment ?? null;
-    },
-  });
-
-  if (query.isLoading) return <p aria-busy="true" className="text-base text-muted-foreground">Consultando o que acompanha…</p>;
-  const equipment = query.data;
+function EquipmentSection({ portal, loading }: { portal: MachinePortalData | undefined; loading: boolean }) {
+  if (loading) return <p aria-busy="true" className="text-base text-muted-foreground">Consultando o que acompanha…</p>;
+  const equipment = portal?.equipment;
   if (!equipment || (equipment.included.length === 0 && equipment.notIncluded.length === 0)) return null;
 
-  const render = (items: EquipmentItem[]) => (
+  const render = (items: typeof equipment.included) => (
     <ul className="space-y-1 text-base">
       {items.map(item => (
         <li key={item.id}>
@@ -61,6 +50,56 @@ function EquipmentSection({ pnc }: { pnc: string }) {
   );
 }
 
+/**
+ * Acessórios que o Portal indica para ESTA máquina e que a loja tem no cadastro, com preço e prateleira. O que a
+ * loja não tem não aparece (mesma regra do catálogo de motor: silêncio no que não é item daqui).
+ */
+function TakeAlongSection({ machine, portal }: { machine: ListedMachine; portal: MachinePortalData | undefined }) {
+  const quoteCart = useQuoteCart();
+  const accessories = useMemo(() => (portal?.accessories ?? []).filter(item => !item.discontinued), [portal]);
+  const prices = useMasterPrices(accessories.map(item => item.id));
+  const sold = accessories.filter(item => (prices.data?.prices[normalizeCode(item.id)]?.price ?? null) !== null);
+  if (sold.length === 0) return null;
+
+  return (
+    <section>
+      <h3 className="mb-1.5 text-lg font-semibold">Leve junto</h3>
+      <ul className="divide-y divide-border rounded-lg border border-border bg-card">
+        {sold.map(item => {
+          const hit = prices.data?.prices[normalizeCode(item.id)];
+          const inCart = quoteCart.items.some(line => line.partNumber === item.id);
+          return (
+            <li key={item.id} className="flex items-center gap-3 px-4 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-base">{item.name}</p>
+                <p translate="no" className="font-code text-sm tabular-nums text-muted-foreground">{item.id}</p>
+              </div>
+              <PartPriceTag code={item.id} prices={prices.data?.prices} />
+              <Button
+                size="sm"
+                variant={inCart ? 'added' : 'add'}
+                onClick={() => {
+                  quoteCart.addItem({
+                    partNumber: item.id,
+                    effectiveCode: item.id,
+                    manufacturer: 'Husqvarna',
+                    name: hit?.name || item.name,
+                    model: machine.model,
+                    unitPrice: hit?.price ?? undefined,
+                  });
+                  toast.success(`${item.name} no orçamento.`);
+                }}
+              >
+                {inCart ? 'No orçamento' : '+ Orçamento'}
+              </Button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 export default function MachineListDetail({
   machine,
   onClose,
@@ -71,6 +110,9 @@ export default function MachineListDetail({
   onOpenMachine: (pnc: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const portalQuery = useMachinePortal(machine.pnc);
+  const list = useMachineList();
+  const listDate = list.data?.listDate ? new Date(list.data.listDate) : null;
 
   const copyPnc = async () => {
     try {
@@ -82,7 +124,37 @@ export default function MachineListDetail({
     }
   };
 
-  const facts = [categoryLabel(machine.category), technologyLabel(machine.technology), applicationLabel(machine.application)].filter(Boolean);
+  // O texto e o PDF levam o que o Portal já respondeu; se ele ainda não respondeu (ou não conhece o PNC), vão sem.
+  const message = () => buildMachineSheetMessage({ machine, equipment: portalQuery.data?.equipment ?? null, listDate });
+
+  const copyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(message());
+      toast.success('Mensagem copiada.');
+    } catch {
+      toast.error('Não foi possível copiar. Use o WhatsApp ou o PDF.');
+    }
+  };
+
+  const openWhatsApp = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(message())}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const downloadPdf = async () => {
+    try {
+      const [{ jsPDF }, autoTable, { buildMachineSheetPdf }] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable').then(module => module.default),
+        import('../lib/machine-sheet'),
+      ]);
+      buildMachineSheetPdf({ doc: new jsPDF('p', 'pt', 'a4'), autoTable, machine, equipment: portalQuery.data?.equipment ?? null, listDate }).save(machineSheetFileName(machine));
+    } catch (error) {
+      console.error('Falha ao gerar a ficha em PDF:', error);
+      toast.error('Não foi possível gerar o PDF. Tente novamente.');
+    }
+  };
+
+  const facts = machineFacts(machine);
 
   return (
     <Sheet open onOpenChange={open => { if (!open) onClose(); }}>
@@ -111,7 +183,7 @@ export default function MachineListDetail({
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2"><MachineBadges machine={machine} /></div>
-              {facts.length > 0 && <p className="text-base text-muted-foreground">{facts.join(' · ')}</p>}
+              {facts && <p className="text-base text-muted-foreground">{facts}</p>}
             </div>
             <div>
               <p className="text-right text-sm text-muted-foreground">Preço da lista</p>
@@ -119,11 +191,24 @@ export default function MachineListDetail({
             </div>
           </div>
 
-          <Button size="lg" className="w-full" onClick={() => onOpenMachine(machine.pnc)}>
-            <Layers className="size-5" aria-hidden="true" /> Abrir vista explodida
-          </Button>
+          <div className="flex gap-2">
+            <Button size="lg" className="flex-1" onClick={() => onOpenMachine(machine.pnc)}>
+              <Layers className="size-5" aria-hidden="true" /> Abrir vista explodida
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="lg" variant="outline"><Send className="size-5" aria-hidden="true" /> Enviar ao cliente</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-56">
+                <DropdownMenuItem className="h-10 text-base" onSelect={openWhatsApp}><MessageCircle className="size-4" aria-hidden="true" /> Abrir no WhatsApp</DropdownMenuItem>
+                <DropdownMenuItem className="h-10 text-base" onSelect={() => void copyMessage()}><Copy className="size-4" aria-hidden="true" /> Copiar mensagem</DropdownMenuItem>
+                <DropdownMenuItem className="h-10 text-base" onSelect={() => void downloadPdf()}><FileText className="size-4" aria-hidden="true" /> Baixar ficha em PDF</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-          <EquipmentSection pnc={machine.pnc} />
+          <EquipmentSection portal={portalQuery.data} loading={portalQuery.isLoading} />
+          <TakeAlongSection machine={machine} portal={portalQuery.data} />
 
           {machine.specs.length > 0 && (
             <section>

@@ -50,6 +50,7 @@ function toRecord(tenantId: string, machine: ListedMachine, listDate: Date): Pri
     discontinued: machine.discontinued,
     isNew: machine.isNew,
     priceBefore: machine.priceBefore,
+    sortOrder: machine.sortOrder,
     specs: machine.specs as unknown as Prisma.InputJsonValue,
     details: machine.details,
     listDate,

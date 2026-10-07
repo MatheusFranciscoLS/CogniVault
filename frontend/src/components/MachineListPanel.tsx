@@ -1,7 +1,6 @@
 import { Fragment, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, ArrowUpDown, Search, TrendingDown, TrendingUp, X } from 'lucide-react';
-import { apiJson } from '../lib';
+import { useMachineList } from '../lib/use-machine-list';
 import { formatBRL } from '../lib/quote-message';
 import {
   EMPTY_FILTERS,
@@ -15,7 +14,6 @@ import {
   technologyLabel,
   type ListedMachine,
   type MachineFilters,
-  type MachineListResponse,
   type MachineSort,
 } from '../lib/machine-list';
 import { Button } from '@/components/ui/button';
@@ -80,11 +78,7 @@ export default function MachineListPanel({ onOpenMachine }: { onOpenMachine: (pn
   const [sort, setSort] = useState<MachineSort>('category');
   const [selected, setSelected] = useState<ListedMachine | null>(null);
 
-  const query = useQuery({
-    queryKey: ['machine-list'],
-    staleTime: 10 * 60 * 1000,
-    queryFn: () => apiJson<MachineListResponse>('/api/machine-list', { timeoutMs: 25_000 }),
-  });
+  const query = useMachineList();
 
   const machines = useMemo(() => query.data?.machines ?? [], [query.data]);
   const visible = useMemo(() => sortMachines(machines.filter(machine => matchesFilters(machine, filters)), sort), [machines, filters, sort]);
