@@ -5,6 +5,7 @@
 // QUEM mandou. Posição na vista explodida, seção do catálogo e PNC são informação interna do
 // balcão e não entram na mensagem.
 import { formatHusqvarnaPartNumber } from '../lib';
+import { QUOTE_DEFAULTS } from './store-profile';
 
 export type QuoteLine = {
   partNumber: string;
@@ -36,26 +37,20 @@ export function formatBRL(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value).split(String.fromCharCode(160)).join(' ');
 }
 
-/** Soma `days` dias ÚTEIS (segunda a sexta; feriado não entra) a partir de `from`. */
-export function addBusinessDays(from: Date, days: number): Date {
+/** Soma `days` dias CORRIDOS a partir de `from`. */
+export function addDays(from: Date, days: number): Date {
   const result = new Date(from);
-  let remaining = days;
-  while (remaining > 0) {
-    result.setDate(result.getDate() + 1);
-    const weekday = result.getDay();
-    if (weekday !== 0 && weekday !== 6) remaining -= 1;
-  }
+  result.setDate(result.getDate() + days);
   return result;
 }
-
-export const QUOTE_VALIDITY_BUSINESS_DAYS = 7;
 
 export function formatDate(date: Date): string {
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(date);
 }
 
-export function validUntil(now: Date): string {
-  return formatDate(addBusinessDays(now, QUOTE_VALIDITY_BUSINESS_DAYS));
+/** Validade do orçamento: 20 dias corridos, como no modelo da loja (`QUOTE_DEFAULTS.validityDays`). */
+export function validUntil(now: Date, days: number = QUOTE_DEFAULTS.validityDays): string {
+  return formatDate(addDays(now, days));
 }
 
 export function isServiceLine(line: Pick<QuoteLine, 'partNumber'>): boolean {

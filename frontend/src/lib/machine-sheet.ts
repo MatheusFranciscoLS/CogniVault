@@ -6,7 +6,8 @@
 import type { jsPDF as JsPdf } from 'jspdf';
 import type autoTableFn from 'jspdf-autotable';
 import { applicationLabel, categoryLabel, technologyLabel, type ListedMachine } from './machine-list';
-import { INK, MARGIN, MUTED, NAVY, NAVY_DARK, RULE, ZEBRA, drawStoreHeader } from './quote-pdf';
+import type { PdfImage } from './pdf-assets';
+import { FOOTER_SPACE, INK, MARGIN, MUTED, NAVY, NAVY_DARK, ZEBRA, cityAndDate, drawLetterFooter, drawLetterhead } from './quote-pdf';
 import { STORE_SIGNATURE, formatBRL, formatDate } from './quote-message';
 
 export type SheetEquipmentItem = { name: string; value: string | null };
@@ -64,44 +65,48 @@ export function buildMachineSheetPdf(input: {
   machine: ListedMachine;
   equipment: SheetEquipment;
   listDate: Date | null;
+  logo?: PdfImage | null;
 }): JsPdf {
   const { doc, autoTable, machine, equipment, listDate } = input;
   const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
 
-  drawStoreHeader(doc, 'FICHA DA MÁQUINA', formatDate(new Date()));
+  const top = drawLetterhead(doc, { logo: input.logo, title: 'FICHA DA MÁQUINA' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10.5);
+  doc.setTextColor(...MUTED);
+  doc.text(cityAndDate(new Date()), pageWidth - MARGIN, top - 22, { align: 'right' });
 
-  // Título: modelo grande, descrição e categoria logo abaixo.
-  let y = 130;
+  // Título: modelo grande, descrição e categoria logo abaixo; o preço em destaque à direita.
+  const priceBoxWidth = 190;
+  let y = top + 8;
   doc.setTextColor(...NAVY);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(26);
-  doc.text(doc.splitTextToSize(`Husqvarna ${machine.model}`, pageWidth - MARGIN * 2)[0] as string, MARGIN, y);
-  y += 20;
+  doc.setFontSize(24);
+  doc.text(doc.splitTextToSize(`Husqvarna ${machine.model}`, pageWidth - MARGIN * 2 - priceBoxWidth - 16)[0] as string, MARGIN, y + 14);
+  y += 34;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
   doc.setTextColor(...MUTED);
   if (machine.description && machine.description !== machine.model) {
-    doc.text(doc.splitTextToSize(machine.description, pageWidth - MARGIN * 2)[0] as string, MARGIN, y);
+    doc.text(doc.splitTextToSize(machine.description, pageWidth - MARGIN * 2 - priceBoxWidth - 16)[0] as string, MARGIN, y);
     y += 15;
   }
   doc.text(machineFacts(machine), MARGIN, y);
 
-  // Preço em destaque, à direita.
   doc.setFillColor(...NAVY);
-  doc.roundedRect(pageWidth - MARGIN - 190, 108, 190, 54, 4, 4, 'F');
+  doc.roundedRect(pageWidth - MARGIN - priceBoxWidth, top, priceBoxWidth, 54, 4, 4, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.text('PREÇO', pageWidth - MARGIN - 178, 126);
+  doc.text('PREÇO', pageWidth - MARGIN - priceBoxWidth + 12, top + 18);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(19);
-  doc.text(formatBRL(machine.listPrice), pageWidth - MARGIN - 12, 150, { align: 'right' });
+  doc.text(formatBRL(machine.listPrice), pageWidth - MARGIN - 12, top + 42, { align: 'right' });
   y += 30;
 
   const tableStyles = {
     theme: 'plain' as const,
-    margin: { left: MARGIN, right: MARGIN, bottom: 70 },
+    margin: { left: MARGIN, right: MARGIN, bottom: FOOTER_SPACE },
     headStyles: { fillColor: NAVY_DARK, textColor: 255, fontStyle: 'bold' as const, fontSize: 9, cellPadding: { top: 6, bottom: 6, left: 6, right: 6 } },
     styles: { fontSize: 10, cellPadding: { top: 6, bottom: 6, left: 6, right: 6 }, textColor: INK },
     alternateRowStyles: { fillColor: ZEBRA },
@@ -133,22 +138,6 @@ export function buildMachineSheetPdf(input: {
     y = ((doc as DocWithTable).lastAutoTable?.finalY ?? y) + 22;
   }
 
-  // Rodapé em toda página.
-  const pages = doc.getNumberOfPages();
-  for (let page = 1; page <= pages; page += 1) {
-    doc.setPage(page);
-    doc.setDrawColor(...RULE);
-    doc.setLineWidth(0.75);
-    doc.line(MARGIN, pageHeight - 54, pageWidth - MARGIN, pageHeight - 54);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(...NAVY);
-    doc.text(STORE_SIGNATURE, MARGIN, pageHeight - 38);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...MUTED);
-    doc.text(listDate ? `Valor da tabela de ${formatDate(listDate)}` : 'Valor da tabela vigente', MARGIN, pageHeight - 25);
-    doc.text(`Página ${page} de ${pages}`, pageWidth - MARGIN, pageHeight - 25, { align: 'right' });
-  }
-
+  drawLetterFooter(doc, listDate ? `Valor da tabela de ${formatDate(listDate)}` : 'Valor da tabela vigente');
   return doc;
 }

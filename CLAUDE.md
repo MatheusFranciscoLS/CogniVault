@@ -173,8 +173,13 @@ usuários** ("todos podem visualizar isso").
   cita a data da tabela. **Regra do dono (2026-10-07): o que o cliente recebe NÃO leva código de peça**, para
   ele não cotar em outra revenda. Vale para TUDO que sai para o cliente: o WhatsApp, o PDF e a folha impressa do
   ORÇAMENTO também não levam código (nem PNC, posição ou "substitui o código X"); travado em `quote-message.test.ts`,
-  `quote-pdf.test.ts` e no roteiro `orcamento-completo`. O código só existe na tela do balcão. O PDF ainda será
-  refeito no modelo do timbrado da loja (PLANO, B).
+  `quote-pdf.test.ts` e no roteiro `orcamento-completo`. O código só existe na tela do balcão.
+- **O PDF do orçamento segue o modelo em Word da loja** (`lib/quote-pdf.ts`): logo (`/brand/vardao-horizontal-azul.png`,
+  carregada por `lib/pdf-assets.ts`; sem ela o PDF sai com o nome em texto), dados da loja no alto e no rodapé
+  (`lib/store-profile.ts`: CNPJ, inscrição, endereço e telefones são dados PÚBLICOS de pessoa jurídica, por isso moram
+  no código; dado de cliente nunca), "Cidade, data", A/C, Ref., tabela com prazo, condição de pagamento, **validade de
+  20 dias corridos** (era 7 dias úteis), transportadora, observações e "ATT. nome" (o nome sai do e-mail do atendente).
+  Os padrões estão em `QUOTE_DEFAULTS` e cada orçamento pode sobrescrever. A ficha da máquina usa o mesmo timbre.
 - "Leve junto" na gaveta vem dos acessórios que o PORTAL indica para a máquina e que a loja tem no cadastro.
 - **Gravar em produção precisa da aprovação do dono** (olhar o relatório, depois `--apply`). A migração
   cria a tabela vazia no deploy; a aba mostra "ainda não foi carregada" até a importação.

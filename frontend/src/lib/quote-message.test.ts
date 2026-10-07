@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addBusinessDays, buildWhatsAppMessage, formatBRL, quoteTotals, validUntil } from './quote-message';
+import { addDays, buildWhatsAppMessage, formatBRL, quoteTotals, validUntil } from './quote-message';
 
 const carburador = { partNumber: '587106701', manufacturer: 'Husqvarna', name: 'CARBURADOR', model: '143RII', pnc: '967332904', quantity: 1, unitPrice: 378.26 };
 const vela = { partNumber: '501691702', manufacturer: 'Husqvarna', name: 'CHAVE COMBINADA (VELA) 13-19MM', model: '143RII', quantity: 2, unitPrice: 21.15 };
@@ -15,14 +15,17 @@ describe('formatBRL', () => {
 });
 
 describe('validade', () => {
-  it('7 dias úteis a partir de quarta-feira caem na sexta da semana seguinte (pula fim de semana)', () => {
-    expect(addBusinessDays(quarta, 7).getDay()).toBe(5);
-    expect(validUntil(quarta)).toBe('16/10/2026');
+  it('vale 20 dias corridos, como no modelo da loja', () => {
+    expect(validUntil(quarta)).toBe('27/10/2026');
   });
 
-  it('sexta-feira + 1 dia útil é segunda-feira', () => {
-    const sexta = new Date(2026, 9, 9);
-    expect(addBusinessDays(sexta, 1).getDay()).toBe(1);
+  it('a validade atravessa a virada de mês e de ano', () => {
+    expect(addDays(new Date(2026, 11, 20), 20).getDate()).toBe(9);
+    expect(validUntil(new Date(2026, 11, 20))).toBe('09/01/2027');
+  });
+
+  it('aceita outro prazo', () => {
+    expect(validUntil(quarta, 7)).toBe('14/10/2026');
   });
 });
 
@@ -58,7 +61,7 @@ describe('buildWhatsAppMessage', () => {
     expect(message).toContain('1. *CARBURADOR*');
     expect(message).toContain('*Total: R$ 420,56*');
     expect(message).toContain('Pagamento: À Vista / PIX (5% desc.)');
-    expect(message).toContain('Válido até 16/10/2026');
+    expect(message).toContain('Válido até 27/10/2026');
     expect(message).toContain('Vardão Máquinas · Revenda Autorizada Ouro Husqvarna');
     expect(message).toContain('Peças originais Husqvarna');
   });
