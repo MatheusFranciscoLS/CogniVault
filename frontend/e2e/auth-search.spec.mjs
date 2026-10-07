@@ -91,7 +91,7 @@ test('visão geral mantém telemetria compacta da rota do Portal BR', async ({ p
   await login(page, ADMIN_EMAIL);
   await page.goto('/dashboard?tab=overview');
 
-  await expect(page.getByRole('heading', { name: 'Uso, cache e cobertura técnica' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Uso de IA e cobertura técnica' })).toBeVisible();
   await expect(page.getByText('Portal BR · rota', { exact: true })).toBeVisible();
 });
 
