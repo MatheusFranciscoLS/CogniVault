@@ -54,7 +54,7 @@ await step('filtro', async () => {
 await step('menu de ações', async () => {
   await linhaDe(emailTeste).getByRole('button', { name: /Ações de/ }).click();
   const itens = await page.getByRole('menuitem').allInnerTexts();
-  check('o menu tem perfil, bloqueio e senha', itens.length === 3 && /administrador/.test(itens[0]) && /Bloquear/.test(itens[1]) && /senha/.test(itens[2]), itens.join(' | '));
+  check('o menu tem perfil, nome, bloqueio e senha', itens.length === 4 && /administrador/.test(itens[0]) && /nome/.test(itens[1]) && /Bloquear/.test(itens[2]) && /senha/.test(itens[3]), itens.join(' | '));
   await page.keyboard.press('Escape');
 });
 

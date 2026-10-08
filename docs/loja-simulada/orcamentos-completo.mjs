@@ -30,7 +30,7 @@ await step('cabeçalho e colunas', async () => {
 await step('linha de orçamento', async () => {
   const linha = page.locator('tr, article, li').filter({ hasText: 'Maria Souza' }).first();
   const texto = await linha.innerText();
-  check('mostra cliente e telefone', texto.includes('Maria Souza') && texto.includes('19987654321'));
+  check('mostra cliente e telefone formatado', texto.includes('Maria Souza') && texto.includes('(19) 98765-4321'));
   check('mostra data e hora', /\d{2}\/\d{2}\/\d{4}/.test(texto));
   check('mostra o atendente', texto.includes('admin.e2e@cognivault.local'));
   check('mostra o total com separador brasileiro', /R\$\s?\d/.test(texto), (texto.match(/R\$\s?[\d.,]+/) ?? [''])[0]);
@@ -65,7 +65,8 @@ await step('filtro de datas', async () => {
   await page.getByRole('button', { name: 'Buscar' }).click();
   await pronto();
   check('período antigo não traz orçamentos de hoje', !(await page.locator('main').innerText()).includes('Maria Souza'));
-  const hoje = new Date().toISOString().slice(0, 10);
+  // O dia da LOJA (São Paulo), não o do relógio UTC: depois das 21h o UTC já virou o dia.
+  const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
   await de.fill(hoje);
   await ate.fill(hoje);
   await page.getByRole('button', { name: 'Buscar' }).click();

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import PageFrame from './PageFrame';
+import { categoryLabel } from '../lib/category-label';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, Copy, ExternalLink, Search } from 'lucide-react';
 import { toast } from 'sonner';
@@ -165,7 +166,7 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
           className="h-10 rounded-md border border-input bg-card px-3 text-base text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/60"
         >
           <option value="ALL">Todas as categorias</option>
-          {categories.map(item => <option key={item} value={item}>{item}</option>)}
+          {categories.map(item => <option key={item} value={item}>{categoryLabel(item)}</option>)}
         </select>
       </div>
 
@@ -233,7 +234,7 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
                   <KawasakiPartsLink model={document.kawasakiEngineModel} url={document.kawasakiPartsUrl} />
                 ) : null}
               </div>
-              <div className="text-base text-muted-foreground">{document.category || 'Sem categoria'}</div>
+              <div className="text-base text-muted-foreground">{categoryLabel(document.category) || 'Sem categoria'}</div>
               <div className="flex items-center gap-2 lg:justify-end">
                 {onSearch && document.status === 'COMPLETED' && <Button type="button" variant="ghost" onClick={() => onSearch(title)}>Ver peças</Button>}
                 <Button type="button" variant="outline" disabled={document.status !== 'COMPLETED'} onClick={() => void access(document)}>Abrir vista explodida</Button>

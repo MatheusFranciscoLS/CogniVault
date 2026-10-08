@@ -31,6 +31,7 @@ import PartGuesses from './PartGuesses';
 import { ResultsGroup, ResultsSkeleton, ResultsTable } from './ResultsTable';
 import { groupPartsByCode, nameContainsPhrase } from './group-parts';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -972,14 +973,16 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       {detail && <PanelErrorBoundary key={`peca-${detail.partNumber}`} onClose={() => setDetail(null)}><PartDetailDrawer detail={detail} verification={detailVerification} liveData={liveData} onClose={() => setDetail(null)} onCopy={code => void copyCode(code)} onOpenPdf={(documentId, page, title) => void accessPdf(documentId, page, title)} onOpenRelated={id => void openPart(id)} onVerify={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} escapeBlocked={Boolean(pdf) || Boolean(verificationTarget)} /></PanelErrorBoundary>}
       {verificationTarget && <PartVerificationDialog target={verificationTarget} existing={verifications[normalizePartCode(verificationTarget.partNumber)]} onClose={() => setVerificationTarget(null)} onSaved={() => { setVerificationTarget(null); toast.success('Conferência enviada para aprovação.'); if (detail) void loadVerifications([detail]); }} />}
 
-      {pdf && (
-        <div className="fixed inset-0 z-90 bg-ink-950/90 p-3 md:p-5">
-          <div className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-2xl bg-white dark:bg-ink-900">
-            <div className="flex items-center justify-between border-b border-ink-200 px-4 py-3 dark:border-ink-800"><div className="truncate text-sm font-black">{pdf.title}</div><button type="button" onClick={() => setPdf(null)} className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-bold dark:border-ink-700">Fechar</button></div>
-            <iframe title={pdf.title} src={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} className="h-full w-full border-0" />
+      <Dialog open={Boolean(pdf)} onOpenChange={open => { if (!open) setPdf(null); }}>
+        <DialogContent showCloseButton={false} className="flex h-[min(92vh,1000px)] max-w-[min(1500px,96vw)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[min(1500px,96vw)]">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
+            <DialogTitle className="truncate text-base font-semibold">{pdf?.title}</DialogTitle>
+            <DialogDescription className="sr-only">Catálogo em PDF</DialogDescription>
+            <Button type="button" variant="outline" onClick={() => setPdf(null)}>Fechar</Button>
           </div>
-        </div>
-      )}
+          {pdf && <iframe title={pdf.title} src={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} className="min-h-0 w-full flex-1 border-0" />}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

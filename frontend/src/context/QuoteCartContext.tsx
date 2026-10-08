@@ -50,6 +50,7 @@ export interface SavedQuote {
   totalPrice: number;
   totalItems: number;
   attendantEmail?: string | null;
+  attendantName?: string | null;
 }
 
 /**
@@ -147,6 +148,7 @@ interface ApiQuote {
   savedAt: string | null;
   attendantId: string | null;
   attendantEmail: string | null;
+  attendantName?: string | null;
   items: ApiQuoteItem[];
 }
 
@@ -235,6 +237,7 @@ function toSavedQuote(quote: ApiQuote): SavedQuote {
     totalPrice: quote.grossTotal,
     totalItems: quote.totalItems,
     attendantEmail: quote.attendantEmail,
+    attendantName: quote.attendantName,
   };
 }
 

@@ -55,6 +55,8 @@ export interface UnpricedPart {
 export interface AttendantActivity {
   userId: string | null;
   email: string;
+  /** Nome cadastrado pelo administrador; sem ele, a tela mostra o e-mail. */
+  name: string | null;
   quotes: number;
   items: number;
   netTotal: number;
@@ -303,6 +305,7 @@ export class BusinessInsightsService {
       prisma.$queryRaw<Array<{
         userId: string | null;
         email: string | null;
+        name: string | null;
         quotes: number;
         items: number;
         netTotal: number | null;
@@ -311,6 +314,7 @@ export class BusinessInsightsService {
         SELECT
           q."userId",
           u."email",
+          u."name",
           COUNT(*)::int AS "quotes",
           COALESCE(SUM(q."totalItems"), 0)::int AS "items",
           COALESCE(SUM(q."netTotal"), 0)::float8 AS "netTotal",
@@ -320,7 +324,7 @@ export class BusinessInsightsService {
         WHERE q."tenantId" = ${tenantId}
           AND q."status" = 'SAVED'
           AND q."savedAt" BETWEEN ${from} AND ${to}
-        GROUP BY q."userId", u."email"
+        GROUP BY q."userId", u."email", u."name"
         ORDER BY "quotes" DESC
       `,
 
@@ -394,6 +398,7 @@ export class BusinessInsightsService {
           userId: row.userId,
           // Orçamento de atendente já removido continua contando no histórico.
           email: row.email || 'Atendente removido',
+          name: row.name?.trim() || null,
           quotes: attendantQuotes,
           items: Number(row.items || 0),
           netTotal: attendantNet,
