@@ -264,3 +264,12 @@ Todas com texto de 9 a 12 px e frases que explicam o sistema; nenhuma tem erro n
 - **Negócio**: já estava em `PageFrame` + `Table`; sobrava o selo de variação com texto da cor do fundo (`bg-ok text-ok`, ilegível), textos em `ink-*`, `gold-*` e `accent-*` trocados pelos tokens (`text-foreground`, `bg-warn-soft text-warn`, `text-destructive`) e uma linha de base nas barras. Contraste 12/12 nos dois temas.
 - **Login**: conferido em 1366×768; já segue a marca (azul-marinho, logo, laranja só no botão). Sem mudança.
 - **226KS12**: o dono avisou que a Husqvarna não vende mais (fica só a 226K) e que o acessório KS12 saiu da lista de preços. A lista importada (05/10/2026) ainda traz os dois (R$ 3.499,00 e R$ 1.150,00), então é anterior à saída. Continua em pausa na cobertura; ao chegar a lista nova, relatório sem `--apply` e gravação só com aprovação do dono (a importação é espelho: eles saem sozinhos).
+
+### A10 — Passada final e Biblioteca (2026-10-08)
+
+- **Gaveta de orçamento** (#266): rodapé numa linha (WhatsApp, PDF, Imprimir); prazo e desconto selecionados em tom neutro (laranja só em ação). Em 1366×768 o "Prazo das peças" não fica mais cortado.
+- **Biblioteca do administrador** (#265, #267, #268): filtros neutros; status de revisão em tom de aviso; 2 PNCs por linha; **seletor de seção mostra a seção real** (antes, seção fora da lista oficial aparecia como a primeira opção e sumia dos filtros); grade sem emoji nem degradê, uma ação principal por cartão, Excluir separado; importação sem rótulos repetidos.
+- **Qualidade** (#264): Fila de Ação com 2 motivos por catálogo e "Mais N motivos".
+- **Cores antigas** (#263): restos de `ink/gold/accent` viraram tokens (codemods 4 e 5 em `docs/loja-simulada/`). `QuickQuoteCart` (folha impressa, sempre clara) fica como está de propósito.
+- Roteiros de prints: `revisao-final-prints.mjs`, `biblioteca-importacao-prints.mjs`, `telas-admin-prints.mjs`.
+- **Pendente:** link da Kohler (dono vai verificar); lista de preços nova (226KS12 sai da lista, ver A9).
