@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import PageFrame from './PageFrame';
 import { useQuery } from '@tanstack/react-query';
 import { useConfirm } from '../context/confirm';
 import { api, apiJson, fmtDate, formatEngineOrCatalogModel, json } from '../lib';
@@ -297,9 +300,10 @@ export default function CatalogsPanel({
   const [actionError, setActionError] = useState('');
   const [pdf, setPdf] = useState<{ url: string; title: string } | null>(null);
 
+  const [showUpload, setShowUpload] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>(() => {
     try {
-      return (localStorage.getItem('cognivault_catalog_view_mode') as 'grid' | 'table') || 'grid';
+      return (localStorage.getItem('cognivault_catalog_view_mode') as 'grid' | 'table') || 'table';
     } catch {
       return 'grid';
     }
@@ -511,15 +515,20 @@ export default function CatalogsPanel({
   ];
 
   return (
-    <section>
-      <div className="cv-page-heading">
-        <h1 className="text-3xl font-semibold leading-9">Biblioteca de catálogos</h1>
-        {admin && (
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            <input type="checkbox" checked={archived} onChange={event => setArchived(event.target.checked)} /> Mostrar arquivados
+    <PageFrame
+      title="Biblioteca de catálogos"
+      meta={`${activeDocs.length} ${activeDocs.length === 1 ? 'catálogo' : 'catálogos'}`}
+      action={admin ? (
+        <div className="flex flex-wrap items-center gap-4">
+          <label className="flex items-center gap-2 text-base text-muted-foreground">
+            <input type="checkbox" checked={archived} onChange={event => setArchived(event.target.checked)} className="size-4 accent-primary" /> Mostrar arquivados
           </label>
-        )}
-      </div>
+          <Button type="button" variant={showUpload ? 'outline' : 'default'} aria-expanded={showUpload} onClick={() => setShowUpload(value => !value)}>
+            {showUpload ? 'Fechar importação' : 'Importar PDFs'}
+          </Button>
+        </div>
+      ) : undefined}
+    >
 
       {error && (
         <div role="alert" className="mb-4 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
@@ -527,7 +536,8 @@ export default function CatalogsPanel({
         </div>
       )}
 
-      {admin && <BatchCatalogUploader onComplete={load} onNotice={flash} onError={setError} />}
+      {/* Escondido, não desmontado: a fila de arquivos e o Ctrl+V continuam vivos com a importação fechada. */}
+      {admin && <div className={showUpload ? '' : 'hidden'}><BatchCatalogUploader onComplete={load} onNotice={flash} onError={setError} /></div>}
 
       {admin && failedCount > 0 && !archived && (
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-warn/40 bg-warn-soft p-4">
@@ -553,51 +563,23 @@ export default function CatalogsPanel({
         </div>
       )}
 
-      {/* Biblioteca por Seção */}
-      <div className="rounded-xl border border-border bg-card mb-6 p-5">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <div className="font-semibold text-foreground">Biblioteca por seção</div>
-            <p className="mt-1 text-sm leading-5 text-muted-foreground">Classificação automática por tipo de máquina Husqvarna:</p>
-          </div>
-          <div className="text-sm font-medium text-muted-foreground">{activeDocs.length} catálogo{activeDocs.length === 1 ? '' : 's'}</div>
-        </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-          <button
-            type="button"
-            onClick={() => setCategoryFilter('ALL')}
-            className={`rounded-2xl border px-4 py-3 text-left transition ${effectiveCategoryFilter === 'ALL' ? 'border-brand-700 bg-ink-900 text-white shadow-md' : 'border-border bg-card text-ink-700 dark:text-ink-300 hover:border-ink-300 dark:border-ink-600'}`}
-          >
-            <div className="flex items-center gap-1.5 text-sm font-semibold">
-              <span>📚</span>
-              <span>Todos</span>
-            </div>
-            <div className={`mt-1 text-sm ${effectiveCategoryFilter === 'ALL' ? 'text-brand-200' : 'text-muted-foreground'}`}>
-              {activeDocs.length} catálogo{activeDocs.length === 1 ? '' : 's'}
-            </div>
-          </button>
-          {visibleCategories.map(category => {
-            const count = categoryCounts.get(category) || 0;
-            const selected = effectiveCategoryFilter === category;
-            const icon = categoryIcon(category);
-            return (
-              <button
-                key={category}
-                type="button"
-                onClick={() => setCategoryFilter(category)}
-                className={`rounded-2xl border px-4 py-3 text-left transition ${selected ? 'border-brand-700 bg-ink-900 text-white shadow-md' : 'border-border bg-card text-ink-700 dark:text-ink-300 hover:border-ink-300 dark:border-ink-600'}`}
-              >
-                <div className="flex items-center gap-1.5 text-sm font-semibold truncate">
-                  <span>{icon}</span>
-                  <span className="truncate">{category}</span>
-                </div>
-                <div className={`mt-1 text-sm ${selected ? 'text-brand-200' : 'text-muted-foreground'}`}>
-                  {count} catálogo{count === 1 ? '' : 's'}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+      {/* Seções por tipo de máquina: uma linha de fichas, não uma grade de cartões. */}
+      <div role="group" aria-label="Seção da biblioteca" className="flex flex-wrap gap-2">
+        {[['ALL', 'Todos', activeDocs.length] as const, ...visibleCategories.map(category => [category, category, categoryCounts.get(category) || 0] as const)].map(([key, label, count]) => {
+          const selected = effectiveCategoryFilter === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => setCategoryFilter(key)}
+              className={`inline-flex h-10 items-center gap-2 rounded-full border px-4 text-base font-semibold outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/60 ${selected ? 'border-transparent bg-primary text-primary-foreground' : 'border-border bg-card text-foreground hover:bg-accent'}`}
+            >
+              <span className="truncate">{label}</span>
+              <span className={`tabular-nums ${selected ? 'text-primary-foreground' : 'text-muted-foreground'}`}>{count}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Main Catalog View Container */}
@@ -1114,72 +1096,45 @@ export default function CatalogsPanel({
                       </td>
                       <td className="pr-4 text-muted-foreground font-semibold">{document.partCount}</td>
                       <td className="p-4">
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex items-center justify-end gap-2">
                           {document.status === 'COMPLETED' && !document.archivedAt && (
                             <>
-                              <button
-                                type="button"
-                                onClick={() => void access(document.id, 'view', document.filename)}
-                                className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm font-medium hover:bg-ink-50 dark:hover:bg-ink-700"
-                              >
-                                Visualizar
-                              </button>
-                              {onSearch && (
-                                <button
-                                  type="button"
-                                  onClick={() => onSearch(document.model || document.filename)}
-                                  className="rounded-lg bg-warn hover:bg-warn text-ink-950 px-2.5 py-1.5 text-sm font-bold transition shadow-2xs"
-                                >
-                                  Ver Peças
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => void access(document.id, 'download', document.filename)}
-                                className="rounded-lg border border-border px-2.5 py-1.5 text-sm font-medium"
-                              >
-                                Baixar
-                              </button>
-                            </>
-                          )}
-                          {admin && !document.archivedAt && (
-                            <>
-                              {document.status === 'COMPLETED' && document.modelNeedsReview && onQuality && (
-                                <button type="button" onClick={onQuality} className="rounded-lg border border-brand-200 dark:border-brand-600 bg-brand-50 dark:bg-ink-900 px-2.5 py-1.5 text-sm font-semibold text-brand-700 dark:text-brand-300">
-                                  Corrigir dados
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                disabled={busy || document.processingActive || ['PENDING', 'PROCESSING'].includes(document.status)}
-                                onClick={() => void action(document.id, 'reprocess')}
-                                className="rounded-lg border border-border px-2.5 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40"
-                              >
-                                {document.status === 'COMPLETED' ? 'Reextrair peças' : recovery?.retryLabel || 'Tentar novamente'}
-                              </button>
-                              <button
-                                type="button"
-                                disabled={busy || document.processingActive}
-                                onClick={() => void action(document.id, 'archive')}
-                                className="rounded-lg border border-destructive/40 px-2.5 py-1.5 text-sm font-medium text-destructive disabled:opacity-40"
-                              >
-                                Arquivar
-                              </button>
-                              <button
-                                type="button"
-                                disabled={busy || document.processingActive}
-                                onClick={() => void removePdf(document)}
-                                className="rounded-lg border border-destructive/40 px-2.5 py-1.5 text-sm font-semibold text-destructive disabled:opacity-40"
-                              >
-                                Excluir PDF
-                              </button>
+                              {onSearch && <Button type="button" size="sm" variant="outline" onClick={() => onSearch(document.model || document.filename)}>Ver peças</Button>}
+                              <Button type="button" size="sm" variant="outline" onClick={() => void access(document.id, 'view', document.filename)}>Visualizar</Button>
                             </>
                           )}
                           {admin && document.archivedAt && (
-                            <button type="button" disabled={busy} onClick={() => void action(document.id, 'restore')} className="rounded-lg border border-ok/40 px-2.5 py-1.5 text-sm font-medium text-ok">
-                              Restaurar
-                            </button>
+                            <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void action(document.id, 'restore')}>Restaurar</Button>
                           )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button type="button" variant="ghost" size="icon-sm" aria-label={`Mais ações de ${document.filename}`}>
+                                <svg viewBox="0 0 24 24" fill="currentColor" className="size-5" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="min-w-52">
+                              {document.status === 'COMPLETED' && !document.archivedAt && (
+                                <DropdownMenuItem className="h-10 text-base" onSelect={() => void access(document.id, 'download', document.filename)}>Baixar PDF</DropdownMenuItem>
+                              )}
+                              {admin && !document.archivedAt && (
+                                <>
+                                  {document.status === 'COMPLETED' && document.modelNeedsReview && onQuality && (
+                                    <DropdownMenuItem className="h-10 text-base" onSelect={onQuality}>Corrigir dados</DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem
+                                    className="h-10 text-base"
+                                    disabled={busy || document.processingActive || ['PENDING', 'PROCESSING'].includes(document.status)}
+                                    onSelect={() => void action(document.id, 'reprocess')}
+                                  >
+                                    {document.status === 'COMPLETED' ? 'Reextrair peças' : recovery?.retryLabel || 'Tentar novamente'}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem className="h-10 text-base" variant="destructive" disabled={busy || document.processingActive} onSelect={() => void action(document.id, 'archive')}>Arquivar</DropdownMenuItem>
+                                  <DropdownMenuItem className="h-10 text-base" variant="destructive" disabled={busy || document.processingActive} onSelect={() => void removePdf(document)}>Excluir PDF</DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </td>
                     </tr>
@@ -1302,6 +1257,6 @@ export default function CatalogsPanel({
           </div>
         </div>
       )}
-    </section>
+    </PageFrame>
   );
 }
