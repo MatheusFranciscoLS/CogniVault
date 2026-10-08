@@ -57,9 +57,35 @@ describe('modelo do motor digitado a partir da plaqueta', () => {
     expect(engineInputHelp(parseEngineInput('carburador'))).toMatch(/Digite como está na plaqueta/);
   });
 
+  it('linha inteira colada de catálogo ou plaqueta: acha o modelo dentro do texto', () => {
+    expect(ok('Model No. FX921V-ES06')).toBe('Kawasaki|FX921V-ES06|MODELO');
+    expect(ok('FX921V-ES06 4 Stroke Engine FX921V')).toBe('Kawasaki|FX921V-ES06|MODELO');
+    expect(ok('motor Kawasaki FX730V')).toBe('Kawasaki|FX730V|SERIE');
+    expect(ok('ENGINE MODEL: SV540 3212 SERIAL 3012345678')).toBe('Kohler|SV540-3212|MODELO');
+    expect(ok('Kohler Command SV540-3212 (V-Twin)')).toBe('Kohler|SV540-3212|MODELO');
+    expect(ok('Courage SV540-3212 - SV540')).toBe('Kohler|SV540-3212|MODELO');
+  });
+
+  it('plaqueta da Briggs com modelo, tipo e código em campos separados', () => {
+    expect(ok('MODEL 104M02 TYPE 0002 CODE F1')).toBe('Briggs & Stratton|104M02-0002-F1|MODELO');
+    expect(ok('Model No. 104M02 Type No. 0002-F1 Code 12345678')).toBe('Briggs & Stratton|104M02-0002-F1|MODELO');
+    expect(ok('model 12j902 type 0118 code 01')).toBe('Briggs & Stratton|12J902-0118-01|MODELO');
+  });
+
+  it('palavras soltas em volta NÃO viram catálogo: só vale um formato inteiro e exato', () => {
+    for (const typed of ['carburador 587106701', 'filtro de ar do Z460', 'preciso do motor da máquina', 'motor Briggs 104M02', 'LC121P 2018 FX', '967 33 29-04 Husqvarna 143R-II']) {
+      expect(parseEngineInput(typed).kind, typed).toBe('unknown');
+    }
+  });
+
+  it('a série da Kohler no meio do texto ainda pede o spec', () => {
+    expect(parseEngineInput('motor Kohler CH 740').kind).toBe('needs-spec');
+  });
+
   it('entrada enorme ou estranha não trava nem passa', () => {
     expect(parseEngineInput('A'.repeat(5000)).kind).toBe('unknown');
-    expect(parseEngineInput('SV540-3212 '.repeat(50)).kind).toBe('unknown');
+    expect(ok('SV540-3212 '.repeat(50))).toBe('Kohler|SV540-3212|MODELO');
+    expect(parseEngineInput('lorem ipsum '.repeat(500)).kind).toBe('unknown');
     expect(parseEngineInput(null).kind).toBe('unknown');
     expect(parseEngineInput(undefined).kind).toBe('unknown');
   });
