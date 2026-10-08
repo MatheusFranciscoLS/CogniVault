@@ -245,14 +245,6 @@ input[type="number"],
   filter: contrast(1.06) saturate(1.04);
 }
 
-/* ---------- Superfícies ---------- */
-
-.cv-surface {
-  background: var(--cv-surface);
-  border: 1px solid var(--cv-border);
-  border-radius: var(--cv-radius-card);
-  box-shadow: var(--cv-shadow-card);
-}
 
 .cv-app-shell {
   background: linear-gradient(to bottom right, var(--cv-brand-soft), var(--cv-neutral));
@@ -267,67 +259,14 @@ input[type="number"],
   margin-bottom: 1.5rem;
 }
 
-/* ---------- Controles ---------- */
 
-.cv-secondary {
-  border: 1px solid var(--cv-border);
-  border-radius: var(--cv-radius);
-  background: var(--cv-surface);
-  color: var(--cv-brand);
-  font-weight: 600;
-  box-shadow: var(--cv-shadow-card);
-  transition: background .15s ease, border-color .15s ease, color .15s ease;
-}
 
-.cv-secondary:hover:not(:disabled) {
-  border-color: var(--cv-brand-line);
-  background: var(--cv-brand-soft);
-}
 
-.cv-secondary:disabled { cursor: not-allowed; opacity: .5; }
 
-.cv-field {
-  width: 100%;
-  border: 1px solid var(--cv-border);
-  background: var(--cv-surface);
-  border-radius: var(--cv-radius);
-  padding: .7rem .9rem;
-  color: var(--cv-ink);
-  outline: none;
-  transition: border-color .15s ease, box-shadow .15s ease;
-}
 
-.cv-field:focus {
-  border-color: var(--cv-brand);
-  box-shadow: 0 0 0 3px rgba(39, 58, 96, .14);
-}
 
-/* Botão de ação primária: laranja da marca, texto branco pesado (≥16px/700 é o
-   único par com contraste aceitável nesse fundo). */
-.cv-primary {
-  border-radius: var(--cv-radius);
-  background: var(--cv-accent);
-  color: #fff;
-  font-weight: 700;
-  box-shadow: var(--cv-shadow-card);
-  transition: background .15s ease;
-}
 
-.cv-primary:hover:not(:disabled) { background: #d94512; }
-.cv-primary:active:not(:disabled) { background: #c13d0a; }
-.cv-primary:disabled { opacity: .55; }
 
-/* Ação estrutural (navegar, abrir, confirmar leitura): azul-marinho. */
-.cv-brand-button {
-  border-radius: var(--cv-radius);
-  background: var(--cv-brand);
-  color: #fff;
-  font-weight: 700;
-  transition: background .15s ease;
-}
-
-.cv-brand-button:hover:not(:disabled) { background: var(--cv-brand-dark); }
-.cv-brand-button:disabled { opacity: .55; cursor: not-allowed; }
 
 .cv-icon-button {
   display: grid;
@@ -526,9 +465,6 @@ input[type="number"],
 .cv-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .cv-scrollbar::-webkit-scrollbar-thumb { background: #c2d0e5; border-radius: 999px; }
 
-/* Alvo de toque mínimo de balcão. Tablet e dedo grande com luva de oficina não
-   acertam alvo de 28px — 44px é o piso das diretrizes de toque. */
-.cv-touch-target { min-height: 44px; min-width: 44px; }
 
 /* Barra de progresso indeterminada do boot pós-login. O `animate-pulse` que
    havia antes ficava parado em 50% da barra, e em rede lenta de loja parecia
@@ -588,13 +524,7 @@ html.dark { background: var(--background); color-scheme: dark; }
   background: var(--background);
 }
 
-/* No escuro o laranja puro vibra demais como fundo de botão grande; o tom 400
-   mantém a leitura do rótulo branco. */
-.dark .cv-primary { background: #e04c1c; }
-.dark .cv-primary:hover:not(:disabled) { background: #f25420; }
 
-.dark .cv-brand-button { background: #3d5c90; color: #fff; }
-.dark .cv-brand-button:hover:not(:disabled) { background: #5f7dae; }
 
 .dark ::selection { background: rgba(242, 84, 32, .35); color: #fff; }
 

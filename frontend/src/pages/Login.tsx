@@ -52,7 +52,7 @@ function AuthorizedByHusqvarna({ tone }: { tone: 'onBrand' | 'onLight' }) {
   return (
     <div
       className={`flex flex-wrap items-center gap-x-4 gap-y-3 border-t pt-4 ${
-        onBrand ? 'border-white/15' : 'border-ink-200 dark:border-ink-800'
+        onBrand ? 'border-white/15' : 'border-border'
       }`}
     >
       <img
@@ -71,11 +71,11 @@ function AuthorizedByHusqvarna({ tone }: { tone: 'onBrand' | 'onLight' }) {
       {/* Sem repetir "Revenda Autorizada Ouro" em texto aqui: o selo ao lado já
           diz isso, e o e2e casa esse texto por substring sem diferenciar
           maiúsculas — duas ocorrências violariam o modo estrito do Playwright. */}
-      <div className={`min-w-[190px] flex-1 border-l pl-4 ${onBrand ? 'border-white/15' : 'border-ink-200 dark:border-ink-800'}`}>
-        <div className={`text-xs font-bold ${onBrand ? 'text-white' : 'text-ink-950 dark:text-white'}`}>
+      <div className={`min-w-[190px] flex-1 border-l pl-4 ${onBrand ? 'border-white/15' : 'border-border'}`}>
+        <div className={`text-xs font-bold ${onBrand ? 'text-white' : 'text-foreground'}`}>
           Peças e catálogo originais
         </div>
-        <div className={`mt-0.5 text-[11px] ${onBrand ? 'text-brand-200' : 'text-ink-500 dark:text-ink-400'}`}>
+        <div className={`mt-0.5 text-[11px] ${onBrand ? 'text-brand-200' : 'text-muted-foreground'}`}>
           Direto da fonte oficial da fábrica
         </div>
       </div>
@@ -170,7 +170,7 @@ export default function Login() {
 
   const preparing = loading && serverState !== 'ready';
   return (
-    <main className="min-h-dvh bg-ink-100 text-ink-950 lg:grid lg:min-h-dvh lg:grid-cols-[1.1fr_1fr] dark:bg-ink-950 dark:text-white">
+    <main className="min-h-dvh bg-muted text-foreground lg:grid lg:min-h-dvh lg:grid-cols-[1.1fr_1fr]">
       {/* Painel da marca. Fica escondido abaixo de lg: no tablet/celular do
           balcão a tela é para entrar rápido, não para ler apresentação. */}
       <aside className="relative hidden overflow-hidden border-white/10 bg-brand-600 p-10 text-white lg:flex lg:flex-col lg:justify-between lg:border-r xl:p-12">
@@ -247,9 +247,9 @@ export default function Login() {
               meio da tela fica vazio — principalmente no tablet 10" em retrato,
               que é o aparelho do balcão. Nessas larguras ele ganha superfície
               de card; a partir de lg o painel já dá a estrutura e o card sai. */}
-          <div className="w-full max-w-[420px] rounded-panel border border-ink-200 bg-white p-6 shadow-raised dark:border-ink-800 dark:bg-ink-900 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none dark:lg:bg-transparent">
+          <div className="w-full max-w-[420px] rounded-panel border border-border bg-card p-6 shadow-raised lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none dark:lg:bg-transparent">
             <h2 className="text-display-sm text-brand-600 dark:text-white">Entrar no CogniVault</h2>
-            <p className="mt-2 text-base text-ink-500 dark:text-ink-400">Use o e-mail da loja.</p>
+            <p className="mt-2 text-base text-muted-foreground">Use o e-mail da loja.</p>
 
             {error && (
               <div
@@ -322,7 +322,7 @@ export default function Login() {
           </div>
         </div>
 
-        <footer className="px-5 pb-5 text-center text-sm text-ink-500 sm:px-8 dark:text-ink-400">
+        <footer className="px-5 pb-5 text-center text-sm text-muted-foreground sm:px-8">
           Vardão Máquinas · CogniVault
         </footer>
       </section>

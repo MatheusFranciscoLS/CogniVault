@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiError, apiJson } from '../lib';
 import { retryTransient } from '../lib/transient-retry';
+import { categoryLabel } from '../lib/category-label';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type PortfolioCoverageGap = {
   model: string;
@@ -36,6 +39,9 @@ export type PortfolioCoverage = {
   /** Sem lista no Portal e fora da lista vigente de máquinas: fora de linha, acessório ou marca secundária. */
   notApplicable?: number;
   outOfLine?: Array<{ model: string; normalizedModel: string; commercialCategory: string | null }>;
+  /** Categorias desligadas da conta por decisão do dono (Automower, por enquanto). */
+  paused?: number;
+  pausedModels?: Array<{ model: string; normalizedModel: string; commercialCategory: string | null }>;
   unverified: number;
   covered: number;
   coverageRate: number;
@@ -149,126 +155,134 @@ export default function PortfolioCoveragePanel({
   const gaps = displayCoverage.gaps;
 
   return (
-    <section className="cv-surface mb-5 overflow-hidden rounded-[24px]">
-      <div className="border-b border-ink-200 bg-ink-50/70 p-5 dark:border-ink-700/80 dark:bg-ink-800/60">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-base font-semibold text-ink-900 dark:text-ink-100">Cobertura do portfólio BR</h2>
-              <span className="rounded-full border border-brand-200 bg-brand-50 px-2 py-1 text-sm font-bold   text-brand-700 dark:border-brand-800 dark:bg-brand-900/30 dark:text-brand-300">Brasil/local</span>
-            </div>
-            <p className="mt-1 max-w-3xl text-sm leading-5 text-ink-500 dark:text-ink-400">
-              Mostra quais modelos citados na lista comercial brasileira têm fonte técnica comprovada. Aplicações comerciais servem apenas para priorizar investigação e nunca comprovam compatibilidade de peça, PNC ou número de série.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {onRefresh && (
-              <button type="button" disabled={refreshing || checkingPortal} onClick={() => void refreshLocal()} className="cv-secondary px-3 py-2 text-sm font-semibold disabled:opacity-50">
-                {refreshing ? 'Recarregando…' : 'Recarregar base local'}
-              </button>
-            )}
-            <button
-              type="button"
-              disabled={checkingPortal || refreshing || gaps.length === 0 || !(displayCoverage.remaining ?? coverage.remaining)}
-              onClick={() => void checkPortal()}
-              className="cv-secondary px-3 py-2 text-sm font-semibold disabled:opacity-50"
-            >
-              {checkingPortal ? `Conferindo no Portal… ${progress.done} de ${progress.total}` : 'Conferir no Portal de novo'}
-            </button>
-          </div>
+    <section aria-label="Cobertura técnica do portfólio" className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-2xl font-semibold leading-8">Cobertura do portfólio</h2>
+        <div className="flex flex-wrap gap-2">
+          {onRefresh && (
+            <Button type="button" variant="outline" disabled={refreshing || checkingPortal} onClick={() => void refreshLocal()}>
+              {refreshing ? 'Recarregando…' : 'Recarregar base local'}
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={checkingPortal || refreshing || gaps.length === 0 || !(displayCoverage.remaining ?? coverage.remaining)}
+            onClick={() => void checkPortal()}
+          >
+            {checkingPortal ? `Conferindo no Portal… ${progress.done} de ${progress.total}` : 'Conferir no Portal de novo'}
+          </Button>
         </div>
       </div>
 
-      <div className="p-5">
-        {portalError && (
-          <div role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50/70 px-4 py-3 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
-            {portalError}
-          </div>
-        )}
-
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <CoverageCard label="Cobertura técnica" value={`${coveragePercent}%`}>
-            {displayCoverage.covered} de {displayCoverage.total - (displayCoverage.notApplicable ?? 0)} modelos em linha com fonte técnica
-          </CoverageCard>
-          <CoverageCard label="Catálogos em PDF" value={displayCoverage.localIpl.toLocaleString('pt-BR')}>
-            Na biblioteca do CogniVault
-          </CoverageCard>
-          <CoverageCard label="Portal BR" value={(displayCoverage.portalIpl + (displayCoverage.portalDocument ?? 0)).toLocaleString('pt-BR')}>
-            {displayCoverage.portalIpl} com lista de peças · {displayCoverage.portalDocument ?? 0} só com IPL em PDF
-          </CoverageCard>
-          <CoverageCard label="Em linha, sem vista no Portal" value={displayCoverage.unverified.toLocaleString('pt-BR')} tone={displayCoverage.unverified ? 'warn' : 'ok'}>
-            {checkingPortal ? 'Conferência no Portal em andamento' : displayCoverage.remaining ? 'Ainda falta conferir no Portal' : 'A Husqvarna vende hoje e o Portal não publica a vista'}
-          </CoverageCard>
+      {portalError && (
+        <div role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-base text-destructive">
+          {portalError}
         </div>
+      )}
 
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-ink-100 dark:bg-ink-800">
-          <div className="h-full rounded-full bg-brand-600 transition-[width] duration-500" style={{ width: `${coveragePercent}%` }} />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="text-sm font-semibold text-muted-foreground">Cobertura técnica</div>
+          <div className="mt-2 text-3xl font-semibold tabular-nums">{coveragePercent}%</div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={coveragePercent} aria-valuemin={0} aria-valuemax={100} aria-label="Cobertura técnica">
+            <div className="h-full rounded-full bg-ok transition-[width] duration-500" style={{ width: `${coveragePercent}%` }} />
+          </div>
+          <div className="mt-2 text-sm text-muted-foreground">{displayCoverage.covered} de {displayCoverage.total - (displayCoverage.notApplicable ?? 0) - (displayCoverage.paused ?? 0)} modelos em linha</div>
         </div>
+        <CoverageCard label="Catálogos em PDF" value={displayCoverage.localIpl.toLocaleString('pt-BR')}>
+          Na biblioteca do CogniVault
+        </CoverageCard>
+        <CoverageCard label="Portal e site Husqvarna" value={(displayCoverage.portalIpl + (displayCoverage.portalDocument ?? 0)).toLocaleString('pt-BR')}>
+          {displayCoverage.portalIpl} com lista de peças · {displayCoverage.portalDocument ?? 0} só com IPL em PDF
+        </CoverageCard>
+        <CoverageCard label="Em linha, sem vista no Portal" value={displayCoverage.unverified.toLocaleString('pt-BR')} tone={displayCoverage.unverified ? 'warn' : 'ok'}>
+          {checkingPortal ? 'Conferência em andamento' : displayCoverage.remaining ? 'Ainda falta conferir' : 'Só o SAC da Husqvarna resolve'}
+        </CoverageCard>
+      </div>
 
-        {checkingPortal ? (
-          <div role="status" className="mt-4 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3 text-sm leading-5 text-brand-800 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-300">
-            {waiting ? 'O servidor está ocupado; tentando de novo em instantes. ' : ''}Conferindo os modelos no Portal Husqvarna Brasil, 8 por vez ({progress.done} de {progress.total}). Pode continuar usando o sistema.
-          </div>
-        ) : displayCoverage.remaining ? (
-          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 text-sm leading-5 text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
-            Faltam {displayCoverage.remaining} modelos para conferir no Portal. Use o botão acima para continuar.
-          </div>
-        ) : (
-          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm leading-5 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
-            Todos os modelos já foram conferidos. {displayCoverage.notApplicable ?? 0} estão fora de linha (não constam na lista vigente de máquinas e o Portal não tem lista). Os {displayCoverage.unverified} abaixo constam na lista vigente e o Portal não publica a vista explodida.
-          </div>
-        )}
-
-        <div className="mt-5 flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">Em linha, sem vista explodida no Portal</h3>
-            <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">{displayCoverage.remaining ? 'Os que ainda não foram conferidos aparecem como pendentes. ' : 'Para estes, a única saída é o SAC da Husqvarna. '}Ordenados pela quantidade de aplicações na base comercial.</p>
-          </div>
-          <span className="text-sm font-semibold text-ink-500 dark:text-ink-400">{gaps.length} {gaps.length === 1 ? 'modelo' : 'modelos'}</span>
+      {checkingPortal ? (
+        <div role="status" className="rounded-xl border border-border bg-card px-4 py-3 text-base text-muted-foreground">
+          {waiting ? 'O servidor está ocupado; tentando de novo em instantes. ' : ''}Conferindo no Portal, 8 modelos por vez ({progress.done} de {progress.total}). Pode continuar usando o sistema.
         </div>
+      ) : displayCoverage.remaining ? (
+        <div className="rounded-xl border border-warn/40 bg-warn-soft px-4 py-3 text-base text-warn">
+          Faltam {displayCoverage.remaining} modelos para conferir no Portal. Use "Conferir no Portal de novo" para continuar.
+        </div>
+      ) : (
+        <div className="rounded-xl border border-ok/40 bg-ok-soft px-4 py-3 text-base text-ok">
+          Todos os modelos foram conferidos. {displayCoverage.notApplicable ?? 0} estão fora de linha (fora da lista vigente e sem lista no Portal).
+        </div>
+      )}
 
-        {(displayCoverage.outOfLine?.length ?? 0) > 0 && (
-          <details className="mt-4 rounded-2xl border border-ink-200 dark:border-ink-700">
-            <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-ink-700 dark:text-ink-200">
-              Fora de linha: {displayCoverage.outOfLine?.length} modelos (não constam na lista vigente de máquinas e o Portal não tem lista de peças)
-            </summary>
-            <div className="flex flex-wrap gap-2 border-t border-ink-100 px-4 py-3 dark:border-ink-800">
-              {displayCoverage.outOfLine?.map(item => (
-                <span key={item.normalizedModel} className="rounded-full border border-ink-200 bg-ink-50 px-2 py-0.5 text-sm text-ink-600 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-300">
-                  <b>{item.model}</b>{item.commercialCategory ? ` · ${item.commercialCategory}` : ''}
-                </span>
-              ))}
-            </div>
-          </details>
-        )}
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-lg font-semibold">Em linha, sem vista explodida no Portal</h3>
+        <span className="text-base text-muted-foreground tabular-nums">{gaps.length} {gaps.length === 1 ? 'modelo' : 'modelos'}</span>
+      </div>
 
-        {gaps.length === 0 ? (
-          <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 text-sm font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">Nenhum modelo em linha está sem vista explodida.</div>
-        ) : (
-          <div className="mt-3 max-h-[520px] divide-y divide-ink-100 overflow-auto rounded-2xl border border-ink-200 dark:divide-ink-800 dark:border-ink-700">
+      {gaps.length === 0 ? (
+        <div className="rounded-xl border border-ok/40 bg-ok-soft p-5 text-base font-semibold text-ok">Nenhum modelo em linha está sem vista explodida.</div>
+      ) : (
+        <Table containerClassName="max-h-[520px] overflow-y-auto">
+          <TableHeader className="sticky top-0 z-10">
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Modelo</TableHead>
+              <TableHead>Categoria</TableHead>
+              <TableHead>Situação no Portal</TableHead>
+              <TableHead className="text-right">Referências</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {gaps.map(gap => (
-              <div key={gap.normalizedModel} className="flex flex-wrap items-start justify-between gap-3 bg-white px-4 py-3 dark:bg-ink-900">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <b className="text-sm text-ink-900 dark:text-ink-100">{gap.model}</b>
-                    {gap.commercialCategory && (
-                      <span className="rounded-full border border-ink-200 bg-ink-50 px-2 py-0.5 text-sm font-semibold text-ink-600 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-300">{gap.commercialCategory}</span>
-                    )}
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-sm font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                      {portalDiagnostic(gap.portalVerification)}
-                    </span>
-                  </div>
-                  {gap.commercialEvidence[0] && <div className="mt-1 truncate text-sm text-ink-500 dark:text-ink-400" title={gap.commercialEvidence[0]}>Exemplo comercial: {gap.commercialEvidence[0]}</div>}
+              <TableRow key={gap.normalizedModel}>
+                <TableCell className="max-w-0">
+                  <div className="font-semibold">{gap.model}</div>
+                  {gap.commercialEvidence[0] && <div className="truncate text-sm text-muted-foreground" title={gap.commercialEvidence[0]}>{gap.commercialEvidence[0]}</div>}
+                </TableCell>
+                <TableCell className="text-muted-foreground">{gap.commercialCategory ? categoryLabel(gap.commercialCategory) : '—'}</TableCell>
+                <TableCell>
+                  <span className="inline-flex rounded-md bg-warn-soft px-2 py-0.5 text-sm font-semibold text-warn">{portalDiagnostic(gap.portalVerification)}</span>
                   {gap.portalVerificationNote && gap.portalVerification !== 'NOT_CHECKED' && (
-                    <div className="mt-1 text-sm leading-4 text-ink-500 dark:text-ink-400">Portal BR: {gap.portalVerificationNote}</div>
+                    <div className="mt-1 max-w-md text-sm text-muted-foreground">{gap.portalVerificationNote}</div>
                   )}
-                </div>
-                <span className="shrink-0 text-sm font-semibold text-ink-500 dark:text-ink-400">{signalLabel(gap.commercialSignals)}</span>
-              </div>
+                </TableCell>
+                <TableCell className="whitespace-nowrap text-right tabular-nums text-muted-foreground">{signalLabel(gap.commercialSignals)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+
+      {(displayCoverage.pausedModels?.length ?? 0) > 0 && (
+        <details className="rounded-xl border border-border bg-card">
+          <summary className="cursor-pointer px-4 py-3 text-base font-semibold">
+            Em pausa: {displayCoverage.pausedModels?.length} modelos
+            <span className="ml-2 font-normal text-muted-foreground">fora da conta por enquanto</span>
+          </summary>
+          <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
+            {displayCoverage.pausedModels?.map(item => (
+              <span key={item.normalizedModel} className="rounded-full border border-border bg-muted px-2.5 py-0.5 text-sm text-muted-foreground">
+                <b className="text-foreground">{item.model}</b>{item.commercialCategory ? ` · ${categoryLabel(item.commercialCategory)}` : ''}
+              </span>
             ))}
           </div>
-        )}
-      </div>
+        </details>
+      )}
+
+      {(displayCoverage.outOfLine?.length ?? 0) > 0 && (
+        <details className="rounded-xl border border-border bg-card">
+          <summary className="cursor-pointer px-4 py-3 text-base font-semibold">
+            Fora de linha: {displayCoverage.outOfLine?.length} modelos
+          </summary>
+          <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
+            {displayCoverage.outOfLine?.map(item => (
+              <span key={item.normalizedModel} className="rounded-full border border-border bg-muted px-2.5 py-0.5 text-sm text-muted-foreground">
+                <b className="text-foreground">{item.model}</b>{item.commercialCategory ? ` · ${categoryLabel(item.commercialCategory)}` : ''}
+              </span>
+            ))}
+          </div>
+        </details>
+      )}
     </section>
   );
 }

@@ -91,6 +91,7 @@ test('visão geral mantém telemetria compacta da rota do Portal BR', async ({ p
   await login(page, ADMIN_EMAIL);
   await page.goto('/dashboard?tab=overview');
 
+  await page.getByRole('button', { name: 'Uso de IA e cobertura técnica' }).click();
   await expect(page.getByRole('heading', { name: 'Uso de IA e cobertura técnica' })).toBeVisible();
   await expect(page.getByText('Portal BR · rota', { exact: true })).toBeVisible();
 });
@@ -114,7 +115,7 @@ test('qualidade compartilha uma única fonte de dados sob StrictMode', async ({ 
   await page.goto('/dashboard?tab=quality');
   expect((await qualityResponse).ok()).toBe(true);
 
-  await expect(page.getByRole('heading', { name: 'Cobertura do portfólio BR' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Cobertura do portfólio' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Qualidade', level: 1 })).toBeVisible();
 
   // O E2E usa Vite dev + React StrictMode. Em desenvolvimento, o React remonta

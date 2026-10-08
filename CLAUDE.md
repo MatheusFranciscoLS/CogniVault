@@ -117,6 +117,18 @@ minutos ilimitados).
   Cache em duas camadas: LRU em memória (perde no restart) e
   `OfficialSourceCacheService` persistente no Postgres (sobrevive a
   restart, stale-while-revalidate).
+- **Segunda fonte da vista explodida: o SITE PÚBLICO (2026-10-08).** O Portal (b2b) não tem todas as máquinas da lista: o soprador **345BT**
+  (PNC 970466903) está na lista de preços e tem peças e vista explodida em `husqvarna.com/br/suporte/...`, mas no Portal o artigo nem existe e a
+  busca por "345BT" devolvia 350 e 340BT (dono). O site público fala a MESMA API (`https://www.husqvarna.com/hbd/graphql?`) com outra loja
+  (`hbd-br-pt-br`, a do Portal é `b2b-br-pt-br`), sem login; o robots.txt libera `/`. `articles.byIds(PNC9)` devolve `ipls { id name image
+  articles { coordinates quantity id name number comment url } }`; **não devolve `referenceWidth/Height`**, então `husqvarna-public-site.service.ts`
+  lê a largura e a altura do PNG pelos 32 primeiros bytes (`Range`; servidor que responde 200 é descartado) — as coordenadas são pixels da imagem
+  original. O site público tem esquema diferente do Portal (`name { shortName }`, sem `articleDescription`, sem introspecção): **não reuse a
+  consulta do Portal lá**. Regras: o Portal manda; o site público só entra quando o Portal não tem o artigo ou o tem sem vista explodida
+  (`withPublicSiteIpl`), e nunca troca uma vista que o Portal entregou; marca `iplSource: 'PUBLIC_SITE'`; miss fica 10 min em cache; preço nunca vem
+  daqui. Entra pelos dois caminhos: `getProductDetails` (painel da máquina, cobertura da Qualidade) e `/api/official-fallback` (confirma o PNC como
+  máquina). Política de cobertura 6. Medido: 345BT passou a ter 2 seções (MOTOR 24 posições, ALOJAMENTO DO SOPRADOR 20); cobertura 97% → 98%.
+  Roteiro `fonte-publica.mjs` (precisa de internet até husqvarna.com).
 - **Scraper HTML** (`services/husqvarna-scraper.service.ts`) é só fallback
   quando o GraphQL não responde — não traz nenhum dado que o GraphQL já não
   tenha.
@@ -299,6 +311,14 @@ manual que olhava sempre os mesmos 8 modelos. O dono não quer subir PDF à mão
   como palavra inteira em qualquer ponto **só se o que vem depois é pontuação, número de artigo ou 2T/4T** (uma palavra como "II" ou
   "RST" é outra máquina), e `auditPortalModel(model, { knownPncs })` tenta o PNC da lista (`listedPncsForModel`) antes da busca por
   nome. Versão da política do cache: 5. Z560XS, LE322R e TS217Tm **de fato não têm IPL** (só manual); Automower não existe no Portal BR.
+
+- **Cobertura em 100% dos modelos em linha (2026-10-08), por três causas e duas pausas.** (1) O site público da Husqvarna entrou como segunda fonte
+  (345BT, ver "Segunda fonte da vista explodida"). (2) **O filtro de seções só aceitava ids `HVA_PL-…`**; os cortadores de grama usam `CLT_PL-…`, e o
+  LE322R, que tem 5 vistas (EMBALADORA, POWER HEAD, DECK, ACIONAMENTO, PUNHO), saía como "só manual". Agora vale `[A-Z]{2,4}_PL-…`. (3) Política de cobertura 7.
+  **Em pausa** (fora da conta e das consultas, listados numa seção recolhida; `PAUSED_COVERAGE_CATEGORIES` e `PAUSED_COVERAGE_MODELS` em
+  `portfolio-coverage.ts`; religar = tirar da lista): **Automower** (dono: "deixe em off por enquanto"; 12 modelos, sem vista em nenhuma das duas fontes) e
+  **226KS12** (derriçadeira de café = motor 226K + acessório KS12; a Husqvarna Brasil publica a máquina, mas só os componentes têm vista, cada um no seu
+  artigo; juntar seria montar uma vista que ela não publica). Estado `PAUSED` no resumo; a API devolve `paused` (número) e `pausedModels` (lista).
 
 ## Cada tela tem endereço próprio (2026-10-08)
 

@@ -90,6 +90,35 @@ export function matchesFilters(machine: ListedMachine, filters: MachineFilters):
 
 const collator = new Intl.Collator('pt-BR', { numeric: true, sensitivity: 'base' });
 
+/** Tamanho do sabre em polegadas, lido da descrição (13 em MOTOSSERRA MOD.61 13"PD 3/8"). Sem aspas depois do número, sem tamanho. */
+export function barLengthInches(description: string): number | null {
+  const match = /(\d{1,2})\s*(?:"|”|''|’’)/.exec(description);
+  return match ? Number(match[1]) : null;
+}
+
+/**
+ * Na lista da Husqvarna o mesmo modelo vem com os tamanhos fora de ordem (a 61 sai 13, 18, 15; a 272XP sai 20, 18, 15, 13). Dentro de
+ * cada modelo, do tamanho menor para o maior (dono, 2026-10-08: "sabre 13, 15 e 18"). O modelo continua na posição da lista, e só mexe
+ * quando TODAS as linhas do mesmo modelo trazem o tamanho.
+ */
+export function orderBarLengthsWithinModel(sorted: ListedMachine[]): ListedMachine[] {
+  const out: ListedMachine[] = [];
+  let i = 0;
+  while (i < sorted.length) {
+    let j = i + 1;
+    while (j < sorted.length && sorted[j].model === sorted[i].model && sorted[j].category === sorted[i].category) j += 1;
+    const group = sorted.slice(i, j);
+    const sizes = group.map(machine => barLengthInches(machine.description));
+    if (group.length > 1 && sizes.every(size => size !== null)) {
+      out.push(...group.map((machine, index) => ({ machine, size: sizes[index] as number, index })).sort((a, b) => a.size - b.size || a.index - b.index).map(item => item.machine));
+    } else {
+      out.push(...group);
+    }
+    i = j;
+  }
+  return out;
+}
+
 export function sortMachines(machines: ListedMachine[], sort: MachineSort): ListedMachine[] {
   const copy = [...machines];
   switch (sort) {
@@ -101,7 +130,7 @@ export function sortMachines(machines: ListedMachine[], sort: MachineSort): List
       return copy.sort((a, b) => b.listPrice - a.listPrice || collator.compare(a.model, b.model));
     default:
       // A ordem é a da Husqvarna (motosserra e roçadeira primeiro), não a alfabética.
-      return copy.sort((a, b) => a.sortOrder - b.sortOrder || collator.compare(a.model, b.model));
+      return orderBarLengthsWithinModel(copy.sort((a, b) => a.sortOrder - b.sortOrder || collator.compare(a.model, b.model)));
   }
 }
 

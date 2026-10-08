@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Fragment } from 'react';
+import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { dayLabel, groupByStoreDay, storeDayKey, storeTime } from '../lib/quote-days';
 import { formatPhoneBr } from '../lib/quote-pdf';
 import PageFrame from './PageFrame';
 import { toast } from 'sonner';
@@ -91,7 +94,6 @@ function toSavedQuote(quote: ApiQuoteListItem): SavedQuote {
   };
 }
 
-const ROW_GRID = 'lg:grid-cols-[minmax(170px,1.1fr)_130px_minmax(200px,1.4fr)_minmax(120px,0.9fr)_150px_170px]';
 
 function copyCode(code: string) {
   const clean = cleanErpCode(code);
@@ -180,6 +182,7 @@ export default function SavedQuotesPanel() {
     toast.success('Orçamento excluído.');
   };
 
+  const todayKey = storeDayKey(new Date());
   const lastPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
   const hasFilters = Boolean(appliedFilter || from || to);
 
@@ -225,127 +228,143 @@ export default function SavedQuotesPanel() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <div className={cn('hidden h-10 items-center gap-x-4 border-b border-border bg-muted px-4 text-sm font-semibold text-muted-foreground lg:grid', ROW_GRID)}>
-          <span>Cliente</span><span>Data</span><span>Conteúdo</span><span>Atendente</span><span className="text-right">Total</span><span />
-        </div>
-
-        {loading ? (
-          <div aria-hidden="true">
-            <span role="status" className="sr-only">Carregando orçamentos…</span>
-            {[0, 1, 2].map(item => (
-              <div key={item} className={cn('grid items-center gap-x-4 gap-y-2 border-b border-border px-4 py-4 last:border-0', ROW_GRID)}>
-                <div className="space-y-2"><Skeleton className="h-5 w-40" /><Skeleton className="h-4 w-28" /></div>
-                <Skeleton className="h-5 w-28" />
-                <Skeleton className="h-5 w-3/4" />
-                <Skeleton className="h-5 w-32" />
-                <Skeleton className="h-6 w-24 lg:ml-auto" />
-                <Skeleton className="h-10 w-24 lg:ml-auto" />
-              </div>
-            ))}
-          </div>
-        ) : quotes.length ? (
-          quotes.map(quote => {
-            const reference = quote.savedAt || quote.createdAt;
-            const date = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(reference));
-            const firstItem = quote.items[0];
-            const extraItems = Math.max(0, quote.items.length - 1);
-            const expanded = expandedId === quote.id;
-
-            return (
-              <article key={quote.id} className="border-b border-border last:border-0">
-                <div className={cn('grid items-center gap-x-4 gap-y-2 px-4 py-3.5 transition-colors hover:bg-muted', ROW_GRID)}>
-                  <div className="min-w-0">
-                    <div className="truncate text-base font-semibold">{quote.customerName || 'Cliente não informado'}</div>
-                    <div className="truncate text-sm text-muted-foreground">{formatPhoneBr(quote.customerPhone ?? undefined) || 'Sem telefone'}</div>
-                  </div>
-                  <div className="text-base text-muted-foreground tabular-nums">{date}</div>
-                  <div className="min-w-0">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedId(expanded ? null : quote.id)}
-                      aria-expanded={expanded}
-                      className="flex max-w-full items-center gap-1 rounded-sm text-left text-base font-semibold outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/60"
-                    >
-                      <ChevronRight className={cn('size-4 shrink-0 transition-transform', expanded && 'rotate-90')} aria-hidden="true" />
-                      <span className="truncate">{firstItem ? firstItem.name : 'Sem itens'}</span>
-                    </button>
-                    <div className="text-sm text-muted-foreground tabular-nums">
-                      {quote.totalItems} {quote.totalItems === 1 ? 'item' : 'itens'}
-                      {quote.machineModel ? ` · ${quote.machineModel}` : firstItem?.model ? ` · ${firstItem.model}` : ''}
-                      {extraItems > 0 ? ` · +${extraItems}` : ''}
-                    </div>
-                  </div>
-                  <div className="truncate text-base text-muted-foreground">{quote.attendantName || quote.attendantEmail || 'Atendente removido'}</div>
-                  <div className="text-left lg:text-right">
-                    <div className="font-code text-xl font-bold tabular-nums">{money(quote.netTotal)}</div>
-                    {quote.discountPercentage > 0 && <div className="text-sm text-muted-foreground">com {quote.discountPercentage}% de desconto</div>}
-                  </div>
-                  <div className="flex items-center gap-1 lg:justify-end">
-                    <Button type="button" variant="outline" onClick={() => handleRestore(quote)}>Retomar</Button>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => void handleDelete(quote.id)} aria-label="Excluir orçamento" className="hover:text-destructive">
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {expanded && (
-                  <div className="border-t border-border bg-muted px-4 py-3">
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[560px] text-left text-base">
-                        <thead>
-                          <tr className="text-sm font-semibold text-muted-foreground">
-                            <th className="pb-1.5 pr-3 font-semibold">Qtd.</th>
-                            <th className="pb-1.5 pr-3 font-semibold">Código</th>
-                            <th className="pb-1.5 pr-3 font-semibold">Descrição</th>
-                            <th className="pb-1.5 pr-3 text-right font-semibold">Unitário</th>
-                            <th className="pb-1.5 text-right font-semibold">Subtotal</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {quote.items.map((item, index) => {
-                            const code = item.effectiveCode || item.partNumber;
-                            return (
-                              <tr key={`${quote.id}-${index}`} className="border-t border-border">
-                                <td className="py-2 pr-3 font-semibold tabular-nums">{item.quantity}x</td>
-                                <td className="py-2 pr-3">
-                                  {item.isService ? '—' : (
-                                    <span className="inline-flex items-center gap-1">
-                                      <span translate="no" className="font-code text-lg font-semibold tabular-nums">
-                                        {item.manufacturer?.toLowerCase().includes('husqvarna') ? formatHusqvarnaPartNumber(code) : code}
-                                      </span>
-                                      <Button type="button" variant="ghost" size="icon-sm" onClick={() => copyCode(code)} aria-label={`Copiar o código ${code}`} title="Copiar o código sem espaços nem hífen">
-                                        <Copy className="size-4" />
-                                      </Button>
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="py-2 pr-3">{item.name}</td>
-                                <td className="py-2 pr-3 text-right font-code tabular-nums">{item.unitPrice ? money(item.unitPrice) : '—'}</td>
-                                <td className="py-2 text-right font-code font-bold tabular-nums">{item.unitPrice ? money(item.quantity * item.unitPrice) : '—'}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                    {quote.paymentMethod && (
-                      <p className="mt-2 text-base text-muted-foreground">Condição: <strong className="font-semibold text-foreground">{quote.paymentMethod}</strong></p>
-                    )}
-                  </div>
-                )}
-              </article>
-            );
-          })
-        ) : (
-          <div className="px-5 py-14 text-center">
-            <p className="text-xl font-semibold">{hasFilters ? 'Nenhum orçamento encontrado' : 'Nenhum orçamento arquivado'}</p>
-            <p className="mt-1 text-base text-muted-foreground">
-              {hasFilters ? 'Ajuste o cliente, o telefone, o código, o modelo ou o período.' : 'Os orçamentos enviados aparecem aqui.'}
-            </p>
-          </div>
-        )}
-      </div>
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead>Cliente</TableHead>
+            <TableHead className="w-20">Hora</TableHead>
+            <TableHead>Conteúdo</TableHead>
+            <TableHead>Atendente</TableHead>
+            <TableHead className="text-right">Total</TableHead>
+            <TableHead className="w-48"><span className="sr-only">Ações</span></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {loading ? (
+            [0, 1, 2].map(item => (
+              <TableRow key={item} aria-hidden="true">
+                <TableCell><div className="space-y-2"><Skeleton className="h-5 w-40" /><Skeleton className="h-4 w-28" /></div></TableCell>
+                <TableCell><Skeleton className="h-5 w-12" /></TableCell>
+                <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                <TableCell><Skeleton className="ml-auto h-6 w-24" /></TableCell>
+                <TableCell><Skeleton className="ml-auto h-10 w-24" /></TableCell>
+              </TableRow>
+            ))
+          ) : quotes.length ? (
+            groupByStoreDay(quotes, quote => quote.savedAt || quote.createdAt).map(group => (
+              <Fragment key={group.key}>
+                <tr className="bg-secondary">
+                  <th colSpan={6} scope="colgroup" className="px-4 py-2 text-left text-base font-semibold">
+                    {dayLabel(group.key, todayKey)}
+                    <span className="ml-3 font-normal text-muted-foreground tabular-nums">
+                      {group.items.length} {group.items.length === 1 ? 'orçamento' : 'orçamentos'} · {money(group.items.reduce((sum, quote) => sum + quote.netTotal, 0))}
+                    </span>
+                  </th>
+                </tr>
+                {group.items.map(quote => {
+                  const reference = quote.savedAt || quote.createdAt;
+                  const firstItem = quote.items[0];
+                  const extraItems = Math.max(0, quote.items.length - 1);
+                  const expanded = expandedId === quote.id;
+                  return (
+                    <Fragment key={quote.id}>
+                      <TableRow>
+                        <TableCell className="max-w-0">
+                          <div className="truncate text-base font-semibold">{quote.customerName || 'Cliente não informado'}</div>
+                          <div className="truncate text-sm text-muted-foreground">{formatPhoneBr(quote.customerPhone ?? undefined) || 'Sem telefone'}</div>
+                        </TableCell>
+                        <TableCell className="tabular-nums text-muted-foreground">{storeTime(reference)}</TableCell>
+                        <TableCell className="max-w-0">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedId(expanded ? null : quote.id)}
+                            aria-expanded={expanded}
+                            className="flex max-w-full items-center gap-1 rounded-sm text-left text-base font-semibold outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/60"
+                          >
+                            <ChevronRight className={cn('size-4 shrink-0 transition-transform', expanded && 'rotate-90')} aria-hidden="true" />
+                            <span className="truncate">{firstItem ? firstItem.name : 'Sem itens'}</span>
+                          </button>
+                          <div className="truncate text-sm text-muted-foreground tabular-nums">
+                            {quote.totalItems} {quote.totalItems === 1 ? 'item' : 'itens'}
+                            {quote.machineModel ? ` · ${quote.machineModel}` : firstItem?.model ? ` · ${firstItem.model}` : ''}
+                            {extraItems > 0 ? ` · +${extraItems}` : ''}
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-0 truncate text-muted-foreground">{quote.attendantName || quote.attendantEmail || 'Atendente removido'}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="font-code text-xl font-bold tabular-nums">{money(quote.netTotal)}</div>
+                          {quote.discountPercentage > 0 && <div className="text-sm text-muted-foreground">com {quote.discountPercentage}% de desconto</div>}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button type="button" variant="outline" onClick={() => handleRestore(quote)}>Retomar</Button>
+                            <Button type="button" variant="ghost" size="icon" onClick={() => void handleDelete(quote.id)} aria-label="Excluir orçamento" className="hover:text-destructive">
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {expanded && (
+                        <tr className="border-t border-border bg-muted">
+                          <td colSpan={6} className="px-4 py-3">
+                            <div className="overflow-x-auto">
+                                                  <table className="w-full min-w-[560px] text-left text-base">
+                                                    <thead>
+                                                      <tr className="text-sm font-semibold text-muted-foreground">
+                                                        <th className="pb-1.5 pr-3 font-semibold">Qtd.</th>
+                                                        <th className="pb-1.5 pr-3 font-semibold">Código</th>
+                                                        <th className="pb-1.5 pr-3 font-semibold">Descrição</th>
+                                                        <th className="pb-1.5 pr-3 text-right font-semibold">Unitário</th>
+                                                        <th className="pb-1.5 text-right font-semibold">Subtotal</th>
+                                                      </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                      {quote.items.map((item, index) => {
+                                                        const code = item.effectiveCode || item.partNumber;
+                                                        return (
+                                                          <tr key={`${quote.id}-${index}`} className="border-t border-border">
+                                                            <td className="py-2 pr-3 font-semibold tabular-nums">{item.quantity}x</td>
+                                                            <td className="py-2 pr-3">
+                                                              {item.isService ? '—' : (
+                                                                <span className="inline-flex items-center gap-1">
+                                                                  <span translate="no" className="font-code text-lg font-semibold tabular-nums">
+                                                                    {item.manufacturer?.toLowerCase().includes('husqvarna') ? formatHusqvarnaPartNumber(code) : code}
+                                                                  </span>
+                                                                  <Button type="button" variant="ghost" size="icon-sm" onClick={() => copyCode(code)} aria-label={`Copiar o código ${code}`} title="Copiar o código sem espaços nem hífen">
+                                                                    <Copy className="size-4" />
+                                                                  </Button>
+                                                                </span>
+                                                              )}
+                                                            </td>
+                                                            <td className="py-2 pr-3">{item.name}</td>
+                                                            <td className="py-2 pr-3 text-right font-code tabular-nums">{item.unitPrice ? money(item.unitPrice) : '—'}</td>
+                                                            <td className="py-2 text-right font-code font-bold tabular-nums">{item.unitPrice ? money(item.quantity * item.unitPrice) : '—'}</td>
+                                                          </tr>
+                                                        );
+                                                      })}
+                                                    </tbody>
+                                                  </table>
+                                                </div>
+                            {quote.paymentMethod && (
+                                                  <p className="mt-2 text-base text-muted-foreground">Condição: <strong className="font-semibold text-foreground">{quote.paymentMethod}</strong></p>
+                                                )}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </Fragment>
+            ))
+          ) : (
+            <TableEmpty colSpan={6}>
+              <p className="text-xl font-semibold text-foreground">{hasFilters ? 'Nenhum orçamento encontrado' : 'Nenhum orçamento arquivado'}</p>
+              <p className="mt-1">{hasFilters ? 'Ajuste o cliente, o telefone, o código, o modelo ou o período.' : 'Os orçamentos enviados aparecem aqui.'}</p>
+            </TableEmpty>
+          )}
+        </TableBody>
+      </Table>
 
       {total > PAGE_SIZE && (
         <div className="flex items-center justify-between gap-3">

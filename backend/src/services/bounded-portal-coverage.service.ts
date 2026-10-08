@@ -9,6 +9,7 @@ import {
   buildPortfolioCoverage,
   listedPncsForModel,
   markNotInLine,
+  markPaused,
   summarizePortfolioCoverage,
   type PortalVerificationState,
   type PortfolioCoverageItem,
@@ -26,7 +27,7 @@ const PORTAL_COVERAGE_CACHE_RESOURCE = 'PORTAL_BR_MODEL_COVERAGE';
 // Versão 3: o título do produto deixou de ser reprovado por "(sem bateria e carregador)", "®" e litragem.
 // Versão 4: tenta o nome comercial completo ("540i XP") e a troca número+letra ("750K" = "K750").
 // Versão 5: máquina da lista vigente é consultada pelo PNC (exato) antes do nome, e o título casa com o modelo em qualquer ponto.
-const PORTAL_COVERAGE_POLICY_VERSION = 5;
+const PORTAL_COVERAGE_POLICY_VERSION = 7;
 // A resposta do Portal sobre "esse modelo tem IPL?" muda em semanas, não em horas.
 const PORTAL_COVERAGE_FRESH_MS = 7 * 24 * 60 * 60 * 1000;
 const PORTAL_COVERAGE_STALE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -339,7 +340,7 @@ export async function buildBoundedPortalCoverage(
     };
   });
 
-  const finalItems = markNotInLine(items, listed);
+  const finalItems = markPaused(markNotInLine(items, listed));
 
   return {
     ...summarizePortfolioCoverage(finalItems),

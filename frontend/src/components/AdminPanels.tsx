@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { api, fmtDate, json } from '../lib';
-import { Search } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import PageFrame from './PageFrame';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { actionLabel, isLoginAction, targetLabel } from '../lib/audit-labels';
 import type { AuditLog, Overview } from '../types';
 
@@ -32,39 +33,57 @@ export function OverviewPanel() {
     return () => { active = false; };
   }, [retry]);
 
-  const metrics = data ? [
-    ['Catálogos ativos', data.activeDocuments.toLocaleString('pt-BR')],
-    ['Peças indexadas', data.parts.toLocaleString('pt-BR')],
-    ['Usuários ativos', data.users.toLocaleString('pt-BR')],
-  ] : [];
+  // Situação do processamento num selo só: "tudo em dia" é a resposta que o dono procura quando abre esta tela.
+  const status = !data ? null
+    : data.failedDocuments > 0 ? { tone: 'text-destructive', text: `${data.failedDocuments} com falha` }
+    : data.processingDocuments > 0 ? { tone: 'text-warn', text: `${data.processingDocuments} processando` }
+    : { tone: 'text-ok', text: 'Tudo em dia' };
 
   return (
     <PageFrame title="Visão geral">
-      {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"><span>{error}</span><button type="button" onClick={() => { setError(''); setRetry(value => value + 1); }} className="rounded-lg border border-rose-300 px-3 py-1.5 text-sm font-bold dark:border-rose-700">Tentar novamente</button></div>}
+      {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"><span>{error}</span><button type="button" onClick={() => { setError(''); setRetry(value => value + 1); }} className="rounded-lg border border-destructive/40 px-3 py-1.5 text-sm font-bold">Tentar novamente</button></div>}
 
-      <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
-        <div className="grid divide-y divide-ink-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0 dark:divide-ink-800">
-          {(data ? metrics : Array.from({ length: 3 }, (_, index) => [`Carregando ${index}`, '—'])).map(([label, value]) => (
-            <div key={String(label)} className="px-5 py-4">
-              <div className="text-sm font-semibold text-ink-500 dark:text-ink-400">{data ? label : 'Carregando'}</div>
-              <div className="mt-2 text-2xl font-semibold text-ink-950 dark:text-white">{data ? value : '—'}</div>
-                </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
-        <div className="border-b border-ink-100 px-4 py-3 text-sm font-semibold text-ink-700 dark:border-ink-800 dark:text-ink-200">Situação operacional</div>
-        <div className="grid divide-y divide-ink-100 md:grid-cols-2 md:divide-x md:divide-y-0 dark:divide-ink-800">
-          <div className="flex items-center justify-between gap-4 px-4 py-4"><span className="text-sm font-semibold text-ink-500 dark:text-ink-400">Catálogos processando</span><span className="text-lg font-semibold text-amber-700 dark:text-amber-300">{data?.processingDocuments ?? '—'}</span></div>
-          <div className="flex items-center justify-between gap-4 px-4 py-4"><span className="text-sm font-semibold text-ink-500 dark:text-ink-400">Catálogos com falha</span><span className="text-lg font-semibold text-rose-700 dark:text-rose-300">{data?.failedDocuments ?? '—'}</span></div>
-        </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <KpiCard label="Catálogos ativos" value={data?.activeDocuments} footer={status ? <span className={`font-semibold ${status.tone}`}>{status.text}</span> : undefined} />
+        <KpiCard label="Peças consultáveis" value={data?.parts} footer="Códigos que o balcão acha na busca" />
+        <KpiCard label="Usuários ativos" value={data?.users} footer="Com acesso ao sistema" />
       </div>
     </PageFrame>
   );
 }
 
-const AUDIT_PAGE = 25;
+function KpiCard({ label, value, footer }: { label: string; value: number | undefined; footer?: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="text-base font-semibold text-muted-foreground">{label}</div>
+      <div className="mt-2 text-4xl font-semibold tabular-nums">{value === undefined ? <span className="text-muted-foreground" aria-busy="true">—</span> : value.toLocaleString('pt-BR')}</div>
+      {footer && <div className="mt-2 text-base text-muted-foreground">{footer}</div>}
+    </div>
+  );
+}
+
+/** Seção recolhida: o que só o dono técnico consulta (IA, cache, rota do Portal) não disputa a tela com o que ele olha todo dia. */
+export function TechnicalDetails({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <section className="mx-auto w-full max-w-[1400px]">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen(value => !value)}
+        className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4 text-left outline-none transition-colors hover:bg-accent/50 focus-visible:ring-3 focus-visible:ring-ring/60"
+      >
+        <span className="text-lg font-semibold">{title}</span>
+        <ChevronDown className={`size-5 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+      </button>
+      <div id={id} hidden={!open}>{open && children}</div>
+    </section>
+  );
+}
+
+const AUDIT_PAGE = 15;
 
 export function AuditPanel() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -104,22 +123,30 @@ export function AuditPanel() {
         <Button type="button" variant="outline" aria-pressed={withLogins} onClick={() => { setWithLogins(value => !value); setShown(AUDIT_PAGE); }} className={withLogins ? 'border-ring bg-selected' : undefined}>Incluir logins</Button>
         <span className="px-1 text-base text-muted-foreground tabular-nums">{filtered.length} {filtered.length === 1 ? 'evento' : 'eventos'}</span>
       </div>
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <div className="hidden grid-cols-[minmax(230px,1fr)_minmax(180px,.8fr)_160px] gap-4 border-b border-border bg-muted px-4 py-2.5 text-sm font-semibold text-muted-foreground md:grid"><span>Ação</span><span>Quem fez · o quê</span><span className="text-right">Data</span></div>
-        {visible.map(log => (
-          <div key={log.id} className="grid gap-1 border-b border-border px-4 py-3 last:border-0 md:grid-cols-[minmax(230px,1fr)_minmax(180px,.8fr)_160px] md:items-center md:gap-4">
-            <div className="text-base font-semibold">{actionLabel(log.action)}</div>
-            <div className="truncate text-base text-muted-foreground">{log.user?.name || log.user?.email || 'Sistema'} · {targetLabel(log.targetType)}</div>
-            <div className="text-base text-muted-foreground tabular-nums md:text-right">{fmtDate(log.createdAt)}</div>
-          </div>
-        ))}
-        {!filtered.length && <div className="px-5 py-10 text-center text-base text-muted-foreground">Nenhuma ação encontrada.</div>}
-        {filtered.length > shown && (
-          <div className="border-t border-border bg-muted px-4 py-3 text-center">
-            <Button type="button" variant="outline" onClick={() => setShown(value => value + AUDIT_PAGE)}>Mostrar mais {Math.min(AUDIT_PAGE, filtered.length - shown)}</Button>
-          </div>
-        )}
-      </div>
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead>Ação</TableHead>
+            <TableHead>Quem fez · o quê</TableHead>
+            <TableHead className="text-right">Data</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {visible.map(log => (
+            <TableRow key={log.id}>
+              <TableCell className="font-semibold">{actionLabel(log.action)}</TableCell>
+              <TableCell className="max-w-0 truncate text-muted-foreground">{log.user?.name || log.user?.email || 'Sistema'} · {targetLabel(log.targetType)}</TableCell>
+              <TableCell className="whitespace-nowrap text-right tabular-nums text-muted-foreground">{fmtDate(log.createdAt)}</TableCell>
+            </TableRow>
+          ))}
+          {!filtered.length && <TableEmpty colSpan={3}>Nenhuma ação encontrada.</TableEmpty>}
+        </TableBody>
+      </Table>
+      {filtered.length > shown && (
+        <div className="text-center">
+          <Button type="button" variant="outline" onClick={() => setShown(value => value + AUDIT_PAGE)}>Mostrar mais {Math.min(AUDIT_PAGE, filtered.length - shown)}</Button>
+        </div>
+      )}
     </section>
   );
 }

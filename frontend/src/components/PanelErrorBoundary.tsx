@@ -49,24 +49,24 @@ export class PanelErrorBoundary extends Component<Props, State> {
     return (
       <div
         role="alert"
-        className="fixed inset-x-0 bottom-0 z-120 border-t border-ink-200 bg-white p-4 shadow-lg dark:border-ink-700 dark:bg-ink-900 sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[360px] sm:border-l sm:border-t-0"
+        className="fixed inset-x-0 bottom-0 z-120 border-t border-border bg-card p-4 shadow-lg sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[360px] sm:border-l sm:border-t-0"
       >
         <div className="flex h-full flex-col items-start justify-center gap-4">
           <div className="flex items-start gap-3">
             <div
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-rose-50 text-sm font-black text-rose-600 dark:bg-rose-950/40 dark:text-rose-300"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-destructive/10 text-sm font-black text-destructive"
               aria-hidden="true"
             >
               !
             </div>
-            <p className="text-sm font-black leading-6 text-ink-900 dark:text-white">
+            <p className="text-sm font-black leading-6 text-foreground">
               Não foi possível abrir este painel.
             </p>
           </div>
           <button
             type="button"
             onClick={this.props.onClose}
-            className="cv-touch-target w-full rounded-lg bg-ink-900 px-4 text-sm font-black text-white transition hover:bg-ink-950 sm:w-auto"
+            className="min-h-10 min-w-10 w-full rounded-lg bg-primary px-4 text-sm font-black text-primary-foreground transition hover:bg-primary-hover sm:w-auto"
           >
             {this.props.closeLabel ?? 'Fechar'}
           </button>

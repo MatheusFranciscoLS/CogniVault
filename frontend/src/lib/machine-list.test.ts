@@ -8,6 +8,7 @@ import {
   matchesFilters,
   priceChange,
   searchKey,
+  barLengthInches,
   sortMachines,
   technologyLabel,
   categoryLabel,
@@ -144,5 +145,37 @@ describe('findListedMachine', () => {
     expect(findListedMachine(lote, '967332902')).toBeNull();
     expect(findListedMachine(lote, '970592606')).toBeNull();
     expect(findListedMachine(lote, '')).toBeNull();
+  });
+});
+
+describe('tamanho do sabre dentro do mesmo modelo', () => {
+  const serra = (pnc: string, model: string, description: string, sortOrder: number) => machine({ pnc, model, description, sortOrder, category: 'MOTOSSERRA' });
+
+  it('lê a polegada da descrição', () => {
+    expect(barLengthInches('MOTOSSERRA MOD.61 13"PD 3/8"')).toBe(13);
+    expect(barLengthInches('MOTOSSERRA 450II 18".325"1,3MM')).toBe(18);
+    expect(barLengthInches('MOTOSSERRA MOD 542i 16\'\' 325\'')).toBe(16);
+    expect(barLengthInches('APARADOR 60 CM')).toBeNull();
+  });
+
+  it('a lista traz 13, 18, 15; a tabela mostra 13, 15, 18, sem tirar o modelo do lugar', () => {
+    const lista = [
+      serra('a', '120', 'MOTOSSERRA MOD 120 14" PR 3/8"', 1),
+      serra('b', '61', 'MOTOSSERRA MOD.61 13"PD 3/8"', 2),
+      serra('c', '61', 'MOTOSSERRA MOD.61 18"PD 3/8', 3),
+      serra('d', '61', 'MOTOSSERRA MOD.61 15"PD 3/8"', 4),
+      serra('e', '272XP', 'MOTOSSERRA MOD272XP 20"PD 3/8"', 5),
+      serra('f', '272XP', 'MOTOSSERRA MOD272XP 13"PD 3/8"', 6),
+    ];
+    expect(sortMachines(lista, 'category').map(m => m.pnc)).toEqual(['a', 'b', 'd', 'c', 'f', 'e']);
+  });
+
+  it('se alguma linha do modelo não traz o tamanho, a ordem da lista fica como está', () => {
+    const lista = [
+      serra('x', 'T1', 'MOTOSSERRA T1 18"', 1),
+      serra('y', 'T1', 'MOTOSSERRA T1 CONJUNTO', 2),
+      serra('z', 'T1', 'MOTOSSERRA T1 12"', 3),
+    ];
+    expect(sortMachines(lista, 'category').map(m => m.pnc)).toEqual(['x', 'y', 'z']);
   });
 });

@@ -76,10 +76,10 @@ export function verificationLabel(value?: OfficialVerification) {
 }
 
 function verificationClass(value?: OfficialVerification) {
-  if (!value || value.state === 'UNVERIFIED') return 'border-ink-200 dark:border-ink-700 bg-ink-50 dark:bg-ink-800/50 text-ink-500 dark:text-ink-400';
+  if (!value || value.state === 'UNVERIFIED') return 'border-border bg-muted text-muted-foreground';
   if (value.cacheState === 'STALE') return 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300';
   if (value.state === 'VERIFIED') return 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300';
-  if (value.state === 'SUPERSEDED') return 'border-brand-200 dark:border-brand-600 bg-brand-50 dark:bg-ink-900 text-brand-700 dark:text-brand-300';
+  if (value.state === 'SUPERSEDED') return 'border-brand-200 dark:border-brand-600 bg-selected text-brand-700 dark:text-brand-300';
   return 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300';
 }
 
