@@ -140,6 +140,22 @@ export function markNotInLine(items: PortfolioCoverageItem[], listedModels: stri
   });
 }
 
+/** PNC (artigo de 9 dígitos, sem o BR) das máquinas da lista vigente que correspondem a este modelo; é o caminho exato, sem depender do nome. */
+export function listedPncsForModel(listed: ReadonlyArray<{ model: string; pnc: string }>, model: string): string[] {
+  const key = normalizeIdentifier(model);
+  if (!key) return [];
+  const found = listed
+    .filter(entry => {
+      const entryKey = normalizeIdentifier(entry.model);
+      if (entryKey === key) return true;
+      if (entryKey.startsWith(key)) return /^[A-Z]{1,6}$/.test(entryKey.slice(key.length));
+      return false;
+    })
+    .map(entry => entry.pnc.trim().replace(/(?<=\d)BR$/i, ''))
+    .filter(pnc => /^\d{9,11}$/.test(pnc));
+  return [...new Set(found)].slice(0, 4);
+}
+
 /**
  * O Portal guarda a lista de peças de muita máquina antiga só como DOCUMENTO (PDF de IPL),
  * sem produto estruturado. Esse documento também é fonte oficial: o balcão abre e lê o
@@ -207,6 +223,22 @@ function portalResultMatchesKey(rawTitle: string, model: string): boolean {
   const modelKey = normalizeIdentifier(model);
   if (!titleKey || !modelKey) return false;
   if (titleKey.endsWith(modelKey) && !hasDistinctShortCodePrefix(title, modelKey)) return true;
+
+  // O modelo como palavra inteira em qualquer ponto do título, com o que vier depois: "HH 212 - 599348659", "HH 196/MP/OB",
+  // "Motobomba ... W25P 2T Autoescorvante". Sem número ou letra colado ("543RS" não é "543R") e sem código curto de outro
+  // modelo na frente ("PW 235R"), as mesmas guardas do documento.
+  if (modelKey.length >= 3 && modelKey.length <= 24) {
+    const text = capRegexInput(title, 300).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    const pattern = [...modelKey].join('[\\s\\-./]*');
+    const match = new RegExp(`(?<![A-Z0-9])${pattern}(?![A-Z0-9])`).exec(text);
+    if (match) {
+      const prefix = /(?:^|[^A-Z0-9])([A-Z]{1,3})[\s-]*$/.exec(text.slice(0, match.index))?.[1];
+      // O que vem depois só pode ser pontuação ("HH 196/MP/OB", "HH 212 - 599348659"), número de artigo ou "2T"/"4T": uma palavra
+      // ("II", "Mark", "XP") faz outra máquina ("143R II" não é "143R").
+      const rest = text.slice(match.index + match[0].length);
+      if (!prefix && (/^\s*($|[-–,/(])/.test(rest) || /^\s+\d{5,}\b/.test(rest) || /^\s+[24]T\b/.test(rest))) return true;
+    }
+  }
 
   if (modelKey.endsWith('E')) {
     const baseModel = modelKey.slice(0, -1);

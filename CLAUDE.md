@@ -289,6 +289,12 @@ manual que olhava sempre os mesmos 8 modelos. O dono não quer subir PDF à mão
   tratores 6, cortadores de grama 5, motocultores 4, giro zero 3, e o resto são acessórios Husqvarna que o Portal publica só
   com manual (bateria BLi, cabeçotes e acoplamentos HA/PA/TA, aparadores ECA/ESA, derriçadeiras 226K). A categoria da
   lista comercial aparece ao lado de cada modelo na Qualidade.
+- **Links do dono (2026-10-08): 7 de 10 TÊM vista explodida e estavam perdidos** (W25P, HH 212, HH 196, TF 545DE, TS 219TFm,
+  525PT5S, 555RXT). Duas causas: o título do Portal tem o modelo no MEIO ("HH 212 - 599348659", "W25P 2T Autoescorvante"),
+  e `portalResultMatchesKey` só olhava o fim; e a máquina da lista vigente nunca era consultada pelo PNC dela. Agora o modelo vale
+  como palavra inteira em qualquer ponto **só se o que vem depois é pontuação, número de artigo ou 2T/4T** (uma palavra como "II" ou
+  "RST" é outra máquina), e `auditPortalModel(model, { knownPncs })` tenta o PNC da lista (`listedPncsForModel`) antes da busca por
+  nome. Versão da política do cache: 5. Z560XS, LE322R e TS217Tm **de fato não têm IPL** (só manual); Automower não existe no Portal BR.
 
 ## Atendimento e máquinas são UMA tela (a aba Máquinas não existe mais)
 
