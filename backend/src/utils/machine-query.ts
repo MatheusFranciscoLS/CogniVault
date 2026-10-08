@@ -14,6 +14,8 @@
  * máquina que não tem nada a ver com a peça pedida.
  */
 
+import { normalizeKohlerSpec } from './kohler-catalog';
+
 export type MachineQueryHint = {
   /**
    * Motor Kawasaki, quando o texto traz **série + spec** (`FX921V-ES06`).
@@ -41,6 +43,13 @@ export type MachineQueryHint = {
    */
   briggsModel: string | null;
   /**
+   * Motor Kohler com o spec da plaqueta (`SV540-3212`, `CH740-0001`): letras, número, hífen e 4 dígitos.
+   *
+   * Vem ANTES do Briggs porque o formato do Briggs (letra no bloco, hífen, 4 caracteres) também casa `SV540-3212`, e o catálogo Briggs
+   * devolveria vazio. A separação é que o Briggs começa por dígito (`104M02`) e o Kohler por letras.
+   */
+  kohlerModel: string | null;
+  /**
    * PNC da etiqueta, quando o atendente digitou com a máscara impressa.
    * Abre a máquina direto, sem passar pela busca.
    */
@@ -53,7 +62,7 @@ export type MachineQueryHint = {
   model: string | null;
 };
 
-const EMPTY: MachineQueryHint = { pnc: null, model: null, kawasakiModel: null, briggsModel: null };
+const EMPTY: MachineQueryHint = { pnc: null, model: null, kawasakiModel: null, briggsModel: null, kohlerModel: null };
 
 /**
  * Medida e unidade, não modelo. `2T`/`4T` (mistura), `10W30` (viscosidade),
@@ -147,6 +156,14 @@ function briggsFromTokens(value: string): string | null {
   return null;
 }
 
+function kohlerFromTokens(value: string): string | null {
+  for (const token of tokens(value)) {
+    const spec = normalizeKohlerSpec(token.replace(/[.®]/g, ''));
+    if (spec) return spec;
+  }
+  return null;
+}
+
 function kawasakiFromTokens(value: string): string | null {
   for (const token of tokens(value)) {
     const limpo = token.replace(/[.®]/g, '').toUpperCase();
@@ -167,6 +184,10 @@ export function machineQueryHint(query: string | null | undefined): MachineQuery
   const kawasakiModel = kawasakiFromTokens(value);
   if (kawasakiModel) return { ...EMPTY, kawasakiModel };
 
+  // Kohler tem de vir antes do Briggs: ver o comentário de `kohlerModel`.
+  const kohlerModel = kohlerFromTokens(value);
+  if (kohlerModel) return { ...EMPTY, kohlerModel };
+
   // Briggs também é inequívoco pela letra no bloco do modelo, e vem antes da
   // busca de máquina Husqvarna pelo mesmo motivo do Kawasaki.
   const briggsModel = briggsFromTokens(value);
@@ -179,5 +200,5 @@ export function machineQueryHint(query: string | null | undefined): MachineQuery
 /** Verdadeiro quando vale gastar a consulta externa de máquina. */
 export function wantsMachineLookup(query: string | null | undefined): boolean {
   const hint = machineQueryHint(query);
-  return Boolean(hint.pnc || hint.model || hint.kawasakiModel || hint.briggsModel);
+  return Boolean(hint.pnc || hint.model || hint.kawasakiModel || hint.briggsModel || hint.kohlerModel);
 }

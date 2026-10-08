@@ -273,3 +273,13 @@ Todas com texto de 9 a 12 px e frases que explicam o sistema; nenhuma tem erro n
 - **Cores antigas** (#263): restos de `ink/gold/accent` viraram tokens (codemods 4 e 5 em `docs/loja-simulada/`). `QuickQuoteCart` (folha impressa, sempre clara) fica como está de propósito.
 - Roteiros de prints: `revisao-final-prints.mjs`, `biblioteca-importacao-prints.mjs`, `telas-admin-prints.mjs`.
 - **Pendente:** link da Kohler (dono vai verificar); lista de preços nova (226KS12 sai da lista, ver A9).
+
+### A11 — Kohler e o motor de cada máquina (2026-10-08)
+
+Dono mandou o link da Kohler e pediu: ligar o motor ao trator/giro zero/máquina **e mostrar a vista explodida do motor**.
+
+- ✅ **Catálogo Kohler** no balcão: digitar o spec da plaqueta (`SV540-3212`) abre grupos, peças, substituição de código e vista explodida com posições clicáveis, preço da loja e "+ Orçamento".
+- ✅ **Motor desta máquina** no painel da máquina (LTH1842 → Kohler SV540-3212, R316TX → Kawasaki FS481V-CS55, TS138 → Husqvarna HS452, mais os motores já citados nos IPLs), com a nota para conferir a plaqueta ou o número de série.
+- ⏳ **Pares que faltam:** o dono vai informando (modelo da máquina → motor); entram em `OWNER_BASE_ENGINES` (`services/machine-base-engine.ts`).
+- ⏳ Ideias sem pedir: índice "peça Kohler → motores" (`OfficialPartIndex` já faz isso para Briggs e Kawasaki); aviso quando o motor da máquina muda por ano/PNC.
+

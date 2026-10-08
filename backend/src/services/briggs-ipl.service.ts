@@ -34,6 +34,13 @@ const MAX_PDF_BYTES = 12 * 1024 * 1024;
 const FRESH_MS = 30 * 24 * 60 * 60 * 1000;
 const STALE_MS = 180 * 24 * 60 * 60 * 1000;
 
+/**
+ * PDFs abertos há pouco, na memória: o balcão abre o mesmo motor várias vezes seguidas (confere a posição, volta, abre de novo) e cada PDF tem
+ * 0,8 a 1,5 MB. Poucos itens, porque o Render free tem pouca memória; reiniciar o servidor só esvazia o cache.
+ */
+const RECENT_PDF_LIMIT = 4;
+const recentPdfs = new Map<string, Buffer>();
+
 export type BriggsIplOutcome =
   | { status: 'READ'; model: string; parts: BriggsIplPart[]; sourceUrl: string; language: string }
   | { status: 'DECLINED'; reason: BriggsDeclineReason; label: string; sourceUrl: string | null }
@@ -73,6 +80,27 @@ async function pdfText(buffer: Buffer): Promise<string> {
 }
 
 export class BriggsIplService {
+  /**
+   * O PDF da lista de peças, para o servidor ENTREGAR ao navegador pela própria origem do app.
+   *
+   * Antes a rota só redirecionava para o visualizador da Briggs, e para o dono o clique caía no site da Briggs em vez do PDF (o servidor e um
+   * Chromium de teste recebiam o PDF; o navegador dele não). Entregar os bytes tira o comportamento do navegador da equação. Nulo quando o
+   * visualizador não devolve um PDF de verdade: a tela então manda para a página de manuais.
+   */
+  static async pdfFor(url: string): Promise<Buffer | null> {
+    const hit = recentPdfs.get(url);
+    if (hit) {
+      recentPdfs.delete(url);
+      recentPdfs.set(url, hit);
+      return hit;
+    }
+    const buffer = await downloadPdf(url);
+    if (!buffer) return null;
+    recentPdfs.set(url, buffer);
+    while (recentPdfs.size > RECENT_PDF_LIMIT) recentPdfs.delete(recentPdfs.keys().next().value as string);
+    return buffer;
+  }
+
   /**
    * Peças do motor Briggs, quando o PDF permite ler com certeza.
    *

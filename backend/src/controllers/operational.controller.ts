@@ -790,6 +790,7 @@ export class OperationalController {
                 || machineHint.model
                 || machineHint.kawasakiModel
                 || machineHint.briggsModel
+                || machineHint.kohlerModel
             ) {
                 send({
                     type: 'machines',
@@ -806,6 +807,8 @@ export class OperationalController {
                     // estruturada como a Kawasaki, então aqui o retorno é o
                     // documento — que é exatamente a saída que o dono pediu.
                     briggsModel: machineHint.briggsModel ?? undefined,
+                    // Motor Kohler: a tela abre o catálogo (grupos, peças, substituição e vista explodida).
+                    kohlerModel: machineHint.kohlerModel ?? undefined,
                 });
             }
 

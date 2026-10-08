@@ -26,6 +26,7 @@ import OilQuickAdd from './OilQuickAdd';
 import CodeReplacementCheck from './CodeReplacementCheck';
 import { focusFirstResult } from '../../lib/results-keyboard';
 import BriggsEnginePanel from '../machines/BriggsEnginePanel';
+import KohlerEnginePanel from '../machines/KohlerEnginePanel';
 import OfficialPartOrigin from '../machines/OfficialPartOrigin';
 import PartGuesses from './PartGuesses';
 import { ResultsGroup, ResultsSkeleton, ResultsTable } from './ResultsTable';
@@ -240,6 +241,8 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   // Motor Briggs reconhecido no texto. Só a forma com letra no bloco do modelo
   // entra — ver utils/machine-query.ts no backend.
   const [briggsModel, setBriggsModel] = useState('');
+  // Motor Kohler reconhecido no texto (letras+número, hífen, 4 dígitos). Vem antes do Briggs no servidor.
+  const [kohlerModel, setKohlerModel] = useState('');
   // A máquina abre AO LADO, sem trocar de tela: o atendente confirma a posição
   // na vista explodida e volta para a lista de peças com o contexto intacto.
   const [openMachine, setOpenMachine] = useState<{ pnc: string; name: string } | null>(
@@ -425,6 +428,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     setMachineTerm('');
     setKawasakiModel('');
     setBriggsModel('');
+    setKohlerModel('');
     setCommercialParts([]);
     setOfficialResult(null);
     setVerifications({});
@@ -468,6 +472,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           setMachineTerm(message.machineTerm ?? '');
           setKawasakiModel(message.kawasakiModel ?? '');
           setBriggsModel(message.briggsModel ?? '');
+          setKohlerModel(message.kohlerModel ?? '');
           return;
         }
         if (message.type === 'semantic') {
@@ -630,6 +635,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
     setMachineTerm('');
     setKawasakiModel('');
     setBriggsModel('');
+    setKohlerModel('');
     setCommercialParts([]);
     setOfficialResult(null);
     setHasSearched(false);
@@ -851,6 +857,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
               responde. */}
           {kawasakiModel && <KawasakiEnginePanel model={kawasakiModel} onSearchPart={beginSearch} />}
           {briggsModel && <BriggsEnginePanel model={briggsModel} onSearchPart={beginSearch} />}
+          {kohlerModel && <KohlerEnginePanel model={kohlerModel} onSearchPart={beginSearch} />}
 
           {/* Caminho inverso: o cliente chegou com o código e não com a máquina. Responde
               do índice local do que já foi lido dos catálogos Briggs/Kawasaki, sem consultar

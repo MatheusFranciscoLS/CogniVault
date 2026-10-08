@@ -4,6 +4,7 @@ import { apiJson } from '../../lib';
 import OfficialHusqvarnaPanel from '../parts-v2/OfficialHusqvarnaPanel';
 import OfficialDocumentShortcuts from './OfficialDocumentShortcuts';
 import MaintenanceKitPanel from './MaintenanceKitPanel';
+import MachineEnginePanel from './MachineEnginePanel';
 import type { OfficialFallbackResult } from '../parts-v2/types';
 
 export type MachineDetailLoaded = {
@@ -95,6 +96,7 @@ export default function MachineDetail({
   return (
     <div className="space-y-5">
       <OfficialDocumentShortcuts documents={machine.documents ?? []} />
+      {kitModel && <MachineEnginePanel model={kitModel} pnc={machine.pnc ?? pnc} onSearchPart={onOpenPart} />}
       <OfficialHusqvarnaPanel
         key={machine.pnc || machine.query}
         result={machine}

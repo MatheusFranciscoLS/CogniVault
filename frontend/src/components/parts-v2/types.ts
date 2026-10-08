@@ -66,6 +66,8 @@ export type SearchStreamMessage = {
    * na Briggs o retorno é o PDF da vista explodida, não uma tabela.
    */
   briggsModel?: string;
+  /** Motor Kohler (`SV540-3212`). A tela abre o catálogo: grupos, peças, substituição e vista explodida. */
+  kohlerModel?: string;
   error?: string;
 };
 
