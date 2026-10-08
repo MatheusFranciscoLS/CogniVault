@@ -538,7 +538,8 @@ export function buildIplSections(rawSections: any[] | null | undefined, pnc: str
         } satisfies HusqvarnaOfficialIplPart;
       }),
     }))
-    .filter((section: HusqvarnaOfficialIplSection) => /^HVA_PL-[A-Za-z0-9_-]+$/i.test(section.id) && Boolean(section.name));
+    // O prefixo diz a marca do catálogo (HVA_PL = Husqvarna, CLT_PL = cortadores de grama e linha elétrica...). Só HVA_PL passava, e o LE322R, com 5 vistas, saía como "só manual".
+    .filter((section: HusqvarnaOfficialIplSection) => /^[A-Z]{2,4}_PL-[A-Za-z0-9_-]+$/i.test(section.id) && Boolean(section.name));
 }
 
 export function parseOfficialProductDetails(payload: unknown, pncInput: string): HusqvarnaOfficialProductDetails | null {

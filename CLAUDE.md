@@ -312,6 +312,14 @@ manual que olhava sempre os mesmos 8 modelos. O dono não quer subir PDF à mão
   "RST" é outra máquina), e `auditPortalModel(model, { knownPncs })` tenta o PNC da lista (`listedPncsForModel`) antes da busca por
   nome. Versão da política do cache: 5. Z560XS, LE322R e TS217Tm **de fato não têm IPL** (só manual); Automower não existe no Portal BR.
 
+- **Cobertura em 100% dos modelos em linha (2026-10-08), por três causas e duas pausas.** (1) O site público da Husqvarna entrou como segunda fonte
+  (345BT, ver "Segunda fonte da vista explodida"). (2) **O filtro de seções só aceitava ids `HVA_PL-…`**; os cortadores de grama usam `CLT_PL-…`, e o
+  LE322R, que tem 5 vistas (EMBALADORA, POWER HEAD, DECK, ACIONAMENTO, PUNHO), saía como "só manual". Agora vale `[A-Z]{2,4}_PL-…`. (3) Política de cobertura 7.
+  **Em pausa** (fora da conta e das consultas, listados numa seção recolhida; `PAUSED_COVERAGE_CATEGORIES` e `PAUSED_COVERAGE_MODELS` em
+  `portfolio-coverage.ts`; religar = tirar da lista): **Automower** (dono: "deixe em off por enquanto"; 12 modelos, sem vista em nenhuma das duas fontes) e
+  **226KS12** (derriçadeira de café = motor 226K + acessório KS12; a Husqvarna Brasil publica a máquina, mas só os componentes têm vista, cada um no seu
+  artigo; juntar seria montar uma vista que ela não publica). Estado `PAUSED` no resumo; a API devolve `paused` (número) e `pausedModels` (lista).
+
 ## Cada tela tem endereço próprio (2026-10-08)
 
 Dono: *"pq todas as abas estão em /dashboard… na aba de administração e lá ta marcando dashboard"*.
