@@ -11,7 +11,7 @@ await page.getByRole('button', { name: 'Administração' }).click();
 await page.getByRole('menuitem', { name: 'Usuários' }).click();
 await page.getByRole('heading', { name: 'Usuários', level: 1 }).waitFor({ timeout: 15000 });
 await page.waitForTimeout(800);
-const linhaDe = email => page.locator('li', { hasText: email });
+const linhaDe = email => page.locator('tr', { hasText: email });
 
 await step('cabeçalho e lista', async () => {
   check('título e botão "Novo usuário"', await page.getByRole('button', { name: 'Novo usuário' }).isVisible());

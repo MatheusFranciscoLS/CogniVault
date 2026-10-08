@@ -89,7 +89,7 @@ function metricLabel(action: string) {
 
 function Stat({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="rounded-xl border border-ink-200 bg-white px-4 py-3 dark:border-ink-800 dark:bg-ink-900">
+    <div className="rounded-xl border border-border bg-card px-4 py-3">
       <div className="text-sm font-semibold text-muted-foreground">{label}</div>
       <div className="mt-1 text-xl font-semibold tracking-tight text-foreground">{value}</div>
       <div className="mt-1 text-sm leading-4 text-muted-foreground">{detail}</div>
@@ -128,7 +128,7 @@ export default function AssistantObservabilityPanel() {
   }
 
   if (!data || !performance) {
-    return <div className="mt-5 rounded-xl border border-ink-200 bg-white px-4 py-4 text-sm text-muted-foreground dark:border-ink-800 dark:bg-ink-900">Carregando uso de IA…</div>;
+    return <div className="mt-5 rounded-xl border border-border bg-card px-4 py-4 text-sm text-muted-foreground">Carregando uso de IA…</div>;
   }
 
   const portfolio = data.portfolioCoverage;
@@ -137,8 +137,8 @@ export default function AssistantObservabilityPanel() {
     : 0;
 
   return (
-    <section className="mt-6 overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-ink-100 px-5 py-4 dark:border-ink-800">
+    <section className="mt-6 overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
         <div>
           <h2 className="text-base font-semibold text-foreground">Uso de IA e cobertura técnica</h2>
         </div>
@@ -159,7 +159,7 @@ export default function AssistantObservabilityPanel() {
         />
       </div>
 
-      <div className="mx-4 mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-ink-200 bg-ink-50/70 px-3 py-2.5 text-sm text-ink-500 dark:border-ink-800 dark:bg-ink-950/30 dark:text-ink-400">
+      <div className="mx-4 mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-muted-foreground">
         <span className="font-semibold text-foreground">Portal BR · rota</span>
         {portalRoute ? (
           <>
@@ -179,13 +179,13 @@ export default function AssistantObservabilityPanel() {
         )}
       </div>
 
-      <div className="grid gap-4 border-t border-ink-100 p-4 lg:grid-cols-[1.2fr_.8fr] dark:border-ink-800">
+      <div className="grid gap-4 border-t border-border p-4 lg:grid-cols-[1.2fr_.8fr]">
         <div>
           <div className="mb-2 text-sm font-semibold text-muted-foreground">Onde a IA foi usada hoje</div>
           {!data.actions.length ? (
-            <div className="rounded-lg bg-ink-50 px-3 py-3 text-sm text-ink-500 dark:bg-ink-950/40 dark:text-ink-400">Nenhuma chamada de IA hoje.</div>
+            <div className="rounded-lg bg-muted px-3 py-3 text-sm text-muted-foreground">Nenhuma chamada de IA hoje.</div>
           ) : (
-            <div className="divide-y divide-ink-100 rounded-lg border border-ink-200 dark:divide-ink-800 dark:border-ink-800">
+            <div className="divide-y divide-ink-100 rounded-lg border border-border dark:divide-ink-800">
               {data.actions.slice(0, 5).map(action => (
                 <div key={action.action} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-3 py-2.5 text-sm">
                   <span className="font-semibold capitalize text-foreground">{metricLabel(action.action)}</span>
@@ -199,7 +199,7 @@ export default function AssistantObservabilityPanel() {
 
         <div>
           <div className="mb-2 text-sm font-semibold text-muted-foreground">Cobertura de portfólio</div>
-          <div className="rounded-lg border border-ink-200 p-3 dark:border-ink-800">
+          <div className="rounded-lg border border-border p-3">
             {portfolio ? (
               <>
                 <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Modelos descobertos</span><b>{portfolio.totalModels}</b></div>
@@ -210,7 +210,7 @@ export default function AssistantObservabilityPanel() {
                 <div className="mt-2 flex items-center justify-between text-sm"><span className="text-muted-foreground">Fora de linha</span><b>{portfolio.notApplicableModels}</b></div>
 
                 {portfolio.priorityGaps.length > 0 && (
-                  <div className="mt-3 border-t border-ink-100 pt-3 dark:border-ink-800">
+                  <div className="mt-3 border-t border-border pt-3">
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <span className="text-sm font-semibold text-muted-foreground">Prioridade de cobertura</span>
                       <span className="text-sm font-semibold text-muted-foreground">sinais comerciais</span>
@@ -223,7 +223,7 @@ export default function AssistantObservabilityPanel() {
                              modelo e abre a vista explodida em painel lateral. Antes
                              apontava para a aba Máquinas, que não existe mais. */
                           to={`/atendimento?q=${encodeURIComponent(item.model)}`}
-                          className="flex items-center justify-between gap-3 rounded-md border border-ink-100 px-2.5 py-2 text-sm transition hover:border-brand-200 hover:bg-brand-50/50 dark:border-ink-800 dark:hover:border-brand-900 dark:hover:bg-brand-950/20"
+                          className="flex items-center justify-between gap-3 rounded-md border border-border px-2.5 py-2 text-sm transition hover:border-brand-200 hover:bg-brand-50/50 dark:hover:border-brand-900 dark:hover:bg-brand-950/20"
                         >
                           <span className="min-w-0 truncate font-bold text-foreground">{item.model}</span>
                           <span className="shrink-0 font-mono text-sm font-bold text-brand-600 dark:text-brand-300">{number(item.commercialSignals)} · verificar →</span>
@@ -233,7 +233,7 @@ export default function AssistantObservabilityPanel() {
                   </div>
                 )}
 
-                <p className="mt-3 border-t border-ink-100 pt-3 text-sm leading-4 text-muted-foreground dark:border-ink-800">“Em linha, sem vista” são modelos que a Husqvarna vende hoje e o Portal não publica. “Fora de linha” são os que não constam na lista vigente.</p>
+                <p className="mt-3 border-t border-border pt-3 text-sm leading-4 text-muted-foreground">“Em linha, sem vista” são modelos que a Husqvarna vende hoje e o Portal não publica. “Fora de linha” são os que não constam na lista vigente.</p>
               </>
             ) : (
               <div className="text-sm text-muted-foreground">Inventário de cobertura indisponível nesta leitura.</div>

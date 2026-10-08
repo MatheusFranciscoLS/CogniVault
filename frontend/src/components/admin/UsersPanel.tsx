@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import PageFrame from '../PageFrame';
 
@@ -162,39 +163,44 @@ export default function UsersPanel() {
         <span className="text-base text-muted-foreground">{filtered.length} {filtered.length === 1 ? 'usuário' : 'usuários'}</span>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <div className="hidden grid-cols-[minmax(0,1fr)_160px_130px_56px] gap-4 border-b border-border bg-muted px-5 py-3 text-base font-semibold text-muted-foreground md:grid">
-          <span>Usuário</span><span>Perfil</span><span>Status</span><span className="sr-only">Ações</span>
-        </div>
-        <ul className="divide-y divide-border">
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead>Usuário</TableHead>
+            <TableHead className="w-44">Perfil</TableHead>
+            <TableHead className="w-36">Status</TableHead>
+            <TableHead className="w-16"><span className="sr-only">Ações</span></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {filtered.map(user => (
-            <li key={user.id} className="grid items-center gap-x-4 gap-y-1 px-5 py-4 md:grid-cols-[minmax(0,1fr)_160px_130px_56px]">
-              <div className="min-w-0">
+            <TableRow key={user.id}>
+              <TableCell className="max-w-0">
                 <div className="truncate text-lg font-semibold">{user.name || user.email}</div>
                 <div className="truncate text-base text-muted-foreground">{user.name ? `${user.email} · ` : ''}desde {fmtDate(user.createdAt)}{!user.name && ' · sem nome (o orçamento sai sem ATT.)'}</div>
-              </div>
-              <span className="text-base">{ROLE_LABEL[user.role]}</span>
-              <span><span className={cn('rounded-md px-2 py-0.5 text-base font-semibold', STATUS[user.status].className)}>{STATUS[user.status].label}</span></span>
-              <div className="justify-self-end">
+              </TableCell>
+              <TableCell>{ROLE_LABEL[user.role]}</TableCell>
+              <TableCell><span className={cn('rounded-md px-2 py-0.5 text-base font-semibold', STATUS[user.status].className)}>{STATUS[user.status].label}</span></TableCell>
+              <TableCell className="text-right">
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" aria-label={`Ações de ${user.email}`}>
-                      <svg viewBox="0 0 24 24" fill="currentColor" className="size-5" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="min-w-52">
-                    <DropdownMenuItem onSelect={() => void toggleRole(user)} className="h-10 text-base">{user.role === 'ADMIN' ? 'Tornar Balcão' : 'Tornar administrador'}</DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => { setNameFor(user); setNameDraft(user.name ?? ''); }} className="h-10 text-base">Definir nome</DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => void toggleBlock(user)} className="h-10 text-base">{user.status === 'APPROVED' ? 'Bloquear' : 'Ativar'}</DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => { setPasswordFor(user); setPasswordDraft(''); setPasswordError(''); }} className="h-10 text-base">Redefinir senha</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </li>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" aria-label={`Ações de ${user.email}`}>
+                                      <svg viewBox="0 0 24 24" fill="currentColor" className="size-5" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="min-w-52">
+                                    <DropdownMenuItem onSelect={() => void toggleRole(user)} className="h-10 text-base">{user.role === 'ADMIN' ? 'Tornar Balcão' : 'Tornar administrador'}</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => { setNameFor(user); setNameDraft(user.name ?? ''); }} className="h-10 text-base">Definir nome</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => void toggleBlock(user)} className="h-10 text-base">{user.status === 'APPROVED' ? 'Bloquear' : 'Ativar'}</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => { setPasswordFor(user); setPasswordDraft(''); setPasswordError(''); }} className="h-10 text-base">Redefinir senha</DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+              </TableCell>
+            </TableRow>
           ))}
-          {!filtered.length && <li className="px-5 py-10 text-center text-base text-muted-foreground">Nenhum usuário encontrado.</li>}
-        </ul>
-      </div>
+          {!filtered.length && <TableEmpty colSpan={4}>Nenhum usuário encontrado.</TableEmpty>}
+        </TableBody>
+      </Table>
 
       <Dialog open={nameFor !== null} onOpenChange={open => { if (!open) setNameFor(null); }}>
         <DialogContent className="sm:max-w-md">

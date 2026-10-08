@@ -269,7 +269,7 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
             <div className="mt-0.5 text-sm text-muted-foreground">{(item.file.size / 1024 / 1024).toFixed(1)} MB{item.message ? ` · ${item.message}` : ''}</div>
           </div>
           <span className={`whitespace-nowrap rounded-full px-2 py-1 text-sm font-semibold ${statusClass(item.state)}`}>{statusLabel(item)}</span>
-          {!busy && item.state !== 'UPLOADING' && <button type="button" onClick={() => removeItem(item.id)} aria-label={`Remover ${item.file.name}`} className="rounded-lg px-2 py-1 text-ink-500 hover:bg-ink-100 dark:bg-ink-700 hover:text-ink-700 dark:text-ink-300">×</button>}
+          {!busy && item.state !== 'UPLOADING' && <button type="button" onClick={() => removeItem(item.id)} aria-label={`Remover ${item.file.name}`} className="rounded-lg px-2 py-1 text-muted-foreground hover:bg-ink-100 dark:bg-ink-700 hover:text-ink-700">×</button>}
         </div>)}
       </div>
     </div>}

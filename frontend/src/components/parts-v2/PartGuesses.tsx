@@ -51,7 +51,7 @@ export default function PartGuesses({
 
   if (isLoading) {
     return (
-      <div aria-busy="true" className="rounded-xl border border-ink-200 bg-white px-4 py-3 text-[11px] font-semibold text-ink-500 dark:border-ink-800 dark:bg-ink-900 dark:text-ink-400">
+      <div aria-busy="true" className="rounded-xl border border-border bg-card px-4 py-3 text-[11px] font-semibold text-muted-foreground">
         Procurando no desenho da {model}…
       </div>
     );
@@ -61,7 +61,7 @@ export default function PartGuesses({
   if (!guesses.length) return null;
 
   return (
-    <section className="overflow-hidden rounded-xl border border-brand-200 bg-white dark:border-brand-900/60 dark:bg-ink-900">
+    <section className="overflow-hidden rounded-xl border border-brand-200 bg-card dark:border-brand-900/60">
       <div className="border-b border-brand-100 bg-brand-50/60 px-4 py-2.5 dark:border-brand-900/40 dark:bg-brand-950/20">
         <span className="text-[10px] font-black uppercase tracking-[.12em] text-brand-700 dark:text-brand-300">
           Pelo desenho da {model}, pode ser
@@ -83,7 +83,7 @@ export default function PartGuesses({
               {guess.name}
             </span>
             {guess.position ? (
-              <span className="shrink-0 rounded-sm bg-ink-100 px-1.5 font-mono text-[10px] font-bold text-ink-600 dark:bg-ink-800 dark:text-ink-300">
+              <span className="shrink-0 rounded-sm bg-muted px-1.5 font-mono text-[10px] font-bold text-muted-foreground">
                 pos. {guess.position}
               </span>
             ) : null}
@@ -97,7 +97,7 @@ export default function PartGuesses({
       {/* A única linha de texto da seção, e ela é instrução, não explicação:
           diz o que fazer com o palpite. Confirmar no desenho é o que separa
           "a IA achou" de "o atendente vendeu". */}
-      <div className="border-t border-ink-100 px-4 py-2 text-[11px] text-ink-500 dark:border-ink-800 dark:text-ink-400">
+      <div className="border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
         Confira a posição na vista explodida antes de vender.
       </div>
     </section>

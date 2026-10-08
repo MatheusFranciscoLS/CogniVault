@@ -4,6 +4,7 @@ import { Search } from 'lucide-react';
 import PageFrame from './PageFrame';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { actionLabel, isLoginAction, targetLabel } from '../lib/audit-labels';
 import type { AuditLog, Overview } from '../types';
 
@@ -42,7 +43,7 @@ export function OverviewPanel() {
     <PageFrame title="Visão geral">
       {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"><span>{error}</span><button type="button" onClick={() => { setError(''); setRetry(value => value + 1); }} className="rounded-lg border border-destructive/40 px-3 py-1.5 text-sm font-bold">Tentar novamente</button></div>}
 
-      <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         <div className="grid divide-y divide-ink-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0 dark:divide-ink-800">
           {(data ? metrics : Array.from({ length: 3 }, (_, index) => [`Carregando ${index}`, '—'])).map(([label, value]) => (
             <div key={String(label)} className="px-5 py-4">
@@ -53,8 +54,8 @@ export function OverviewPanel() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
-        <div className="border-b border-ink-100 px-4 py-3 text-sm font-semibold text-ink-700 dark:border-ink-800 dark:text-ink-200">Situação operacional</div>
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className="border-b border-border px-4 py-3 text-sm font-semibold text-foreground">Situação operacional</div>
         <div className="grid divide-y divide-ink-100 md:grid-cols-2 md:divide-x md:divide-y-0 dark:divide-ink-800">
           <div className="flex items-center justify-between gap-4 px-4 py-4"><span className="text-sm font-semibold text-muted-foreground">Catálogos processando</span><span className="text-lg font-semibold text-warn">{data?.processingDocuments ?? '—'}</span></div>
           <div className="flex items-center justify-between gap-4 px-4 py-4"><span className="text-sm font-semibold text-muted-foreground">Catálogos com falha</span><span className="text-lg font-semibold text-destructive">{data?.failedDocuments ?? '—'}</span></div>
@@ -104,22 +105,30 @@ export function AuditPanel() {
         <Button type="button" variant="outline" aria-pressed={withLogins} onClick={() => { setWithLogins(value => !value); setShown(AUDIT_PAGE); }} className={withLogins ? 'border-ring bg-selected' : undefined}>Incluir logins</Button>
         <span className="px-1 text-base text-muted-foreground tabular-nums">{filtered.length} {filtered.length === 1 ? 'evento' : 'eventos'}</span>
       </div>
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <div className="hidden grid-cols-[minmax(230px,1fr)_minmax(180px,.8fr)_160px] gap-4 border-b border-border bg-muted px-4 py-2.5 text-sm font-semibold text-muted-foreground md:grid"><span>Ação</span><span>Quem fez · o quê</span><span className="text-right">Data</span></div>
-        {visible.map(log => (
-          <div key={log.id} className="grid gap-1 border-b border-border px-4 py-3 last:border-0 md:grid-cols-[minmax(230px,1fr)_minmax(180px,.8fr)_160px] md:items-center md:gap-4">
-            <div className="text-base font-semibold">{actionLabel(log.action)}</div>
-            <div className="truncate text-base text-muted-foreground">{log.user?.name || log.user?.email || 'Sistema'} · {targetLabel(log.targetType)}</div>
-            <div className="text-base text-muted-foreground tabular-nums md:text-right">{fmtDate(log.createdAt)}</div>
-          </div>
-        ))}
-        {!filtered.length && <div className="px-5 py-10 text-center text-base text-muted-foreground">Nenhuma ação encontrada.</div>}
-        {filtered.length > shown && (
-          <div className="border-t border-border bg-muted px-4 py-3 text-center">
-            <Button type="button" variant="outline" onClick={() => setShown(value => value + AUDIT_PAGE)}>Mostrar mais {Math.min(AUDIT_PAGE, filtered.length - shown)}</Button>
-          </div>
-        )}
-      </div>
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead>Ação</TableHead>
+            <TableHead>Quem fez · o quê</TableHead>
+            <TableHead className="text-right">Data</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {visible.map(log => (
+            <TableRow key={log.id}>
+              <TableCell className="font-semibold">{actionLabel(log.action)}</TableCell>
+              <TableCell className="max-w-0 truncate text-muted-foreground">{log.user?.name || log.user?.email || 'Sistema'} · {targetLabel(log.targetType)}</TableCell>
+              <TableCell className="whitespace-nowrap text-right tabular-nums text-muted-foreground">{fmtDate(log.createdAt)}</TableCell>
+            </TableRow>
+          ))}
+          {!filtered.length && <TableEmpty colSpan={3}>Nenhuma ação encontrada.</TableEmpty>}
+        </TableBody>
+      </Table>
+      {filtered.length > shown && (
+        <div className="text-center">
+          <Button type="button" variant="outline" onClick={() => setShown(value => value + AUDIT_PAGE)}>Mostrar mais {Math.min(AUDIT_PAGE, filtered.length - shown)}</Button>
+        </div>
+      )}
     </section>
   );
 }
