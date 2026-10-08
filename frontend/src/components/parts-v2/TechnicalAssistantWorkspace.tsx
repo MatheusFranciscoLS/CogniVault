@@ -132,31 +132,64 @@ function Starter({
   onExample,
   recent,
   onReplay,
+  machines,
+  onOpenMachine,
 }: {
   onExample: (value: string) => void;
   recent: RecentSearch[];
   onReplay: (value: string) => void;
+  /** Máquinas que este atendente abriu por último: um clique em vez de redigitar o PNC da etiqueta. */
+  machines: Array<{ pnc: string; name: string; meta?: string | null }>;
+  onOpenMachine: (machine: { pnc: string; name: string }) => void;
 }) {
   // Estado vazio útil: voltar a uma busca recente ou ver como se pesquisa. Sem texto sobre o sistema.
   return (
-    <div className="space-y-4">
+    <div className="grid gap-4 md:grid-cols-2">
       {recent.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-base text-muted-foreground">Últimas buscas</span>
-          {recent.slice(0, 6).map(item => (
-            <Button key={item.query} variant="outline" size="sm" onClick={() => onReplay(item.replay)} title={item.label || undefined} className="max-w-72 font-medium">
-              <span className="truncate">{item.query}</span>
-            </Button>
-          ))}
-        </div>
+        <section aria-label="Últimas buscas" className="rounded-xl border border-border bg-card">
+          <h2 className="px-4 pb-1 pt-3 text-base font-semibold">Últimas buscas</h2>
+          <ul className="pb-2">
+            {recent.slice(0, 6).map(item => (
+              <li key={item.query}>
+                <button type="button" onClick={() => onReplay(item.replay)} title={item.label || undefined} className="flex min-h-10 w-full items-center justify-between gap-4 px-4 py-1.5 text-left outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-3 focus-visible:ring-ring/60 focus-visible:ring-inset">
+                  <span className="truncate text-base font-medium">{item.query}</span>
+                  {item.label && item.label !== item.query && <span className="max-w-[45%] shrink-0 truncate text-sm text-muted-foreground">{item.label}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-base text-muted-foreground">Experimente</span>
-        {examples.map(example => (
-          <Button key={example.label} variant="outline" size="sm" onClick={() => onExample(example.value)} className="font-medium">{example.value}</Button>
-        ))}
-      </div>
+      {machines.length > 0 && (
+        <section aria-label="Máquinas recentes" className="rounded-xl border border-border bg-card">
+          <h2 className="px-4 pb-1 pt-3 text-base font-semibold">Máquinas recentes</h2>
+          <ul className="pb-2">
+            {machines.slice(0, 5).map(item => (
+              <li key={item.pnc}>
+                <button type="button" onClick={() => onOpenMachine(item)} className="flex min-h-10 w-full items-center justify-between gap-4 px-4 py-1.5 text-left outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-3 focus-visible:ring-ring/60 focus-visible:ring-inset">
+                  <span className="flex min-w-0 items-center gap-2"><Icon name="machine" className="size-4 shrink-0 text-muted-foreground" /><span className="truncate text-base font-medium">{item.name}</span></span>
+                  <span className="shrink-0 font-code text-sm text-muted-foreground tabular-nums">PNC {item.pnc}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section aria-label="Experimente" className="rounded-xl border border-border bg-card">
+        <h2 className="px-4 pb-1 pt-3 text-base font-semibold">Experimente</h2>
+        <ul className="pb-2">
+          {examples.map(example => (
+            <li key={example.label}>
+              <button type="button" onClick={() => onExample(example.value)} className="flex min-h-10 w-full items-center justify-between gap-4 px-4 py-1.5 text-left outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-3 focus-visible:ring-ring/60 focus-visible:ring-inset">
+                <span className="font-code text-base font-medium tabular-nums">{example.value}</span>
+                <span className="text-sm text-muted-foreground">{example.label}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }
@@ -658,9 +691,9 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       <h1 className="sr-only">Atendimento</h1>
       <p role="status" className="sr-only">{loading ? 'Buscando…' : hasSearched ? `${parts.length + commercialParts.length} resultados` : ''}</p>
 
-      <CounterSessionBar onOpenMachine={pnc => setOpenMachine({ pnc, name: session.machineModel || `PNC ${pnc}` })} />
-
-      <form onSubmit={submit} className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
+      {/* Painel de busca: o campo é o protagonista; cliente, máquina e PNC do atendimento ficam logo abaixo, na mesma peça. */}
+      <div className="rounded-2xl border border-border bg-card shadow-sm">
+      <form onSubmit={submit} className="flex flex-wrap items-center gap-3 p-3 sm:flex-nowrap">
         <div className="relative min-w-0 basis-full sm:basis-0 sm:flex-1">
           <Icon name="search" className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -712,7 +745,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
             aria-expanded={(suggestionsOpen && suggestions.length > 0) || (recentOpen && recent.length > 0 && !query.trim())}
             aria-controls="parts-search-suggestions"
             aria-autocomplete="list"
-            className="h-12 rounded-xl bg-card pl-12 pr-20 text-lg font-medium"
+            className="h-14 rounded-xl bg-background pl-12 pr-20 text-xl font-medium"
           />
           {!query && <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-border px-1.5 text-sm text-muted-foreground">Ctrl&nbsp;K</kbd>}
           {recentOpen && recent.length > 0 && !query.trim() && (
@@ -724,18 +757,22 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
             </div>
           )}
         </div>
-        {query && <Button type="button" variant="ghost" size="lg" onClick={clearSearch}>Limpar</Button>}
-        <Button type="submit" size="lg" disabled={loading} className="min-w-32">{loading ? 'Buscando…' : 'Buscar'}</Button>
+        {query && <Button type="button" variant="ghost" size="lg" onClick={clearSearch} className="h-14">Limpar</Button>}
+        <Button type="submit" size="lg" disabled={loading} className="h-14 min-w-36 px-8 text-xl">{loading ? 'Buscando…' : 'Buscar'}</Button>
       </form>
+      <div className="border-t border-border">
+        <CounterSessionBar onOpenMachine={pnc => setOpenMachine({ pnc, name: session.machineModel || `PNC ${pnc}` })} />
+      </div>
+      </div>
 
       {error && <div role="alert" className="rounded-lg border border-destructive bg-destructive/10 px-4 py-3 text-base font-medium text-destructive">{error}</div>}
 
       {/* Máquina e documentos viram atalhos pequenos, em uma linha: a peça buscada vem
           primeiro. Antes eram uma lista de 12 linhas na frente do resultado. */}
-      {(machines.length > 0 || listedHits.length > 0 || sortedExtras.length > 0 || recentMachines.length > 0) && (
+      {(machines.length > 0 || listedHits.length > 0 || sortedExtras.length > 0 || (hasSearched && recentMachines.length > 0)) && (
         <div className="flex flex-wrap items-center gap-2">
           {/* A máquina que já está no contexto ou nos atalhos desta busca não repete como "recente". */}
-          {recentMachines.filter(item => item.pnc !== session.pnc && !machines.some(found => found.pnc === item.pnc)).map(item => (
+          {(hasSearched ? recentMachines : []).filter(item => item.pnc !== session.pnc && !machines.some(found => found.pnc === item.pnc)).map(item => (
             <Button key={item.pnc} variant="outline" size="sm" onClick={() => setOpenMachine({ pnc: item.pnc, name: item.name })} title={item.meta || `PNC ${item.pnc}`} className="max-w-64">
               <span className="truncate">{item.name}</span>
             </Button>
@@ -801,7 +838,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
 
       <div className="grid flex-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-4">
-          {!hasSearched && <Starter onExample={beginSearch} recent={recent} onReplay={beginSearch} />}
+          {!hasSearched && <Starter onExample={beginSearch} recent={recent} onReplay={beginSearch} machines={recentMachines} onOpenMachine={item => setOpenMachine(item)} />}
           {loading && !hasLocalResults ? <ResultsSkeleton /> : null}
           {hasSearched && <OilQuickAdd query={lastQuery} machineModel={session.machineModel.trim() || undefined} />}
 

@@ -3,6 +3,7 @@ import { useCounterSession } from '../context/CounterSessionContext';
 import { useConfirm } from '../context/confirm';
 import type { CounterSession } from '../context/CounterSessionContext';
 import { useQuoteCart } from '../context/QuoteCartContext';
+import { machineChipLabel } from '../lib/model-search-rank';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -17,7 +18,7 @@ function Field({ label, value, placeholder, onChange }: { label: string; value: 
 
 function ContextFields({ session, updateSession }: { session: CounterSession; updateSession: (patch: Partial<CounterSession>) => void }) {
   return (
-    <div className="grid gap-3 border-t border-border bg-muted px-4 py-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3 border-t border-border px-4 pb-4 pt-3 sm:grid-cols-2 xl:grid-cols-4">
       <Field label="Cliente (opcional)" value={session.customerName} placeholder="Nome do cliente" onChange={value => updateSession({ customerName: value })} />
       <Field label="Máquina ou modelo" value={session.machineModel} placeholder="Ex.: 143RII" onChange={value => updateSession({ machineModel: value })} />
       <Field label="PNC" value={session.pnc} placeholder="Ex.: 967 17 65-01" onChange={value => updateSession({ pnc: value })} />
@@ -55,8 +56,8 @@ export default function CounterSessionBar({ onOpenMachine }: Props) {
   // aparecem quando o atendente pede.
   if (!temContexto) {
     return (
-      <section className="overflow-hidden rounded-xl border border-border bg-card">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-1.5">
+      <div>
+        <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-1">
           <Button variant="ghost" onClick={() => setExpanded(value => !value)} aria-expanded={expanded} className="text-primary hover:text-primary dark:text-add">
             <span aria-hidden="true" className="text-xl leading-none">{expanded ? '−' : '+'}</span>
             Máquina, PNC ou cliente
@@ -64,16 +65,23 @@ export default function CounterSessionBar({ onOpenMachine }: Props) {
           {quoteCart.totalItems > 0 && <Button variant="ghost" onClick={endSession} className="hover:text-destructive">Limpar orçamento</Button>}
         </div>
         {expanded && <ContextFields session={session} updateSession={updateSession} />}
-      </section>
+      </div>
     );
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-card">
-      <div className="flex min-h-14 flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2">
+    <div>
+      <div className="flex min-h-12 flex-wrap items-center gap-x-4 gap-y-2 px-4 py-1.5">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-base">
           {session.customerName && <span className="font-semibold">{session.customerName}</span>}
-          {session.machineModel && <span className="rounded-md bg-secondary px-2 py-0.5 font-bold">{session.machineModel}</span>}
+          {session.machineModel && (() => {
+            // "HUSQVARNA Roçadeira Husqvarna 143R II" → "143R II" em destaque e "Roçadeira" ao lado.
+            const label = machineChipLabel(session.machineModel);
+            return <>
+              <span className="rounded-md bg-secondary px-2 py-0.5 font-bold">{label.model}</span>
+              {label.kind && <span className="text-muted-foreground">{label.kind}</span>}
+            </>;
+          })()}
           {session.pnc && <span className="font-code text-muted-foreground tabular-nums">PNC {session.pnc}</span>}
           {session.serial && <span className="font-code text-muted-foreground tabular-nums">S/N {session.serial}</span>}
         </div>
@@ -84,6 +92,6 @@ export default function CounterSessionBar({ onOpenMachine }: Props) {
         </div>
       </div>
       {expanded && <ContextFields session={session} updateSession={updateSession} />}
-    </section>
+    </div>
   );
 }

@@ -82,6 +82,13 @@ function GroupTab({ label, items, section, onSelect }: { label: string; items: N
   );
 }
 
+/** "Matheus Francisco" → "MF"; sem nome cadastrado, as duas primeiras letras do e-mail. */
+function initialsOf(user: SessionUser): string {
+  const words = (user.name ?? '').trim().split(/s+/).filter(Boolean);
+  if (words.length >= 2) return (words[0][0] + words[words.length - 1][0]).toLocaleUpperCase('pt-BR');
+  return (words[0] ?? user.email).slice(0, 2).toLocaleUpperCase('pt-BR');
+}
+
 export default function ShellV2({ user, section, onSection, onLogout, onSearch, children }: Props) {
   const [query, setQuery] = useState('');
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -117,13 +124,10 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
       <a href="#conteudo" className="sr-only z-50 rounded-md bg-primary px-4 py-2 text-base font-semibold text-primary-foreground focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Ir para o conteúdo</a>
       <header className="sticky top-0 z-30 border-b border-black/20 bg-bar text-bar-foreground">
         <div className="mx-auto flex h-14 w-full max-w-[1800px] items-center gap-3 px-3 sm:gap-5 sm:px-5">
-          {/* "Balcão · Peças" e o selo ouro identificam o sistema e a revenda; o atendente
-              usa este app ao lado do Vardão CRM e precisa saber em qual está. */}
+          {/* O atendente usa este app ao lado do Vardão CRM e precisa saber em qual está. */}
           <div className="flex shrink-0 items-center gap-3">
             <img src="/favicon.png" alt="" width={32} height={32} className="size-8 rounded-md bg-white/10 object-cover" />
             <span translate="no" className="hidden text-lg font-bold tracking-tight sm:inline">CogniVault</span>
-            {/* Onde há o campo de busca no cabeçalho, o selo só cabe em tela larga; no Atendimento, que não tem esse campo, ele fica sempre. */}
-            <span className={`hidden rounded-full border border-[#ffc80080] px-2.5 py-0.5 text-sm font-semibold text-[#ffc800] ${isCounter ? 'xl:inline' : '2xl:inline'}`}>Revenda ouro Husqvarna</span>
           </div>
 
           <nav aria-label="Principal" className="hidden h-full md:flex">
@@ -194,12 +198,12 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="bar" size="icon" aria-label="Minha conta" className="rounded-full text-sm font-bold">{user.email.slice(0, 2).toUpperCase()}</Button>
+                <Button variant="bar" size="icon" aria-label="Minha conta" className="rounded-full text-sm font-bold">{initialsOf(user)}</Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
                 <DropdownMenuLabel className="space-y-0.5">
-                  <div className="truncate text-base font-semibold">{user.email}</div>
-                  <div className="text-sm font-normal text-muted-foreground">{isAdmin ? 'Administrador' : 'Balcão'}</div>
+                  <div className="truncate text-base font-semibold">{user.name || user.email}</div>
+                  <div className="truncate text-sm font-normal text-muted-foreground">{user.name ? `${user.email} · ` : ''}{isAdmin ? 'Administrador' : 'Balcão'}</div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={toggleTheme} className="h-10 text-base">
