@@ -307,6 +307,9 @@ Dono: *"pq todas as abas estão em /dashboard… na aba de administração e lá
 - **Links antigos continuam valendo**: `/dashboard?tab=quality`, `?tab=machines&pnc=`, `/husqvarna` são traduzidos na abertura. Quem é do Balcão e abre
   endereço de Administração cai no Atendimento. Roteiro: `docs/loja-simulada/rotas-completo.mjs`.
 
+- **Toda tela (menos o Atendimento) usa `components/PageFrame.tsx`**: largura 1400, margem e cabeçalho (título, contagem/data, ação principal) iguais.
+  Antes a margem esquerda ia de 20 a 46 px e Usuários encolhia ao tamanho do conteúdo (`mx-auto` sem `w-full` dentro de coluna flex). Tela nova entra nessa moldura; não crie outra.
+
 ## Atendimento e máquinas são UMA tela (a aba Máquinas não existe mais)
 
 Até 2026-09-19 havia duas abas para a mesma pergunta do balcão, e o dono disse

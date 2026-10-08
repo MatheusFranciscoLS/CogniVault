@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PageFrame from './PageFrame';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, Copy, ExternalLink, Search } from 'lucide-react';
 import { toast } from 'sonner';
@@ -138,14 +139,11 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
   };
 
   return (
-    <section className="mx-auto w-full max-w-[1400px] space-y-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight">Catálogos</h1>
-        <div className="flex items-center gap-4">
-          <p className="text-base text-muted-foreground tabular-nums">{filtered.length} {filtered.length === 1 ? 'catálogo' : 'catálogos'}</p>
-          {admin && <Button type="button" variant="outline" size="sm" onClick={() => setManagementOpen(true)}>Gerenciar biblioteca</Button>}
-        </div>
-      </div>
+    <PageFrame
+      title="Catálogos"
+      meta={`${filtered.length} ${filtered.length === 1 ? 'catálogo' : 'catálogos'}`}
+      action={admin ? <Button type="button" variant="outline" size="sm" onClick={() => setManagementOpen(true)}>Gerenciar biblioteca</Button> : undefined}
+    >
 
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 md:flex-row md:items-center">
         <div className="relative min-w-0 flex-1">
@@ -260,6 +258,6 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
           {pdf && <iframe title={pdf.title} src={pdf.url} className="min-h-0 w-full flex-1 border-0 bg-white" />}
         </SheetContent>
       </Sheet>
-    </section>
+    </PageFrame>
   );
 }

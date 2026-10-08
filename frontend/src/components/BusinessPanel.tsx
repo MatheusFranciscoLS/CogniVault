@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import PageFrame from './PageFrame';
 import { toast } from 'sonner';
 import { apiJson, formatHusqvarnaPartNumber } from '../lib';
 import type { BusinessBucketGranularity, BusinessInsights } from '../types';
@@ -264,8 +265,7 @@ export default function BusinessPanel() {
     : undefined;
 
   return (
-    <section className="mx-auto max-w-[1400px] space-y-4">
-      <h1 className="text-3xl font-semibold leading-9">Negócio</h1>
+    <PageFrame title="Negócio">
 
       <div className="flex flex-col gap-3 rounded-card border border-ink-200 bg-white p-3 shadow-card dark:border-ink-800 dark:bg-ink-850 tablet:flex-row tablet:items-end tablet:justify-between">
         <div className="flex flex-wrap items-end gap-2">
@@ -506,6 +506,6 @@ export default function BusinessPanel() {
           </div>
         </>
       ) : null}
-    </section>
+    </PageFrame>
   );
 }
