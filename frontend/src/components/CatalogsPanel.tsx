@@ -346,7 +346,13 @@ export default function CatalogsPanel({
   });
 
   const docs = useMemo(() => data?.documents || [], [data?.documents]);
-  const categories = useMemo(() => data?.categories || [], [data?.categories]);
+  // A seção guardada no catálogo pode não estar na lista oficial (nome antigo). Sem juntar, o seletor da linha mostrava a primeira opção
+  // no lugar do valor verdadeiro e a seção sumia dos filtros.
+  const categories = useMemo(() => {
+    const official = data?.categories || [];
+    const extra = [...new Set((data?.documents || []).map(document => document.category).filter(category => category && !official.includes(category)))].sort((x, y) => x.localeCompare(y));
+    return [...official, ...extra];
+  }, [data?.categories, data?.documents]);
 
   const error = actionError || (loadError instanceof Error ? loadError.message : loadError ? 'Erro ao carregar catálogos.' : '');
   const setError = setActionError;
