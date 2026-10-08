@@ -68,15 +68,15 @@ export default function PartGuesses({
         </span>
       </div>
 
-      <div className="divide-y divide-ink-100 dark:divide-ink-800">
+      <div className="divide-y divide-border">
         {guesses.map(guess => (
           <button
             key={guess.id}
             type="button"
             onClick={() => onOpenPart(guess.partNumber)}
-            className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-left transition hover:bg-ink-50 dark:hover:bg-ink-800/60"
+            className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-left transition hover:bg-accent/60"
           >
-            <span className="shrink-0 font-mono text-sm font-black text-ink-900 dark:text-brand-300">
+            <span className="shrink-0 font-mono text-sm font-black text-foreground">
               {guess.partNumber}
             </span>
             <span className="min-w-36 flex-1 truncate text-xs font-bold text-foreground">

@@ -278,18 +278,18 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
 
     {data && <>
       {/* NAVEGAÇÃO DE ABAS */}
-      <div role="tablist" aria-label="Seções da Qualidade" className="mb-6 flex space-x-1 rounded-xl bg-ink-200/50 dark:bg-ink-800/50 p-1">
+      <div role="tablist" aria-label="Seções da Qualidade" className="mb-6 flex space-x-1 rounded-xl bg-muted p-1">
         <button
           type="button" role="tab" aria-selected={activeTab === 'geral'}
           onClick={() => setActiveTab('geral')}
-          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/60 ${activeTab === 'geral' ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-white shadow-sm' : 'text-muted-foreground hover:text-ink-900 dark:hover:text-ink-200 hover:bg-white/50 dark:hover:bg-ink-700/50'}`}
+          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/60 ${activeTab === 'geral' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-card/60'}`}
         >
           Visão Geral
         </button>
         <button
           type="button" role="tab" aria-selected={activeTab === 'acao'}
           onClick={() => setActiveTab('acao')}
-          className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/60 ${activeTab === 'acao' ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-white shadow-sm' : 'text-muted-foreground hover:text-ink-900 dark:hover:text-ink-200 hover:bg-white/50 dark:hover:bg-ink-700/50'}`}
+          className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/60 ${activeTab === 'acao' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-card/60'}`}
         >
           Fila de Ação
           {(data.summary.needsReview > 0 || data.searchRadar.length > 0 || data.officialVerification.pending > 0) && (
@@ -301,7 +301,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
         <button
           type="button" role="tab" aria-selected={activeTab === 'tecnico'}
           onClick={() => setActiveTab('tecnico')}
-          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/60 ${activeTab === 'tecnico' ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-white shadow-sm' : 'text-muted-foreground hover:text-ink-900 dark:hover:text-ink-200 hover:bg-white/50 dark:hover:bg-ink-700/50'}`}
+          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/60 ${activeTab === 'tecnico' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-card/60'}`}
         >
           Técnico & IA
         </button>
@@ -390,13 +390,13 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
             </div>
             {!filteredQueue.length
               ? <div className="p-10 text-center"><div className="font-semibold text-ok">Nenhuma pendência neste filtro</div><p className="mt-1 text-sm text-muted-foreground">A base continua disponível para o balcão.</p></div>
-              : <div className="divide-y divide-ink-100 dark:divide-ink-800">{filteredQueue.map(catalog => <div key={catalog.id} className="p-5 hover:bg-ink-50/50 dark:hover:bg-ink-800/30 transition-colors">
+              : <div className="divide-y divide-border">{filteredQueue.map(catalog => <div key={catalog.id} className="p-5 hover:bg-accent/50 transition-colors">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <b className="text-sm text-foreground">{catalog.filename}</b>
                       <span className={`rounded-full border px-2 py-1 text-sm font-semibold ${healthTone(catalog.healthScore)}`}>{catalog.healthScore}/100</span>
-                      <span className="rounded-full bg-ink-100 dark:bg-ink-700 px-2 py-1 text-sm font-semibold text-muted-foreground">{reviewLabel(catalog.reviewStatus)}</span>
+                      <span className="rounded-full bg-muted px-2 py-1 text-sm font-semibold text-muted-foreground">{reviewLabel(catalog.reviewStatus)}</span>
                     </div>
                     <div className="mt-1 text-sm text-muted-foreground">Modelo: {catalog.model || 'não confirmado'} · PNC: {catalog.pnc || 'não impresso/confirmado'} · {extractionLabel(catalog.extractionMethod)}</div>
                     {catalog.suggestedModel && <div className="mt-3 inline-flex rounded-xl border border-brand-200 dark:border-brand-800 bg-brand-50 dark:bg-brand-900/30 px-3 py-2 text-sm font-semibold text-brand-800 dark:text-brand-300">Modelo sugerido pelo arquivo: {catalog.suggestedModel}</div>}
@@ -423,7 +423,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
                     <input className="h-10 rounded-md border border-input bg-card px-3 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/60 text-sm" value={draft.model} onChange={event => setDraft({ ...draft, model: event.target.value })} placeholder="Modelo (ex.: 143RII)" />
                     <input className="h-10 rounded-md border border-input bg-card px-3 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/60 text-sm" value={draft.pnc} onChange={event => setDraft({ ...draft, pnc: event.target.value })} placeholder="PNC opcional" inputMode="numeric" />
                     <button type="button" disabled={busyId === catalog.id} onClick={() => void saveMetadata(catalog)} className="inline-flex items-center justify-center gap-2 rounded-md bg-primary font-semibold text-primary-foreground outline-none transition-colors hover:bg-primary-hover focus-visible:ring-3 focus-visible:ring-ring/60 disabled:opacity-60 px-3 py-2 text-sm font-semibold">Salvar e reextrair</button>
-                    <button type="button" onClick={() => setEditing(null)} className="px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-ink-900 dark:hover:text-ink-200">Cancelar</button>
+                    <button type="button" onClick={() => setEditing(null)} className="px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground">Cancelar</button>
                   </div>
                 </div>}
               </div>)}</div>}
@@ -443,7 +443,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
                       type="button"
                       disabled={resolvingRadar}
                       onClick={() => void clearAllRadar()}
-                      className="rounded-xl border border-border bg-card px-3 py-1.5 text-sm font-semibold text-muted-foreground hover:bg-ink-100 dark:hover:bg-ink-700 transition disabled:opacity-50"
+                      className="rounded-xl border border-border bg-card px-3 py-1.5 text-sm font-semibold text-muted-foreground hover:bg-accent transition disabled:opacity-50"
                     >
                       {resolvingRadar ? 'Limpando…' : 'Limpar todas'}
                     </button>
@@ -451,7 +451,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
                 </div>
               </div>
             </div>
-            {!data.searchRadar.length ? <div className="p-8 text-center text-sm text-ok">Nenhuma consulta recorrente permanece sem solução.</div> : <div className="divide-y divide-ink-100 dark:divide-ink-800">{data.searchRadar.map(item => <div key={`${item.query}|${item.pnc || ''}`} className="flex flex-wrap items-center justify-between gap-4 p-5 hover:bg-ink-50/50 dark:hover:bg-ink-800/30 transition-colors">
+            {!data.searchRadar.length ? <div className="p-8 text-center text-sm text-ok">Nenhuma consulta recorrente permanece sem solução.</div> : <div className="divide-y divide-border">{data.searchRadar.map(item => <div key={`${item.query}|${item.pnc || ''}`} className="flex flex-wrap items-center justify-between gap-4 p-5 hover:bg-accent/50 transition-colors">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <b className="text-sm text-foreground">{item.query}</b>
@@ -466,7 +466,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
                   type="button"
                   disabled={resolvingRadar}
                   onClick={() => void dismissRadarItem(item)}
-                  className="rounded-xl border border-border bg-card px-3 py-2 text-sm font-semibold text-ink-500 hover:text-ink-800 dark:hover:text-ink-200 hover:bg-ink-50 dark:hover:bg-ink-700 transition disabled:opacity-50"
+                  className="rounded-xl border border-border bg-card px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition disabled:opacity-50"
                 >
                   Dispensar
                 </button>
@@ -496,11 +496,11 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
               </div>
 
               {data.runtime.extraction.rejectedParts > 0 && (
-                <div className="mt-4 rounded-xl border border-gold-500/40 bg-gold-100 p-3 dark:bg-gold-500/10">
-                  <div className="text-sm font-bold text-gold-800 dark:text-gold-300">
+                <div className="mt-4 rounded-xl border border-warn/40 bg-warn-soft p-3">
+                  <div className="text-sm font-bold text-warn">
                     Códigos barrados na gravação
                   </div>
-                  <p className="mt-1 text-sm leading-4 text-gold-800 dark:text-gold-300">
+                  <p className="mt-1 text-sm leading-4 text-warn">
                     <strong className="tabular-nums">{data.runtime.extraction.rejectedParts}</strong> linha(s) em{' '}
                     <strong className="tabular-nums">{data.runtime.extraction.catalogsWithRejectedParts}</strong> catálogo(s)
                     tinham código implausível — tipicamente a posição ou a quantidade lida como código — e não entraram na

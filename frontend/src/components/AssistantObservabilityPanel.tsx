@@ -185,7 +185,7 @@ export default function AssistantObservabilityPanel() {
           {!data.actions.length ? (
             <div className="rounded-lg bg-muted px-3 py-3 text-sm text-muted-foreground">Nenhuma chamada de IA hoje.</div>
           ) : (
-            <div className="divide-y divide-ink-100 rounded-lg border border-border dark:divide-ink-800">
+            <div className="divide-y divide-border rounded-lg border border-border">
               {data.actions.slice(0, 5).map(action => (
                 <div key={action.action} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-3 py-2.5 text-sm">
                   <span className="font-semibold capitalize text-foreground">{metricLabel(action.action)}</span>

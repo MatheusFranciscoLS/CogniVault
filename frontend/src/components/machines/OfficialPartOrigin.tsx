@@ -78,7 +78,7 @@ export default function OfficialPartOrigin({
         <span className="text-[11px] font-bold text-foreground">{primeiro.name}</span>
       </div>
 
-      <div className="divide-y divide-ink-100 dark:divide-ink-800">
+      <div className="divide-y divide-border">
         {precoDegradado ? (
           <div role="status" className="border-b border-warn/40 bg-warn-soft px-4 py-2 text-[11px] font-semibold text-warn">
             Preços da loja temporariamente indisponíveis. Confirme o valor antes de fechar.
