@@ -46,6 +46,8 @@ async function get(url: string, init: RequestInit = {}): Promise<Response> {
   try {
     const response = await fetch(url, { ...init, signal: controller.signal, headers: { 'User-Agent': UA, 'Accept-Language': 'en-US,en;q=0.9', ...(init.headers ?? {}) } });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    // A trava anti-robô da Kohler responde com a página de verificação (200). Isso NÃO é "o formato mudou" e não pode abrir issue: é fora do ar.
+    if (/validaterecaptcha/i.test(response.url)) throw new Error('trava anti-robô (reCAPTCHA) do fornecedor');
     return response;
   } finally {
     clearTimeout(timer);

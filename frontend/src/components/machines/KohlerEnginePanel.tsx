@@ -32,6 +32,7 @@ type KohlerGroupDetail = {
   hotspots: Array<{ position: string; left: number; top: number }>;
   referenceWidth: number | null;
   referenceHeight: number | null;
+  unavailable?: 'CAPTCHA' | 'ERRO';
 };
 type KohlerCatalog = {
   spec: string;
@@ -39,6 +40,7 @@ type KohlerCatalog = {
   groups: KohlerGroup[];
   catalogUrl: string;
   lookupUrl: string;
+  unavailable?: 'CAPTCHA' | 'ERRO';
 };
 
 /**
@@ -50,6 +52,24 @@ type KohlerCatalog = {
  * O que a Kohler dá a mais: a substituição de código. A linha diz o que o código substitui e, quando foi trocado, por qual. Código
  * descontinuado ("DISC.") não vira sugestão de pedido.
  */
+/**
+ * A Kohler tem trava anti-robô e às vezes não responde. Isso NÃO é falta de catálogo: o atendente precisa saber que vale tentar de novo, e ter
+ * o catálogo oficial à mão (a verificação, quando pedida, é feita por ele no navegador, nunca por nós).
+ */
+function UnavailableNotice({ reason, officialUrl, onRetry, retrying }: { reason: 'CAPTCHA' | 'ERRO'; officialUrl: string; onRetry: () => void; retrying: boolean }) {
+  return (
+    <div role="alert" className="space-y-2 rounded-md border border-warn bg-warn-soft px-4 py-3 text-base text-warn">
+      <p>{reason === 'CAPTCHA'
+        ? 'A Kohler pediu uma verificação anti-robô e o catálogo não pôde ser lido agora. Abra o catálogo oficial no navegador (a verificação é feita lá) ou tente de novo em alguns minutos.'
+        : 'A Kohler não respondeu agora. Tente de novo em instantes ou abra o catálogo oficial.'}</p>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" disabled={retrying} onClick={onRetry}>{retrying ? 'Tentando…' : 'Tentar de novo'}</Button>
+        <Button asChild variant="outline"><a href={officialUrl} target="_blank" rel="noreferrer noopener">Abrir o catálogo oficial<ExternalLink className="size-4" aria-hidden="true" /></a></Button>
+      </div>
+    </div>
+  );
+}
+
 /** Grupo das peças que giram rápido (filtros, velas, correias): o que o balcão vende na manutenção do motor. */
 const isKohlerMaintenanceGroup = (name: string) => /maintenance|fast moving/i.test(name);
 
@@ -71,7 +91,8 @@ export default function KohlerEnginePanel({
   const catalogQuery = useQuery({
     queryKey: ['kohler-engine', model],
     enabled: Boolean(model),
-    staleTime: 10 * 60 * 1000,
+    // Indisponível (captcha, erro) não fica guardado: a próxima abertura tenta de novo.
+    staleTime: query => (query.state.data?.unavailable ? 0 : 10 * 60 * 1000),
     queryFn: async () => {
       const data = await apiJson<{ kohler: KohlerCatalog }>(`/api/kohler/engine?model=${encodeURIComponent(model)}`, { timeoutMs: 30_000 });
       return data.kohler ?? null;
@@ -89,7 +110,7 @@ export default function KohlerEnginePanel({
   const groupQuery = useQuery({
     queryKey: ['kohler-group', spec, openSection],
     enabled: Boolean(openSection) && Boolean(catalog?.description),
-    staleTime: 10 * 60 * 1000,
+    staleTime: query => (query.state.data?.unavailable ? 0 : 10 * 60 * 1000),
     queryFn: async () => {
       const data = await apiJson<{ group: KohlerGroupDetail | null }>(
         `/api/kohler/group?model=${encodeURIComponent(spec)}&section=${encodeURIComponent(openSection as string)}`,
@@ -139,7 +160,13 @@ export default function KohlerEnginePanel({
         </Button>
       </div>
 
-      {!catalog.description && (
+      {catalog.unavailable && (
+        <div className="px-5 py-4">
+          <UnavailableNotice reason={catalog.unavailable} officialUrl={catalog.catalogUrl} onRetry={() => void catalogQuery.refetch()} retrying={catalogQuery.isFetching} />
+        </div>
+      )}
+
+      {!catalog.description && !catalog.unavailable && (
         <p className="px-5 py-4 text-base text-muted-foreground">Sem catálogo para este spec. Confira a série e o spec na plaqueta do motor.</p>
       )}
 
@@ -178,6 +205,10 @@ export default function KohlerEnginePanel({
 
           {groupQuery.isLoading && <p aria-busy="true" className="py-4 text-base text-muted-foreground">Lendo o desenho e as peças deste grupo…</p>}
 
+          {detail?.unavailable && (
+            <UnavailableNotice reason={detail.unavailable} officialUrl={`${catalog.catalogUrl}&SectionId=${encodeURIComponent(openGroup.sectionId)}&GroupCode=${encodeURIComponent(openGroup.groupCode)}`} onRetry={() => void groupQuery.refetch()} retrying={groupQuery.isFetching} />
+          )}
+
           {detail?.imageUrl && (
             detail.referenceWidth && detail.referenceHeight ? (
               <ExplodedView
@@ -214,7 +245,7 @@ export default function KohlerEnginePanel({
             )
           )}
 
-          {!groupQuery.isLoading && !parts.length && <p className="text-base text-muted-foreground">Sem peças neste grupo. Leia o código na vista explodida.</p>}
+          {!groupQuery.isLoading && !parts.length && !detail?.unavailable && <p className="text-base text-muted-foreground">Sem peças neste grupo. Leia o código na vista explodida.</p>}
 
           {parts.length > 6 && (
             <Input value={filtro} onChange={event => setFiltro(event.target.value)} placeholder="Filtrar por código ou nome" aria-label="Filtrar peças do grupo" className="h-10 w-64" />

@@ -960,6 +960,10 @@ ligar o motor ao trator, ao giro zero e à máquina, **mostrando a vista explodi
 - **Peças de manutenção do motor** (botão no cartão): Kohler tem o grupo "Maintenance-Fast Moving Parts" e a Kawasaki o conjunto "*MAINTENANCE PARTS"; o painel abre direto nele e põe o
   grupo de manutenção primeiro na lista (`autoOpen="maintenance"`, valor derivado, sem efeito: o lint barra `setState` em efeito). **Índice "peça -> motor" da Kohler**: cada grupo lido grava em
   `OfficialPartIndex` com `source = 'KOHLER'` (a coluna é texto livre, sem migração), e o código digitado mostra de qual motor Kohler ele é, como já era com Briggs e Kawasaki.
+- **A Kohler tem trava anti-robô (reCAPTCHA), medido em 2026-10-08.** Depois de uns 6 grupos lidos em sequência ela responde 302 para `home/validaterecaptcha`; a janela passa em poucos minutos. **Não se contorna**
+  (é verificação de segurança do fornecedor). O serviço lê com `redirect: 'manual'` para VER o redirect, trata como `unavailable: 'CAPTCHA'` (e erro 5xx/rede como `'ERRO'`), **nunca grava isso no cache de 7 dias**
+  (senão um bloqueio vira "sem catálogo" por uma semana), para de insistir por 5 minutos e a tela mostra o aviso com "Tentar de novo" e o link do catálogo oficial. **Não leia vários grupos em sequência de
+  propósito** (eu mesmo disparei a trava ao varrer os 18 grupos de uma vez). O desenho (SVG) bloqueado derruba o grupo inteiro: meia vista guardada seria pior que nenhuma. O vigia trata a página de verificação como "fora do ar", nunca "mudou".
 - **Vigia dos fornecedores** (`.github/workflows/supplier-canary.yml`, `scripts/canary-suppliers.ts`): toda segunda e sob demanda, abre UM motor conhecido da Kohler, Briggs, Kawasaki e o site
   público da Husqvarna (345BT) e confere que a leitura ainda devolve o de sempre. **Sem banco e sem segredo** (só funções puras e rede). Saída 1 = formato MUDOU (abre/comenta issue com o label
   `vigia-fornecedores`); 2 = só fora do ar (aviso, sem issue); 3 tentativas antes de desistir. Existe porque a leitura da Kohler é regex em HTML e quebraria em silêncio. Provado por mordida em

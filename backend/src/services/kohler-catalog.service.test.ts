@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, it, mock } from 'node:test';
-import { KohlerCatalogService } from './kohler-catalog.service';
+import { KohlerCatalogService, resetKohlerBlockForTests } from './kohler-catalog.service';
 import { OfficialSourceCacheService } from './official-source-cache.service';
 import { OfficialPartIndexService } from './official-part-index.service';
 
@@ -22,7 +22,10 @@ function bypassCache() {
 }
 
 describe('catálogo Kohler: serviço', () => {
-  afterEach(() => mock.restoreAll());
+  afterEach(() => {
+    mock.restoreAll();
+    resetKohlerBlockForTests();
+  });
 
   it('spec inválido nunca chega à rede (o spec entra na URL)', async () => {
     const fetchSpy = mock.method(globalThis, 'fetch', async () => { throw new Error('não deveria chamar a rede'); });
@@ -83,5 +86,67 @@ describe('catálogo Kohler: serviço', () => {
     const group = await KohlerCatalogService.group('ZZ100-0001', '101');
     assert.equal(group?.imageUrl, null);
     assert.equal(fetchSpy.mock.callCount(), 1, 'só a página da Kohler foi buscada');
+  });
+
+  // A Kohler tem trava anti-robô: 302 para validaterecaptcha depois de poucas leituras seguidas (medido). Nunca é "sem catálogo", nunca vai
+  // para o cache de 7 dias, e o sistema não insiste.
+  const captcha = () => new Response(null, { status: 302, headers: { location: '/customer/servicepartscatalogue/home/validaterecaptcha?OriginalActionUrl=%2Fx' } });
+
+  it('trava anti-robô: o motor volta como INDISPONÍVEL (CAPTCHA), com o link oficial, e não como "sem catálogo"', async () => {
+    bypassCache();
+    mock.method(globalThis, 'fetch', async () => captcha());
+    const catalog = await KohlerCatalogService.forSpec('ZZ100-0001');
+    assert.equal(catalog.unavailable, 'CAPTCHA');
+    assert.equal(catalog.description, null);
+    assert.equal(new URL(catalog.catalogUrl).hostname, 'partnersportal.kohlerpower.it');
+  });
+
+  it('trava anti-robô: o servidor para de insistir por um tempo (um pedido só, o resto nem sai)', async () => {
+    bypassCache();
+    const fetchSpy = mock.method(globalThis, 'fetch', async () => captcha());
+    await KohlerCatalogService.forSpec('ZZ100-0001');
+    await KohlerCatalogService.forSpec('ZZ100-0001');
+    const group = await KohlerCatalogService.group('ZZ100-0001', '102');
+    assert.equal(fetchSpy.mock.callCount(), 1, 'depois do bloqueio nenhuma consulta nova vai à Kohler');
+    assert.equal(group?.unavailable, 'CAPTCHA');
+    assert.deepEqual(group?.parts, []);
+  });
+
+  it('trava anti-robô no grupo: nada é indexado nem guardado', async () => {
+    bypassCache();
+    mock.method(globalThis, 'fetch', async () => captcha());
+    const record = mock.method(OfficialPartIndexService, 'record', async () => undefined);
+    const group = await KohlerCatalogService.group('ZZ100-0001', '101');
+    assert.equal(group?.unavailable, 'CAPTCHA');
+    assert.equal(record.mock.callCount(), 0);
+  });
+
+  it('o desenho bloqueado derruba o grupo inteiro: meia vista guardada por 7 dias seria pior que nenhuma', async () => {
+    bypassCache();
+    mock.method(globalThis, 'fetch', async (input: unknown) => (String(input).endsWith('.svg') ? captcha() : new Response(PAGE, { status: 200 })));
+    const record = mock.method(OfficialPartIndexService, 'record', async () => undefined);
+    const group = await KohlerCatalogService.group('ZZ100-0001', '101');
+    assert.equal(group?.unavailable, 'CAPTCHA');
+    assert.equal(record.mock.callCount(), 0);
+  });
+
+  it('erro 503 da Kohler é INDISPONÍVEL (ERRO), não "sem catálogo", e não aciona o freio do captcha', async () => {
+    bypassCache();
+    const fetchSpy = mock.method(globalThis, 'fetch', async () => new Response('fora', { status: 503 }));
+    const catalog = await KohlerCatalogService.forSpec('ZZ100-0001');
+    assert.equal(catalog.unavailable, 'ERRO');
+    assert.equal(fetchSpy.mock.callCount(), 1, 'sem segunda tentativa escondida atrás do cache');
+    mock.restoreAll();
+    bypassCache();
+    mock.method(globalThis, 'fetch', async () => new Response(PAGE, { status: 200 }));
+    assert.equal((await KohlerCatalogService.forSpec('ZZ100-0001')).description, 'ZZ100 - Motor de Teste', 'depois do erro a próxima consulta funciona');
+  });
+
+  it('redirect que não é o captcha (spec desconhecido volta para a busca) continua sendo "sem catálogo"', async () => {
+    bypassCache();
+    mock.method(globalThis, 'fetch', async () => new Response(null, { status: 302, headers: { location: '/customer/servicepartscatalogue/' } }));
+    const catalog = await KohlerCatalogService.forSpec('ZZ100-0001');
+    assert.equal(catalog.unavailable, undefined);
+    assert.equal(catalog.description, null);
   });
 });
