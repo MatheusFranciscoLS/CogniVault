@@ -1,0 +1,85 @@
+name: Supplier Canary
+
+# Vigia dos fornecedores (Kohler, Briggs, Kawasaki e o site público da Husqvarna).
+# Abre UM motor conhecido de cada um e confere que a leitura do catálogo ainda devolve o que sempre devolveu. Sem banco e sem segredo.
+#   exit 0: tudo certo.
+#   exit 1: um formato MUDOU -> abre (ou comenta) uma issue e o job fica vermelho.
+#   exit 2: só indisponibilidade de rede/servidor -> aviso, sem issue (não é defeito nosso).
+# Roda toda segunda de manhã (horário de Brasília) e quando alguém pedir. Custo zero: repositório público, minutos ilimitados.
+
+on:
+  schedule:
+    - cron: '17 11 * * 1'
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/supplier-canary.yml'
+      - 'backend/src/scripts/canary-suppliers.ts'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: cognivault-supplier-canary
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run supplier canary
+        id: canary
+        run: |
+          set +e
+          npx tsx src/scripts/canary-suppliers.ts 2>&1 | tee canary.txt
+          code=${PIPESTATUS[0]}
+          set -e
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          {
+            echo '### Vigia dos fornecedores'
+            echo '```'
+            cat canary.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" = "2" ]; then
+            echo "::warning::Algum fornecedor ficou fora do ar durante a checagem. Nenhum formato mudou; confira de novo na próxima rodada."
+          fi
+
+      - name: Open or update the issue when a format changed
+        if: steps.canary.outputs.code == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create vigia-fornecedores --color B60205 --description "Um fornecedor mudou o formato do catálogo" 2>/dev/null || true
+          body=$(printf 'O vigia semanal detectou que o formato de um fornecedor mudou. A leitura do catálogo precisa de ajuste antes que o balcão veja "sem catálogo" ou uma lista incompleta.\n\n```\n%s\n```\n\nRodada: %s/%s/actions/runs/%s\n' "$(cat canary.txt)" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")
+          existing=$(gh issue list --label vigia-fornecedores --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "Vigia dos fornecedores: um formato mudou" --label vigia-fornecedores --body "$body"
+          fi
+
+      - name: Fail the job when a format changed
+        if: steps.canary.outputs.code == '1'
+        run: exit 1

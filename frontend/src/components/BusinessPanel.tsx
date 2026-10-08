@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { apiJson, formatHusqvarnaPartNumber } from '../lib';
 import type { BusinessBucketGranularity, BusinessInsights } from '../types';
 import { Icon, type IconName } from './icons/Icon';
+import EnginePartsWithoutPrice from './EnginePartsWithoutPrice';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -468,6 +469,8 @@ export default function BusinessPanel() {
               )}
             </div>
           </div>
+
+          <EnginePartsWithoutPrice />
 
           <div className="overflow-hidden rounded-card border border-border bg-card">
             <div className="border-b border-border px-4 py-3">
