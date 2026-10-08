@@ -96,7 +96,7 @@ export default function MachineDetail({
   return (
     <div className="space-y-5">
       <OfficialDocumentShortcuts documents={machine.documents ?? []} />
-      {kitModel && <MachineEnginePanel model={kitModel} pnc={machine.pnc ?? pnc} onSearchPart={onOpenPart} />}
+      {kitModel && <MachineEnginePanel model={kitModel} pnc={machine.pnc ?? pnc} category={machine.categoryName ?? null} onSearchPart={onOpenPart} />}
       <OfficialHusqvarnaPanel
         key={machine.pnc || machine.query}
         result={machine}
