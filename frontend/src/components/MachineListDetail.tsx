@@ -5,7 +5,7 @@ import { useQuoteCart } from '../context/QuoteCartContext';
 import { useMachineList } from '../lib/use-machine-list';
 import { useMachinePortal, type MachinePortalData } from '../lib/use-machine-portal';
 import { buildMachineSheetMessage, machineFacts, machineSheetFileName } from '../lib/machine-sheet';
-import { portalPnc, type ListedMachine } from '../lib/machine-list';
+import { machinePhotoUrl, portalPnc, type ListedMachine } from '../lib/machine-list';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
@@ -183,6 +183,16 @@ export default function MachineListDetail({
         </header>
 
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-6">
+          {machine.hasPhoto && (
+            <img
+              src={machinePhotoUrl(machine.pnc)}
+              alt={`Foto da ${machine.model}`}
+              width={512}
+              height={288}
+              decoding="async"
+              className="mx-auto h-56 w-full rounded-xl border border-border bg-white object-contain"
+            />
+          )}
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2"><MachineBadges machine={machine} /></div>
@@ -194,8 +204,8 @@ export default function MachineListDetail({
             </div>
           </div>
 
-          <div className="flex gap-2">
-            <Button size="lg" className="flex-1" onClick={() => onOpenMachine(portalPnc(machine.pnc))}>
+          <div className="grid grid-cols-2 gap-2">
+            <Button size="lg" className="col-span-2" onClick={() => onOpenMachine(portalPnc(machine.pnc))}>
               <Layers className="size-5" aria-hidden="true" /> Abrir vista explodida
             </Button>
             <Button size="lg" variant="outline" onClick={() => setQuoting(true)}>

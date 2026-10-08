@@ -8,6 +8,7 @@ import {
   categoryLabel,
   countNews,
   facetCounts,
+  machinePhotoUrl,
   matchesFilters,
   priceChange,
   sortMachines,
@@ -210,13 +211,19 @@ export default function MachineListPanel({ onOpenMachine }: { onOpenMachine: (pn
                             <button
                               type="button"
                               onClick={event => { event.stopPropagation(); setSelected(machine); }}
-                              className="block w-full rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/60"
+                              className="flex w-full items-center gap-3 rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/60"
                             >
-                              <span className="flex flex-wrap items-center gap-2">
-                                <span className="text-lg font-semibold text-foreground">{machine.model}</span>
-                                <MachineBadges machine={machine} />
+                              {/* A foto vem do banco da loja (uma por máquina da lista); só as linhas à vista são baixadas. */}
+                              {machine.hasPhoto
+                                ? <img src={machinePhotoUrl(machine.pnc)} alt="" width={56} height={56} loading="lazy" decoding="async" className="size-14 shrink-0 rounded-md border border-border bg-white object-contain" />
+                                : <span aria-hidden="true" className="size-14 shrink-0 rounded-md bg-muted" />}
+                              <span className="min-w-0">
+                                <span className="flex flex-wrap items-center gap-2">
+                                  <span className="text-lg font-semibold text-foreground">{machine.model}</span>
+                                  <MachineBadges machine={machine} />
+                                </span>
+                                <span className="block text-base text-muted-foreground">{machine.description}</span>
                               </span>
-                              <span className="block text-base text-muted-foreground">{machine.description}</span>
                             </button>
                           </td>
                           <td className="px-4 py-2.5 font-code tabular-nums text-muted-foreground" translate="no">{machine.pnc}</td>
