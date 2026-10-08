@@ -964,6 +964,14 @@ ligar o motor ao trator, ao giro zero e à máquina, **mostrando a vista explodi
   (é verificação de segurança do fornecedor). O serviço lê com `redirect: 'manual'` para VER o redirect, trata como `unavailable: 'CAPTCHA'` (e erro 5xx/rede como `'ERRO'`), **nunca grava isso no cache de 7 dias**
   (senão um bloqueio vira "sem catálogo" por uma semana), para de insistir por 5 minutos e a tela mostra o aviso com "Tentar de novo" e o link do catálogo oficial. **Não leia vários grupos em sequência de
   propósito** (eu mesmo disparei a trava ao varrer os 18 grupos de uma vez). O desenho (SVG) bloqueado derruba o grupo inteiro: meia vista guardada seria pior que nenhuma. O vigia trata a página de verificação como "fora do ar", nunca "mudou".
+- **O service worker (PWA) NÃO pode responder navegação para `/api`** (2026-10-08, achado do dono em produção): o Workbox responde toda navegação com o `index.html`, então um link que abre em nova aba (o PDF da
+  Briggs, `/api/briggs/parts-manuals/open`) abria o arquivo e a aba "voltava" para `/atendimento`. **Só existe no build de produção** (o servidor de desenvolvimento não tem service worker, e por isso eu não
+  reproduzia). Corrigido com `navigateFallbackDenylist: [/^\/api\//, /^\/health/]` em `vite.config.ts`. Para testar mudança em rota que abre em nova aba: `npm run build`, `vite preview --port 5173` e
+  `docs/loja-simulada/sw-api-navegacao.mjs` (provado: antes 5/7, depois 7/7). Quem já usa o app pega o service worker novo no próximo carregamento (`autoUpdate`).
+- **Catálogos do balcão não lista PDF de motor de terceiro** (Briggs, Kawasaki, Kohler; `isThirdPartyEngineCatalog` em `CatalogsWorkspace`). Dono: "faz sentido esse catálogo estar aí em PDF se pode ser
+  procurado normalmente?". O Atendimento abre o catálogo oficial do motor (vista explodida, código, preço, "+ Orçamento"); os botões antigos levavam a sites externos ou à rota de PDF. A busca por um motor na
+  tela de Catálogos mostra o atalho "Motor com catálogo no Atendimento". **Nada foi apagado**: o PDF e as peças lidas continuam na Biblioteca (Gerenciar) e na busca; quem quiser tirar de vez arquiva ou exclui por lá.
+  Roteiro `catalogos-motores.mjs` (cria 3 documentos de teste só na simulação e apaga).
 - **Vigia dos fornecedores** (`.github/workflows/supplier-canary.yml`, `scripts/canary-suppliers.ts`): toda segunda e sob demanda, abre UM motor conhecido da Kohler, Briggs, Kawasaki e o site
   público da Husqvarna (345BT) e confere que a leitura ainda devolve o de sempre. **Sem banco e sem segredo** (só funções puras e rede). Saída 1 = formato MUDOU (abre/comenta issue com o label
   `vigia-fornecedores`); 2 = só fora do ar (aviso, sem issue); 3 tentativas antes de desistir. Existe porque a leitura da Kohler é regex em HTML e quebraria em silêncio. Provado por mordida em
