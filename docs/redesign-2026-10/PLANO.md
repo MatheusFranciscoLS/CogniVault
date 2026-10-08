@@ -258,3 +258,9 @@ Todas com texto de 9 a 12 px e frases que explicam o sistema; nenhuma tem erro n
 - `verify:production-origin` quebra no Windows (caminho `C:\C:\`): só roda no Linux do CI.
 - `C:\DadosLoja`: apagar `relatorio-precos.csv` agora; guardar `antes-de-gravar-2026-10-07.csv` por ~2 semanas (é o "desfazer" dos 80 preços).
 - Revisar o `CLAUDE.md` (1.200+ linhas): mover diários de investigação para `docs/`.
+
+### A9 — Negócio e Login fechados; 226KS12 (2026-10-08)
+
+- **Negócio**: já estava em `PageFrame` + `Table`; sobrava o selo de variação com texto da cor do fundo (`bg-ok text-ok`, ilegível), textos em `ink-*`, `gold-*` e `accent-*` trocados pelos tokens (`text-foreground`, `bg-warn-soft text-warn`, `text-destructive`) e uma linha de base nas barras. Contraste 12/12 nos dois temas.
+- **Login**: conferido em 1366×768; já segue a marca (azul-marinho, logo, laranja só no botão). Sem mudança.
+- **226KS12**: o dono avisou que a Husqvarna não vende mais (fica só a 226K) e que o acessório KS12 saiu da lista de preços. A lista importada (05/10/2026) ainda traz os dois (R$ 3.499,00 e R$ 1.150,00), então é anterior à saída. Continua em pausa na cobertura; ao chegar a lista nova, relatório sem `--apply` e gravação só com aprovação do dono (a importação é espelho: eles saem sozinhos).
