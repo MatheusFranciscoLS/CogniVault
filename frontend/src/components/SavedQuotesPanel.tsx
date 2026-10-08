@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import PageFrame from './PageFrame';
 import { toast } from 'sonner';
 import { useConfirm } from '../context/confirm';
 import { useQuoteCart } from '../context/QuoteCartContext';
@@ -180,13 +181,7 @@ export default function SavedQuotesPanel() {
   const hasFilters = Boolean(appliedFilter || from || to);
 
   return (
-    <section className="mx-auto w-full max-w-[1400px] space-y-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight">Orçamentos</h1>
-        <p className="text-base text-muted-foreground tabular-nums">
-          {total} {total === 1 ? 'orçamento arquivado' : 'orçamentos arquivados'}
-        </p>
-      </div>
+    <PageFrame title="Orçamentos" meta={`${total} ${total === 1 ? 'orçamento arquivado' : 'orçamentos arquivados'}`}>
 
       <form
         onSubmit={event => { event.preventDefault(); applyFilter(); }}
@@ -356,6 +351,6 @@ export default function SavedQuotesPanel() {
           <Button type="button" variant="outline" disabled={page >= lastPage} onClick={() => setPage(value => Math.min(lastPage, value + 1))}>Próximos</Button>
         </div>
       )}
-    </section>
+    </PageFrame>
   );
 }

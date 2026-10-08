@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import AdminPage from './AdminPage';
+import PageFrame from '../PageFrame';
 
 const ROLE_LABEL: Record<Role, string> = { ADMIN: 'Administrador', MECHANIC: 'Balcão' };
 const STATUS: Record<AdminUser['status'], { label: string; className: string }> = {
@@ -138,7 +138,7 @@ export default function UsersPanel() {
   );
 
   return (
-    <AdminPage title="Usuários" action={<Button onClick={() => setCreateOpen(value => !value)}>{createOpen ? 'Fechar' : 'Novo usuário'}</Button>}>
+    <PageFrame title="Usuários" action={<Button onClick={() => setCreateOpen(value => !value)}>{createOpen ? 'Fechar' : 'Novo usuário'}</Button>}>
       {error && <p role="alert" className="rounded-lg border border-destructive bg-destructive/10 px-4 py-3 text-base text-destructive">{error}</p>}
 
       {createOpen && (
@@ -234,6 +234,6 @@ export default function UsersPanel() {
           </form>
         </DialogContent>
       </Dialog>
-    </AdminPage>
+    </PageFrame>
   );
 }

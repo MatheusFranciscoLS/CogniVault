@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import PageFrame from './PageFrame';
 import { apiJson, fmtDate } from '../lib';
 import { useConfirm } from '../context/confirm';
 import type { AiQualityData, BenchmarkRun, QualityCatalog, SearchRadarItem } from '../types';
@@ -264,13 +265,11 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
   const benchmark = latestBenchmark(data);
   const metrics = benchmark?.metrics;
 
-  return <section>
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-3xl font-semibold leading-9">Qualidade</h1>
+  return <PageFrame title="Qualidade" action={
       <Button type="button" variant="outline" disabled={rebuilding || benchmarking || loading} onClick={() => void rebuildKnowledge()}>
         {rebuilding ? 'Atualizando diagnóstico…' : 'Atualizar diagnóstico'}
       </Button>
-    </div>
+    }>
 
     {notice && <div role="status" className="mb-5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 p-3 text-sm text-emerald-700 dark:text-emerald-300">{notice}</div>}
     {error && <div role="alert" className="mb-5 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 p-3 text-sm text-rose-700 dark:text-rose-300">{error}</div>}
@@ -551,7 +550,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
         </div>
       )}
     </>}
-  </section>;
+  </PageFrame>;
 }
 
 function SummaryCard({ label, value, description, tone }: { label: string; value: number; description: string; tone: 'navy' | 'success' | 'warning' | 'danger' | 'neutral' }) {

@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import AdminPage from './admin/AdminPage';
+import PageFrame from './PageFrame';
 import MachineListDetail from './MachineListDetail';
 
 const selectClass =
@@ -95,10 +95,7 @@ export default function MachineListPanel({ onOpenMachine }: { onOpenMachine: (pn
   const togglePriceSort = () => setSort(current => (current === 'price-asc' ? 'price-desc' : 'price-asc'));
 
   return (
-    <AdminPage
-      title="Tabela de preços"
-      action={listDate ? <p className="text-base text-muted-foreground">Lista de {listDate}</p> : undefined}
-    >
+    <PageFrame title="Tabela de preços" meta={listDate ? `Lista de ${listDate}` : undefined}>
       {query.isLoading && (
         <div aria-busy="true" className="space-y-2">
           <Skeleton className="h-10 w-full max-w-md" />
@@ -244,6 +241,6 @@ export default function MachineListPanel({ onOpenMachine }: { onOpenMachine: (pn
           onOpenMachine={pnc => { setSelected(null); onOpenMachine(pnc); }}
         />
       )}
-    </AdminPage>
+    </PageFrame>
   );
 }
