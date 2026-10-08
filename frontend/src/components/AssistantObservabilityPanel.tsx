@@ -223,7 +223,7 @@ export default function AssistantObservabilityPanel() {
                           /* Vai para o Atendimento: a busca de lá acha máquina pelo
                              modelo e abre a vista explodida em painel lateral. Antes
                              apontava para a aba Máquinas, que não existe mais. */
-                          to={`/dashboard?q=${encodeURIComponent(item.model)}`}
+                          to={`/atendimento?q=${encodeURIComponent(item.model)}`}
                           className="flex items-center justify-between gap-3 rounded-md border border-ink-100 px-2.5 py-2 text-sm transition hover:border-brand-200 hover:bg-brand-50/50 dark:border-ink-800 dark:hover:border-brand-900 dark:hover:bg-brand-950/20"
                         >
                           <span className="min-w-0 truncate font-bold text-ink-700 dark:text-ink-200">{item.model}</span>

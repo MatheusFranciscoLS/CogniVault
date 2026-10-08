@@ -62,7 +62,7 @@ await step('senha errada', async () => {
 await step('entrar com Enter', async () => {
   await senha.fill('CogniVault-E2E-2026!');
   await senha.press('Enter');
-  await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+  await page.waitForURL(/\/atendimento/, { timeout: 15000 });
   await page.getByPlaceholder(SEARCH).waitFor({ timeout: 15000 });
   check('Enter na senha envia e abre o painel', true);
 });
@@ -70,7 +70,7 @@ await step('entrar com Enter', async () => {
 await step('login com sessão ativa', async () => {
   await page.goto(BASE + '/login');
   await page.waitForTimeout(1500);
-  check('quem já está logado e abre /login volta para o painel', page.url().includes('/dashboard'), page.url().replace(BASE, ''));
+  check('quem já está logado e abre /login volta para o painel', page.url().includes('/atendimento'), page.url().replace(BASE, ''));
 });
 
 await step('sair', async () => {

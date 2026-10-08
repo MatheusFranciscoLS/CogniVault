@@ -9,7 +9,7 @@ async function login(page, email) {
   await page.getByLabel('E-mail').fill(email);
   await page.locator('#login-password').fill(PASSWORD);
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
-  await expect(page).toHaveURL(/\/dashboard/);
+  await expect(page).toHaveURL(/\/atendimento/);
   await expect(page.getByPlaceholder(/Código, peça ou modelo|Peça, código ou pergunta/)).toBeVisible();
 }
 

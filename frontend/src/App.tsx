@@ -8,6 +8,7 @@ import { QuoteCartProvider } from './context/QuoteCartContext';
 import { ConfirmProvider } from './context/ConfirmProvider';
 import { CounterSessionProvider } from './context/CounterSessionProvider';
 import { activateQuoteStorageScope, quoteStorageScopeFromSession } from './lib/quote-storage-scope';
+import { SECTION_ROUTE_PATHS } from './lib/section-routes';
 
 const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -46,7 +47,14 @@ function LegacyHusqvarnaRedirect() {
   const query = (params.get('search') || '').trim();
   if (pnc) next.set('pnc', pnc);
   if (query) next.set('search', query);
-  return <Navigate to={`/dashboard?${next.toString()}`} replace />;
+  return <Navigate to={`/atendimento?${next.toString()}`} replace />;
+}
+
+// Uma navegação de verdade (um <Link>, o botão Voltar) remonta a tela com o endereço novo; a troca de aba por
+// dentro só reescreve a barra de endereço e mantém o estado.
+function DashboardRoute() {
+  const { key } = useLocation();
+  return <Dashboard key={key} />;
 }
 
 function RouteScopedQuoteExperience() {
@@ -78,9 +86,10 @@ function SessionScopedApplication() {
             <Routes>
               <Route path="/" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<Login />} />
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard" element={<DashboardRoute />} />
+              {SECTION_ROUTE_PATHS.map(path => <Route key={path} path={path} element={<DashboardRoute />} />)}
               <Route path="/husqvarna" element={<LegacyHusqvarnaRedirect />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<Navigate to="/atendimento" replace />} />
             </Routes>
           </Suspense>
           <RouteScopedQuoteExperience />

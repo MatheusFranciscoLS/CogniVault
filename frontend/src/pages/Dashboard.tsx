@@ -4,6 +4,7 @@ import ShellV2 from '../components/ShellV2';
 import TechnicalAssistantWorkspace from '../components/parts-v2/TechnicalAssistantWorkspace';
 import { api, apiJson, clearSession, SESSION_EXPIRED_EVENT } from '../lib';
 import { activateQuoteStorageScope } from '../lib/quote-storage-scope';
+import { isAdminSection, sectionFromPath, sectionPath, sectionTitle } from '../lib/section-routes';
 import type { Section, SessionUser } from '../types';
 import '../admin-polish.css';
 import '../quality-polish.css';
@@ -75,9 +76,12 @@ export default function Dashboard() {
   const initialPncParam = cleanNavigationValue(initialParams.get('pnc')).replace(/\D/g, '');
 
   const [user, setUser] = useState<SessionUser | null>(null);
-  const [section, setSection] = useState<Section>(() => {
+  const [requestedSection, setSection] = useState<Section>(() => {
     if (initialQueryParam) return 'parts';
     if (initialCatalogParam) return 'catalogs';
+    // Endereço novo (/administracao/qualidade…) vale antes do `?tab=` do endereço antigo.
+    const fromPath = sectionFromPath(window.location.pathname);
+    if (fromPath) return fromPath;
     // `tab=machines` ainda chega de link antigo e de aba aberta antes do deploy.
     // Ele cai no Atendimento, que é onde a máquina abre agora — o PNC segue
     // junto em `initialPncParam`, então o painel lateral já nasce aberto.
@@ -91,6 +95,8 @@ export default function Dashboard() {
     }
     return 'parts';
   });
+  // Endereço da Administração aberto por quem é do Balcão: cai no Atendimento em vez de mostrar tela vazia.
+  const section: Section = user && user.role !== 'ADMIN' && isAdminSection(requestedSection) ? 'parts' : requestedSection;
   const [globalQuery, setGlobalQuery] = useState(initialQueryParam);
   const [searchVersion, setSearchVersion] = useState(0);
   const [catalogFilter, setCatalogFilter] = useState(initialCatalogParam);
@@ -107,21 +113,30 @@ export default function Dashboard() {
 
   useEffect(() => {
     sectionRef.current = section;
+    document.title = sectionTitle(section);
   }, [section]);
 
   const updateUrl = (newTab: string, queryParam?: string, catalogParam?: string) => {
     try {
       const params = new URLSearchParams();
-      if (newTab !== 'parts') params.set('tab', newTab);
       if (queryParam) params.set('q', queryParam);
       if (catalogParam) params.set('catalog', catalogParam);
       const value = params.toString();
-      const newUrl = value ? `${window.location.pathname}?${value}` : window.location.pathname;
+      const path = sectionPath(newTab as Section);
+      const newUrl = value ? `${path}?${value}` : path;
       window.history.replaceState(null, '', newUrl);
     } catch {
       // Navegador restrito ou ambiente de teste.
     }
   };
+
+  // Link antigo (/dashboard?tab=quality) e tela trocada pelo código passam para o endereço da tela.
+  useEffect(() => {
+    if (sectionPath(section) !== window.location.pathname) {
+      updateUrl(section, initialQueryParam || undefined, initialCatalogParam || undefined);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section]);
 
   useEffect(() => {
     let active = true;
