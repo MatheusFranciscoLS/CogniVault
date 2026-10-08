@@ -40,14 +40,14 @@ export function OverviewPanel() {
 
   return (
     <PageFrame title="Visão geral">
-      {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"><span>{error}</span><button type="button" onClick={() => { setError(''); setRetry(value => value + 1); }} className="rounded-lg border border-rose-300 px-3 py-1.5 text-sm font-bold dark:border-rose-700">Tentar novamente</button></div>}
+      {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"><span>{error}</span><button type="button" onClick={() => { setError(''); setRetry(value => value + 1); }} className="rounded-lg border border-destructive/40 px-3 py-1.5 text-sm font-bold">Tentar novamente</button></div>}
 
       <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
         <div className="grid divide-y divide-ink-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0 dark:divide-ink-800">
           {(data ? metrics : Array.from({ length: 3 }, (_, index) => [`Carregando ${index}`, '—'])).map(([label, value]) => (
             <div key={String(label)} className="px-5 py-4">
-              <div className="text-sm font-semibold text-ink-500 dark:text-ink-400">{data ? label : 'Carregando'}</div>
-              <div className="mt-2 text-2xl font-semibold text-ink-950 dark:text-white">{data ? value : '—'}</div>
+              <div className="text-sm font-semibold text-muted-foreground">{data ? label : 'Carregando'}</div>
+              <div className="mt-2 text-2xl font-semibold text-foreground">{data ? value : '—'}</div>
                 </div>
           ))}
         </div>
@@ -56,8 +56,8 @@ export function OverviewPanel() {
       <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
         <div className="border-b border-ink-100 px-4 py-3 text-sm font-semibold text-ink-700 dark:border-ink-800 dark:text-ink-200">Situação operacional</div>
         <div className="grid divide-y divide-ink-100 md:grid-cols-2 md:divide-x md:divide-y-0 dark:divide-ink-800">
-          <div className="flex items-center justify-between gap-4 px-4 py-4"><span className="text-sm font-semibold text-ink-500 dark:text-ink-400">Catálogos processando</span><span className="text-lg font-semibold text-amber-700 dark:text-amber-300">{data?.processingDocuments ?? '—'}</span></div>
-          <div className="flex items-center justify-between gap-4 px-4 py-4"><span className="text-sm font-semibold text-ink-500 dark:text-ink-400">Catálogos com falha</span><span className="text-lg font-semibold text-rose-700 dark:text-rose-300">{data?.failedDocuments ?? '—'}</span></div>
+          <div className="flex items-center justify-between gap-4 px-4 py-4"><span className="text-sm font-semibold text-muted-foreground">Catálogos processando</span><span className="text-lg font-semibold text-warn">{data?.processingDocuments ?? '—'}</span></div>
+          <div className="flex items-center justify-between gap-4 px-4 py-4"><span className="text-sm font-semibold text-muted-foreground">Catálogos com falha</span><span className="text-lg font-semibold text-destructive">{data?.failedDocuments ?? '—'}</span></div>
         </div>
       </div>
     </PageFrame>

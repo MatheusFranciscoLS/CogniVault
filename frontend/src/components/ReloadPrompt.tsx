@@ -33,8 +33,8 @@ export default function ReloadPrompt() {
           ↑
         </div>
         <div className="min-w-0">
-          <h2 className="text-sm font-black text-ink-900 dark:text-white">Nova versão disponível</h2>
-          <p className="mt-1 text-xs leading-5 text-ink-500 dark:text-ink-400">
+          <h2 className="text-sm font-black text-foreground">Nova versão disponível</h2>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
             Atualize o CogniVault para usar a versão mais recente sem perder o orçamento salvo.
           </p>
         </div>

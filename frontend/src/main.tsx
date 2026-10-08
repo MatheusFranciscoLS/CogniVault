@@ -8,7 +8,6 @@ import '@fontsource/barlow-semi-condensed/latin-500.css'
 import '@fontsource/barlow-semi-condensed/latin-600.css'
 import '@fontsource/barlow-semi-condensed/latin-700.css'
 import './index.css'
-import './experience-polish.css'
 import App from './App.tsx'
 import { ThemeProvider, ThemedToaster } from './components/ThemeProvider'
 

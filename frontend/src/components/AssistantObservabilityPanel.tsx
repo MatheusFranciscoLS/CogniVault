@@ -90,9 +90,9 @@ function metricLabel(action: string) {
 function Stat({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <div className="rounded-xl border border-ink-200 bg-white px-4 py-3 dark:border-ink-800 dark:bg-ink-900">
-      <div className="text-sm font-semibold text-ink-500 dark:text-ink-400">{label}</div>
-      <div className="mt-1 text-xl font-semibold tracking-tight text-ink-950 dark:text-white">{value}</div>
-      <div className="mt-1 text-sm leading-4 text-ink-500 dark:text-ink-400">{detail}</div>
+      <div className="text-sm font-semibold text-muted-foreground">{label}</div>
+      <div className="mt-1 text-xl font-semibold tracking-tight text-foreground">{value}</div>
+      <div className="mt-1 text-sm leading-4 text-muted-foreground">{detail}</div>
     </div>
   );
 }
@@ -124,11 +124,11 @@ export default function AssistantObservabilityPanel() {
   );
 
   if (error) {
-    return <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300">Observabilidade indisponível agora: {error}</div>;
+    return <div className="mt-5 rounded-xl border border-warn/40 bg-warn-soft px-4 py-3 text-sm text-warn">Observabilidade indisponível agora: {error}</div>;
   }
 
   if (!data || !performance) {
-    return <div className="mt-5 rounded-xl border border-ink-200 bg-white px-4 py-4 text-sm text-ink-500 dark:text-ink-400 dark:border-ink-800 dark:bg-ink-900">Carregando uso de IA…</div>;
+    return <div className="mt-5 rounded-xl border border-ink-200 bg-white px-4 py-4 text-sm text-muted-foreground dark:border-ink-800 dark:bg-ink-900">Carregando uso de IA…</div>;
   }
 
   const portfolio = data.portfolioCoverage;
@@ -140,9 +140,9 @@ export default function AssistantObservabilityPanel() {
     <section className="mt-6 overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-ink-100 px-5 py-4 dark:border-ink-800">
         <div>
-          <h2 className="text-base font-semibold text-ink-950 dark:text-white">Uso de IA e cobertura técnica</h2>
+          <h2 className="text-base font-semibold text-foreground">Uso de IA e cobertura técnica</h2>
         </div>
-        <span className={`rounded-full border px-2.5 py-1 text-sm font-bold ${data.interactive.allowed ? 'border-emerald-200 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300' : 'border-amber-200 text-amber-700 dark:border-amber-800 dark:text-amber-300'}`}>
+        <span className={`rounded-full border px-2.5 py-1 text-sm font-bold ${data.interactive.allowed ? 'border-ok/40 text-ok' : 'border-warn/40 text-warn'}`}>
           {data.interactive.allowed ? 'IA interativa disponível' : 'IA interativa limitada'}
         </span>
       </div>
@@ -160,18 +160,18 @@ export default function AssistantObservabilityPanel() {
       </div>
 
       <div className="mx-4 mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-ink-200 bg-ink-50/70 px-3 py-2.5 text-sm text-ink-500 dark:border-ink-800 dark:bg-ink-950/30 dark:text-ink-400">
-        <span className="font-semibold text-ink-700 dark:text-ink-200">Portal BR · rota</span>
+        <span className="font-semibold text-foreground">Portal BR · rota</span>
         {portalRoute ? (
           <>
-            <span><b className="text-ink-700 dark:text-ink-200">{number(portalRoute.requests)}</b> execuções</span>
-            <span><b className="text-ink-700 dark:text-ink-200">{portalRoute.cacheHitRate ?? 0}%</b> integralmente cacheadas</span>
-            <span>p95 <b className="text-ink-700 dark:text-ink-200">{duration(portalRoute.p95Ms)}</b></span>
-            <span>última <b className="text-ink-700 dark:text-ink-200">{duration(portalRoute.lastMs)}</b></span>
+            <span><b className="text-foreground">{number(portalRoute.requests)}</b> execuções</span>
+            <span><b className="text-foreground">{portalRoute.cacheHitRate ?? 0}%</b> integralmente cacheadas</span>
+            <span>p95 <b className="text-foreground">{duration(portalRoute.p95Ms)}</b></span>
+            <span>última <b className="text-foreground">{duration(portalRoute.lastMs)}</b></span>
             {portalRoute.cacheFallbacks > 0 && (
-              <span className="font-bold text-amber-700 dark:text-amber-300">{number(portalRoute.cacheFallbacks)} fallback{portalRoute.cacheFallbacks === 1 ? '' : 's'}</span>
+              <span className="font-bold text-warn">{number(portalRoute.cacheFallbacks)} fallback{portalRoute.cacheFallbacks === 1 ? '' : 's'}</span>
             )}
             {portalRoute.errors > 0 && (
-              <span className="font-bold text-rose-700 dark:text-rose-300">{number(portalRoute.errors)} erro{portalRoute.errors === 1 ? '' : 's'} 5xx</span>
+              <span className="font-bold text-destructive">{number(portalRoute.errors)} erro{portalRoute.errors === 1 ? '' : 's'} 5xx</span>
             )}
           </>
         ) : (
@@ -181,16 +181,16 @@ export default function AssistantObservabilityPanel() {
 
       <div className="grid gap-4 border-t border-ink-100 p-4 lg:grid-cols-[1.2fr_.8fr] dark:border-ink-800">
         <div>
-          <div className="mb-2 text-sm font-semibold text-ink-500 dark:text-ink-400">Onde a IA foi usada hoje</div>
+          <div className="mb-2 text-sm font-semibold text-muted-foreground">Onde a IA foi usada hoje</div>
           {!data.actions.length ? (
             <div className="rounded-lg bg-ink-50 px-3 py-3 text-sm text-ink-500 dark:bg-ink-950/40 dark:text-ink-400">Nenhuma chamada de IA hoje.</div>
           ) : (
             <div className="divide-y divide-ink-100 rounded-lg border border-ink-200 dark:divide-ink-800 dark:border-ink-800">
               {data.actions.slice(0, 5).map(action => (
                 <div key={action.action} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-3 py-2.5 text-sm">
-                  <span className="font-semibold capitalize text-ink-700 dark:text-ink-200">{metricLabel(action.action)}</span>
-                  <span className="text-ink-500 dark:text-ink-400">{number(action.calls)} chamadas</span>
-                  <span className="font-mono font-bold text-ink-600 dark:text-ink-300">{number(action.totalTokens)}</span>
+                  <span className="font-semibold capitalize text-foreground">{metricLabel(action.action)}</span>
+                  <span className="text-muted-foreground">{number(action.calls)} chamadas</span>
+                  <span className="font-mono font-bold text-muted-foreground">{number(action.totalTokens)}</span>
                 </div>
               ))}
             </div>
@@ -198,22 +198,22 @@ export default function AssistantObservabilityPanel() {
         </div>
 
         <div>
-          <div className="mb-2 text-sm font-semibold text-ink-500 dark:text-ink-400">Cobertura de portfólio</div>
+          <div className="mb-2 text-sm font-semibold text-muted-foreground">Cobertura de portfólio</div>
           <div className="rounded-lg border border-ink-200 p-3 dark:border-ink-800">
             {portfolio ? (
               <>
-                <div className="flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Modelos descobertos</span><b>{portfolio.totalModels}</b></div>
-                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Portal Husqvarna, lista de peças</span><b className="text-emerald-700 dark:text-emerald-300">{portfolio.portalIplModels}</b></div>
-                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Portal Husqvarna, IPL em PDF</span><b className="text-emerald-700 dark:text-emerald-300">{portfolio.portalDocumentModels}</b></div>
-                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Com catálogo da biblioteca</span><b className="text-emerald-700 dark:text-emerald-300">{portfolio.localIplModels}</b></div>
-                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Em linha, sem vista no Portal</span><b className="text-amber-700 dark:text-amber-300">{portfolio.withoutSource}</b></div>
-                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-ink-500 dark:text-ink-400">Fora de linha</span><b>{portfolio.notApplicableModels}</b></div>
+                <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Modelos descobertos</span><b>{portfolio.totalModels}</b></div>
+                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-muted-foreground">Portal Husqvarna, lista de peças</span><b className="text-ok">{portfolio.portalIplModels}</b></div>
+                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-muted-foreground">Portal Husqvarna, IPL em PDF</span><b className="text-ok">{portfolio.portalDocumentModels}</b></div>
+                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-muted-foreground">Com catálogo da biblioteca</span><b className="text-ok">{portfolio.localIplModels}</b></div>
+                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-muted-foreground">Em linha, sem vista no Portal</span><b className="text-warn">{portfolio.withoutSource}</b></div>
+                <div className="mt-2 flex items-center justify-between text-sm"><span className="text-muted-foreground">Fora de linha</span><b>{portfolio.notApplicableModels}</b></div>
 
                 {portfolio.priorityGaps.length > 0 && (
                   <div className="mt-3 border-t border-ink-100 pt-3 dark:border-ink-800">
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold text-ink-500 dark:text-ink-400">Prioridade de cobertura</span>
-                      <span className="text-sm font-semibold text-ink-500 dark:text-ink-400">sinais comerciais</span>
+                      <span className="text-sm font-semibold text-muted-foreground">Prioridade de cobertura</span>
+                      <span className="text-sm font-semibold text-muted-foreground">sinais comerciais</span>
                     </div>
                     <div className="space-y-1.5">
                       {portfolio.priorityGaps.slice(0, 6).map(item => (
@@ -225,7 +225,7 @@ export default function AssistantObservabilityPanel() {
                           to={`/atendimento?q=${encodeURIComponent(item.model)}`}
                           className="flex items-center justify-between gap-3 rounded-md border border-ink-100 px-2.5 py-2 text-sm transition hover:border-brand-200 hover:bg-brand-50/50 dark:border-ink-800 dark:hover:border-brand-900 dark:hover:bg-brand-950/20"
                         >
-                          <span className="min-w-0 truncate font-bold text-ink-700 dark:text-ink-200">{item.model}</span>
+                          <span className="min-w-0 truncate font-bold text-foreground">{item.model}</span>
                           <span className="shrink-0 font-mono text-sm font-bold text-brand-600 dark:text-brand-300">{number(item.commercialSignals)} · verificar →</span>
                         </Link>
                       ))}
@@ -233,10 +233,10 @@ export default function AssistantObservabilityPanel() {
                   </div>
                 )}
 
-                <p className="mt-3 border-t border-ink-100 pt-3 text-sm leading-4 text-ink-500 dark:text-ink-400 dark:border-ink-800">“Em linha, sem vista” são modelos que a Husqvarna vende hoje e o Portal não publica. “Fora de linha” são os que não constam na lista vigente.</p>
+                <p className="mt-3 border-t border-ink-100 pt-3 text-sm leading-4 text-muted-foreground dark:border-ink-800">“Em linha, sem vista” são modelos que a Husqvarna vende hoje e o Portal não publica. “Fora de linha” são os que não constam na lista vigente.</p>
               </>
             ) : (
-              <div className="text-sm text-ink-500 dark:text-ink-400">Inventário de cobertura indisponível nesta leitura.</div>
+              <div className="text-sm text-muted-foreground">Inventário de cobertura indisponível nesta leitura.</div>
             )}
           </div>
         </div>

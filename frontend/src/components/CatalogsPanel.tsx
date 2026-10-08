@@ -201,7 +201,7 @@ function BriggsManualsLink({ url, model, compact = false }: { url?: string | nul
           target="_blank"
           rel="noreferrer noopener"
           title={`Abrir a lista de peças oficial do motor ${model} — inglês quando a Briggs publica; senão, o idioma disponível`}
-          className={`${base} border-red-300 bg-red-100 text-red-800 hover:bg-red-200 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200 dark:hover:bg-red-900/50`}
+          className={`${base} border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/10`}
         >
           <span>📕</span>
           <span>Lista de peças Briggs</span>
@@ -230,7 +230,7 @@ function BriggsManualsLink({ url, model, compact = false }: { url?: string | nul
       target="_blank"
       rel="noreferrer noopener"
       title="Abrir manuais oficiais no site da Briggs & Stratton"
-      className={`${base} border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-900/40`}
+      className={`${base} border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/10`}
     >
       <span>📕</span>
       <span>Manuais Briggs</span>
@@ -515,14 +515,14 @@ export default function CatalogsPanel({
       <div className="cv-page-heading">
         <h1 className="text-3xl font-semibold leading-9">Biblioteca de catálogos</h1>
         {admin && (
-          <label className="flex items-center gap-2 text-sm text-ink-600 dark:text-ink-400">
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
             <input type="checkbox" checked={archived} onChange={event => setArchived(event.target.checked)} /> Mostrar arquivados
           </label>
         )}
       </div>
 
       {error && (
-        <div role="alert" className="mb-4 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 p-3 text-sm text-rose-700 dark:text-rose-300">
+        <div role="alert" className="mb-4 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
           {error}
         </div>
       )}
@@ -530,12 +530,12 @@ export default function CatalogsPanel({
       {admin && <BatchCatalogUploader onComplete={load} onNotice={flash} onError={setError} />}
 
       {admin && failedCount > 0 && !archived && (
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-900/30 p-4">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-warn/40 bg-warn-soft p-4">
           <div>
-            <div className="text-sm font-semibold text-amber-950">{failedCount} catálogo{failedCount === 1 ? ' precisa' : 's precisam'} de recuperação</div>
-            <p className="mt-1 text-sm leading-5 text-amber-800 dark:text-amber-300">Veja o motivo classificado e a próxima ação recomendada antes de repetir o processamento.</p>
+            <div className="text-sm font-semibold text-warn">{failedCount} catálogo{failedCount === 1 ? ' precisa' : 's precisam'} de recuperação</div>
+            <p className="mt-1 text-sm leading-5 text-warn">Veja o motivo classificado e a próxima ação recomendada antes de repetir o processamento.</p>
           </div>
-          <button type="button" onClick={() => setStatusFilter('FAILED')} className="rounded-xl border border-amber-300 bg-white dark:bg-ink-800 px-4 py-2.5 text-sm font-semibold text-amber-900 dark:text-amber-300">
+          <button type="button" onClick={() => setStatusFilter('FAILED')} className="rounded-xl border border-warn/40 bg-card px-4 py-2.5 text-sm font-semibold text-warn">
             Ver falhas
           </button>
         </div>
@@ -554,25 +554,25 @@ export default function CatalogsPanel({
       )}
 
       {/* Biblioteca por Seção */}
-      <div className="cv-surface mb-6 rounded-[22px] p-5">
+      <div className="rounded-xl border border-border bg-card mb-6 p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="font-semibold text-ink-800 dark:text-ink-200">Biblioteca por seção</div>
-            <p className="mt-1 text-sm leading-5 text-ink-500 dark:text-ink-400">Classificação automática por tipo de máquina Husqvarna:</p>
+            <div className="font-semibold text-foreground">Biblioteca por seção</div>
+            <p className="mt-1 text-sm leading-5 text-muted-foreground">Classificação automática por tipo de máquina Husqvarna:</p>
           </div>
-          <div className="text-sm font-medium text-ink-500 dark:text-ink-400">{activeDocs.length} catálogo{activeDocs.length === 1 ? '' : 's'}</div>
+          <div className="text-sm font-medium text-muted-foreground">{activeDocs.length} catálogo{activeDocs.length === 1 ? '' : 's'}</div>
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
           <button
             type="button"
             onClick={() => setCategoryFilter('ALL')}
-            className={`rounded-2xl border px-4 py-3 text-left transition ${effectiveCategoryFilter === 'ALL' ? 'border-brand-700 bg-ink-900 text-white shadow-md' : 'border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 text-ink-700 dark:text-ink-300 hover:border-ink-300 dark:border-ink-600'}`}
+            className={`rounded-2xl border px-4 py-3 text-left transition ${effectiveCategoryFilter === 'ALL' ? 'border-brand-700 bg-ink-900 text-white shadow-md' : 'border-border bg-card text-ink-700 dark:text-ink-300 hover:border-ink-300 dark:border-ink-600'}`}
           >
             <div className="flex items-center gap-1.5 text-sm font-semibold">
               <span>📚</span>
               <span>Todos</span>
             </div>
-            <div className={`mt-1 text-sm ${effectiveCategoryFilter === 'ALL' ? 'text-brand-200' : 'text-ink-500 dark:text-ink-400'}`}>
+            <div className={`mt-1 text-sm ${effectiveCategoryFilter === 'ALL' ? 'text-brand-200' : 'text-muted-foreground'}`}>
               {activeDocs.length} catálogo{activeDocs.length === 1 ? '' : 's'}
             </div>
           </button>
@@ -585,13 +585,13 @@ export default function CatalogsPanel({
                 key={category}
                 type="button"
                 onClick={() => setCategoryFilter(category)}
-                className={`rounded-2xl border px-4 py-3 text-left transition ${selected ? 'border-brand-700 bg-ink-900 text-white shadow-md' : 'border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 text-ink-700 dark:text-ink-300 hover:border-ink-300 dark:border-ink-600'}`}
+                className={`rounded-2xl border px-4 py-3 text-left transition ${selected ? 'border-brand-700 bg-ink-900 text-white shadow-md' : 'border-border bg-card text-ink-700 dark:text-ink-300 hover:border-ink-300 dark:border-ink-600'}`}
               >
                 <div className="flex items-center gap-1.5 text-sm font-semibold truncate">
                   <span>{icon}</span>
                   <span className="truncate">{category}</span>
                 </div>
-                <div className={`mt-1 text-sm ${selected ? 'text-brand-200' : 'text-ink-500 dark:text-ink-400'}`}>
+                <div className={`mt-1 text-sm ${selected ? 'text-brand-200' : 'text-muted-foreground'}`}>
                   {count} catálogo{count === 1 ? '' : 's'}
                 </div>
               </button>
@@ -601,9 +601,9 @@ export default function CatalogsPanel({
       </div>
 
       {/* Main Catalog View Container */}
-      <div className="cv-surface overflow-hidden rounded-[22px]">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         {/* Filter bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200 dark:border-ink-700 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <label htmlFor="catalog-search" className="sr-only">Buscar catálogos</label>
             <input
@@ -611,7 +611,7 @@ export default function CatalogsPanel({
               value={search}
               onChange={event => setSearch(event.target.value)}
               placeholder="Buscar por modelo (ex.: 143RII, 120, 345FR), arquivo, PNC ou seção…"
-              className="cv-field w-full max-w-xl text-sm"
+              className="h-10 rounded-md border border-input bg-card px-3 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/60 w-full max-w-xl text-sm"
             />
             {search ? (
               <button
@@ -633,20 +633,20 @@ export default function CatalogsPanel({
                 aria-haspopup="listbox"
                 aria-expanded={sortOpen}
                 onClick={() => setSortOpen(prev => !prev)}
-                className="group flex items-center gap-2 rounded-xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 px-3 py-1.5 text-sm font-semibold text-ink-700 dark:text-ink-200 shadow-2xs hover:border-ink-300 dark:hover:border-ink-600 hover:bg-ink-50 dark:hover:bg-ink-700/60 transition active:scale-95 cursor-pointer"
+                className="group flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-1.5 text-sm font-semibold text-foreground shadow-2xs hover:border-ink-300 dark:hover:border-ink-600 hover:bg-ink-50 dark:hover:bg-ink-700/60 transition active:scale-95 cursor-pointer"
                 title="Ordenar catálogo por nome, data ou quantidade de peças"
               >
-                <span className="flex items-center gap-1.5 text-ink-500 dark:text-ink-400 font-medium">
-                  <svg className="w-3.5 h-3.5 text-ink-500 dark:text-ink-400 group-hover:text-brand-500 transition-colors" viewBox="0 0 20 20" fill="currentColor">
+                <span className="flex items-center gap-1.5 text-muted-foreground font-medium">
+                  <svg className="w-3.5 h-3.5 text-muted-foreground group-hover:text-brand-500 transition-colors" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M2.24 6.8a.75.75 0 001.06-.04l1.95-2.1v8.59a.75.75 0 001.5 0V4.66l1.95 2.1a.75.75 0 101.1-1.02l-3.25-3.5a.75.75 0 00-1.1 0L2.2 5.74a.75.75 0 00.04 1.06zm8 6.4a.75.75 0 00-.04 1.06l3.25 3.5a.75.75 0 001.1 0l3.25-3.5a.75.75 0 10-1.1-1.02l-1.95 2.1V6.75a.75.75 0 00-1.5 0v8.59l-1.95-2.1a.75.75 0 00-1.06-.04z" clipRule="evenodd" />
                   </svg>
                   <span>Ordem:</span>
                 </span>
-                <span className="font-bold text-ink-900 dark:text-white">
+                <span className="font-bold text-foreground">
                   {SORT_OPTIONS.find(opt => opt.value === sortMode)?.label || 'Nome / Modelo (A-Z)'}
                 </span>
                 <svg
-                  className={`w-3.5 h-3.5 text-ink-500 dark:text-ink-400 transition-transform duration-200 ${sortOpen ? 'rotate-180 text-brand-500' : ''}`}
+                  className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${sortOpen ? 'rotate-180 text-brand-500' : ''}`}
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
@@ -658,9 +658,9 @@ export default function CatalogsPanel({
                 <div
                   role="listbox"
                   aria-labelledby="catalog-sort-menu-button"
-                  className="absolute right-0 z-50 mt-1.5 w-64 origin-top-right rounded-2xl border border-ink-200 dark:border-ink-700 bg-white/95 dark:bg-ink-900/95 backdrop-blur-md p-1.5 shadow-2xl shadow-ink-950/20 ring-1 ring-black/5"
+                  className="absolute right-0 z-50 mt-1.5 w-64 origin-top-right rounded-2xl border border-border bg-card backdrop-blur-md p-1.5 shadow-2xl shadow-ink-950/20 ring-1 ring-black/5"
                 >
-                  <div className="px-2.5 py-1.5 border-b border-ink-100 dark:border-ink-800 text-sm font-bold text-ink-500 dark:text-ink-400">
+                  <div className="px-2.5 py-1.5 border-b border-border text-sm font-bold text-muted-foreground">
                     Critério de ordenação
                   </div>
                   <div className="mt-1 space-y-0.5">
@@ -679,7 +679,7 @@ export default function CatalogsPanel({
                           className={`w-full flex items-start gap-2.5 rounded-xl px-2.5 py-2 text-left transition ${
                             isSelected
                               ? 'bg-brand-50 dark:bg-ink-900/80 text-brand-700 dark:text-brand-200'
-                              : 'text-ink-700 dark:text-ink-200 hover:bg-ink-100 dark:hover:bg-ink-800/80'
+                              : 'text-foreground hover:bg-ink-100 dark:hover:bg-ink-800/80'
                           }`}
                         >
                           <span className="text-base leading-none mt-0.5">{opt.icon}</span>
@@ -690,7 +690,7 @@ export default function CatalogsPanel({
                                 <span className="text-brand-600 dark:text-brand-400 font-bold text-sm">✓</span>
                               )}
                             </div>
-                            <p className="mt-1 text-sm text-ink-500 dark:text-ink-400 leading-tight">
+                            <p className="mt-1 text-sm text-muted-foreground leading-tight">
                               {opt.description}
                             </p>
                           </div>
@@ -703,7 +703,7 @@ export default function CatalogsPanel({
             </div>
 
             {/* View Mode Toggle */}
-            <div className="flex items-center rounded-xl border border-ink-200 dark:border-ink-700 bg-ink-100 dark:bg-ink-800 p-1">
+            <div className="flex items-center rounded-xl border border-border bg-muted p-1">
               <button
                 type="button"
                 onClick={() => changeViewMode('grid')}
@@ -739,7 +739,7 @@ export default function CatalogsPanel({
                   key={value}
                   type="button"
                   onClick={() => setStatusFilter(value)}
-                  className={`rounded-xl border px-3 py-1.5 text-sm font-semibold transition ${statusFilter === value ? 'border-ink-800 bg-ink-900 text-white' : 'border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 text-ink-600 dark:text-ink-400 hover:border-ink-300 dark:border-ink-600'}`}
+                  className={`rounded-xl border px-3 py-1.5 text-sm font-semibold transition ${statusFilter === value ? 'border-ink-800 bg-ink-900 text-white' : 'border-border bg-card text-muted-foreground hover:border-ink-300 dark:border-ink-600'}`}
                 >
                   {label} · {count}
                 </button>
@@ -750,7 +750,7 @@ export default function CatalogsPanel({
               <button
                 type="button"
                 onClick={() => setCategoryFilter('ALL')}
-                className="rounded-xl border border-ink-200 dark:border-ink-700 px-3 py-1.5 text-sm font-medium text-ink-600 dark:text-ink-400"
+                className="rounded-xl border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground"
               >
                 Limpar seção
               </button>
@@ -769,7 +769,7 @@ export default function CatalogsPanel({
               return (
                 <article
                   key={document.id}
-                  className="flex flex-col justify-between rounded-2xl border border-ink-200/80 dark:border-ink-800 bg-white dark:bg-ink-800/80 p-4 shadow-xs transition hover:-translate-y-0.5 hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md group"
+                  className="flex flex-col justify-between rounded-2xl border border-border bg-card p-4 shadow-xs transition hover:-translate-y-0.5 hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md group"
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2">
@@ -781,7 +781,7 @@ export default function CatalogsPanel({
                             disabled={busy || document.processingActive}
                             value={document.category}
                             onChange={event => void setCategory(document, event.target.value)}
-                            className="rounded-full border border-ink-200 dark:border-ink-700 bg-ink-100/90 dark:bg-ink-700/60 pl-6 pr-4 py-1 text-sm font-medium text-ink-700 dark:text-ink-300 hover:border-brand-400 focus:outline-hidden focus:ring-1 focus:ring-brand-500 max-w-[160px] truncate cursor-pointer transition disabled:opacity-50"
+                            className="rounded-full border border-border bg-ink-100/90 dark:bg-ink-700/60 pl-6 pr-4 py-1 text-sm font-medium text-ink-700 dark:text-ink-300 hover:border-brand-400 focus:outline-hidden focus:ring-1 focus:ring-brand-500 max-w-[160px] truncate cursor-pointer transition disabled:opacity-50"
                           >
                             {categories.map(cat => (
                               <option key={cat} value={cat}>{cat}</option>
@@ -797,10 +797,10 @@ export default function CatalogsPanel({
                     </div>
 
                     <div className="mt-3">
-                      <h3 className="text-base font-bold text-ink-800 dark:text-ink-100 truncate" title={formatEngineOrCatalogModel(document.model, document.manufacturer, document.filename) || document.filename}>
+                      <h3 className="text-base font-bold text-foreground truncate" title={formatEngineOrCatalogModel(document.model, document.manufacturer, document.filename) || document.filename}>
                         {formatEngineOrCatalogModel(document.model, document.manufacturer, document.filename) || document.model || 'Modelo não confirmado'}
                       </h3>
-                      <div className="mt-0.5 text-sm text-ink-500 dark:text-ink-400 truncate" title={document.filename}>
+                      <div className="mt-0.5 text-sm text-muted-foreground truncate" title={document.filename}>
                         {document.filename}
                       </div>
                       {document.briggsManualsUrl && (
@@ -826,7 +826,7 @@ export default function CatalogsPanel({
 
                     {pncs.length > 0 && (
                       <div className="mt-3">
-                        <div className="text-sm font-bold text-ink-500 dark:text-ink-400">PNCs</div>
+                        <div className="text-sm font-bold text-muted-foreground">PNCs</div>
                         <div className="mt-1 flex flex-wrap gap-1">
                           {pncs.slice(0, 3).map(pnc => (
                             <span key={pnc} className="rounded-md bg-brand-50 dark:bg-ink-900/60 px-1.5 py-0.5 text-sm font-mono font-medium text-brand-700 dark:text-brand-300">
@@ -834,7 +834,7 @@ export default function CatalogsPanel({
                             </span>
                           ))}
                           {pncs.length > 3 && (
-                            <span className="rounded-md bg-ink-100 dark:bg-ink-700 px-1.5 py-0.5 text-sm text-ink-500 dark:text-ink-400">
+                            <span className="rounded-md bg-ink-100 dark:bg-ink-700 px-1.5 py-0.5 text-sm text-muted-foreground">
                               +{pncs.length - 3}
                             </span>
                           )}
@@ -844,7 +844,7 @@ export default function CatalogsPanel({
 
                     {document.applications && document.applications.length > 0 && (
                       <div className="mt-2.5">
-                        <div className="text-sm font-bold text-amber-600 dark:text-amber-400">{document.category === 'Motores' ? 'Equipamento que usa este motor' : 'Aplicação em equipamentos'}</div>
+                        <div className="text-sm font-bold text-warn">{document.category === 'Motores' ? 'Equipamento que usa este motor' : 'Aplicação em equipamentos'}</div>
                         <div className="mt-1 flex flex-wrap gap-1">
                           {document.applications.slice(0, 4).map((app, idx) => (
                             <button
@@ -852,7 +852,7 @@ export default function CatalogsPanel({
                               type="button"
                               onClick={() => onSearch ? onSearch(app.machineModel) : setSearch(app.machineModel)}
                               title={`Filtrar / buscar peças da máquina ${app.machineModel}`}
-                              className="inline-flex items-center gap-1 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 px-1.5 py-0.5 text-sm font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition active:scale-95 cursor-pointer"
+                              className="inline-flex items-center gap-1 rounded-md bg-warn-soft border border-warn/40 px-1.5 py-0.5 text-sm font-semibold text-warn hover:bg-warn-soft transition active:scale-95 cursor-pointer"
                             >
                               <span>⚡</span>
                               <span>{app.label}</span>
@@ -902,7 +902,7 @@ export default function CatalogsPanel({
                     )}
                   </div>
 
-                  <div className="mt-5 border-t border-ink-100 dark:border-ink-700/60 pt-3 flex flex-wrap items-center gap-1.5">
+                  <div className="mt-5 border-t border-border pt-3 flex flex-wrap items-center gap-1.5">
                     {document.status === 'COMPLETED' && !document.archivedAt && (
                       <>
                         <button
@@ -925,7 +925,7 @@ export default function CatalogsPanel({
                           type="button"
                           onClick={() => void access(document.id, 'download', document.filename)}
                           title="Baixar arquivo PDF"
-                          className="rounded-xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-1.5 text-sm text-ink-500 hover:bg-ink-100 dark:hover:bg-ink-700"
+                          className="rounded-xl border border-border bg-card p-1.5 text-sm text-ink-500 hover:bg-ink-100 dark:hover:bg-ink-700"
                         >
                           ⬇
                         </button>
@@ -933,7 +933,7 @@ export default function CatalogsPanel({
                     )}
 
                     {admin && (
-                      <div className="w-full flex items-center justify-between pt-1 text-sm text-ink-500 dark:text-ink-400">
+                      <div className="w-full flex items-center justify-between pt-1 text-sm text-muted-foreground">
                         <button
                           type="button"
                           disabled={busy || document.processingActive}
@@ -946,7 +946,7 @@ export default function CatalogsPanel({
                           type="button"
                           disabled={busy || document.processingActive}
                           onClick={() => void action(document.id, 'archive')}
-                          className="hover:text-rose-600 disabled:opacity-40 font-medium"
+                          className="hover:text-destructive disabled:opacity-40 font-medium"
                         >
                           Arquivar
                         </button>
@@ -954,7 +954,7 @@ export default function CatalogsPanel({
                           type="button"
                           disabled={busy || document.processingActive}
                           onClick={() => void removePdf(document)}
-                          className="hover:text-rose-600 disabled:opacity-40 font-medium"
+                          className="hover:text-destructive disabled:opacity-40 font-medium"
                         >
                           Excluir
                         </button>
@@ -969,7 +969,7 @@ export default function CatalogsPanel({
           /* View Mode: Table */
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1160px] text-sm">
-              <thead className="bg-ink-50/80 dark:bg-ink-800 text-left text-sm text-ink-500 dark:text-ink-400">
+              <thead className="bg-muted text-left text-sm text-muted-foreground">
                 <tr>
                   <th className="p-4">Catálogo</th>
                   <th>Seção</th>
@@ -984,14 +984,14 @@ export default function CatalogsPanel({
                   const recovery = failureGuidance(document);
                   const pncs = catalogPncs(document);
                   return (
-                    <tr key={document.id} className="border-t border-ink-100 dark:border-ink-800 transition hover:bg-ink-50/60 dark:bg-ink-800">
+                    <tr key={document.id} className="border-t border-border transition hover:bg-ink-50/60 dark:bg-ink-800">
                       <td className="p-4">
                         <div className="flex items-start gap-2">
                           <div>
-                            <b className="font-semibold text-ink-800 dark:text-ink-200">{document.filename}</b>
-                            <div className="mt-1 text-sm text-ink-500 dark:text-ink-400">{document.manufacturer || 'Husqvarna'} · {fmtDate(document.createdAt)}</div>
-                            {document.extractionMethod && <div className="mt-1 text-sm font-medium text-ink-500 dark:text-ink-400">{extractionLabel(document.extractionMethod)}</div>}
-                            {document.archivedAt && <span className="text-sm text-rose-600">Arquivado</span>}
+                            <b className="font-semibold text-foreground">{document.filename}</b>
+                            <div className="mt-1 text-sm text-muted-foreground">{document.manufacturer || 'Husqvarna'} · {fmtDate(document.createdAt)}</div>
+                            {document.extractionMethod && <div className="mt-1 text-sm font-medium text-muted-foreground">{extractionLabel(document.extractionMethod)}</div>}
+                            {document.archivedAt && <span className="text-sm text-destructive">Arquivado</span>}
                           </div>
                         </div>
                       </td>
@@ -1002,19 +1002,19 @@ export default function CatalogsPanel({
                             disabled={busy || document.processingActive}
                             value={document.category}
                             onChange={event => void setCategory(document, event.target.value)}
-                            className="max-w-[220px] rounded-xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 px-2.5 py-2 text-sm font-medium text-ink-700 dark:text-ink-300 disabled:opacity-50"
+                            className="max-w-[220px] rounded-xl border border-border bg-card px-2.5 py-2 text-sm font-medium text-ink-700 dark:text-ink-300 disabled:opacity-50"
                           >
                             {categories.map(category => (
                               <option key={category} value={category}>{category}</option>
                             ))}
                           </select>
                         ) : (
-                          <span className="rounded-full bg-ink-100 dark:bg-ink-700 px-2.5 py-1.5 text-sm font-medium text-ink-600 dark:text-ink-400">
+                          <span className="rounded-full bg-ink-100 dark:bg-ink-700 px-2.5 py-1.5 text-sm font-medium text-muted-foreground">
                             {document.category}
                           </span>
                         )}
                       </td>
-                      <td className="pr-4 text-ink-600 dark:text-ink-400">
+                      <td className="pr-4 text-muted-foreground">
                         <div className={document.modelNeedsReview ? 'font-semibold text-rose-700 dark:text-rose-300' : 'font-medium text-ink-700 dark:text-ink-300'}>
                           {formatEngineOrCatalogModel(document.model, document.manufacturer, document.filename) || document.model || 'Modelo não confirmado'}
                         </div>
@@ -1032,7 +1032,7 @@ export default function CatalogsPanel({
                                 type="button"
                                 onClick={() => onSearch ? onSearch(app.machineModel) : setSearch(app.machineModel)}
                                 title={`Filtrar / buscar peças da máquina ${app.machineModel}`}
-                                className="inline-flex items-center gap-1 rounded-sm bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 px-1.5 py-0.5 text-sm font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded-sm bg-warn-soft border border-warn/40 px-1.5 py-0.5 text-sm font-semibold text-warn hover:bg-warn-soft transition cursor-pointer"
                               >
                                 <span>⚡</span>
                                 <span>{app.label}</span>
@@ -1070,7 +1070,7 @@ export default function CatalogsPanel({
                         )}
                         {pncs.length ? (
                           <div className="mt-1.5">
-                            <div className="text-sm font-semibold text-ink-500 dark:text-ink-400">
+                            <div className="text-sm font-semibold text-muted-foreground">
                               {pncs.length === 1 ? 'PNC' : 'PNCs encontrados'}{pncs.length > 1 ? ` · ${pncs.length}` : ''}
                             </div>
                             <div className="mt-1 flex max-w-[280px] flex-wrap gap-1" title={pncs.join(', ')}>
@@ -1080,21 +1080,21 @@ export default function CatalogsPanel({
                                 </span>
                               ))}
                               {pncs.length > 4 && (
-                                <span className="rounded-md bg-ink-100 dark:bg-ink-700 px-1.5 py-0.5 text-sm font-semibold text-ink-500 dark:text-ink-400">
+                                <span className="rounded-md bg-ink-100 dark:bg-ink-700 px-1.5 py-0.5 text-sm font-semibold text-muted-foreground">
                                   +{pncs.length - 4}
                                 </span>
                               )}
                             </div>
                           </div>
                         ) : (
-                          <div className="mt-1 text-sm text-ink-500 dark:text-ink-400">PNC não identificado no PDF</div>
+                          <div className="mt-1 text-sm text-muted-foreground">PNC não identificado no PDF</div>
                         )}
                       </td>
                       <td className="pr-4">
                         <span className={`rounded-full px-2 py-1 text-sm font-semibold ${badge(document)}`}>{statusLabel(document)}</span>
                         {document.status === 'COMPLETED' && <div className={`mt-1 text-sm font-semibold ${qualityTone(document)}`}>{qualityLabel(document)}</div>}
                         {document.reviewReasons?.[0] && document.reviewStatus === 'NEEDS_REVIEW' && (
-                          <div className="mt-1 max-w-72 text-sm leading-4 text-rose-600">{document.reviewReasons[0]}</div>
+                          <div className="mt-1 max-w-72 text-sm leading-4 text-destructive">{document.reviewReasons[0]}</div>
                         )}
                         {recovery && (
                           <div className={`mt-2 max-w-80 rounded-xl border p-2.5 text-sm leading-4 ${recovery.tone}`}>
@@ -1109,10 +1109,10 @@ export default function CatalogsPanel({
                           </div>
                         )}
                         {!recovery && document.processingError && (
-                          <div className="mt-1 max-w-72 text-sm leading-4 text-ink-500 dark:text-ink-400">{document.processingError}</div>
+                          <div className="mt-1 max-w-72 text-sm leading-4 text-muted-foreground">{document.processingError}</div>
                         )}
                       </td>
-                      <td className="pr-4 text-ink-600 dark:text-ink-400 font-semibold">{document.partCount}</td>
+                      <td className="pr-4 text-muted-foreground font-semibold">{document.partCount}</td>
                       <td className="p-4">
                         <div className="flex flex-wrap gap-1.5">
                           {document.status === 'COMPLETED' && !document.archivedAt && (
@@ -1120,7 +1120,7 @@ export default function CatalogsPanel({
                               <button
                                 type="button"
                                 onClick={() => void access(document.id, 'view', document.filename)}
-                                className="rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 px-2.5 py-1.5 text-sm font-medium hover:bg-ink-50 dark:hover:bg-ink-700"
+                                className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm font-medium hover:bg-ink-50 dark:hover:bg-ink-700"
                               >
                                 Visualizar
                               </button>
@@ -1128,7 +1128,7 @@ export default function CatalogsPanel({
                                 <button
                                   type="button"
                                   onClick={() => onSearch(document.model || document.filename)}
-                                  className="rounded-lg bg-amber-400 hover:bg-amber-300 text-ink-950 px-2.5 py-1.5 text-sm font-bold transition shadow-2xs"
+                                  className="rounded-lg bg-warn hover:bg-warn text-ink-950 px-2.5 py-1.5 text-sm font-bold transition shadow-2xs"
                                 >
                                   Ver Peças
                                 </button>
@@ -1136,7 +1136,7 @@ export default function CatalogsPanel({
                               <button
                                 type="button"
                                 onClick={() => void access(document.id, 'download', document.filename)}
-                                className="rounded-lg border border-ink-200 dark:border-ink-700 px-2.5 py-1.5 text-sm font-medium"
+                                className="rounded-lg border border-border px-2.5 py-1.5 text-sm font-medium"
                               >
                                 Baixar
                               </button>
@@ -1153,7 +1153,7 @@ export default function CatalogsPanel({
                                 type="button"
                                 disabled={busy || document.processingActive || ['PENDING', 'PROCESSING'].includes(document.status)}
                                 onClick={() => void action(document.id, 'reprocess')}
-                                className="rounded-lg border border-ink-200 dark:border-ink-700 px-2.5 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40"
+                                className="rounded-lg border border-border px-2.5 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 {document.status === 'COMPLETED' ? 'Reextrair peças' : recovery?.retryLabel || 'Tentar novamente'}
                               </button>
@@ -1161,7 +1161,7 @@ export default function CatalogsPanel({
                                 type="button"
                                 disabled={busy || document.processingActive}
                                 onClick={() => void action(document.id, 'archive')}
-                                className="rounded-lg border border-rose-200 dark:border-rose-800 px-2.5 py-1.5 text-sm font-medium text-rose-600 disabled:opacity-40"
+                                className="rounded-lg border border-destructive/40 px-2.5 py-1.5 text-sm font-medium text-destructive disabled:opacity-40"
                               >
                                 Arquivar
                               </button>
@@ -1169,14 +1169,14 @@ export default function CatalogsPanel({
                                 type="button"
                                 disabled={busy || document.processingActive}
                                 onClick={() => void removePdf(document)}
-                                className="rounded-lg border border-rose-300 px-2.5 py-1.5 text-sm font-semibold text-rose-700 dark:text-rose-300 disabled:opacity-40"
+                                className="rounded-lg border border-destructive/40 px-2.5 py-1.5 text-sm font-semibold text-destructive disabled:opacity-40"
                               >
                                 Excluir PDF
                               </button>
                             </>
                           )}
                           {admin && document.archivedAt && (
-                            <button type="button" disabled={busy} onClick={() => void action(document.id, 'restore')} className="rounded-lg border border-emerald-200 dark:border-emerald-800 px-2.5 py-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                            <button type="button" disabled={busy} onClick={() => void action(document.id, 'restore')} className="rounded-lg border border-ok/40 px-2.5 py-1.5 text-sm font-medium text-ok">
                               Restaurar
                             </button>
                           )}
@@ -1193,24 +1193,24 @@ export default function CatalogsPanel({
         {!filtered.length && (
           <div className="p-10 text-center">
             {activeDocs.length === 0 ? (
-              <div className="mx-auto max-w-md rounded-2xl border border-dashed border-ink-300 dark:border-ink-700 p-8 text-center">
+              <div className="mx-auto max-w-md rounded-2xl border border-dashed border-border p-8 text-center">
                 <span className="text-4xl">📚</span>
-                <h3 className="mt-3 text-base font-semibold text-ink-800 dark:text-ink-200">
+                <h3 className="mt-3 text-base font-semibold text-foreground">
                   {archived ? 'Nenhum catálogo arquivado' : 'Nenhum catálogo disponível'}
                 </h3>
-                <p className="mt-2 text-sm leading-5 text-ink-500 dark:text-ink-400">
+                <p className="mt-2 text-sm leading-5 text-muted-foreground">
                   {archived
                     ? 'Não existem catálogos no arquivo no momento.'
                     : 'Nenhum catálogo foi encontrado no banco de dados. Se você é administrador, utilize o painel de upload acima para adicionar catálogos Husqvarna.'}
                 </p>
               </div>
             ) : (
-              <div className="mx-auto max-w-lg rounded-2xl border border-ink-200 dark:border-ink-700 bg-ink-50/70 dark:bg-ink-800/40 p-6 text-center">
+              <div className="mx-auto max-w-lg rounded-2xl border border-border bg-muted p-6 text-center">
                 <span className="text-3xl">🔍</span>
-                <h3 className="mt-2 text-base font-semibold text-ink-800 dark:text-ink-200">
+                <h3 className="mt-2 text-base font-semibold text-foreground">
                   Nenhum catálogo encontrado para os filtros atuais
                 </h3>
-                <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Existem <b>{activeDocs.length} catálogo{activeDocs.length === 1 ? '' : 's'}</b> cadastrados no sistema, mas nenhum corresponde à busca ou aos filtros selecionados.
                 </p>
                 <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
@@ -1218,7 +1218,7 @@ export default function CatalogsPanel({
                     <button
                       type="button"
                       onClick={() => setSearch('')}
-                      className="rounded-xl border border-ink-300 dark:border-ink-600 bg-white dark:bg-ink-800 px-3 py-1.5 text-sm font-semibold text-ink-700 dark:text-ink-200 hover:bg-ink-100 dark:hover:bg-ink-700 transition"
+                      className="rounded-xl border border-ink-300 dark:border-ink-600 bg-card px-3 py-1.5 text-sm font-semibold text-foreground hover:bg-ink-100 dark:hover:bg-ink-700 transition"
                     >
                       Limpar busca "{search}"
                     </button>
@@ -1227,7 +1227,7 @@ export default function CatalogsPanel({
                     <button
                       type="button"
                       onClick={() => setCategoryFilter('ALL')}
-                      className="rounded-xl border border-ink-300 dark:border-ink-600 bg-white dark:bg-ink-800 px-3 py-1.5 text-sm font-semibold text-ink-700 dark:text-ink-200 hover:bg-ink-100 dark:hover:bg-ink-700 transition"
+                      className="rounded-xl border border-ink-300 dark:border-ink-600 bg-card px-3 py-1.5 text-sm font-semibold text-foreground hover:bg-ink-100 dark:hover:bg-ink-700 transition"
                     >
                       Ver todas as seções
                     </button>
@@ -1236,7 +1236,7 @@ export default function CatalogsPanel({
                     <button
                       type="button"
                       onClick={() => setStatusFilter('ALL')}
-                      className="rounded-xl border border-ink-300 dark:border-ink-600 bg-white dark:bg-ink-800 px-3 py-1.5 text-sm font-semibold text-ink-700 dark:text-ink-200 hover:bg-ink-100 dark:hover:bg-ink-700 transition"
+                      className="rounded-xl border border-ink-300 dark:border-ink-600 bg-card px-3 py-1.5 text-sm font-semibold text-foreground hover:bg-ink-100 dark:hover:bg-ink-700 transition"
                     >
                       Ver todos os status
                     </button>
@@ -1263,11 +1263,11 @@ export default function CatalogsPanel({
 
       {pdf && (
         <div onMouseDown={e => { if (e.target === e.currentTarget) setPdf(null); }} className="fixed inset-0 z-90 bg-ink-950/90 p-3 md:p-6">
-          <div id="catalog-pdf-modal-container" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-white dark:bg-ink-800">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200 dark:border-ink-700 px-4 py-3">
+          <div id="catalog-pdf-modal-container" className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] bg-card">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
               <div>
                 <div className="text-sm font-semibold">{pdf.title}</div>
-                <div className="text-sm text-ink-500 dark:text-ink-400">Visualizador técnico de catálogo</div>
+                <div className="text-sm text-muted-foreground">Visualizador técnico de catálogo</div>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -1280,7 +1280,7 @@ export default function CatalogsPanel({
                       void el.requestFullscreen();
                     }
                   }}
-                  className="rounded-xl border border-ink-200 dark:border-ink-700 px-3 py-2 text-sm font-semibold text-ink-700 dark:text-ink-300 hover:bg-ink-100 dark:hover:bg-ink-700 transition"
+                  className="rounded-xl border border-border px-3 py-2 text-sm font-semibold text-ink-700 dark:text-ink-300 hover:bg-ink-100 dark:hover:bg-ink-700 transition"
                   title="Alternar tela cheia"
                 >
                   ⛶ Tela cheia
@@ -1289,12 +1289,12 @@ export default function CatalogsPanel({
                   href={pdf.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-xl border border-ink-200 dark:border-ink-700 px-3 py-2 text-sm font-semibold text-brand-600 dark:text-brand-300 hover:bg-brand-50 dark:hover:bg-ink-700 transition"
+                  className="rounded-xl border border-border px-3 py-2 text-sm font-semibold text-brand-600 dark:text-brand-300 hover:bg-brand-50 dark:hover:bg-ink-700 transition"
                 >
                   Nova aba ↗
                 </a>
-                <button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-ink-200 dark:border-ink-700 px-3 py-2 text-sm font-semibold">
-                  Fechar <span className="ml-1 text-sm text-ink-500 dark:text-ink-400">Esc</span>
+                <button type="button" autoFocus onClick={() => setPdf(null)} className="rounded-xl border border-border px-3 py-2 text-sm font-semibold">
+                  Fechar <span className="ml-1 text-sm text-muted-foreground">Esc</span>
                 </button>
               </div>
             </div>
