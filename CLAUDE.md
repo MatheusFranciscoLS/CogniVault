@@ -296,6 +296,17 @@ manual que olhava sempre os mesmos 8 modelos. O dono não quer subir PDF à mão
   "RST" é outra máquina), e `auditPortalModel(model, { knownPncs })` tenta o PNC da lista (`listedPncsForModel`) antes da busca por
   nome. Versão da política do cache: 5. Z560XS, LE322R e TS217Tm **de fato não têm IPL** (só manual); Automower não existe no Portal BR.
 
+## Cada tela tem endereço próprio (2026-10-08)
+
+Dono: *"pq todas as abas estão em /dashboard… na aba de administração e lá ta marcando dashboard"*.
+
+- `/atendimento`, `/catalogos`, `/orcamentos`, `/tabela-de-precos` e `/administracao/negocio|visao-geral|usuarios|qualidade`.
+  Mapa único em `lib/section-routes.ts` (endereço, título da aba do navegador, quem é da Administração). O login entra em `/atendimento`.
+- **O estado continua no `Dashboard`; a barra de endereço é reflexo dele** (`history.replaceState`, como já era com `?tab=`). Recarregar,
+  favoritar e copiar o link funcionam. Um `<Link>` de verdade remonta a tela (`DashboardRoute` usa a `key` da navegação); trocar de aba por dentro não.
+- **Links antigos continuam valendo**: `/dashboard?tab=quality`, `?tab=machines&pnc=`, `/husqvarna` são traduzidos na abertura. Quem é do Balcão e abre
+  endereço de Administração cai no Atendimento. Roteiro: `docs/loja-simulada/rotas-completo.mjs`.
+
 ## Atendimento e máquinas são UMA tela (a aba Máquinas não existe mais)
 
 Até 2026-09-19 havia duas abas para a mesma pergunta do balcão, e o dono disse

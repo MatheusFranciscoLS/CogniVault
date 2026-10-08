@@ -74,7 +74,7 @@ for (const theme of THEMES) {
           await page.getByLabel('E-mail').fill(ADMIN_EMAIL);
           await page.locator('#login-password').fill(PASSWORD);
           await page.getByRole('button', { name: 'Entrar', exact: true }).click();
-          await page.waitForURL(/\/dashboard/);
+          await page.waitForURL(/\/atendimento/);
           await page.getByPlaceholder(SEARCH).waitFor();
         });
         // O rascunho do orçamento mora no SERVIDOR e é por usuário. Todas as

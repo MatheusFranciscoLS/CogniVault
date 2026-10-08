@@ -118,7 +118,7 @@ export default function Login() {
         localStorage.setItem('cognivault_role', session.user.role);
         localStorage.setItem('cognivault_email', session.user.email);
         activateQuoteStorageScope(session.user.email.trim().toLocaleLowerCase('pt-BR'));
-        navigate('/dashboard', { replace: true });
+        navigate('/atendimento', { replace: true });
       })
       .catch(() => { /* sem sessão ou sem rede: o formulário de login é o certo */ });
     return () => { active = false; };
@@ -155,7 +155,7 @@ export default function Login() {
       localStorage.setItem('cognivault_role', session.user.role);
       localStorage.setItem('cognivault_email', session.user.email);
       activateQuoteStorageScope(session.user.email.trim().toLocaleLowerCase('pt-BR'));
-      navigate('/dashboard', { replace: true });
+      navigate('/atendimento', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro inesperado.');
     } finally {

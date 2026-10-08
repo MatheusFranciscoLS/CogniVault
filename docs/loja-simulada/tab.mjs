@@ -32,7 +32,7 @@ for (const theme of ['dark', 'light']) {
       await page.getByLabel('E-mail').fill('admin.e2e@cognivault.local');
       await page.locator('#login-password').fill('CogniVault-E2E-2026!');
       await page.getByRole('button', { name: 'Entrar', exact: true }).click();
-      await page.waitForURL(/\/dashboard/);
+      await page.waitForURL(/\/atendimento/);
       await page.goto(`${BASE}/dashboard?tab=${tab}`);
     }
     await page.waitForTimeout(2500);
