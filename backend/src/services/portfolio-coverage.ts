@@ -410,13 +410,26 @@ async function mapWithConcurrency<T, R>(items: T[], concurrency: number, worker:
  */
 export const PAUSED_COVERAGE_CATEGORIES: ReadonlyArray<RegExp> = [/automower/i];
 
+/**
+ * Modelos desligados um a um, com o motivo. 226KS12 (2026-10-08): derriçadeira de café = motor 226K + acessório de mão KS12. A Husqvarna Brasil
+ * publica a máquina, mas o Portal só tem manual e o site público não tem lista de peças do conjunto (só dos componentes 226K e KS12, em
+ * artigos próprios). O dono não conhece o modelo nem tem mais fonte; juntar as vistas dos dois componentes seria montar uma vista que a
+ * Husqvarna não publica. Para religar, tire o modelo daqui.
+ */
+export const PAUSED_COVERAGE_MODELS: ReadonlyArray<string> = ['226KS12'];
+
+export function isPausedModel(model: string): boolean {
+  const key = normalizeIdentifier(model);
+  return PAUSED_COVERAGE_MODELS.some(paused => normalizeIdentifier(paused) === key);
+}
+
 export function isPausedCategory(category: string | null | undefined): boolean {
   return Boolean(category) && PAUSED_COVERAGE_CATEGORIES.some(pattern => pattern.test(category as string));
 }
 
 /** Marca como PAUSED o que ainda não tem fonte e pertence a uma categoria desligada. O que já tem vista continua contando. */
 export function markPaused(items: PortfolioCoverageItem[]): PortfolioCoverageItem[] {
-  return items.map(item => (item.status === 'UNVERIFIED' && isPausedCategory(item.commercialCategory) ? { ...item, status: 'PAUSED' as const } : item));
+  return items.map(item => (item.status === 'UNVERIFIED' && (isPausedCategory(item.commercialCategory) || isPausedModel(item.model)) ? { ...item, status: 'PAUSED' as const } : item));
 }
 
 export function listPaused(items: PortfolioCoverageItem[]) {
