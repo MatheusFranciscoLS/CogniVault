@@ -704,19 +704,17 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     void saveCurrentQuote(opts);
 
     // O layout do PDF mora em lib/quote-pdf.ts (testado). Aqui só se junta o que a gaveta já tem.
-    const [{ buildQuotePdf }, { loadStoreLogo }, { attendantNameFromEmail }] = await Promise.all([
+    const [{ buildQuotePdf }, { loadStoreLogo }, { attendantDisplayName }] = await Promise.all([
       import('../lib/quote-pdf'),
       import('../lib/pdf-assets'),
       import('../lib/store-profile'),
     ]);
-    // "ATT.": o usuário da sessão só tem e-mail, então o nome sai dele. Sem e-mail legível, a linha some.
-    let email: string | null = null;
-    try { email = localStorage.getItem('cognivault_email'); } catch { /* sem armazenamento: o PDF sai sem o ATT. */ }
+    // "ATT.": o nome cadastrado pelo administrador. Sem nome (e sem e-mail no formato nome.sobrenome), a linha some.
     const doc = buildQuotePdf({
       doc: new jsPDF('p', 'pt', 'a4'),
       autoTable,
       items,
-      options: { ...opts, attendantName: attendantNameFromEmail(email) || undefined },
+      options: { ...opts, attendantName: attendantDisplayName() || undefined },
       logo: await loadStoreLogo(),
     });
     doc.save(`Orcamento_Vardao_${Date.now()}.pdf`);

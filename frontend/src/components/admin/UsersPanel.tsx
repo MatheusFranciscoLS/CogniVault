@@ -28,6 +28,9 @@ export default function UsersPanel() {
   const confirm = useConfirm();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [email, setEmail] = useState('');
+  const [newName, setNewName] = useState('');
+  const [nameFor, setNameFor] = useState<AdminUser | null>(null);
+  const [nameDraft, setNameDraft] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<Role>('MECHANIC');
   const [error, setError] = useState('');
@@ -53,9 +56,10 @@ export default function UsersPanel() {
       await json(await api('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, role }),
+        body: JSON.stringify({ email, password, role, name: newName.trim() || undefined }),
       }));
       setEmail('');
+      setNewName('');
       setPassword('');
       setRole('MECHANIC');
       setCreateOpen(false);
@@ -101,6 +105,12 @@ export default function UsersPanel() {
     }
   };
 
+  const saveName = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!nameFor) return;
+    if (await update(nameFor.id, { name: nameDraft.trim() || null }, 'Nome atualizado.')) setNameFor(null);
+  };
+
   const resetPassword = async (event: FormEvent) => {
     event.preventDefault();
     if (!passwordFor) return;
@@ -117,7 +127,7 @@ export default function UsersPanel() {
 
   const normalized = filter.trim().toLocaleLowerCase('pt-BR');
   const filtered = useMemo(
-    () => users.filter(user => !normalized || [user.email, ROLE_LABEL[user.role], STATUS[user.status].label].some(value => value.toLocaleLowerCase('pt-BR').includes(normalized))),
+    () => users.filter(user => !normalized || [user.email, user.name ?? '', ROLE_LABEL[user.role], STATUS[user.status].label].some(value => value.toLocaleLowerCase('pt-BR').includes(normalized))),
     [normalized, users],
   );
 
@@ -126,7 +136,8 @@ export default function UsersPanel() {
       {error && <p role="alert" className="rounded-lg border border-destructive bg-destructive/10 px-4 py-3 text-base text-destructive">{error}</p>}
 
       {createOpen && (
-        <form onSubmit={create} className="grid gap-3 rounded-xl border border-border bg-card p-5 lg:grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_180px_auto]">
+        <form onSubmit={create} className="grid gap-3 rounded-xl border border-border bg-card p-5 lg:grid-cols-[minmax(200px,1fr)_minmax(200px,1fr)_minmax(200px,1fr)_180px_auto]">
+          <Input maxLength={80} value={newName} onChange={event => setNewName(event.target.value)} placeholder="Nome (sai no orçamento)" aria-label="Nome do novo usuário" className="h-11" />
           <Input type="email" required value={email} onChange={event => setEmail(event.target.value)} placeholder="E-mail" aria-label="E-mail do novo usuário" className="h-11" />
           <Input required minLength={15} maxLength={64} type="password" autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Senha inicial (mínimo 15 caracteres)" aria-label="Senha inicial" className="h-11" />
           <select value={role} onChange={event => setRole(event.target.value as Role)} aria-label="Perfil" className="h-11 rounded-md border border-input bg-card px-3 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/60">
@@ -153,8 +164,8 @@ export default function UsersPanel() {
           {filtered.map(user => (
             <li key={user.id} className="grid items-center gap-x-4 gap-y-1 px-5 py-4 md:grid-cols-[minmax(0,1fr)_160px_130px_56px]">
               <div className="min-w-0">
-                <div className="truncate text-lg font-semibold">{user.email}</div>
-                <div className="text-base text-muted-foreground">desde {fmtDate(user.createdAt)}</div>
+                <div className="truncate text-lg font-semibold">{user.name || user.email}</div>
+                <div className="truncate text-base text-muted-foreground">{user.name ? `${user.email} · ` : ''}desde {fmtDate(user.createdAt)}{!user.name && ' · sem nome (o orçamento sai sem ATT.)'}</div>
               </div>
               <span className="text-base">{ROLE_LABEL[user.role]}</span>
               <span><span className={cn('rounded-md px-2 py-0.5 text-base font-semibold', STATUS[user.status].className)}>{STATUS[user.status].label}</span></span>
@@ -167,6 +178,7 @@ export default function UsersPanel() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="min-w-52">
                     <DropdownMenuItem onSelect={() => void toggleRole(user)} className="h-10 text-base">{user.role === 'ADMIN' ? 'Tornar Balcão' : 'Tornar administrador'}</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => { setNameFor(user); setNameDraft(user.name ?? ''); }} className="h-10 text-base">Definir nome</DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => void toggleBlock(user)} className="h-10 text-base">{user.status === 'APPROVED' ? 'Bloquear' : 'Ativar'}</DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => { setPasswordFor(user); setPasswordDraft(''); setPasswordError(''); }} className="h-10 text-base">Redefinir senha</DropdownMenuItem>
                   </DropdownMenuContent>
@@ -177,6 +189,25 @@ export default function UsersPanel() {
           {!filtered.length && <li className="px-5 py-10 text-center text-base text-muted-foreground">Nenhum usuário encontrado.</li>}
         </ul>
       </div>
+
+      <Dialog open={nameFor !== null} onOpenChange={open => { if (!open) setNameFor(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={saveName} className="grid gap-4">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-semibold">Nome do usuário</DialogTitle>
+              <DialogDescription className="text-base">{nameFor?.email}. É o que sai em "ATT." no orçamento do cliente.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-1.5">
+              <label htmlFor="user-name" className="text-base font-semibold">Nome como a pessoa se apresenta</label>
+              <Input id="user-name" autoFocus maxLength={80} value={nameDraft} onChange={event => setNameDraft(event.target.value)} placeholder="Matheus Francisco" className="h-11" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setNameFor(null)}>Cancelar</Button>
+              <Button type="submit">Salvar</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={passwordFor !== null} onOpenChange={open => { if (!open) setPasswordFor(null); }}>
         <DialogContent className="sm:max-w-md">

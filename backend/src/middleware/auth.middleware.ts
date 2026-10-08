@@ -21,6 +21,7 @@ export interface AuthenticatedUser {
     role: 'ADMIN' | 'MECHANIC';
     tenantId: string;
     email?: string;
+    name?: string | null;
     status?: string;
     createdAt?: Date;
     tenantName?: string;
@@ -40,6 +41,7 @@ interface JwtPayload {
 interface CachedUser {
     id: string;
     email: string;
+    name: string | null;
     tenantId: string;
     role: 'ADMIN' | 'MECHANIC';
     status: string;
@@ -168,6 +170,7 @@ export async function authMiddleware(
                 select: {
                     id: true,
                     email: true,
+                    name: true,
                     tenantId: true,
                     role: true,
                     status: true,
@@ -185,6 +188,7 @@ export async function authMiddleware(
             currentUser = {
                 id: dbUser.id,
                 email: dbUser.email,
+                name: dbUser.name,
                 tenantId: dbUser.tenantId,
                 role: dbUser.role,
                 status: dbUser.status,
@@ -213,6 +217,7 @@ export async function authMiddleware(
         req.user = {
             id: currentUser.id,
             email: currentUser.email,
+            name: currentUser.name,
             tenantId: currentUser.tenantId,
             role: currentUser.role,
             status: currentUser.status,

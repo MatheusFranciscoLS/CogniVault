@@ -38,9 +38,25 @@ export const QUOTE_DEFAULTS = {
   ],
 } as const;
 
-/** "matheus.francisco@loja.com" → "Matheus Francisco" (o usuário da sessão só tem e-mail). */
+/**
+ * Reserva para quem ainda não tem nome cadastrado: "matheus.francisco@loja.com" → "Matheus Francisco". Só vale com DUAS palavras de
+ * 3 letras ou mais; e-mail que não segue esse formato ("matheusfran.ls", "balcao2") devolve vazio e a linha "ATT." some, porque um nome
+ * inventado ("Matheusf Ls") na frente do cliente é pior que nenhum (dono, 2026-10-07).
+ */
 export function attendantNameFromEmail(email: string | null | undefined): string {
   const local = (email ?? '').split('@')[0] ?? '';
-  const words = local.split(/[._\-+\d]+/).filter(word => word.length > 1);
+  const words = local.split(/[._-]+/);
+  if (words.length < 2 || words.some(word => !/^\p{L}{3,}$/u.test(word))) return '';
   return words.map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+}
+
+/** O nome de quem atende, para o "ATT.": o cadastrado pelo administrador; sem ele, a reserva do e-mail; sem nenhum, vazio. */
+export function attendantDisplayName(): string {
+  try {
+    const name = localStorage.getItem('cognivault_name')?.trim();
+    if (name) return name;
+    return attendantNameFromEmail(localStorage.getItem('cognivault_email'));
+  } catch {
+    return '';
+  }
 }

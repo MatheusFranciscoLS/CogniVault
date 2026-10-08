@@ -82,22 +82,20 @@ export default function MachineQuoteDialog({
     if (price === null || quoteDate === null) return;
     setBusy(true);
     try {
-      const [{ jsPDF }, autoTable, { buildMachineQuotePdf }, { loadStoreLogo, loadProductImage }, { attendantNameFromEmail }] = await Promise.all([
+      const [{ jsPDF }, autoTable, { buildMachineQuotePdf }, { loadStoreLogo, loadProductImage }, { attendantDisplayName }] = await Promise.all([
         import('jspdf'),
         import('jspdf-autotable').then(module => module.default),
         import('../lib/machine-quote'),
         import('../lib/pdf-assets'),
         import('../lib/store-profile'),
       ]);
-      let email: string | null = null;
-      try { email = localStorage.getItem('cognivault_email'); } catch { /* sem armazenamento: o PDF sai sem o ATT. */ }
       const fields: MachineQuoteFields = { customerName: customer, price, payment, leadTime, observation, complement, highlight, bullets };
       buildMachineQuotePdf({
         doc: new jsPDF('p', 'pt', 'a4'),
         autoTable,
         machine,
         fields,
-        attendantName: attendantNameFromEmail(email) || undefined,
+        attendantName: attendantDisplayName() || undefined,
         variant,
         now: quoteDate,
         logo: await loadStoreLogo(),

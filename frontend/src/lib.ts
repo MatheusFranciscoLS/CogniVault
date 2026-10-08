@@ -84,7 +84,7 @@ export function ensureApiReady(maxWaitMs = 75_000): Promise<boolean> {
 /** @deprecated Compatibilidade apenas para sessões Bearer abertas antes da migração. */
 export function getToken() { return localStorage.getItem('cognivault_token') || ''; }
 export function clearSession() {
-  ['cognivault_token','cognivault_tenant','cognivault_role','cognivault_email'].forEach(k => localStorage.removeItem(k));
+  ['cognivault_token','cognivault_tenant','cognivault_role','cognivault_email','cognivault_name'].forEach(k => localStorage.removeItem(k));
 }
 export async function api(path: string, init: ApiRequestInit = {}) {
   const { timeoutMs = 30_000, signal: callerSignal, ...requestInit } = init;

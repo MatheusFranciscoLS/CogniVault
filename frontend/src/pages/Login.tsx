@@ -11,7 +11,16 @@ type SessionUser = {
   tenantId: string;
   role: 'ADMIN' | 'MECHANIC';
   email: string;
+  name?: string | null;
 };
+
+/** O nome cadastrado pelo administrador (sai em "ATT." no orçamento). Sem nome, apaga o do usuário anterior neste navegador. */
+function rememberUserName(name: string | null | undefined) {
+  try {
+    if (name && name.trim()) localStorage.setItem('cognivault_name', name.trim());
+    else localStorage.removeItem('cognivault_name');
+  } catch { /* sem armazenamento: o PDF sai sem o ATT. */ }
+}
 
 type LoginResponse = {
   user: SessionUser;
@@ -117,6 +126,7 @@ export default function Login() {
         localStorage.setItem('cognivault_tenant', session.user.tenantId);
         localStorage.setItem('cognivault_role', session.user.role);
         localStorage.setItem('cognivault_email', session.user.email);
+        rememberUserName(session.user.name);
         activateQuoteStorageScope(session.user.email.trim().toLocaleLowerCase('pt-BR'));
         navigate('/atendimento', { replace: true });
       })
@@ -154,6 +164,7 @@ export default function Login() {
       localStorage.setItem('cognivault_tenant', session.user.tenantId);
       localStorage.setItem('cognivault_role', session.user.role);
       localStorage.setItem('cognivault_email', session.user.email);
+      rememberUserName(session.user.name);
       activateQuoteStorageScope(session.user.email.trim().toLocaleLowerCase('pt-BR'));
       navigate('/atendimento', { replace: true });
     } catch (err) {

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../config/prisma';
 import { AuthenticatedRequest, invalidateUserAuthCache } from '../middleware/auth.middleware';
 import { AuditService } from '../services/audit.service';
+import { parseDisplayName } from '../utils/display-name';
 
 const MAX_EMAIL_LENGTH = 254;
 const MIN_PASSWORD_LENGTH = 15;
@@ -46,6 +47,7 @@ export class AdminController {
                 select: {
                     id: true,
                     email: true,
+                    name: true,
                     role: true,
                     status: true,
                     createdAt: true,
@@ -68,7 +70,7 @@ export class AdminController {
     async createUser(req: AuthenticatedRequest, res: Response): Promise<void> {
         try {
             if (!req.user) return;
-            const { email, password, role } = req.body;
+            const { email, password, role, name } = req.body;
 
             if (typeof email !== 'string' || !validEmail(email)) {
                 res.status(400).json({ error: 'Informe um e-mail válido de até 254 caracteres.' });
@@ -83,6 +85,12 @@ export class AdminController {
                 return;
             }
 
+            const displayName = name === undefined ? { ok: true as const, value: null } : parseDisplayName(name);
+            if (!displayName.ok) {
+                res.status(400).json({ error: 'Informe o nome como a pessoa se apresenta (só letras, de 2 a 80 caracteres).' });
+                return;
+            }
+
             const normalizedEmail = email.trim().toLowerCase();
             const exists = await prisma.user.findUnique({ where: { email: normalizedEmail } });
             if (exists) {
@@ -93,12 +101,13 @@ export class AdminController {
             const user = await prisma.user.create({
                 data: {
                     email: normalizedEmail,
+                    name: displayName.value,
                     password: await bcrypt.hash(password, 10),
                     role: role === 'ADMIN' ? 'ADMIN' : 'MECHANIC',
                     status: 'APPROVED',
                     tenantId: req.user.tenantId,
                 },
-                select: { id: true, email: true, role: true, status: true, createdAt: true },
+                select: { id: true, email: true, name: true, role: true, status: true, createdAt: true },
             });
 
             await AuditService.record({
@@ -125,7 +134,7 @@ export class AdminController {
         try {
             if (!req.user) return;
             const userId = String(req.params.id || '').trim();
-            const { role, status, password } = req.body;
+            const { role, status, password, name } = req.body;
 
             if (!userId || userId.length > MAX_ENTITY_ID_LENGTH) {
                 res.status(400).json({ error: 'Usuário inválido.' });
@@ -141,6 +150,11 @@ export class AdminController {
             }
             if (status !== undefined && status !== 'APPROVED' && status !== 'REJECTED' && status !== 'PENDING') {
                 res.status(400).json({ error: 'Status inválido.' });
+                return;
+            }
+            const displayName = name === undefined ? null : parseDisplayName(name);
+            if (displayName && !displayName.ok) {
+                res.status(400).json({ error: 'Informe o nome como a pessoa se apresenta (só letras, de 2 a 80 caracteres).' });
                 return;
             }
 
@@ -162,10 +176,11 @@ export class AdminController {
                 data: {
                     role: role ?? undefined,
                     status: status ?? undefined,
+                    name: displayName && displayName.ok ? displayName.value : undefined,
                     password: password ? await bcrypt.hash(password, 10) : undefined,
                     sessionVersion: password ? { increment: 1 } : undefined,
                 },
-                select: { id: true, email: true, role: true, status: true, createdAt: true },
+                select: { id: true, email: true, name: true, role: true, status: true, createdAt: true },
             });
 
             invalidateUserAuthCache(target.id);
@@ -180,6 +195,7 @@ export class AdminController {
                     email: target.email,
                     role: updated.role,
                     status: updated.status,
+                    nameChanged: name !== undefined,
                     passwordChanged: Boolean(password),
                     sessionsRevoked: Boolean(password),
                 },

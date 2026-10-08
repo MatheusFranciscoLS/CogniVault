@@ -6,7 +6,7 @@ export type OfficialVerificationApprovalStatus = 'PENDING' | 'APPROVED' | 'REJEC
 export type CatalogReviewStatus = 'PENDING' | 'READY' | 'NEEDS_REVIEW' | 'REVIEWED';
 export type RetrievalSource = 'DIRECT_CODE' | 'SEMANTIC' | 'LEXICAL' | 'FULL_TEXT' | 'FUZZY';
 
-export interface SessionUser { id:string; email:string; role:Role; status:string; tenant:{id:string;name:string}; }
+export interface SessionUser { id:string; email:string; name?:string|null; role:Role; status:string; tenant:{id:string;name:string}; }
 export interface DocumentItem {
   id:string; filename:string; status:string; manufacturer:string|null; model:string|null; pnc:string|null; pncs?:string[]; category:string; createdAt:string; partCount:number;
   suggestedModel?:string|null; modelNeedsReview?:boolean;
@@ -60,7 +60,7 @@ export interface ChatResponse {
   };
 }
 export interface Overview { tenantName:string; users:number; activeDocuments:number; processingDocuments:number; failedDocuments:number; parts:number; feedbackTotal:number; feedbackAccuracy:number|null; }
-export interface AdminUser { id:string; email:string; role:Role; status:'PENDING'|'APPROVED'|'REJECTED'; createdAt:string; feedbackCount:number; }
+export interface AdminUser { id:string; email:string; name?:string|null; role:Role; status:'PENDING'|'APPROVED'|'REJECTED'; createdAt:string; feedbackCount:number; }
 export interface AuditLog { id:string; action:string; targetType:string; targetId:string|null; metadata:unknown; createdAt:string; user:{email:string}|null; }
 
 export interface SearchHistoryItem {

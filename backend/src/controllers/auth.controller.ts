@@ -108,6 +108,7 @@ export class AuthController {
                 user: {
                     id: user.id,
                     email: user.email,
+                    name: user.name ?? null,
                     role: user.role,
                     tenantId: user.tenantId
                 }
