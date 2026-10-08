@@ -48,7 +48,7 @@ type KawasakiCatalog = {
  * - **Sem catálogo**: o link da busca oficial, para conferir à mão.
  */
 export default function KawasakiEnginePanel({
-  model,
+  model: requestedModel,
   onSearchPart,
 }: {
   model: string;
@@ -57,6 +57,9 @@ export default function KawasakiEnginePanel({
 }) {
   const quoteCart = useQuoteCart();
   const [openSlug, setOpenSlug] = useState<string | null>(null);
+  // O spec que a ficha da lista cita pode não existir no catálogo da Kawasaki: aí o balcão pode abrir a SÉRIE e escolher o spec da plaqueta.
+  const [serieEscolhida, setSerieEscolhida] = useState<string | null>(null);
+  const model = serieEscolhida ?? requestedModel;
 
   const catalogQuery = useQuery({
     queryKey: ['kawasaki-engine', model],
@@ -120,6 +123,7 @@ export default function KawasakiEnginePanel({
   }
 
   if (!catalog) return null;
+  const serieDoModelo = requestedModel.includes('-') && !serieEscolhida ? requestedModel.split('-')[0] : null;
 
   return (
     <section aria-label={`Motor Kawasaki ${catalog.fullName || catalog.model}`} className="overflow-hidden rounded-xl border border-border bg-card">
@@ -144,7 +148,10 @@ export default function KawasakiEnginePanel({
       )}
 
       {catalog.assemblies.length === 0 && catalog.needsSpec.length === 0 && (
-        <p className="px-5 py-4 text-base text-muted-foreground">Sem catálogo para este modelo. Confira série e spec na plaqueta.</p>
+        <div className="space-y-2 px-5 py-4">
+          <p className="text-base text-muted-foreground">Sem catálogo para este modelo. Confira série e spec na plaqueta.</p>
+          {serieDoModelo && <Button variant="outline" onClick={() => setSerieEscolhida(serieDoModelo)}>Ver os specs da série {serieDoModelo}</Button>}
+        </div>
       )}
 
       {catalog.assemblies.length > 0 && (
