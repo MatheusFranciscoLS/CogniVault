@@ -48,4 +48,51 @@ await step('máquina com motor vinculado: LTH1842 mostra o motor Kohler e abre a
   await shot(page, `${theme}-1366-maquina-motor`);
 });
 
+// ---- Trava anti-robô da Kohler (medida em 2026-10-08): simulada com page.route, sem encostar na Kohler. ----
+// Spec que a tela ainda não pediu: o resultado já lido de SV540-3212 está em cache na própria tela e esconderia o bloqueio simulado.
+const SPEC_TESTE = 'SV541-3299';
+const OFICIAL = `https://partnersportal.kohlerpower.it/customer/servicepartscatalogue/partfinder?EngineMatNumber=${SPEC_TESTE}`;
+const motorIndisponivel = unavailable => ({ kohler: { spec: SPEC_TESTE, description: null, groups: [], catalogUrl: OFICIAL, lookupUrl: OFICIAL, unavailable } });
+const motorLido = { kohler: { spec: SPEC_TESTE, description: 'Motor de Teste', groups: [{ sectionId: '101', groupCode: '01', name: 'Eixo de Teste' }], catalogUrl: OFICIAL, lookupUrl: OFICIAL } };
+
+await step('Trava anti-robô · o motor não é lido: a tela explica, NÃO diz "sem catálogo", e "Tentar de novo" recupera', async () => {
+  // O painel da máquina do passo anterior fica aberto: fecha antes de buscar.
+  if (await page.getByRole('dialog').count()) { await page.locator('[role="dialog"] button[aria-label="Fechar"]').first().click(); await page.waitForTimeout(500); }
+  await page.route('**/api/kohler/engine*', route => route.fulfill({ json: motorIndisponivel('CAPTCHA') }));
+  await page.getByPlaceholder(SEARCH).fill(SPEC_TESTE);
+  await page.getByRole('button', { name: 'Buscar' }).click();
+  const painel = page.getByRole('region', { name: new RegExp(`Motor Kohler ${SPEC_TESTE}`) });
+  await painel.getByRole('alert').waitFor({ timeout: 20000 });
+  const texto = await painel.innerText();
+  check('explica a verificação anti-robô', /verificação anti-robô/.test(texto));
+  check('não diz "Sem catálogo" (não é falta de catálogo)', !/Sem catálogo/.test(texto));
+  check('oferece o catálogo oficial e tentar de novo', (await painel.getByRole('link', { name: /Abrir o catálogo oficial/ }).count()) === 1 && (await painel.getByRole('button', { name: 'Tentar de novo' }).count()) === 1);
+  check('o link oficial é do domínio da Kohler', (await painel.getByRole('link', { name: /Abrir o catálogo oficial/ }).getAttribute('href')).startsWith('https://partnersportal.kohlerpower.it/'));
+  await shot(page, `${theme}-1366-kohler-captcha`);
+  await page.unroute('**/api/kohler/engine*');
+  await page.route('**/api/kohler/engine*', route => route.fulfill({ json: motorLido }));
+  await painel.getByRole('button', { name: 'Tentar de novo' }).click();
+  await painel.getByRole('button', { name: 'Eixo de Teste' }).waitFor({ timeout: 40000 });
+  await page.unroute('**/api/kohler/engine*');
+  check('depois de "Tentar de novo" o catálogo carrega e o aviso some', (await painel.getByRole('alert').count()) === 0);
+});
+
+await step('Trava anti-robô · um GRUPO que não foi lido mostra o aviso, não "Sem peças neste grupo"; e a segunda tentativa funciona', async () => {
+  // O painel da máquina do passo anterior fica aberto: fecha antes de buscar.
+  if (await page.getByRole('dialog').count()) { await page.locator('[role="dialog"] button[aria-label="Fechar"]').first().click(); await page.waitForTimeout(500); }
+  await page.route('**/api/kohler/group*', route => route.fulfill({ json: { group: { title: null, parts: [], imageUrl: null, hotspots: [], referenceWidth: null, referenceHeight: null, unavailable: 'ERRO' } } }));
+  await page.getByPlaceholder(SEARCH).fill('SV540-3212');
+  await page.getByRole('button', { name: 'Buscar' }).click();
+  const painel = page.getByRole('region', { name: /Motor Kohler SV540-3212/ });
+  await painel.getByRole('button', { name: 'CrankCase' }).click();
+  await painel.getByRole('alert').waitFor({ timeout: 20000 });
+  const texto = await painel.innerText();
+  check('diz que a Kohler não respondeu', /não respondeu/.test(texto));
+  check('não diz "Sem peças neste grupo"', !/Sem peças neste grupo/.test(texto));
+  await page.unroute('**/api/kohler/group*');
+  await painel.getByRole('button', { name: 'Tentar de novo' }).click();
+  await painel.locator('article').first().waitFor({ timeout: 40000 });
+  check('a segunda tentativa traz as peças do grupo', (await painel.locator('article').count()) > 3);
+});
+
 await finish(browser, errors);

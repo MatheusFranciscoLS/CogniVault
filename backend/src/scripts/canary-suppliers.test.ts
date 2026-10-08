@@ -46,4 +46,15 @@ describe('vigia dos fornecedores', () => {
     assert.equal(outcome.state, 'OK');
     assert.equal(calls, 2);
   });
+
+  it('a página de verificação anti-robô da Kohler é "FORA_DO_AR", nunca "MUDOU" (não abre issue à toa)', async () => {
+    mock.method(globalThis, 'fetch', async () => {
+      const response = new Response('<html>verifique que você não é um robô</html>', { status: 200 });
+      Object.defineProperty(response, 'url', { value: 'https://partnersportal.kohlerpower.it/customer/servicepartscatalogue/home/validaterecaptcha?x=1' });
+      return response;
+    });
+    const outcome = await runWithRetry(kohler, 0);
+    assert.equal(outcome.state, 'FORA_DO_AR');
+    assert.match(outcome.detail, /reCAPTCHA/);
+  });
 });
