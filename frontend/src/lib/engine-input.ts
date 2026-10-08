@@ -29,7 +29,7 @@ function clean(raw: string): string {
     .trim();
 }
 
-export function parseEngineInput(raw: string | null | undefined): EngineInput {
+function parseSingle(raw: string | null | undefined): EngineInput {
   const text = clean(String(raw ?? '')).slice(0, 40);
   if (text.length < 4) return UNKNOWN;
   const compact = text.replace(/[\s-]+/g, '');
@@ -71,6 +71,53 @@ export function parseEngineInput(raw: string | null | undefined): EngineInput {
   if (husqvarna) return { kind: 'ok', brand: 'Husqvarna', model: compact, precision: 'MODELO' };
 
   return UNKNOWN;
+}
+
+/**
+ * A plaqueta da Briggs escreve MODELO, TIPO e CÓDIGO em campos separados ("MODEL 104M02 TYPE 0002 CODE F1"). Junta os três quando o texto traz as
+ * palavras-chave, na ordem em que aparecem; sem elas, não adivinha.
+ */
+function parseBriggsPlate(words: string[]): EngineInput {
+  const after = (keyword: string) => {
+    const at = words.findIndex(word => word === keyword || word === `${keyword}:`);
+    if (at < 0) return undefined;
+    // "MODEL NO. 104M02", "TYPE NO. 0002-F1": pula o "NO" (ou Nº) que a plaqueta escreve entre o campo e o valor.
+    const next = words[at + 1];
+    return next === 'NO' || next === 'N°' || next === 'Nº' || next === '#' ? words[at + 2] : next;
+  };
+  const model = after('MODEL');
+  const type = after('TYPE') ?? after('TIPO');
+  const code = after('CODE') ?? after('CÓDIGO') ?? after('COD');
+  if (!model || !type) return UNKNOWN;
+  // O tipo pode vir já com o código ("0002-F1") e o código com o número de série ao lado: só vale o que cabe no formato.
+  const joined = [model, type, code && /^[0-9A-Z]{1,2}$/.test(code) ? code : ''].filter(Boolean).join('-');
+  const result = parseSingle(joined);
+  return result.kind === 'ok' && result.brand === 'Briggs & Stratton' ? result : UNKNOWN;
+}
+
+/**
+ * Lê o que o atendente digitou OU colou. Tenta o texto inteiro; se não for um modelo, procura um modelo dentro de linha maior ("Model No. FX921V-ES06",
+ * "SV540 3212 Serial 3012345678") em janelas de 1 a 3 palavras, e por último a plaqueta da Briggs em três campos. Continua conservador: entre
+ * palavras soltas só vale um formato inteiro e exato, então "carburador 587106701" nunca vira catálogo.
+ */
+export function parseEngineInput(raw: string | null | undefined): EngineInput {
+  const whole = parseSingle(raw);
+  if (whole.kind === 'ok' || whole.kind === 'needs-spec') return whole;
+
+  const words = clean(String(raw ?? '')).slice(0, 120).split(/[\s]+/).filter(Boolean);
+  if (words.length < 2) return UNKNOWN;
+  const plate = parseBriggsPlate(words);
+  if (plate.kind === 'ok') return plate;
+
+  let needsSpec: EngineInput | null = null;
+  for (let size = 3; size >= 1; size -= 1) {
+    for (let start = 0; start + size <= words.length; start += 1) {
+      const found = parseSingle(words.slice(start, start + size).join(' '));
+      if (found.kind === 'ok') return found;
+      if (found.kind === 'needs-spec' && !needsSpec) needsSpec = found;
+    }
+  }
+  return needsSpec ?? UNKNOWN;
 }
 
 /** O que dizer ao atendente quando não deu para reconhecer. Curto e com exemplo: ele está com o cliente esperando. */

@@ -225,4 +225,17 @@ await step('Campo da plaqueta · máquina SEM vínculo conhecido (cortador de gr
   check('motosserra não ganha cartão de motor (o motor dela está no IPL)', (await page.getByRole('region', { name: 'Motor desta máquina' }).count()) === 0);
 });
 
+await step('Campo da plaqueta · linha inteira colada e plaqueta da Briggs em três campos', async () => {
+  const { painel } = await abrirMaquina('Z460');
+  await abrirCampo(painel, 'Model No. FX921V-ES06 4 Stroke Engine');
+  await painel.getByRole('region', { name: /Motor Kawasaki FX921V-ES06/ }).waitFor({ timeout: 40000 });
+  check('uma linha inteira colada acha o modelo dentro do texto', true);
+  await abrirCampo(painel, 'MODEL 104M02 TYPE 0002 CODE F1');
+  await painel.getByRole('region', { name: /Briggs|104M02/i }).first().waitFor({ timeout: 60000 });
+  check('a plaqueta da Briggs (modelo, tipo e código separados) abre a lista de peças', true);
+  await abrirCampo(painel, 'preciso do carburador do motor');
+  await painel.getByRole('alert').waitFor({ timeout: 5000 });
+  check('frase solta não abre nada e recebe ajuda', true);
+});
+
 await finish(browser, errors);
