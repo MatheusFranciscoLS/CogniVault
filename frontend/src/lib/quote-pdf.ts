@@ -12,7 +12,6 @@ import type autoTableFn from 'jspdf-autotable';
 import type { PdfImage } from './pdf-assets';
 import { QUOTE_DEFAULTS, STORE_CITY, STORE_PROFILE } from './store-profile';
 import {
-  STORE_SIGNATURE,
   formatBRL,
   isServiceLine,
   quoteTotals,
@@ -38,7 +37,6 @@ export type QuotePdfOptions = QuoteMessageOptions & {
 // Azul-marinho da identidade Vardão e o dourado do selo (docs/IDENTIDADE_VISUAL_VARDAO.md).
 export const NAVY: [number, number, number] = [39, 58, 96];
 export const NAVY_DARK: [number, number, number] = [31, 39, 66];
-const GOLD: [number, number, number] = [255, 200, 0];
 export const INK: [number, number, number] = [30, 30, 29];
 export const MUTED: [number, number, number] = [104, 104, 103];
 export const ZEBRA: [number, number, number] = [244, 245, 248];
@@ -104,13 +102,11 @@ export function drawLetterhead(doc: JsPdf, input: { logo?: PdfImage | null; titl
     doc.text(line.text, pageWidth - MARGIN, top + 8 + index * 11.5, { align: 'right' });
   });
 
-  // Filete azul com um trecho dourado: é o selo da loja, no lugar da faixa cheia de antes.
+  // Um filete azul só (o trecho dourado que havia aqui era enfeite e o dono achou sem sentido, 2026-10-07).
   const ruleY = top + 70;
   doc.setDrawColor(...NAVY);
   doc.setLineWidth(1.2);
   doc.line(MARGIN, ruleY, pageWidth - MARGIN, ruleY);
-  doc.setFillColor(...GOLD);
-  doc.rect(MARGIN, ruleY - 1, 64, 3, 'F');
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(20);
@@ -312,10 +308,6 @@ export function buildQuotePdf(input: {
     doc.text('ATT.', MARGIN, sign);
     doc.setFont('helvetica', 'bold');
     doc.text(options.attendantName, MARGIN, sign + 15);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(...MUTED);
-    doc.text(STORE_SIGNATURE, MARGIN, sign + 29);
   }
 
   drawLetterFooter(doc);
