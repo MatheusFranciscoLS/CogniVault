@@ -39,6 +39,9 @@ export type PortfolioCoverage = {
   /** Sem lista no Portal e fora da lista vigente de máquinas: fora de linha, acessório ou marca secundária. */
   notApplicable?: number;
   outOfLine?: Array<{ model: string; normalizedModel: string; commercialCategory: string | null }>;
+  /** Categorias desligadas da conta por decisão do dono (Automower, por enquanto). */
+  paused?: number;
+  pausedModels?: Array<{ model: string; normalizedModel: string; commercialCategory: string | null }>;
   unverified: number;
   covered: number;
   coverageRate: number;
@@ -185,7 +188,7 @@ export default function PortfolioCoveragePanel({
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={coveragePercent} aria-valuemin={0} aria-valuemax={100} aria-label="Cobertura técnica">
             <div className="h-full rounded-full bg-ok transition-[width] duration-500" style={{ width: `${coveragePercent}%` }} />
           </div>
-          <div className="mt-2 text-sm text-muted-foreground">{displayCoverage.covered} de {displayCoverage.total - (displayCoverage.notApplicable ?? 0)} modelos em linha</div>
+          <div className="mt-2 text-sm text-muted-foreground">{displayCoverage.covered} de {displayCoverage.total - (displayCoverage.notApplicable ?? 0) - (displayCoverage.paused ?? 0)} modelos em linha</div>
         </div>
         <CoverageCard label="Catálogos em PDF" value={displayCoverage.localIpl.toLocaleString('pt-BR')}>
           Na biblioteca do CogniVault
@@ -248,6 +251,22 @@ export default function PortfolioCoveragePanel({
             ))}
           </TableBody>
         </Table>
+      )}
+
+      {(displayCoverage.pausedModels?.length ?? 0) > 0 && (
+        <details className="rounded-xl border border-border bg-card">
+          <summary className="cursor-pointer px-4 py-3 text-base font-semibold">
+            Em pausa: {displayCoverage.pausedModels?.length} modelos
+            <span className="ml-2 font-normal text-muted-foreground">fora da conta por enquanto</span>
+          </summary>
+          <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
+            {displayCoverage.pausedModels?.map(item => (
+              <span key={item.normalizedModel} className="rounded-full border border-border bg-muted px-2.5 py-0.5 text-sm text-muted-foreground">
+                <b className="text-foreground">{item.model}</b>{item.commercialCategory ? ` · ${categoryLabel(item.commercialCategory)}` : ''}
+              </span>
+            ))}
+          </div>
+        </details>
       )}
 
       {(displayCoverage.outOfLine?.length ?? 0) > 0 && (
