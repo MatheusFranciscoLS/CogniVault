@@ -390,7 +390,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
             </div>
             {!filteredQueue.length
               ? <div className="p-10 text-center"><div className="font-semibold text-ok">Nenhuma pendência neste filtro</div><p className="mt-1 text-sm text-muted-foreground">A base continua disponível para o balcão.</p></div>
-              : <div className="divide-y divide-border">{filteredQueue.map(catalog => <div key={catalog.id} className="p-5 hover:bg-accent/50 transition-colors">
+              : <div className="divide-y divide-border">{filteredQueue.map(catalog => <div key={catalog.id} className="px-5 py-4 hover:bg-accent/50 transition-colors">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -400,7 +400,24 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
                     </div>
                     <div className="mt-1 text-sm text-muted-foreground">Modelo: {catalog.model || 'não confirmado'} · PNC: {catalog.pnc || 'não impresso/confirmado'} · {extractionLabel(catalog.extractionMethod)}</div>
                     {catalog.suggestedModel && <div className="mt-3 inline-flex rounded-xl border border-brand-200 dark:border-brand-800 bg-brand-50 dark:bg-brand-900/30 px-3 py-2 text-sm font-semibold text-brand-800 dark:text-brand-300">Modelo sugerido pelo arquivo: {catalog.suggestedModel}</div>}
-                    {catalog.reviewReasons.length > 0 && <div className="mt-3 grid gap-1">{catalog.reviewReasons.slice(0, 4).map(reason => <div key={reason} className="text-sm leading-5 text-warn">• {reason}</div>)}</div>}
+                    {catalog.reviewReasons.length > 0 && (
+                      <ul className="mt-2 grid gap-0.5 text-sm leading-5 text-foreground">
+                        {catalog.reviewReasons.slice(0, 2).map(reason => <li key={reason} className="flex gap-2"><span aria-hidden="true" className="mt-2 size-1.5 shrink-0 rounded-full bg-warn" />{reason}</li>)}
+                        {catalog.reviewReasons.length > 2 && (
+                          <li>
+                            <details className="group">
+                              <summary className="cursor-pointer list-none text-sm font-semibold text-muted-foreground hover:text-foreground">
+                                <span className="group-open:hidden">Mais {catalog.reviewReasons.length - 2} {catalog.reviewReasons.length - 2 === 1 ? 'motivo' : 'motivos'}</span>
+                                <span className="hidden group-open:inline">Ocultar motivos</span>
+                              </summary>
+                              <ul className="mt-1 grid gap-0.5">
+                                {catalog.reviewReasons.slice(2).map(reason => <li key={reason} className="flex gap-2"><span aria-hidden="true" className="mt-2 size-1.5 shrink-0 rounded-full bg-warn" />{reason}</li>)}
+                              </ul>
+                            </details>
+                          </li>
+                        )}
+                      </ul>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {catalog.suggestedModel && (
