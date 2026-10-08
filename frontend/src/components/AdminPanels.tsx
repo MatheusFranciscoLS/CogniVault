@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, fmtDate, json } from '../lib';
+import PageFrame from './PageFrame';
 import type { AuditLog, Overview } from '../types';
 
 function AdminHeading({ title, action, level = 1 }: { title: string; action?: React.ReactNode; level?: 1 | 2 }) {
@@ -34,8 +35,7 @@ export function OverviewPanel() {
   ] : [];
 
   return (
-    <section className="mx-auto w-full max-w-[1400px] space-y-4">
-      <AdminHeading title="Visão geral" />
+    <PageFrame title="Visão geral">
       {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"><span>{error}</span><button type="button" onClick={() => { setError(''); setRetry(value => value + 1); }} className="rounded-lg border border-rose-300 px-3 py-1.5 text-sm font-bold dark:border-rose-700">Tentar novamente</button></div>}
 
       <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
@@ -56,7 +56,7 @@ export function OverviewPanel() {
           <div className="flex items-center justify-between gap-4 px-4 py-4"><span className="text-sm font-semibold text-ink-500 dark:text-ink-400">Catálogos com falha</span><span className="text-lg font-semibold text-rose-700 dark:text-rose-300">{data?.failedDocuments ?? '—'}</span></div>
         </div>
       </div>
-    </section>
+    </PageFrame>
   );
 }
 

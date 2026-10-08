@@ -141,7 +141,6 @@ export default function AssistantObservabilityPanel() {
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-ink-100 px-5 py-4 dark:border-ink-800">
         <div>
           <h2 className="text-base font-semibold text-ink-950 dark:text-white">Uso de IA e cobertura técnica</h2>
-          <p className="mt-1 max-w-2xl text-sm leading-5 text-ink-500 dark:text-ink-400">Métricas do dia para acompanhar custo de IA e quanto do trabalho já é resolvido por evidência reutilizável.</p>
         </div>
         <span className={`rounded-full border px-2.5 py-1 text-sm font-bold ${data.interactive.allowed ? 'border-emerald-200 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300' : 'border-amber-200 text-amber-700 dark:border-amber-800 dark:text-amber-300'}`}>
           {data.interactive.allowed ? 'IA interativa disponível' : 'IA interativa limitada'}
@@ -176,7 +175,7 @@ export default function AssistantObservabilityPanel() {
             )}
           </>
         ) : (
-          <span>Sem amostras desde o último deploy. A rota só aparece depois de uma consulta manual ao Portal.</span>
+          <span>Sem amostras desde o último deploy.</span>
         )}
       </div>
 
@@ -184,7 +183,7 @@ export default function AssistantObservabilityPanel() {
         <div>
           <div className="mb-2 text-sm font-semibold text-ink-500 dark:text-ink-400">Onde a IA foi usada hoje</div>
           {!data.actions.length ? (
-            <div className="rounded-lg bg-ink-50 px-3 py-3 text-sm text-ink-500 dark:bg-ink-950/40 dark:text-ink-400">Nenhuma chamada de IA registrada hoje. A operação ficou nos caminhos locais/cacheados.</div>
+            <div className="rounded-lg bg-ink-50 px-3 py-3 text-sm text-ink-500 dark:bg-ink-950/40 dark:text-ink-400">Nenhuma chamada de IA hoje.</div>
           ) : (
             <div className="divide-y divide-ink-100 rounded-lg border border-ink-200 dark:divide-ink-800 dark:border-ink-800">
               {data.actions.slice(0, 5).map(action => (
