@@ -9,7 +9,7 @@ await page.goto('http://127.0.0.1:5173/login');
 await page.getByLabel('E-mail').fill('admin.e2e@cognivault.local');
 await page.locator('#login-password').fill('CogniVault-E2E-2026!');
 await page.getByRole('button', { name: 'Entrar', exact: true }).click();
-await page.waitForURL(/dashboard/);
+await page.waitForURL(/atendimento/);
 for (const q of queries) {
   const r = await page.evaluate(async q => {
     const x = await fetch('/api/master-parts/search?q=' + encodeURIComponent(q), { credentials: 'include' });

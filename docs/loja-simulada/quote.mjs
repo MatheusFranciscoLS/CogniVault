@@ -30,7 +30,7 @@ for (const theme of themes) {
     await page.getByLabel('E-mail').fill('admin.e2e@cognivault.local');
     await page.locator('#login-password').fill('CogniVault-E2E-2026!');
     await page.getByRole('button', { name: 'Entrar', exact: true }).click();
-    await page.waitForURL(/\/dashboard/);
+    await page.waitForURL(/\/atendimento/);
     await page.evaluate(() => fetch('/api/quotes/draft', { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [], options: {} }) }));
     await page.reload();
     await page.getByPlaceholder(SEARCH).waitFor();

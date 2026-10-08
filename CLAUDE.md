@@ -289,6 +289,23 @@ manual que olhava sempre os mesmos 8 modelos. O dono não quer subir PDF à mão
   tratores 6, cortadores de grama 5, motocultores 4, giro zero 3, e o resto são acessórios Husqvarna que o Portal publica só
   com manual (bateria BLi, cabeçotes e acoplamentos HA/PA/TA, aparadores ECA/ESA, derriçadeiras 226K). A categoria da
   lista comercial aparece ao lado de cada modelo na Qualidade.
+- **Links do dono (2026-10-08): 7 de 10 TÊM vista explodida e estavam perdidos** (W25P, HH 212, HH 196, TF 545DE, TS 219TFm,
+  525PT5S, 555RXT). Duas causas: o título do Portal tem o modelo no MEIO ("HH 212 - 599348659", "W25P 2T Autoescorvante"),
+  e `portalResultMatchesKey` só olhava o fim; e a máquina da lista vigente nunca era consultada pelo PNC dela. Agora o modelo vale
+  como palavra inteira em qualquer ponto **só se o que vem depois é pontuação, número de artigo ou 2T/4T** (uma palavra como "II" ou
+  "RST" é outra máquina), e `auditPortalModel(model, { knownPncs })` tenta o PNC da lista (`listedPncsForModel`) antes da busca por
+  nome. Versão da política do cache: 5. Z560XS, LE322R e TS217Tm **de fato não têm IPL** (só manual); Automower não existe no Portal BR.
+
+## Cada tela tem endereço próprio (2026-10-08)
+
+Dono: *"pq todas as abas estão em /dashboard… na aba de administração e lá ta marcando dashboard"*.
+
+- `/atendimento`, `/catalogos`, `/orcamentos`, `/tabela-de-precos` e `/administracao/negocio|visao-geral|usuarios|qualidade`.
+  Mapa único em `lib/section-routes.ts` (endereço, título da aba do navegador, quem é da Administração). O login entra em `/atendimento`.
+- **O estado continua no `Dashboard`; a barra de endereço é reflexo dele** (`history.replaceState`, como já era com `?tab=`). Recarregar,
+  favoritar e copiar o link funcionam. Um `<Link>` de verdade remonta a tela (`DashboardRoute` usa a `key` da navegação); trocar de aba por dentro não.
+- **Links antigos continuam valendo**: `/dashboard?tab=quality`, `?tab=machines&pnc=`, `/husqvarna` são traduzidos na abertura. Quem é do Balcão e abre
+  endereço de Administração cai no Atendimento. Roteiro: `docs/loja-simulada/rotas-completo.mjs`.
 
 ## Atendimento e máquinas são UMA tela (a aba Máquinas não existe mais)
 

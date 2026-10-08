@@ -59,7 +59,7 @@ informação. Interface que explica o sistema atrapalha.
 - Tokens: `frontend/tailwind.config.js` (`brand`, `accent`, `gold`, `ink`) e
   `frontend/src/index.css` (`--cv-*`, classes `cv-*`). Devem andar juntos.
 - Tema: `ThemeProvider`, `localStorage['vite-ui-theme']` = `light` | `dark` | `system`.
-- Abas: `/dashboard?tab=catalogs|quotes|history|favorites|overview|...`.
+- Telas: cada uma tem endereço próprio (`/atendimento`, `/catalogos`, `/orcamentos`, `/tabela-de-precos`, `/administracao/negocio|visao-geral|usuarios|qualidade`), em `frontend/src/lib/section-routes.ts`. `/dashboard?tab=` ainda funciona e é traduzido.
 - Captura: `frontend/e2e/capture-screens.mjs`, `.github/workflows/screens.yml`.
 
 ## Em aberto (decisão do dono, não minha)
