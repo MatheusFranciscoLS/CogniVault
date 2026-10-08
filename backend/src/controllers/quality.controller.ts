@@ -57,6 +57,7 @@ export class QualityController {
           portalIpl: portfolio.portalIpl,
           portalDocument: portfolio.portalDocument,
           notApplicable: portfolio.notApplicable,
+          paused: portfolio.paused,
           outOfLine: listNotApplicable(portfolio.items),
           pausedModels: listPaused(portfolio.items),
           unverified: portfolio.unverified,

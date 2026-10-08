@@ -77,6 +77,18 @@ describe('site público da Husqvarna como segunda fonte da vista explodida', () 
     assert.equal(sections[0].parts[0].coordinates, '244;1345;265;1387');
   });
 
+  it('seção de outro prefixo de catálogo (CLT_PL, dos cortadores de grama) conta; id fora do formato não', () => {
+    const parte = { coordinates: ['1;1;2;2'], quantity: 1, id: '900000201', name: 'PEÇA', number: 1, comment: null, url: null };
+    const sections = buildIplSections([
+      { id: 'CLT_PL-000000204', name: 'POWER HEAD', image: IMAGE, articles: [parte] },
+      { id: 'HVA_PL-000000001', name: 'MOTOR', image: IMAGE, articles: [parte] },
+      { id: '../../etc/passwd', name: 'INVÁLIDA', image: IMAGE, articles: [parte] },
+      { id: 'javascript:alert(1)', name: 'INVÁLIDA', image: IMAGE, articles: [parte] },
+      { id: 'X_PL-1', name: '', image: IMAGE, articles: [parte] },
+    ], '900000009');
+    assert.deepEqual(sections.map(section => section.id), ['CLT_PL-000000204', 'HVA_PL-000000001']);
+  });
+
   it('não baixa imagem de domínio que não é da Husqvarna', async () => {
     const fetchSpy = mock.method(globalThis, 'fetch', async () => { throw new Error('não deveria chamar a rede'); });
     assert.equal(await probeImageSize('https://atacante.example.com/desenho.png'), null);
