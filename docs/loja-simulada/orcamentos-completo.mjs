@@ -30,7 +30,7 @@ await step('cabeçalho e colunas', async () => {
 await step('linha de orçamento', async () => {
   const linha = page.locator('tr, article, li').filter({ hasText: 'Maria Souza' }).first();
   const texto = await linha.innerText();
-  check('mostra cliente e telefone', texto.includes('Maria Souza') && texto.includes('19987654321'));
+  check('mostra cliente e telefone formatado', texto.includes('Maria Souza') && texto.includes('(19) 98765-4321'));
   check('mostra data e hora', /\d{2}\/\d{2}\/\d{4}/.test(texto));
   check('mostra o atendente', texto.includes('admin.e2e@cognivault.local'));
   check('mostra o total com separador brasileiro', /R\$\s?\d/.test(texto), (texto.match(/R\$\s?[\d.,]+/) ?? [''])[0]);
