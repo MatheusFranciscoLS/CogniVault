@@ -282,3 +282,4 @@ Dono mandou o link da Kohler e pediu: ligar o motor ao trator/giro zero/máquina
 - ✅ **Motor desta máquina** no painel da máquina (LTH1842 → Kohler SV540-3212, R316TX → Kawasaki FS481V-CS55, TS138 → Husqvarna HS452, mais os motores já citados nos IPLs), com a nota para conferir a plaqueta ou o número de série.
 - ⏳ **Pares que faltam:** o dono vai informando (modelo da máquina → motor); entram em `OWNER_BASE_ENGINES` (`services/machine-base-engine.ts`).
 - ⏳ Ideias sem pedir: índice "peça Kohler → motores" (`OfficialPartIndex` já faz isso para Briggs e Kawasaki); aviso quando o motor da máquina muda por ano/PNC.
+
