@@ -411,10 +411,11 @@ async function mapWithConcurrency<T, R>(items: T[], concurrency: number, worker:
 export const PAUSED_COVERAGE_CATEGORIES: ReadonlyArray<RegExp> = [/automower/i];
 
 /**
- * Modelos desligados um a um, com o motivo. 226KS12 (2026-10-08): derriçadeira de café = motor 226K + acessório de mão KS12. A Husqvarna Brasil
- * publica a máquina, mas o Portal só tem manual e o site público não tem lista de peças do conjunto (só dos componentes 226K e KS12, em
- * artigos próprios). O dono não conhece o modelo nem tem mais fonte; juntar as vistas dos dois componentes seria montar uma vista que a
- * Husqvarna não publica. Para religar, tire o modelo daqui.
+ * Modelos desligados um a um, com o motivo. 226KS12 (2026-10-08): derriçadeira de café = motor 226K + acessório de mão KS12. O dono informou
+ * que a Husqvarna NÃO vende mais o 226KS12 (fica só a roçadeira 226K) e que o acessório saiu da lista de preços; a lista importada de
+ * 05/10/2026 ainda os traz (R$ 3.499,00 e R$ 1.150,00), então ela é anterior à saída. Enquanto a lista nova não for importada, o modelo fica
+ * em pausa; depois da importação (espelho) ele sai de "em linha" sozinho e esta entrada pode ser apagada. Nunca teve vista do conjunto:
+ * o Portal só tem manual e o site público só tem vista dos componentes, cada um no seu artigo.
  */
 export const PAUSED_COVERAGE_MODELS: ReadonlyArray<string> = ['226KS12'];
 

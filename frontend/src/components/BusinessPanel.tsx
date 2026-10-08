@@ -90,8 +90,8 @@ function StatCard({
           <span
             className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-sm font-bold tabular-nums ${
               trend.delta >= 0
-                ? 'bg-ok text-ok'
-                : 'bg-destructive text-destructive'
+                ? 'bg-ok-soft text-ok'
+                : 'bg-destructive/10 text-destructive'
             }`}
           >
             <Icon name={trend.delta >= 0 ? 'trendUp' : 'trendDown'} className="h-3 w-3" />
@@ -123,7 +123,7 @@ function QuoteChart({ insights }: { insights: BusinessInsights }) {
   if (!buckets.length) {
     return (
       <div className="cv-empty">
-        <div className="text-sm font-bold text-ink-700 dark:text-ink-300">Nenhum orçamento salvo neste período</div>
+        <div className="text-sm font-bold text-foreground">Nenhum orçamento salvo neste período</div>
         <p className="mt-1 text-sm text-muted-foreground">
           Assim que o balcão arquivar um orçamento, o volume por dia aparece aqui.
         </p>
@@ -147,8 +147,8 @@ function QuoteChart({ insights }: { insights: BusinessInsights }) {
           const intensity = bucket.quotes / maxQuotes;
           return (
             <div key={bucket.bucket} className="flex min-w-10 max-w-18 flex-1 flex-col items-center gap-1">
-              <span className="text-sm font-bold text-ink-700 tabular-nums dark:text-ink-300">{bucket.quotes}</span>
-              <div className="flex h-32 w-full items-end">
+              <span className="text-sm font-bold text-foreground tabular-nums">{bucket.quotes}</span>
+              <div className="flex h-32 w-full items-end border-b border-border">
                 <div
                   className="w-full rounded-t-[4px] bg-brand-600 transition-[height] dark:bg-brand-400"
                   style={{ height: `${heightPercent}%`, opacity: 0.45 + intensity * 0.55 }}
@@ -315,8 +315,8 @@ export default function BusinessPanel() {
       )}
 
       {loading && !insights ? (
-        <div className="flex items-center justify-center gap-3 rounded-card border border-border bg-card px-5 py-16 text-sm text-ink-500">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink-200 border-t-brand-600" />
+        <div className="flex items-center justify-center gap-3 rounded-card border border-border bg-card px-5 py-16 text-sm text-muted-foreground">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-foreground" />
           Carregando indicadores de negócio…
         </div>
       ) : insights && summary ? (
@@ -389,7 +389,7 @@ export default function BusinessPanel() {
                             {part.registeredPrice !== null && part.registeredPrice > 0 ? (
                               <span className="font-mono font-semibold">{money(part.registeredPrice)}</span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-gold-100 px-1.5 py-0.5 text-sm font-bold text-gold-800 dark:bg-gold-500/15 dark:text-gold-300">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-warn-soft px-1.5 py-0.5 text-sm font-bold text-warn">
                                 <Icon name="warning" className="h-3 w-3" /> sem preço
                               </span>
                             )}
@@ -451,9 +451,9 @@ export default function BusinessPanel() {
                           </TableCell>
                           <TableCell className="text-right">
                             {part.inPriceList ? (
-                              <span className="text-sm font-bold text-gold-800 dark:text-gold-300">na lista, sem preço</span>
+                              <span className="text-sm font-bold text-warn">na lista, sem preço</span>
                             ) : (
-                              <span className="text-sm font-bold text-accent-700 dark:text-accent-300">fora da lista</span>
+                              <span className="text-sm font-bold text-destructive">fora da lista</span>
                             )}
                           </TableCell>
                         </TableRow>
