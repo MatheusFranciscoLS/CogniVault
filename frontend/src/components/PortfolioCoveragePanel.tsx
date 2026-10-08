@@ -193,7 +193,7 @@ export default function PortfolioCoveragePanel({
         <CoverageCard label="Catálogos em PDF" value={displayCoverage.localIpl.toLocaleString('pt-BR')}>
           Na biblioteca do CogniVault
         </CoverageCard>
-        <CoverageCard label="Portal BR" value={(displayCoverage.portalIpl + (displayCoverage.portalDocument ?? 0)).toLocaleString('pt-BR')}>
+        <CoverageCard label="Portal e site Husqvarna" value={(displayCoverage.portalIpl + (displayCoverage.portalDocument ?? 0)).toLocaleString('pt-BR')}>
           {displayCoverage.portalIpl} com lista de peças · {displayCoverage.portalDocument ?? 0} só com IPL em PDF
         </CoverageCard>
         <CoverageCard label="Em linha, sem vista no Portal" value={displayCoverage.unverified.toLocaleString('pt-BR')} tone={displayCoverage.unverified ? 'warn' : 'ok'}>
