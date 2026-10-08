@@ -142,4 +142,87 @@ await step('Husqvarna · TS138: os motores do IPL por PNC (HS452AE e HS608) apar
   check('cada um diz a que PNC vale', /PNC 96041/.test(texto) || /Este PNC/.test(texto));
 });
 
+// ---- Campo da plaqueta: "e se não for nenhum desses?" (dono, 2026-10-08). Vários jeitos de usar, não só o feliz. ----
+const campo = painel => painel.getByRole('textbox', { name: /plaqueta/i });
+const abrirCampo = async (painel, texto, { enter = false } = {}) => {
+  await campo(painel).fill(texto);
+  if (enter) await campo(painel).press('Enter');
+  else await painel.getByRole('button', { name: 'Abrir motor' }).click();
+};
+
+await step('Campo da plaqueta · Kawasaki digitado em minúsculo, com espaço e com Enter abre o catálogo certo', async () => {
+  const { painel } = await abrirMaquina('Z460');
+  await abrirCampo(painel, 'fx921v es06', { enter: true });
+  const motor = painel.getByRole('region', { name: /Motor Kawasaki FX921V-ES06/ });
+  await motor.waitFor({ timeout: 40000 });
+  check('a marca saiu do formato e o catálogo FX921V-ES06 abriu', /FX921V-ES06/.test(await motor.innerText()));
+  const cartao = painel.getByRole('region', { name: 'Motor desta máquina' });
+  check('o digitado vem na frente e diz que foi digitado da plaqueta', /Digitado por você, da plaqueta/.test(await cartao.innerText()));
+  check('o campo esvaziou, pronto para outro motor', (await campo(painel).inputValue()) === '');
+  await shot(page, `${theme}-1366-campo-plaqueta-kawasaki`);
+
+  // Trocar de ideia: digitar OUTRO motor no mesmo painel, sem fechar nada.
+  await abrirCampo(painel, 'FR730VFS16S');
+  await painel.getByRole('region', { name: /Motor Kawasaki FR730V-FS16/ }).waitFor({ timeout: 40000 });
+  check('trocar o motor digitado substitui o anterior, sem fechar o painel', (await painel.getByRole('region', { name: /Motor Kawasaki FX921V-ES06/ }).count()) === 0);
+  await painel.getByRole('button', { name: 'Limpar' }).click();
+  check('"Limpar" remove o motor digitado', (await cartao.innerText()).indexOf('Digitado por você') === -1);
+});
+
+await step('Campo da plaqueta · Kohler com espaço, Kohler só com a série e Briggs colado', async () => {
+  const { painel } = await abrirMaquina('Z460');
+  await abrirCampo(painel, 'sv540 3212');
+  await painel.getByRole('region', { name: /Motor Kohler SV540-3212/ }).waitFor({ timeout: 40000 });
+  check('Kohler digitado com espaço abre o catálogo (não vira Briggs)', (await painel.getByRole('region', { name: /Briggs/i }).count()) === 0);
+
+  await abrirCampo(painel, 'SV540');
+  const alerta = painel.getByRole('alert');
+  await alerta.waitFor({ timeout: 5000 });
+  check('só a série da Kohler pede o spec completo, com exemplo', /spec completo/.test(await alerta.innerText()));
+
+  await abrirCampo(painel, '104m020002f1');
+  await painel.getByRole('region', { name: /Briggs|104M02/i }).first().waitFor({ timeout: 60000 });
+  check('Briggs digitado colado e em minúsculo abre a lista de peças da Briggs', true);
+});
+
+await step('Campo da plaqueta · texto que não é motor recebe ajuda, sem abrir nada; e a ajuda some ao voltar a digitar', async () => {
+  const { painel } = await abrirMaquina('Z460');
+  const antes = await painel.getByRole('region', { name: /^Motor (Kohler|Kawasaki)/ }).count();
+  await abrirCampo(painel, 'carburador');
+  const alerta = painel.getByRole('alert');
+  await alerta.waitFor({ timeout: 5000 });
+  check('a mensagem mostra exemplos de cada marca', /FX921V-ES06/.test(await alerta.innerText()) && /SV540-3212/.test(await alerta.innerText()));
+  check('nada foi aberto por palpite', (await painel.getByRole('region', { name: /^Motor (Kohler|Kawasaki)/ }).count()) === antes);
+  await campo(painel).fill('FX');
+  check('a mensagem de erro some quando o atendente volta a digitar', (await painel.getByRole('alert').count()) === 0);
+  check('o botão só habilita com texto', await painel.getByRole('button', { name: 'Abrir motor' }).isEnabled());
+  await campo(painel).fill('');
+  check('campo vazio deixa o botão desabilitado', await painel.getByRole('button', { name: 'Abrir motor' }).isDisabled());
+});
+
+await step('Campo da plaqueta · spec que o catálogo da Kawasaki não tem dá saída (ver os specs da série)', async () => {
+  const { painel } = await abrirMaquina('Z460');
+  await abrirCampo(painel, 'FX921V-ZZ99');
+  const motor = painel.getByRole('region', { name: /Motor Kawasaki/ });
+  await motor.getByRole('button', { name: /Ver os specs da série FX921V/ }).waitFor({ timeout: 40000 });
+  check('o catálogo diz que não há e oferece a série', true);
+});
+
+await step('Campo da plaqueta · máquina SEM vínculo conhecido (cortador de grama) mostra o campo; motosserra não mostra o cartão', async () => {
+  const gx = await abrirMaquina('GX560');
+  check('o cartão aparece só com o campo', /Digite o modelo do motor da plaqueta/.test(gx.texto) || (await gx.cartao.getByRole('textbox').count()) === 1, gx.texto.slice(0, 160));
+  await abrirCampo(gx.painel, 'SV540-3212');
+  await gx.painel.getByRole('region', { name: /Motor Kohler SV540-3212/ }).waitFor({ timeout: 40000 });
+  check('abre o catálogo mesmo sem vínculo prévio', true);
+  if (await page.getByRole('dialog').count()) await fechar();
+  await page.getByPlaceholder(SEARCH).fill('542iXP');
+  await page.getByRole('button', { name: 'Buscar' }).click();
+  const fichas = page.locator('button:has(.font-code)', { hasText: 'PNC' });
+  await fichas.first().waitFor({ timeout: 40000 });
+  await fichas.first().click();
+  await page.getByRole('dialog').first().waitFor({ timeout: 40000 });
+  await page.waitForTimeout(4000);
+  check('motosserra não ganha cartão de motor (o motor dela está no IPL)', (await page.getByRole('region', { name: 'Motor desta máquina' }).count()) === 0);
+});
+
 await finish(browser, errors);
