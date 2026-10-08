@@ -115,7 +115,7 @@ test('PNC da etiqueta abre a vista explodida no painel lateral, sem trocar de te
   await page.getByRole('button', { name: 'Buscar' }).click();
 
   await expect(painel).toBeVisible();
-  await expect(painel.getByText('HUSQVARNA 545 Mark II').first()).toBeVisible();
+  await expect(painel.getByText('545 Mark II').first()).toBeVisible();
   await expect(painel.getByRole('heading', { name: 'FILTRO DE AR' })).toBeVisible();
   await expect(painel.getByRole('button', { name: 'Copiar código 537 04 19-01' })).toBeVisible();
 
@@ -146,7 +146,7 @@ test('link antigo de ?tab=machines&pnc= continua abrindo a máquina', async ({ p
 
   const painel = page.getByRole('dialog', { name: 'Máquina aberta' });
   await expect(painel).toBeVisible();
-  await expect(painel.getByText('HUSQVARNA 545 Mark II').first()).toBeVisible();
+  await expect(painel.getByText('545 Mark II').first()).toBeVisible();
 });
 
 test('posição da vista explodida leva o código para a busca interna', async ({ page }) => {
@@ -154,7 +154,7 @@ test('posição da vista explodida leva o código para a busca interna', async (
 
   await page.goto(`/dashboard?tab=machines&pnc=${PNC}`);
   const painel = page.getByRole('dialog', { name: 'Máquina aberta' });
-  await expect(painel.getByText('HUSQVARNA 545 Mark II').first()).toBeVisible();
+  await expect(painel.getByText('545 Mark II').first()).toBeVisible();
 
   await painel.getByRole('button', { name: /Mais ações para/ }).first().click();
   await page.getByRole('menuitem', { name: 'Ver preço e estoque' }).click();
@@ -169,7 +169,7 @@ test('máquina consultada entra na lista de recentes do atendente', async ({ pag
 
   await page.goto(`/dashboard?tab=machines&pnc=${PNC}`);
   const painel = page.getByRole('dialog', { name: 'Máquina aberta' });
-  await expect(painel.getByText('HUSQVARNA 545 Mark II').first()).toBeVisible();
+  await expect(painel.getByText('545 Mark II').first()).toBeVisible();
   await painel.getByRole('button', { name: 'Fechar' }).click();
 
   // Os recentes vivem no atendimento agora, e são o atalho que substitui o

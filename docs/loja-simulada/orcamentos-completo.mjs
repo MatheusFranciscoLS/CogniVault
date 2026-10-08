@@ -65,7 +65,8 @@ await step('filtro de datas', async () => {
   await page.getByRole('button', { name: 'Buscar' }).click();
   await pronto();
   check('período antigo não traz orçamentos de hoje', !(await page.locator('main').innerText()).includes('Maria Souza'));
-  const hoje = new Date().toISOString().slice(0, 10);
+  // O dia da LOJA (São Paulo), não o do relógio UTC: depois das 21h o UTC já virou o dia.
+  const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
   await de.fill(hoje);
   await ate.fill(hoje);
   await page.getByRole('button', { name: 'Buscar' }).click();

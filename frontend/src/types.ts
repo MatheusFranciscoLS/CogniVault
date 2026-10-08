@@ -61,7 +61,7 @@ export interface ChatResponse {
 }
 export interface Overview { tenantName:string; users:number; activeDocuments:number; processingDocuments:number; failedDocuments:number; parts:number; feedbackTotal:number; feedbackAccuracy:number|null; }
 export interface AdminUser { id:string; email:string; name?:string|null; role:Role; status:'PENDING'|'APPROVED'|'REJECTED'; createdAt:string; feedbackCount:number; }
-export interface AuditLog { id:string; action:string; targetType:string; targetId:string|null; metadata:unknown; createdAt:string; user:{email:string}|null; }
+export interface AuditLog { id:string; action:string; targetType:string; targetId:string|null; metadata:unknown; createdAt:string; user:{email:string;name?:string|null}|null; }
 
 export interface SearchHistoryItem {
   id:string; query:string; pnc:string|null; status:SearchStatus; resultPartId:string|null; resultLabel:string|null; resultCode:string|null;
@@ -203,7 +203,7 @@ export interface BusinessUnpricedPart {
 }
 
 export interface BusinessAttendant {
-  userId:string|null; email:string; quotes:number; items:number; netTotal:number; averageTicket:number; lastQuoteAt:string|null;
+  userId:string|null; email:string; name?:string|null; quotes:number; items:number; netTotal:number; averageTicket:number; lastQuoteAt:string|null;
 }
 
 export interface BusinessInsights {

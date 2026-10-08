@@ -66,6 +66,17 @@ function portalDiagnostic(state: PortfolioCoverageGap['portalVerification']) {
   return 'Ainda não conferido no Portal';
 }
 
+/** Cartão de número da cobertura: neutro, com a cor só no valor (o amarelo/verde de fundo escondia qual cartão pede ação). */
+function CoverageCard({ label, value, tone, children }: { label: string; value: string; tone?: 'ok' | 'warn'; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="text-sm font-semibold text-muted-foreground">{label}</div>
+      <div className={`mt-2 text-2xl font-semibold tabular-nums ${tone === 'warn' ? 'text-warn' : tone === 'ok' ? 'text-ok' : ''}`}>{value}</div>
+      <div className="mt-1 text-sm text-muted-foreground">{children}</div>
+    </div>
+  );
+}
+
 export default function PortfolioCoveragePanel({
   coverage,
   onRefresh,
@@ -176,32 +187,22 @@ export default function PortfolioCoveragePanel({
         )}
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-ink-200 bg-white p-4 dark:border-ink-700 dark:bg-ink-800">
-            <div className="text-sm font-bold   text-ink-500 dark:text-ink-400">Cobertura técnica</div>
-            <div className="mt-2 text-2xl font-semibold text-ink-900 dark:text-ink-100">{coveragePercent}%</div>
-            <div className="mt-1 text-sm text-ink-500 dark:text-ink-400">{displayCoverage.covered} de {displayCoverage.total - (displayCoverage.notApplicable ?? 0)} modelos em linha com fonte técnica</div>
-          </div>
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
-            <div className="text-sm font-bold   text-emerald-700 dark:text-emerald-300">IPL local</div>
-            <div className="mt-2 text-2xl font-semibold text-emerald-950 dark:text-emerald-200">{displayCoverage.localIpl}</div>
-            <div className="mt-1 text-sm text-emerald-800 dark:text-emerald-200">Catálogos técnicos presentes no CogniVault</div>
-          </div>
-          <div className="rounded-2xl border border-brand-200 bg-brand-50/70 p-4 dark:border-brand-800 dark:bg-brand-900/20">
-            <div className="text-sm font-bold   text-brand-700 dark:text-brand-300">Portal BR</div>
-            <div className="mt-2 text-2xl font-semibold text-brand-950 dark:text-brand-200">{displayCoverage.portalIpl + (displayCoverage.portalDocument ?? 0)}</div>
-            <div className="mt-1 text-sm text-brand-800 dark:text-brand-200">
-              {displayCoverage.portalIpl} com lista de peças · {displayCoverage.portalDocument ?? 0} só com IPL em PDF
-            </div>
-          </div>
-          <div className={`rounded-2xl border p-4 ${displayCoverage.unverified ? 'border-amber-200 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-900/20' : 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-800 dark:bg-emerald-900/20'}`}>
-            <div className={`text-sm font-bold   ${displayCoverage.unverified ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>Em linha, sem vista no Portal</div>
-            <div className={`mt-2 text-2xl font-semibold ${displayCoverage.unverified ? 'text-amber-950 dark:text-amber-200' : 'text-emerald-950 dark:text-emerald-200'}`}>{displayCoverage.unverified}</div>
-            <div className={`mt-1 text-sm ${displayCoverage.unverified ? 'text-amber-800 dark:text-amber-200' : 'text-emerald-800 dark:text-emerald-200'}`}>{checkingPortal ? 'Conferência no Portal em andamento' : displayCoverage.remaining ? 'Ainda falta conferir no Portal' : 'A Husqvarna vende hoje e o Portal não publica a vista'}</div>
-          </div>
+          <CoverageCard label="Cobertura técnica" value={`${coveragePercent}%`}>
+            {displayCoverage.covered} de {displayCoverage.total - (displayCoverage.notApplicable ?? 0)} modelos em linha com fonte técnica
+          </CoverageCard>
+          <CoverageCard label="Catálogos em PDF" value={displayCoverage.localIpl.toLocaleString('pt-BR')}>
+            Na biblioteca do CogniVault
+          </CoverageCard>
+          <CoverageCard label="Portal BR" value={(displayCoverage.portalIpl + (displayCoverage.portalDocument ?? 0)).toLocaleString('pt-BR')}>
+            {displayCoverage.portalIpl} com lista de peças · {displayCoverage.portalDocument ?? 0} só com IPL em PDF
+          </CoverageCard>
+          <CoverageCard label="Em linha, sem vista no Portal" value={displayCoverage.unverified.toLocaleString('pt-BR')} tone={displayCoverage.unverified ? 'warn' : 'ok'}>
+            {checkingPortal ? 'Conferência no Portal em andamento' : displayCoverage.remaining ? 'Ainda falta conferir no Portal' : 'A Husqvarna vende hoje e o Portal não publica a vista'}
+          </CoverageCard>
         </div>
 
         <div className="mt-4 h-2 overflow-hidden rounded-full bg-ink-100 dark:bg-ink-800">
-          <div className="h-full rounded-full bg-brand-600 transition-all duration-500" style={{ width: `${coveragePercent}%` }} />
+          <div className="h-full rounded-full bg-brand-600 transition-[width] duration-500" style={{ width: `${coveragePercent}%` }} />
         </div>
 
         {checkingPortal ? (

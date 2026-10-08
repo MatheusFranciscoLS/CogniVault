@@ -215,6 +215,8 @@
 
 * { box-sizing: border-box; }
 html { background: var(--background); color-scheme: light; scroll-padding-top: 4.5rem; }
+/* Sem o atraso de toque duplo em celular e tela sensível; não muda nada para o mouse do balcão. */
+button, a, [role="button"], [role="tab"], input, select { touch-action: manipulation; }
 body { margin: 0; min-width: 320px; min-height: 100vh; overflow-x: hidden; }
 /* Dentro de @layer base DE PROPÓSITO. No Tailwind 4 uma regra de elemento fora
    de camada vence TODA classe utilitária: `button { font: inherit }` solta fazia

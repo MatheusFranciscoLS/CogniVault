@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { formatPhoneBr } from '../lib/quote-pdf';
 import PageFrame from './PageFrame';
 import { toast } from 'sonner';
 import { useConfirm } from '../context/confirm';
@@ -29,6 +30,7 @@ interface ApiQuoteListItem {
   createdAt: string;
   savedAt: string | null;
   attendantEmail: string | null;
+  attendantName?: string | null;
   items: Array<{
     partNumber: string;
     effectiveCode: string | null;
@@ -67,6 +69,7 @@ function toSavedQuote(quote: ApiQuoteListItem): SavedQuote {
     totalPrice: quote.grossTotal,
     totalItems: quote.totalItems,
     attendantEmail: quote.attendantEmail,
+    attendantName: quote.attendantName,
     items: quote.items.map(item => ({
       id: `${item.partNumber}|${item.manufacturer || ''}|${item.model || ''}|${item.pnc || ''}`,
       partNumber: item.partNumber,
@@ -254,7 +257,7 @@ export default function SavedQuotesPanel() {
                 <div className={cn('grid items-center gap-x-4 gap-y-2 px-4 py-3.5 transition-colors hover:bg-muted', ROW_GRID)}>
                   <div className="min-w-0">
                     <div className="truncate text-base font-semibold">{quote.customerName || 'Cliente não informado'}</div>
-                    <div className="truncate text-sm text-muted-foreground">{quote.customerPhone || 'Sem telefone'}</div>
+                    <div className="truncate text-sm text-muted-foreground">{formatPhoneBr(quote.customerPhone ?? undefined) || 'Sem telefone'}</div>
                   </div>
                   <div className="text-base text-muted-foreground tabular-nums">{date}</div>
                   <div className="min-w-0">
@@ -273,7 +276,7 @@ export default function SavedQuotesPanel() {
                       {extraItems > 0 ? ` · +${extraItems}` : ''}
                     </div>
                   </div>
-                  <div className="truncate text-base text-muted-foreground">{quote.attendantEmail || 'Atendente removido'}</div>
+                  <div className="truncate text-base text-muted-foreground">{quote.attendantName || quote.attendantEmail || 'Atendente removido'}</div>
                   <div className="text-left lg:text-right">
                     <div className="font-code text-xl font-bold tabular-nums">{money(quote.netTotal)}</div>
                     {quote.discountPercentage > 0 && <div className="text-sm text-muted-foreground">com {quote.discountPercentage}% de desconto</div>}

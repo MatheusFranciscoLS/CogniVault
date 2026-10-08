@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, fmtDate, json } from '../lib';
+import { Search } from 'lucide-react';
 import PageFrame from './PageFrame';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { actionLabel, isLoginAction, targetLabel } from '../lib/audit-labels';
 import type { AuditLog, Overview } from '../types';
 
 function AdminHeading({ title, action, level = 1 }: { title: string; action?: React.ReactNode; level?: 1 | 2 }) {
@@ -29,9 +33,9 @@ export function OverviewPanel() {
   }, [retry]);
 
   const metrics = data ? [
-    ['Catálogos ativos', data.activeDocuments],
-    ['Peças indexadas', data.parts],
-    ['Usuários ativos', data.users],
+    ['Catálogos ativos', data.activeDocuments.toLocaleString('pt-BR')],
+    ['Peças indexadas', data.parts.toLocaleString('pt-BR')],
+    ['Usuários ativos', data.users.toLocaleString('pt-BR')],
   ] : [];
 
   return (
@@ -60,9 +64,13 @@ export function OverviewPanel() {
   );
 }
 
+const AUDIT_PAGE = 25;
+
 export function AuditPanel() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [filter, setFilter] = useState('');
+  const [withLogins, setWithLogins] = useState(false);
+  const [shown, setShown] = useState(AUDIT_PAGE);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
 
@@ -75,32 +83,44 @@ export function AuditPanel() {
     return () => { active = false; };
   }, [retry]);
 
-  const label = (action: string): string => ({
-    DOCUMENT_UPLOADED: 'Catálogo enviado',
-    DOCUMENT_ARCHIVED: 'Catálogo arquivado',
-    DOCUMENT_RESTORED: 'Catálogo restaurado',
-    DOCUMENT_REPROCESSED: 'Catálogo reprocessado',
-    DOCUMENT_CATEGORY_CHANGED: 'Seção alterada',
-    USER_CREATED: 'Usuário criado',
-    USER_UPDATED: 'Usuário alterado',
-    USER_LOGIN: 'Login efetuado',
-    AI_BENCHMARK_RUN: 'Benchmark executado',
-    AI_TECHNICAL_KNOWLEDGE_REBUILT: 'Memória técnica reconstruída',
-  }[action] || action);
-
   const normalized = filter.trim().toLocaleLowerCase('pt-BR');
-  const filtered = useMemo(() => logs.filter(log => !normalized || [label(log.action), log.action, log.user?.email, log.targetType].some(value => value?.toLocaleLowerCase('pt-BR').includes(normalized))), [logs, normalized]);
+  const filtered = useMemo(() => logs.filter(log => {
+    if (!withLogins && isLoginAction(log.action)) return false;
+    if (!normalized) return true;
+    return [actionLabel(log.action), log.action, log.user?.name, log.user?.email, targetLabel(log.targetType)]
+      .some(value => value?.toLocaleLowerCase('pt-BR').includes(normalized));
+  }), [logs, normalized, withLogins]);
+  const visible = filtered.slice(0, shown);
 
   return (
     <section className="mx-auto w-full max-w-[1400px] space-y-4">
       <AdminHeading level={2} title="Registro de ações" />
-      {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"><span>{error}</span><button type="button" onClick={() => { setError(''); setRetry(value => value + 1); }} className="rounded-lg border border-rose-300 px-3 py-1.5 text-sm font-bold dark:border-rose-700">Tentar novamente</button></div>}
-      <div className="flex items-center gap-2 rounded-xl border border-ink-200 bg-white p-3 dark:border-ink-800 dark:bg-ink-900"><div className="relative min-w-0 flex-1"><span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-500 dark:text-ink-400">⌕</span><input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Ação, usuário ou recurso…" className="h-10 w-full rounded-lg border border-ink-200 bg-ink-50 pl-10 pr-3 text-sm outline-hidden dark:border-ink-700 dark:bg-ink-800" /></div><span className="px-1 text-sm font-semibold text-ink-500 dark:text-ink-400">{filtered.length} eventos</span></div>
-      <div className="overflow-hidden rounded-xl border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
-        <div className="hidden grid-cols-[minmax(230px,1fr)_minmax(180px,.8fr)_160px] gap-4 border-b border-ink-100 px-4 py-2.5 text-sm font-semibold text-ink-500 dark:text-ink-400 md:grid dark:border-ink-800"><span>Ação</span><span>Responsável / recurso</span><span className="text-right">Data</span></div>
-        {filtered.map(log => <div key={log.id} className="grid gap-2 border-b border-ink-100 px-4 py-3.5 last:border-0 md:grid-cols-[minmax(230px,1fr)_minmax(180px,.8fr)_160px] md:items-center dark:border-ink-800"><div className="text-sm font-bold text-ink-800 dark:text-ink-100">{label(log.action)}</div><div className="text-sm text-ink-500 dark:text-ink-400">{log.user?.email || 'Sistema'} · {log.targetType}</div><div className="text-sm text-ink-500 dark:text-ink-400 md:text-right">{fmtDate(log.createdAt)}</div></div>)}
-        {!filtered.length && <div className="px-5 py-10 text-center text-sm text-ink-500 dark:text-ink-400">Nenhuma ação encontrada.</div>}
+      {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-base text-destructive"><span>{error}</span><Button type="button" variant="outline" size="sm" onClick={() => { setError(''); setRetry(value => value + 1); }}>Tentar novamente</Button></div>}
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
+        <div className="relative min-w-0 flex-1 basis-64">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <Input value={filter} onChange={event => { setFilter(event.target.value); setShown(AUDIT_PAGE); }} placeholder="Ação, usuário ou recurso…" aria-label="Filtrar o registro de ações" className="pl-9 text-base" />
+        </div>
+        <Button type="button" variant="outline" aria-pressed={withLogins} onClick={() => { setWithLogins(value => !value); setShown(AUDIT_PAGE); }} className={withLogins ? 'border-ring bg-selected' : undefined}>Incluir logins</Button>
+        <span className="px-1 text-base text-muted-foreground tabular-nums">{filtered.length} {filtered.length === 1 ? 'evento' : 'eventos'}</span>
+      </div>
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className="hidden grid-cols-[minmax(230px,1fr)_minmax(180px,.8fr)_160px] gap-4 border-b border-border bg-muted px-4 py-2.5 text-sm font-semibold text-muted-foreground md:grid"><span>Ação</span><span>Quem fez · o quê</span><span className="text-right">Data</span></div>
+        {visible.map(log => (
+          <div key={log.id} className="grid gap-1 border-b border-border px-4 py-3 last:border-0 md:grid-cols-[minmax(230px,1fr)_minmax(180px,.8fr)_160px] md:items-center md:gap-4">
+            <div className="text-base font-semibold">{actionLabel(log.action)}</div>
+            <div className="truncate text-base text-muted-foreground">{log.user?.name || log.user?.email || 'Sistema'} · {targetLabel(log.targetType)}</div>
+            <div className="text-base text-muted-foreground tabular-nums md:text-right">{fmtDate(log.createdAt)}</div>
+          </div>
+        ))}
+        {!filtered.length && <div className="px-5 py-10 text-center text-base text-muted-foreground">Nenhuma ação encontrada.</div>}
+        {filtered.length > shown && (
+          <div className="border-t border-border bg-muted px-4 py-3 text-center">
+            <Button type="button" variant="outline" onClick={() => setShown(value => value + AUDIT_PAGE)}>Mostrar mais {Math.min(AUDIT_PAGE, filtered.length - shown)}</Button>
+          </div>
+        )}
       </div>
     </section>
   );
 }
+

@@ -68,6 +68,7 @@ export interface QuotePayload {
   savedAt: string | null;
   attendantId: string | null;
   attendantEmail: string | null;
+  attendantName: string | null;
   items: Array<{
     id: string;
     partNumber: string;
@@ -207,7 +208,7 @@ export function computeTotals(items: QuoteItemInput[], discountPercentage: numbe
 
 const quoteInclude = {
   items: { orderBy: { sortOrder: 'asc' } },
-  user: { select: { id: true, email: true } },
+  user: { select: { id: true, email: true, name: true } },
 } satisfies Prisma.QuoteInclude;
 
 type QuoteWithItems = Prisma.QuoteGetPayload<{ include: typeof quoteInclude }>;
@@ -232,6 +233,7 @@ export function serializeQuote(quote: QuoteWithItems): QuotePayload {
     savedAt: quote.savedAt ? quote.savedAt.toISOString() : null,
     attendantId: quote.user?.id ?? null,
     attendantEmail: quote.user?.email ?? null,
+    attendantName: quote.user?.name ?? null,
     items: quote.items.map(item => ({
       id: item.id,
       partNumber: item.partNumber,

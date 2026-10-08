@@ -223,7 +223,7 @@ export class AdminController {
                     targetId: true,
                     metadata: true,
                     createdAt: true,
-                    user: { select: { email: true } },
+                    user: { select: { email: true, name: true } },
                 },
             });
 

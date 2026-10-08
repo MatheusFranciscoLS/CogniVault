@@ -123,7 +123,7 @@ function QuoteChart({ insights }: { insights: BusinessInsights }) {
     return (
       <div className="cv-empty">
         <div className="text-sm font-bold text-ink-700 dark:text-ink-300">Nenhum orçamento salvo neste período</div>
-        <p className="mt-1 text-sm text-ink-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           Assim que o balcão arquivar um orçamento, o volume por dia aparece aqui.
         </p>
       </div>
@@ -134,7 +134,7 @@ function QuoteChart({ insights }: { insights: BusinessInsights }) {
     <div className="rounded-card border border-ink-200 bg-white p-4 shadow-card dark:border-ink-800 dark:bg-ink-850">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-semibold">Orçamentos por período</h2>
-        <span className="text-sm text-ink-500">Altura = valor líquido · número = quantidade de orçamentos</span>
+        <span className="text-sm text-muted-foreground">Altura = valor líquido · número = quantidade de orçamentos</span>
       </div>
 
       {/* `max-w` por coluna: com um único dia no período, `flex-1` sozinho
@@ -149,15 +149,15 @@ function QuoteChart({ insights }: { insights: BusinessInsights }) {
               <span className="text-sm font-bold text-ink-700 tabular-nums dark:text-ink-300">{bucket.quotes}</span>
               <div className="flex h-32 w-full items-end">
                 <div
-                  className="w-full rounded-t-[4px] bg-brand-600 transition-all dark:bg-brand-400"
+                  className="w-full rounded-t-[4px] bg-brand-600 transition-[height] dark:bg-brand-400"
                   style={{ height: `${heightPercent}%`, opacity: 0.45 + intensity * 0.55 }}
                   title={`${formatBucket(bucket.bucket, range.granularity)} · ${bucket.quotes} orçamento(s) · ${money(bucket.netTotal)} · ${bucket.items} itens`}
                 />
               </div>
-              <span className="whitespace-nowrap text-sm font-semibold text-ink-500 tabular-nums">
+              <span className="whitespace-nowrap text-sm font-semibold text-muted-foreground tabular-nums">
                 {formatBucket(bucket.bucket, range.granularity)}
               </span>
-              <span className="whitespace-nowrap text-sm text-ink-500 tabular-nums">
+              <span className="whitespace-nowrap text-sm text-muted-foreground tabular-nums">
                 {bucket.netTotal > 0 ? compactMoney(bucket.netTotal) : '—'}
               </span>
             </div>
@@ -285,11 +285,11 @@ export default function BusinessPanel() {
           </div>
           <div className="flex items-end gap-2">
             <div>
-              <label htmlFor="insights-from" className="block text-sm font-bold text-ink-500">De</label>
+              <label htmlFor="insights-from" className="block text-sm font-bold text-muted-foreground">De</label>
               <input id="insights-from" type="date" value={range.from} onChange={e => applyCustomRange({ from: e.target.value })} className="cv-field mt-1 h-11 w-38 py-0 text-sm tabular-nums" />
             </div>
             <div>
-              <label htmlFor="insights-to" className="block text-sm font-bold text-ink-500">Até</label>
+              <label htmlFor="insights-to" className="block text-sm font-bold text-muted-foreground">Até</label>
               <input id="insights-to" type="date" value={range.to} onChange={e => applyCustomRange({ to: e.target.value })} className="cv-field mt-1 h-11 w-38 py-0 text-sm tabular-nums" />
             </div>
           </div>
@@ -359,13 +359,13 @@ export default function BusinessPanel() {
             <div className="overflow-hidden rounded-card border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-850">
               <div className="flex items-center justify-between gap-2 border-b border-ink-200 px-4 py-3 dark:border-ink-800">
                 <h2 className="text-lg font-semibold">Peças mais cotadas</h2>
-                <span className="text-sm text-ink-500">Top {insights.topParts.length}</span>
+                <span className="text-sm text-muted-foreground">Top {insights.topParts.length}</span>
               </div>
               {insights.topParts.length ? (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[520px] text-left text-sm">
                     <thead>
-                      <tr className="text-sm font-bold text-ink-500">
+                      <tr className="text-sm font-bold text-muted-foreground">
                         <th className="px-4 py-2">Peça</th>
                         <th className="px-2 py-2 text-right">Qtd.</th>
                         <th className="px-2 py-2 text-right">Orçam.</th>
@@ -383,7 +383,7 @@ export default function BusinessPanel() {
                             </div>
                           </td>
                           <td className="px-2 py-2.5 text-right font-bold tabular-nums">{part.quotedQuantity}</td>
-                          <td className="px-2 py-2.5 text-right tabular-nums text-ink-500">{part.quoteCount}</td>
+                          <td className="px-2 py-2.5 text-right tabular-nums text-muted-foreground">{part.quoteCount}</td>
                           <td className="px-2 py-2.5 text-right tabular-nums">
                             {part.registeredPrice !== null && part.registeredPrice > 0 ? (
                               <span className="font-mono font-semibold">{money(part.registeredPrice)}</span>
@@ -393,14 +393,14 @@ export default function BusinessPanel() {
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-2.5 text-right tabular-nums text-ink-500">{relativeDate(part.lastQuotedAt)}</td>
+                          <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{relativeDate(part.lastQuotedAt)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               ) : (
-                <div className="px-5 py-10 text-center text-sm text-ink-500">
+                <div className="px-5 py-10 text-center text-sm text-muted-foreground">
                   Nenhuma peça cotada no período.
                 </div>
               )}
@@ -410,7 +410,7 @@ export default function BusinessPanel() {
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-200 px-4 py-3 dark:border-ink-800">
                 <div>
                   <h2 className="text-lg font-semibold">Peças sem preço cadastrado</h2>
-                  <p className="mt-0.5 text-sm text-ink-500">
+                  <p className="mt-0.5 text-sm text-muted-foreground">
                     Cotadas pelo balcão sem valor. {insights.priceListCoverage.masterPartsWithoutPrice} de{' '}
                     {insights.priceListCoverage.masterParts} itens da lista estão sem preço.
                   </p>
@@ -429,7 +429,7 @@ export default function BusinessPanel() {
                 <div className="max-h-104 overflow-y-auto">
                   <table className="w-full text-left text-sm">
                     <thead className="sticky top-0 bg-white dark:bg-ink-850">
-                      <tr className="text-sm font-bold text-ink-500">
+                      <tr className="text-sm font-bold text-muted-foreground">
                         <th className="px-4 py-2">Peça</th>
                         <th className="px-2 py-2 text-right">Pedidos</th>
                         <th className="px-4 py-2 text-right">Situação</th>
@@ -446,7 +446,7 @@ export default function BusinessPanel() {
                           </td>
                           <td className="px-2 py-2.5 text-right font-bold tabular-nums">
                             {part.quoteCount}
-                            <span className="block text-sm font-normal text-ink-500">{part.quotedQuantity} un.</span>
+                            <span className="block text-sm font-normal text-muted-foreground">{part.quotedQuantity} un.</span>
                           </td>
                           <td className="px-4 py-2.5 text-right">
                             {part.inPriceList ? (
@@ -461,7 +461,7 @@ export default function BusinessPanel() {
                   </table>
                 </div>
               ) : (
-                <div className="px-5 py-10 text-center text-sm text-ink-500">
+                <div className="px-5 py-10 text-center text-sm text-muted-foreground">
                   Nenhuma peça foi cotada sem preço no período.
                 </div>
               )}
@@ -471,13 +471,13 @@ export default function BusinessPanel() {
           <div className="overflow-hidden rounded-card border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-850">
             <div className="border-b border-ink-200 px-4 py-3 dark:border-ink-800">
               <h2 className="text-lg font-semibold">Atividade por atendente</h2>
-              <p className="mt-0.5 text-sm text-ink-500">Quem arquivou orçamento no período. Orçamento de atendente removido continua contando.</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">Quem arquivou orçamento no período. Orçamento de atendente removido continua contando.</p>
             </div>
             {insights.attendants.length ? (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[620px] text-left text-sm">
                   <thead>
-                    <tr className="text-sm font-bold text-ink-500">
+                    <tr className="text-sm font-bold text-muted-foreground">
                       <th className="px-4 py-2">Atendente</th>
                       <th className="px-2 py-2 text-right">Orçamentos</th>
                       <th className="px-2 py-2 text-right">Itens</th>
@@ -489,19 +489,19 @@ export default function BusinessPanel() {
                   <tbody>
                     {insights.attendants.map(attendant => (
                       <tr key={attendant.userId || attendant.email} className="border-t border-ink-200 dark:border-ink-800">
-                        <td className="px-4 py-2.5 font-semibold text-ink-900 dark:text-white">{attendant.email}</td>
+                        <td className="px-4 py-2.5 font-semibold text-ink-900 dark:text-white">{attendant.name || attendant.email}</td>
                         <td className="px-2 py-2.5 text-right font-bold tabular-nums">{attendant.quotes}</td>
-                        <td className="px-2 py-2.5 text-right tabular-nums text-ink-500">{attendant.items}</td>
+                        <td className="px-2 py-2.5 text-right tabular-nums text-muted-foreground">{attendant.items}</td>
                         <td className="px-2 py-2.5 text-right font-mono font-semibold tabular-nums">{money(attendant.netTotal)}</td>
-                        <td className="px-2 py-2.5 text-right font-mono tabular-nums text-ink-500">{money(attendant.averageTicket)}</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums text-ink-500">{relativeDate(attendant.lastQuoteAt)}</td>
+                        <td className="px-2 py-2.5 text-right font-mono tabular-nums text-muted-foreground">{money(attendant.averageTicket)}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{relativeDate(attendant.lastQuoteAt)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             ) : (
-              <div className="px-5 py-10 text-center text-sm text-ink-500">Nenhum atendimento arquivado no período.</div>
+              <div className="px-5 py-10 text-center text-sm text-muted-foreground">Nenhum atendimento arquivado no período.</div>
             )}
           </div>
         </>

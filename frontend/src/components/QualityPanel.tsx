@@ -278,16 +278,18 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
 
     {data && <>
       {/* NAVEGAÇÃO DE ABAS */}
-      <div className="mb-6 flex space-x-1 rounded-xl bg-ink-200/50 dark:bg-ink-800/50 p-1">
+      <div role="tablist" aria-label="Seções da Qualidade" className="mb-6 flex space-x-1 rounded-xl bg-ink-200/50 dark:bg-ink-800/50 p-1">
         <button
+          type="button" role="tab" aria-selected={activeTab === 'geral'}
           onClick={() => setActiveTab('geral')}
-          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all ${activeTab === 'geral' ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-white shadow-sm' : 'text-ink-600 dark:text-ink-400 hover:text-ink-900 dark:hover:text-ink-200 hover:bg-white/50 dark:hover:bg-ink-700/50'}`}
+          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/60 ${activeTab === 'geral' ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-white shadow-sm' : 'text-ink-600 dark:text-ink-400 hover:text-ink-900 dark:hover:text-ink-200 hover:bg-white/50 dark:hover:bg-ink-700/50'}`}
         >
           Visão Geral
         </button>
         <button
+          type="button" role="tab" aria-selected={activeTab === 'acao'}
           onClick={() => setActiveTab('acao')}
-          className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all ${activeTab === 'acao' ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-white shadow-sm' : 'text-ink-600 dark:text-ink-400 hover:text-ink-900 dark:hover:text-ink-200 hover:bg-white/50 dark:hover:bg-ink-700/50'}`}
+          className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/60 ${activeTab === 'acao' ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-white shadow-sm' : 'text-ink-600 dark:text-ink-400 hover:text-ink-900 dark:hover:text-ink-200 hover:bg-white/50 dark:hover:bg-ink-700/50'}`}
         >
           Fila de Ação
           {(data.summary.needsReview > 0 || data.searchRadar.length > 0 || data.officialVerification.pending > 0) && (
@@ -297,90 +299,66 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
           )}
         </button>
         <button
+          type="button" role="tab" aria-selected={activeTab === 'tecnico'}
           onClick={() => setActiveTab('tecnico')}
-          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all ${activeTab === 'tecnico' ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-white shadow-sm' : 'text-ink-600 dark:text-ink-400 hover:text-ink-900 dark:hover:text-ink-200 hover:bg-white/50 dark:hover:bg-ink-700/50'}`}
+          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/60 ${activeTab === 'tecnico' ? 'bg-white dark:bg-ink-700 text-brand-600 dark:text-white shadow-sm' : 'text-ink-600 dark:text-ink-400 hover:text-ink-900 dark:hover:text-ink-200 hover:bg-white/50 dark:hover:bg-ink-700/50'}`}
         >
           Técnico & IA
         </button>
       </div>
 
       {activeTab === 'geral' && (
-        <div className="space-y-5 animate-in fade-in duration-300">
+        <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <SummaryCard label="Catálogos utilizáveis" value={data.summary.readyCatalogs} description="Com peças disponíveis para consulta" tone="navy" />
+            <SummaryCard label="Catálogos utilizáveis" value={data.summary.readyCatalogs} description="Com peças disponíveis para consulta" tone="neutral" />
             <SummaryCard label="Precisam de atenção" value={data.summary.needsReview} description="Revisão de dados ou extração" tone={data.summary.needsReview ? 'warning' : 'success'} />
             <SummaryCard label="Perguntas pendentes" value={data.searchRadar.length} description="Consultas reais ainda sem código seguro" tone={data.searchRadar.length ? 'warning' : 'success'} />
-            <div className="rounded-[22px] border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/20 p-5 shadow-[0_14px_40px_rgba(30,30,29,.03)] transition-transform hover:-translate-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-bold text-emerald-800 dark:text-emerald-300">Sinais do balcão</span>
-                <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 text-sm font-bold text-emerald-800 dark:text-emerald-300">Evolução da IA</span>
-              </div>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-3xl font-semibold text-emerald-950 dark:text-emerald-200">{data.learning.uniqueSignals}</span>
-                <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">/ {data.learning.nextMilestone || 5} confirmações</span>
-              </div>
-              <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-emerald-200 dark:bg-emerald-900/50">
-                <div className="h-full rounded-full bg-emerald-600 transition-all duration-500" style={{ width: `${Math.min(100, Math.round((data.learning.uniqueSignals / (data.learning.nextMilestone || 5)) * 100))}%` }} />
-              </div>
-              <div className="mt-2 text-sm leading-5 text-emerald-900 dark:text-emerald-200">
-                {data.learning.nextMilestone
-                  ? `Falta ${data.learning.nextMilestone - data.learning.uniqueSignals} confirmação para subir o nível da IA.`
-                  : 'Base de aprendizado contínuo ativa.'}
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="text-sm font-semibold text-muted-foreground">Peças consultáveis</div>
+              <div className="mt-2 text-3xl font-semibold tabular-nums">{data.summary.parts.toLocaleString('pt-BR')}</div>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+                <span>Busca por código, modelo e substituição</span>
+                {Boolean(data.semanticIndex && data.semanticIndex.indexedParts > 0) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={clearingSemantics}
+                    onClick={() => void clearSemantics()}
+                    title={`Remove os vetores legados de ${data.semanticIndex.indexedParts.toLocaleString('pt-BR')} peças`}
+                  >
+                    {clearingSemantics ? 'Limpando…' : 'Limpar vetores antigos'}
+                  </Button>
+                )}
               </div>
             </div>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
-            <div className={`rounded-[22px] border p-5 ${data.visualRetry.candidates ? 'border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-900/30' : 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-900/30'}`}>
-              <div className="text-sm font-bold text-ink-500 dark:text-ink-400">Leitura visual de PDFs</div>
-              <div className="mt-2 text-lg font-semibold text-ink-900 dark:text-ink-100">{data.visualRetry.candidates ? `${data.visualRetry.candidates} aguardando cota` : 'Nenhuma falha de cota'}</div>
-              <p className="mt-2 text-sm leading-5 text-ink-600 dark:text-ink-400">{data.visualRetry.eligible ? `${data.visualRetry.documents[0]?.filename || 'Catálogo'} pode ser reenviado agora.` : data.visualRetry.coolingDown ? `Uma tentativa recente está no intervalo seguro de ${data.visualRetry.cooldownHours} horas.` : 'A leitura visual está sem pendências conhecidas.'}</p>
-              {data.visualRetry.candidates > 0 && <button type="button" disabled={!data.visualRetry.eligible || retryingVisual} onClick={() => void retryVisualCatalogs()} className="cv-secondary mt-4 px-3 py-2 text-sm font-semibold disabled:opacity-50">{retryingVisual ? 'Reenviando…' : 'Retomar 1 catálogo'}</button>}
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="text-sm font-semibold text-muted-foreground">Leitura visual de PDFs</div>
+              <div className={`mt-2 text-lg font-semibold ${data.visualRetry.candidates ? 'text-warn' : 'text-ok'}`}>{data.visualRetry.candidates ? `${data.visualRetry.candidates} aguardando cota` : 'Nenhuma falha de cota'}</div>
+              <p className="mt-2 text-base text-muted-foreground">{data.visualRetry.eligible ? `${data.visualRetry.documents[0]?.filename || 'Catálogo'} pode ser reenviado agora.` : data.visualRetry.coolingDown ? `Uma tentativa recente está no intervalo seguro de ${data.visualRetry.cooldownHours} horas.` : 'Sem pendências conhecidas.'}</p>
+              {data.visualRetry.candidates > 0 && <Button type="button" variant="outline" className="mt-4" disabled={!data.visualRetry.eligible || retryingVisual} onClick={() => void retryVisualCatalogs()}>{retryingVisual ? 'Reenviando…' : 'Retomar 1 catálogo'}</Button>}
             </div>
 
-            <div className="rounded-[22px] border border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-900/30 p-5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-bold text-emerald-800 dark:text-emerald-300">Motor de Busca Instantânea</span>
-                <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 text-sm font-bold text-emerald-800 dark:text-emerald-300">100% Ativo</span>
-              </div>
-              <div className="mt-2 text-lg font-semibold text-ink-900 dark:text-ink-100">{data.summary.parts} peças consultáveis</div>
-              <p className="mt-2 text-sm leading-5 text-ink-600 dark:text-ink-400">
-                Busca de alta velocidade por código exato, modelo, substituições e vocabulário de balcão, sem dependência de cotas ou limites diários.
-              </p>
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                  <span>Cobertura total imediata</span>
-                </div>
-                {Boolean(data.semanticIndex && data.semanticIndex.indexedParts > 0) && (
-                  <button
-                    type="button"
-                    disabled={clearingSemantics}
-                    onClick={() => void clearSemantics()}
-                    className="rounded-lg border border-ink-200 dark:border-ink-700 bg-white/80 dark:bg-ink-800/80 px-2.5 py-1 text-sm font-semibold text-ink-500 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-200 transition disabled:opacity-50"
-                    title="Remove os vetores legados das 554 peças"
-                  >
-                    {clearingSemantics ? 'Limpando…' : 'Limpar vetores antigos'}
-                  </button>
-                )}
-              </div>
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="text-sm font-semibold text-muted-foreground">Conferência no Portal</div>
+              <div className="mt-2 text-lg font-semibold">{data.officialVerification.approved} {data.officialVerification.approved === 1 ? 'aprovação reutilizável' : 'aprovações reutilizáveis'}</div>
+              <p className="mt-2 text-base text-muted-foreground">{data.officialVerification.pending} aguardando aprovação · {data.officialVerification.stale} vencidas. Cada conferência vale {data.officialVerification.cacheDays} dias e depois volta para revisão humana.</p>
             </div>
 
-            <div className="rounded-[22px] border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-5 shadow-[0_14px_40px_rgba(30,30,29,.04)]">
-              <div className="text-sm font-bold text-ink-500 dark:text-ink-400">Portal oficial</div>
-              <div className="mt-2 text-lg font-semibold text-ink-900 dark:text-ink-100">{data.officialVerification.approved} aprovações reutilizáveis</div>
-              <p className="mt-2 text-sm leading-5 text-ink-600 dark:text-ink-400">{data.officialVerification.pending} aguardando aprovação · {data.officialVerification.stale} vencidas. Cada conferência vale {data.officialVerification.cacheDays} dias e depois volta para revisão humana.</p>
-              <div className="mt-4 text-sm font-semibold text-brand-600 dark:text-brand-300">Sem robô de login: cache aprovado + conferência no portal</div>
-            </div>
-          </div>
-
-          <div className="cv-surface rounded-[24px] p-6 max-w-lg">
-            <h2 className="text-sm font-semibold text-ink-900 dark:text-ink-100">Estatísticas de Extração</h2>
-            <div className="mt-4 grid gap-3">
-              <InfoRow label="Peças consultáveis" value={data.summary.parts} />
-              <InfoRow label="Sem página de origem" value={data.summary.partsWithoutPage} />
-              <InfoRow label="Sem vista/seção" value={data.summary.partsWithoutSection} />
-              <InfoRow label="Memórias por página/vista" value={data.summary.technicalMemoryChunks} />
+            <div className="rounded-xl border border-border bg-card p-5">
+              <h2 className="text-sm font-semibold text-muted-foreground">Estatísticas de extração</h2>
+              <dl className="mt-3 divide-y divide-border text-base">
+                {[
+                  ['Sem página de origem', data.summary.partsWithoutPage],
+                  ['Sem vista/seção', data.summary.partsWithoutSection],
+                  ['Memórias por página/vista', data.summary.technicalMemoryChunks],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between py-2"><dt className="text-muted-foreground">{label}</dt><dd className="font-semibold tabular-nums">{Number(value).toLocaleString('pt-BR')}</dd></div>
+                ))}
+              </dl>
             </div>
           </div>
         </div>
@@ -554,22 +532,19 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
 }
 
 function SummaryCard({ label, value, description, tone }: { label: string; value: number; description: string; tone: 'navy' | 'success' | 'warning' | 'danger' | 'neutral' }) {
-  const tones = {
-    navy: 'border-brand-700 bg-ink-900 text-white',
-    success: 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-950 dark:text-emerald-300',
-    warning: 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 text-amber-950 dark:text-amber-300',
-    danger: 'border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 text-rose-950 dark:text-rose-300',
-    neutral: 'border-ink-200 dark:border-ink-700 bg-ink-100 dark:bg-ink-800/80 text-ink-900 dark:text-ink-100',
-  };
-  return <div className={`rounded-[22px] border p-5 shadow-[0_14px_40px_rgba(30,30,29,.03)] transition-transform hover:-translate-y-1 ${tones[tone]}`}><div className="text-sm font-bold opacity-60">{label}</div><div className="mt-2 text-3xl font-semibold">{value}</div><div className="mt-2 text-sm leading-5 opacity-70">{description}</div></div>;
+  // A cor mora só no número: um painel de cartões todos pintados não diz qual precisa de atenção.
+  const valueTone = { navy: '', neutral: '', success: 'text-ok', warning: 'text-warn', danger: 'text-destructive' }[tone];
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="text-sm font-semibold text-muted-foreground">{label}</div>
+      <div className={`mt-2 text-3xl font-semibold tabular-nums ${valueTone}`}>{value.toLocaleString('pt-BR')}</div>
+      <div className="mt-2 text-sm text-muted-foreground">{description}</div>
+    </div>
+  );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
   return <div className="rounded-xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-3"><div className="text-sm font-semibold text-ink-500 dark:text-ink-400">{label}</div><div className="mt-1 text-xl font-semibold text-ink-900 dark:text-ink-100">{value}</div></div>;
-}
-
-function InfoRow({ label, value }: { label: string; value: number }) {
-  return <div className="flex items-center justify-between rounded-xl bg-ink-50 dark:bg-ink-800/50 px-3 py-2.5"><span className="text-sm text-ink-500 dark:text-ink-400">{label}</span><b className="text-sm text-ink-800 dark:text-ink-200">{value}</b></div>;
 }
 
 // Espelha DeterministicDeclineReason do backend, em linguagem de dono de loja.
