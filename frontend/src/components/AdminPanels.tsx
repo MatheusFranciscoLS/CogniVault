@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { api, fmtDate, json } from '../lib';
-import { Search } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import PageFrame from './PageFrame';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,39 +33,57 @@ export function OverviewPanel() {
     return () => { active = false; };
   }, [retry]);
 
-  const metrics = data ? [
-    ['Catálogos ativos', data.activeDocuments.toLocaleString('pt-BR')],
-    ['Peças indexadas', data.parts.toLocaleString('pt-BR')],
-    ['Usuários ativos', data.users.toLocaleString('pt-BR')],
-  ] : [];
+  // Situação do processamento num selo só: "tudo em dia" é a resposta que o dono procura quando abre esta tela.
+  const status = !data ? null
+    : data.failedDocuments > 0 ? { tone: 'text-destructive', text: `${data.failedDocuments} com falha` }
+    : data.processingDocuments > 0 ? { tone: 'text-warn', text: `${data.processingDocuments} processando` }
+    : { tone: 'text-ok', text: 'Tudo em dia' };
 
   return (
     <PageFrame title="Visão geral">
       {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"><span>{error}</span><button type="button" onClick={() => { setError(''); setRetry(value => value + 1); }} className="rounded-lg border border-destructive/40 px-3 py-1.5 text-sm font-bold">Tentar novamente</button></div>}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <div className="grid divide-y divide-ink-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0 dark:divide-ink-800">
-          {(data ? metrics : Array.from({ length: 3 }, (_, index) => [`Carregando ${index}`, '—'])).map(([label, value]) => (
-            <div key={String(label)} className="px-5 py-4">
-              <div className="text-sm font-semibold text-muted-foreground">{data ? label : 'Carregando'}</div>
-              <div className="mt-2 text-2xl font-semibold text-foreground">{data ? value : '—'}</div>
-                </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <div className="border-b border-border px-4 py-3 text-sm font-semibold text-foreground">Situação operacional</div>
-        <div className="grid divide-y divide-ink-100 md:grid-cols-2 md:divide-x md:divide-y-0 dark:divide-ink-800">
-          <div className="flex items-center justify-between gap-4 px-4 py-4"><span className="text-sm font-semibold text-muted-foreground">Catálogos processando</span><span className="text-lg font-semibold text-warn">{data?.processingDocuments ?? '—'}</span></div>
-          <div className="flex items-center justify-between gap-4 px-4 py-4"><span className="text-sm font-semibold text-muted-foreground">Catálogos com falha</span><span className="text-lg font-semibold text-destructive">{data?.failedDocuments ?? '—'}</span></div>
-        </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <KpiCard label="Catálogos ativos" value={data?.activeDocuments} footer={status ? <span className={`font-semibold ${status.tone}`}>{status.text}</span> : undefined} />
+        <KpiCard label="Peças consultáveis" value={data?.parts} footer="Códigos que o balcão acha na busca" />
+        <KpiCard label="Usuários ativos" value={data?.users} footer="Com acesso ao sistema" />
       </div>
     </PageFrame>
   );
 }
 
-const AUDIT_PAGE = 25;
+function KpiCard({ label, value, footer }: { label: string; value: number | undefined; footer?: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="text-base font-semibold text-muted-foreground">{label}</div>
+      <div className="mt-2 text-4xl font-semibold tabular-nums">{value === undefined ? <span className="text-muted-foreground" aria-busy="true">—</span> : value.toLocaleString('pt-BR')}</div>
+      {footer && <div className="mt-2 text-base text-muted-foreground">{footer}</div>}
+    </div>
+  );
+}
+
+/** Seção recolhida: o que só o dono técnico consulta (IA, cache, rota do Portal) não disputa a tela com o que ele olha todo dia. */
+export function TechnicalDetails({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <section className="mx-auto w-full max-w-[1400px]">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen(value => !value)}
+        className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4 text-left outline-none transition-colors hover:bg-accent/50 focus-visible:ring-3 focus-visible:ring-ring/60"
+      >
+        <span className="text-lg font-semibold">{title}</span>
+        <ChevronDown className={`size-5 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+      </button>
+      <div id={id} hidden={!open}>{open && children}</div>
+    </section>
+  );
+}
+
+const AUDIT_PAGE = 15;
 
 export function AuditPanel() {
   const [logs, setLogs] = useState<AuditLog[]>([]);

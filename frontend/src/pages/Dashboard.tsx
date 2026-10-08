@@ -17,6 +17,7 @@ const BusinessPanel = lazy(() => import('../components/BusinessPanel'));
 const AssistantObservabilityPanel = lazy(() => import('../components/AssistantObservabilityPanel'));
 const UsersPanel = lazy(() => import('../components/admin/UsersPanel'));
 const AuditPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.AuditPanel })));
+const TechnicalDetails = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.TechnicalDetails })));
 const QualityPanel = lazy(() => import('../components/QualityPanel'));
 const SavedQuotesPanel = lazy(() => import('../components/SavedQuotesPanel'));
 const MachineListPanel = lazy(() => import('../components/MachineListPanel'));
@@ -320,13 +321,11 @@ export default function Dashboard() {
         {section === 'quotes' && <SavedQuotesPanel />}
         {section === 'prices' && <MachineListPanel onOpenMachine={openMachine} />}
         {section === 'overview' && user.role === 'ADMIN' && (
-          <>
+          <div className="space-y-4">
             <OverviewPanel />
-            <div className="mx-auto w-full max-w-[1400px]">
-              <AssistantObservabilityPanel />
-              <AuditPanel />
-            </div>
-          </>
+            <TechnicalDetails title="Uso de IA e cobertura técnica"><AssistantObservabilityPanel /></TechnicalDetails>
+            <div className="mx-auto w-full max-w-[1400px]"><AuditPanel /></div>
+          </div>
         )}
         {section === 'business' && user.role === 'ADMIN' && <BusinessPanel />}
         {section === 'users' && user.role === 'ADMIN' && <UsersPanel />}
