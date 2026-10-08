@@ -185,16 +185,24 @@ test('categoria desligada (Automower) sai da conta, não vira lacuna e continua 
   const items = [
     item('AM315', 'UNVERIFIED', 'AUTOMOWER'),
     item('AM435XAWD', 'UNVERIFIED', 'Automower'),
-    item('226KS12', 'UNVERIFIED', 'DERRIÇADEIRA'),
+    item('345BT', 'UNVERIFIED', 'SOPRADOR'),
     item('143R', 'PORTAL_IPL', 'ROÇADEIRA'),
     item('AM-COM-VISTA', 'PORTAL_IPL', 'AUTOMOWER'),
   ];
   const resumo = summarizePortfolioCoverage(items);
   assert.equal(resumo.paused, 2, 'só o Automower SEM fonte entra em pausa');
-  assert.equal(resumo.unverified, 1, 'o 226KS12 continua sendo lacuna');
+  assert.equal(resumo.unverified, 1, 'um modelo de outra categoria continua sendo lacuna');
   assert.equal(resumo.covered, 2, 'o Automower que já tem vista continua contando');
   assert.equal(resumo.coverageRate, 2 / 3, 'a taxa não conta os em pausa no total');
   assert.deepEqual(listPaused(resumo.items).map(entry => entry.model), ['AM315', 'AM435XAWD']);
   assert.equal(isPausedCategory('AUTOMOWER LINHA EPOS'), true);
   assert.equal(isPausedCategory('ROÇADEIRA'), false);
+});
+
+test('modelo desligado um a um (226KS12) também sai da conta, mesmo fora de categoria desligada', () => {
+  const base = { normalizedModel: '', status: 'UNVERIFIED', commercialSignals: 1, commercialEvidence: [], commercialCategory: 'DERRIÇADEIRA', portalVerification: 'NO_IPL', portalVerificationNote: null, source: null, pnc: null } as unknown as PortfolioCoverageItem;
+  const resumo = summarizePortfolioCoverage([{ ...base, model: '226KS12' }, { ...base, model: '345BT' }]);
+  assert.equal(resumo.paused, 1);
+  assert.equal(resumo.unverified, 1);
+  assert.deepEqual(listPaused(resumo.items).map(item => item.model), ['226KS12']);
 });
