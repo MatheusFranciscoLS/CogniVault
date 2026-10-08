@@ -170,10 +170,14 @@ usuários** ("todos podem visualizar isso").
   propriedade intelectual da Husqvarna segue valendo. Os testes usam máquinas e uma foto inventadas ("RIFF"). O orçamento
   usa a foto do PORTAL primeiro (maior qualidade; dono, 2026-10-07: "utilize todas as fotos do Portal"), pelo PNC e depois pelo
   nome do modelo, e a da lista só como reserva (hoje 139 pelo Portal e 12 pela lista, de 151). A foto é reduzida a 800 px em JPEG. Sem reimportar a lista, as 12 máquinas que o Portal não
-  tem ficam sem foto.
+  tem ficam sem foto. **MUDOU em 2026-10-08 (dono: "a lista tem as fotos sem erro, não precisa pegar do Portal"): a foto da LISTA vem primeiro** e o Portal só entra
+  se a lista não tem. Isso só funciona depois de importar a lista em produção (`--apply`): a tabela `MachineListingPhoto` está vazia até lá, e o orçamento cai no Portal.
 - **Fichas que o importador agora lê, por categoria** (`buildCategorySpecs`): transmissão e velocidade máxima só de giro zero,
   trator, rider e cortador de grama (em motosserra o mesmo campo é velocidade da corrente, 174,9 km/h); área de trabalho e
   inclinação só de Automower. **Peso continua fora** (decisão do dono). Os testes usam máquinas inventadas.
+- **"Descontinuada" não existe mais na tela (2026-10-08).** O campo `motivo_sem_preco` da lista diz por que NÃO há preço e vem desatualizado quando há: a
+  motosserra 120 vem "descontinuado" e com R$ 1.129,00, e o dono confirmou que ela está à venda. Toda máquina aceita pelo importador tem preço, então
+  `discontinued` é sempre falso e o selo/etiqueta saíram (aba, painel da máquina). Máquina fora da lista continua "Fora de linha".
 - **A ficha técnica é uma seleção conservadora** porque o arquivo é sujo (já vimos "rotação" com o valor
   de potência e "peso" 6500). Unidade só entra em número puro e valor absurdo fica de fora.
 - "Acompanha / não acompanha" vem do Portal Husqvarna por PNC, ao abrir a gaveta

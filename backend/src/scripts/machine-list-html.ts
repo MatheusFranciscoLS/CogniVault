@@ -267,7 +267,10 @@ export function parseMachineListHtml(html: string): MachineList {
       technology: cleanText(row.tecnologia),
       application: parseApplication(row.aplicacao),
       listPrice,
-      discontinued: /descontinu/i.test(cleanText(row.motivo_sem_preco) ?? ''),
+      // Toda máquina aceita aqui TEM preço na lista (sem preço é recusada acima), e o que a Husqvarna vende com preço não é
+      // descontinuado: o campo `motivo_sem_preco` diz por que NÃO há preço e vem desatualizado quando há (a motosserra 120 vem
+      // "descontinuado" e com R$ 1.129,00). Dono, 2026-10-08: a 120 está à venda.
+      discontinued: false,
       isNew: update?.wasNew === true,
       priceBefore: priceChanged ? update.priceBefore : null,
       sortOrder: 0,

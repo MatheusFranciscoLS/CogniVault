@@ -57,10 +57,10 @@ test('recusa em vez de chutar: sem PNC, sem modelo, preço fora do padrão e PNC
   assert.equal(list.machines[0].listPrice, 1129, 'o primeiro preço fica; o repetido não sobrescreve');
 });
 
-test('descontinuada vem do motivo_sem_preco', () => {
+test('máquina com preço na lista nunca é descontinuada, mesmo com motivo_sem_preco desatualizado', () => {
   const rows = [{ ...base, motivo_sem_preco: 'descontinuado' }, { ...base, pnc: '900000002' }];
   const { machines } = parseMachineListHtml(page({ date: '2026-10-05T00:00:00Z', produtos: rows }));
-  assert.deepEqual(machines.map(item => item.discontinued), [true, false]);
+  assert.deepEqual(machines.map(item => item.discontinued), [false, false]);
 });
 
 test('novidade e mudança de preço vêm do registro de mudanças, e só valem para o preço de hoje', () => {

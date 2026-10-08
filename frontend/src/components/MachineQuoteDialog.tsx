@@ -44,11 +44,11 @@ export default function MachineQuoteDialog({
   allMachines: ListedMachine[];
   onClose: () => void;
 }) {
-  // Foto do PORTAL primeiro (maior qualidade; dono, 2026-10-07), pelo PNC e, sem ela, pelo nome do modelo. A da própria
-  // lista, que toda máquina vigente tem, fica de reserva.
+  // Foto da PRÓPRIA LISTA primeiro (dono, 2026-10-08: "a lista tem as fotos sem erro, não precisa pegar do Portal"); fica guardada
+  // no banco, então não depende do Portal responder. O Portal (pelo PNC e depois pelo nome do modelo) só entra se a lista não tem.
   const listPhoto = machine.hasPhoto ? machinePhotoUrl(machine.pnc) : null;
-  const byName = useMachinePhoto(machine.model, portalSettled && !portal?.imageUrl);
-  const photoUrl = portal?.imageUrl ?? byName.data ?? listPhoto;
+  const byName = useMachinePhoto(machine.model, portalSettled && !listPhoto && !portal?.imageUrl);
+  const photoUrl = listPhoto ?? portal?.imageUrl ?? byName.data ?? null;
   const ids = useId();
   const [customer, setCustomer] = useState('');
   const [priceText, setPriceText] = useState(() => String(machine.listPrice).replace('.', ','));
@@ -82,7 +82,7 @@ export default function MachineQuoteDialog({
     if (price === null || quoteDate === null) return;
     setBusy(true);
     try {
-      const [{ jsPDF }, autoTable, { buildMachineQuotePdf }, { loadStoreLogo, loadProductImage }, { attendantDisplayName }] = await Promise.all([
+      const [{ jsPDF }, autoTable, { buildMachineQuotePdf }, { loadStoreLogo, loadProductImage }, { resolveAttendantName }] = await Promise.all([
         import('jspdf'),
         import('jspdf-autotable').then(module => module.default),
         import('../lib/machine-quote'),
@@ -95,7 +95,7 @@ export default function MachineQuoteDialog({
         autoTable,
         machine,
         fields,
-        attendantName: attendantDisplayName() || undefined,
+        attendantName: (await resolveAttendantName()) || undefined,
         variant,
         now: quoteDate,
         logo: await loadStoreLogo(),

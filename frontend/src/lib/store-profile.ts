@@ -1,3 +1,4 @@
+import { apiJson } from '../lib';
 // Dados cadastrais da loja que saem no cabeçalho e no rodapé do que o cliente recebe (PDF do orçamento e ficha da
 // máquina). Vêm do modelo de orçamento em Word da própria loja (`ORÇAMENTO TIMBRE PEÇAS.doc`, 2026-10-07).
 //
@@ -56,6 +57,18 @@ export function rememberUserName(name: string | null | undefined): void {
     if (name && name.trim()) localStorage.setItem('cognivault_name', name.trim());
     else localStorage.removeItem('cognivault_name');
   } catch { /* sem armazenamento: o PDF sai sem o ATT. */ }
+}
+
+/**
+ * O nome do "ATT." na hora de gerar o PDF: pergunta ao servidor (rápido, 4 s no máximo) e guarda, porque o nome guardado no
+ * navegador pode estar velho ou nunca ter sido gravado (sessão aberta antes de o nome existir). Se a consulta falha, usa o guardado.
+ */
+export async function resolveAttendantName(): Promise<string> {
+  try {
+    const { user } = await apiJson<{ user: { name?: string | null } }>('/api/me', { timeoutMs: 4_000 });
+    rememberUserName(user.name);
+  } catch { /* sem rede: vale o nome guardado */ }
+  return attendantDisplayName();
 }
 
 /** O nome de quem atende, para o "ATT.": o cadastrado pelo administrador; sem ele, a reserva do e-mail; sem nenhum, vazio. */
