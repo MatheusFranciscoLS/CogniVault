@@ -7,8 +7,6 @@ import { activateQuoteStorageScope } from '../lib/quote-storage-scope';
 import { rememberUserName } from '../lib/store-profile';
 import { isAdminSection, sectionFromPath, sectionPath, sectionTitle } from '../lib/section-routes';
 import type { Section, SessionUser } from '../types';
-import '../admin-polish.css';
-import '../quality-polish.css';
 
 // "parts" é a tela padrão no login, então só ela vem no primeiro pacote de JS.
 // Catálogos e os painéis de administração entram sob demanda, no clique da aba.
@@ -47,8 +45,8 @@ function PanelLoading() {
         {[0, 1, 2, 3, 4].map(item => (
           <div key={item} className="flex items-center gap-4 border-b border-ink-100 p-4 last:border-0 dark:border-ink-800">
             <div className="h-4 w-28 animate-pulse rounded-sm bg-ink-200 dark:bg-ink-800" />
-            <div className="h-4 flex-1 animate-pulse rounded-sm bg-ink-100 dark:bg-ink-850" />
-            <div className="h-8 w-24 animate-pulse rounded-card bg-ink-100 dark:bg-ink-850" />
+            <div className="h-4 flex-1 animate-pulse rounded-sm bg-muted" />
+            <div className="h-8 w-24 animate-pulse rounded-card bg-muted" />
           </div>
         ))}
       </div>
@@ -230,12 +228,12 @@ export default function Dashboard() {
             className="h-7 w-auto max-w-[150px] object-contain dark:brightness-0 dark:invert"
           />
           <div className="mt-5 flex items-start gap-3">
-            <span aria-hidden="true" className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-card bg-rose-50 text-base font-black text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+            <span aria-hidden="true" className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-card bg-destructive/10 text-base font-black text-destructive">
               !
             </span>
             <div className="min-w-0">
-              <h1 className="text-base font-bold text-ink-950 dark:text-white">Não foi possível abrir o CogniVault</h1>
-              <p className="mt-1.5 text-sm leading-6 text-ink-500 dark:text-ink-400">{error}</p>
+              <h1 className="text-base font-bold text-foreground">Não foi possível abrir o CogniVault</h1>
+              <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{error}</p>
             </div>
           </div>
 
@@ -247,20 +245,20 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="cv-primary cv-touch-target flex-1 px-4 text-sm"
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-primary font-semibold text-primary-foreground outline-none transition-colors hover:bg-primary-hover focus-visible:ring-3 focus-visible:ring-ring/60 disabled:opacity-60 min-h-10 min-w-10 flex-1 px-4 text-sm"
             >
               Tentar de novo
             </button>
             <button
               type="button"
               onClick={logout}
-              className="cv-secondary cv-touch-target flex-1 px-4 text-sm"
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-card font-semibold text-foreground outline-none transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/60 disabled:opacity-60 min-h-10 min-w-10 flex-1 px-4 text-sm"
             >
               Entrar novamente
             </button>
           </div>
 
-          <p className="mt-4 text-[11px] leading-5 text-ink-500 dark:text-ink-400">
+          <p className="mt-4 text-[11px] leading-5 text-muted-foreground">
             Se acabou de abrir o sistema, o servidor pode estar iniciando: aguarde alguns
             segundos e toque em <strong>Tentar de novo</strong>.
           </p>
@@ -283,7 +281,7 @@ export default function Dashboard() {
                 em 50%, que em rede lenta parecia progresso travado. */}
             <div className="h-full w-1/3 animate-cv-indeterminate rounded-full bg-brand-600 dark:bg-brand-400" />
           </div>
-          <p className="mt-4 text-sm font-semibold text-ink-600 dark:text-ink-300">Preparando o atendimento…</p>
+          <p className="mt-4 text-sm font-semibold text-muted-foreground">Preparando o atendimento…</p>
         </div>
       </main>
     );
@@ -332,7 +330,7 @@ export default function Dashboard() {
         )}
         {section === 'business' && user.role === 'ADMIN' && <BusinessPanel />}
         {section === 'users' && user.role === 'ADMIN' && <UsersPanel />}
-        {section === 'quality' && user.role === 'ADMIN' && <div className="cv-quality-workspace"><QualityPanel onSearch={search} /></div>}
+        {section === 'quality' && user.role === 'ADMIN' && <QualityPanel onSearch={search} />}
       </Suspense>
     </ShellV2>
   );

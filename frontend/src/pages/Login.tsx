@@ -52,7 +52,7 @@ function AuthorizedByHusqvarna({ tone }: { tone: 'onBrand' | 'onLight' }) {
   return (
     <div
       className={`flex flex-wrap items-center gap-x-4 gap-y-3 border-t pt-4 ${
-        onBrand ? 'border-white/15' : 'border-ink-200 dark:border-ink-800'
+        onBrand ? 'border-white/15' : 'border-border'
       }`}
     >
       <img
@@ -71,11 +71,11 @@ function AuthorizedByHusqvarna({ tone }: { tone: 'onBrand' | 'onLight' }) {
       {/* Sem repetir "Revenda Autorizada Ouro" em texto aqui: o selo ao lado já
           diz isso, e o e2e casa esse texto por substring sem diferenciar
           maiúsculas — duas ocorrências violariam o modo estrito do Playwright. */}
-      <div className={`min-w-[190px] flex-1 border-l pl-4 ${onBrand ? 'border-white/15' : 'border-ink-200 dark:border-ink-800'}`}>
-        <div className={`text-xs font-bold ${onBrand ? 'text-white' : 'text-ink-950 dark:text-white'}`}>
+      <div className={`min-w-[190px] flex-1 border-l pl-4 ${onBrand ? 'border-white/15' : 'border-border'}`}>
+        <div className={`text-xs font-bold ${onBrand ? 'text-white' : 'text-foreground'}`}>
           Peças e catálogo originais
         </div>
-        <div className={`mt-0.5 text-[11px] ${onBrand ? 'text-brand-200' : 'text-ink-500 dark:text-ink-400'}`}>
+        <div className={`mt-0.5 text-[11px] ${onBrand ? 'text-brand-200' : 'text-muted-foreground'}`}>
           Direto da fonte oficial da fábrica
         </div>
       </div>
@@ -249,7 +249,7 @@ export default function Login() {
               de card; a partir de lg o painel já dá a estrutura e o card sai. */}
           <div className="w-full max-w-[420px] rounded-panel border border-ink-200 bg-white p-6 shadow-raised dark:border-ink-800 dark:bg-ink-900 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none dark:lg:bg-transparent">
             <h2 className="text-display-sm text-brand-600 dark:text-white">Entrar no CogniVault</h2>
-            <p className="mt-2 text-base text-ink-500 dark:text-ink-400">Use o e-mail da loja.</p>
+            <p className="mt-2 text-base text-muted-foreground">Use o e-mail da loja.</p>
 
             {error && (
               <div

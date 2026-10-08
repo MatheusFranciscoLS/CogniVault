@@ -70,17 +70,17 @@ export default function OfficialPartOrigin({
   const [primeiro] = hits;
 
   return (
-    <section className="overflow-hidden rounded-xl border border-emerald-200 bg-white dark:border-emerald-900/50 dark:bg-ink-900">
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-emerald-100 bg-emerald-50/60 px-4 py-2.5 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-        <span className="text-[10px] font-black uppercase tracking-[.12em] text-emerald-800 dark:text-emerald-300">
+    <section className="overflow-hidden rounded-xl border border-ok/40 bg-white dark:bg-ink-900">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-ok/40 bg-ok-soft px-4 py-2.5">
+        <span className="text-[10px] font-black uppercase tracking-[.12em] text-ok">
           Catálogo oficial · {primeiro.partNumber}
         </span>
-        <span className="text-[11px] font-bold text-ink-700 dark:text-ink-200">{primeiro.name}</span>
+        <span className="text-[11px] font-bold text-foreground">{primeiro.name}</span>
       </div>
 
       <div className="divide-y divide-ink-100 dark:divide-ink-800">
         {precoDegradado ? (
-          <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-[11px] font-semibold text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+          <div role="status" className="border-b border-warn/40 bg-warn-soft px-4 py-2 text-[11px] font-semibold text-warn">
             Preços da loja temporariamente indisponíveis. Confirme o valor antes de fechar.
           </div>
         ) : null}
@@ -92,19 +92,19 @@ export default function OfficialPartOrigin({
             <span className="shrink-0 rounded-sm bg-ink-100 px-1.5 text-[10px] font-black uppercase text-ink-600 dark:bg-ink-800 dark:text-ink-300">
               {MARCA[hit.source]}
             </span>
-            <span className="min-w-36 flex-1 truncate font-mono text-xs font-bold text-ink-800 dark:text-ink-100">
+            <span className="min-w-36 flex-1 truncate font-mono text-xs font-bold text-foreground">
               {hit.engineModel}
               {hit.assembly ? (
-                <span className="font-sans font-normal text-ink-500 dark:text-ink-400"> · {hit.assembly}</span>
+                <span className="font-sans font-normal text-muted-foreground"> · {hit.assembly}</span>
               ) : null}
             </span>
             {hit.position ? (
-              <span className="shrink-0 font-mono text-[10px] font-bold text-ink-500 dark:text-ink-400">
+              <span className="shrink-0 font-mono text-[10px] font-bold text-muted-foreground">
                 pos. {hit.position}
               </span>
             ) : null}
             {hit.quantity && hit.quantity > 1 ? (
-              <span className="shrink-0 rounded-sm bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+              <span className="shrink-0 rounded-sm bg-warn-soft px-1.5 text-[10px] font-bold text-warn">
                 leva {hit.quantity}
               </span>
             ) : null}
@@ -114,7 +114,7 @@ export default function OfficialPartOrigin({
                 <button
                   type="button"
                   onClick={() => onSearchPart(hit.engineModel)}
-                  className="cv-touch-target rounded-sm border border-ink-200 px-2 text-[10px] font-bold text-ink-600 transition hover:border-brand-300 hover:text-brand-700 dark:border-ink-700 dark:text-ink-300"
+                  className="min-h-10 min-w-10 rounded-sm border border-ink-200 px-2 text-[10px] font-bold text-ink-600 transition hover:border-brand-300 hover:text-brand-700 dark:border-ink-700 dark:text-ink-300"
                 >
                   abrir motor
                 </button>
@@ -133,7 +133,7 @@ export default function OfficialPartOrigin({
                   });
                   toast.success(`${hit.partNumber} no orçamento.`);
                 }}
-                className="cv-touch-target rounded-sm bg-accent-700 px-2 text-[10px] font-bold text-white transition hover:bg-accent-800"
+                className="min-h-10 min-w-10 rounded-sm bg-accent-700 px-2 text-[10px] font-bold text-white transition hover:bg-accent-800"
               >
                 + orçamento
               </button>

@@ -89,8 +89,8 @@ function StatCard({
           <span
             className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-sm font-bold tabular-nums ${
               trend.delta >= 0
-                ? 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-400'
-                : 'bg-rose-500/12 text-rose-700 dark:text-rose-400'
+                ? 'bg-ok text-ok'
+                : 'bg-destructive text-destructive'
             }`}
           >
             <Icon name={trend.delta >= 0 ? 'trendUp' : 'trendDown'} className="h-3 w-3" />
@@ -286,11 +286,11 @@ export default function BusinessPanel() {
           <div className="flex items-end gap-2">
             <div>
               <label htmlFor="insights-from" className="block text-sm font-bold text-muted-foreground">De</label>
-              <input id="insights-from" type="date" value={range.from} onChange={e => applyCustomRange({ from: e.target.value })} className="cv-field mt-1 h-11 w-38 py-0 text-sm tabular-nums" />
+              <input id="insights-from" type="date" value={range.from} onChange={e => applyCustomRange({ from: e.target.value })} className="h-10 rounded-md border border-input bg-card px-3 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/60 mt-1 h-11 w-38 py-0 text-sm tabular-nums" />
             </div>
             <div>
               <label htmlFor="insights-to" className="block text-sm font-bold text-muted-foreground">Até</label>
-              <input id="insights-to" type="date" value={range.to} onChange={e => applyCustomRange({ to: e.target.value })} className="cv-field mt-1 h-11 w-38 py-0 text-sm tabular-nums" />
+              <input id="insights-to" type="date" value={range.to} onChange={e => applyCustomRange({ to: e.target.value })} className="h-10 rounded-md border border-input bg-card px-3 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/60 mt-1 h-11 w-38 py-0 text-sm tabular-nums" />
             </div>
           </div>
         </div>
@@ -308,7 +308,7 @@ export default function BusinessPanel() {
       </div>
 
       {error && (
-        <div role="alert" className="rounded-card border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
+        <div role="alert" className="rounded-card border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive">
           {error}
         </div>
       )}
@@ -375,9 +375,9 @@ export default function BusinessPanel() {
                     </thead>
                     <tbody>
                       {insights.topParts.map(part => (
-                        <tr key={part.normalizedPartNumber} className="border-t border-ink-200 dark:border-ink-800">
+                        <tr key={part.normalizedPartNumber} className="border-t border-border">
                           <td className="max-w-[16rem] px-4 py-2.5">
-                            <div className="truncate font-semibold text-ink-900 dark:text-white" title={part.name}>{part.name}</div>
+                            <div className="truncate font-semibold text-foreground" title={part.name}>{part.name}</div>
                             <div className="font-mono text-sm font-bold text-brand-600 dark:text-brand-300">
                               {part.manufacturer ? `${part.manufacturer} · ` : ''}{displayPartNumber(part.partNumber, part.manufacturer)}
                             </div>
@@ -419,7 +419,7 @@ export default function BusinessPanel() {
                   type="button"
                   onClick={() => void downloadCsv('price-list-gaps')}
                   disabled={exporting !== null}
-                  className="cv-secondary cv-touch-target flex items-center gap-1.5 px-2.5 text-sm disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-card font-semibold text-foreground outline-none transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/60 disabled:opacity-60 min-h-10 min-w-10 flex items-center gap-1.5 px-2.5 text-sm disabled:opacity-50"
                 >
                   <Icon name="download" className={`h-3.5 w-3.5 ${exporting === 'price-list-gaps' ? 'animate-spin' : ''}`} />
                   Exportar lacunas
@@ -428,7 +428,7 @@ export default function BusinessPanel() {
               {insights.unpricedParts.length ? (
                 <div className="max-h-104 overflow-y-auto">
                   <table className="w-full text-left text-sm">
-                    <thead className="sticky top-0 bg-white dark:bg-ink-850">
+                    <thead className="sticky top-0 bg-card">
                       <tr className="text-sm font-bold text-muted-foreground">
                         <th className="px-4 py-2">Peça</th>
                         <th className="px-2 py-2 text-right">Pedidos</th>
@@ -437,9 +437,9 @@ export default function BusinessPanel() {
                     </thead>
                     <tbody>
                       {insights.unpricedParts.map(part => (
-                        <tr key={part.normalizedPartNumber} className="border-t border-ink-200 dark:border-ink-800">
+                        <tr key={part.normalizedPartNumber} className="border-t border-border">
                           <td className="max-w-[18rem] px-4 py-2.5">
-                            <div className="truncate font-semibold text-ink-900 dark:text-white" title={part.name}>{part.name}</div>
+                            <div className="truncate font-semibold text-foreground" title={part.name}>{part.name}</div>
                             <div className="font-mono text-sm font-bold text-brand-600 dark:text-brand-300">
                               {part.manufacturer ? `${part.manufacturer} · ` : ''}{displayPartNumber(part.partNumber, part.manufacturer)}
                             </div>
@@ -488,8 +488,8 @@ export default function BusinessPanel() {
                   </thead>
                   <tbody>
                     {insights.attendants.map(attendant => (
-                      <tr key={attendant.userId || attendant.email} className="border-t border-ink-200 dark:border-ink-800">
-                        <td className="px-4 py-2.5 font-semibold text-ink-900 dark:text-white">{attendant.name || attendant.email}</td>
+                      <tr key={attendant.userId || attendant.email} className="border-t border-border">
+                        <td className="px-4 py-2.5 font-semibold text-foreground">{attendant.name || attendant.email}</td>
                         <td className="px-2 py-2.5 text-right font-bold tabular-nums">{attendant.quotes}</td>
                         <td className="px-2 py-2.5 text-right tabular-nums text-muted-foreground">{attendant.items}</td>
                         <td className="px-2 py-2.5 text-right font-mono font-semibold tabular-nums">{money(attendant.netTotal)}</td>
