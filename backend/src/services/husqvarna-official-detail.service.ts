@@ -5,6 +5,7 @@ import { iplCommentServesPnc, parseHusqvarnaIplComment } from '../utils/husqvarn
 import { briggsManualsSearchUrl } from '../utils/engine-model';
 import { kawasakiCatalogUrl } from '../utils/kawasaki-catalog';
 import { isHostOrSubdomain, safeHusqvarnaAssetUrl } from '../utils/husqvarna-url';
+import { fetchPublicSupportArticle } from './husqvarna-public-site.service';
 
 const GRAPHQL_URL = 'https://portal.husqvarnagroup.com/hbd/graphql?';
 const PORTAL_ORIGIN = 'https://portal.husqvarnagroup.com';
@@ -329,6 +330,8 @@ export type HusqvarnaOfficialProductDetails = {
   alsoUsedIn: HusqvarnaOfficialUsage[];
   spareParts: HusqvarnaOfficialRelatedSparePart[];
   iplSections: HusqvarnaOfficialIplSection[];
+  /** De onde veio a vista explodida. Ausente = Portal; `PUBLIC_SITE` = site público da Husqvarna (o Portal não tinha o artigo ou a lista). */
+  iplSource?: 'PUBLIC_SITE';
 };
 
 export type HusqvarnaOfficialSparePart = {
@@ -360,6 +363,8 @@ type GraphqlError = { message?: string };
 type GraphqlEnvelope<T> = { data?: T; errors?: GraphqlError[] };
 
 const productCache = new LRUCache<string, HusqvarnaOfficialProductDetails>({ max: 500, ttl: 30 * 60 * 1000 });
+/** PNCs que o site público também não tem: não repete a consulta por 10 minutos. */
+const publicSiteMisses = new LRUCache<string, true>({ max: 500, ttl: 10 * 60_000 });
 const sparePartCache = new LRUCache<string, HusqvarnaOfficialSparePart>({ max: 2_000, ttl: 6 * 60 * 60 * 1000 });
 const sparePartDetailsCache = new LRUCache<string, HusqvarnaOfficialSparePartDetails>({ max: 2_000, ttl: 6 * 60 * 60 * 1000 });
 
@@ -475,6 +480,66 @@ export function parseOfficialProductEquipment(article: { included?: unknown; not
     included: included.filter(item => !conflicts.has(item.id)),
     notIncluded: notIncluded.filter(item => !conflicts.has(item.id)),
   };
+}
+
+/**
+ * Seções de vista explodida (IPL) como a API entrega, da lista de peças com coordenadas. Serve ao Portal e ao site público da Husqvarna:
+ * as duas fontes devolvem o mesmo desenho de dados (seção, imagem, peças com posição e coordenadas).
+ */
+export function buildIplSections(rawSections: any[] | null | undefined, pnc: string): HusqvarnaOfficialIplSection[] {
+  return (rawSections || [])
+    .map((section: any) => ({
+      id: String(section?.id || '').trim(),
+      name: String(section?.name || '').trim(),
+      imageUrl: officialMediaUrl(section?.image),
+      referenceHeight: numberOrNull(section?.referenceHeight),
+      referenceWidth: numberOrNull(section?.referenceWidth),
+      parts: (section?.articles || []).map((part: any) => {
+        const commercialReference = normalizeIdentifier(String(part?.commercialReference || ''));
+        const id = normalizeIdentifier(String(part?.id || ''));
+        const partNumber = /^\d{6,14}$/.test(commercialReference) ? commercialReference : (/^\d{6,14}$/.test(id) ? id : null);
+        const comment = part?.comment ? String(part.comment).trim() : null;
+        const parsedComment = parseHusqvarnaIplComment(comment);
+        return {
+          position: part?.number != null ? String(part.number).trim() : null,
+          partNumber,
+          name: String(part?.name || part?.articleDescription || partNumber || 'Peça').trim(),
+          description: part?.articleDescription ? String(part.articleDescription).trim() : null,
+          quantity: numberOrNull(part?.quantity),
+          comment,
+          // Sem "For ..." no texto, a peça vale para todas as variantes da
+          // seção — é o padrão do catálogo, e responder `false` esconderia peça
+          // legítima. O `pnc` aqui é o que foi consultado, de 9 dígitos, e o
+          // texto escreve o de 11: `iplCommentServesPnc` casa os dois.
+          servesThisPnc: iplCommentServesPnc(parsedComment, pnc),
+          multipackQuantity: parsedComment.multipackQuantity,
+          engine: parsedComment.engineModel || parsedComment.engineModelOnPlate
+            ? {
+              brand: parsedComment.engineBrand,
+              model: parsedComment.engineModel,
+              article: parsedComment.engineArticle,
+              modelOnPlate: parsedComment.engineModelOnPlate,
+              hasSeparateIpl: parsedComment.hasSeparateEngineIpl,
+              // Briggs tem busca de manual por modelo; Kawasaki só tem o
+              // localizador, e sem modelo na mão nem isso adianta — por isso o
+              // link só sai quando há para onde levar.
+              manualUrl: parsedComment.engineBrand === 'BRIGGS'
+                ? briggsManualsSearchUrl(parsedComment.engineModel)
+                : parsedComment.engineBrand === 'KAWASAKI'
+                  ? kawasakiCatalogUrl(parsedComment.engineModel).url
+                  : null,
+            }
+            : null,
+          coordinates: part?.coordinates ? String(part.coordinates) : null,
+          url: safePortalUrl(part?.url),
+          replacementPartNumbers: Array.isArray(part?.replacedIds)
+            ? part.replacedIds.map((value: unknown) => normalizeIdentifier(String(value || ''))).filter((value: string) => /^\d{6,14}$/.test(value))
+            : [],
+        } satisfies HusqvarnaOfficialIplPart;
+      }),
+    }))
+    // O prefixo diz a marca do catálogo (HVA_PL = Husqvarna, CLT_PL = cortadores de grama e linha elétrica...). Só HVA_PL passava, e o LE322R, com 5 vistas, saía como "só manual".
+    .filter((section: HusqvarnaOfficialIplSection) => /^[A-Z]{2,4}_PL-[A-Za-z0-9_-]+$/i.test(section.id) && Boolean(section.name));
 }
 
 export function parseOfficialProductDetails(payload: unknown, pncInput: string): HusqvarnaOfficialProductDetails | null {
@@ -622,58 +687,7 @@ export function parseOfficialProductDetails(payload: unknown, pncInput: string):
     })
     .filter((item: HusqvarnaOfficialRelatedSparePart) => Boolean(item.partNumber));
 
-  const iplSections: HusqvarnaOfficialIplSection[] = (article.ipls || [])
-    .map((section: any) => ({
-      id: String(section?.id || '').trim(),
-      name: String(section?.name || '').trim(),
-      imageUrl: officialMediaUrl(section?.image),
-      referenceHeight: numberOrNull(section?.referenceHeight),
-      referenceWidth: numberOrNull(section?.referenceWidth),
-      parts: (section?.articles || []).map((part: any) => {
-        const commercialReference = normalizeIdentifier(String(part?.commercialReference || ''));
-        const id = normalizeIdentifier(String(part?.id || ''));
-        const partNumber = /^\d{6,14}$/.test(commercialReference) ? commercialReference : (/^\d{6,14}$/.test(id) ? id : null);
-        const comment = part?.comment ? String(part.comment).trim() : null;
-        const parsedComment = parseHusqvarnaIplComment(comment);
-        return {
-          position: part?.number != null ? String(part.number).trim() : null,
-          partNumber,
-          name: String(part?.name || part?.articleDescription || partNumber || 'Peça').trim(),
-          description: part?.articleDescription ? String(part.articleDescription).trim() : null,
-          quantity: numberOrNull(part?.quantity),
-          comment,
-          // Sem "For ..." no texto, a peça vale para todas as variantes da
-          // seção — é o padrão do catálogo, e responder `false` esconderia peça
-          // legítima. O `pnc` aqui é o que foi consultado, de 9 dígitos, e o
-          // texto escreve o de 11: `iplCommentServesPnc` casa os dois.
-          servesThisPnc: iplCommentServesPnc(parsedComment, pnc),
-          multipackQuantity: parsedComment.multipackQuantity,
-          engine: parsedComment.engineModel || parsedComment.engineModelOnPlate
-            ? {
-              brand: parsedComment.engineBrand,
-              model: parsedComment.engineModel,
-              article: parsedComment.engineArticle,
-              modelOnPlate: parsedComment.engineModelOnPlate,
-              hasSeparateIpl: parsedComment.hasSeparateEngineIpl,
-              // Briggs tem busca de manual por modelo; Kawasaki só tem o
-              // localizador, e sem modelo na mão nem isso adianta — por isso o
-              // link só sai quando há para onde levar.
-              manualUrl: parsedComment.engineBrand === 'BRIGGS'
-                ? briggsManualsSearchUrl(parsedComment.engineModel)
-                : parsedComment.engineBrand === 'KAWASAKI'
-                  ? kawasakiCatalogUrl(parsedComment.engineModel).url
-                  : null,
-            }
-            : null,
-          coordinates: part?.coordinates ? String(part.coordinates) : null,
-          url: safePortalUrl(part?.url),
-          replacementPartNumbers: Array.isArray(part?.replacedIds)
-            ? part.replacedIds.map((value: unknown) => normalizeIdentifier(String(value || ''))).filter((value: string) => /^\d{6,14}$/.test(value))
-            : [],
-        } satisfies HusqvarnaOfficialIplPart;
-      }),
-    }))
-    .filter((section: HusqvarnaOfficialIplSection) => /^HVA_PL-[A-Za-z0-9_-]+$/i.test(section.id) && Boolean(section.name));
+  const iplSections = buildIplSections(article.ipls, pnc);
 
   return {
     pnc,
@@ -783,23 +797,58 @@ export class HusqvarnaOfficialDetailService {
     // vazio e o painel oficial sumia sem dizer por quê.
     let data: any = null;
     let usedId = pnc;
+    let portal: HusqvarnaOfficialProductDetails | null = null;
     for (const candidate of husqvarnaArticleIdCandidates(pnc)) {
       data = await postGraphql<any>('getProductDetailsSections', PRODUCT_DETAILS_QUERY, {
         siteName: SITE,
         articleId: candidate,
       });
       if (data) {
-        const parsed = parseOfficialProductDetails(data, candidate);
-        if (parsed) {
-          productCache.set(pnc, parsed);
-          return parsed;
-        }
+        portal = parseOfficialProductDetails(data, candidate);
+        if (portal) break;
       }
       usedId = candidate;
     }
-    const result = parseOfficialProductDetails(data, usedId);
+    if (!portal) portal = parseOfficialProductDetails(data, usedId);
+    const result = await HusqvarnaOfficialDetailService.withPublicSiteIpl(pnc, portal);
     if (result) productCache.set(pnc, result);
     return result;
+  }
+
+  /**
+   * O Portal manda; o site público só entra quando o Portal não tem o artigo ou o tem sem vista explodida. Nunca troca uma vista que o
+   * Portal já entregou, e o que o Portal sabe da máquina (fotos, especificações, o que acompanha) continua sendo dele.
+   */
+  static async withPublicSiteIpl(pnc: string, portal: HusqvarnaOfficialProductDetails | null): Promise<HusqvarnaOfficialProductDetails | null> {
+    if (portal && portal.iplSections.length > 0) return portal;
+    if (publicSiteMisses.has(pnc)) return portal;
+    for (const candidate of husqvarnaArticleIdCandidates(pnc)) {
+      const article = await fetchPublicSupportArticle(candidate);
+      if (!article) continue;
+      const iplSections = buildIplSections(article.sections, candidate);
+      if (iplSections.length === 0) continue;
+      if (portal) return { ...portal, iplSections, iplSource: 'PUBLIC_SITE' };
+      return {
+        pnc: candidate,
+        productName: article.productName,
+        categoryName: article.categoryName,
+        articleDescription: null,
+        imageUrl: null,
+        discontinued: false,
+        equipment: null,
+        documents: [],
+        specifications: [],
+        variants: [],
+        features: [],
+        accessories: [],
+        alsoUsedIn: [],
+        spareParts: [],
+        iplSections,
+        iplSource: 'PUBLIC_SITE',
+      };
+    }
+    publicSiteMisses.set(pnc, true);
+    return portal;
   }
 
   static async searchSparePart(partNumberInput: string): Promise<HusqvarnaOfficialSparePart | null> {

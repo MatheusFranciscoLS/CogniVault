@@ -4,7 +4,7 @@ import { capRegexInput } from '../utils/regex-input';
 import { HusqvarnaOfficialDetailService } from './husqvarna-official-detail.service';
 import { HusqvarnaProductSearchService } from './husqvarna-product-search.service';
 
-export type PortfolioCoverageStatus = 'LOCAL_IPL' | 'PORTAL_IPL' | 'PORTAL_DOCUMENT' | 'NOT_APPLICABLE' | 'UNVERIFIED';
+export type PortfolioCoverageStatus = 'LOCAL_IPL' | 'PORTAL_IPL' | 'PORTAL_DOCUMENT' | 'NOT_APPLICABLE' | 'PAUSED' | 'UNVERIFIED';
 export type PortalVerificationState = 'NOT_CHECKED' | 'VERIFIED' | 'DOCUMENT_ONLY' | 'NO_EXACT_MATCH' | 'NO_IPL' | 'INCONCLUSIVE';
 
 export type PortfolioCoverageItem = {
@@ -403,6 +403,42 @@ async function mapWithConcurrency<T, R>(items: T[], concurrency: number, worker:
   return results;
 }
 
+/**
+ * Categorias DESLIGADAS da cobertura por decisão do dono (2026-10-08: "os Automower deixe em off por enquanto"). O robô não tem vista
+ * explodida no Portal BR nem no site público, então contava como lacuna que ninguém resolve. Em pausa: não entra na conta, não gasta
+ * consulta ao Portal e continua listado, para não parecer que sumiu. Para religar, tire a categoria desta lista.
+ */
+export const PAUSED_COVERAGE_CATEGORIES: ReadonlyArray<RegExp> = [/automower/i];
+
+/**
+ * Modelos desligados um a um, com o motivo. 226KS12 (2026-10-08): derriçadeira de café = motor 226K + acessório de mão KS12. A Husqvarna Brasil
+ * publica a máquina, mas o Portal só tem manual e o site público não tem lista de peças do conjunto (só dos componentes 226K e KS12, em
+ * artigos próprios). O dono não conhece o modelo nem tem mais fonte; juntar as vistas dos dois componentes seria montar uma vista que a
+ * Husqvarna não publica. Para religar, tire o modelo daqui.
+ */
+export const PAUSED_COVERAGE_MODELS: ReadonlyArray<string> = ['226KS12'];
+
+export function isPausedModel(model: string): boolean {
+  const key = normalizeIdentifier(model);
+  return PAUSED_COVERAGE_MODELS.some(paused => normalizeIdentifier(paused) === key);
+}
+
+export function isPausedCategory(category: string | null | undefined): boolean {
+  return Boolean(category) && PAUSED_COVERAGE_CATEGORIES.some(pattern => pattern.test(category as string));
+}
+
+/** Marca como PAUSED o que ainda não tem fonte e pertence a uma categoria desligada. O que já tem vista continua contando. */
+export function markPaused(items: PortfolioCoverageItem[]): PortfolioCoverageItem[] {
+  return items.map(item => (item.status === 'UNVERIFIED' && (isPausedCategory(item.commercialCategory) || isPausedModel(item.model)) ? { ...item, status: 'PAUSED' as const } : item));
+}
+
+export function listPaused(items: PortfolioCoverageItem[]) {
+  return items
+    .filter(item => item.status === 'PAUSED')
+    .sort((a, b) => a.model.localeCompare(b.model))
+    .map(item => ({ model: item.model, normalizedModel: item.normalizedModel, commercialCategory: item.commercialCategory ?? null }));
+}
+
 export function listNotApplicable(items: PortfolioCoverageItem[]) {
   return items
     .filter(item => item.status === 'NOT_APPLICABLE')
@@ -539,19 +575,21 @@ export async function buildPortfolioCoverage(tenantId: string, options: { verify
   return summarizePortfolioCoverage(verifiedItems);
 }
 
-export function summarizePortfolioCoverage(items: PortfolioCoverageItem[]) {
-  const counts = { localIpl: 0, portalIpl: 0, portalDocument: 0, notApplicable: 0, unverified: 0, total: items.length };
+export function summarizePortfolioCoverage(rawItems: PortfolioCoverageItem[]) {
+  const items = markPaused(rawItems);
+  const counts = { localIpl: 0, portalIpl: 0, portalDocument: 0, notApplicable: 0, paused: 0, unverified: 0, total: items.length };
   for (const item of items) {
     if (item.status === 'LOCAL_IPL') counts.localIpl += 1;
     else if (item.status === 'PORTAL_IPL') counts.portalIpl += 1;
     else if (item.status === 'PORTAL_DOCUMENT') counts.portalDocument += 1;
     else if (item.status === 'NOT_APPLICABLE') counts.notApplicable += 1;
+    else if (item.status === 'PAUSED') counts.paused += 1;
     else counts.unverified += 1;
   }
   return {
     ...counts,
     covered: counts.localIpl + counts.portalIpl + counts.portalDocument,
-    coverageRate: counts.total - counts.notApplicable > 0 ? (counts.localIpl + counts.portalIpl + counts.portalDocument) / (counts.total - counts.notApplicable) : 0,
+    coverageRate: counts.total - counts.notApplicable - counts.paused > 0 ? (counts.localIpl + counts.portalIpl + counts.portalDocument) / (counts.total - counts.notApplicable - counts.paused) : 0,
     items,
   };
 }
