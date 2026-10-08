@@ -6,7 +6,7 @@ import PartPriceTag from './PartPriceTag';
 import { useMasterPrices } from './master-part-prices';
 
 type OfficialPartHit = {
-  source: 'BRIGGS' | 'KAWASAKI';
+  source: 'BRIGGS' | 'KAWASAKI' | 'KOHLER';
   engineModel: string;
   assembly: string | null;
   position: string | null;
@@ -18,6 +18,7 @@ type OfficialPartHit = {
 const MARCA: Record<OfficialPartHit['source'], string> = {
   BRIGGS: 'Briggs',
   KAWASAKI: 'Kawasaki',
+  KOHLER: 'Kohler',
 };
 
 /**

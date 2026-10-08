@@ -945,6 +945,9 @@ ligar o motor ao trator, ao giro zero e à máquina, **mostrando a vista explodi
 - **Auditoria que prova isso** (`npm run` não; rode `DATABASE_URL=<banco LOCAL> npx tsx src/scripts/audit-machine-engines.ts`; recusa banco hospedado e grava o relatório fora do repositório):
   para as 151 máquinas da lista, monta o mesmo vínculo do balcão e confere que o catálogo de cada motor responde. Resultado de 2026-10-08: o Portal quase não nomeia o motor no IPL da linha
   atual (132 de 151 sem citação); a **ficha da lista** é a fonte boa e **desmentiu um vínculo antigo** (Z460 dizia FX730V). Roteiro `maquina-motor.mjs` (8 máquinas, 4 marcas, 24 verificações).
+- **Peças de manutenção do motor** (botão no cartão): Kohler tem o grupo "Maintenance-Fast Moving Parts" e a Kawasaki o conjunto "*MAINTENANCE PARTS"; o painel abre direto nele e põe o
+  grupo de manutenção primeiro na lista (`autoOpen="maintenance"`, valor derivado, sem efeito: o lint barra `setState` em efeito). **Índice "peça -> motor" da Kohler**: cada grupo lido grava em
+  `OfficialPartIndex` com `source = 'KOHLER'` (a coluna é texto livre, sem migração), e o código digitado mostra de qual motor Kohler ele é, como já era com Briggs e Kawasaki.
 
 **`hasKawasakiEvidence` não é redundante.** `formatKawasakiModelForSearch`
 reconhece `LC121P` e `LB155S`, que são cortadores **Husqvarna** — o padrão

@@ -13,6 +13,7 @@ import {
   type KohlerPart,
 } from '../utils/kohler-catalog';
 import { OfficialSourceCacheService, buildOfficialSourceCacheKey } from './official-source-cache.service';
+import { OfficialPartIndexService } from './official-part-index.service';
 
 const TIMEOUT_MS = 15_000;
 
@@ -149,6 +150,18 @@ export class KohlerCatalogService {
             referenceWidth = read.width;
             referenceHeight = read.height;
           }
+        }
+        // Dentro do loader: só indexa quando a Kohler foi consultada de verdade, não a cada clique que o cache responde. Sem await: é efeito
+        // colateral (o balcão não espera gravação) e `record` nunca lança. O spec vem validado do próprio pedido, nunca deduzido do HTML.
+        if (parts.length) {
+          const groupName = (drawing.title ?? '').split(' - ')[0].trim() || null;
+          void OfficialPartIndexService.record('KOHLER', spec, parts.map(part => ({
+            partNumber: part.partNumber,
+            name: part.name,
+            position: part.position,
+            assembly: groupName,
+            quantity: part.quantity,
+          })));
         }
         return { title: drawing.title, parts, imageUrl: drawing.imageUrl, hotspots, referenceWidth, referenceHeight };
       });
