@@ -8,10 +8,26 @@ import BriggsEnginePanel from './BriggsEnginePanel';
 
 type EngineHint = {
   brand: 'Kohler' | 'Kawasaki' | 'Briggs & Stratton' | 'Husqvarna' | null;
+  /** Vazio quando o Portal só diz a marca e manda ler o modelo na plaqueta. */
   model: string;
   searchTerm: string;
   machinePnc: string | null;
-  source: 'IPL' | 'DONO';
+  source: 'PORTAL' | 'LISTA' | 'IPL' | 'DONO';
+  precision: 'MODELO' | 'SERIE' | 'SO_MARCA';
+};
+
+/** De onde vem cada vínculo: é o que diz ao balcão quanto confiar. */
+const SOURCE_LABEL: Record<EngineHint['source'], string> = {
+  PORTAL: 'Citado pelo Portal Husqvarna para este PNC',
+  LISTA: 'Ficha da lista de preços atual',
+  IPL: 'IPL do catálogo (pode ser de outro ano da máquina)',
+  DONO: 'Base informada pela loja',
+};
+
+const PRECISION_LABEL: Record<EngineHint['precision'], string | null> = {
+  MODELO: null,
+  SERIE: 'Só a série: peça o spec na plaqueta',
+  SO_MARCA: 'A Husqvarna só diz a marca: leia o modelo na plaqueta',
 };
 
 /** PNC com 11 dígitos e o de 9 são a mesma máquina: o Portal só conhece os 9 primeiros. */
@@ -22,7 +38,8 @@ const samePnc = (a: string | null, b: string | null) => Boolean(a && b) && Strin
  *
  * Pedido do dono (2026-10-08): ligar o motor ao trator, ao giro zero ou à máquina, e mostrar a vista explodida do motor ali mesmo.
  * O vínculo é uma BASE: o motor muda com o ano da máquina, então o cartão sempre manda conferir a plaqueta ou o número de série
- * do motor. Quando o IPL da máquina cita mais de um motor, cada um aparece com o PNC a que vale, e o do PNC aberto vem primeiro.
+ * do motor, e cada linha diz de onde vem (Portal por PNC, ficha da lista, IPL antigo ou a loja). Quando o IPL da máquina cita mais
+ * de um motor, cada um aparece com o PNC a que vale, e o do PNC aberto vem primeiro.
  *
  * Em silêncio quando não há vínculo: a maioria das máquinas (motosserra, roçadeira) tem o motor dentro do próprio IPL.
  */
@@ -38,12 +55,16 @@ export default function MachineEnginePanel({
   const [openKey, setOpenKey] = useState<string | null>(null);
 
   const query = useQuery({
-    queryKey: ['machine-engines', model],
+    queryKey: ['machine-engines', model, pnc ?? ''],
     enabled: Boolean(model),
     staleTime: 30 * 60 * 1000,
-    queryFn: async () => (await apiJson<{ engines: EngineHint[] }>(`/api/machines/engines?model=${encodeURIComponent(model)}`)).engines ?? [],
+    queryFn: async () => (await apiJson<{ engines: EngineHint[] }>(
+      `/api/machines/engines?model=${encodeURIComponent(model)}${pnc ? `&pnc=${encodeURIComponent(pnc)}` : ''}`,
+      { timeoutMs: 25_000 },
+    )).engines ?? [],
   });
 
+  // A ordem do servidor já é a da força da fonte (Portal, lista, IPL, loja); só o motor do PNC aberto sobe.
   const engines = [...(query.data ?? [])].sort((a, b) => Number(samePnc(b.machinePnc, pnc)) - Number(samePnc(a.machinePnc, pnc)));
   if (!engines.length) return null;
 
@@ -55,25 +76,36 @@ export default function MachineEnginePanel({
       </div>
       <ul className="divide-y divide-border">
         {engines.map(engine => {
-          const key = `${engine.searchTerm}|${engine.machinePnc ?? ''}`;
+          const key = `${engine.brand ?? ''}|${engine.searchTerm}|${engine.machinePnc ?? ''}|${engine.source}`;
           const open = openKey === key;
           const forThisPnc = samePnc(engine.machinePnc, pnc);
+          // Kohler só abre com o spec completo da plaqueta (SV540-3212): só a série (KT740) não tem catálogo para abrir.
+          const openable = Boolean(engine.searchTerm) && !(engine.brand === 'Kohler' && engine.precision !== 'MODELO');
+          const precision = PRECISION_LABEL[engine.precision];
           return (
             <li key={key} className="px-5 py-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     {engine.brand && <span className="rounded-sm bg-muted px-1.5 py-0.5 text-sm font-semibold text-muted-foreground">{engine.brand}</span>}
-                    <span translate="no" className="font-code text-lg font-semibold tabular-nums">{engine.model}</span>
+                    {engine.model
+                      ? <span translate="no" className="font-code text-lg font-semibold tabular-nums">{engine.model}</span>
+                      : <span className="text-lg font-semibold">Modelo na plaqueta</span>}
                     {forThisPnc && <span className="rounded-sm bg-ok-soft px-1.5 py-0.5 text-sm font-semibold text-ok">Este PNC</span>}
                   </div>
-                  {engine.machinePnc && !forThisPnc && <div className="text-base text-muted-foreground">Vale para o PNC {engine.machinePnc}</div>}
+                  <div className="text-base text-muted-foreground">
+                    {SOURCE_LABEL[engine.source]}
+                    {engine.machinePnc && !forThisPnc ? ` · vale para o PNC ${engine.machinePnc}` : ''}
+                    {precision ? ` · ${precision}` : ''}
+                  </div>
                 </div>
-                <Button type="button" variant="outline" aria-expanded={open} onClick={() => setOpenKey(open ? null : key)}>
-                  {open ? 'Esconder o motor' : 'Ver peças e vista explodida'}
-                </Button>
+                {openable && (
+                  <Button type="button" variant="outline" aria-expanded={open} onClick={() => setOpenKey(open ? null : key)}>
+                    {open ? 'Esconder o motor' : 'Ver peças e vista explodida'}
+                  </Button>
+                )}
               </div>
-              {open && (
+              {open && openable && (
                 <div className="mt-3">
                   {engine.brand === 'Kohler' && <KohlerEnginePanel model={engine.searchTerm} onSearchPart={onSearchPart} />}
                   {engine.brand === 'Kawasaki' && <KawasakiEnginePanel model={engine.searchTerm} onSearchPart={onSearchPart} />}

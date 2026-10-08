@@ -936,6 +936,15 @@ ligar o motor ao trator, ao giro zero e à máquina, **mostrando a vista explodi
   abre o catálogo do motor (Kohler, Kawasaki ou Briggs) com a vista explodida e **sempre manda conferir a plaqueta ou o número de série do motor**: o motor muda com o ano.
   **Só exibe.** Não acrescente par do dono em `ENGINE_APPLICATIONS`: `resolveEngineCatalogRoute` resolve direto quando há uma entrada sem PNC, e TS138 varia por PNC.
   Mais pares: o dono informa, e entram em `OWNER_BASE_ENGINES`.
+- **As fontes do motor, da mais forte para a mais fraca** (cada linha do cartão diz a sua origem e a precisão): `PORTAL` (o IPL do Portal cita o motor para o PNC aberto; o texto
+  do `comment`), `LISTA` (campo **"Motor" da ficha da lista de preços vigente**, `enginesFromListingSpec`), `IPL` (`ENGINE_APPLICATIONS`, pode ser de OUTRO ano da máquina) e `DONO`.
+  O mesmo motor em dois graus de detalhe (série FS481V e modelo FS481V-CS55) vira UM, o mais específico. **Nada é escolhido quando as fontes divergem**: no Z460 o Portal diz
+  "Kawasaki, leia a plaqueta", a lista cita FR691V e FS691V e o IPL antigo diz FX730V; as quatro aparecem e a plaqueta decide.
+- **O código completo da ficha divide em série + spec de 4 caracteres + letra final que o catálogo não usa**: `FR730VFS16S` abre como `FR730V-FS16`. Nem todo spec da ficha existe no
+  catálogo da Kawasaki (`FR691V-JS00` e `FX921V-HS06` não existem): o painel então oferece "Ver os specs da série". Kohler/Kawasaki só com a série não fingem abrir catálogo (`precision: SERIE`).
+- **Auditoria que prova isso** (`npm run` não; rode `DATABASE_URL=<banco LOCAL> npx tsx src/scripts/audit-machine-engines.ts`; recusa banco hospedado e grava o relatório fora do repositório):
+  para as 151 máquinas da lista, monta o mesmo vínculo do balcão e confere que o catálogo de cada motor responde. Resultado de 2026-10-08: o Portal quase não nomeia o motor no IPL da linha
+  atual (132 de 151 sem citação); a **ficha da lista** é a fonte boa e **desmentiu um vínculo antigo** (Z460 dizia FX730V). Roteiro `maquina-motor.mjs` (8 máquinas, 4 marcas, 24 verificações).
 
 **`hasKawasakiEvidence` não é redundante.** `formatKawasakiModelForSearch`
 reconhece `LC121P` e `LB155S`, que são cortadores **Husqvarna** — o padrão

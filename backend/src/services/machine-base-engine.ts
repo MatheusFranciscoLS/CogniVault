@@ -23,14 +23,32 @@ export type MachineEngineHint = {
   searchTerm: string;
   /** Preenchido quando o motor vale só para um PNC da máquina. */
   machinePnc: string | null;
-  source: 'IPL' | 'DONO';
+  /**
+   * De onde vem o vínculo, e é o que o balcão precisa para saber quanto confiar:
+   *  - `PORTAL`: o IPL do Portal Husqvarna cita este motor para o PNC aberto (a evidência mais forte, e por PNC);
+   *  - `LISTA`: a ficha da lista de preços vigente traz o campo "Motor" da máquina (linha atual, vinda da Husqvarna);
+   *  - `IPL`: o IPL de catálogo da máquina cita (às vezes por PNC, e pode ser de OUTRO ANO da máquina);
+   *  - `DONO`: par informado pela loja, uma base.
+   */
+  source: 'PORTAL' | 'LISTA' | 'IPL' | 'DONO';
+  /**
+   * Quão específico é o dado: `MODELO` (catálogo abre), `SERIE` (Kawasaki sem o spec da plaqueta: o catálogo pergunta o spec) ou
+   * `SO_MARCA` (o Portal diz a marca e manda ler o modelo na plaqueta; não há o que abrir).
+   */
+  precision: 'MODELO' | 'SERIE' | 'SO_MARCA';
 };
 
-const OWNER_BASE_ENGINES: ReadonlyArray<{ machineModel: string; engineModel: string }> = [
+export const OWNER_BASE_ENGINES: ReadonlyArray<{ machineModel: string; engineModel: string }> = [
   { machineModel: 'LTH1842', engineModel: 'SV540-3212' },
   { machineModel: 'R316TX', engineModel: 'FS481V-CS55' },
   { machineModel: 'TS138', engineModel: 'HS452' },
 ];
+
+/** Série Kawasaki sem o spec (FX730V): o catálogo tem vários specs por série, e cada um é um motor diferente. */
+function precisionOf(brand: EngineBrand | null, model: string): MachineEngineHint['precision'] {
+  if (!model) return 'SO_MARCA';
+  return (brand === 'Kawasaki' || brand === 'Kohler') && !model.includes('-') ? 'SERIE' : 'MODELO';
+}
 
 export function engineBrandOf(engineModel: string): EngineBrand | null {
   const raw = engineModel.trim();
@@ -88,15 +106,103 @@ export function baseEnginesForMachine(machineModel: string): MachineEngineHint[]
       && normalizeIdentifier(searchTermOf(other.engineModel)).startsWith(normalizeIdentifier(searchTerm))
       && normalizeIdentifier(searchTermOf(other.engineModel)).length > normalizeIdentifier(searchTerm).length);
     if (redundantShort) continue;
-    add({ brand: engineBrandOf(app.engineModel), model: searchTerm, searchTerm, machinePnc: app.machinePnc ?? null, source: 'IPL' });
+    const brand = engineBrandOf(app.engineModel);
+    add({ brand, model: searchTerm, searchTerm, machinePnc: app.machinePnc ?? null, source: 'IPL', precision: precisionOf(brand, searchTerm) });
   }
 
   for (const base of OWNER_BASE_ENGINES) {
     if (!matches(base.machineModel)) continue;
     const covered = hints.some(hint => normalizeIdentifier(hint.searchTerm).startsWith(normalizeIdentifier(base.engineModel)));
     if (covered) continue;
-    add({ brand: engineBrandOf(base.engineModel), model: base.engineModel, searchTerm: base.engineModel, machinePnc: null, source: 'DONO' });
+    const brand = engineBrandOf(base.engineModel);
+    add({ brand, model: base.engineModel, searchTerm: base.engineModel, machinePnc: null, source: 'DONO', precision: precisionOf(brand, base.engineModel) });
   }
 
+  return hints;
+}
+
+/** Marca do texto do Portal (`HUSQVARNA`, `BRIGGS`...) para a marca que o balcão mostra. */
+const PORTAL_BRANDS: Record<string, EngineBrand> = { HUSQVARNA: 'Husqvarna', BRIGGS: 'Briggs & Stratton', KAWASAKI: 'Kawasaki', KOHLER: 'Kohler' };
+
+type PortalEngineSource = { iplSections?: Array<{ parts: Array<{ servesThisPnc?: boolean; engine?: { brand: string | null; model: string | null; modelOnPlate: boolean } | null }> }> };
+
+/**
+ * Motores que o IPL do Portal cita PARA ESTE PNC (só as linhas que servem a ele). É a fonte mais forte do vínculo e a única por PNC:
+ * a mesma máquina muda de motor com o PNC, e o texto do Portal diz qual. Nada é deduzido: sem modelo no texto, vira `SO_MARCA`
+ * ("Kawasaki, leia o modelo na plaqueta"), nunca um palpite.
+ */
+export function enginesCitedByPortal(details: PortalEngineSource | null | undefined, machinePnc: string | null): MachineEngineHint[] {
+  const found = new Map<string, MachineEngineHint>();
+  for (const section of details?.iplSections ?? []) {
+    for (const part of section.parts) {
+      const engine = part.engine;
+      if (!engine || part.servesThisPnc === false) continue;
+      const brand = engine.brand ? (PORTAL_BRANDS[engine.brand] ?? null) : null;
+      const model = (engine.model ?? '').trim();
+      if (!model && !(engine.modelOnPlate && brand)) continue;
+      const key = model ? `M|${normalizeIdentifier(model)}` : `B|${brand}`;
+      if (found.has(key)) continue;
+      found.set(key, { brand: brand ?? engineBrandOf(model), model, searchTerm: model, machinePnc, source: 'PORTAL', precision: precisionOf(brand ?? engineBrandOf(model), model) });
+    }
+  }
+  return [...found.values()];
+}
+
+/**
+ * Junta, por ordem de força: o que o Portal cita (por PNC), a ficha da lista de preços e o vínculo da loja (IPL de catálogo e pares do dono). O Portal vem primeiro; o que a loja sabe e o Portal não cita continua,
+ * porque o Portal só cita o motor quando há um item de motor no IPL, e esconder o vínculo da loja seria perder informação.
+ * Motor já citado pelo Portal não repete.
+ */
+export function mergeEngineHints(...groups: MachineEngineHint[][]): MachineEngineHint[] {
+  const [portal = [], ...rest] = groups;
+  const stored = rest.flat();
+  const result = [...portal];
+  const key = (value: string) => normalizeIdentifier(value);
+  for (const hint of stored) {
+    if (!hint.model) {
+      if (!result.some(item => !item.model && item.brand === hint.brand)) result.push(hint);
+      continue;
+    }
+    // O mesmo motor em dois graus de detalhe (série FS481V e modelo FS481V-CS55): fica o MAIS ESPECÍFICO, que é o que abre o catálogo.
+    const sameEngine = result.findIndex(item => item.model && (key(item.model).startsWith(key(hint.model)) || key(hint.model).startsWith(key(item.model))));
+    if (sameEngine === -1) result.push(hint);
+    else if (key(hint.model).length > key(result[sameEngine].model).length) result[sameEngine] = hint;
+  }
+  return result;
+}
+
+/**
+ * O campo "Motor" da ficha da lista de preços, quando ele NOMEIA um motor Kawasaki ou Kohler. Exemplos do desenho do texto:
+ *   "Kawasaki FR Series - FR730V - FR730VFS16S"   -> série FR730V e código completo FR730V + FS16 (+ S)
+ *   "Kawasaki FS481V - FS Series V-Twin"           -> só a série FS481V
+ * O código completo se divide em série + spec de 4 caracteres (dois letras e dois dígitos) mais uma letra final que o catálogo não usa:
+ * `FR730VFS16S` abre como `FR730V-FS16`. Quando a ficha cita DUAS séries (o texto da própria Husqvarna às vezes escreve FR691V e
+ * FS691V na mesma linha), as duas aparecem: a plaqueta decide, e esconder uma seria escolher por ela.
+ * "2 tempos", "Combustão interna", "BLDC" não nomeiam motor e devolvem lista vazia.
+ */
+export function enginesFromListingSpec(motor: string | null | undefined): MachineEngineHint[] {
+  const text = String(motor ?? '').toUpperCase();
+  if (!/KAWASAKI|KOHLER/.test(text)) return [];
+  const hints: MachineEngineHint[] = [];
+  const seen = new Set<string>();
+  const add = (brand: EngineBrand, model: string, precision: MachineEngineHint['precision']) => {
+    const key = normalizeIdentifier(model);
+    if (seen.has(key)) return;
+    seen.add(key);
+    hints.push({ brand, model, searchTerm: model, machinePnc: null, source: 'LISTA', precision });
+  };
+
+  if (/KAWASAKI/.test(text)) {
+    for (const match of text.matchAll(/\b(F[A-Z]\d{3,4}V)([A-Z]{2}\d{2})[A-Z]?\b/g)) add('Kawasaki', `${match[1]}-${match[2]}`, 'MODELO');
+    for (const match of text.matchAll(/\b(F[A-Z]\d{3,4}V)\b/g)) {
+      if (![...seen].some(key => key.startsWith(match[1]))) add('Kawasaki', match[1], 'SERIE');
+    }
+  }
+  if (/KOHLER/.test(text)) {
+    for (const token of text.split(/[^A-Z0-9-]+/)) {
+      const spec = token && /^[A-Z]{2,3}\d{2,4}[A-Z]?-\d{4}$/.test(token) ? token : null;
+      if (spec) add('Kohler', spec, 'MODELO');
+    }
+  }
   return hints;
 }
