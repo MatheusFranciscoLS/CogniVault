@@ -7,6 +7,7 @@ import {
 } from './official-source-cache.service';
 import {
   buildPortfolioCoverage,
+  listedPncsForModel,
   markNotInLine,
   summarizePortfolioCoverage,
   type PortalVerificationState,
@@ -24,7 +25,8 @@ const PORTAL_COVERAGE_CACHE_RESOURCE = 'PORTAL_BR_MODEL_COVERAGE';
 // Versão 2: passou a reconhecer o IPL em documento (PDF) do Portal.
 // Versão 3: o título do produto deixou de ser reprovado por "(sem bateria e carregador)", "®" e litragem.
 // Versão 4: tenta o nome comercial completo ("540i XP") e a troca número+letra ("750K" = "K750").
-const PORTAL_COVERAGE_POLICY_VERSION = 4;
+// Versão 5: máquina da lista vigente é consultada pelo PNC (exato) antes do nome, e o título casa com o modelo em qualquer ponto.
+const PORTAL_COVERAGE_POLICY_VERSION = 5;
 // A resposta do Portal sobre "esse modelo tem IPL?" muda em semanas, não em horas.
 const PORTAL_COVERAGE_FRESH_MS = 7 * 24 * 60 * 60 * 1000;
 const PORTAL_COVERAGE_STALE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -280,33 +282,36 @@ export async function applyCachedPortalOutcomes(items: PortfolioCoverageItem[]):
 }
 
 /** Modelos da lista vigente de máquinas da Husqvarna (vazio quando a lista ainda não foi importada). */
-async function listedMachineModels(tenantId: string): Promise<string[]> {
-  const rows = await prisma.machineListing.findMany({ where: { tenantId }, select: { model: true }, take: 2000 });
-  return rows.map(row => row.model);
+async function listedMachines(tenantId: string): Promise<Array<{ model: string; pnc: string }>> {
+  return prisma.machineListing.findMany({ where: { tenantId }, select: { model: true, pnc: true }, take: 2000 });
 }
 
 /** O portfólio com o que o Portal já confirmou, sem nenhuma chamada nova ao Portal. */
 export async function buildPortfolioCoverageWithPortalCache(tenantId: string) {
   const base = await buildPortfolioCoverage(tenantId);
   const merged = await applyCachedPortalOutcomes(base.items);
-  return summarizePortfolioCoverage(markNotInLine(merged, await listedMachineModels(tenantId)));
+  return summarizePortfolioCoverage(markNotInLine(merged, (await listedMachines(tenantId)).map(entry => entry.model)));
 }
 
 export async function buildBoundedPortalCoverage(
   tenantId: string,
   options: { limit?: number; concurrency?: number; exclude?: ReadonlySet<string> } = {},
 ) {
-  const listed = await listedMachineModels(tenantId);
+  const listedRows = await listedMachines(tenantId);
+  const listed = listedRows.map(entry => entry.model);
   const base = summarizePortfolioCoverage(markNotInLine(await applyCachedPortalOutcomes((await buildPortfolioCoverage(tenantId)).items), listed));
   const candidates = selectPortalVerificationCandidates(base.items, options.limit ?? 8, options.exclude);
   const resolved = await mapWithConcurrency(
     candidates,
     options.concurrency ?? 2,
-    candidate => resolvePortalCoverageOutcome(
-      candidate.model,
-      auditPortalModel,
-      commercialNameAlternatives(candidate.model, candidate.commercialEvidence),
-    ),
+    candidate => {
+      const knownPncs = listedPncsForModel(listedRows, candidate.model);
+      return resolvePortalCoverageOutcome(
+        candidate.model,
+        name => auditPortalModel(name, { knownPncs: name === candidate.model ? knownPncs : [] }),
+        commercialNameAlternatives(candidate.model, candidate.commercialEvidence),
+      );
+    },
   );
 
   const outcomes = new Map(
