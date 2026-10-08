@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { extractCommercialModels, hasStrongCommercialModelShape, markNotInLine, modelKeyVariants, portalDocumentMatchesModel, stripPortalTitleNoise, portalResultMatchesModel, rankPortfolioCoverageGaps, summarizePortfolioCoverage } from './portfolio-coverage';
+import { extractCommercialModels, hasStrongCommercialModelShape, listedPncsForModel, markNotInLine, modelKeyVariants, portalDocumentMatchesModel, stripPortalTitleNoise, portalResultMatchesModel, rankPortfolioCoverageGaps, summarizePortfolioCoverage } from './portfolio-coverage';
 
 test('extrai múltiplos modelos de aplicação comercial sem tratar a planilha como prova técnica', () => {
   assert.deepEqual(extractCommercialModels('ROC.236R/143RII'), ['236R', '143RII']);
@@ -149,4 +149,31 @@ test('modelo sem lista no Portal e fora da lista vigente deixa de ser lacuna; o 
   assert.equal(resumo.notApplicable, 2);
   assert.equal(resumo.unverified, 2);
   assert.equal(resumo.coverageRate, 1 / 3);
+});
+
+test('o modelo vale como palavra inteira em qualquer ponto do título do Portal (os links que o dono achou)', () => {
+  assert.equal(portalResultMatchesModel('HUSQVARNA HH 212 - 599348659', 'HH212'), true);
+  assert.equal(portalResultMatchesModel('HUSQVARNA HH 196/MP/OB', 'HH196'), true);
+  assert.equal(portalResultMatchesModel('HUSQVARNA Motobomba Husqvarna a gasolina W25P 2T Autoescorvante', 'W25P'), true);
+  assert.equal(portalResultMatchesModel('HUSQVARNA Motocultivador Husqvarna TF 545DE', 'TF545DE'), true);
+  assert.equal(portalResultMatchesModel('HUSQVARNA Trator Cortador de Grama Husqvarna TS 219TFm', 'TS219TFM'), true);
+  // as guardas continuam: número ou letra colado, família parecida e código curto de outro modelo na frente
+  assert.equal(portalResultMatchesModel('HUSQVARNA 543RS', '543R'), false);
+  assert.equal(portalResultMatchesModel('HUSQVARNA HH 2120', 'HH212'), false);
+  assert.equal(portalResultMatchesModel('HUSQVARNA PW 235R kit', '235R'), false);
+});
+
+test('máquina da lista vigente é consultada pelo PNC: pega o artigo de 9 dígitos, sem o BR, de todas as versões do modelo', () => {
+  const listada = [
+    { model: 'W25P', pnc: '970619901' },
+    { model: '143RST', pnc: '970743401BR' },
+    { model: '143RST', pnc: '970743402BR' },
+    { model: 'AM315 Mark II', pnc: '970000111' },
+    { model: '120iB', pnc: '967976101CJ' },
+  ];
+  assert.deepEqual(listedPncsForModel(listada, 'W25P'), ['970619901']);
+  assert.deepEqual(listedPncsForModel(listada, '143RST'), ['970743401', '970743402']);
+  assert.deepEqual(listedPncsForModel(listada, 'AM315'), ['970000111']);
+  assert.deepEqual(listedPncsForModel(listada, '120iB'), []); // conjunto (CJ) é outro item
+  assert.deepEqual(listedPncsForModel(listada, 'ZZZ1'), []);
 });

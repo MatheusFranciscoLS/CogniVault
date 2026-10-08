@@ -76,7 +76,34 @@ async function probePortalAvailability(): Promise<boolean> {
   }
 }
 
-export async function auditPortalModel(model: string): Promise<PortalModelAudit> {
+/**
+ * Máquina que está na lista vigente tem PNC conhecido: pergunta ao Portal por ele, sem depender de o nome casar. Foi o que faltou
+ * quando o dono mandou os links (W25P, TF 545DE, TS 219TFm tinham vista explodida e a busca por nome não os reconhecia).
+ * Devolve a auditoria quando algum PNC tem lista de peças estruturada; senão null e a busca por nome segue.
+ */
+async function auditByKnownPnc(model: string, pncs: string[]): Promise<PortalModelAudit | null> {
+  const products: PortalProductAudit[] = [];
+  for (const pnc of pncs) {
+    try {
+      const details = await HusqvarnaOfficialDetailService.getProductDetails(pnc);
+      if (!details) continue;
+      const parts = details.iplSections.reduce((total, section) => total + section.parts.length, 0);
+      if (parts > 0) {
+        products.push({ title: details.productName, pnc, portalUrl: null, detailResolved: true, iplSectionCount: details.iplSections.length, structuredPartCount: parts });
+        return { model, searchResultCount: 1, exactProductCount: 1, portalAvailableWhenSearchEmpty: null, products, iplDocuments: [] };
+      }
+    } catch {
+      /* o Portal não respondeu para este PNC: a busca por nome tenta de novo */
+    }
+  }
+  return null;
+}
+
+export async function auditPortalModel(model: string, options: { knownPncs?: string[] } = {}): Promise<PortalModelAudit> {
+  if (options.knownPncs?.length) {
+    const byPnc = await auditByKnownPnc(model, options.knownPncs);
+    if (byPnc) return byPnc;
+  }
   const results = await HusqvarnaProductSearchService.search(model);
   const exactProducts = results
     .filter(result => result.kind === 'PRODUCT' && result.pnc && portalResultMatchesModel(result.title, model))
