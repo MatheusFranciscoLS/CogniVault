@@ -960,6 +960,15 @@ ligar o motor ao trator, ao giro zero e à máquina, **mostrando a vista explodi
 - **Peças de manutenção do motor** (botão no cartão): Kohler tem o grupo "Maintenance-Fast Moving Parts" e a Kawasaki o conjunto "*MAINTENANCE PARTS"; o painel abre direto nele e põe o
   grupo de manutenção primeiro na lista (`autoOpen="maintenance"`, valor derivado, sem efeito: o lint barra `setState` em efeito). **Índice "peça -> motor" da Kohler**: cada grupo lido grava em
   `OfficialPartIndex` com `source = 'KOHLER'` (a coluna é texto livre, sem migração), e o código digitado mostra de qual motor Kohler ele é, como já era com Briggs e Kawasaki.
+- **Vigia dos fornecedores** (`.github/workflows/supplier-canary.yml`, `scripts/canary-suppliers.ts`): toda segunda e sob demanda, abre UM motor conhecido da Kohler, Briggs, Kawasaki e o site
+  público da Husqvarna (345BT) e confere que a leitura ainda devolve o de sempre. **Sem banco e sem segredo** (só funções puras e rede). Saída 1 = formato MUDOU (abre/comenta issue com o label
+  `vigia-fornecedores`); 2 = só fora do ar (aviso, sem issue); 3 tentativas antes de desistir. Existe porque a leitura da Kohler é regex em HTML e quebraria em silêncio. Provado por mordida em
+  `canary-suppliers.test.ts`. Se a issue abrir, o leitor correspondente em `utils/` precisa de ajuste.
+- **Peças de motor consultadas sem preço** (Negócio, `GET /api/admin/engine-parts-without-price`): peças lidas dos catálogos (`OfficialPartIndex`) que a loja não tem com preço > 0, da que serve a mais
+  motores para a que serve a menos. É demanda real (alguém abriu aquele motor com cliente na frente). Teste com Postgres, provado por mordida.
+- **Rotas removidas em 2026-10-08** (nada no frontend, nos roteiros, nos testes ou nos workflows as usava): `/home`, `/parts/:code/cross-reference`, `PUT /parts/:code/location`, `/documents/:id/refresh-health`,
+  `/admin/commercial-imports` e as três de `/admin/feedback` (+ os controladores `admin-feedback*` e `commercial-import`). **Mantidas de propósito:** `/admin/quality/index-semantics` e
+  `/admin/quality/search-intelligence` (ferramentas de manutenção do administrador). Sobram métodos mortos nos controladores compartilhados (`crossReference`, `setLocation`, `refreshHealth`).
 
 **`hasKawasakiEvidence` não é redundante.** `formatKawasakiModelForSearch`
 reconhece `LC121P` e `LB155S`, que são cortadores **Husqvarna** — o padrão
