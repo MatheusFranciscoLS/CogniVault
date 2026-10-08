@@ -30,7 +30,6 @@ export function MachineBadges({ machine }: { machine: ListedMachine }) {
   return (
     <>
       {machine.isNew && <span className="inline-flex items-center rounded-md bg-ok-soft px-2 py-0.5 text-sm font-medium text-ok">Nova</span>}
-      {machine.discontinued && <span className="inline-flex items-center rounded-md bg-warn-soft px-2 py-0.5 text-sm font-medium text-warn">Descontinuada</span>}
     </>
   );
 }
