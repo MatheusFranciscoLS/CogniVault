@@ -360,7 +360,7 @@ export default function QuickQuoteCart() {
                 <span id="quote-lead-time-label" className="block text-sm font-medium text-muted-foreground">Prazo das peças</span>
                 <div role="group" aria-labelledby="quote-lead-time-label" className="flex flex-wrap gap-2">
                   {([['NOW', 'Imediato'], ['ORDER', 'Encomenda'], ['NONE', 'Sem prazo']] as const).map(([value, label]) => (
-                    <Button key={value} type="button" size="sm" variant={mode === value ? 'default' : 'outline'} aria-pressed={mode === value} onClick={() => patchOptions({ leadTime: leadTimeFor(value, leadTime) })}>{label}</Button>
+                    <Button key={value} type="button" size="sm" variant="outline" className={mode === value ? 'border-ring bg-selected' : undefined} aria-pressed={mode === value} onClick={() => patchOptions({ leadTime: leadTimeFor(value, leadTime) })}>{label}</Button>
                   ))}
                 </div>
                 {mode === 'ORDER' && (
@@ -397,11 +397,11 @@ export default function QuickQuoteCart() {
                       <Button
                         key={disc.value}
                         type="button"
-                        variant={discountPercentage === disc.value ? 'default' : 'outline'}
+                        variant="outline"
                         size="sm"
                         aria-pressed={discountPercentage === disc.value}
                         onClick={() => patchOptions({ discountPercentage: disc.value })}
-                        className="px-1"
+                        className={`px-1 ${discountPercentage === disc.value ? 'border-ring bg-selected' : ''}`}
                       >
                         {disc.label}
                       </Button>
@@ -419,7 +419,7 @@ export default function QuickQuoteCart() {
           </div>
 
           {items.length > 0 && (
-            <footer className="shrink-0 space-y-3 border-t border-border bg-card px-6 py-4">
+            <footer className="shrink-0 space-y-2 border-t border-border bg-card px-6 py-3">
               {totalPrice > 0 && (
                 <div>
                   {discountPercentage > 0 && (
@@ -435,17 +435,27 @@ export default function QuickQuoteCart() {
                 </div>
               )}
 
-              <Button size="lg" className="w-full" onClick={() => openWhatsApp(quoteOptions)}>
-                <Icon name="whatsapp" className="size-5" />
-                {customerPhone ? `Enviar no WhatsApp (${customerPhone})` : 'Enviar no WhatsApp'}
-              </Button>
+              {/* O PDF e o WhatsApp já arquivam o orçamento sozinhos: não há botão "Salvar",
+                  que dava a impressão contrária. Tudo numa linha: o rodapé alto deixava só uma faixa
+                  de rolagem para o formulário em tela de 768 px. */}
+              <div className="flex gap-2">
+                <Button size="lg" className="min-w-0 flex-1" onClick={() => openWhatsApp(quoteOptions)}>
+                  <Icon name="whatsapp" className="size-5 shrink-0" />
+                  <span className="truncate">{customerPhone ? `Enviar no WhatsApp (${customerPhone})` : 'Enviar no WhatsApp'}</span>
+                </Button>
+                <Button size="lg" variant="outline" onClick={() => generatePdfQuote(quoteOptions)}><Icon name="pdf" className="size-4" />PDF</Button>
+                <Button size="lg" variant="outline" onClick={() => window.print()} aria-label="Imprimir"><Icon name="printer" className="size-4" />Imprimir</Button>
+              </div>
 
               {/* Prévia do que o cliente vai ler, igual ao que sai no link do WhatsApp. Fechada por padrão: o
                   atendimento normal é um clique só, e quem quer conferir abre. */}
               <div>
-                <Button variant="ghost" size="sm" onClick={() => setShowMessage(value => !value)} aria-expanded={showMessage} className="w-full text-muted-foreground">
-                  {showMessage ? 'Esconder a mensagem' : 'Ver a mensagem antes de enviar'}
-                </Button>
+                <div className="flex items-center justify-between">
+                  <Button variant="ghost" size="sm" onClick={() => setShowMessage(value => !value)} aria-expanded={showMessage} className="text-muted-foreground">
+                    {showMessage ? 'Esconder a mensagem' : 'Ver a mensagem antes de enviar'}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleClear} className="text-muted-foreground hover:text-destructive">Esvaziar</Button>
+                </div>
                 {showMessage && (
                   <div className="mt-2 rounded-lg border border-border bg-background p-3">
                     <pre aria-label="Mensagem do WhatsApp" className="max-h-36 overflow-y-auto whitespace-pre-wrap font-sans text-sm leading-6">{generateWhatsAppText(quoteOptions)}</pre>
@@ -464,14 +474,6 @@ export default function QuickQuoteCart() {
                     </Button>
                   </div>
                 )}
-              </div>
-
-              {/* O PDF e o WhatsApp já arquivam o orçamento sozinhos: não há botão "Salvar",
-                  que dava a impressão contrária. */}
-              <div className="grid grid-cols-3 gap-2">
-                <Button variant="outline" onClick={() => generatePdfQuote(quoteOptions)}><Icon name="pdf" className="size-4" />PDF</Button>
-                <Button variant="outline" onClick={() => window.print()}><Icon name="printer" className="size-4" />Imprimir</Button>
-                <Button variant="ghost" onClick={handleClear} className="text-muted-foreground hover:text-destructive">Esvaziar</Button>
               </div>
             </footer>
           )}
