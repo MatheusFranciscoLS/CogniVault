@@ -6,8 +6,6 @@ import { DocumentController } from '../controllers/document.controller';
 import { DocumentAccessController } from '../controllers/document-access.controller';
 import { AuthController } from '../controllers/auth.controller';
 import { AdminController } from '../controllers/admin.controller';
-import { AdminFeedbackController } from '../controllers/admin-feedback.controller';
-import { AdminFeedbackSummaryController } from '../controllers/admin-feedback-summary.controller';
 import { OperationalController } from '../controllers/operational.controller';
 import { OfficialPartVerificationController } from '../controllers/official-part-verification.controller';
 import { QualityController } from '../controllers/quality.controller';
@@ -22,18 +20,17 @@ import { masterPartPricesController } from '../controllers/master-part-prices.co
 import { machineListingController, machinePhoto } from '../controllers/machine-listing.controller';
 import { officialPartIndexController } from '../controllers/official-part-index.controller';
 import { partPickerController } from '../controllers/part-picker.controller';
-import { CommercialImportController } from '../controllers/commercial-import.controller';
 import { WorkContextController } from '../controllers/work-context.controller';
 import { PerformanceController } from '../controllers/performance.controller';
 import { NotificationController } from '../controllers/notification.controller';
 import { ProfileController } from '../controllers/profile.controller';
-import { HomeController } from '../controllers/home.controller';
 import { FastSearchController } from '../controllers/fast-search.controller';
 import { PartDetailController } from '../controllers/part-detail.controller';
 import { AdminOverviewController } from '../controllers/admin-overview.controller';
 import { CatalogListController } from '../controllers/catalog-list.controller';
 import { QuoteController } from '../controllers/quote.controller';
 import { BusinessInsightsController } from '../controllers/business-insights.controller';
+import { enginePartsWithoutPriceController } from '../controllers/engine-parts-without-price.controller';
 import { ExportController } from '../controllers/export.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
@@ -52,7 +49,6 @@ import {
   validateOfficialFallbackQuery,
   validateOperationalQuoteUsage,
   validatePartCodeParam,
-  validatePartLocationBody,
   validateQualityRadarResolution,
   validateSearchQuery,
   validateVisualCatalogRetryRequest,
@@ -64,7 +60,6 @@ import {
   invalidateHomeAfterSearch,
   invalidateNotificationsAfterMutation,
   invalidateQualityAfterMutation,
-  invalidateWorkContextAfterLocation,
   invalidateWorkContextAfterQuoteUsage,
   invalidateBusinessInsightsAfterQuoteMutation,
 } from '../middleware/cache-invalidation.middleware';
@@ -75,20 +70,16 @@ const documentController = new DocumentController();
 const documentAccessController = new DocumentAccessController();
 const authController = new AuthController();
 const adminController = new AdminController();
-const adminFeedbackController = new AdminFeedbackController();
-const adminFeedbackSummaryController = new AdminFeedbackSummaryController();
 const operationalController = new OperationalController();
 const officialPartVerificationController = new OfficialPartVerificationController();
 const qualityController = new QualityController();
 const workIntelligenceController = new WorkIntelligenceController();
 const husqvarnaOfficialController = new HusqvarnaOfficialController();
 const commercialSearchController = new CommercialSearchController();
-const commercialImportController = new CommercialImportController();
 const workContextController = new WorkContextController();
 const performanceController = new PerformanceController();
 const notificationController = new NotificationController();
 const profileController = new ProfileController();
-const homeController = new HomeController();
 const fastSearchController = new FastSearchController();
 const partDetailController = new PartDetailController();
 const adminOverviewController = new AdminOverviewController();
@@ -112,7 +103,6 @@ router.post('/login', loginLimiter, (req, res) => authController.login(req, res)
 router.post('/logout', (req, res) => authController.logout(req, res));
 router.get('/me', authMiddleware, (req, res) => profileController.me(req, res));
 
-router.get('/home', authMiddleware, (req, res) => homeController.home(req, res));
 router.get(
   '/search',
   authMiddleware,
@@ -171,10 +161,8 @@ router.get('/machines/engines', authMiddleware, (req, res) => machineEngineContr
 router.get('/husqvarna/products/:pnc/details', authMiddleware, validateHusqvarnaPncParam, (req, res) => husqvarnaOfficialController.productDetails(req, res));
 router.get('/husqvarna/parts/:code/details', authMiddleware, validatePartCodeParam, (req, res) => husqvarnaOfficialController.partDetails(req, res));
 router.post('/analytics/quote-usage', authMiddleware, validateOperationalQuoteUsage, invalidateWorkContextAfterQuoteUsage, (req, res) => workIntelligenceController.recordQuoteUsage(req, res));
-router.get('/parts/:code/cross-reference', authMiddleware, validatePartCodeParam, (req, res) => operationalController.crossReference(req, res));
 router.get('/parts/:code/live-data', authMiddleware, validatePartCodeParam, (req, res) => operationalController.liveData(req, res));
 router.get('/parts/:code/work-context', authMiddleware, validatePartCodeParam, validateWorkContextModel, (req, res) => workContextController.get(req, res));
-router.put('/parts/:code/location', authMiddleware, validatePartCodeParam, validatePartLocationBody, invalidateWorkContextAfterLocation, (req, res) => workIntelligenceController.setLocation(req, res));
 router.get('/models/:model/maintenance-kit', authMiddleware, validateModelParam, (req, res) => operationalController.maintenanceKit(req, res));
 router.get('/parts/:id', authMiddleware, validateEntityIdParam, (req, res) => partDetailController.get(req, res));
 router.get('/history', authMiddleware, (req, res) => operationalController.history(req, res));
@@ -205,22 +193,18 @@ router.post('/upload', authMiddleware, adminOnly, uploadConcurrencyMiddleware, u
 router.post('/documents/:id/archive', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.archive(req, res));
 router.post('/documents/:id/restore', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.restore(req, res));
 router.post('/documents/:id/reprocess', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.reprocess(req, res));
-router.post('/documents/:id/refresh-health', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.refreshHealth(req, res));
 router.delete('/documents/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateDocumentAccessAfterMutation, (req, res) => documentController.remove(req, res));
 
 
 router.get('/admin/overview', authMiddleware, adminOnly, (req, res) => adminOverviewController.get(req, res));
 router.get('/admin/business-insights', authMiddleware, adminOnly, (req, res) => businessInsightsController.get(req, res));
+router.get('/admin/engine-parts-without-price', authMiddleware, adminOnly, (req, res) => enginePartsWithoutPriceController.list(req, res));
 router.get('/admin/exports/price-list.csv', authMiddleware, adminOnly, (req, res) => exportController.priceList(req, res));
 router.get('/admin/exports/quotes.csv', authMiddleware, adminOnly, (req, res) => exportController.quotes(req, res));
 router.get('/admin/performance', authMiddleware, adminOnly, (req, res) => performanceController.overview(req, res));
-router.get('/admin/commercial-imports', authMiddleware, adminOnly, (req, res) => commercialImportController.list(req, res));
 router.get('/admin/users', authMiddleware, adminOnly, (req, res) => adminController.users(req, res));
 router.post('/admin/users', authMiddleware, adminOnly, invalidateAdminOverviewAfterMutation, (req, res) => adminController.createUser(req, res));
 router.patch('/admin/users/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateAdminOverviewAfterMutation, (req, res) => adminController.updateUser(req, res));
-router.get('/admin/feedback', authMiddleware, adminOnly, (req, res) => adminFeedbackSummaryController.list(req, res));
-router.delete('/admin/feedback/:id', authMiddleware, adminOnly, validateEntityIdParam, invalidateAdminOverviewAfterMutation, invalidateQualityAfterMutation, (req, res) => adminFeedbackController.delete(req, res));
-router.post('/admin/feedback/seed-knowledge', authMiddleware, adminOnly, tenantOperationSingleFlight('feedback-seed-knowledge'), invalidateAdminOverviewAfterMutation, invalidateQualityAfterMutation, (req, res) => adminFeedbackController.seedKnowledge(req, res));
 router.get('/admin/audit', authMiddleware, adminOnly, (req, res) => adminController.audit(req, res));
 router.get('/admin/quality', authMiddleware, adminOnly, qualityOverviewCacheMiddleware, (req, res) => qualityController.overview(req, res));
 router.get('/admin/quality/search-intelligence', authMiddleware, adminOnly, (req, res) => qualityController.searchIntelligence(req, res));
