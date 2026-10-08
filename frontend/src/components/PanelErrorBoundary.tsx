@@ -49,7 +49,7 @@ export class PanelErrorBoundary extends Component<Props, State> {
     return (
       <div
         role="alert"
-        className="fixed inset-x-0 bottom-0 z-120 border-t border-ink-200 bg-white p-4 shadow-lg dark:border-ink-700 dark:bg-ink-900 sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[360px] sm:border-l sm:border-t-0"
+        className="fixed inset-x-0 bottom-0 z-120 border-t border-border bg-card p-4 shadow-lg sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[360px] sm:border-l sm:border-t-0"
       >
         <div className="flex h-full flex-col items-start justify-center gap-4">
           <div className="flex items-start gap-3">

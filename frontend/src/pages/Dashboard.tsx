@@ -38,12 +38,12 @@ function PanelLoading() {
       <div className="h-8 w-56 animate-pulse rounded-card bg-ink-200 dark:bg-ink-800" />
       <div className="grid gap-3 sm:grid-cols-2 tablet:grid-cols-4">
         {[0, 1, 2, 3].map(item => (
-          <div key={item} className="h-24 animate-pulse rounded-card border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900" />
+          <div key={item} className="h-24 animate-pulse rounded-card border border-border bg-card" />
         ))}
       </div>
-      <div className="overflow-hidden rounded-card border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
+      <div className="overflow-hidden rounded-card border border-border bg-card">
         {[0, 1, 2, 3, 4].map(item => (
-          <div key={item} className="flex items-center gap-4 border-b border-ink-100 p-4 last:border-0 dark:border-ink-800">
+          <div key={item} className="flex items-center gap-4 border-b border-border p-4 last:border-0">
             <div className="h-4 w-28 animate-pulse rounded-sm bg-ink-200 dark:bg-ink-800" />
             <div className="h-4 flex-1 animate-pulse rounded-sm bg-muted" />
             <div className="h-8 w-24 animate-pulse rounded-card bg-muted" />
@@ -217,10 +217,10 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <main className="grid min-h-dvh place-items-center bg-ink-100 p-6 dark:bg-ink-950">
+      <main className="grid min-h-dvh place-items-center bg-muted p-6">
         <div
           role="alert"
-          className="w-full max-w-[460px] rounded-panel border border-ink-200 bg-white p-6 shadow-raised dark:border-ink-800 dark:bg-ink-900"
+          className="w-full max-w-[460px] rounded-panel border border-border bg-card p-6 shadow-raised"
         >
           <img
             src="/brand/vardao-horizontal-azul.png"
@@ -269,7 +269,7 @@ export default function Dashboard() {
 
   if (!user) {
     return (
-      <main className="grid min-h-dvh place-items-center bg-ink-100 p-6 dark:bg-ink-950">
+      <main className="grid min-h-dvh place-items-center bg-muted p-6">
         <div aria-busy="true" className="w-full max-w-[320px] text-center">
           <img
             src="/brand/vardao-horizontal-azul.png"

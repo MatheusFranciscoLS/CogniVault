@@ -565,7 +565,7 @@ function FallbackReasons({ reasons }: { reasons: Record<string, number> }) {
   if (!rows.length) return null;
 
   return (
-    <div className="mt-4 rounded-xl border border-ink-200 bg-white p-3 dark:border-ink-700 dark:bg-ink-800">
+    <div className="mt-4 rounded-xl border border-border bg-card p-3">
       <div className="text-sm font-bold text-muted-foreground">
         Por que caíram na leitura visual
       </div>
@@ -576,7 +576,7 @@ function FallbackReasons({ reasons }: { reasons: Record<string, number> }) {
         {rows.map(([reason, count]) => {
           const info = FALLBACK_REASON_INFO[reason] || { label: reason, acao: '' };
           return (
-            <li key={reason} className="flex items-start justify-between gap-3 border-t border-ink-100 pt-1.5 first:border-0 first:pt-0 dark:border-ink-700">
+            <li key={reason} className="flex items-start justify-between gap-3 border-t border-border pt-1.5 first:border-0 first:pt-0">
               <span className="min-w-0">
                 <span className="block text-sm font-semibold text-foreground">{info.label}</span>
                 {info.acao && <span className="block text-sm leading-4 text-muted-foreground">{info.acao}</span>}

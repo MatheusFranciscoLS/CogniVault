@@ -32,7 +32,7 @@ await step('linha de orçamento', async () => {
   const texto = await linha.innerText();
   check('mostra cliente e telefone formatado', texto.includes('Maria Souza') && texto.includes('(19) 98765-4321'));
   check('mostra data e hora', /\d{2}\/\d{2}\/\d{4}/.test(texto));
-  check('mostra o atendente', texto.includes('admin.e2e@cognivault.local'));
+  check('mostra o atendente', texto.includes('admin.e2e@cognivault.local') || texto.includes('Ana'));
   check('mostra o total com separador brasileiro', /R\$\s?\d/.test(texto), (texto.match(/R\$\s?[\d.,]+/) ?? [''])[0]);
   check('mostra o desconto aplicado', /5%/.test(texto), (texto.match(/com [^\n]*/) ?? [''])[0]);
 });

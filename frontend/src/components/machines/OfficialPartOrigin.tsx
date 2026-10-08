@@ -70,7 +70,7 @@ export default function OfficialPartOrigin({
   const [primeiro] = hits;
 
   return (
-    <section className="overflow-hidden rounded-xl border border-ok/40 bg-white dark:bg-ink-900">
+    <section className="overflow-hidden rounded-xl border border-ok/40 bg-card">
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-ok/40 bg-ok-soft px-4 py-2.5">
         <span className="text-[10px] font-black uppercase tracking-[.12em] text-ok">
           Catálogo oficial · {primeiro.partNumber}
@@ -89,7 +89,7 @@ export default function OfficialPartOrigin({
             key={`${hit.source}-${hit.engineModel}-${hit.position}`}
             className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5"
           >
-            <span className="shrink-0 rounded-sm bg-ink-100 px-1.5 text-[10px] font-black uppercase text-ink-600 dark:bg-ink-800 dark:text-ink-300">
+            <span className="shrink-0 rounded-sm bg-muted px-1.5 text-[10px] font-black uppercase text-muted-foreground">
               {MARCA[hit.source]}
             </span>
             <span className="min-w-36 flex-1 truncate font-mono text-xs font-bold text-foreground">
@@ -114,7 +114,7 @@ export default function OfficialPartOrigin({
                 <button
                   type="button"
                   onClick={() => onSearchPart(hit.engineModel)}
-                  className="min-h-10 min-w-10 rounded-sm border border-ink-200 px-2 text-[10px] font-bold text-ink-600 transition hover:border-brand-300 hover:text-brand-700 dark:border-ink-700 dark:text-ink-300"
+                  className="min-h-10 min-w-10 rounded-sm border border-border px-2 text-[10px] font-bold text-muted-foreground transition hover:border-brand-300 hover:text-brand-700"
                 >
                   abrir motor
                 </button>

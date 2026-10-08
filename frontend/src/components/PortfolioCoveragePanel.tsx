@@ -150,7 +150,7 @@ export default function PortfolioCoveragePanel({
 
   return (
     <section className="rounded-xl border border-border bg-card mb-5 overflow-hidden">
-      <div className="border-b border-ink-200 bg-ink-50/70 p-5 dark:border-ink-700/80 dark:bg-ink-800/60">
+      <div className="border-b border-border bg-muted p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -232,9 +232,9 @@ export default function PortfolioCoveragePanel({
             <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
               Fora de linha: {displayCoverage.outOfLine?.length} modelos (não constam na lista vigente de máquinas e o Portal não tem lista de peças)
             </summary>
-            <div className="flex flex-wrap gap-2 border-t border-ink-100 px-4 py-3 dark:border-ink-800">
+            <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
               {displayCoverage.outOfLine?.map(item => (
-                <span key={item.normalizedModel} className="rounded-full border border-ink-200 bg-ink-50 px-2 py-0.5 text-sm text-ink-600 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-300">
+                <span key={item.normalizedModel} className="rounded-full border border-border bg-muted px-2 py-0.5 text-sm text-muted-foreground">
                   <b>{item.model}</b>{item.commercialCategory ? ` · ${item.commercialCategory}` : ''}
                 </span>
               ))}
@@ -245,14 +245,14 @@ export default function PortfolioCoveragePanel({
         {gaps.length === 0 ? (
           <div className="mt-4 rounded-2xl border border-ok/40 bg-ok-soft p-5 text-sm font-semibold text-ok">Nenhum modelo em linha está sem vista explodida.</div>
         ) : (
-          <div className="mt-3 max-h-[520px] divide-y divide-ink-100 overflow-auto rounded-2xl border border-ink-200 dark:divide-ink-800 dark:border-ink-700">
+          <div className="mt-3 max-h-[520px] divide-y divide-ink-100 overflow-auto rounded-2xl border border-border dark:divide-ink-800">
             {gaps.map(gap => (
-              <div key={gap.normalizedModel} className="flex flex-wrap items-start justify-between gap-3 bg-white px-4 py-3 dark:bg-ink-900">
+              <div key={gap.normalizedModel} className="flex flex-wrap items-start justify-between gap-3 bg-card px-4 py-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <b className="text-sm text-foreground">{gap.model}</b>
                     {gap.commercialCategory && (
-                      <span className="rounded-full border border-ink-200 bg-ink-50 px-2 py-0.5 text-sm font-semibold text-ink-600 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-300">{gap.commercialCategory}</span>
+                      <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-sm font-semibold text-muted-foreground">{gap.commercialCategory}</span>
                     )}
                     <span className="rounded-full border border-warn/40 bg-warn-soft px-2 py-0.5 text-sm font-semibold text-warn">
                       {portalDiagnostic(gap.portalVerification)}

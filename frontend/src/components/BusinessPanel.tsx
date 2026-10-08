@@ -5,6 +5,7 @@ import { apiJson, formatHusqvarnaPartNumber } from '../lib';
 import type { BusinessBucketGranularity, BusinessInsights } from '../types';
 import { Icon, type IconName } from './icons/Icon';
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 function displayPartNumber(partNumber: string, manufacturer: string | null): string {
   return manufacturer?.toLowerCase().includes('husqvarna')
@@ -131,7 +132,7 @@ function QuoteChart({ insights }: { insights: BusinessInsights }) {
   }
 
   return (
-    <div className="rounded-card border border-ink-200 bg-white p-4 shadow-card dark:border-ink-800 dark:bg-ink-850">
+    <div className="rounded-card border border-border bg-card p-4 shadow-card">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-semibold">Orçamentos por período</h2>
         <span className="text-sm text-muted-foreground">Altura = valor líquido · número = quantidade de orçamentos</span>
@@ -267,7 +268,7 @@ export default function BusinessPanel() {
   return (
     <PageFrame title="Negócio">
 
-      <div className="flex flex-col gap-3 rounded-card border border-ink-200 bg-white p-3 shadow-card dark:border-ink-800 dark:bg-ink-850 tablet:flex-row tablet:items-end tablet:justify-between">
+      <div className="flex flex-col gap-3 rounded-card border border-border bg-card p-3 shadow-card tablet:flex-row tablet:items-end tablet:justify-between">
         <div className="flex flex-wrap items-end gap-2">
           <div className="flex flex-wrap gap-1.5">
             {PRESETS.map((preset, index) => (
@@ -314,7 +315,7 @@ export default function BusinessPanel() {
       )}
 
       {loading && !insights ? (
-        <div className="flex items-center justify-center gap-3 rounded-card border border-ink-200 bg-white px-5 py-16 text-sm text-ink-500 dark:border-ink-800 dark:bg-ink-850">
+        <div className="flex items-center justify-center gap-3 rounded-card border border-border bg-card px-5 py-16 text-sm text-ink-500">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink-200 border-t-brand-600" />
           Carregando indicadores de negócio…
         </div>
@@ -356,35 +357,35 @@ export default function BusinessPanel() {
           <QuoteChart insights={insights} />
 
           <div className="grid gap-4 xl:grid-cols-2">
-            <div className="overflow-hidden rounded-card border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-850">
-              <div className="flex items-center justify-between gap-2 border-b border-ink-200 px-4 py-3 dark:border-ink-800">
+            <div className="overflow-hidden rounded-card border border-border bg-card">
+              <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
                 <h2 className="text-lg font-semibold">Peças mais cotadas</h2>
                 <span className="text-sm text-muted-foreground">Top {insights.topParts.length}</span>
               </div>
               {insights.topParts.length ? (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[520px] text-left text-sm">
-                    <thead>
-                      <tr className="text-sm font-bold text-muted-foreground">
-                        <th className="px-4 py-2">Peça</th>
-                        <th className="px-2 py-2 text-right">Qtd.</th>
-                        <th className="px-2 py-2 text-right">Orçam.</th>
-                        <th className="px-2 py-2 text-right">Preço cadastrado</th>
-                        <th className="px-4 py-2 text-right">Última</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table containerClassName="rounded-none border-0 bg-transparent">
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead>Peça</TableHead>
+                        <TableHead className="text-right">Qtd.</TableHead>
+                        <TableHead className="text-right">Orçam.</TableHead>
+                        <TableHead className="text-right">Preço</TableHead>
+                        <TableHead className="text-right">Última</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {insights.topParts.map(part => (
-                        <tr key={part.normalizedPartNumber} className="border-t border-border">
-                          <td className="max-w-[16rem] px-4 py-2.5">
+                        <TableRow key={part.normalizedPartNumber}>
+                          <TableCell className="max-w-[16rem]">
                             <div className="truncate font-semibold text-foreground" title={part.name}>{part.name}</div>
                             <div className="font-mono text-sm font-bold text-brand-600 dark:text-brand-300">
                               {part.manufacturer ? `${part.manufacturer} · ` : ''}{displayPartNumber(part.partNumber, part.manufacturer)}
                             </div>
-                          </td>
-                          <td className="px-2 py-2.5 text-right font-bold tabular-nums">{part.quotedQuantity}</td>
-                          <td className="px-2 py-2.5 text-right tabular-nums text-muted-foreground">{part.quoteCount}</td>
-                          <td className="px-2 py-2.5 text-right tabular-nums">
+                          </TableCell>
+                          <TableCell className="text-right font-bold tabular-nums">{part.quotedQuantity}</TableCell>
+                          <TableCell className="text-right tabular-nums text-muted-foreground">{part.quoteCount}</TableCell>
+                          <TableCell className="text-right tabular-nums">
                             {part.registeredPrice !== null && part.registeredPrice > 0 ? (
                               <span className="font-mono font-semibold">{money(part.registeredPrice)}</span>
                             ) : (
@@ -392,12 +393,12 @@ export default function BusinessPanel() {
                                 <Icon name="warning" className="h-3 w-3" /> sem preço
                               </span>
                             )}
-                          </td>
-                          <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{relativeDate(part.lastQuotedAt)}</td>
-                        </tr>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-muted-foreground">{relativeDate(part.lastQuotedAt)}</TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               ) : (
                 <div className="px-5 py-10 text-center text-sm text-muted-foreground">
@@ -406,8 +407,8 @@ export default function BusinessPanel() {
               )}
             </div>
 
-            <div className="overflow-hidden rounded-card border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-850">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-200 px-4 py-3 dark:border-ink-800">
+            <div className="overflow-hidden rounded-card border border-border bg-card">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
                 <div>
                   <h2 className="text-lg font-semibold">Peças sem preço cadastrado</h2>
                   <p className="mt-0.5 text-sm text-muted-foreground">
@@ -427,38 +428,38 @@ export default function BusinessPanel() {
               </div>
               {insights.unpricedParts.length ? (
                 <div className="max-h-104 overflow-y-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead className="sticky top-0 bg-card">
-                      <tr className="text-sm font-bold text-muted-foreground">
-                        <th className="px-4 py-2">Peça</th>
-                        <th className="px-2 py-2 text-right">Pedidos</th>
-                        <th className="px-4 py-2 text-right">Situação</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table containerClassName="rounded-none border-0 bg-transparent">
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead>Peça</TableHead>
+                        <TableHead className="text-right">Pedidos</TableHead>
+                        <TableHead className="text-right">Situação</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {insights.unpricedParts.map(part => (
-                        <tr key={part.normalizedPartNumber} className="border-t border-border">
-                          <td className="max-w-[18rem] px-4 py-2.5">
+                        <TableRow key={part.normalizedPartNumber}>
+                          <TableCell className="max-w-[18rem]">
                             <div className="truncate font-semibold text-foreground" title={part.name}>{part.name}</div>
                             <div className="font-mono text-sm font-bold text-brand-600 dark:text-brand-300">
                               {part.manufacturer ? `${part.manufacturer} · ` : ''}{displayPartNumber(part.partNumber, part.manufacturer)}
                             </div>
-                          </td>
-                          <td className="px-2 py-2.5 text-right font-bold tabular-nums">
+                          </TableCell>
+                          <TableCell className="text-right font-bold tabular-nums">
                             {part.quoteCount}
                             <span className="block text-sm font-normal text-muted-foreground">{part.quotedQuantity} un.</span>
-                          </td>
-                          <td className="px-4 py-2.5 text-right">
+                          </TableCell>
+                          <TableCell className="text-right">
                             {part.inPriceList ? (
                               <span className="text-sm font-bold text-gold-800 dark:text-gold-300">na lista, sem preço</span>
                             ) : (
                               <span className="text-sm font-bold text-accent-700 dark:text-accent-300">fora da lista</span>
                             )}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               ) : (
                 <div className="px-5 py-10 text-center text-sm text-muted-foreground">
@@ -468,37 +469,37 @@ export default function BusinessPanel() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-card border border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-850">
-            <div className="border-b border-ink-200 px-4 py-3 dark:border-ink-800">
+          <div className="overflow-hidden rounded-card border border-border bg-card">
+            <div className="border-b border-border px-4 py-3">
               <h2 className="text-lg font-semibold">Atividade por atendente</h2>
               <p className="mt-0.5 text-sm text-muted-foreground">Quem arquivou orçamento no período. Orçamento de atendente removido continua contando.</p>
             </div>
             {insights.attendants.length ? (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[620px] text-left text-sm">
-                  <thead>
-                    <tr className="text-sm font-bold text-muted-foreground">
-                      <th className="px-4 py-2">Atendente</th>
-                      <th className="px-2 py-2 text-right">Orçamentos</th>
-                      <th className="px-2 py-2 text-right">Itens</th>
-                      <th className="px-2 py-2 text-right">Valor líquido</th>
-                      <th className="px-2 py-2 text-right">Ticket médio</th>
-                      <th className="px-4 py-2 text-right">Último</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table containerClassName="rounded-none border-0 bg-transparent">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Atendente</TableHead>
+                      <TableHead className="text-right">Orçamentos</TableHead>
+                      <TableHead className="text-right">Itens</TableHead>
+                      <TableHead className="text-right">Valor líquido</TableHead>
+                      <TableHead className="text-right">Ticket médio</TableHead>
+                      <TableHead className="text-right">Último</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {insights.attendants.map(attendant => (
-                      <tr key={attendant.userId || attendant.email} className="border-t border-border">
-                        <td className="px-4 py-2.5 font-semibold text-foreground">{attendant.name || attendant.email}</td>
-                        <td className="px-2 py-2.5 text-right font-bold tabular-nums">{attendant.quotes}</td>
-                        <td className="px-2 py-2.5 text-right tabular-nums text-muted-foreground">{attendant.items}</td>
-                        <td className="px-2 py-2.5 text-right font-mono font-semibold tabular-nums">{money(attendant.netTotal)}</td>
-                        <td className="px-2 py-2.5 text-right font-mono tabular-nums text-muted-foreground">{money(attendant.averageTicket)}</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{relativeDate(attendant.lastQuoteAt)}</td>
-                      </tr>
+                      <TableRow key={attendant.userId || attendant.email}>
+                        <TableCell className="font-semibold text-foreground">{attendant.name || attendant.email}</TableCell>
+                        <TableCell className="text-right font-bold tabular-nums">{attendant.quotes}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">{attendant.items}</TableCell>
+                        <TableCell className="text-right font-mono font-semibold tabular-nums">{money(attendant.netTotal)}</TableCell>
+                        <TableCell className="text-right font-mono tabular-nums text-muted-foreground">{money(attendant.averageTicket)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">{relativeDate(attendant.lastQuoteAt)}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             ) : (
               <div className="px-5 py-10 text-center text-sm text-muted-foreground">Nenhum atendimento arquivado no período.</div>

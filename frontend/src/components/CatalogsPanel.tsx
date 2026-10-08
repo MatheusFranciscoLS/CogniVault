@@ -213,7 +213,7 @@ function BriggsManualsLink({ url, model, compact = false }: { url?: string | nul
             target="_blank"
             rel="noreferrer noopener"
             title="Todos os manuais deste motor no site da Briggs (inclui manual do operador)"
-            className={`${base} border-ink-200 bg-white text-ink-600 hover:bg-ink-50 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-300`}
+            className={`${base} border-border bg-card text-muted-foreground hover:bg-ink-50`}
           >
             todos ↗
           </a>
@@ -617,7 +617,7 @@ export default function CatalogsPanel({
               <button
                 type="button"
                 onClick={() => setSearch('')}
-                className="flex items-center rounded-xl px-2.5 sm:px-3 text-sm font-semibold text-ink-500 transition hover:bg-ink-100 dark:hover:bg-ink-700 hover:text-ink-700 dark:text-ink-300"
+                className="flex items-center rounded-xl px-2.5 sm:px-3 text-sm font-semibold text-muted-foreground transition hover:bg-ink-100 dark:hover:bg-ink-700 hover:text-ink-700"
               >
                 Limpar
               </button>

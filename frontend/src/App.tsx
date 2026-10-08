@@ -26,9 +26,9 @@ function createSessionQueryClient() {
 
 function RouteLoading() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-ink-50 text-sm text-ink-500 dark:bg-ink-950 dark:text-ink-400">
+    <div className="flex min-h-screen items-center justify-center bg-muted text-sm text-muted-foreground">
       <div className="flex items-center gap-3">
-        <span className="h-5 w-5 animate-spin rounded-full border-2 border-ink-300 border-t-brand-600 dark:border-ink-700 dark:border-t-brand-400" />
+        <span className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-brand-600 dark:border-t-brand-400" />
         Carregando…
       </div>
     </div>
