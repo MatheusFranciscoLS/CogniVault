@@ -9,6 +9,7 @@ import {
   buildPortfolioCoverage,
   listedPncsForModel,
   markNotInLine,
+  markPaused,
   summarizePortfolioCoverage,
   type PortalVerificationState,
   type PortfolioCoverageItem,
@@ -339,7 +340,7 @@ export async function buildBoundedPortalCoverage(
     };
   });
 
-  const finalItems = markNotInLine(items, listed);
+  const finalItems = markPaused(markNotInLine(items, listed));
 
   return {
     ...summarizePortfolioCoverage(finalItems),

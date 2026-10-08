@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { extractCommercialModels, hasStrongCommercialModelShape, listedPncsForModel, markNotInLine, modelKeyVariants, portalDocumentMatchesModel, stripPortalTitleNoise, portalResultMatchesModel, rankPortfolioCoverageGaps, summarizePortfolioCoverage } from './portfolio-coverage';
+import { extractCommercialModels, hasStrongCommercialModelShape, isPausedCategory, listPaused, listedPncsForModel, markNotInLine, modelKeyVariants, portalDocumentMatchesModel, stripPortalTitleNoise, portalResultMatchesModel, rankPortfolioCoverageGaps, summarizePortfolioCoverage, type PortfolioCoverageItem } from './portfolio-coverage';
 
 test('extrai múltiplos modelos de aplicação comercial sem tratar a planilha como prova técnica', () => {
   assert.deepEqual(extractCommercialModels('ROC.236R/143RII'), ['236R', '143RII']);
@@ -176,4 +176,25 @@ test('máquina da lista vigente é consultada pelo PNC: pega o artigo de 9 dígi
   assert.deepEqual(listedPncsForModel(listada, 'AM315'), ['970000111']);
   assert.deepEqual(listedPncsForModel(listada, '120iB'), []); // conjunto (CJ) é outro item
   assert.deepEqual(listedPncsForModel(listada, 'ZZZ1'), []);
+});
+
+test('categoria desligada (Automower) sai da conta, não vira lacuna e continua listada', () => {
+  const item = (model: string, status: PortfolioCoverageItem['status'], category: string | null): PortfolioCoverageItem => ({
+    model, normalizedModel: model.toUpperCase(), status, commercialSignals: 1, commercialEvidence: [], commercialCategory: category, portalVerification: 'NOT_CHECKED', portalVerificationNote: null, source: null, pnc: null,
+  } as PortfolioCoverageItem);
+  const items = [
+    item('AM315', 'UNVERIFIED', 'AUTOMOWER'),
+    item('AM435XAWD', 'UNVERIFIED', 'Automower'),
+    item('226KS12', 'UNVERIFIED', 'DERRIÇADEIRA'),
+    item('143R', 'PORTAL_IPL', 'ROÇADEIRA'),
+    item('AM-COM-VISTA', 'PORTAL_IPL', 'AUTOMOWER'),
+  ];
+  const resumo = summarizePortfolioCoverage(items);
+  assert.equal(resumo.paused, 2, 'só o Automower SEM fonte entra em pausa');
+  assert.equal(resumo.unverified, 1, 'o 226KS12 continua sendo lacuna');
+  assert.equal(resumo.covered, 2, 'o Automower que já tem vista continua contando');
+  assert.equal(resumo.coverageRate, 2 / 3, 'a taxa não conta os em pausa no total');
+  assert.deepEqual(listPaused(resumo.items).map(entry => entry.model), ['AM315', 'AM435XAWD']);
+  assert.equal(isPausedCategory('AUTOMOWER LINHA EPOS'), true);
+  assert.equal(isPausedCategory('ROÇADEIRA'), false);
 });
