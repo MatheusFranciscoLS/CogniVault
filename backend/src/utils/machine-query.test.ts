@@ -32,7 +32,7 @@ test('código de peça NÃO vira consulta de máquina', () => {
   // teste do Briggs pegou o erro quando a detecção passou a existir.
   for (const query of ['530069247', '15004-0937', '967176501', '27911', '794653']) {
     const hint = machineQueryHint(query);
-    assert.deepEqual(hint, { pnc: null, model: null, kawasakiModel: null, briggsModel: null }, query);
+    assert.deepEqual(hint, { pnc: null, model: null, kawasakiModel: null, briggsModel: null, kohlerModel: null }, query);
     assert.equal(wantsMachineLookup(query), false, query);
   }
 });
@@ -86,7 +86,7 @@ test('medida com letra e dígito não é confundida com modelo', () => {
 
 test('consulta curta demais é descartada antes de qualquer trabalho', () => {
   for (const query of ['', ' ', 'ts', '14', null, undefined]) {
-    assert.deepEqual(machineQueryHint(query), { pnc: null, model: null, kawasakiModel: null, briggsModel: null }, String(query));
+    assert.deepEqual(machineQueryHint(query), { pnc: null, model: null, kawasakiModel: null, briggsModel: null, kohlerModel: null }, String(query));
   }
 });
 
@@ -160,4 +160,22 @@ test('Briggs e Kawasaki não se confundem entre si', () => {
   assert.equal(machineQueryHint('FX921V-ES06').kawasakiModel, 'FX921V-ES06');
   assert.equal(machineQueryHint('104M02-0002-F1').kawasakiModel, null);
   assert.equal(machineQueryHint('104M02-0002-F1').briggsModel, '104M02-0002-F1');
+});
+
+test('motor Kohler: o spec da plaqueta é reconhecido e NÃO vira Briggs (o formato do Briggs também casaria)', () => {
+  for (const spec of ['SV540-3212', 'CH740-0001', 'KT745-3017']) {
+    const hint = machineQueryHint(spec);
+    assert.equal(hint.kohlerModel, spec, spec);
+    assert.equal(hint.briggsModel, null, `${spec} não é Briggs`);
+  }
+  assert.equal(machineQueryHint('carburador sv540-3212').kohlerModel, 'SV540-3212');
+});
+
+test('motor Kohler: modelo Briggs, Kawasaki, código de peça e máquina continuam como eram', () => {
+  assert.equal(machineQueryHint('104M02-0002-F1').kohlerModel, null);
+  assert.equal(machineQueryHint('104M02-0002-F1').briggsModel, '104M02-0002-F1');
+  assert.equal(machineQueryHint('FX921V-ES06').kohlerModel, null);
+  assert.equal(machineQueryHint('15004-0937').kohlerModel, null);
+  assert.equal(machineQueryHint('SV540').kohlerModel, null, 'só a série não é catálogo');
+  assert.equal(wantsMachineLookup('SV540-3212'), true);
 });

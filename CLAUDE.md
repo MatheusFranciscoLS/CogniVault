@@ -863,6 +863,9 @@ A lista da página de resultados é montada por JavaScript a partir de:
 `thepowerportal.com/ipls/ipl.htm?md=<tc_RelativePath com ~ literal>`.
 Código: `utils/briggs-manuals.ts` + `services/briggs-manuals.service.ts`,
 rota `/api/briggs/parts-manuals/open`.
+**Desde 2026-10-08 o servidor ENTREGA o PDF (inline, pela origem do app) em vez de redirecionar** para o visualizador: para o dono o botão "Lista de peças Briggs"
+caía no site da Briggs, e só "Todos os manuais" funcionava (servidor e um Chromium de teste recebiam o PDF; o navegador dele não, e não reproduzimos a causa). Se o
+visualizador não devolve PDF de verdade, a rota manda para "Todos os manuais" do motor, nunca para um beco sem saída. `BriggsIplService.pdfFor` guarda 4 PDFs na memória.
 
 **A "contradição" do idioma não era contradição.** Estes dois exemplos estavam
 registrados aqui como prova de que o link era indeduzível:
@@ -911,6 +914,28 @@ as rotas `/api/kawasaki/engine` e `/api/kawasaki/assembly` e a tela
 sem existir nela é substituição de código e "também usado em" (ver "O teto do ARI da
 Kawasaki"). O modelo (série + spec) ainda vem da plaqueta: o Portal Husqvarna não o informa.
 A app key é do site da Kawasaki; o dono decidiu usá-la, e o plano de reserva é o link do conjunto.
+
+## Kohler e o motor de cada máquina (2026-10-08)
+
+Dono mandou o link do catálogo da Kohler (`partnersportal.kohlerpower.it/customer/servicepartscatalogue`, "Global Parts Lookup") e pediu para
+ligar o motor ao trator, ao giro zero e à máquina, **mostrando a vista explodida do motor** ali mesmo.
+
+- **A Kohler responde SEM login.** Medido: `partfinder?EngineMatNumber=SV540-3212&SectionId=101&GroupCode=01` devolve HTML pronto (sem API JSON) e o desenho
+  de cada grupo é um SVG público (`servicepartcatalogueimages/gasoline/SV470_01.svg`). Spec desconhecido redireciona (302) para a busca, sem cabeçalho de motor:
+  é "sem catálogo", não erro. Leitor puro em `utils/kohler-catalog.ts` (regex, testado com HTML inventado), transporte e cache em
+  `services/kohler-catalog.service.ts`, rotas `/api/kohler/engine` (grupos) e `/api/kohler/group` (peças + desenho), tela `KohlerEnginePanel`.
+  O grupo vem de `SectionId` (101, 102...) e o `GroupCode` é o final dele (01, 02...).
+- **O que a Kohler dá a mais que a Kawasaki: substituição de código.** Cada linha tem `replaces` / `replaced by` com o texto do que foi trocado; "DISC. [not available]"
+  vira `discontinued` e **não** é sugerido como código para pedir. Preço não vem: o preço é da loja (`master_parts`), como nos outros fabricantes.
+- **O SVG da Kohler NÃO declara largura e altura**, só `viewBox`: como `<img>` ele colapsava a zero. O `ExplodedView` ganhou `aspectRatio` (vem do `viewBox`,
+  devolvido como `referenceWidth/Height`). **As posições** são os `<text transform="translate(x y)">N</text>` do SVG, convertidos em % do `viewBox`; só entram as que
+  estão na tabela do spec (o desenho é da SÉRIE e traz números de peças que este spec não usa). Mudou o formato do cache do grupo? Troque a chave (`GROUP_V2`).
+- **O spec Kohler casa o regex do Briggs** (letra, hífen, 4 caracteres): `machineQueryHint` testa o Kohler ANTES (`kohlerModel`; Briggs começa por dígito, Kohler por letras).
+- **Motor de cada máquina** (`services/machine-base-engine.ts`, `GET /api/machines/engines?model=`, cartão `MachineEnginePanel` no painel da máquina): junta o que o IPL
+  cita (`ENGINE_APPLICATIONS`, por PNC) com os pares que o dono informou (LTH1842 → Kohler SV540-3212, R316TX → Kawasaki FS481V-CS55, TS138 → Husqvarna HS452). O cartão
+  abre o catálogo do motor (Kohler, Kawasaki ou Briggs) com a vista explodida e **sempre manda conferir a plaqueta ou o número de série do motor**: o motor muda com o ano.
+  **Só exibe.** Não acrescente par do dono em `ENGINE_APPLICATIONS`: `resolveEngineCatalogRoute` resolve direto quando há uma entrada sem PNC, e TS138 varia por PNC.
+  Mais pares: o dono informa, e entram em `OWNER_BASE_ENGINES`.
 
 **`hasKawasakiEvidence` não é redundante.** `formatKawasakiModelForSearch`
 reconhece `LC121P` e `LB155S`, que são cortadores **Husqvarna** — o padrão

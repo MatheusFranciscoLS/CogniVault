@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { BriggsManualsService } from '../services/briggs-manuals.service';
 import { isBriggsIplUrl } from '../utils/briggs-manuals';
 import { BriggsIplService } from '../services/briggs-ipl.service';
+import { briggsManualsSearchUrl } from '../utils/engine-model';
 
 /**
  * Lista de peças do motor Briggs.
@@ -46,9 +47,10 @@ export class BriggsManualsController {
   /**
    * Abre o PDF da lista de peças, preferindo inglês.
    *
-   * Redirect do servidor em vez de `fetch` + `window.open` na tela: assim o
-   * botão do balcão é um `<a target="_blank">` puro. Com JS, a aba abriria
-   * depois do `await` e o navegador trataria como pop-up não solicitado.
+   * O servidor ENTREGA o PDF (inline, pela origem do app) em vez de redirecionar para o visualizador da Briggs: para o dono, o redirect
+   * caía no site da Briggs e não no arquivo. Continua sendo um `<a target="_blank">` puro na tela, então a aba abre no clique.
+   *
+   * Se o visualizador não devolve um PDF, o balcão não fica sem saída: vai para a página "Todos os manuais" do motor, que funciona.
    */
   async openPartsManual(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
@@ -57,18 +59,37 @@ export class BriggsManualsController {
     const result = await BriggsManualsService.forModel(model);
     // `partsManuals` já vem com o inglês na frente.
     const target = result.partsManuals[0]?.url;
+    const manualsPage = briggsManualsSearchUrl(model);
 
-    // A URL nasce de uma constante do próprio módulo, mas a checagem fica aqui
-    // de propósito: é o último ponto antes de o navegador seguir o redirect, e
-    // redirecionar para o que vier é open redirect.
+    // A URL nasce de uma constante do próprio módulo, mas a checagem fica aqui de propósito: é o último ponto antes de o servidor buscar
+    // (ou de o navegador seguir um redirect), e seguir o que vier é open redirect.
     if (!target || !isBriggsIplUrl(target)) {
-      res.status(404).json({
-        error: 'A Briggs não publica lista de peças para este modelo de motor.',
-      });
+      if (manualsPage) {
+        res.redirect(302, manualsPage);
+        return;
+      }
+      res.status(404).json({ error: 'A Briggs não publica lista de peças para este modelo de motor.' });
       return;
     }
 
-    res.redirect(302, target);
+    const pdf = await BriggsIplService.pdfFor(target).catch(() => null);
+    if (!pdf) {
+      if (manualsPage) {
+        res.redirect(302, manualsPage);
+        return;
+      }
+      res.status(502).json({ error: 'A Briggs não devolveu o PDF agora. Tente de novo em instantes.' });
+      return;
+    }
+
+    const safeName = model.replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 40) || 'motor';
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Length': String(pdf.length),
+      'Content-Disposition': `inline; filename="Lista-de-pecas-${safeName}.pdf"`,
+      'Cache-Control': 'private, max-age=3600',
+    });
+    res.send(pdf);
   }
 }
 

@@ -38,11 +38,17 @@ export default function ExplodedView({
   alt,
   hotspots,
   maxHeight = 620,
+  aspectRatio,
 }: {
   imageUrl: string;
   alt: string;
   hotspots: ExplodedHotspot[];
   maxHeight?: number;
+  /**
+   * Largura/altura do desenho, para desenho VETORIAL (SVG) sem tamanho declarado, como o da Kohler: sem isso a imagem colapsa a zero.
+   * Com a proporção, o contêiner ocupa a largura disponível sem passar de `maxHeight`, e as posições (em %) continuam sobre as peças.
+   */
+  aspectRatio?: number;
 }) {
   const [zoom, setZoom] = useState(MIN_ZOOM);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -148,15 +154,15 @@ export default function ExplodedView({
             peça a que ele pertence. O fundo é sempre branco: o desenho do
             fabricante é preto sobre branco e some em tema escuro. */}
         <div
-          style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', width: 'fit-content' }}
+          style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', width: aspectRatio ? `min(100%, ${Math.round(maxHeight * aspectRatio)}px)` : 'fit-content' }}
           className="relative mx-auto"
         >
           <img
             src={imageUrl}
             alt={alt}
             draggable={false}
-            style={{ maxHeight }}
-            className="block max-w-full select-none object-contain"
+            style={aspectRatio ? { aspectRatio: String(aspectRatio) } : { maxHeight }}
+            className={aspectRatio ? 'block w-full select-none' : 'block max-w-full select-none object-contain'}
             loading="lazy"
           />
           {hotspots.map(hotspot => (

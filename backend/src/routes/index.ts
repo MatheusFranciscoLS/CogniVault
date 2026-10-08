@@ -15,6 +15,8 @@ import { WorkIntelligenceController } from '../controllers/work-intelligence.con
 import { HusqvarnaOfficialController } from '../controllers/husqvarna-official.controller';
 import { briggsManualsController } from '../controllers/briggs-manuals.controller';
 import { kawasakiController } from '../controllers/kawasaki.controller';
+import { kohlerController } from '../controllers/kohler.controller';
+import { machineEngineController } from '../controllers/machine-engine.controller';
 import { CommercialSearchController } from '../controllers/commercial-search.controller';
 import { masterPartPricesController } from '../controllers/master-part-prices.controller';
 import { machineListingController, machinePhoto } from '../controllers/machine-listing.controller';
@@ -161,6 +163,11 @@ router.get('/briggs/ipl-parts', authMiddleware, validateBriggsModelQuery, (req, 
 // atendente abre por atendimento. Ver docs/KAWASAKI_ARI_PARTSTREAM.md.
 router.get('/kawasaki/engine', authMiddleware, validateBriggsModelQuery, (req, res) => kawasakiController.engine(req, res));
 router.get('/kawasaki/assembly', authMiddleware, validateKawasakiSlugQuery, (req, res) => kawasakiController.assembly(req, res));
+// Kohler: grupos do motor e, por grupo, peças + substituição + vista explodida. Ver utils/kohler-catalog.ts.
+router.get('/kohler/engine', authMiddleware, validateBriggsModelQuery, (req, res) => kohlerController.engine(req, res));
+router.get('/kohler/group', authMiddleware, validateBriggsModelQuery, (req, res) => kohlerController.group(req, res));
+// Motor de base de cada máquina (o painel da máquina mostra o motor com a vista explodida).
+router.get('/machines/engines', authMiddleware, (req, res) => machineEngineController.list(req, res));
 router.get('/husqvarna/products/:pnc/details', authMiddleware, validateHusqvarnaPncParam, (req, res) => husqvarnaOfficialController.productDetails(req, res));
 router.get('/husqvarna/parts/:code/details', authMiddleware, validatePartCodeParam, (req, res) => husqvarnaOfficialController.partDetails(req, res));
 router.post('/analytics/quote-usage', authMiddleware, validateOperationalQuoteUsage, invalidateWorkContextAfterQuoteUsage, (req, res) => workIntelligenceController.recordQuoteUsage(req, res));
