@@ -10,6 +10,12 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        // Navegação do navegador para /api ou /health (um link que abre em nova aba, como o PDF da Briggs) NÃO pode receber a tela do aplicativo:
+        // o padrão do Workbox responde toda navegação com o index.html, a aba abria o PDF e "voltava" para /atendimento. Medido só no build de
+        // produção (o servidor de desenvolvimento não tem service worker). Roteiro: docs/loja-simulada/sw-api-navegacao.mjs.
+        navigateFallbackDenylist: [/^\/api\//, /^\/health/],
+      },
       includeAssets: ['favicon.png', 'apple-touch-icon.png'],
       manifest: {
         // Mesmo motivo do <title>: instalado no tablet do balcão, este app fica

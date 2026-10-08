@@ -3,7 +3,7 @@ import PageFrame from './PageFrame';
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { categoryLabel } from '../lib/category-label';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, Copy, ExternalLink, Search } from 'lucide-react';
+import { ChevronLeft, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiJson, formatEngineOrCatalogModel } from '../lib';
 import type { DocumentItem } from '../types';
@@ -16,48 +16,6 @@ import { cn } from '@/lib/utils';
 
 type CatalogData = { documents: DocumentItem[]; categories: string[] };
 
-
-/**
- * Catálogo de peças Kawasaki: abrir + copiar o modelo.
- *
- * **Não é integração, e não pode ser.** Medido: a lista de peças da Kawasaki
- * vive no ARI PartStream com uma app key do site deles, e a página do
- * localizador roda reCAPTCHA. O `/manuals` público tem só manual do
- * proprietário, por série, e a própria página manda procurar o revendedor para
- * o manual de serviço. Link profundo também não existe: a URL de um conjunto
- * carrega dois GUIDs, e abrir só com o modelo cai na busca genérica.
- *
- * Então é o mesmo padrão já decidido para o Portal Parceiro: abre a busca
- * oficial e o atendente cola o modelo. O botão de copiar existe porque o
- * modelo é série+spec da plaqueta (`FX921V-ES06`) e o autocompletar da
- * Kawasaki só reconhece com os dois juntos — digitar errado ali devolve nada.
- */
-function KawasakiPartsLink({ model, url }: { model: string; url: string }) {
-  return (
-    <span className="mt-1.5 inline-flex flex-wrap items-center gap-2">
-      <Button asChild variant="outline" size="sm">
-        <a href={url} target="_blank" rel="noreferrer noopener" title="Abrir o catálogo oficial de peças da Kawasaki. Cole o modelo no campo Model e CLIQUE na opção que aparecer.">
-          Catálogo Kawasaki <ExternalLink className="size-3.5" aria-hidden="true" />
-        </a>
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        title="Copiar o modelo para colar na busca da Kawasaki"
-        onClick={() => {
-          void navigator.clipboard.writeText(model).then(
-            () => toast.success(`Modelo ${model} copiado. Cole no campo Model e clique na opção.`),
-            () => toast.error('Não foi possível copiar. Anote o modelo: ' + model),
-          );
-        }}
-      >
-        <span translate="no" className="font-code tabular-nums">{model}</span>
-        <Copy className="size-3.5" aria-hidden="true" />
-      </Button>
-    </span>
-  );
-}
 
 type Props = {
   admin: boolean;
@@ -83,6 +41,21 @@ function problemLabel(document: DocumentItem): { text: string; tone: 'warn' | 'b
   return null;
 }
 
+/**
+ * PDF de motor de TERCEIRO (Briggs, Kawasaki, Kohler). Sai da lista de Catálogos do balcão (dono, 2026-10-08: "faz sentido esse catálogo estar aí em PDF
+ * se pode ser procurado normalmente?"): o Atendimento abre o catálogo oficial do motor, com vista explodida, código, preço e "+ Orçamento", e os botões
+ * antigos desta lista levavam a sites externos ou a uma rota de PDF. Nada é apagado: o PDF e as peças lidas dele continuam na Biblioteca (Gerenciar
+ * biblioteca) e na busca; quem quiser tirá-los de vez arquiva ou exclui por lá.
+ */
+function isThirdPartyEngineCatalog(document: DocumentItem) {
+  return Boolean(document.briggsEngineModel || document.kawasakiEngineModel || /briggs|stratton|kawasaki|kohler/i.test(document.manufacturer ?? ''));
+}
+
+/** O que digitar no Atendimento para abrir o catálogo oficial daquele motor. */
+function engineSearchTerm(document: DocumentItem) {
+  return document.briggsEngineModel || document.kawasakiEngineModel || clean(document.model) || document.filename;
+}
+
 function catalogPncs(document: DocumentItem) {
   return [...new Set([...(document.pncs || []), document.pnc || ''].map(value => value.trim()).filter(Boolean))];
 }
@@ -103,8 +76,20 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
   const categories = data?.categories || [];
   const normalized = search.trim().toLocaleLowerCase('pt-BR');
 
+  const engineCatalogs = documents.filter(isThirdPartyEngineCatalog);
+  const matchesSearch = (document: DocumentItem) => {
+    if (!normalized) return true;
+    const model = formatEngineOrCatalogModel(document.model, document.manufacturer, document.filename);
+    const values = [document.filename, document.model, document.manufacturer, document.category, document.pnc, model, ...catalogPncs(document)];
+    const applicationMatch = (document.applications || []).some(item => `${item.machineModel} ${item.machinePnc || ''} ${item.label}`.toLocaleLowerCase('pt-BR').includes(normalized));
+    return applicationMatch || values.some(value => value?.toLocaleLowerCase('pt-BR').includes(normalized));
+  };
+  // Quando a busca bate num motor que saiu da lista, o balcão não fica sem resposta: ganha o atalho para o catálogo dele no Atendimento.
+  const engineShortcuts = normalized && onSearch ? engineCatalogs.filter(matchesSearch).slice(0, 6) : [];
+
   const filtered = documents
     .filter(document => {
+      if (isThirdPartyEngineCatalog(document)) return false;
       if (category !== 'ALL' && document.category !== category) return false;
       if (!normalized) return true;
       const model = formatEngineOrCatalogModel(document.model, document.manufacturer, document.filename);
@@ -172,6 +157,17 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
 
       {error && <div role="alert" className="rounded-lg border border-destructive bg-destructive/10 px-4 py-3 text-base font-medium text-destructive">{error instanceof Error ? error.message : 'Não foi possível carregar os catálogos.'}</div>}
 
+      {engineShortcuts.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-4 py-3">
+          <span className="text-base text-muted-foreground">Motor com catálogo no Atendimento:</span>
+          {[...new Map(engineShortcuts.map(document => [engineSearchTerm(document), document])).values()].map(document => (
+            <Button key={document.id} type="button" variant="outline" onClick={() => onSearch?.(engineSearchTerm(document))}>
+              <span translate="no" className="font-code tabular-nums">{engineSearchTerm(document)}</span>
+            </Button>
+          ))}
+        </div>
+      )}
+
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
@@ -204,37 +200,6 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
                     <div className="truncate text-sm text-muted-foreground">
                       {[document.filename, pncs.length > 0 ? `PNC ${pncs.slice(0, 2).join(' · ')}${pncs.length > 2 ? ` +${pncs.length - 2}` : ''}` : ''].filter(Boolean).join(' · ')}
                     </div>
-                    {/* Abre a LISTA DE PEÇAS do motor, não a busca de manuais. O link antigo apontava para a
-                        página de resultados da Briggs, onde os dois PARTS MANUAL ficam no fim de 16 itens quase
-                        idênticos — o atendente abria PDF errado até achar. A rota do servidor resolve pela API da
-                        Briggs e manda o inglês quando existe. */}
-                    {document.briggsEngineModel ? (
-                      <span className="mt-1.5 inline-flex flex-wrap items-center gap-2">
-                        <Button asChild variant="outline" size="sm">
-                          <a
-                            href={`/api/briggs/parts-manuals/open?model=${encodeURIComponent(document.briggsEngineModel)}`}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            title={`Abrir a lista de peças oficial do motor ${document.briggsEngineModel} — inglês quando a Briggs publica; senão, o idioma disponível`}
-                          >
-                            Lista de peças Briggs <ExternalLink className="size-3.5" aria-hidden="true" />
-                          </a>
-                        </Button>
-                        {document.briggsManualsUrl && (
-                          <Button asChild variant="ghost" size="sm">
-                            <a href={document.briggsManualsUrl} target="_blank" rel="noreferrer noopener" title="Todos os manuais deste motor no site da Briggs (inclui manual do operador)">Todos os manuais</a>
-                          </Button>
-                        )}
-                      </span>
-                    ) : document.briggsManualsUrl ? (
-                      <Button asChild variant="outline" size="sm" className="mt-1.5">
-                        <a href={document.briggsManualsUrl} target="_blank" rel="noreferrer noopener" title="Abrir manuais oficiais no site da Briggs & Stratton">
-                          Manuais Briggs <ExternalLink className="size-3.5" aria-hidden="true" />
-                        </a>
-                      </Button>
-                    ) : document.kawasakiEngineModel && document.kawasakiPartsUrl ? (
-                      <KawasakiPartsLink model={document.kawasakiEngineModel} url={document.kawasakiPartsUrl} />
-                    ) : null}
                   </div>
                 </TableCell>
                 <TableCell className="text-muted-foreground">{categoryLabel(document.category) || 'Sem categoria'}</TableCell>
