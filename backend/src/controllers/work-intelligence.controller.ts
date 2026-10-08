@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { HusqvarnaOfficialDetailService } from '../services/husqvarna-official-detail.service';
 import { prisma } from '../config/prisma';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { normalizeIdentifier } from '../utils/normalize';
@@ -168,6 +169,32 @@ export class WorkIntelligenceController {
                 message: iplSections.length
                   ? `${iplSections.length} vista(s) explodida(s) oficial(is) confirmada(s). Abra os dados oficiais para consultar posições, peças, preço e aplicações.`
                   : 'PNC e produto confirmados diretamente pela Husqvarna. Abra os dados oficiais para consultar documentos, especificações, variantes e acessórios disponíveis.',
+              },
+            });
+            return;
+          }
+
+          // O Portal não conhece o artigo (o 345BT, por exemplo). O site público da Husqvarna, que é a mesma fonte oficial por
+          // outra porta, entra só quando traz a vista explodida: sem ela, o PNC continua sem confirmação.
+          const publicDetails = await HusqvarnaOfficialDetailService.getProductDetails(clean);
+          if (publicDetails && publicDetails.iplSections.length > 0) {
+            res.json({
+              result: {
+                status: 'FOUND',
+                source: 'OFFICIAL',
+                kind: 'PRODUCT_CATALOG',
+                query,
+                pnc: publicDetails.pnc,
+                name: publicDetails.productName,
+                discontinued: publicDetails.discontinued,
+                categoryName: publicDetails.categoryName,
+                articleDescription: publicDetails.articleDescription,
+                iplSections: publicDetails.iplSections,
+                documents: publicDetails.documents,
+                portalUrl: null,
+                url: `/husqvarna?pnc=${encodeURIComponent(publicDetails.pnc)}`,
+                directProductUrl: false,
+                message: `${publicDetails.iplSections.length} vista(s) explodida(s) oficial(is) confirmada(s).`,
               },
             });
             return;

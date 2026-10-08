@@ -117,6 +117,18 @@ minutos ilimitados).
   Cache em duas camadas: LRU em memória (perde no restart) e
   `OfficialSourceCacheService` persistente no Postgres (sobrevive a
   restart, stale-while-revalidate).
+- **Segunda fonte da vista explodida: o SITE PÚBLICO (2026-10-08).** O Portal (b2b) não tem todas as máquinas da lista: o soprador **345BT**
+  (PNC 970466903) está na lista de preços e tem peças e vista explodida em `husqvarna.com/br/suporte/...`, mas no Portal o artigo nem existe e a
+  busca por "345BT" devolvia 350 e 340BT (dono). O site público fala a MESMA API (`https://www.husqvarna.com/hbd/graphql?`) com outra loja
+  (`hbd-br-pt-br`, a do Portal é `b2b-br-pt-br`), sem login; o robots.txt libera `/`. `articles.byIds(PNC9)` devolve `ipls { id name image
+  articles { coordinates quantity id name number comment url } }`; **não devolve `referenceWidth/Height`**, então `husqvarna-public-site.service.ts`
+  lê a largura e a altura do PNG pelos 32 primeiros bytes (`Range`; servidor que responde 200 é descartado) — as coordenadas são pixels da imagem
+  original. O site público tem esquema diferente do Portal (`name { shortName }`, sem `articleDescription`, sem introspecção): **não reuse a
+  consulta do Portal lá**. Regras: o Portal manda; o site público só entra quando o Portal não tem o artigo ou o tem sem vista explodida
+  (`withPublicSiteIpl`), e nunca troca uma vista que o Portal entregou; marca `iplSource: 'PUBLIC_SITE'`; miss fica 10 min em cache; preço nunca vem
+  daqui. Entra pelos dois caminhos: `getProductDetails` (painel da máquina, cobertura da Qualidade) e `/api/official-fallback` (confirma o PNC como
+  máquina). Política de cobertura 6. Medido: 345BT passou a ter 2 seções (MOTOR 24 posições, ALOJAMENTO DO SOPRADOR 20); cobertura 97% → 98%.
+  Roteiro `fonte-publica.mjs` (precisa de internet até husqvarna.com).
 - **Scraper HTML** (`services/husqvarna-scraper.service.ts`) é só fallback
   quando o GraphQL não responde — não traz nenhum dado que o GraphQL já não
   tenha.
