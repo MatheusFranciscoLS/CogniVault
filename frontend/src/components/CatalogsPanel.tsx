@@ -97,9 +97,9 @@ function qualityLabel(document: DocumentItem): string {
 }
 
 function qualityTone(document: DocumentItem): string {
-  if (document.modelNeedsReview) return 'text-rose-700 dark:text-rose-300';
+  if (document.modelNeedsReview) return 'text-warn';
   if (document.reviewStatus === 'REVIEWED' || document.reviewStatus === 'READY') return 'text-emerald-700 dark:text-emerald-300';
-  if (document.reviewStatus === 'NEEDS_REVIEW') return 'text-rose-700 dark:text-rose-300';
+  if (document.reviewStatus === 'NEEDS_REVIEW') return 'text-warn';
   return 'text-amber-700 dark:text-amber-300';
 }
 
@@ -573,10 +573,10 @@ export default function CatalogsPanel({
               type="button"
               aria-pressed={selected}
               onClick={() => setCategoryFilter(key)}
-              className={`inline-flex h-10 items-center gap-2 rounded-full border px-4 text-base font-semibold outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/60 ${selected ? 'border-transparent bg-primary text-primary-foreground' : 'border-border bg-card text-foreground hover:bg-accent'}`}
+              className={`inline-flex h-10 items-center gap-2 rounded-full border px-4 text-base font-semibold outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/60 ${selected ? 'border-ring bg-selected text-foreground' : 'border-border bg-card text-foreground hover:bg-accent'}`}
             >
               <span className="truncate">{label}</span>
-              <span className={`tabular-nums ${selected ? 'text-primary-foreground' : 'text-muted-foreground'}`}>{count}</span>
+              <span className="tabular-nums text-muted-foreground">{count}</span>
             </button>
           );
         })}
@@ -721,7 +721,7 @@ export default function CatalogsPanel({
                   key={value}
                   type="button"
                   onClick={() => setStatusFilter(value)}
-                  className={`rounded-xl border px-3 py-1.5 text-sm font-semibold transition ${statusFilter === value ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground hover:border-ink-300 dark:border-ink-600'}`}
+                  className={`rounded-xl border px-3 py-1.5 text-sm font-semibold transition ${statusFilter === value ? 'border-ring bg-selected text-foreground' : 'border-border bg-card text-muted-foreground hover:border-ink-300 dark:border-ink-600'}`}
                 >
                   {label} · {count}
                 </button>
@@ -1056,14 +1056,14 @@ export default function CatalogsPanel({
                               {pncs.length === 1 ? 'PNC' : 'PNCs encontrados'}{pncs.length > 1 ? ` · ${pncs.length}` : ''}
                             </div>
                             <div className="mt-1 flex max-w-[280px] flex-wrap gap-1" title={pncs.join(', ')}>
-                              {pncs.slice(0, 4).map(value => (
+                              {pncs.slice(0, 2).map(value => (
                                 <span key={value} className="rounded-md bg-selected px-1.5 py-0.5 text-sm font-semibold text-brand-700 dark:text-brand-300">
                                   {value}
                                 </span>
                               ))}
-                              {pncs.length > 4 && (
+                              {pncs.length > 2 && (
                                 <span className="rounded-md bg-muted px-1.5 py-0.5 text-sm font-semibold text-muted-foreground">
-                                  +{pncs.length - 4}
+                                  +{pncs.length - 2}
                                 </span>
                               )}
                             </div>
@@ -1076,7 +1076,7 @@ export default function CatalogsPanel({
                         <span className={`rounded-full px-2 py-1 text-sm font-semibold ${badge(document)}`}>{statusLabel(document)}</span>
                         {document.status === 'COMPLETED' && <div className={`mt-1 text-sm font-semibold ${qualityTone(document)}`}>{qualityLabel(document)}</div>}
                         {document.reviewReasons?.[0] && document.reviewStatus === 'NEEDS_REVIEW' && (
-                          <div className="mt-1 max-w-72 text-sm leading-4 text-destructive">{document.reviewReasons[0]}</div>
+                          <div className="mt-1 line-clamp-2 max-w-72 text-sm leading-4 text-muted-foreground" title={document.reviewReasons[0]}>{document.reviewReasons[0]}</div>
                         )}
                         {recovery && (
                           <div className={`mt-2 max-w-80 rounded-xl border p-2.5 text-sm leading-4 ${recovery.tone}`}>
