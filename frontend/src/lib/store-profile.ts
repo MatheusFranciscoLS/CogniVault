@@ -50,6 +50,14 @@ export function attendantNameFromEmail(email: string | null | undefined): string
   return words.map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
 }
 
+/** Guarda o nome cadastrado do usuário deste navegador (sem nome, apaga o do anterior). Chamado no login e a cada abertura do painel. */
+export function rememberUserName(name: string | null | undefined): void {
+  try {
+    if (name && name.trim()) localStorage.setItem('cognivault_name', name.trim());
+    else localStorage.removeItem('cognivault_name');
+  } catch { /* sem armazenamento: o PDF sai sem o ATT. */ }
+}
+
 /** O nome de quem atende, para o "ATT.": o cadastrado pelo administrador; sem ele, a reserva do e-mail; sem nenhum, vazio. */
 export function attendantDisplayName(): string {
   try {

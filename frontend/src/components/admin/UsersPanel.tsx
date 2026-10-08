@@ -4,6 +4,7 @@ import { Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, apiJson, fmtDate, json } from '../../lib';
 import { useConfirm } from '../../context/confirm';
+import { rememberUserName } from '../../lib/store-profile';
 import type { AdminUser, Role } from '../../types';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -108,7 +109,12 @@ export default function UsersPanel() {
   const saveName = async (event: FormEvent) => {
     event.preventDefault();
     if (!nameFor) return;
-    if (await update(nameFor.id, { name: nameDraft.trim() || null }, 'Nome atualizado.')) setNameFor(null);
+    const name = nameDraft.trim() || null;
+    if (await update(nameFor.id, { name }, 'Nome atualizado.')) {
+      // Mudou o próprio nome: vale no próximo PDF sem precisar entrar de novo.
+      try { if (nameFor.email.toLowerCase() === localStorage.getItem('cognivault_email')?.toLowerCase()) rememberUserName(name); } catch { /* sem armazenamento */ }
+      setNameFor(null);
+    }
   };
 
   const resetPassword = async (event: FormEvent) => {
