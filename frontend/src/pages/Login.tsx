@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_URL, apiJson, ensureApiReady, isApiRecentlyReady } from '../lib';
 import { activateQuoteStorageScope } from '../lib/quote-storage-scope';
+import { rememberUserName } from '../lib/store-profile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -14,13 +15,6 @@ type SessionUser = {
   name?: string | null;
 };
 
-/** O nome cadastrado pelo administrador (sai em "ATT." no orçamento). Sem nome, apaga o do usuário anterior neste navegador. */
-function rememberUserName(name: string | null | undefined) {
-  try {
-    if (name && name.trim()) localStorage.setItem('cognivault_name', name.trim());
-    else localStorage.removeItem('cognivault_name');
-  } catch { /* sem armazenamento: o PDF sai sem o ATT. */ }
-}
 
 type LoginResponse = {
   user: SessionUser;

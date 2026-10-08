@@ -4,6 +4,7 @@ import ShellV2 from '../components/ShellV2';
 import TechnicalAssistantWorkspace from '../components/parts-v2/TechnicalAssistantWorkspace';
 import { api, apiJson, clearSession, SESSION_EXPIRED_EVENT } from '../lib';
 import { activateQuoteStorageScope } from '../lib/quote-storage-scope';
+import { rememberUserName } from '../lib/store-profile';
 import { isAdminSection, sectionFromPath, sectionPath, sectionTitle } from '../lib/section-routes';
 import type { Section, SessionUser } from '../types';
 import '../admin-polish.css';
@@ -144,7 +145,10 @@ export default function Dashboard() {
     // /api/me é a fonte de verdade para restaurar ou rejeitar a sessão.
     void apiJson<{ user: SessionUser }>('/api/me')
       .then(data => {
-        if (active) setUser(data.user);
+        if (!active) return;
+        // O nome do ATT. vem do cadastro: renova a cada abertura, não só no login (sessão que já estava aberta não o tinha).
+        rememberUserName(data.user.name);
+        setUser(data.user);
       })
       .catch(requestError => {
         if (!active) return;
