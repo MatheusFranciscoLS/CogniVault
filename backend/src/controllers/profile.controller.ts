@@ -17,6 +17,7 @@ export class ProfileController {
         id: req.user.id,
         tenantId: req.user.tenantId,
         email: req.user.email || '',
+        name: req.user.name ?? null,
         role: req.user.role,
         status: req.user.status || 'APPROVED',
         createdAt: req.user.createdAt || null,
