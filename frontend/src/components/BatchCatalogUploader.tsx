@@ -239,11 +239,6 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
         }}
       />
       <div className="text-sm font-semibold text-foreground">{dragActive ? 'Solte os PDFs aqui' : 'Clique, arraste os PDFs ou cole com Ctrl+V'}</div>
-      <div className="mt-2 flex flex-wrap justify-center gap-2 text-sm font-medium text-muted-foreground">
-        <span className="rounded-full border border-border bg-muted px-3 py-1">Selecionar PDFs</span>
-        <span className="rounded-full border border-border bg-muted px-3 py-1">Arrastar e soltar</span>
-        <span className="rounded-full border border-border bg-muted px-3 py-1">Ctrl+V</span>
-      </div>
       <div className="mt-2 text-sm text-muted-foreground">Até {MAX_BATCH_FILES} PDFs · máximo de 50 MB por arquivo · duplicados detectados pelo conteúdo</div>
     </div>
 

@@ -114,17 +114,6 @@ function catalogPncs(document: DocumentItem): string[] {
   return [...new Set([...(document.pncs || []), document.pnc || ''].map(value => value.trim()).filter(Boolean))];
 }
 
-function categoryIcon(category: string): string {
-  const lower = category.toLowerCase();
-  if (lower.includes('roçadeira') || lower.includes('rocadeira')) return '🌿';
-  if (lower.includes('motosserra')) return '🌲';
-  if (lower.includes('soprador')) return '💨';
-  if (lower.includes('cortador') || lower.includes('rider') || lower.includes('trator')) return '🚜';
-  if (lower.includes('pulverizador') || lower.includes('atomizador')) return '🌾';
-  if (lower.includes('podador')) return '✂️';
-  return '⚙️';
-}
-
 function failureGuidance(document: DocumentItem): FailureGuidance | null {
   if (document.status !== 'FAILED') return null;
   const error = (document.processingError || '').toLowerCase();
@@ -752,7 +741,6 @@ export default function CatalogsPanel({
             {filtered.map(document => {
               const recovery = failureGuidance(document);
               const pncs = catalogPncs(document);
-              const icon = categoryIcon(document.category);
 
               return (
                 <article
@@ -763,13 +751,12 @@ export default function CatalogsPanel({
                     <div className="flex items-start justify-between gap-2">
                       {admin ? (
                         <div className="relative flex items-center">
-                          <span className="pointer-events-none absolute left-2 text-sm">{icon}</span>
                           <select
                             aria-label={`Seção de ${document.filename}`}
                             disabled={busy || document.processingActive}
                             value={document.category}
                             onChange={event => void setCategory(document, event.target.value)}
-                            className="rounded-full border border-border bg-muted pl-6 pr-4 py-1 text-sm font-medium text-foreground hover:border-brand-400 focus:outline-hidden focus:ring-1 focus:ring-brand-500 max-w-[160px] truncate cursor-pointer transition disabled:opacity-50"
+                            className="rounded-full border border-border bg-muted pl-3 pr-4 py-1 text-sm font-medium text-foreground hover:border-brand-400 focus:outline-hidden focus:ring-1 focus:ring-brand-500 max-w-[160px] truncate cursor-pointer transition disabled:opacity-50"
                           >
                             {categories.map(cat => (
                               <option key={cat} value={cat}>{cat}</option>
@@ -778,7 +765,6 @@ export default function CatalogsPanel({
                         </div>
                       ) : (
                         <span className="flex items-center gap-1.5 rounded-full bg-muted/60 px-2.5 py-1 text-sm font-medium text-foreground">
-                          <span>{icon}</span>
                           <span className="truncate max-w-[140px]">{document.category}</span>
                         </span>
                       )}
@@ -893,40 +879,33 @@ export default function CatalogsPanel({
                   <div className="mt-5 border-t border-border pt-3 flex flex-wrap items-center gap-1.5">
                     {document.status === 'COMPLETED' && !document.archivedAt && (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => void access(document.id, 'view', document.filename)}
-                          className="flex-1 rounded-xl bg-selected hover:bg-brand-100 dark:hover:bg-brand-900/60 px-2.5 py-1.5 text-center text-sm font-bold text-brand-600 dark:text-brand-300 transition active:scale-95"
-                        >
-                          📄 PDF
-                        </button>
                         {onSearch && (
-                          <button
-                            type="button"
-                            onClick={() => onSearch(document.model || document.filename)}
-                            className="flex-1 rounded-xl bg-linear-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-ink-950 px-2.5 py-1.5 text-center text-sm font-bold transition shadow-2xs active:scale-95"
-                          >
-                            🔍 Peças
-                          </button>
+                          <Button type="button" variant="outline" className="flex-1" onClick={() => onSearch(document.model || document.filename)}>
+                            Ver peças
+                          </Button>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => void access(document.id, 'download', document.filename)}
-                          title="Baixar arquivo PDF"
-                          className="rounded-xl border border-border bg-card p-1.5 text-sm text-muted-foreground hover:bg-accent"
-                        >
-                          ⬇
-                        </button>
+                        <Button type="button" variant="outline" className="flex-1" onClick={() => void access(document.id, 'view', document.filename)}>
+                          Visualizar
+                        </Button>
                       </>
                     )}
 
-                    {admin && (
-                      <div className="w-full flex items-center justify-between pt-1 text-sm text-muted-foreground">
+                    {(admin || (document.status === 'COMPLETED' && !document.archivedAt)) && (
+                      <div className="flex w-full items-center gap-4 pt-1 text-sm text-muted-foreground">
+                        {document.status === 'COMPLETED' && !document.archivedAt && <button
+                        type="button"
+                        onClick={() => void access(document.id, 'download', document.filename)}
+                        title="Baixar arquivo PDF"
+                        className="font-medium hover:text-foreground"
+                      >
+                        Baixar
+                      </button>}
+                        {admin && (<>
                         <button
                           type="button"
                           disabled={busy || document.processingActive}
                           onClick={() => void action(document.id, 'reprocess')}
-                          className="hover:text-brand-600 disabled:opacity-40 font-medium"
+                          className="hover:text-foreground disabled:opacity-40 font-medium"
                         >
                           Reextrair
                         </button>
@@ -934,7 +913,7 @@ export default function CatalogsPanel({
                           type="button"
                           disabled={busy || document.processingActive}
                           onClick={() => void action(document.id, 'archive')}
-                          className="hover:text-destructive disabled:opacity-40 font-medium"
+                          className="hover:text-foreground disabled:opacity-40 font-medium"
                         >
                           Arquivar
                         </button>
@@ -942,10 +921,11 @@ export default function CatalogsPanel({
                           type="button"
                           disabled={busy || document.processingActive}
                           onClick={() => void removePdf(document)}
-                          className="hover:text-destructive disabled:opacity-40 font-medium"
+                          className="ml-auto hover:text-destructive disabled:opacity-40 font-medium"
                         >
                           Excluir
                         </button>
+                        </>)}
                       </div>
                     )}
                   </div>
