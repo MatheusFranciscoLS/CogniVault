@@ -19,7 +19,6 @@ await step(`orçamento da ${nome}`, async () => {
   await page.locator('main tbody tr', { hasText: pnc }).locator('td').first().getByRole('button').click();
   const gaveta = page.getByRole('dialog');
   await gaveta.waitFor({ timeout: 8000 });
-  await gaveta.getByText(/Acompanha|Não acompanha/).first().waitFor({ timeout: 25000 }).catch(() => {});
   await gaveta.getByRole('button', { name: 'Orçamento', exact: true }).click();
 
   const dialogo = page.getByRole('dialog', { name: new RegExp(`Orçamento da ${nome}`) });

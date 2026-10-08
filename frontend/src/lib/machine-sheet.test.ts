@@ -38,7 +38,8 @@ describe('buildMachineSheetMessage', () => {
   });
 
   it('termina com a assinatura da loja', () => {
-    expect(texto.endsWith('Vardão Máquinas · Revenda Autorizada Ouro Husqvarna')).toBe(true);
+    expect(texto.endsWith('Vardão Máquinas')).toBe(true);
+    expect(texto).not.toMatch(/Revenda|Ouro/);
   });
 
   it('sem ficha e sem Portal, ainda é uma mensagem válida (só modelo e preço)', () => {

@@ -1,5 +1,5 @@
 // Gera o orçamento-modelo (PDF) de TODAS as máquinas da Tabela de preços, com a mesma lógica da gaveta: descrição da ficha,
-// complemento sugerido pelo Portal, foto, "o que acompanha" nas roçadeiras. Preço = o da lista (o atendente ajusta ao usar).
+// características da descrição da lista, complemento sugerido pela lista e pelo Portal, foto. Preço = o da lista (o atendente ajusta ao usar).
 // Saída em C:\DadosLoja\Orcamentos-modelo\<Categoria>\ (FORA do repositório e do OneDrive: a lista de preços da Husqvarna
 // tem aviso de propriedade intelectual e o repositório é público).
 //
@@ -18,7 +18,8 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { apiJson } from './lib';
 import { machinePhotoUrl, portalPnc, type ListedMachine } from './lib/machine-list';
-import { buildMachineQuotePdf, defaultHighlight, defaultIncludeEquipment, machineQuoteDescription, machineVariantNote, suggestComplement, type MachineQuoteFields } from './lib/machine-quote';
+import { DEFAULT_BULLETS, listBullets } from './lib/machine-highlights';
+import { buildMachineQuotePdf, defaultHighlight, machineQuoteDescription, machineVariantNote, suggestComplement, type MachineQuoteFields } from './lib/machine-quote';
 import { loadProductImage, loadStoreLogo } from './lib/pdf-assets';
 
 type Detail = { equipment?: { included: Array<{ name: string; value: string | null }>; notIncluded: Array<{ name: string; value: string | null }> } | null; imageUrl?: string | null; features?: Array<{ name: string }>; specifications?: Array<{ group: string; name: string; value: string }> };
@@ -34,13 +35,12 @@ export async function gerar(machine: ListedMachine, todas: ListedMachine[]) {
     const data = await apiJson<{ product?: Detail }>('/api/husqvarna/products/' + encodeURIComponent(portalPnc(machine.pnc)) + '/details', { timeoutMs: 25000 });
     detail = data.product ?? null;
   } catch { detail = null; }
-  const equipment = detail?.equipment ?? null;
-  const includeEquipment = defaultIncludeEquipment(machine, equipment);
+  const bullets = listBullets(machine.details, machine.model, machine.category).slice(0, DEFAULT_BULLETS);
   const fields: MachineQuoteFields = {
     customerName: '', price: machine.listPrice, payment: 'A combinar', leadTime: 'Imediato',
     observation: 'Preços para produto a serem faturados no estado de São Paulo',
     complement: suggestComplement(machine, detail ? { features: detail.features, specifications: detail.specifications } : null),
-    highlight: defaultHighlight(machine.application), includeEquipment,
+    highlight: defaultHighlight(machine.application), bullets,
   };
   // Portal primeiro (qualidade), pelo PNC e pelo nome; a foto da lista é a reserva.
   let photoUrl = detail?.imageUrl ?? null;
@@ -52,10 +52,10 @@ export async function gerar(machine: ListedMachine, todas: ListedMachine[]) {
   }
   if (!photoUrl && machine.hasPhoto) photoUrl = machinePhotoUrl(machine.pnc);
   const photo = photoUrl ? await loadProductImage(photoUrl) : null;
-  const doc = buildMachineQuotePdf({ doc: new jsPDF('p', 'pt', 'a4'), autoTable, machine, equipment, fields, variant: machineVariantNote(machine, todas), logo: await loadStoreLogo(), photo });
+  const doc = buildMachineQuotePdf({ doc: new jsPDF('p', 'pt', 'a4'), autoTable, machine, fields, variant: machineVariantNote(machine, todas), logo: await loadStoreLogo(), photo });
   const base64 = (doc.output('datauristring') as string).split(',')[1];
   const descricao = machineQuoteDescription(machine, fields.complement, machineVariantNote(machine, todas));
-  return { base64, descricao, comPortal: Boolean(detail), comFoto: Boolean(photo), fonteFoto: photo ? (photoUrl && photoUrl.startsWith("/api/") ? "lista" : "portal") : null, complemento: fields.complement, equipamento: includeEquipment };
+  return { base64, descricao, comPortal: Boolean(detail), comFoto: Boolean(photo), fonteFoto: photo ? (photoUrl && photoUrl.startsWith("/api/") ? "lista" : "portal") : null, complemento: fields.complement, equipamento: bullets.length > 0 };
 }
 `);
 
@@ -102,7 +102,7 @@ const linhas = [
   `Total: ${resumo.length - erros.length} PDFs (${erros.length} com erro)`,
   `Com foto da máquina: ${comFoto} (Portal: ${resumo.filter(r => r.fonteFoto === "portal").length}, lista: ${resumo.filter(r => r.fonteFoto === "lista").length})`,
   `Com complemento sugerido pelo Portal: ${resumo.filter(r => r.complemento).length}`,
-  `Com "conjunto composto por": ${resumo.filter(r => r.acompanha).length}`,
+  `Com características da lista: ${resumo.filter(r => r.acompanha).length}`,
   `Sem resposta do Portal (sem foto e sem complemento): ${semPortal.length} - ${semPortal.map(r => r.modelo).join(', ')}`,
   '',
   'O preço de cada PDF é o da lista vigente; ajuste ao usar. A/C e ATT. ficam em branco.',
