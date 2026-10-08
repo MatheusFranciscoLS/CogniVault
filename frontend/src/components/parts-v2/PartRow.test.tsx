@@ -23,7 +23,8 @@ describe('PartRow', () => {
     // Código nunca truncado nem alterado: é o que se confere na peça física.
     expect(screen.getByText('587106701')).toBeTruthy();
     expect(screen.getByText(/187,40/)).toBeTruthy();
-    expect(screen.getByText('Catálogo · 143RII · PNC 967332904 · Pos. 15')).toBeTruthy();
+    expect(screen.getByText('Catálogo')).toBeTruthy();
+    expect(screen.getByText('143RII · PNC 967332904 · Pos. 15')).toBeTruthy();
   });
 
   it('o botão de adicionar tem um só rótulo, "+ Orçamento", e leva o nome da peça para o leitor de tela', () => {
@@ -64,6 +65,6 @@ describe('PartRow', () => {
 
     rerender(<PartRow {...base} price={null} origin="PRICE_LIST" priceMissing={<button type="button">Consultar no Parceiro</button>} />);
     expect(screen.getByRole('button', { name: 'Consultar no Parceiro' })).toBeTruthy();
-    expect(screen.getByText(/^Cadastro · /)).toBeTruthy();
+    expect(screen.getByText('Cadastro')).toBeTruthy();
   });
 });

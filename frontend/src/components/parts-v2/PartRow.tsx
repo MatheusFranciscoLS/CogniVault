@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { Icon } from '../icons/Icon';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
@@ -15,7 +16,7 @@ import { cn } from '@/lib/utils';
  * truncado): é o que se confere na peça física.
  */
 
-export const PART_ROW_GRID = 'lg:grid-cols-[minmax(150px,190px)_minmax(0,1fr)_132px_176px_44px]';
+export const PART_ROW_GRID = 'lg:grid-cols-[minmax(150px,190px)_minmax(0,1fr)_128px_156px_40px]';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -57,7 +58,8 @@ export default function PartRow({ code, name, details, origin, tags, price, pric
       className={cn(
         'group relative grid items-center gap-x-4 gap-y-2 border-b border-border px-4 py-3 transition-colors last:border-b-0',
         PART_ROW_GRID,
-        'hover:bg-muted focus-within:bg-muted',
+        // Peça que já está no orçamento ganha uma faixa verde na borda: o atendente vê o que já pôs sem ler o botão.
+        inCart ? 'bg-ok-soft/40 shadow-[inset_3px_0_0_var(--ok)] hover:bg-ok-soft/60' : 'hover:bg-muted focus-within:bg-muted',
       )}
     >
       <button
@@ -77,7 +79,11 @@ export default function PartRow({ code, name, details, origin, tags, price, pric
           <span className="truncate text-[17px] font-semibold leading-6">{name}</span>
           {tags}
         </span>
-        <span className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{[origin === 'CATALOG' ? 'Catálogo' : 'Cadastro', ...details].join(' · ')}</span>
+        <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
+          {/* A origem é a única etiqueta fixa da linha: catálogo técnico (azul da marca) ou cadastro de preços (neutro). */}
+          <Badge variant="secondary" className={cn('h-6 rounded-md px-2 text-sm font-semibold', origin === 'CATALOG' && 'bg-brand-100 text-brand-700 dark:bg-brand-800/70 dark:text-brand-100')}>{origin === 'CATALOG' ? 'Catálogo' : 'Cadastro'}</Badge>
+          <span className="line-clamp-2">{details.join(' · ')}</span>
+        </span>
       </Region>
 
       <div className="text-left lg:text-right">
@@ -88,7 +94,13 @@ export default function PartRow({ code, name, details, origin, tags, price, pric
         )}
       </div>
 
-      <Button variant={inCart ? 'added' : 'add'} onClick={onAdd} data-row-add="" className="w-full">
+      <Button
+        variant={inCart ? 'added' : 'outline'}
+        onClick={onAdd}
+        data-row-add=""
+        // Parado, o botão é neutro (50 linhas de laranja ao mesmo tempo escondem a ação certa); a linha em foco o acende.
+        className={cn('w-full', !inCart && 'text-muted-foreground group-hover:border-add group-hover:text-add group-focus-within:border-add group-focus-within:text-add')}
+      >
         {inCart ? <><Icon name="check" className="size-4" />No orçamento · {quantityInCart}</> : '+ Orçamento'}
         <span className="sr-only">, {name}</span>
       </Button>

@@ -1,5 +1,6 @@
 import { formatHusqvarnaPartNumber } from '../lib';
 import { useQuoteCart } from '../context/QuoteCartContext';
+import { Icon } from './icons/Icon';
 import { Button } from '@/components/ui/button';
 
 function formatMoney(value: number) {
@@ -22,7 +23,10 @@ export default function CounterQuoteRail() {
       </div>
 
       {empty ? (
-        <p className="border-t border-border px-4 py-8 text-center text-base text-muted-foreground">Adicione peças para montar o orçamento.</p>
+        <div className="flex flex-col items-center gap-3 border-t border-border px-4 py-8 text-center">
+          <span aria-hidden="true" className="grid size-12 place-items-center rounded-full bg-muted text-muted-foreground"><Icon name="quote" className="size-6" /></span>
+          <p className="text-base text-muted-foreground">Adicione peças para montar o orçamento.</p>
+        </div>
       ) : (
         <ul className="max-h-[46vh] divide-y divide-border overflow-y-auto border-t border-border">
           {quoteCart.items.map(item => (
@@ -66,7 +70,7 @@ export default function CounterQuoteRail() {
             ? <span className="font-code text-3xl font-bold tabular-nums">{formatMoney(quoteCart.totalPrice)}</span>
             : <span className="text-lg text-muted-foreground">{empty ? 'R$ 0,00' : 'Sem preço'}</span>}
         </div>
-        <Button size="lg" className="w-full" disabled={empty} onClick={() => quoteCart.setIsOpen(true)}>Revisar orçamento</Button>
+        <Button size="lg" variant={empty ? 'secondary' : 'default'} className="w-full" disabled={empty} onClick={() => quoteCart.setIsOpen(true)}>Revisar orçamento</Button>
       </div>
     </aside>
   );

@@ -21,7 +21,7 @@ const esperarFim = async (ms = 40000) => {
 
 await step('estado vazio', async () => {
   check('campo de busca visível e focável', await busca.isVisible());
-  const exemplos = await page.getByRole('button', { name: /^(587106701|carburador 143RII)$/ }).count();
+  const exemplos = await page.getByRole('button', { name: /^(587106701|carburador 143RII)/ }).count();
   check('exemplos de busca aparecem (o da pergunta saiu junto com o assistente de IA)', exemplos === 2, `${exemplos}`);
   check('faixa de orçamento vazia diz o que fazer', await page.getByText('Adicione peças para montar o orçamento.').isVisible());
   check('"Revisar orçamento" desabilitado com a faixa vazia', await page.getByRole('button', { name: 'Revisar orçamento' }).isDisabled());
@@ -102,7 +102,7 @@ await step('busca descritiva com máquina: grupos e ordem', async () => {
 });
 
 await step('chips: máquina, documentos e "Mais N"', async () => {
-  const maquina = page.getByRole('button', { name: /HUSQVARNA Roçadeira Husqvarna 143R II/ });
+  const maquina = page.getByRole('button', { name: /^143R II/ });
   if (await maquina.count()) {
     await maquina.click();
     const painel = page.getByRole('dialog', { name: 'Máquina aberta' });
@@ -266,9 +266,9 @@ await step('pergunta de óleo', async () => {
 await step('máquina sem repetir nos atalhos', async () => {
   await busca.fill('carburador 143RII');
   await busca.press('Enter');
-  await page.getByRole('button', { name: /Roçadeira Husqvarna 143R II/ }).first().waitFor({ timeout: 30000 });
+  await page.getByRole('button', { name: /^143R II/ }).first().waitFor({ timeout: 30000 });
   await page.waitForTimeout(1500);
-  const iguais = await page.getByRole('button', { name: /Roçadeira Husqvarna 143R II/ }).count();
+  const iguais = await page.getByRole('button', { name: /^143R II/ }).count();
   check('a máquina aparece uma vez só entre os atalhos (o "recente" igual some)', iguais === 1, `${iguais}`);
 });
 

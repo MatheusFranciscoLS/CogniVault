@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Check, Copy, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import { machineChipLabel } from '../../lib/model-search-rank';
 import ListingBadge from './ListingBadge';
 import MachineDetail from './MachineDetail';
 import type { MachineDetailLoaded } from './MachineDetail';
@@ -55,6 +56,8 @@ export default function MachineSidePanel({
   // mas o cabeçalho nunca mostra o nome de OUTRA máquina enquanto a nova carrega.
   const name = loaded && loaded.pnc === pnc ? loaded.name : contextModel || `PNC ${pnc}`;
   const meta = loaded && loaded.pnc === pnc ? loaded.meta : null;
+  // "HUSQVARNA Roçadeira Husqvarna 143R II": o modelo é o título e o tipo da máquina vai para o subtítulo.
+  const label = machineChipLabel(name);
 
   return (
     <Sheet open onOpenChange={open => { if (!open) onClose(); }}>
@@ -68,7 +71,7 @@ export default function MachineSidePanel({
           <div className="min-w-0">
             <SheetTitle className="sr-only">Máquina aberta</SheetTitle>
             <SheetDescription className="sr-only">Vistas explodidas e peças da máquina</SheetDescription>
-            <h2 className="truncate text-2xl font-semibold leading-8 text-foreground">{name}</h2>
+            <h2 className="truncate text-2xl font-semibold leading-8 text-foreground">{label.model}</h2>
             <p className="flex flex-wrap items-center gap-x-2 text-base text-muted-foreground">
               <span>PNC <span translate="no" className="font-code tabular-nums">{pnc}</span></span>
               {meta && <span>· {meta}</span>}
