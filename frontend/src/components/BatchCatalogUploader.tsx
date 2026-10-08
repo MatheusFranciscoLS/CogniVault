@@ -51,9 +51,9 @@ function statusLabel(item: UploadItem): string {
 function statusClass(state: UploadState): string {
   if (state === 'QUEUED') return 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300';
   if (state === 'UPLOADING') return 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300';
-  if (state === 'DUPLICATE') return 'bg-ink-100 dark:bg-ink-700 text-muted-foreground';
+  if (state === 'DUPLICATE') return 'bg-muted text-muted-foreground';
   if (state === 'FAILED') return 'bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300';
-  return 'bg-brand-50 dark:bg-ink-900 text-brand-700 dark:text-brand-300';
+  return 'bg-selected text-brand-700 dark:text-brand-300';
 }
 
 export default function BatchCatalogUploader({ onComplete, onNotice, onError }: Props) {
@@ -224,7 +224,7 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
       onDragOver={event => event.preventDefault()}
       onDragLeave={event => { event.preventDefault(); if (event.currentTarget === event.target) setDragActive(false); }}
       onDrop={handleDrop}
-      className={`cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition ${dragActive ? 'border-ink-500 bg-muted' : 'border-border bg-card hover:border-ink-300 dark:border-ink-600'} ${busy ? 'pointer-events-none opacity-60' : ''}`}
+      className={`cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition ${dragActive ? 'border-ring bg-muted' : 'border-border bg-card hover:border-input'} ${busy ? 'pointer-events-none opacity-60' : ''}`}
     >
       <input
         ref={inputRef}
@@ -238,7 +238,7 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
           event.target.value = '';
         }}
       />
-      <div className="text-sm font-semibold text-ink-700 dark:text-ink-300">{dragActive ? 'Solte os PDFs aqui' : 'Clique, arraste os PDFs ou cole com Ctrl+V'}</div>
+      <div className="text-sm font-semibold text-foreground">{dragActive ? 'Solte os PDFs aqui' : 'Clique, arraste os PDFs ou cole com Ctrl+V'}</div>
       <div className="mt-2 flex flex-wrap justify-center gap-2 text-sm font-medium text-muted-foreground">
         <span className="rounded-full border border-border bg-muted px-3 py-1">Selecionar PDFs</span>
         <span className="rounded-full border border-border bg-muted px-3 py-1">Arrastar e soltar</span>
@@ -253,7 +253,7 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
       <input aria-label="PNC" value={pnc} onChange={event => setPnc(event.target.value)} placeholder="PNC (opcional)" className="h-10 rounded-md border border-input bg-card px-3 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/60 text-sm" />
     </div>}
 
-    {items.length > 1 && <div className="mt-4 rounded-xl border border-brand-100 dark:border-brand-700 bg-brand-50 dark:bg-ink-900/70 px-3 py-2 text-sm leading-5 text-brand-700 dark:text-brand-300">
+    {items.length > 1 && <div className="mt-4 rounded-xl border border-brand-100 dark:border-brand-700 bg-selected/70 px-3 py-2 text-sm leading-5 text-brand-700 dark:text-brand-300">
       Modo automático do lote: fabricante, modelo e PNC serão extraídos de cada PDF individualmente.
     </div>}
 
@@ -262,14 +262,14 @@ export default function BatchCatalogUploader({ onComplete, onNotice, onError }: 
         <span>{items.length} arquivo{items.length === 1 ? '' : 's'} no lote</span>
         {finishedCount > 0 && <button type="button" disabled={busy} onClick={clearFinished} className="font-medium text-muted-foreground disabled:opacity-40">Limpar concluídos</button>}
       </div>
-      <div className="max-h-72 divide-y divide-ink-100 overflow-y-auto">
+      <div className="max-h-72 divide-y divide-border overflow-y-auto">
         {items.map(item => <div key={item.id} className="flex items-center gap-3 px-3 py-2.5 text-sm">
           <div className="min-w-0 flex-1">
-            <div className="truncate font-medium text-ink-700 dark:text-ink-300">{item.file.name}</div>
+            <div className="truncate font-medium text-foreground">{item.file.name}</div>
             <div className="mt-0.5 text-sm text-muted-foreground">{(item.file.size / 1024 / 1024).toFixed(1)} MB{item.message ? ` · ${item.message}` : ''}</div>
           </div>
           <span className={`whitespace-nowrap rounded-full px-2 py-1 text-sm font-semibold ${statusClass(item.state)}`}>{statusLabel(item)}</span>
-          {!busy && item.state !== 'UPLOADING' && <button type="button" onClick={() => removeItem(item.id)} aria-label={`Remover ${item.file.name}`} className="rounded-lg px-2 py-1 text-muted-foreground hover:bg-ink-100 dark:bg-ink-700 hover:text-ink-700">×</button>}
+          {!busy && item.state !== 'UPLOADING' && <button type="button" onClick={() => removeItem(item.id)} aria-label={`Remover ${item.file.name}`} className="rounded-lg px-2 py-1 text-muted-foreground hover:bg-accent hover:text-foreground">×</button>}
         </div>)}
       </div>
     </div>}

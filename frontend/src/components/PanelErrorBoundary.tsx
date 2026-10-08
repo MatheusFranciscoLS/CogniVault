@@ -66,7 +66,7 @@ export class PanelErrorBoundary extends Component<Props, State> {
           <button
             type="button"
             onClick={this.props.onClose}
-            className="min-h-10 min-w-10 w-full rounded-lg bg-ink-900 px-4 text-sm font-black text-white transition hover:bg-ink-950 sm:w-auto"
+            className="min-h-10 min-w-10 w-full rounded-lg bg-primary px-4 text-sm font-black text-primary-foreground transition hover:bg-primary-hover sm:w-auto"
           >
             {this.props.closeLabel ?? 'Fechar'}
           </button>

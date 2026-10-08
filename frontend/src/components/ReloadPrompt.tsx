@@ -44,14 +44,14 @@ export default function ReloadPrompt() {
         <button
           type="button"
           onClick={() => setNeedRefresh(false)}
-          className="rounded-lg px-3 py-2 text-xs font-bold text-muted-foreground transition hover:bg-ink-100 dark:hover:bg-ink-800"
+          className="rounded-lg px-3 py-2 text-xs font-bold text-muted-foreground transition hover:bg-accent"
         >
           Depois
         </button>
         <button
           type="button"
           onClick={() => updateServiceWorker(true)}
-          className="rounded-lg bg-ink-900 px-4 py-2 text-xs font-black text-white transition hover:bg-ink-950"
+          className="rounded-lg bg-primary px-4 py-2 text-xs font-black text-primary-foreground transition hover:bg-primary-hover"
         >
           Atualizar agora
         </button>

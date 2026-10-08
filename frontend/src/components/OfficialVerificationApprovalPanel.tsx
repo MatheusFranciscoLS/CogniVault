@@ -62,7 +62,7 @@ export default function OfficialVerificationApprovalPanel({ onChanged }: Props) 
 
   return (
     <div className="rounded-xl border border-border bg-card mt-5 overflow-hidden border border-brand-100 dark:border-brand-700">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-brand-50 dark:bg-ink-900/40 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-selected/40 p-4">
         <div>
           <div className="text-sm font-semibold text-foreground">Conferências aguardando aprovação</div>
           <p className="mt-1 text-sm leading-5 text-muted-foreground">O Balcão já conferiu no Portal. Abra a fonte oficial e aprove ou rejeite. Enquanto estiver pendente, nada muda nas buscas.</p>
@@ -75,14 +75,14 @@ export default function OfficialVerificationApprovalPanel({ onChanged }: Props) 
       {loading && <div className="p-5 text-sm text-muted-foreground">Carregando conferências…</div>}
 
       {!loading && items.length > 0 && (
-        <div className="divide-y divide-ink-100">
+        <div className="divide-y divide-border">
           {items.map(item => {
             const changed = item.queriedPartNumber.replace(/\W/g, '') !== item.currentPartNumber.replace(/\W/g, '');
             return (
               <div key={item.id} className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_310px]">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`rounded-full px-2.5 py-1 text-sm font-semibold ${changed ? 'bg-brand-50 dark:bg-ink-900 text-brand-700 dark:text-brand-300' : 'bg-ok-soft text-ok'}`}>{statusLabel(item)}</span>
+                    <span className={`rounded-full px-2.5 py-1 text-sm font-semibold ${changed ? 'bg-selected text-brand-700 dark:text-brand-300' : 'bg-ok-soft text-ok'}`}>{statusLabel(item)}</span>
                     <span className="text-sm text-muted-foreground">{fmtDate(item.verifiedAt)} · {item.submittedBy}</span>
                   </div>
                   <div className="mt-2 text-sm font-semibold text-foreground">{item.description || 'Peça sem descrição informada'}</div>
@@ -90,13 +90,13 @@ export default function OfficialVerificationApprovalPanel({ onChanged }: Props) 
                     {changed ? <><span className="text-muted-foreground line-through">{item.queriedPartNumber}</span> → {item.currentPartNumber}</> : item.currentPartNumber}
                   </div>
                   {item.note && <div className="mt-2 rounded-xl bg-muted p-3 text-sm leading-5 text-muted-foreground">{item.note}</div>}
-                  <a href={item.officialUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-xl border border-brand-200 dark:border-brand-600 bg-brand-50 dark:bg-ink-900 px-3 py-2 text-sm font-semibold text-brand-600 dark:text-brand-300">Conferir no Portal Husqvarna →</a>
+                  <a href={item.officialUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-xl border border-brand-200 dark:border-brand-600 bg-selected px-3 py-2 text-sm font-semibold text-brand-600 dark:text-brand-300">Conferir no Portal Husqvarna →</a>
                 </div>
 
                 <div className="rounded-2xl border border-border bg-muted p-3">
                   <label className="text-sm font-bold   text-muted-foreground">
                     Observação da revisão
-                    <textarea value={notes[item.id] || ''} onChange={event => setNotes(current => ({ ...current, [item.id]: event.target.value }))} maxLength={1000} rows={2} placeholder="Opcional" className="mt-1 w-full rounded-xl border border-border bg-card p-2.5 text-sm font-normal normal-case tracking-normal text-ink-700 dark:text-ink-300" />
+                    <textarea value={notes[item.id] || ''} onChange={event => setNotes(current => ({ ...current, [item.id]: event.target.value }))} maxLength={1000} rows={2} placeholder="Opcional" className="mt-1 w-full rounded-xl border border-border bg-card p-2.5 text-sm font-normal normal-case tracking-normal text-foreground" />
                   </label>
                   <div className="mt-3 flex gap-2">
                     <button type="button" disabled={busyId === item.id} onClick={() => void decide(item, 'APPROVE')} className="flex-1 rounded-xl bg-ok px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{busyId === item.id ? 'Salvando…' : 'Aprovar'}</button>

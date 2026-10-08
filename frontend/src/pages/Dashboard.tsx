@@ -36,7 +36,7 @@ function PanelLoading() {
   return (
     <div aria-busy="true" className="space-y-4">
       <span className="sr-only">Carregando painel…</span>
-      <div className="h-8 w-56 animate-pulse rounded-card bg-ink-200 dark:bg-ink-800" />
+      <div className="h-8 w-56 animate-pulse rounded-card bg-muted" />
       <div className="grid gap-3 sm:grid-cols-2 tablet:grid-cols-4">
         {[0, 1, 2, 3].map(item => (
           <div key={item} className="h-24 animate-pulse rounded-card border border-border bg-card" />
@@ -45,7 +45,7 @@ function PanelLoading() {
       <div className="overflow-hidden rounded-card border border-border bg-card">
         {[0, 1, 2, 3, 4].map(item => (
           <div key={item} className="flex items-center gap-4 border-b border-border p-4 last:border-0">
-            <div className="h-4 w-28 animate-pulse rounded-sm bg-ink-200 dark:bg-ink-800" />
+            <div className="h-4 w-28 animate-pulse rounded-sm bg-muted" />
             <div className="h-4 flex-1 animate-pulse rounded-sm bg-muted" />
             <div className="h-8 w-24 animate-pulse rounded-card bg-muted" />
           </div>
@@ -277,7 +277,7 @@ export default function Dashboard() {
             alt="Vardão Máquinas"
             className="mx-auto h-10 w-auto max-w-[190px] object-contain dark:brightness-0 dark:invert"
           />
-          <div className="mx-auto mt-6 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-ink-200 dark:bg-ink-800">
+          <div className="mx-auto mt-6 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-muted">
             {/* Barra indeterminada de verdade: a anterior era um pulso parado
                 em 50%, que em rede lenta parecia progresso travado. */}
             <div className="h-full w-1/3 animate-cv-indeterminate rounded-full bg-brand-600 dark:bg-brand-400" />
