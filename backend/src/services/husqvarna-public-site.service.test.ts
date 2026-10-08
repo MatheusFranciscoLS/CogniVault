@@ -6,6 +6,9 @@ import { HusqvarnaOfficialDetailService, buildIplSections } from './husqvarna-of
 // Dados inventados: o desenho de dados é o da API pública da Husqvarna; nomes, números e imagem não são de nenhum produto real.
 const IMAGE = 'https://p3.aprimocdn.net/husqvarna/00000000-0000-0000-0000-000000000000/DESENHO-TESTE.png';
 
+/** Host da URL, comparado por igualdade (nunca por trecho do texto). */
+const hostOf = (url: string): string => new URL(url).hostname;
+
 function pngHeader(width: number, height: number): Uint8Array {
   const bytes = new Uint8Array(32);
   bytes.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
@@ -90,10 +93,10 @@ describe('site público da Husqvarna como segunda fonte da vista explodida', () 
     mock.method(globalThis, 'fetch', async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       calls.push(url);
-      if (url.startsWith('https://portal.husqvarnagroup.com')) {
+      if (hostOf(url) === 'portal.husqvarnagroup.com') {
         return new Response(JSON.stringify({ data: { site: { articles: { byIds: [null] } } } }), { status: 200 });
       }
-      if (url.startsWith('https://www.husqvarna.com/hbd/graphql')) {
+      if (hostOf(url) === 'www.husqvarna.com' && new URL(url).pathname === '/hbd/graphql') {
         assert.match(String(init?.body), /hbd-br-pt-br/);
         return new Response(JSON.stringify({ data: publicPayload }), { status: 200 });
       }
@@ -105,14 +108,14 @@ describe('site público da Husqvarna como segunda fonte da vista explodida', () 
     assert.equal(details.productName, 'Soprador de teste X1');
     assert.equal(details.iplSections[0].referenceHeight, 3508);
     assert.equal(details.iplSections[0].parts.length, 2);
-    assert.ok(calls.some(url => url.includes('portal.husqvarnagroup.com')), 'o Portal é consultado primeiro');
+    assert.ok(calls.some(url => hostOf(url) === 'portal.husqvarnagroup.com'), 'o Portal é consultado primeiro');
   });
 
   it('Portal e site público sem o artigo: continua sem resultado e não repete a consulta por um tempo', async () => {
     let publicCalls = 0;
     mock.method(globalThis, 'fetch', async (input: unknown) => {
       const url = String(input);
-      if (url.startsWith('https://www.husqvarna.com/hbd/graphql')) publicCalls += 1;
+      if (hostOf(url) === 'www.husqvarna.com' && new URL(url).pathname === '/hbd/graphql') publicCalls += 1;
       return new Response(JSON.stringify({ data: { site: { articles: { byIds: [null] } } } }), { status: 200 });
     });
     assert.equal(await HusqvarnaOfficialDetailService.getProductDetails('900000010'), null);
