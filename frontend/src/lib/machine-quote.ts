@@ -13,9 +13,9 @@ import type autoTableFn from 'jspdf-autotable';
 import { categoryLabel, type ListedMachine } from './machine-list';
 import type { PdfImage } from './pdf-assets';
 import { FOOTER_SPACE, INK, MARGIN, MUTED, NAVY, cityAndDate, drawLetterFooter, drawLetterhead } from './quote-pdf';
-import { STORE_SIGNATURE, formatBRL, validUntil } from './quote-message';
+import { formatBRL, validUntil } from './quote-message';
 import { QUOTE_DEFAULTS } from './store-profile';
-import type { SheetEquipment } from './machine-sheet';
+import { bulletsHeading } from './machine-highlights';
 
 type DocWithTable = JsPdf & { lastAutoTable?: { finalY: number } };
 
@@ -37,8 +37,8 @@ export type MachineQuoteFields = {
   complement: string;
   /** Linha de destaque entre asteriscos; vazia some. */
   highlight: string;
-  /** Lista "Conjunto composto por" com o que acompanha, vinda do Portal. */
-  includeEquipment: boolean;
+  /** Linhas da lista "Características" que o atendente marcou (da descrição da lista de preços). */
+  bullets: string[];
 };
 
 const normalizeCategory = (category: string) => category.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
@@ -58,15 +58,6 @@ export function machineTypeNames(machine: Pick<ListedMachine, 'category'>): { re
 
 export function machineQuoteReference(machine: Pick<ListedMachine, 'category' | 'model'>): string {
   return `Orçamento ${machineTypeNames(machine).reference} Husqvarna ${machine.model}`;
-}
-
-/**
- * "Conjunto composto por" entra sozinho só na roçadeira (cabeçote, cinto, lâmina), como no modelo em Word. Nas outras
- * máquinas o Portal lista ATRIBUTOS em inglês ("Spikes: Mounted"), que não são itens que o cliente leva.
- */
-export function defaultIncludeEquipment(machine: Pick<ListedMachine, 'category'>, equipment: SheetEquipment): boolean {
-  const count = equipment?.included.length ?? 0;
-  return normalizeCategory(machine.category).startsWith('ROCADEIRA') && count > 0 && count <= 8;
 }
 
 /** "Recomendado para ..." conforme a aplicação da lista; o atendente edita ou apaga. */
@@ -128,6 +119,19 @@ function voltage(machine: Pick<ListedMachine, 'specs'>): string | null {
   return value && /\d\s*V\b/i.test(value) ? value : null;
 }
 
+/**
+ * O campo "Largura de trabalho" da lista muda de sentido por tipo de máquina: é largura de corte na roçadeira, no cortador de
+ * grama e no robô; comprimento do sabre na motosserra; comprimento da lâmina no podador; e nos outros (pulverizador, soprador,
+ * bomba) é um dado solto que NÃO é largura de corte e não deve sair no orçamento.
+ */
+function widthPhrase(machine: Pick<ListedMachine, 'category'>, width: string): string | null {
+  const kind = normalizeCategory(machine.category);
+  if (kind === 'MOTOSSERRA') return `comprimento do sabre de ${width}`;
+  if (/CERCA VIVA|PODADOR DE GALHOS/.test(kind)) return `comprimento da lâmina de ${width}`;
+  if (kind.startsWith('ROCADEIRA') || kind.startsWith('AUTOMOWER') || ['CORTADOR DE GRAMA', 'GIRO ZERO', 'TRATOR', 'RIDER'].includes(kind)) return `largura de corte de ${width}`;
+  return null;
+}
+
 const modelKey = (model: string) => model.replace(/[^a-z0-9]/gi, '').toUpperCase();
 
 /**
@@ -178,7 +182,7 @@ export function machineQuoteDescription(machine: ListedMachine, complement = '',
     power && `potência de ${power}`,
     weight && `peso de ${weight}`,
     tank && `tanque de combustível com capacidade de ${tank}`,
-    width && (normalizeCategory(machine.category) === 'MOTOSSERRA' ? `comprimento do sabre de ${width}` : `largura de corte de ${width}`),
+    width && widthPhrase(machine, width),
   ].filter((part): part is string => Boolean(part));
 
   // Com motor a frase segue "equipado com motor..."; sem motor (robô, bateria sem motor na ficha) vira lista com vírgulas.
@@ -260,7 +264,6 @@ export function buildMachineQuotePdf(input: {
   doc: JsPdf;
   autoTable: typeof autoTableFn;
   machine: ListedMachine;
-  equipment: SheetEquipment;
   fields: MachineQuoteFields;
   attendantName?: string;
   /** Versão do modelo quando há mais de uma na lista (`machineVariantNote`). */
@@ -270,7 +273,7 @@ export function buildMachineQuotePdf(input: {
   photo?: PdfImage | null;
   now?: Date;
 }): JsPdf {
-  const { doc, autoTable, machine, equipment, fields } = input;
+  const { doc, autoTable, machine, fields } = input;
   const now = input.now ?? new Date();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -302,31 +305,45 @@ export function buildMachineQuotePdf(input: {
   doc.text(lines, MARGIN, y, { lineHeightFactor: 1.35 });
   y += lines.length * 15 + 8;
 
-  const included = fields.includeEquipment ? (equipment?.included ?? []) : [];
-  if (included.length) {
+  // Com características E foto, a lista fica à esquerda e a foto à direita: assim o preço, as condições e o ATT. cabem na MESMA
+  // página mesmo com 6 a 10 linhas. Sem lista, a foto fica centralizada abaixo da descrição, como no modelo em Word.
+  const sideBySide = fields.bullets.length > 0 && Boolean(input.photo);
+  const photoBoxWidth = 230;
+  const listWidth = sideBySide ? textWidth - photoBoxWidth - 16 : textWidth;
+  const blockTop = y;
+  let listBottom = y;
+
+  if (fields.bullets.length) {
     doc.setFont('helvetica', 'normal');
-    doc.text(`Conjunto da ${machineTypeNames(machine).reference.toLowerCase()} é composto por:`, MARGIN, y);
+    doc.text(bulletsHeading(machine.category), MARGIN, y);
     y += 16;
-    for (const itemLine of included.slice(0, 14)) {
-      const text = itemLine.value ? `${itemLine.name}: ${itemLine.value}` : itemLine.name;
-      const wrapped = doc.splitTextToSize(`•  ${text}`, textWidth - 12) as string[];
+    for (const text of fields.bullets.slice(0, 10)) {
+      const wrapped = doc.splitTextToSize(`•  ${text}`, listWidth - 12) as string[];
       doc.text(wrapped, MARGIN + 12, y);
       y += wrapped.length * 14;
     }
     y += 6;
+    listBottom = y;
   }
 
   if (input.photo) {
-    // Até 190 pt de altura e 300 de largura, centralizada, sem esticar.
     const ratio = input.photo.width / input.photo.height;
-    const height = Math.min(190, 300 / ratio);
-    const width = height * ratio;
-    if (y + height + 200 > pageHeight - FOOTER_SPACE) {
-      doc.addPage();
-      y = 60;
+    if (sideBySide) {
+      const height = Math.min(210, photoBoxWidth / ratio);
+      const width = height * ratio;
+      doc.addImage(input.photo.dataUrl, 'JPEG', pageWidth - MARGIN - photoBoxWidth + (photoBoxWidth - width) / 2, blockTop - 4, width, height);
+      y = Math.max(listBottom, blockTop - 4 + height) + 14;
+    } else {
+      // Até 190 pt de altura e 300 de largura, centralizada, sem esticar.
+      const height = Math.min(190, 300 / ratio);
+      const width = height * ratio;
+      if (y + height + 200 > pageHeight - FOOTER_SPACE) {
+        doc.addPage();
+        y = 60;
+      }
+      doc.addImage(input.photo.dataUrl, 'JPEG', (pageWidth - width) / 2, y, width, height);
+      y += height + 14;
     }
-    doc.addImage(input.photo.dataUrl, 'JPEG', (pageWidth - width) / 2, y, width, height);
-    y += height + 14;
   }
 
   if (fields.highlight.trim()) {
@@ -377,10 +394,6 @@ export function buildMachineQuotePdf(input: {
     doc.text('ATT.', MARGIN, sign);
     doc.setFont('helvetica', 'bold');
     doc.text(input.attendantName, MARGIN, sign + 15);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(...MUTED);
-    doc.text(STORE_SIGNATURE, MARGIN, sign + 29);
   }
 
   drawLetterFooter(doc);
