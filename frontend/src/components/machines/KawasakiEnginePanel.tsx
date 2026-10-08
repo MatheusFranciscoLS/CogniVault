@@ -47,16 +47,23 @@ type KawasakiCatalog = {
  *   do PNC do chat, e o spec está na plaqueta ao lado da série.
  * - **Sem catálogo**: o link da busca oficial, para conferir à mão.
  */
+/** Conjunto das peças de manutenção ('*MAINTENANCE PARTS'): filtros, velas e o que o balcão vende na revisão do motor. */
+const isKawasakiMaintenanceAssembly = (name: string) => /maintenance/i.test(name);
+
 export default function KawasakiEnginePanel({
   model: requestedModel,
+  autoOpen,
   onSearchPart,
 }: {
   model: string;
+  /** `maintenance` abre direto o conjunto de peças de manutenção. */
+  autoOpen?: 'maintenance';
   /** Leva um código para a busca interna, onde há preço e estoque. */
   onSearchPart: (code: string) => void;
 }) {
   const quoteCart = useQuoteCart();
-  const [openSlug, setOpenSlug] = useState<string | null>(null);
+  // `undefined` = o balcão ainda não escolheu: vale o atalho (autoOpen). Depois da primeira escolha, vale ela (inclusive fechar).
+  const [chosenSlug, setChosenSlug] = useState<string | null | undefined>(undefined);
   // O spec que a ficha da lista cita pode não existir no catálogo da Kawasaki: aí o balcão pode abrir a SÉRIE e escolher o spec da plaqueta.
   const [serieEscolhida, setSerieEscolhida] = useState<string | null>(null);
   const model = serieEscolhida ?? requestedModel;
@@ -73,6 +80,10 @@ export default function KawasakiEnginePanel({
       return data.kawasaki ?? null;
     },
   });
+
+  const catalog = catalogQuery.data ?? null;
+  const maintenanceSlug = catalog?.assemblies.find(item => isKawasakiMaintenanceAssembly(item.name))?.slug ?? null;
+  const openSlug = chosenSlug === undefined ? (autoOpen === 'maintenance' ? maintenanceSlug : null) : chosenSlug;
 
   const detailQuery = useQuery({
     queryKey: ['kawasaki-assembly', openSlug],
@@ -93,7 +104,6 @@ export default function KawasakiEnginePanel({
     },
   });
 
-  const catalog = catalogQuery.data ?? null;
   const openAssembly = catalog?.assemblies.find(item => item.slug === openSlug) ?? null;
   const detail = detailQuery.data ?? null;
   const parts = detail?.parts ?? [];
@@ -163,13 +173,13 @@ export default function KawasakiEnginePanel({
           ) : null}
           <h4 className="text-base font-semibold text-muted-foreground">Conjuntos</h4>
           <div className="mt-2 flex flex-wrap gap-2">
-            {catalog.assemblies.map(assembly => (
+            {[...catalog.assemblies].sort((a, b) => Number(isKawasakiMaintenanceAssembly(b.name)) - Number(isKawasakiMaintenanceAssembly(a.name))).map(assembly => (
               <Button
                 key={assembly.slug}
                 variant="outline"
                 aria-pressed={openSlug === assembly.slug}
                 className={openSlug === assembly.slug ? 'border-ring bg-selected' : undefined}
-                onClick={() => { setFiltro(''); setOpenSlug(current => (current === assembly.slug ? null : assembly.slug)); }}
+                onClick={() => { setFiltro(''); setChosenSlug(openSlug === assembly.slug ? null : assembly.slug); }}
               >
                 {assembly.name}
               </Button>

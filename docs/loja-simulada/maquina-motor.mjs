@@ -41,6 +41,34 @@ await step('Kohler · LTH1842: SV540-3212 abre o catálogo com a vista explodida
   await shot(page, `${theme}-1366-maquina-motor-kohler`);
 });
 
+let codigoKohler = '';
+
+await step('Atalho de manutenção · Kohler e Kawasaki abrem direto as peças que giram rápido', async () => {
+  let { painel, cartao } = await abrirMaquina('LTH1842');
+  await cartao.getByRole('button', { name: 'Peças de manutenção' }).first().click();
+  let motor = painel.getByRole('region', { name: /Motor Kohler SV540-3212/ });
+  await motor.getByRole('heading', { name: /Maintenance-Fast Moving Parts/ }).waitFor({ timeout: 40000 });
+  await motor.locator('article').first().waitFor({ timeout: 40000 });
+  check('Kohler: o grupo de manutenção abre sozinho, com peças', (await motor.locator('article').count()) > 0);
+  const rotulo = await motor.locator('article').first().getByRole('button', { name: /Copiar código/ }).first().getAttribute('aria-label');
+  codigoKohler = String(rotulo ?? '').replace(/^Copiar código\s*/i, '').trim();
+  console.log('   código lido do grupo de manutenção:', codigoKohler);
+  ({ painel, cartao } = await abrirMaquina('R316TX'));
+  await cartao.getByRole('button', { name: 'Peças de manutenção' }).first().click();
+  motor = painel.getByRole('region', { name: /Motor Kawasaki/ });
+  await motor.getByRole('heading', { name: /MAINTENANCE/i }).waitFor({ timeout: 40000 });
+  check('Kawasaki: o conjunto de manutenção abre sozinho', true);
+});
+
+await step('Busca reversa · o código de uma peça Kohler já lida mostra de qual motor ela é', async () => {
+  if (await page.getByRole('dialog').count()) await fechar();
+  await page.getByPlaceholder(SEARCH).fill(codigoKohler);
+  await page.getByRole('button', { name: 'Buscar' }).click();
+  await page.getByText(/Kohler/).first().waitFor({ timeout: 30000 });
+  const texto = await page.locator('main').innerText();
+  check('a origem aponta o motor Kohler SV540-3212', /SV540-3212/.test(texto), texto.slice(0, 120).replace(/\s+/g, ' '));
+});
+
 await step('Kawasaki · R316TX: série da lista + modelo da loja viram UM motor (FS481V-CS55) e as duas vistas aparecem juntas', async () => {
   const { painel, cartao, texto } = await abrirMaquina('R316TX');
   check('mostra o modelo completo FS481V-CS55 (o mais específico vence a série da ficha)', /FS481V-CS55/.test(texto), texto.slice(0, 200));

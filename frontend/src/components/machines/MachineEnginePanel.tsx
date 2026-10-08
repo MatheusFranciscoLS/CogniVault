@@ -53,6 +53,8 @@ export default function MachineEnginePanel({
   onSearchPart: (code: string) => void;
 }) {
   const [openKey, setOpenKey] = useState<string | null>(null);
+  // `maintenance` abre o motor já no grupo de peças de manutenção (filtros, velas): é o que o balcão mais vende na revisão.
+  const [mode, setMode] = useState<'maintenance' | undefined>(undefined);
 
   const query = useQuery({
     queryKey: ['machine-engines', model, pnc ?? ''],
@@ -100,15 +102,20 @@ export default function MachineEnginePanel({
                   </div>
                 </div>
                 {openable && (
-                  <Button type="button" variant="outline" aria-expanded={open} onClick={() => setOpenKey(open ? null : key)}>
-                    {open ? 'Esconder o motor' : 'Ver peças e vista explodida'}
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    {(engine.brand === 'Kohler' || engine.brand === 'Kawasaki') && engine.precision === 'MODELO' && !open && (
+                      <Button type="button" variant="outline" onClick={() => { setMode('maintenance'); setOpenKey(key); }}>Peças de manutenção</Button>
+                    )}
+                    <Button type="button" variant="outline" aria-expanded={open} onClick={() => { setMode(undefined); setOpenKey(open ? null : key); }}>
+                      {open ? 'Esconder o motor' : 'Ver peças e vista explodida'}
+                    </Button>
+                  </div>
                 )}
               </div>
               {open && openable && (
                 <div className="mt-3">
-                  {engine.brand === 'Kohler' && <KohlerEnginePanel model={engine.searchTerm} onSearchPart={onSearchPart} />}
-                  {engine.brand === 'Kawasaki' && <KawasakiEnginePanel model={engine.searchTerm} onSearchPart={onSearchPart} />}
+                  {engine.brand === 'Kohler' && <KohlerEnginePanel model={engine.searchTerm} autoOpen={mode} onSearchPart={onSearchPart} />}
+                  {engine.brand === 'Kawasaki' && <KawasakiEnginePanel model={engine.searchTerm} autoOpen={mode} onSearchPart={onSearchPart} />}
                   {engine.brand === 'Briggs & Stratton' && <BriggsEnginePanel model={engine.searchTerm} onSearchPart={onSearchPart} />}
                   {(engine.brand === 'Husqvarna' || engine.brand === null) && (
                     <Button type="button" onClick={() => onSearchPart(engine.searchTerm)}>Buscar peças do motor {engine.model}</Button>

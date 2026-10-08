@@ -670,7 +670,7 @@ model AiBenchmarkRun {
 /// procedencia e outra e mais forte — veio da fonte oficial, nao de extracao.
 model OfficialPartIndex {
   id               String   @id @default(uuid())
-  /// 'BRIGGS' | 'KAWASAKI'
+  /// 'BRIGGS' | 'KAWASAKI' | 'KOHLER'
   source           String
   /// Motor de onde a peca foi lida: '104M02-0002-F1', 'FX921V-ES06'.
   engineModel      String

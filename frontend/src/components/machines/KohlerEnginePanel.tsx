@@ -50,16 +50,23 @@ type KohlerCatalog = {
  * O que a Kohler dá a mais: a substituição de código. A linha diz o que o código substitui e, quando foi trocado, por qual. Código
  * descontinuado ("DISC.") não vira sugestão de pedido.
  */
+/** Grupo das peças que giram rápido (filtros, velas, correias): o que o balcão vende na manutenção do motor. */
+const isKohlerMaintenanceGroup = (name: string) => /maintenance|fast moving/i.test(name);
+
 export default function KohlerEnginePanel({
   model,
+  autoOpen,
   onSearchPart,
 }: {
   model: string;
+  /** `maintenance` abre direto o grupo de peças de manutenção. */
+  autoOpen?: 'maintenance';
   /** Leva um código para a busca interna, onde há preço e estoque. */
   onSearchPart: (code: string) => void;
 }) {
   const quoteCart = useQuoteCart();
-  const [openSection, setOpenSection] = useState<string | null>(null);
+  // `undefined` = o balcão ainda não escolheu: vale o atalho (autoOpen). Depois da primeira escolha, vale ela (inclusive fechar).
+  const [chosenSection, setChosenSection] = useState<string | null | undefined>(undefined);
 
   const catalogQuery = useQuery({
     queryKey: ['kohler-engine', model],
@@ -73,6 +80,10 @@ export default function KohlerEnginePanel({
 
   const catalog = catalogQuery.data ?? null;
   const spec = catalog?.spec || model;
+  // Peças de manutenção primeiro: é o que o balcão procura (filtro, vela), e o grupo fica no fim da lista da Kohler.
+  const groups = [...(catalog?.groups ?? [])].sort((a, b) => Number(isKohlerMaintenanceGroup(b.name)) - Number(isKohlerMaintenanceGroup(a.name)));
+  const maintenanceId = groups.find(group => isKohlerMaintenanceGroup(group.name))?.sectionId ?? null;
+  const openSection = chosenSection === undefined ? (autoOpen === 'maintenance' ? maintenanceId : null) : chosenSection;
   const openGroup = catalog?.groups.find(item => item.sectionId === openSection) ?? null;
 
   const groupQuery = useQuery({
@@ -141,13 +152,13 @@ export default function KohlerEnginePanel({
           ) : null}
           <h4 className="text-base font-semibold text-muted-foreground">Grupos</h4>
           <div className="mt-2 flex flex-wrap gap-2">
-            {catalog.groups.map(group => (
+            {groups.map(group => (
               <Button
                 key={group.sectionId}
                 variant="outline"
                 aria-pressed={openSection === group.sectionId}
                 className={openSection === group.sectionId ? 'border-ring bg-selected' : undefined}
-                onClick={() => { setFiltro(''); setFocusedPosition(null); setOpenSection(current => (current === group.sectionId ? null : group.sectionId)); }}
+                onClick={() => { setFiltro(''); setFocusedPosition(null); setChosenSection(openSection === group.sectionId ? null : group.sectionId); }}
               >
                 {group.name}
               </Button>

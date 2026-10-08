@@ -30,7 +30,7 @@ export type IndexablePart = {
   quantity?: number | null;
 };
 
-export type OfficialPartSource = 'BRIGGS' | 'KAWASAKI';
+export type OfficialPartSource = 'BRIGGS' | 'KAWASAKI' | 'KOHLER';
 
 export type OfficialPartHit = {
   source: OfficialPartSource;
