@@ -35,6 +35,11 @@ export function kohlerEngineUrl(spec: string, sectionId?: string | null, groupCo
   return `${base}&SectionId=${encodeURIComponent(sectionId)}&GroupCode=${encodeURIComponent(groupCode)}`;
 }
 
+/** Exportação CSV do motor inteiro (uma chamada). Ver `utils/kohler-csv.ts`. */
+export function kohlerCsvUrl(spec: string): string {
+  return `${CATALOG_BASE}/sparepartcatalogexport/exportcsv?EngineMatNumber=${encodeURIComponent(spec)}`;
+}
+
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
 
 export function decodeHtml(value: string): string {

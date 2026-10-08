@@ -40,7 +40,7 @@ export default function EnginePartsWithoutPrice() {
         {total > 0 && <span className="text-sm text-muted-foreground">{total > items.length ? `${items.length} de ${total} peças` : `${total} ${total === 1 ? 'peça' : 'peças'}`}</span>}
       </div>
       {items.length ? (
-        <div className="max-h-104 overflow-y-auto">
+        <div className="max-h-104 overflow-y-auto focus-visible:outline-2 focus-visible:outline-ring" tabIndex={0} role="region" aria-label="Peças de motor consultadas sem preço (rolagem)">
           <Table containerClassName="rounded-none border-0 bg-transparent">
             <TableHeader>
               <TableRow className="hover:bg-transparent">

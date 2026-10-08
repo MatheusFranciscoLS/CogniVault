@@ -972,6 +972,10 @@ ligar o motor ao trator, ao giro zero e à máquina, **mostrando a vista explodi
   procurado normalmente?". O Atendimento abre o catálogo oficial do motor (vista explodida, código, preço, "+ Orçamento"); os botões antigos levavam a sites externos ou à rota de PDF. A busca por um motor na
   tela de Catálogos mostra o atalho "Motor com catálogo no Atendimento". **Nada foi apagado**: o PDF e as peças lidas continuam na Biblioteca (Gerenciar) e na busca; quem quiser tirar de vez arquiva ou exclui por lá.
   Roteiro `catalogos-motores.mjs` (cria 3 documentos de teste só na simulação e apaga).
+- **CSV do motor Kohler (`sparepartcatalogexport/exportcsv?EngineMatNumber=<spec>`, `utils/kohler-csv.ts`)**: UMA chamada devolve o motor inteiro (SV540-3212: 18 grupos, 193 peças, ~10 KB), sem login e sem preço.
+  Não traz desenho nem substituição de código (o HTML do grupo traz). Usos: (1) ao ler o catálogo do motor, `indexWholeEngine` grava TODAS as peças em `OfficialPartIndex` de uma vez (antes só os grupos que o balcão
+  abrisse), o que alimenta "digitei o código, de qual motor é?" e o relatório de peças sem preço; (2) lista de RESERVA quando a página do grupo está bloqueada (`partial: true`; só vale com o CSV já guardado, porque a trava
+  vale para tudo). O CSV só é indexado sob o spec que o próprio texto confirma.
 - **Vigia dos fornecedores** (`.github/workflows/supplier-canary.yml`, `scripts/canary-suppliers.ts`): toda segunda e sob demanda, abre UM motor conhecido da Kohler, Briggs, Kawasaki e o site
   público da Husqvarna (345BT) e confere que a leitura ainda devolve o de sempre. **Sem banco e sem segredo** (só funções puras e rede). Saída 1 = formato MUDOU (abre/comenta issue com o label
   `vigia-fornecedores`); 2 = só fora do ar (aviso, sem issue); 3 tentativas antes de desistir. Existe porque a leitura da Kohler é regex em HTML e quebraria em silêncio. Provado por mordida em

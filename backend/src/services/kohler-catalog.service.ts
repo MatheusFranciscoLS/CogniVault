@@ -1,5 +1,6 @@
 import {
   KOHLER_ORIGIN,
+  kohlerCsvUrl,
   kohlerEngineUrl,
   kohlerLookupUrl,
   normalizeKohlerSpec,
@@ -12,6 +13,7 @@ import {
   type KohlerHotspot,
   type KohlerPart,
 } from '../utils/kohler-catalog';
+import { parseKohlerCsv, type KohlerCsvCatalog } from '../utils/kohler-csv';
 import { OfficialSourceCacheService, buildOfficialSourceCacheKey } from './official-source-cache.service';
 import { OfficialPartIndexService } from './official-part-index.service';
 
@@ -73,6 +75,8 @@ export type KohlerGroupDetail = {
   referenceWidth: number | null;
   referenceHeight: number | null;
   unavailable?: 'CAPTCHA' | 'ERRO';
+  /** As peças vieram do CSV do motor (sem desenho e sem substituição de código) porque a página do grupo não pôde ser lida agora. */
+  partial?: boolean;
 };
 
 const EMPTY_ENGINE = (spec: string): KohlerEngineCatalog => ({
@@ -161,6 +165,8 @@ export class KohlerCatalogService {
         // A Kohler redireciona spec desconhecido para a busca, sem cabeçalho de motor: não é erro, é "sem catálogo".
         if (!header) return null;
         const groups = parseKohlerGroups(html);
+        // O motor INTEIRO entra no índice "peça -> motor" com uma chamada só (o CSV), não só os grupos que o balcão abrir. Sem await: é efeito colateral.
+        void KohlerCatalogService.indexWholeEngine(spec);
         return { spec, description: header.description, groups, catalogUrl: kohlerEngineUrl(spec), lookupUrl: kohlerLookupUrl() };
       });
       return catalog ?? EMPTY_ENGINE(spec);
@@ -217,9 +223,71 @@ export class KohlerCatalogService {
         return { title: drawing.title, parts, imageUrl: drawing.imageUrl, hotspots, referenceWidth, referenceHeight };
       });
     } catch (error) {
-      if (error instanceof KohlerBlockedError) return unavailableGroup('CAPTCHA');
-      console.warn('[Kohler] Não foi possível ler o grupo %j de %j:', sectionId, spec, error instanceof Error ? error.message : error);
-      return unavailableGroup('ERRO');
+      const reason = error instanceof KohlerBlockedError ? 'CAPTCHA' : 'ERRO';
+      if (!(error instanceof KohlerBlockedError)) console.warn('[Kohler] Não foi possível ler o grupo %j de %j:', sectionId, spec, error instanceof Error ? error.message : error);
+      // Sem a página do grupo (desenho e substituição), a lista de peças do CSV do motor ainda serve ao balcão, e é melhor que nada.
+      const fallback = await KohlerCatalogService.groupFromCsv(spec, sectionId).catch(() => null);
+      return fallback ? { ...fallback, unavailable: reason } : unavailableGroup(reason);
     }
+  }
+
+  /** O catálogo do motor inteiro em CSV (UMA chamada). Guardado 7 dias; bloqueio e erro não são guardados. */
+  static async engineCsv(rawSpec: string | null | undefined): Promise<KohlerCsvCatalog | null> {
+    const spec = normalizeKohlerSpec(rawSpec);
+    if (!spec) return null;
+    return cached<KohlerCsvCatalog>('CSV', spec, async () => {
+      const text = await getText(kohlerCsvUrl(spec), 'text/csv,*/*');
+      const catalog = parseKohlerCsv(text);
+      // O CSV tem que ser do motor pedido: nunca se indexa sob um spec que o texto não confirma.
+      return catalog && catalog.spec === spec ? catalog : null;
+    });
+  }
+
+  /** Grava TODAS as peças do motor no índice "peça -> motor". Nunca lança. */
+  static async indexWholeEngine(spec: string): Promise<void> {
+    try {
+      const csv = await KohlerCatalogService.engineCsv(spec);
+      if (!csv) return;
+      const parts = csv.groups.flatMap(group => group.parts.map(part => ({
+        partNumber: part.partNumber,
+        name: part.name,
+        position: part.position,
+        assembly: group.name,
+        quantity: part.quantity,
+      })));
+      if (parts.length) await OfficialPartIndexService.record('KOHLER', csv.spec, parts);
+    } catch (error) {
+      // Trava anti-robô ou erro: o índice completo fica para a próxima leitura. Não atrapalha o balcão.
+      if (!(error instanceof KohlerBlockedError || error instanceof KohlerUnavailableError)) {
+        console.warn('[Kohler] Não foi possível indexar o motor %j:', spec, error instanceof Error ? error.message : error);
+      }
+    }
+  }
+
+  /** Um grupo só com as peças do CSV (sem desenho, sem substituição de código): a lista de reserva. */
+  static async groupFromCsv(spec: string, sectionId: string): Promise<KohlerGroupDetail | null> {
+    const csv = await KohlerCatalogService.engineCsv(spec);
+    const group = csv?.groups.find(item => item.code === sectionId.slice(-2));
+    if (!group || !group.parts.length) return null;
+    return {
+      title: `${group.name} - Group: ${group.code}`,
+      parts: group.parts.map(part => ({
+        position: part.position,
+        partNumber: part.partNumber,
+        name: part.name,
+        quantity: part.quantity,
+        note: part.note,
+        kit: part.kit,
+        includedIn: part.includedIn,
+        replaces: [],
+        replacedBy: [],
+        discontinued: part.discontinued,
+      })),
+      imageUrl: null,
+      hotspots: [],
+      referenceWidth: null,
+      referenceHeight: null,
+      partial: true,
+    };
   }
 }

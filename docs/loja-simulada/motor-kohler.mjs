@@ -95,4 +95,21 @@ await step('Trava anti-robô · um GRUPO que não foi lido mostra o aviso, não 
   check('a segunda tentativa traz as peças do grupo', (await painel.locator('article').count()) > 3);
 });
 
+await step('Trava anti-robô no desenho · a lista de peças do CSV aparece como reserva, avisando que falta o desenho', async () => {
+  if (await page.getByRole('dialog').count()) { await page.locator('[role="dialog"] button[aria-label="Fechar"]').first().click(); await page.waitForTimeout(500); }
+  const peca = { position: '1', partNumber: '00 000 01-S', name: 'EIXO DE TESTE', quantity: 1, note: null, kit: null, includedIn: null, replaces: [], replacedBy: [], discontinued: false };
+  await page.route('**/api/kohler/group*', route => route.fulfill({ json: { group: { title: 'Lubrication - Group: 03', parts: [peca], imageUrl: null, hotspots: [], referenceWidth: null, referenceHeight: null, unavailable: 'CAPTCHA', partial: true } } }));
+  await page.getByPlaceholder(SEARCH).fill('SV540-3212');
+  await page.getByRole('button', { name: 'Buscar' }).click();
+  const painel = page.getByRole('region', { name: /Motor Kohler SV540-3212/ });
+  await painel.getByRole('button', { name: 'Lubrication' }).click();
+  await painel.getByRole('alert').waitFor({ timeout: 20000 });
+  const texto = await painel.innerText();
+  check('avisa que falta o desenho e que a lista está abaixo', /sem o desenho/.test(texto) && /lista de peças/.test(texto));
+  check('a peça do CSV aparece na lista', (await painel.locator('article').count()) === 1 && /00 000 01-S/.test(texto));
+  check('não diz "Sem peças neste grupo"', !/Sem peças neste grupo/.test(texto));
+  check('continua oferecendo tentar de novo e o catálogo oficial', (await painel.getByRole('button', { name: 'Tentar de novo' }).count()) === 1 && (await painel.getByRole('link', { name: /Abrir o catálogo oficial/ }).count()) === 1);
+  await page.unroute('**/api/kohler/group*');
+});
+
 await finish(browser, errors);
