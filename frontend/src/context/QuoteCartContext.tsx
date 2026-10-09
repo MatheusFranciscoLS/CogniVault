@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
+import type { jsPDF as JsPdf } from 'jspdf';
 import { apiJson } from '../lib';
 import { playCartSound } from '../lib/sound';
 import { buildWhatsAppMessage } from '../lib/quote-message';
@@ -37,6 +38,13 @@ export interface QuoteTextOptions {
   /** Observações do orçamento. Vazio = as observações padrão da loja. */
   notes?: string;
   discountPercentage?: number;
+}
+
+/** O que a prévia do PDF pode ajustar além do que a gaveta já guarda: a data do orçamento (a validade conta dela), o assunto ("Ref.") e a validade. */
+export interface QuotePdfExtras {
+  quoteDate?: Date;
+  reference?: string;
+  validityDays?: number;
 }
 
 export interface SavedQuote {
@@ -78,6 +86,8 @@ interface QuoteCartContextType {
   generateWhatsAppText: (optionsOrModel?: string | QuoteTextOptions) => string;
   openWhatsApp: (optionsOrModel?: string | QuoteTextOptions) => void;
   generatePdfQuote: (optionsOrModel?: string | QuoteTextOptions) => Promise<void>;
+  /** Monta o PDF do cliente SEM baixar nem arquivar (a prévia remonta a cada ajuste). */
+  createPdfQuote: (options?: QuoteTextOptions & QuotePdfExtras) => Promise<JsPdf | null>;
   savedQuotes: SavedQuote[];
   saveCurrentQuote: (options?: QuoteTextOptions) => Promise<SavedQuote | null>;
   restoreQuote: (savedQuote: SavedQuote) => void;
@@ -689,24 +699,31 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     window.open(url, '_blank', 'noopener,noreferrer');
   }, [draftOptions, generateWhatsAppText, saveCurrentQuote]);
 
+  const createPdfQuote = useCallback(async (options?: QuoteTextOptions & QuotePdfExtras): Promise<JsPdf | null> => {
+    if (!items.length) return null;
+    const [jspdfModule, autoTableModule] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
+    const { quoteDate, reference, validityDays, ...rest } = options ?? {};
+    const opts: QuoteTextOptions = { ...draftOptions, ...rest };
+    // O layout do PDF mora em lib/quote-pdf.ts (testado). Aqui só se junta o que a gaveta já tem.
+    const [{ buildQuotePdf }, { loadStoreLogo }, { resolveAttendantName }] = await Promise.all([
+      import('../lib/quote-pdf'),
+      import('../lib/pdf-assets'),
+      import('../lib/store-profile'),
+    ]);
+    // "ATT.": o nome cadastrado pelo administrador. Sem nome (e sem e-mail no formato nome.sobrenome), a linha some.
+    return buildQuotePdf({
+      doc: new jspdfModule.jsPDF('p', 'pt', 'a4'),
+      autoTable: autoTableModule.default,
+      items,
+      options: { ...opts, attendantName: (await resolveAttendantName()) || undefined, ...(reference?.trim() ? { reference: reference.trim() } : {}), ...(validityDays ? { validityDays } : {}) },
+      logo: await loadStoreLogo(),
+      now: quoteDate,
+    });
+  }, [draftOptions, items]);
+
   const generatePdfQuote = useCallback(async (optionsOrModel?: string | QuoteTextOptions) => {
     if (!items.length) {
       toast.error('A cesta está vazia!');
-      return;
-    }
-
-    let jsPDF: typeof import('jspdf').jsPDF;
-    let autoTable: typeof import('jspdf-autotable').default;
-    try {
-      const [jspdfModule, autoTableModule] = await Promise.all([
-        import('jspdf'),
-        import('jspdf-autotable'),
-      ]);
-      jsPDF = jspdfModule.jsPDF;
-      autoTable = autoTableModule.default;
-    } catch (error) {
-      console.error('Falha ao carregar gerador de PDF:', error);
-      toast.error('Não foi possível carregar o gerador de PDF. Tente novamente.');
       return;
     }
 
@@ -716,23 +733,18 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
 
     void saveCurrentQuote(opts);
 
-    // O layout do PDF mora em lib/quote-pdf.ts (testado). Aqui só se junta o que a gaveta já tem.
-    const [{ buildQuotePdf }, { loadStoreLogo }, { resolveAttendantName }] = await Promise.all([
-      import('../lib/quote-pdf'),
-      import('../lib/pdf-assets'),
-      import('../lib/store-profile'),
-    ]);
-    // "ATT.": o nome cadastrado pelo administrador. Sem nome (e sem e-mail no formato nome.sobrenome), a linha some.
-    const doc = buildQuotePdf({
-      doc: new jsPDF('p', 'pt', 'a4'),
-      autoTable,
-      items,
-      options: { ...opts, attendantName: (await resolveAttendantName()) || undefined },
-      logo: await loadStoreLogo(),
-    });
+    let doc: JsPdf | null;
+    try {
+      doc = await createPdfQuote(opts);
+    } catch (error) {
+      console.error('Falha ao gerar o PDF:', error);
+      toast.error('Não foi possível gerar o PDF. Tente novamente.');
+      return;
+    }
+    if (!doc) return;
     doc.save(`Orcamento_Vardao_${Date.now()}.pdf`);
     toast.success('PDF gerado com sucesso!');
-  }, [draftOptions, items, saveCurrentQuote]);
+  }, [createPdfQuote, draftOptions, items.length, saveCurrentQuote]);
 
   const value = useMemo<QuoteCartContextType>(() => ({
     items,
@@ -749,6 +761,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     generateWhatsAppText,
     openWhatsApp,
     generatePdfQuote,
+    createPdfQuote,
     savedQuotes,
     saveCurrentQuote,
     restoreQuote,
@@ -760,7 +773,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     setDraftOptions,
   }), [
     addItem, addItems, clearCart, clearSavedQuotes, deleteSavedQuote,
-    draftOptions, generatePdfQuote, generateWhatsAppText, isOpen, items, openWhatsApp,
+    createPdfQuote, draftOptions, generatePdfQuote, generateWhatsAppText, isOpen, items, openWhatsApp,
     refreshSavedQuotes, removeItem, restoreQuote, saveCurrentQuote, savedQuotes, setDraftOptions,
     syncState, totalItems, totalPrice, updateQuantity, updateUnitPrice,
   ]);

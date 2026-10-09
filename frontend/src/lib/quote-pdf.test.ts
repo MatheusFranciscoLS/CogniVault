@@ -120,11 +120,30 @@ describe('buildQuotePdf: padrões e opções', () => {
     expect(t).not.toContain('Impostos inclusos');
   });
 
-  it('Encomenda e Imediato aparecem na coluna de prazo; vazio ou só espaço é orçamento expresso, sem a coluna', () => {
+  it('Encomenda e Pronta entrega aparecem na coluna de prazo; vazio ou só espaço é orçamento expresso, sem a coluna', () => {
     expect(gerar([carburador], { leadTime: '7 a 10 dias' }).texto).toContain('7 a 10 dias');
     expect(gerar([carburador], { leadTime: '7 a 10 dias' }).texto).toContain('PRAZO');
+    expect(gerar([carburador], { leadTime: 'Pronta entrega' }).texto).toContain('Pronta entrega');
     expect(gerar([carburador], { leadTime: 'Imediato' }).texto).toContain('Imediato');
     expect(gerar([carburador], { leadTime: '   ' }).texto).not.toContain('PRAZO');
+  });
+
+  it('a observação acompanha o prazo: pronta entrega e encomenda nunca se contradizem (dono, 2026-10-09)', () => {
+    const pronta = gerar([carburador], { leadTime: 'Pronta entrega' }).texto;
+    expect(pronta).toContain('Peça em pronta entrega');
+    expect(pronta).not.toMatch(/encomenda/i);
+    expect(pronta).toContain('Impostos inclusos');
+    const encomenda = gerar([carburador], { leadTime: '7 a 10 dias' }).texto;
+    expect(encomenda).toContain('Peça sob encomenda');
+    expect(encomenda).not.toMatch(/pronta entrega/i);
+    // Sem prazo (orçamento expresso), nenhuma linha de entrega.
+    const expresso = gerar([carburador], { leadTime: '' }).texto;
+    expect(expresso).not.toMatch(/pronta entrega|encomenda/i);
+  });
+
+  it('se o que foi digitado já fala da entrega, a linha automática não se repete', () => {
+    const { texto } = gerar([carburador], { leadTime: '7 a 10 dias', notes: 'Peça sob encomenda\nFrete por conta do cliente' });
+    expect(texto.match(/sob encomenda/g)).toHaveLength(1);
   });
 
   it('as observações digitadas (uma por linha) substituem as padrão da loja', () => {
