@@ -291,3 +291,12 @@ Dono mandou o link da Kohler e pediu: ligar o motor ao trator/giro zero/máquina
 - ✅ **3. Atualizar a lista de preços por uma tela do administrador** (Negócio): escolher o `.html`, ver o relatório (o arquivo é lido no navegador), aprovar com confirmação. Mesmo código do importador de linha de comando, com as mesmas travas. Gravar em produção continua sendo ato do dono. Roteiro `lista-precos-atualizar.mjs`.
 - ✅ **4. Análise de uso em produção (só leitura, números agregados, sem nome nem telefone de cliente)**: o uso real é pequeno e não há registro de busca SEM resultado (`SearchHistory` só guarda busca com sucesso). Ver o relatório na conversa.
 - ⏸ **Clipp**: adiado a pedido do dono.
+
+### A13 — Auditoria "zero erros" rodada 1 (2026-10-09), pedida pelo dono ("mais engenharia reversa para achar melhorias")
+
+- ✅ Código: `tsc --noUnusedLocals` e o eslint de auditoria do backend sem achado; `npm audit` (produção) 0 vulnerabilidades nos dois lados; só 2 rotas sem consumidor (as ferramentas do administrador, de propósito); toda rota exige login, menos `/login` e `/logout`.
+- ✅ Produção (só leitura): em 7 dias de log, nenhum erro de aplicação; uma rajada às 21:26 e 21:30 de 08/10 com RabbitMQ e Postgres caindo no mesmo instante (rede da Render, não código); o balcão não percebeu.
+- 🔴→✅ **Achado real:** a Render não publicou o #280 (produção ficou no #279 por ~7 h). Corrigido com um deploy manual; `Production Smoke` agora abre uma issue quando falha.
+- 🔴→✅ **Achado real de uso:** o botão Buscar ficava desabilitado durante "Buscando…" e o navegador ignorava o Enter (digitar outro código logo depois de uma busca sem resultado não fazia nada). Corrigido e travado em `teclado-completo.mjs`.
+- ✅ Limpeza: `HomeController` e o cache dele, e 3 métodos de controlador sem rota (-~330 linhas).
+- ⏳ Falta saber o que o balcão procura e não acha (`SearchHistory` só guarda busca com sucesso): depende do dono aceitar o registro de "busca sem resultado".

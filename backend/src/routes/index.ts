@@ -58,7 +58,6 @@ import {
 import {
   invalidateAdminOverviewAfterMutation,
   invalidateDocumentAccessAfterMutation,
-  invalidateHomeAfterSearch,
   invalidateNotificationsAfterMutation,
   invalidateQualityAfterMutation,
   invalidateWorkContextAfterQuoteUsage,
@@ -108,7 +107,6 @@ router.get(
   '/search',
   authMiddleware,
   validateSearchQuery,
-  invalidateHomeAfterSearch,
   (req, res, next) => fastSearchController.search(req, res, next),
   searchSingleFlightMiddleware,
   (req, res) => operationalController.search(req, res),
@@ -117,7 +115,6 @@ router.get(
   '/search/stream',
   authMiddleware,
   validateSearchQuery,
-  invalidateHomeAfterSearch,
   (req, res, next) => fastSearchController.stream(req, res, next),
   (req, res) => operationalController.searchStream(req, res),
 );

@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: cognivault-production-smoke
@@ -63,3 +64,20 @@ jobs:
           done
           curl --silent --show-error --fail --max-time 15 "https://cognivault-murex.vercel.app/health/live" >/dev/null
           echo "OK same-origin /health/live proxy"
+
+      # Falhou? O dono não olha a aba Actions: sem aviso, uma publicação perdida (a Render não publicou o commit, ou o site saiu do ar)
+      # ficava despercebida. Abre UMA issue e, nas falhas seguintes, só comenta nela.
+      - name: Open or update the issue when production is out of sync
+        if: ${{ failure() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha || github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          gh label create producao-fora-de-sincronia --color B60205 --description "A produção não está servindo o commit esperado ou saiu do ar" 2>/dev/null || true
+          body=$(printf 'A checagem de produção falhou para o commit %s. Confira se a Render publicou essa versão (painel da Render, serviço cognivault-api, aba Deploys) e, se não, peça um novo deploy.\n\nRodada: %s/%s/actions/runs/%s\n' "$EXPECTED_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")
+          existing=$(gh issue list --label producao-fora-de-sincronia --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "Produção fora de sincronia com a main" --label producao-fora-de-sincronia --body "$body"
+          fi

@@ -9,7 +9,6 @@ import { buildSearchGroups, scorePartText } from '../services/part-vocabulary';
 import { allRelatedPartNumbers, preferCurrentPartNumbers } from '../services/part-supersession';
 import { filterCandidatesByMarket } from '../services/catalog-market';
 import { PartSearchService, invalidatePartSearchCaches } from '../services/part-search.service';
-import { invalidateHomeResponseCache } from './home.controller';
 import { invalidatePartDetailResponseCache } from './part-detail.controller';
 import {
     resolveEngineCatalogRoute,
@@ -43,7 +42,6 @@ export function invalidateHomeCountsCache(tenantId?: string): void {
         searchResponseCache.clear();
     }
 
-    invalidateHomeResponseCache(tenantId);
     invalidatePartDetailResponseCache(tenantId);
     invalidatePartSearchCaches(tenantId);
 }
@@ -1006,95 +1004,6 @@ export class OperationalController {
         }
     }
 
-    async crossReference(req: AuthenticatedRequest, res: Response): Promise<void> {
-        if (!req.user) return;
-        const { tenantId } = req.user;
-        const rawCode = String(req.params.code || '').trim();
-        const code = normalizeIdentifier(rawCode);
-        if (!code || code.length < 3) {
-            res.status(400).json({ error: 'Código de peça inválido.' });
-            return;
-        }
-
-        try {
-            const relatedCodes = allRelatedPartNumbers(code).map(normalizeIdentifier).filter(Boolean);
-            const searchCodes = relatedCodes.length ? relatedCodes : [code];
-
-            const usages = await prisma.part.findMany({
-                where: {
-                    normalizedPartNumber: { in: searchCodes },
-                    active: true,
-                    document: { tenantId, archivedAt: null, status: 'COMPLETED' },
-                },
-                select: {
-                    id: true,
-                    partNumber: true,
-                    name: true,
-                    model: true,
-                    pnc: true,
-                    universalAcrossPnc: true,
-                    section: true,
-                    position: true,
-                    page: true,
-                    notes: true,
-                    document: {
-                        select: {
-                            id: true,
-                            filename: true,
-                            category: { select: { name: true } },
-                        },
-                    },
-                },
-                orderBy: [{ model: 'asc' }, { section: 'asc' }],
-                take: 100,
-            });
-
-            const modelMap = new Map<string, {
-                model: string;
-                filename: string;
-                category: string;
-                pncs: string[];
-                sections: string[];
-                usages: Array<{ id: string; partNumber: string; name: string; position: string | null; page: number | null }>;
-            }>();
-
-            for (const u of usages) {
-                const key = u.model;
-                let entry = modelMap.get(key);
-                if (!entry) {
-                    entry = {
-                        model: u.model,
-                        filename: u.document?.filename || '',
-                        category: u.document?.category?.name || 'Geral',
-                        pncs: [],
-                        sections: [],
-                        usages: [],
-                    };
-                    modelMap.set(key, entry);
-                }
-                const pncLabel = u.universalAcrossPnc ? 'Todos PNCs' : (u.pnc || 'PNC não esp.');
-                if (!entry.pncs.includes(pncLabel)) entry.pncs.push(pncLabel);
-                if (u.section && !entry.sections.includes(u.section)) entry.sections.push(u.section);
-                entry.usages.push({
-                    id: u.id,
-                    partNumber: u.partNumber,
-                    name: u.name,
-                    position: u.position,
-                    page: u.page,
-                });
-            }
-
-            res.json({
-                code: rawCode,
-                totalModels: modelMap.size,
-                totalUsages: usages.length,
-                models: Array.from(modelMap.values()),
-            });
-        } catch (error) {
-            console.error(`❌ Erro ao buscar referência cruzada para ${code}:`, error);
-            res.status(500).json({ error: 'Erro ao buscar referência cruzada da peça.' });
-        }
-    }
 
     async maintenanceKit(req: AuthenticatedRequest, res: Response): Promise<void> {
         if (!req.user) return;

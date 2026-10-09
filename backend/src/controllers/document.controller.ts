@@ -6,7 +6,6 @@ import { AuditService } from '../services/audit.service';
 import { invalidateHomeCountsCache } from './operational.controller';
 import { invalidateCatalogListCache } from './catalog-list.controller';
 import { invalidateFastSearchCaches } from './fast-search.controller';
-import { refreshCatalogHealth } from '../services/catalog-health';
 
 const documentService = new DocumentService();
 
@@ -254,24 +253,4 @@ export class DocumentController {
         }
     }
 
-    async refreshHealth(req: AuthenticatedRequest, res: Response): Promise<void> {
-        try {
-            if (!req.user) return;
-            if (req.user.role !== 'ADMIN') {
-                res.status(403).json({ error: 'Apenas administradores podem recalcular a saúde do catálogo.' });
-                return;
-            }
-
-            const health = await refreshCatalogHealth(String(req.params.id), req.user.tenantId);
-            if (!health) {
-                res.status(404).json({ error: 'Catálogo não encontrado.' });
-                return;
-            }
-            invalidateCatalogListCache(req.user.tenantId);
-            res.json({ message: `Saúde recalculada: nota ${health.score}/100 (${health.reviewStatus}).`, health });
-        } catch (error) {
-            console.error('❌ Erro ao recalcular saúde do catálogo:', error);
-            res.status(500).json({ error: 'Não foi possível recalcular a saúde do catálogo.' });
-        }
-    }
 }

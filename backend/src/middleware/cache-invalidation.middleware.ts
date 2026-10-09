@@ -3,7 +3,6 @@ import { AuthenticatedRequest } from './auth.middleware';
 import { normalizeIdentifier } from '../utils/normalize';
 import { invalidateWorkContextCache } from '../controllers/work-context.controller';
 import { invalidateDocumentAccessCache } from '../controllers/document-access.controller';
-import { invalidateHomeResponseCache } from '../controllers/home.controller';
 import { invalidatePartDetailResponseCache } from '../controllers/part-detail.controller';
 import { invalidateCatalogListCache } from '../controllers/catalog-list.controller';
 import { invalidateFastSearchCaches } from '../controllers/fast-search.controller';
@@ -14,22 +13,6 @@ import { invalidateQualityOverviewCache } from './quality-overview-cache.middlew
 
 function successful(status: number): boolean {
   return status >= 200 && status < 300;
-}
-
-export function invalidateHomeAfterSearch(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction,
-): void {
-  const tenantId = req.user?.tenantId;
-  const userId = req.user?.id;
-
-  res.once('finish', () => {
-    if (!tenantId || !userId || !successful(res.statusCode)) return;
-    invalidateHomeResponseCache(tenantId, userId);
-  });
-
-  next();
 }
 
 export function invalidateWorkContextAfterLocation(
@@ -132,7 +115,6 @@ export function invalidateDocumentAccessAfterMutation(
     if (documentId) {
       invalidateDocumentAccessCache(tenantId, documentId);
     }
-    invalidateHomeResponseCache(tenantId);
     invalidatePartDetailResponseCache(tenantId);
     invalidateCatalogListCache(tenantId);
     invalidateFastSearchCaches(tenantId);

@@ -2,8 +2,6 @@ import { Response } from 'express';
 import { HusqvarnaOfficialDetailService } from '../services/husqvarna-official-detail.service';
 import { prisma } from '../config/prisma';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
-import { normalizeIdentifier } from '../utils/normalize';
-import { AuditService } from '../services/audit.service';
 import { HusqvarnaLivePartService } from '../services/husqvarna-live-part.service';
 import { HusqvarnaPortalGraphqlService } from '../services/husqvarna-portal-graphql.service';
 import { parseQuoteUsageItems } from '../services/operational-input-validation';
@@ -20,48 +18,6 @@ function cleanCode(value: unknown): string {
  * Busca comercial e work-context possuem controllers dedicados e otimizados.
  */
 export class WorkIntelligenceController {
-
-  async setLocation(req: AuthenticatedRequest, res: Response): Promise<void> {
-    if (!req.user) return;
-
-    const partNumber = cleanCode(req.params.code);
-    const normalizedPartNumber = normalizeIdentifier(partNumber);
-    const location = String(req.body?.location || '').trim();
-    const note = String(req.body?.note || '').trim();
-
-    if (!normalizedPartNumber || !partNumber) {
-      res.status(400).json({ error: 'Código da peça inválido.' });
-      return;
-    }
-    if (!location || location.length > 160 || note.length > 500) {
-      res.status(400).json({ error: 'Informe uma localização de até 160 caracteres e observação de até 500.' });
-      return;
-    }
-
-    try {
-      const saved = await prisma.partLocation.upsert({
-        where: { tenantId_normalizedPartNumber: { tenantId: req.user.tenantId, normalizedPartNumber } },
-        update: { partNumber, location, note: note || null, updatedById: req.user.id },
-        create: { tenantId: req.user.tenantId, normalizedPartNumber, partNumber, location, note: note || null, updatedById: req.user.id },
-        select: { location: true, note: true, updatedAt: true },
-      });
-
-      void AuditService.record({
-        tenantId: req.user.tenantId,
-        userId: req.user.id,
-        action: 'PART_LOCATION_UPDATED',
-        targetType: 'PART_NUMBER',
-        targetId: partNumber,
-        metadata: { location, note: note || null },
-      });
-
-      res.json({ location: saved });
-    } catch (error) {
-      console.error('❌ Erro ao salvar localização física:', error);
-      res.status(500).json({ error: 'Não foi possível salvar a localização física.' });
-    }
-  }
-
   async recordQuoteUsage(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
 
