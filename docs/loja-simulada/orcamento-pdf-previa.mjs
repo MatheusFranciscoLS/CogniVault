@@ -65,10 +65,17 @@ try {
     const pdf = (await textoDoPdf()) ?? '';
     check('a empresa vai no PDF', pdf.includes('Empresa:') && pdf.includes('METSO EQUIPAMENTOS'));
     check('o número vai no PDF', pdf.includes('25092026'));
+    await previa.getByLabel('Pedido, frota, contato (opcional)').fill('Pedido de compra: 4500123\nFrota: 12\nligar antes das 10h');
+    await page.waitForTimeout(1500);
+    const comInfo = (await textoDoPdf()) ?? '';
+    check('o pedido, a frota e o contato digitados vão no cabeçalho do PDF', comInfo.includes('Pedido de compra:') && comInfo.includes('4500123') && comInfo.includes('Frota:') && comInfo.includes('ligar antes das 10h'));
+    check('a linha sem rótulo sai como "Obs.:"', comInfo.includes('Obs.:'));
     await previa.getByLabel('Empresa (opcional)').fill('');
     await previa.getByLabel('Nº do orçamento (opcional)').fill('');
+    await previa.getByLabel('Pedido, frota, contato (opcional)').fill('');
     await page.waitForTimeout(1200);
-    check('apagando os campos, as linhas somem', !/Empresa:/.test((await textoDoPdf()) ?? ''));
+    const vazio = (await textoDoPdf()) ?? '';
+    check('apagando os campos, as linhas somem', !/Empresa:|Frota:|Obs\.:/.test(vazio));
   });
 
   await step('Entrada ruim não quebra: data vazia, validade zero ou enorme, assunto enorme', async () => {
