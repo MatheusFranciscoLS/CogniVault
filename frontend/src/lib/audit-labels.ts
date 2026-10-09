@@ -18,6 +18,7 @@ const ACTIONS: Record<string, string> = {
   EXPORT_PRICE_LIST: 'Lista de preços exportada',
   PRICE_LIST_UPDATE: 'Lista de preços atualizada',
   PRICE_LIST_UNDO: 'Atualização da lista desfeita',
+  REPAIR_IMPORT: 'Orçamentos de conserto antigos importados',
   PART_LOCATION_UPDATED: 'Prateleira da peça alterada',
   OFFICIAL_PART_VERIFICATION_SUBMITTED: 'Conferência de código enviada',
   SEARCH_RADAR_CLEARED: 'Radar de buscas limpo',

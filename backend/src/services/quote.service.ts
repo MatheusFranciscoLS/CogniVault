@@ -37,6 +37,8 @@ export interface QuoteItemInput {
   isService?: boolean;
   /** Prazo desta linha; vazio = vale o prazo do orçamento. */
   leadTime?: string | null;
+  /** Prateleira da peça. Só do balcão: nunca sai no PDF nem no WhatsApp. */
+  location?: string | null;
   quantity: number;
   unitPrice?: number | null;
 }
@@ -96,6 +98,7 @@ export interface QuotePayload {
     notes: string | null;
     isService: boolean;
     leadTime: string | null;
+    location: string | null;
     quantity: number;
     unitPrice: number | null;
   }>;
@@ -161,6 +164,7 @@ export function parseQuoteItems(value: unknown): QuoteItemInput[] | null {
       notes: text(input.notes, 500),
       isService: looksLikeService(partNumber, typeof input.isService === 'boolean' ? input.isService : undefined),
       leadTime: text(input.leadTime, 60),
+      location: text(input.location, 40),
       quantity,
       unitPrice,
     });
@@ -273,13 +277,14 @@ export function serializeQuote(quote: QuoteWithItems): QuotePayload {
       notes: item.notes,
       isService: item.isService,
       leadTime: item.leadTime,
+      location: item.location,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
     })),
   };
 }
 
-function itemRows(items: QuoteItemInput[]) {
+export function itemRows(items: QuoteItemInput[]) {
   return items.map((item, index) => ({
     sortOrder: index,
     partNumber: item.partNumber,
@@ -298,6 +303,7 @@ function itemRows(items: QuoteItemInput[]) {
     notes: item.notes ?? null,
     isService: item.isService ?? false,
     leadTime: item.leadTime ?? null,
+    location: item.location ?? null,
     quantity: item.quantity,
     unitPrice: item.unitPrice ?? null,
   }));
@@ -518,6 +524,7 @@ export class QuoteService {
       notes: item.notes,
       isService: item.isService,
       leadTime: item.leadTime,
+      location: item.location,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
     }));
@@ -586,7 +593,9 @@ export class QuoteService {
       tenantId: params.tenantId,
       status: 'SAVED',
     };
-    if (params.restrictToUserId) where.userId = params.restrictToUserId;
+    // A pasta de conserto é da LOJA (hoje é uma pasta compartilhada de planilhas, por número de OS): o balcão enxerga todos os orçamentos de conserto,
+    // inclusive os importados dos arquivos antigos. Orçamento de peças continua sendo só do atendente que o fez.
+    if (params.restrictToUserId && params.kind !== 'REPAIR') where.userId = params.restrictToUserId;
     if (params.kind) where.kind = params.kind;
     if (params.from || params.to) {
       where.savedAt = {

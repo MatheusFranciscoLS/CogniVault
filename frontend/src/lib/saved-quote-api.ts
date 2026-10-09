@@ -37,6 +37,7 @@ export interface ApiQuoteListItem {
     notes: string | null;
     isService: boolean;
     leadTime?: string | null;
+    location?: string | null;
     quantity: number;
     unitPrice: number | null;
   }>;
@@ -75,6 +76,7 @@ export function toSavedQuote(quote: ApiQuoteListItem): SavedQuote {
       originalCode: item.originalCode ?? undefined,
       notes: item.notes,
       leadTime: item.leadTime ?? undefined,
+      location: item.location ?? undefined,
       quantity: item.quantity,
       unitPrice: item.unitPrice ?? undefined,
     })),

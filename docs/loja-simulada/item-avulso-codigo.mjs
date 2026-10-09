@@ -8,7 +8,10 @@ import { open, check, step, finish, shot, sqlSim, clearQuote } from './_t.mjs';
 
 const { browser, page, errors, theme } = await open({ theme: process.argv[2] ?? 'light' });
 
-const restaurar = () => sqlSim(`DELETE FROM "OfficialPartIndex" WHERE "engineModel" = 'TESTE-MOTOR-AVULSO'`);
+const restaurar = () => {
+  sqlSim(`DELETE FROM "OfficialPartIndex" WHERE "engineModel" = 'TESTE-MOTOR-AVULSO'`);
+  sqlSim(`UPDATE "MasterPart" SET "location" = NULL WHERE "normalizedNumber" = '506744201'`);
+};
 const rascunho = async () => {
   await page.waitForTimeout(1800);
   const corpo = await page.evaluate(async () => (await (await fetch('/api/quotes/draft', { credentials: 'include' })).json()));
@@ -17,6 +20,7 @@ const rascunho = async () => {
 
 try {
   restaurar();
+  sqlSim(`UPDATE "MasterPart" SET "location" = 'P14-C2' WHERE "normalizedNumber" = '506744201'`);
   sqlSim(`INSERT INTO "OfficialPartIndex" (id, source, "engineModel", "normalizedEngine", position, "partNumber", "normalizedNumber", name, "normalizedName", "updatedAt") VALUES (gen_random_uuid()::text, 'BRIGGS', 'TESTE-MOTOR-AVULSO', 'TESTEMOTORAVULSO', '', '999 111', '999111', 'JUNTA DO CABECOTE TESTE', 'junta do cabecote teste', now())`);
   await clearQuote(page);
   await page.reload();
@@ -45,6 +49,7 @@ try {
     await shot(page, `${theme}-1366-avulso-codigo-achou`);
     await adicionar.click();
     const item = (await rascunho()).find(i => String(i.partNumber).replace(/\D/g, '') === '506744201');
+    check('a prateleira do cadastro da loja vem junto (só para o balcão)', item?.location === 'P14-C2', String(item?.location));
     check('entrou com o código, a marca e o preço da loja, sem "modelo" de serviço', !!item && item.manufacturer === 'Husqvarna' && Math.abs(Number(item.unitPrice) - 10.87) < 0.01 && !item.model, JSON.stringify(item));
   });
 

@@ -7,6 +7,7 @@ import { useQuoteCart, type SavedQuote } from '../context/QuoteCartContext';
 import { Input } from '@/components/ui/input';
 import PageFrame from './PageFrame';
 import QuickQuoteCart from './QuickQuoteCart';
+import RepairImport from './RepairImport';
 import { toSavedQuote, type ApiQuoteListItem } from '../lib/saved-quote-api';
 
 const FOLDER_SIZE = 30;
@@ -32,14 +33,15 @@ function useDebounced<T>(value: T, ms: number): T {
  * A "pasta" dos orçamentos de conserto: um por número de OS (o que a loja guarda hoje como "ORÇAMENTO DAV 59600.xlsx"). Abrir um traz o
  * orçamento de volta para edição; salvar de novo o mesmo número atualiza o mesmo (o servidor não cria cópia).
  */
-function RepairFolder({ onOpen }: { onOpen: (quote: SavedQuote) => void }) {
+function RepairFolder({ onOpen, admin }: { onOpen: (quote: SavedQuote) => void; admin: boolean }) {
   const [text, setText] = useState('');
   const search = useDebounced(text.trim(), 350);
   const [state, setState] = useState<{ key: string; quotes: ApiQuoteListItem[]; total: number } | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
   const { syncState, items, savedQuotes } = useQuoteCart();
   // Depois de enviar um orçamento (o servidor guarda e `savedQuotes` muda), a pasta se atualiza sozinha.
-  const refreshKey = `${search}|${syncState}|${items.length}`;
+  const refreshKey = `${search}|${syncState}|${items.length}|${reload}`;
 
   useEffect(() => {
     let active = true;
@@ -56,7 +58,10 @@ function RepairFolder({ onOpen }: { onOpen: (quote: SavedQuote) => void }) {
   const today = storeDayKey(new Date());
   return (
     <aside aria-label="Pasta de orçamentos de conserto" className="space-y-3 rounded-xl border border-border bg-card p-4">
-      <h2 className="text-lg font-semibold">Pasta</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold">Pasta</h2>
+        {admin && <RepairImport onFinished={() => setReload(value => value + 1)} />}
+      </div>
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
         <Input
@@ -110,7 +115,7 @@ function RepairFolder({ onOpen }: { onOpen: (quote: SavedQuote) => void }) {
  * branco para o balcão digitar, sem "Peças originais" nos textos), ao lado da pasta dos orçamentos já feitos. Com a cesta vazia ela já é
  * conserto; com um orçamento de peças em andamento ele continua de peças (o seletor do cabeçalho converte), nunca por engano.
  */
-export default function RepairQuotePage() {
+export default function RepairQuotePage({ admin = false }: { admin?: boolean }) {
   const { restoreQuote, setIsOpen } = useQuoteCart();
   const open = (quote: SavedQuote) => {
     restoreQuote({ ...quote, kind: 'REPAIR' });
@@ -121,7 +126,7 @@ export default function RepairQuotePage() {
     <PageFrame title="Conserto">
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <QuickQuoteCart layout="page" />
-        <RepairFolder onOpen={open} />
+        <RepairFolder onOpen={open} admin={admin} />
       </div>
     </PageFrame>
   );
