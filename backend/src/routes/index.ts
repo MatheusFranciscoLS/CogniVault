@@ -36,6 +36,7 @@ import { repairImportController } from '../controllers/repair-import.controller'
 import { searchMissController } from '../controllers/search-miss.controller';
 import { machineServicePartsController } from '../controllers/machine-service-parts.controller';
 import { machinePublicSpecsController } from '../controllers/machine-public-specs.controller';
+import { repairHistoryController } from '../controllers/repair-history.controller';
 import { ExportController } from '../controllers/export.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
@@ -178,6 +179,9 @@ router.get('/notifications', authMiddleware, (req, res) => notificationControlle
 router.get('/quotes/draft', authMiddleware, (req, res) => quoteController.getDraft(req, res));
 router.put('/quotes/draft', authMiddleware, (req, res) => quoteController.putDraft(req, res));
 router.delete('/quotes/draft', authMiddleware, (req, res) => quoteController.clearDraft(req, res));
+// Sugestoes do conserto a partir do que a loja ja orcou (valor de referencia, prazo comum, "costuma levar junto"). So leitura. ANTES de /quotes/:id.
+router.get('/quotes/repair-suggestions', authMiddleware, (req, res) => repairHistoryController.suggest(req, res));
+router.get('/quotes/repair-suggestions/together', authMiddleware, (req, res) => repairHistoryController.together(req, res));
 router.get('/quotes', authMiddleware, (req, res) => quoteController.list(req, res));
 router.post('/quotes', authMiddleware, invalidateBusinessInsightsAfterQuoteMutation, (req, res) => quoteController.create(req, res));
 router.get('/quotes/:id', authMiddleware, validateEntityIdParam, (req, res) => quoteController.get(req, res));
