@@ -57,7 +57,7 @@ Plano antigo: 110 itens feitos contra ~10 a fazer, 22 ideias guardadas e 6 decis
 | 💡 2.24 | **Sugestões a partir do que já foi orçado** (os 12.865 itens dos antigos): ao digitar, sugerir a linha com o preço mediano e o prazo mais comum; "costuma levar junto" (com carburador: 66% filtro de gasolina, 46% mangueira, 31% filtro de ar e vela). |
 | 💡 2.25 | **Painel "mais orçadas"** no Negócio (administrador): o que mais se orça (filtro de gasolina, carburador, mangueira, vela, retentor...) para guiar o estoque, junto com o prazo e o preço mediano. |
 | 💡 2.26 | **Preço de referência**: avisar quando o preço digitado foge muito do histórico da mesma peça (mão de obra mediana R$ 150, estável desde 2019). |
-| 💡 2.23 | Prévia do PDF também no orçamento de máquina (data e validade editáveis, imprimir o mesmo documento). O dono disse "se tiver necessidade, faça": a tela de máquina já mostra os campos e a prévia do texto; falta ver o PDF. |
+| ✅ 2.23 | **Prévia do PDF no orçamento de máquina**: o botão Prévia mostra o PDF do cliente ao lado do formulário, refeito a cada ajuste, com Imprimir; baixar usa a mesma montagem. |
 | ❓ 2.20 | **Vista explodida da Branco** (`branco.ricambio.net`): o `robots.txt` do catálogo **proíbe** robôs em `/site/pagece5.wplus`, que é exatamente a página do desenho. Sem leitura automática. Saídas: botão que abre o catálogo da Branco numa aba (o atendente navega) ou pedir à Branco uma exportação/autorização. Decisão do dono. |
 | 💡 | "Tentar de novo" quando o PDF não abre; mostrar que a máquina aberta ficou gravada no atendimento; marcar peças que chegam depois pela fase "por significado". |
 | 💡 | Comparar duas máquinas lado a lado; "Selecionar todas desta vista" copiando só os códigos. |
