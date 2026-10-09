@@ -16,6 +16,7 @@ const ACTIONS: Record<string, string> = {
   QUOTE_DELETED: 'Orçamento excluído',
   EXPORT_QUOTES: 'Orçamentos exportados',
   EXPORT_PRICE_LIST: 'Lista de preços exportada',
+  PRICE_LIST_UPDATE: 'Lista de preços atualizada',
   PART_LOCATION_UPDATED: 'Prateleira da peça alterada',
   OFFICIAL_PART_VERIFICATION_SUBMITTED: 'Conferência de código enviada',
   SEARCH_RADAR_CLEARED: 'Radar de buscas limpo',
