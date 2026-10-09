@@ -69,6 +69,9 @@ async function main(): Promise<void> {
   console.log(`Arquivo: ${int(list.stats.rows)} linhas → ${int(list.stats.uniqueCodes)} códigos únicos`);
   console.log(`  sem código: ${list.stats.rowsWithoutCode} · preço fora do padrão: ${list.stats.rowsWithBadPrice}`);
   console.log(`  recusados por preço conflitante: ${list.rejected.length}`);
+  for (const item of list.resolved) {
+    console.log(`  decidido pelo dono: ${item.normalizedNumber} vale ${brl(item.chosen)} (ignorado: ${item.ignored.map(brl).join(' / ')})`);
+  }
   for (const item of list.rejected) {
     console.log(`    ${item.normalizedNumber}: ${item.prices.map(brl).join(' / ')}`);
   }
