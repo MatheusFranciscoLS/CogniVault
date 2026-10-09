@@ -56,6 +56,28 @@ try {
     check('o assunto digitado vai no PDF', !!pdf && pdf.includes('Orçamento Peças Husqvarna 143RII'.normalize('NFC')));
   });
 
+  await step('Orçamento de empresa: Empresa e Nº saem no PDF (e somem quando vazios)', async () => {
+    const previa = page.getByRole('dialog', { name: 'Orçamento para o cliente' });
+    check('sem preencher, o PDF não tem "Empresa:" nem "Nº:"', !/Empresa:|N\u00ba:/.test((await textoDoPdf()) ?? ''));
+    await previa.getByLabel('Empresa (opcional)').fill('METSO EQUIPAMENTOS');
+    await previa.getByLabel('Nº do orçamento (opcional)').fill('25092026');
+    await page.waitForTimeout(1500);
+    const pdf = (await textoDoPdf()) ?? '';
+    check('a empresa vai no PDF', pdf.includes('Empresa:') && pdf.includes('METSO EQUIPAMENTOS'));
+    check('o número vai no PDF', pdf.includes('25092026'));
+    await previa.getByLabel('Pedido, frota, contato (opcional)').fill('Pedido de compra: 4500123\nFrota: 12\nligar antes das 10h');
+    await page.waitForTimeout(1500);
+    const comInfo = (await textoDoPdf()) ?? '';
+    check('o pedido, a frota e o contato digitados vão no cabeçalho do PDF', comInfo.includes('Pedido de compra:') && comInfo.includes('4500123') && comInfo.includes('Frota:') && comInfo.includes('ligar antes das 10h'));
+    check('a linha sem rótulo sai como "Obs.:"', comInfo.includes('Obs.:'));
+    await previa.getByLabel('Empresa (opcional)').fill('');
+    await previa.getByLabel('Nº do orçamento (opcional)').fill('');
+    await previa.getByLabel('Pedido, frota, contato (opcional)').fill('');
+    await page.waitForTimeout(1200);
+    const vazio = (await textoDoPdf()) ?? '';
+    check('apagando os campos, as linhas somem', !/Empresa:|Frota:|Obs\.:/.test(vazio));
+  });
+
   await step('Entrada ruim não quebra: data vazia, validade zero ou enorme, assunto enorme', async () => {
     const previa = page.getByRole('dialog', { name: 'Orçamento para o cliente' });
     await previa.getByLabel('Validade (dias)').fill('0');

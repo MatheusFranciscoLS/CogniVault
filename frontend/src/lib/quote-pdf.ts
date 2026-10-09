@@ -33,7 +33,31 @@ export type QuotePdfOptions = QuoteMessageOptions & {
   shipping?: string;
   observations?: readonly string[];
   validityDays?: number;
+  /** "Empresa:" (orçamento para empresa: o A/C é a pessoa, aqui vai a razão social). */
+  company?: string;
+  /** "Nº:" do orçamento, digitado; sem número, a linha some. */
+  quoteNumber?: string;
+  /** Informações do cliente, uma por linha: "Pedido: 4500123", "Frota: 12", "Contato: (19) 99999-0000". Linha sem rótulo sai como "Obs.:". */
+  customerNotes?: string;
 };
+
+const MAX_CUSTOMER_NOTE_LINES = 5;
+
+/**
+ * As linhas livres que o atendente escreve (pedido de compra, frota, contato...) viram linhas do cabeçalho do PDF. "Rótulo: valor" separa
+ * o rótulo (em negrito); linha sem rótulo vira "Obs.:". Vazias são ignoradas e passar de 5 linhas corta o resto.
+ */
+export function customerNoteRows(text: string | undefined): Array<[string, string]> {
+  const rows: Array<[string, string]> = [];
+  for (const raw of (text ?? '').split('\n')) {
+    const line = raw.trim().slice(0, 140);
+    if (!line) continue;
+    const match = /^([^:]{1,30}):\s*(.+)$/.exec(line);
+    rows.push(match ? [`${match[1].trim()}:`, match[2].trim()] : ['Obs.:', line]);
+    if (rows.length >= MAX_CUSTOMER_NOTE_LINES) break;
+  }
+  return rows;
+}
 
 // Azul-marinho da identidade Vardão e o dourado do selo (docs/IDENTIDADE_VISUAL_VARDAO.md).
 export const NAVY: [number, number, number] = [39, 58, 96];
@@ -173,19 +197,26 @@ export function buildQuotePdf(input: {
   const machineLabel = machine ? `${brands.length === 1 ? `${brands[0]} ` : ''}${machine}` : '';
 
   const facts: Array<[string, string]> = [];
+  if (options.quoteNumber?.trim()) facts.push(['Nº:', options.quoteNumber.trim()]);
   if (options.customerName) facts.push(['A/C:', options.customerName]);
+  if (options.company?.trim()) facts.push(['Empresa:', options.company.trim()]);
   if (options.customerPhone) facts.push(['Telefone:', formatPhoneBr(options.customerPhone)]);
   facts.push(['Ref.:', options.reference || QUOTE_DEFAULTS.reference]);
+  facts.push(...customerNoteRows(options.customerNotes));
   if (machineLabel) facts.push(['Máquina:', machineLabel]);
   if (options.engine) facts.push(['Motor:', options.engine]);
 
   doc.setTextColor(...INK);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10.5);
+  // A coluna dos valores acompanha o rótulo mais largo (um "Pedido de compra:" digitado não pode invadir o valor).
+  const valueX = MARGIN + Math.max(62, ...facts.map(([label]) => doc.getTextWidth(label) + 8));
   for (const [label, value] of facts) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10.5);
     doc.text(label, MARGIN, y);
     doc.setFont('helvetica', 'normal');
-    doc.text(doc.splitTextToSize(value, pageWidth - MARGIN * 2 - 62)[0] as string, MARGIN + 62, y);
+    doc.text(doc.splitTextToSize(value, pageWidth - MARGIN - valueX)[0] as string, valueX, y);
     y += 16;
   }
   y += 8;
@@ -198,7 +229,7 @@ export function buildQuotePdf(input: {
     return [
       String(index + 1),
       description,
-      ...(showLead ? [leadTime] : []),
+      ...(showLead ? [isServiceLine(item) ? '' : leadTime] : []),
       String(item.quantity),
       priced ? formatBRL(item.unitPrice as number) : 'Sob consulta',
       priced ? formatBRL(item.quantity * (item.unitPrice as number)) : 'Sob consulta',

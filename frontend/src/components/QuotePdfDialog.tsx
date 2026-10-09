@@ -20,6 +20,9 @@ export default function QuotePdfDialog({ options, onClose }: { options: QuoteTex
   const [dateText, setDateText] = useState(() => todayInputValue());
   const [reference, setReference] = useState<string>(QUOTE_DEFAULTS.reference);
   const [validityText, setValidityText] = useState(String(QUOTE_DEFAULTS.validityDays));
+  const [company, setCompany] = useState('');
+  const [quoteNumber, setQuoteNumber] = useState('');
+  const [customerNotes, setCustomerNotes] = useState('');
   const [pdf, setPdf] = useState<{ url: string; blob: Blob } | null>(null);
   const [failed, setFailed] = useState(false);
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -37,7 +40,7 @@ export default function QuotePdfDialog({ options, onClose }: { options: QuoteTex
     let created: string | null = null;
     const timer = window.setTimeout(async () => {
       try {
-        const doc = await createPdfQuote({ ...(JSON.parse(optionsKey) as QuoteTextOptions), quoteDate, reference, validityDays: validity });
+        const doc = await createPdfQuote({ ...(JSON.parse(optionsKey) as QuoteTextOptions), quoteDate, reference, validityDays: validity, company, quoteNumber, customerNotes });
         if (cancelled) return;
         if (!doc) { setFailed(true); return; }
         const blob = doc.output('blob');
@@ -52,7 +55,7 @@ export default function QuotePdfDialog({ options, onClose }: { options: QuoteTex
     return () => { cancelled = true; window.clearTimeout(timer); };
     // `quoteDate` vem de `dateText`; ele muda junto.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, dateText, reference, validity, optionsKey, createPdfQuote]);
+  }, [ready, dateText, reference, validity, company, quoteNumber, customerNotes, optionsKey, createPdfQuote]);
 
   useEffect(() => () => { setPdf(previous => { if (previous) URL.revokeObjectURL(previous.url); return null; }); }, []);
 
@@ -82,26 +85,47 @@ export default function QuotePdfDialog({ options, onClose }: { options: QuoteTex
           <DialogDescription className="sr-only">Prévia do PDF que o cliente recebe, com data, assunto e validade.</DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
+        <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
           <div className="space-y-4">
-            <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-data`}>
-              Data do orçamento
-              <Input id={`${ids}-data`} type="date" value={dateText} onChange={event => setDateText(event.target.value)} aria-invalid={quoteDate === null} />
+            <div className="grid grid-cols-2 gap-2">
+              <Button size="lg" onClick={download} disabled={!pdf}><Icon name="pdf" className="size-4" />Baixar PDF</Button>
+              <Button size="lg" variant="outline" onClick={print} disabled={!pdf}><Icon name="printer" className="size-4" />Imprimir</Button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-data`}>
+                Data do orçamento
+                <Input id={`${ids}-data`} type="date" value={dateText} onChange={event => setDateText(event.target.value)} aria-invalid={quoteDate === null} />
+              </label>
+              <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-validade`}>
+                Validade (dias)
+                <Input id={`${ids}-validade`} type="number" min={1} max={365} value={validityText} onChange={event => setValidityText(event.target.value)} aria-invalid={!validityOk} />
+              </label>
+            </div>
+            <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-empresa`}>
+              Empresa (opcional)
+              <Input id={`${ids}-empresa`} value={company} maxLength={120} autoComplete="off" onChange={event => setCompany(event.target.value)} />
+            </label>
+            <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-numero`}>
+              Nº do orçamento (opcional)
+              <Input id={`${ids}-numero`} value={quoteNumber} maxLength={30} autoComplete="off" onChange={event => setQuoteNumber(event.target.value)} />
+            </label>
+            <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-info`}>
+              Pedido, frota, contato (opcional)
+              <textarea
+                id={`${ids}-info`}
+                value={customerNotes}
+                onChange={event => setCustomerNotes(event.target.value)}
+                rows={3}
+                maxLength={600}
+                placeholder={'Pedido: 4500123\nFrota: 12'}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/60"
+              />
             </label>
             <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-ref`}>
               Assunto (Ref.)
               <Input id={`${ids}-ref`} value={reference} maxLength={120} onChange={event => setReference(event.target.value)} />
             </label>
-            <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-validade`}>
-              Validade (dias)
-              <Input id={`${ids}-validade`} type="number" min={1} max={365} value={validityText} onChange={event => setValidityText(event.target.value)} aria-invalid={!validityOk} />
-            </label>
-
-            <div className="flex flex-col gap-2 pt-1">
-              <Button size="lg" onClick={download} disabled={!pdf}><Icon name="pdf" className="size-4" />Baixar PDF</Button>
-              <Button size="lg" variant="outline" onClick={print} disabled={!pdf}><Icon name="printer" className="size-4" />Imprimir</Button>
-              <Button variant="ghost" onClick={onClose}>Fechar</Button>
-            </div>
+            <Button variant="ghost" className="w-full" onClick={onClose}>Fechar</Button>
           </div>
 
           <div className="min-h-[60dvh] overflow-hidden rounded-lg border border-border bg-secondary">

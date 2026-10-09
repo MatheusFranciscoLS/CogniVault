@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { buildQuotePdf, cityAndDate, formatPhoneBr } from './quote-pdf';
+import { buildQuotePdf, cityAndDate, customerNoteRows, formatPhoneBr } from './quote-pdf';
 import { STORE_PROFILE } from './store-profile';
 
 const carburador = { partNumber: '587106701', manufacturer: 'Husqvarna', name: 'CARBURADOR', model: '143RII', pnc: '967332904', quantity: 1, unitPrice: 378.26, position: '15', section: 'Carburador' };
@@ -197,5 +197,64 @@ describe('buildQuotePdf: motor da máquina', () => {
   it('sem motor, não há linha de motor', () => {
     const { texto } = gerar([carburador], {});
     expect(texto).not.toContain('Motor:');
+  });
+});
+
+describe('orçamento de conserto e de empresa (exemplos reais da loja, 2026-10-09)', () => {
+  const maoDeObra = { partNumber: 'SRV-0001', name: 'MÃO DE OBRA', model: 'Serviço / Balcão', quantity: 1, unitPrice: 150 };
+  const juntaDeOutraMarca = { partNumber: 'VI21488', manufacturer: null, name: 'JOGO DE JUNTAS', model: '', quantity: 1, unitPrice: 20 };
+
+  it('a mão de obra não tem prazo de peça: a célula fica em branco e só as peças dizem o prazo', () => {
+    const { texto } = gerar([carburador, juntaDeOutraMarca, maoDeObra], { leadTime: '7 dias' });
+    expect(texto.match(/\(7 dias\) Tj/g)).toHaveLength(2);
+    expect(texto).toContain('MÃO DE OBRA');
+  });
+
+  it('nenhum código de peça vai ao cliente, nem o de outro fornecedor', () => {
+    const { texto } = gerar([carburador, juntaDeOutraMarca, maoDeObra], {});
+    expect(texto).not.toMatch(/VI21488|587106701|587 10 67-01/);
+    expect(texto).toContain('JOGO DE JUNTAS');
+  });
+
+  it('empresa e número do orçamento saem quando preenchidos e somem quando não', () => {
+    const com = gerar([carburador], { customerName: 'WILLIAM – GRUPO GPS', company: 'METSO EQUIPAMENTOS', quoteNumber: '25092026' }).texto;
+    expect(com).toContain('Empresa:');
+    expect(com).toContain('METSO EQUIPAMENTOS');
+    expect(com).toContain('Nº:');
+    expect(com).toContain('25092026');
+    const sem = gerar([carburador], { customerName: 'Sr. Carlos', company: '   ', quoteNumber: '' }).texto;
+    expect(sem).not.toContain('Empresa:');
+    expect(sem).not.toContain('Nº:');
+  });
+});
+
+describe('informações do cliente no cabeçalho (pedido, frota, contato)', () => {
+  it('"Rótulo: valor" vira linha com rótulo; linha sem rótulo vira Obs.; vazias somem', () => {
+    expect(customerNoteRows('Pedido: 4500123\n\n  Frota: 12 \nligar antes das 10h')).toEqual([
+      ['Pedido:', '4500123'],
+      ['Frota:', '12'],
+      ['Obs.:', 'ligar antes das 10h'],
+    ]);
+    expect(customerNoteRows('')).toEqual([]);
+    expect(customerNoteRows(undefined)).toEqual([]);
+    expect(customerNoteRows('   \n  ')).toEqual([]);
+  });
+
+  it('hora e telefone no valor não quebram o rótulo (só o primeiro ":" separa)', () => {
+    expect(customerNoteRows('Contato: Maria (19) 99999-0000, 08:30')).toEqual([['Contato:', 'Maria (19) 99999-0000, 08:30']]);
+  });
+
+  it('limita a 5 linhas de 140 caracteres', () => {
+    const muitas = Array.from({ length: 12 }, (_, i) => `Item ${i}: valor`).join('\n');
+    expect(customerNoteRows(muitas)).toHaveLength(5);
+    expect(customerNoteRows(`Pedido: ${'9'.repeat(500)}`)[0][1].length).toBeLessThanOrEqual(140);
+  });
+
+  it('as linhas saem no PDF, com rótulo comprido sem invadir o valor, e some quando vazio', () => {
+    const { texto } = gerar([carburador], { customerName: 'Sr. Carlos', customerNotes: 'Pedido de compra: 4500123\nFrota: 12' });
+    expect(texto).toContain('Pedido de compra:');
+    expect(texto).toContain('4500123');
+    expect(texto).toContain('Frota:');
+    expect(gerar([carburador], { customerNotes: '  ' }).texto).not.toContain('Frota:');
   });
 });
