@@ -72,7 +72,8 @@ export function parseBrlPrice(input: unknown): number | null {
   const match = BRL.exec(input.trim());
   if (!match) return null;
   const value = Number(`${match[1].replace(/\./g, '')}.${match[2]}`);
-  return Number.isFinite(value) && value >= 0 ? value : null;
+  // Preço ZERO não é preço: a lista escreve "R$ 0,00" quando falta o valor, e gravar 0 faria o balcão mostrar R$ 0,00 como se a peça fosse de graça.
+  return Number.isFinite(value) && value > 0 ? value : null;
 }
 
 function cleanText(input: unknown): string | null {

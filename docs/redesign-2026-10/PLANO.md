@@ -31,7 +31,7 @@ Plano antigo: 110 itens feitos contra ~10 a fazer, 22 ideias guardadas e 6 decis
 | | Item |
 |---|---|
 | ⏳ 2.1 | **Conferir a próxima atualização:** ao subir o arquivo de 05/10 de novo, o relatório deve mostrar "Preço decidido por você" e **1 preço muda (9.171 → R$ 10,87)**. O dono aprova; eu confiro depois. |
-| ⏳ 2.2 | **Arquivo suspeito não grava:** linhas sem código ou com preço fora do padrão acima de ~5% travam o botão (no servidor também); preço **R$ 0,00** deixa de ser aceito (vira "preço fora do padrão"). |
+| ✅ 2.2 | **Arquivo suspeito não grava:** linhas sem código ou com preço fora do padrão acima de ~5% travam o botão (no servidor também); preço **R$ 0,00** deixa de ser aceito (vira "preço fora do padrão"). | **Feito (2026-10-09):** `fileProblem` trava o relatório e a gravação (no servidor também) acima de 5% de linhas ilegíveis ou arquivo sem peça; R$ 0,00 é preço fora do padrão.
 | ⏳ 2.3 | **Testar a lista de várias formas** (arquivo vazio, só uma seção, formatos de preço, código com espaço ou minúscula, arquivo de outro mês, o mesmo arquivo duas vezes, 40 MB) e registrar o que ficou de fora. |
 | ⏳ 2.4 | **O que a lista traz e a loja ignora:** NCM, IPI, EAN, `atualizacoes` do arquivo, ficha técnica "suja" (rotação, consumo): decidir o que vale entrar e o que continua de fora. |
 | ⏳ 2.5 | **Loja simulada mais fiel à produção:** hoje ela tem 22.288 códigos e a produção 26.694 (os 4.406 de motor e outras marcas só existem lá), 57.797 seções de preço contra 29.134, 61 catálogos e 20.694 peças lidas contra 70 e 18.078, e orçamentos inventados (108 contra 2 reais). Aproximar o que dá (por exemplo, trazer os 4.406 códigos de preço da produção, que são dado da loja e não de cliente) sem copiar dado de cliente. |
