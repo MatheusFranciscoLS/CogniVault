@@ -4,7 +4,12 @@ const HISTORY_KEY = 'cognivault_quote_history';
 const ACTIVE_SCOPE_KEY = 'cognivault_quote_active_scope';
 const ANONYMOUS_SCOPE = 'anonymous';
 
-const QUOTE_KEYS = [CART_KEY, OPTIONS_KEY, HISTORY_KEY] as const;
+// Cada tipo de orçamento (peças e conserto) tem as suas chaves, e TODAS andam por usuário: a cesta de conserto tem nome de cliente e número de OS, e não
+// pode aparecer (nem subir para o servidor) na conta de outro atendente que entre depois no mesmo PC. `unsynced` é a marca de "edição não enviada".
+const QUOTE_KEYS = [
+  CART_KEY, OPTIONS_KEY, HISTORY_KEY, 'cognivault_quote_unsynced',
+  'cognivault_repair_cart', 'cognivault_repair_draft_options', 'cognivault_repair_history', 'cognivault_repair_unsynced',
+] as const;
 
 function scopedKey(baseKey: string, scope: string) {
   return `${baseKey}:${scope}`;

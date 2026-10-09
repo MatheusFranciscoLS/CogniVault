@@ -597,6 +597,16 @@ não tinha visão consolidada nenhuma. Agora:
 - Papéis: Balcão vê e mexe só no que ele atendeu; Admin vê a loja inteira.
   Continua sem terceiro papel.
 
+### Rodada 2 de auditoria (2026-10-09): três perdas de dado silenciosas na cesta
+
+Procuradas de propósito com casos que o roteiro de sempre não cobria (duas janelas, sessão que cai, rede que cai, outro atendente no mesmo PC). Roteiro `rodada2-abas-sessao.mjs` (19 verificações, dois temas) e `QuoteCartContext.sync.test.tsx`, os dois provados por mordida.
+
+1. **Duas janelas do mesmo navegador apagavam o item uma da outra.** Cada aba mandava o estado INTEIRO ao servidor (`PUT`), então a que gravava por último vencia sem aviso (a aba 1 lançava AAA, a aba 2 lançava BBB, o servidor ficava só com BBB). Agora as abas são UMA cesta: quando OUTRA aba muda o cache local (`storage`), esta adota o que está lá e descarta o que tinha na fila de envio (quem grava no servidor é a aba que escreveu). Compara com o valor ATUAL do armazenamento, não com o do evento, para as duas convergirem em vez de trocarem versões. Outro aparelho continua "o último a gravar vence" (não resolvido: seria preciso versão no servidor).
+2. **O que o balcão digitou sem rede (ou com a sessão caída) perdia para a versão velha do servidor.** A hidratação dizia "o servidor manda, exceto se ele está vazio"; então item lançado offline em cima de uma cesta que já existia no servidor sumia ao recarregar com a rede de volta (e o mesmo na queda de sessão: a linha digitada depois da queda não voltava depois de entrar de novo). Agora cada edição grava no cache a hora da última edição NÃO enviada (`cognivault_quote_unsynced` / `cognivault_repair_unsynced`; sai quando o servidor confirma e a fila esvazia) e, **se ela existe e tem menos de 48 h, o local sobe para o servidor** em vez de ser trocado. Sem a marca (ou velha demais, porque outro aparelho pode ter mexido), o servidor continua mandando.
+3. **A cesta de CONSERTO não era separada por usuário no navegador.** `lib/quote-storage-scope.ts` só trocava as chaves do orçamento de peças; as do conserto (`cognivault_repair_*`, com nome de cliente e número de OS) ficavam para o próximo atendente do mesmo PC, e a regra "local com itens e servidor vazio sobe" as **gravaria na conta dele**. Agora as chaves do conserto e as marcas `unsynced` andam por usuário junto com as de peças. **Armadilha do roteiro:** o `open()` regrava o e-mail do administrador a cada carga de página (initScript); para testar troca de conta, navegar pelo menu e nunca por `page.goto`.
+
+**Ainda NÃO coberto pela rodada 2:** PDF com nomes estranhos (emoji, árabe, 300 caracteres, quebra de linha), rede LENTA (não caída) nas telas de busca e atualização da lista, e a partida a frio da Render. Ficam para a próxima passada.
+
 ### A janela de 5 s do Prisma derrubou a cesta em produção
 
 Log do Render, **18/09/2026 21:16 UTC**, no `PUT /api/quotes/draft`:
