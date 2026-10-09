@@ -13,6 +13,7 @@ type Report = {
   divisor: number;
   file: { rows: number; uniqueCodes: number; rowsWithoutCode: number; rowsWithBadPrice: number };
   rejected: Array<{ normalizedNumber: string; prices: number[] }>;
+  resolved: Array<{ normalizedNumber: string; chosen: number; ignored: number[] }>;
   stored: number;
   unchanged: number;
   changed: number;
@@ -208,6 +209,16 @@ export default function PriceListUpdate() {
                   ))}
                 </ul>
               </div>
+            )}
+            {report.resolved.length > 0 && (
+              <p className="text-base text-muted-foreground">
+                Preço decidido por você:{' '}
+                {report.resolved.map(item => (
+                  <span key={item.normalizedNumber} translate="no" className="font-code">
+                    {item.normalizedNumber} → {brl(item.chosen)} (o arquivo também traz {item.ignored.map(brl).join(' / ')}, ignorado)
+                  </span>
+                ))}
+              </p>
             )}
             {(report.file.rowsWithoutCode > 0 || report.file.rowsWithBadPrice > 0) && (
               <p className="text-sm text-muted-foreground">

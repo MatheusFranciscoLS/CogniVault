@@ -35,9 +35,23 @@ export type HtmlPriceItem = {
 
 export type RejectedCode = { normalizedNumber: string; reason: 'PRECO_CONFLITANTE'; prices: number[] };
 
+/** Código que traz dois preços no arquivo e que o dono já decidiu: vale `chosen`, e `ignored` é o resto. Aparece no relatório, para ele ver. */
+export type ResolvedCode = { normalizedNumber: string; chosen: number; ignored: number[] };
+
+/**
+ * Preço decidido pelo dono quando o arquivo da Husqvarna traz o MESMO código com dois preços (o preço CONSUMIDOR da lista, como no arquivo; a
+ * regra ÷ 0,92 vem depois). Sem decisão, o código é recusado: ler errado um preço é pior do que não atualizá-lo.
+ * A decisão só vale se o preço decidido está entre os do arquivo: se a Husqvarna mudar os dois, volta a ser recusado e o dono decide de novo.
+ *
+ * - 594028101: dono, 2026-10-09: "está correto o valor de 10 reais, pode desconsiderar o outro valor" (o R$ 9.171,00 do mesmo arquivo é defeito da fonte).
+ */
+export const OWNER_PRICE_DECISIONS: Readonly<Record<string, number>> = { '594028101': 10 };
+
 export type HtmlPriceList = {
   items: HtmlPriceItem[];
   rejected: RejectedCode[];
+  /** Conflitos que o dono já resolveu (`OWNER_PRICE_DECISIONS`): entram com o preço decidido. */
+  resolved: ResolvedCode[];
   stats: {
     rows: number;
     rowsWithoutCode: number;
@@ -154,11 +168,20 @@ export function parsePriceListCatalog(catalog: Record<string, unknown>): HtmlPri
   }
 
   const rejected: RejectedCode[] = [];
+  const resolved: ResolvedCode[] = [];
   for (const [normalizedNumber, prices] of conflicts) {
+    const sorted = [...prices].sort((a, b) => a - b);
+    const decided = OWNER_PRICE_DECISIONS[normalizedNumber];
+    const item = byCode.get(normalizedNumber);
+    if (decided !== undefined && item && prices.has(decided)) {
+      item.consumerPrice = decided;
+      resolved.push({ normalizedNumber, chosen: decided, ignored: sorted.filter(price => price !== decided) });
+      continue;
+    }
     byCode.delete(normalizedNumber);
-    rejected.push({ normalizedNumber, reason: 'PRECO_CONFLITANTE', prices: [...prices].sort((a, b) => a - b) });
+    rejected.push({ normalizedNumber, reason: 'PRECO_CONFLITANTE', prices: sorted });
   }
 
   stats.uniqueCodes = byCode.size;
-  return { items: [...byCode.values()], rejected, stats };
+  return { items: [...byCode.values()], rejected, resolved, stats };
 }

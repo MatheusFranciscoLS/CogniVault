@@ -41,6 +41,8 @@ export type PriceListReport = {
   divisor: number;
   file: { rows: number; uniqueCodes: number; rowsWithoutCode: number; rowsWithBadPrice: number };
   rejected: Array<{ normalizedNumber: string; prices: number[] }>;
+  /** Conflitos que o dono já decidiu: entram com o preço decidido. */
+  resolved: Array<{ normalizedNumber: string; chosen: number; ignored: number[] }>;
   stored: number;
   unchanged: number;
   changed: number;
@@ -76,6 +78,7 @@ export function summarizeDiff(list: HtmlPriceList, diff: PriceListDiff, service:
       rowsWithBadPrice: list.stats.rowsWithBadPrice,
     },
     rejected: list.rejected.map(item => ({ normalizedNumber: item.normalizedNumber, prices: item.prices })),
+    resolved: list.resolved.map(item => ({ normalizedNumber: item.normalizedNumber, chosen: item.chosen, ignored: item.ignored })),
     stored: diff.stored,
     unchanged: diff.unchanged,
     changed: diff.changed.length,

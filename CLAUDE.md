@@ -1204,8 +1204,7 @@ mudaram desde a aprovação, nada é gravado.
   `MasterPartSection` por modelo e `sourceSheet = LISTA_HTML:<lista>`, o que também
   permite desfazer (`WHERE sourceSheet LIKE 'LISTA_HTML:%'`).
 - **Código com dois preços diferentes no arquivo é recusado**, não escolhido
-  (`594028101`: R$ 10,00 e R$ 9.171,00; o banco já tinha 9.171, então o 10 é defeito
-  da fonte). Preço fora do formato `R$ 1.234,56` também é recusado.
+  (`594028101`: R$ 10,00 e R$ 9.171,00). **DECIDIDO pelo dono em 2026-10-09: vale R$ 10,00 (de lista; ÷ 0,92 = R$ 10,87), o 9.171 é defeito da fonte.** A decisão mora em `OWNER_PRICE_DECISIONS` (`scripts/price-list-html.ts`), só vale enquanto o preço decidido continua entre os do arquivo, e o relatório mostra "Preço decidido por você". O banco de produção ainda tinha 9.171, então o relatório mostra "1 preço muda" (9.171 → 10,87) e o dono aprova com o botão. Preço fora do formato `R$ 1.234,56` também é recusado.
 - Primeira importação em produção: 80 preços atualizados, 1.177 códigos novos
   (26.694 no total). Antes dela, 21.031 dos 22.288 códigos do arquivo já estavam no
   preço certo, o que confirma o divisor.

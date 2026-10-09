@@ -49,23 +49,62 @@ test('lê as quatro listas e junta o mesmo código de vários modelos', () => {
   assert.ok(!result.items.some(item => item.partNumber === '967796301'));
 });
 
-test('código com dois preços diferentes é recusado, não escolhido', () => {
+test('código com dois preços diferentes e SEM decisão do dono é recusado, não escolhido', () => {
   const result = parsePriceListHtml(
     page({
       ...empty,
       pecas: [
-        { codigo: '594028101', descricao: 'X', preco: 'R$ 10,00' },
-        { codigo: '594028101', descricao: 'X', preco: 'R$ 9.171,00' },
-        { codigo: '594028101', descricao: 'X', preco: 'R$ 10,00' },
+        { codigo: '999000001', descricao: 'X', preco: 'R$ 10,00' },
+        { codigo: '999000001', descricao: 'X', preco: 'R$ 9.171,00' },
+        { codigo: '999000001', descricao: 'X', preco: 'R$ 10,00' },
         { codigo: '111111111', descricao: 'Y', preco: 'R$ 1,00' },
       ],
     }),
   );
 
   assert.deepEqual(result.rejected, [
-    { normalizedNumber: '594028101', reason: 'PRECO_CONFLITANTE', prices: [10, 9171] },
+    { normalizedNumber: '999000001', reason: 'PRECO_CONFLITANTE', prices: [10, 9171] },
   ]);
   assert.deepEqual(result.items.map(item => item.normalizedNumber), ['111111111']);
+  assert.deepEqual(result.resolved, []);
+});
+
+test('o 594028101 vale R$ 10,00 (decisão do dono): entra com esse preço e o outro aparece como ignorado', () => {
+  const result = parsePriceListHtml(
+    page({
+      ...empty,
+      pecas: [
+        { codigo: '594028101', descricao: 'PEÇA', preco: 'R$ 9.171,00', modelo: 'A' },
+        { codigo: '594028101', descricao: 'PEÇA', preco: 'R$ 10,00', modelo: 'B' },
+        { codigo: '594028101', descricao: 'PEÇA', preco: 'R$ 10,00', modelo: 'C' },
+      ],
+    }),
+  );
+  assert.deepEqual(result.rejected, []);
+  assert.deepEqual(result.resolved, [{ normalizedNumber: '594028101', chosen: 10, ignored: [9171] }]);
+  assert.deepEqual(result.items.map(item => [item.normalizedNumber, item.consumerPrice, item.applications.length]), [['594028101', 10, 3]]);
+  assert.equal(result.stats.uniqueCodes, 1);
+});
+
+test('a decisão do dono só vale se o preço decidido continua no arquivo: se a Husqvarna mudar os dois, recusa de novo', () => {
+  const result = parsePriceListHtml(
+    page({
+      ...empty,
+      pecas: [
+        { codigo: '594028101', descricao: 'PEÇA', preco: 'R$ 12,00' },
+        { codigo: '594028101', descricao: 'PEÇA', preco: 'R$ 9.171,00' },
+      ],
+    }),
+  );
+  assert.deepEqual(result.rejected, [{ normalizedNumber: '594028101', reason: 'PRECO_CONFLITANTE', prices: [12, 9171] }]);
+  assert.deepEqual(result.resolved, []);
+  assert.deepEqual(result.items, []);
+});
+
+test('o 594028101 com um preço só (sem conflito) não passa por decisão nenhuma', () => {
+  const result = parsePriceListHtml(page({ ...empty, pecas: [{ codigo: '594028101', descricao: 'PEÇA', preco: 'R$ 11,00' }] }));
+  assert.deepEqual(result.resolved, []);
+  assert.equal(result.items[0].consumerPrice, 11);
 });
 
 test('linha sem código ou com preço fora do padrão é contada e não entra', () => {
