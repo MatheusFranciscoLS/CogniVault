@@ -4,6 +4,7 @@ import { COMMERCIAL_PRICE_DIVISOR } from '../scripts/price-list-rules';
 import type { HtmlPriceList } from '../scripts/price-list-html';
 import { diffPriceList, percentBuckets, type PriceListDiff, type StoredPart } from '../scripts/price-list-diff';
 import { buildNewRecords, HTML_IMPORT_SOURCE } from '../scripts/price-list-plan';
+import { PRICE_LIST_HISTORY_RUNS } from './price-list-undo.service';
 import { diffServiceParts, type ServicePartLink, type ServicePartsDiff } from '../scripts/service-parts';
 
 /**
@@ -55,6 +56,8 @@ export type PriceListReport = {
   addedBySection: Array<{ label: string; count: number }>;
   /** Peças de revisão por máquina (campo "reparo"). `incoming` 0 = a lista não traz o campo: nada muda. */
   service: ServicePartsDiff;
+  /** Preços que mudam MAIS que o dobro ou MENOS que a metade (+100% / −50%): quase sempre é defeito do arquivo, e vale conferir antes de gravar. */
+  bigMoves: number;
 };
 
 const toRow = (change: PriceListDiff['changed'][number]): PriceListReportRow => ({
@@ -89,6 +92,7 @@ export function summarizeDiff(list: HtmlPriceList, diff: PriceListDiff, service:
     topDrops: [...withPercent].sort((a, b) => (a.percent as number) - (b.percent as number)).slice(0, 15).map(toRow),
     addedBySection: [...sections].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count),
     service,
+    bigMoves: withPercent.filter(change => (change.percent as number) >= 100 || (change.percent as number) <= -50).length,
   };
 }
 
@@ -206,7 +210,7 @@ export async function writePriceListPlan(
       tx.masterPart.count({ where: { tenantId } }),
       tx.masterPartSection.count({ where: { tenantId } }),
     ]);
-    await tx.commercialImportRun.create({
+    const run = await tx.commercialImportRun.create({
       data: {
         tenantId,
         sourceFilename,
@@ -219,6 +223,20 @@ export async function writePriceListPlan(
         completedAt: new Date(),
       },
     });
+
+    // O que esta atualização mudou, para o administrador poder DESFAZER (ver price-list-undo.service.ts). Só as últimas atualizações ficam guardadas.
+    const history = [
+      ...diff.changed.map(change => ({ kind: 'PRICE', normalizedNumber: change.normalizedNumber, partNumber: change.partNumber, before: change.before, after: change.after })),
+      ...masters.map(master => ({ kind: 'ADDED', normalizedNumber: master.normalizedNumber, partNumber: master.partNumber, before: null, after: master.price })),
+    ];
+    for (const batch of chunk(history, 1000)) {
+      await tx.priceListChange.createMany({ data: batch.map(item => ({ tenantId, runId: run.id, filename: sourceFilename, ...item })) });
+    }
+    if (history.length > 0) {
+      const runs = await tx.priceListChange.groupBy({ by: ['runId'], where: { tenantId }, _max: { createdAt: true }, orderBy: { _max: { createdAt: 'desc' } } });
+      const old = runs.slice(PRICE_LIST_HISTORY_RUNS).map(item => item.runId);
+      if (old.length > 0) await tx.priceListChange.deleteMany({ where: { tenantId, runId: { in: old } } });
+    }
   }, TX_OPTIONS);
 }
 

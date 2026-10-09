@@ -29,6 +29,7 @@ model Tenant {
   MachineListing                  MachineListing[]
   searchMisses                    SearchMiss[]
   machineServiceParts             MachineServicePart[]
+  priceListChanges                PriceListChange[]
   MachineListingPhoto             MachineListingPhoto[]
 }
 
@@ -751,4 +752,27 @@ model MachineServicePart {
 
   @@unique([tenantId, pnc, normalizedNumber])
   @@index([tenantId, pnc])
+}
+
+/// O que cada atualização da lista de preços mudou, para o administrador DESFAZER a última (pedido do dono, 2026-10-09: "sistema sem erros").
+/// Guarda o preço de antes e o de depois de cada código tocado, e quais códigos a atualização criou. Só as últimas 5 atualizações ficam guardadas.
+model PriceListChange {
+  id               String    @id @default(uuid())
+  tenantId         String
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Id do `CommercialImportRun` da atualização.
+  runId            String
+  filename         String
+  /// PRICE (o preço mudou) ou ADDED (o código foi criado pela atualização).
+  kind             String
+  normalizedNumber String
+  partNumber       String
+  before           Float?
+  after            Float
+  createdAt        DateTime  @default(now())
+  /// Preenchido em TODAS as linhas da atualização quando ela é desfeita: uma atualização só se desfaz uma vez.
+  undoneAt         DateTime?
+
+  @@index([tenantId, runId])
+  @@index([tenantId, createdAt])
 }

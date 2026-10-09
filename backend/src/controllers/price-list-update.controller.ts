@@ -6,6 +6,7 @@ import { parseServicePartRows, type ServicePartLink } from '../scripts/service-p
 import { AuditService } from '../services/audit.service';
 import { PriceListApprovalError, applyPriceList, buildPriceListReport } from '../services/price-list-update.service';
 import { GzipJsonError, decodeGzipJson } from '../utils/gzip-json-body';
+import { PriceListUndoError, previewUndo, undoLastPriceListUpdate } from '../services/price-list-undo.service';
 
 /** Descomprimido, o JSON das quatro listas fica em poucos MB; 40 MB é folga larga e ainda protege a memória do Render free. */
 export const PRICE_LIST_MAX_JSON_BYTES = 40 * 1024 * 1024;
@@ -69,7 +70,41 @@ export class PriceListUpdateController {
     }
   }
 
+  /** A última atualização que ainda dá para desfazer (ou `null`). Só lê. */
+  async last(req: AuthenticatedRequest, res: Response): Promise<void> {
+    if (!req.user) return;
+    res.set('Cache-Control', 'no-store').json({ last: await previewUndo(prisma, req.user.tenantId) });
+  }
+
+  async undo(req: AuthenticatedRequest, res: Response): Promise<void> {
+    if (!req.user) return;
+    const prices = nonNegativeInteger(req.query.prices);
+    const added = nonNegativeInteger(req.query.added);
+    const runId = typeof req.query.runId === 'string' ? req.query.runId : '';
+    if (prices === null || added === null || !/^[0-9a-f-]{36}$/.test(runId)) {
+      res.status(400).json({ error: 'Informe a atualização e os números que você viu.' });
+      return;
+    }
+    try {
+      const result = await undoLastPriceListUpdate(prisma, req.user.tenantId, { runId, prices, added });
+      void AuditService.record({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: 'PRICE_LIST_UNDO',
+        targetType: 'MasterPart',
+        metadata: { filename: result.filename, reverted: result.prices, removed: result.added, skipped: result.skipped },
+      });
+      res.set('Cache-Control', 'no-store').json(result);
+    } catch (error) {
+      this.fail(res, error);
+    }
+  }
+
   private fail(res: Response, error: unknown): void {
+    if (error instanceof PriceListUndoError) {
+      res.status(409).json({ error: error.message });
+      return;
+    }
     if (error instanceof GzipJsonError) {
       res.status(400).json({ error: error.message });
       return;
