@@ -765,7 +765,8 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           )}
         </div>
         {query && <Button type="button" variant="ghost" size="lg" onClick={clearSearch} className="h-14">Limpar</Button>}
-        <Button type="submit" size="lg" disabled={loading} className="h-14 min-w-36 px-8 text-xl">{loading ? 'Buscando…' : 'Buscar'}</Button>
+        {/* Nunca desabilitado: com o botão desabilitado o navegador IGNORA o Enter, e uma busca sem resultado fica em "Buscando…" por alguns segundos (fase "por significado"). Digitar outro código e apertar Enter não podia ficar mudo; `runSearch` já cancela a busca anterior. */}
+        <Button type="submit" size="lg" className="h-14 min-w-36 px-8 text-xl">{loading ? 'Buscando…' : 'Buscar'}</Button>
       </form>
       <div className="border-t border-border">
         <CounterSessionBar onOpenMachine={pnc => setOpenMachine({ pnc, name: session.machineModel || `PNC ${pnc}` })} />

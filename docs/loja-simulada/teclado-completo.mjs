@@ -67,4 +67,20 @@ await step('atalho / foca a busca', async () => {
   await campo().fill('vela de ignição');
 });
 
+await step('Enter com a busca anterior ainda em "Buscando…" inicia a nova busca (o botão nunca fica desabilitado)', async () => {
+  // Achado da auditoria de 2026-10-09: com o botão desabilitado durante a busca, o navegador ignorava o Enter e nada acontecia.
+  // 506027201 não tem peça no catálogo: a busca fica em "Buscando…" enquanto o Portal responde a troca de código.
+  await campo().fill('506027201');
+  await campo().press('Enter');
+  await page.getByRole('alert', { name: 'Código substituído' }).waitFor({ timeout: 30000 });
+  const botao = page.getByRole('button', { name: /^(Buscar|Buscando…)$/ });
+  check('o botão de busca não está desabilitado', await botao.isEnabled());
+  await campo().fill('587106701');
+  const nova = page.waitForRequest(req => req.url().includes('/api/search/stream') && req.url().includes('typed=587106701'), { timeout: 4000 }).then(() => true, () => false);
+  await campo().press('Enter');
+  check('o Enter dispara a nova busca na hora', await nova);
+  await copiarBotoes().first().waitFor({ timeout: 30000 });
+  check('e o resultado novo aparece', (await copiarBotoes().count()) > 0);
+});
+
 await finish(browser, errors);
