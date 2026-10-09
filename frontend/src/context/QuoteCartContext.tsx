@@ -24,6 +24,8 @@ export interface QuoteCartItem {
   notes?: string | null;
   /** Prazo desta linha; vazio = vale o prazo do orçamento. */
   leadTime?: string;
+  /** Prateleira da peça (vem dos orçamentos antigos). Só do balcão: nunca sai no PDF nem no WhatsApp. */
+  location?: string;
   quantity: number;
   unitPrice?: number;
 }
@@ -152,6 +154,7 @@ interface ApiQuoteItem {
   notes: string | null;
   isService: boolean;
   leadTime?: string | null;
+  location?: string | null;
   quantity: number;
   unitPrice: number | null;
 }
@@ -202,6 +205,7 @@ function fromApiItems(items: ApiQuoteItem[]): QuoteCartItem[] {
     originalCode: item.originalCode ?? undefined,
     notes: item.notes,
     leadTime: item.leadTime ?? undefined,
+    location: item.location ?? undefined,
     quantity: item.quantity,
     unitPrice: item.unitPrice ?? undefined,
   }));
@@ -224,6 +228,7 @@ function toApiItems(items: QuoteCartItem[]) {
     notes: item.notes ?? null,
     isService: item.partNumber.toUpperCase().startsWith('SRV-'),
     leadTime: item.leadTime?.trim() || null,
+    location: item.location?.trim() || null,
     quantity: item.quantity,
     unitPrice: item.unitPrice ?? null,
   }));

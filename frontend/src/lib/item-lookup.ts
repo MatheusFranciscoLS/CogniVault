@@ -25,6 +25,8 @@ export type ItemLookup =
     manufacturer?: string;
     /** Preço de mês anterior ou sem data: mostra, mas manda conferir (regra do dono). */
     confirmPrice: boolean;
+    /** Prateleira da peça no cadastro da loja (o Clipp vai alimentar); só do balcão. */
+    location?: string;
   };
 
 const MARCA: Record<OfficialHit['source'], string> = { BRIGGS: 'Briggs & Stratton', KAWASAKI: 'Kawasaki', KOHLER: 'Kohler' };
@@ -42,7 +44,8 @@ export function resolveItemLookup(input: { code: string; store?: MasterPrice | n
   // A loja manda: o nome e o preço dela são os que valem no orçamento.
   if (store && store.name.trim()) {
     const manufacturer = official ? MARCA[official.source] : HUSQVARNA_CODE.test(code) ? 'Husqvarna' : undefined;
-    return { kind: 'FOUND', origin: 'LOJA', name: store.name.trim(), price, manufacturer, confirmPrice: price !== undefined && store.freshness !== 'FRESH' };
+    const location = store.location?.trim() || undefined;
+    return { kind: 'FOUND', origin: 'LOJA', name: store.name.trim(), price, manufacturer, confirmPrice: price !== undefined && store.freshness !== 'FRESH', location };
   }
   // Só o catálogo do motor conhece o código: descrição automática, preço em aberto.
   if (official) return { kind: 'FOUND', origin: 'OFICIAL', name: official.name.trim(), manufacturer: MARCA[official.source], confirmPrice: false };

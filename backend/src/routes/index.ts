@@ -32,6 +32,7 @@ import { QuoteController } from '../controllers/quote.controller';
 import { BusinessInsightsController } from '../controllers/business-insights.controller';
 import { enginePartsWithoutPriceController } from '../controllers/engine-parts-without-price.controller';
 import { priceListUpdateController } from '../controllers/price-list-update.controller';
+import { repairImportController } from '../controllers/repair-import.controller';
 import { searchMissController } from '../controllers/search-miss.controller';
 import { machineServicePartsController } from '../controllers/machine-service-parts.controller';
 import { ExportController } from '../controllers/export.controller';
@@ -211,6 +212,8 @@ router.post('/admin/price-list/preview', authMiddleware, adminOnly, priceListBod
 router.get('/admin/price-list/last', authMiddleware, adminOnly, (req, res) => priceListUpdateController.last(req, res));
 router.post('/admin/price-list/undo', authMiddleware, adminOnly, (req, res) => priceListUpdateController.undo(req, res));
 router.post('/admin/price-list/apply', authMiddleware, adminOnly, priceListBody, (req, res) => priceListUpdateController.apply(req, res));
+router.post('/admin/repair-import/preview', authMiddleware, adminOnly, (req, res) => repairImportController.preview(req, res));
+router.post('/admin/repair-import/apply', authMiddleware, adminOnly, (req, res) => repairImportController.apply(req, res));
 router.get('/admin/exports/price-list.csv', authMiddleware, adminOnly, (req, res) => exportController.priceList(req, res));
 router.get('/admin/exports/quotes.csv', authMiddleware, adminOnly, (req, res) => exportController.quotes(req, res));
 router.get('/admin/performance', authMiddleware, adminOnly, (req, res) => performanceController.overview(req, res));

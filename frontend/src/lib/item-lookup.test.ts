@@ -18,6 +18,12 @@ describe('item digitado com código', () => {
     }
   });
 
+  it('a prateleira do cadastro da loja vem junto (o Clipp vai alimentar); sem prateleira, nada', () => {
+    expect(resolveItemLookup({ code: '587106701', store: loja({ location: ' P14-C2 ' }) })).toMatchObject({ kind: 'FOUND', location: 'P14-C2' });
+    expect(resolveItemLookup({ code: '587106701', store: loja({ location: null }) })).toMatchObject({ kind: 'FOUND', location: undefined });
+    expect(resolveItemLookup({ code: '594028', official: [{ source: 'BRIGGS', name: 'JUNTA' }] })).not.toHaveProperty('location', 'P14-C2');
+  });
+
   it('código de motor só no catálogo oficial: descrição automática e PREÇO EM ABERTO', () => {
     for (const [source, marca] of [['BRIGGS', 'Briggs & Stratton'], ['KAWASAKI', 'Kawasaki'], ['KOHLER', 'Kohler']] as const) {
       const found = resolveItemLookup({ code: '594028', official: [{ source, name: 'JUNTA DO CABEÇOTE' }] });

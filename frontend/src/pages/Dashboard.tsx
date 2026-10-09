@@ -320,7 +320,7 @@ export default function Dashboard() {
           />
         )}
         {section === 'quotes' && <SavedQuotesPanel />}
-        {section === 'repair' && <RepairQuotePage />}
+        {section === 'repair' && <RepairQuotePage admin={user.role === 'ADMIN'} />}
         {section === 'prices' && <MachineListPanel onOpenMachine={openMachine} />}
         {section === 'overview' && user.role === 'ADMIN' && (
           <div className="space-y-4">

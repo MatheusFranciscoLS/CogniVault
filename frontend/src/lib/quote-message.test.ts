@@ -196,3 +196,10 @@ describe('mensagem do orçamento de conserto (peças de qualquer fornecedor e m�
     expect(pecas).not.toContain('OS:');
   });
 });
+
+describe('a prateleira é só do balcão (mensagem)', () => {
+  it('não vai na mensagem do cliente', () => {
+    const comLocal = { ...carburador, location: 'P14-C2' } as typeof carburador;
+    expect(buildWhatsAppMessage({ items: [comLocal], options: {}, now: quarta })).not.toContain('P14-C2');
+  });
+});

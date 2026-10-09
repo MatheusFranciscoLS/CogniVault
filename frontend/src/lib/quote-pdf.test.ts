@@ -294,3 +294,10 @@ describe('orçamento de conserto: prazo por linha, OS e texto próprio (planilha
     expect(pecas).toContain('Estimativa de Pre');
   });
 });
+
+describe('a prateleira é só do balcão', () => {
+  it('nunca sai no PDF nem no WhatsApp, mesmo que a linha traga o local', () => {
+    const comLocal = { ...carburador, location: 'P14-C2' } as typeof carburador;
+    expect(gerar([comLocal], { customerName: 'Cliente' }).texto).not.toContain('P14-C2');
+  });
+});

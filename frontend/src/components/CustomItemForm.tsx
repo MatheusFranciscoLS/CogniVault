@@ -16,6 +16,8 @@ export type CustomItemInput = {
   code: string;
   /** Marca que o sistema reconheceu pelo código (Husqvarna, Briggs & Stratton, Kawasaki, Kohler) ou `undefined`. */
   manufacturer: string | undefined;
+  /** Prateleira, quando o cadastro da loja tem a peça. */
+  location: string | undefined;
 };
 
 // Um atalho só, por decisão do dono. Os outros saíram pelo que eles são: "Limpeza e regulagem" e "Graxa de transmissão" já estão dentro da mão de obra
@@ -88,6 +90,7 @@ export default function CustomItemForm({ onAdd, onClose, embedded = false }: { o
       quantity: Math.max(1, qty || 1),
       code: typed,
       manufacturer: found?.manufacturer,
+      location: found?.location,
     });
     setCode('');
     setName('');

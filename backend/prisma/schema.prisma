@@ -473,6 +473,8 @@ model QuoteItem {
   isService            Boolean @default(false)
   /// Prazo desta linha ("Pronta entrega", "7 dias"). Nulo = vale o prazo do orçamento.
   leadTime             String?
+  /// Prateleira da peça ("P14-C2", "PF"), da coluna LOC das planilhas antigas. Só do balcão: nunca vai ao cliente. Prepara o encontro com o cadastro do Clipp.
+  location             String?
 
   quantity  Int    @default(1)
   unitPrice Float?

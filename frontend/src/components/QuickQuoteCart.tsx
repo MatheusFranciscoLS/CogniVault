@@ -84,7 +84,7 @@ function CartItemRow({
   const subtotal = item.unitPrice ? item.quantity * item.unitPrice : 0;
   const details = isServiceItem
     ? (item.model || 'Balcão')
-    : [item.model, item.pnc ? `PNC ${item.pnc}` : '', item.position ? `Pos. ${item.position}` : ''].filter(Boolean).join(' · ');
+    : [item.model, item.pnc ? `PNC ${item.pnc}` : '', item.position ? `Pos. ${item.position}` : '', item.location ? `Local ${item.location}` : ''].filter(Boolean).join(' · ');
 
   const copyCode = () => {
     const clean = cleanErpCode(item.effectiveCode || item.partNumber);
@@ -187,7 +187,11 @@ function CartItemRowCompact({
     <li className="grid grid-cols-[minmax(0,1fr)_150px_104px_96px_96px_32px] items-center gap-x-3 px-6 py-2.5">
       <div className="min-w-0">
         <h3 className="truncate text-base font-semibold" title={item.name}>{item.name}</h3>
-        {!isServiceItem && <span translate="no" className="block truncate font-code text-sm tabular-nums text-muted-foreground">{code}</span>}
+        {!isServiceItem && (
+          <span translate="no" className="block truncate font-code text-sm tabular-nums text-muted-foreground">
+            {code}{item.location && <span title="Prateleira" className="ml-2 font-semibold text-foreground">Local {item.location}</span>}
+          </span>
+        )}
       </div>
       <select
         aria-label={`Prazo de ${item.name}`}
@@ -300,11 +304,11 @@ export default function QuickQuoteCart({ layout = 'drawer' }: { layout?: 'drawer
     return null;
   }
 
-  const handleAddCustomItem = ({ name, price, quantity, code, manufacturer }: CustomItemInput) => {
+  const handleAddCustomItem = ({ name, price, quantity, code, manufacturer, location }: CustomItemInput) => {
     if (page && items.length === 0 && draftOptions.kind !== 'REPAIR') patchOptions({ kind: 'REPAIR' });
     if (code) {
       // Peça com código (de qualquer marca): entra com o código, SEM o "modelo" de serviço, para não aparecer como máquina no orçamento do cliente.
-      addItem({ partNumber: code, effectiveCode: code, manufacturer, name, model: '', unitPrice: price, quantity });
+      addItem({ partNumber: code, effectiveCode: code, manufacturer, name, model: '', unitPrice: price, quantity, location });
     } else {
       addItem({
         partNumber: `SRV-${Date.now().toString().slice(-4)}`,
