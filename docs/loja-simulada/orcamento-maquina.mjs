@@ -5,6 +5,8 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { open, check, step, finish, shot, sqlSim, OUT } from './_t.mjs';
 
+// O "ATT." do PDF é o nome cadastrado do atendente; o usuário da simulação não tem, então ganha um só durante o roteiro.
+sqlSim(`UPDATE "User" SET "name" = 'Atendente Teste' WHERE "email" = 'admin.e2e@cognivault.local'`);
 const { browser, page, errors, theme } = await open({ theme: process.argv[2] ?? 'light' });
 const modelo = process.argv[3] ?? 'Z460';
 const alvo = sqlSim(`SELECT pnc || '|' || model || '|' || "listPrice" FROM "MachineListing" WHERE upper(regexp_replace(model, '[^A-Za-z0-9]', '', 'g')) = '${modelo.toUpperCase()}' LIMIT 1`);
@@ -56,4 +58,5 @@ await step(`orçamento da ${nome}`, async () => {
   console.log('   PDF em ' + destino);
 });
 
+sqlSim(`UPDATE "User" SET "name" = NULL WHERE "email" = 'admin.e2e@cognivault.local'`);
 await finish(browser, errors);
