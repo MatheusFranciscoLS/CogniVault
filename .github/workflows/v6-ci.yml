@@ -256,10 +256,15 @@ jobs:
         working-directory: frontend
         run: |
           npm ci --prefix . --workspaces=false
-          npm install --prefix . --workspaces=false --no-save --no-package-lock @playwright/test@1.63.0
+          npm install --prefix . --workspaces=false --no-save @playwright/test@1.63.0
           npm audit --omit=dev --prefix . --workspaces=false --audit-level=high
           npm audit --prefix . --workspaces=false --audit-level=critical
-          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then npx playwright install-deps chromium; else npx playwright install --with-deps chromium; fi
+          # Com o navegador em cache, só instala as bibliotecas do sistema se ele NÃO abrir (a imagem do runner já costuma ter tudo).
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+            node -e "require('playwright-core').chromium.launch().then(browser => browser.close())" || npx playwright install-deps chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
           nohup npm run dev -- --host 0.0.0.0 >/tmp/cognivault-frontend.log 2>&1 &
       - name: Wait for E2E frontend
         run: |
