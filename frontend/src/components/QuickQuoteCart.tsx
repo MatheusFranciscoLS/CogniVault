@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import type { FormEvent } from 'react';
 import { useConfirm } from '../context/confirm';
 import { Check, Copy, Minus, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,6 +12,7 @@ import { leadMode, leadTimeFor } from '../lib/lead-time';
 import { QUOTE_DEFAULTS } from '../lib/store-profile';
 import { maskPhoneInput } from '../lib/phone';
 import { Icon } from './icons/Icon';
+import CustomItemForm, { type CustomItemInput } from './CustomItemForm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
@@ -31,16 +31,6 @@ const DISCOUNT_PRESETS = [
   { label: '5% PIX', value: 5 },
   { label: '10% Balcão', value: 10 },
   { label: '15% Especial', value: 15 },
-];
-
-// Um atalho só, por decisão do dono. Os outros três saíram pelo que eles são,
-// não por espaço na tela:
-//   - "Limpeza e regulagem" e "Graxa de transmissão" já estão dentro da mão de
-//     obra; cobrar à parte seria cobrar duas vezes pelo mesmo serviço.
-//   - "Óleo 2T Pro 1L" é PEÇA, não serviço, e lubrificante é acessório — este
-//     produto é focado em peça. Entra pelo cadastro ou como item avulso digitado.
-const CUSTOM_ITEM_PRESETS = [
-  'Mão de obra / Revisão Geral',
 ];
 
 // Mesma formatação do texto e do PDF que o cliente recebe, com ponto de milhar ("R$ 1.202,87"): a tela do
@@ -65,56 +55,6 @@ function SyncStatus({ state }: { state: QuoteSyncState }) {
       <span className={cn('size-2 rounded-full', dot)} aria-hidden="true" />
       {label}
     </span>
-  );
-}
-
-function CustomItemForm({ onAdd, onClose }: { onAdd: (name: string, price: number | undefined, qty: number) => void; onClose: () => void }) {
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
-  const [qty, setQty] = useState(1);
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    const cleanName = name.trim();
-    if (!cleanName) return;
-    const priceNum = price ? parseFloat(price.replace(',', '.')) : undefined;
-    onAdd(cleanName, priceNum !== undefined && !isNaN(priceNum) && priceNum >= 0 ? priceNum : undefined, Math.max(1, qty || 1));
-    setName('');
-    setPrice('');
-    setQty(1);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-3 rounded-xl border border-border bg-card p-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold">Serviço ou item avulso</h3>
-        <Button type="button" variant="ghost" size="icon-sm" onClick={onClose} aria-label="Fechar"><X className="size-5" /></Button>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {CUSTOM_ITEM_PRESETS.map(preset => (
-          <Button key={preset} type="button" variant="outline" size="sm" onClick={() => setName(preset)}>{preset}</Button>
-        ))}
-      </div>
-
-      <Input type="text" required value={name} onChange={e => setName(e.target.value)} placeholder="Descrição do serviço ou item…" aria-label="Descrição do serviço ou item" className="text-base" />
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <label htmlFor="custom-item-price" className="block text-sm font-medium text-muted-foreground">Preço (R$)</label>
-          <Input id="custom-item-price" type="number" inputMode="decimal" step="0.5" min="0" value={price} onChange={e => setPrice(e.target.value)} placeholder="0,00" className="font-code text-base font-semibold" />
-        </div>
-        <div className="space-y-1.5">
-          <label htmlFor="custom-item-qty" className="block text-sm font-medium text-muted-foreground">Quantidade</label>
-          <Input id="custom-item-qty" type="number" min="1" value={qty} onChange={e => setQty(parseInt(e.target.value, 10) || 1)} className="font-code text-base font-semibold" />
-        </div>
-      </div>
-
-      <div className="flex gap-2">
-        <Button type="submit" className="flex-1">Adicionar</Button>
-        <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-      </div>
-    </form>
   );
 }
 
@@ -260,15 +200,20 @@ export default function QuickQuoteCart() {
     return null;
   }
 
-  const handleAddCustomItem = (name: string, price: number | undefined, qty: number) => {
-    addItem({
-      partNumber: `SRV-${Date.now().toString().slice(-4)}`,
-      name,
-      model: customerName.trim() || 'Serviço / Balcão',
-      unitPrice: price,
-      quantity: qty,
-    });
-    setShowCustomItemForm(false);
+  const handleAddCustomItem = ({ name, price, quantity, code, manufacturer }: CustomItemInput) => {
+    if (code) {
+      // Peça com código (de qualquer marca): entra com o código, SEM o "modelo" de serviço, para não aparecer como máquina no orçamento do cliente.
+      addItem({ partNumber: code, effectiveCode: code, manufacturer, name, model: '', unitPrice: price, quantity });
+    } else {
+      addItem({
+        partNumber: `SRV-${Date.now().toString().slice(-4)}`,
+        name,
+        model: customerName.trim() || 'Serviço / Balcão',
+        unitPrice: price,
+        quantity,
+      });
+    }
+    // O formulário continua aberto: manutenção leva vários itens em sequência.
     toast.success(`"${name}" adicionado ao orçamento.`);
   };
 
