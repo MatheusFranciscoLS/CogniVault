@@ -1,14 +1,15 @@
-import { useRef, useState } from 'react';
-import type { FormEvent } from 'react';
+import { useId, useRef, useState } from 'react';
+import type { FormEvent, KeyboardEvent, ReactNode } from 'react';
 import { Eye, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useConfirm } from '../context/confirm';
 import { useQuoteCart } from '../context/QuoteCartContext';
 import type { QuoteTextOptions } from '../context/QuoteCartContext';
-import { LINE_COLUMNS, leadTextFor, type LeadChoice } from '../lib/quote-line';
+import { LINE_COLUMNS, leadChoiceOf, leadTextFor, type LeadChoice } from '../lib/quote-line';
 import { maskPhoneInput } from '../lib/phone';
 import { formatBRL, quoteTotals } from '../lib/quote-message';
 import { useItemLookup } from '../lib/use-item-lookup';
+import { useRepairHistoryWarmup, useRepairSuggestions, useRepairTogether, type HistorySuggestion } from '../lib/use-repair-history';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Icon } from './icons/Icon';
@@ -16,10 +17,11 @@ import DiscountField from './DiscountField';
 import PaymentTerms from './PaymentTerms';
 import QuoteLine, { LeadSelect } from './QuoteLine';
 import QuotePdfDialog from './QuotePdfDialog';
+import { SuggestionList, TogetherChips } from './RepairSuggestions';
 import SyncStatus from './SyncStatus';
 
 /** A linha de entrada, embaixo da tabela: código (opcional), descrição, quantidade, valor, prazo. Enter adiciona e volta para o código. */
-function EntryRow({ onAdd }: { onAdd: (input: { code: string; name: string; quantity: number; price: number | undefined; leadTime: string | undefined; manufacturer?: string; location?: string }) => void }) {
+function EntryRow({ onAdd, extra }: { onAdd: (input: { code: string; name: string; quantity: number; price: number | undefined; leadTime: string | undefined; manufacturer?: string; location?: string }) => void; extra?: ReactNode }) {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('1');
@@ -35,6 +37,45 @@ function EntryRow({ onAdd }: { onAdd: (input: { code: string; name: string; quan
   const { enabled, searching, found, typed } = useItemLookup(code);
   const shownName = nameTouched ? name : (found?.name ?? name);
   const shownPrice = priceTouched ? price : (found?.price !== undefined ? String(found.price) : price);
+
+  // Já orçado antes: pela descrição que o balcão digita; sem descrição, pelo código que o cadastro e os catálogos não conhecem (outro fornecedor).
+  const listId = useId();
+  const [focused, setFocused] = useState(false);
+  const [active, setActive] = useState(-1);
+  const [dismissed, setDismissed] = useState('');
+  const typedName = nameTouched ? name.trim() : '';
+  const askText = typedName || (!shownName.trim() && enabled && !searching && !found ? code.trim() : '');
+  const { items: suggestions, asked } = useRepairSuggestions(askText);
+  const listOpen = focused && suggestions.length > 0 && asked === askText && dismissed !== askText;
+
+  const pick = (item: HistorySuggestion) => {
+    setName(item.name); setNameTouched(true);
+    if (item.price !== null) { setPrice(String(item.price)); setPriceTouched(true); }
+    if (item.isService) setLead('');
+    else { const choice = leadChoiceOf(item.leadTime); if (choice) setLead(choice); }
+    if (!code.trim() && item.partNumber) setCode(item.partNumber);
+    setActive(-1);
+    setDismissed(item.name.trim());
+    priceRef.current?.focus();
+    priceRef.current?.select();
+  };
+
+  // Setas escolhem, Enter só escolhe se uma opção está marcada (senão lança o que foi digitado, como sempre), Esc fecha.
+  const suggestKeys = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (!listOpen) return;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      setActive(current => (current + step + suggestions.length) % suggestions.length);
+    } else if (event.key === 'Enter' && active >= 0) {
+      event.preventDefault();
+      pick(suggestions[active]);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setDismissed(askText);
+    }
+  };
+  const typing = () => { setActive(-1); setDismissed(''); };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -53,7 +94,7 @@ function EntryRow({ onAdd }: { onAdd: (input: { code: string; name: string; quan
       manufacturer: found?.manufacturer,
       location: found?.location,
     });
-    setCode(''); setName(''); setQuantity('1'); setPrice(''); setNameTouched(false); setPriceTouched(false);
+    setCode(''); setName(''); setQuantity('1'); setPrice(''); setNameTouched(false); setPriceTouched(false); setActive(-1); setDismissed('');
     codeRef.current?.focus();
   };
 
@@ -65,7 +106,7 @@ function EntryRow({ onAdd }: { onAdd: (input: { code: string; name: string; quan
         : 'Não achei este código: escreva a descrição e o valor.';
 
   return (
-    <form onSubmit={submit} noValidate className="shrink-0 space-y-2 border-t border-border bg-secondary/40 px-5 py-3">
+    <form onSubmit={submit} noValidate className="relative shrink-0 space-y-2 border-t border-border bg-secondary/40 px-5 py-3">
       <div className="flex min-h-5 items-center justify-between gap-3">
         <p role="status" className="text-sm text-muted-foreground">{status}</p>
         <Button
@@ -78,6 +119,7 @@ function EntryRow({ onAdd }: { onAdd: (input: { code: string; name: string; quan
           <Plus className="size-4" aria-hidden="true" />Mão de obra
         </Button>
       </div>
+      {extra}
       <div className={LINE_COLUMNS}>
         <div className="flex min-w-0 gap-2">
           <Input
@@ -89,7 +131,10 @@ function EntryRow({ onAdd }: { onAdd: (input: { code: string; name: string; quan
             spellCheck={false}
             translate="no"
             value={code}
-            onChange={event => setCode(event.target.value)}
+            onChange={event => { setCode(event.target.value); typing(); }}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onKeyDown={suggestKeys}
             className="h-9 w-36 shrink-0 font-code text-base font-semibold"
           />
           <Input
@@ -97,8 +142,16 @@ function EntryRow({ onAdd }: { onAdd: (input: { code: string; name: string; quan
             aria-label="Descrição do serviço ou item"
             placeholder="Descrição"
             autoComplete="off"
+            role="combobox"
+            aria-expanded={listOpen}
+            aria-controls={listOpen ? listId : undefined}
+            aria-activedescendant={listOpen && active >= 0 ? `${listId}-${active}` : undefined}
+            aria-autocomplete="list"
             value={shownName}
-            onChange={event => { setName(event.target.value); setNameTouched(true); }}
+            onChange={event => { setName(event.target.value); setNameTouched(true); typing(); }}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onKeyDown={suggestKeys}
             className="h-9 min-w-0 flex-1 text-base"
           />
         </div>
@@ -118,6 +171,7 @@ function EntryRow({ onAdd }: { onAdd: (input: { code: string; name: string; quan
         <LeadSelect label="Prazo da nova linha" blankLabel="Sem prazo" value={lead} onChange={setLead} />
         <Button type="submit" size="sm" className="col-span-2 h-9">Adicionar</Button>
       </div>
+      {listOpen && <SuggestionList id={listId} items={suggestions} active={active} onPick={pick} />}
     </form>
   );
 }
@@ -134,6 +188,9 @@ export default function RepairEditor() {
   } = useQuoteCart();
   const confirm = useConfirm();
   const [showPdf, setShowPdf] = useState(false);
+  useRepairHistoryWarmup();
+  const [lastAdded, setLastAdded] = useState<string | null>(null);
+  const together = useRepairTogether(lastAdded, items.map(item => item.name));
 
   const patch = (changes: Partial<QuoteTextOptions>) => setDraftOptions({ ...draftOptions, ...changes });
   const discountPercentage = draftOptions.discountPercentage || 0;
@@ -196,7 +253,17 @@ export default function RepairEditor() {
         ))}
       </ul>
 
-      <EntryRow onAdd={entry => { add(entry); toast.success(`"${entry.name}" adicionado.`); }} />
+      <EntryRow
+        onAdd={entry => { add(entry); setLastAdded(entry.name); toast.success(`"${entry.name}" adicionado.`); }}
+        extra={<TogetherChips
+          items={together}
+          onAdd={item => {
+            add({ code: item.partNumber ?? '', name: item.name, quantity: 1, price: item.price ?? undefined, leadTime: item.isService ? undefined : (item.leadTime ?? undefined) });
+            setLastAdded(item.name);
+            toast.success(`"${item.name}" adicionado.`);
+          }}
+        />}
+      />
 
       {/* A barra de baixo nunca sai da tela: o editor tem a altura da janela e só a lista de linhas rola (em 768 px o total e o envio não podem ficar abaixo da dobra). */}
       <div className="shrink-0 border-t border-border bg-card">
