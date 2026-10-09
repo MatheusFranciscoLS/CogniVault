@@ -23,6 +23,8 @@ export type QuoteLine = {
 export type QuoteMessageOptions = {
   customerName?: string;
   machineModel?: string;
+  /** Motor da máquina ("Kawasaki FX921V-ES06"). Modelo do motor, nunca código de peça. */
+  engine?: string;
   paymentMethod?: string;
   /** Prazo das peças, digitado à mão. */
   leadTime?: string;
@@ -102,6 +104,7 @@ export function buildWhatsAppMessage(input: { items: QuoteLine[]; options: Quote
   out.push('*Orçamento · Vardão Máquinas*');
   if (options.customerName) out.push(`Cliente: *${options.customerName}*`);
   if (machine) out.push(`Máquina: ${brand}${machine}`);
+  if (options.engine) out.push(`Motor: ${options.engine}`);
   out.push(`Data: ${formatDate(now)}`);
   out.push('', '*Peças*');
 

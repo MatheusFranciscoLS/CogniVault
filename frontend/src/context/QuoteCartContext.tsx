@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { apiJson } from '../lib';
 import { playCartSound } from '../lib/sound';
 import { buildWhatsAppMessage } from '../lib/quote-message';
+import { composeQuoteMachine, splitQuoteMachine } from '../lib/quote-engine';
 import { quoteStorageScopeFromSession } from '../lib/quote-storage-scope';
 
 export interface QuoteCartItem {
@@ -26,6 +27,8 @@ export interface QuoteCartItem {
 
 export interface QuoteTextOptions {
   machineModel?: string;
+  /** Motor da máquina ("Kawasaki FX921V-ES06"); no banco viaja junto de machineModel (lib/quote-engine.ts). */
+  engine?: string;
   customerName?: string;
   customerPhone?: string;
   paymentMethod?: string;
@@ -205,19 +208,21 @@ function toApiOptions(options: QuoteTextOptions) {
     paymentMethod: options.paymentMethod || null,
     leadTime: options.leadTime?.trim() || null,
     notes: options.notes?.trim() || null,
-    machineModel: options.machineModel?.trim() || null,
+    machineModel: composeQuoteMachine(options.machineModel, options.engine) || null,
     discountPercentage: options.discountPercentage ?? 0,
   };
 }
 
 function fromApiOptions(quote: ApiQuote): QuoteTextOptions {
+  const { machine, engine } = splitQuoteMachine(quote.machineModel);
   return {
     customerName: quote.customerName ?? undefined,
     customerPhone: quote.customerPhone ?? undefined,
     paymentMethod: quote.paymentMethod ?? undefined,
     leadTime: quote.leadTime ?? undefined,
     notes: quote.notes ?? undefined,
-    machineModel: quote.machineModel ?? undefined,
+    machineModel: machine || undefined,
+    engine: engine || undefined,
     discountPercentage: quote.discountPercentage || 0,
   };
 }
@@ -509,7 +514,8 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       paymentMethod: savedQuote.paymentMethod,
       leadTime: savedQuote.leadTime,
       notes: savedQuote.notes,
-      machineModel: savedQuote.machineModel,
+      machineModel: splitQuoteMachine(savedQuote.machineModel).machine || undefined,
+      engine: splitQuoteMachine(savedQuote.machineModel).engine || undefined,
       discountPercentage: savedQuote.discountPercentage || 0,
     };
     setItems(savedQuote.items);
@@ -642,8 +648,12 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
   }, [applyItems]);
 
   const clearCart = useCallback(() => {
-    applyItems(() => []);
-  }, [applyItems]);
+    // O motor pertence ao atendimento que acabou: não pode vazar para o orçamento do próximo cliente.
+    const options: QuoteTextOptions = { ...draftOptions, engine: undefined };
+    setItems([]);
+    setDraftOptionsState(options);
+    queueDraftSync([], options);
+  }, [draftOptions, queueDraftSync]);
 
   const generateWhatsAppText = useCallback((optionsOrModel?: string | QuoteTextOptions) => {
     if (!items.length) return '';

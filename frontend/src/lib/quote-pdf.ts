@@ -176,6 +176,7 @@ export function buildQuotePdf(input: {
   if (options.customerPhone) facts.push(['Telefone:', formatPhoneBr(options.customerPhone)]);
   facts.push(['Ref.:', options.reference || QUOTE_DEFAULTS.reference]);
   if (machineLabel) facts.push(['Máquina:', machineLabel]);
+  if (options.engine) facts.push(['Motor:', options.engine]);
 
   doc.setTextColor(...INK);
   for (const [label, value] of facts) {
