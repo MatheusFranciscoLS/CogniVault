@@ -35,6 +35,7 @@ import { priceListUpdateController } from '../controllers/price-list-update.cont
 import { repairImportController } from '../controllers/repair-import.controller';
 import { searchMissController } from '../controllers/search-miss.controller';
 import { machineServicePartsController } from '../controllers/machine-service-parts.controller';
+import { machinePublicSpecsController } from '../controllers/machine-public-specs.controller';
 import { ExportController } from '../controllers/export.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
@@ -129,6 +130,8 @@ router.post('/master-parts/prices', authMiddleware, (req, res) => masterPartPric
 // Aba "Tabela de precos": maquinas da lista vigente da Husqvarna. So leitura, todos os usuarios.
 router.get('/machine-list', authMiddleware, (req, res) => machineListingController.list(req, res));
 router.get('/machine-list/:pnc/photo', authMiddleware, (req, res) => machinePhoto(req, res));
+// Uso recomendado (classe de uso e sabre) que o SITE PUBLICO da Husqvarna escreve para a maquina; entra no orcamento de maquina. So leitura.
+router.get('/machine-list/:pnc/public-specs', authMiddleware, (req, res) => machinePublicSpecsController.get(req, res));
 // "O cliente chegou com este codigo — de que motor e?". Responde com o que ja
 // foi lido do catalogo oficial de Briggs/Kawasaki. Ver
 // services/official-part-index.service.ts.

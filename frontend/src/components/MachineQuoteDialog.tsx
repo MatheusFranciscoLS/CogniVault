@@ -20,7 +20,8 @@ import {
 } from '../lib/machine-quote';
 import { DEFAULT_BULLETS, listBullets } from '../lib/machine-highlights';
 import { bulletsHeading } from '../lib/machine-highlights';
-import { useMachinePhoto, type MachinePortalData } from '../lib/use-machine-portal';
+import { useMachinePhoto, usePublicMachineUse, type MachinePortalData } from '../lib/use-machine-portal';
+import { mergeBulletLines, publicUseLines } from '../lib/machine-public-use';
 import { formatBRL } from '../lib/quote-message';
 
 const TEXTAREA_CLASS = 'w-full rounded-md border border-input bg-background px-3 py-2 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/60';
@@ -60,9 +61,13 @@ export default function MachineQuoteDialog({
   const complement = typedComplement ?? suggestComplement(machine, portal);
   const [highlight, setHighlight] = useState(() => defaultHighlight(machine.application));
   // Linhas da descrição da lista: as primeiras vêm marcadas; o atendente liga ou desliga cada uma e VÊ o resultado na prévia.
-  const bulletLines = useMemo(() => listBullets(machine.details, machine.model, machine.category), [machine]);
+  // O que o site público da Husqvarna escreve sobre o uso (classe de uso e sabre) vem primeiro e já marcado; sem dado, a lista segue como era.
+  const publicUse = usePublicMachineUse(machine.pnc);
+  const publicLines = useMemo(() => publicUseLines(publicUse.data), [publicUse.data]);
+  const listLines = useMemo(() => listBullets(machine.details, machine.model, machine.category), [machine]);
+  const bulletLines = useMemo(() => mergeBulletLines(publicLines, listLines), [publicLines, listLines]);
   const [typedBullets, setTypedBullets] = useState<Set<string> | null>(null);
-  const chosenBullets = typedBullets ?? new Set(bulletLines.slice(0, DEFAULT_BULLETS));
+  const chosenBullets = typedBullets ?? new Set([...publicLines, ...listLines.slice(0, DEFAULT_BULLETS)]);
   const bullets = bulletLines.filter(line => chosenBullets.has(line));
   const toggleBullet = (line: string) => {
     const next = new Set(chosenBullets);
@@ -160,7 +165,7 @@ export default function MachineQuoteDialog({
 
         {bulletLines.length > 0 && (
           <fieldset className="space-y-1.5">
-            <legend className="text-base font-medium">{bulletsHeading(machine.category).replace(/:$/, '')} (da lista de preços)</legend>
+            <legend className="text-base font-medium">{bulletsHeading(machine.category).replace(/:$/, '')} </legend>
             <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
               {bulletLines.map(line => (
                 <label key={line} className="flex items-start gap-2 text-base">
