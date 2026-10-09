@@ -58,3 +58,42 @@ describe('vigia dos fornecedores', () => {
     assert.match(outcome.detail, /reCAPTCHA/);
   });
 });
+
+describe('vigia do uso recomendado (site público da Husqvarna)', () => {
+  afterEach(() => mock.restoreAll());
+  const uso = CHECKS.find(check => check.name.includes('uso recomendado'))!;
+  const resposta = (valores: Array<{ id: string; formattedValue: string; numericValue?: number }>) =>
+    new Response(JSON.stringify({ data: { site: { articles: { byIds: [{ id: 'x', specificationValues: valores }] } } } }), { status: 200 });
+  const motosserra = [
+    { id: 'WEB_ChainsawSubGroup', formattedValue: 'Full time professional use chainsaws' },
+    { id: 'TD32_1_metric', formattedValue: '38 cm', numericValue: 38 },
+    { id: 'TD32_2_metric', formattedValue: '70 cm', numericValue: 70 },
+  ];
+
+  it('com os ids de sempre, passa e diz o que leu', async () => {
+    mock.method(globalThis, 'fetch', async (_url: unknown, init?: { body?: string }) => (String(init?.body).includes('965801490') ? resposta(motosserra) : resposta([{ id: 'ART_647', formattedValue: 'Uso residencial intensivo' }])));
+    const outcome = await runWithRetry(uso, 0);
+    assert.equal(outcome.state, 'OK', outcome.detail);
+    assert.match(outcome.detail, /38 a 70 cm/);
+  });
+
+  it('classe nova da Husqvarna (texto que não conhecemos) é "MUDOU", não passa em silêncio', async () => {
+    mock.method(globalThis, 'fetch', async () => resposta([{ id: 'WEB_ChainsawSubGroup', formattedValue: 'Space chainsaws' }]));
+    const outcome = await runWithRetry(uso, 0);
+    assert.equal(outcome.state, 'MUDOU');
+    assert.match(outcome.detail, /classe de uso da motosserra/);
+  });
+
+  it('id renomeado (a ficha vem sem o campo) é "MUDOU"', async () => {
+    mock.method(globalThis, 'fetch', async () => resposta([{ id: 'OUTRO_ID', formattedValue: 'Full time professional use chainsaws' }]));
+    const outcome = await runWithRetry(uso, 0);
+    assert.equal(outcome.state, 'MUDOU');
+  });
+
+  it('o site fora do ar é FORA_DO_AR depois de 3 tentativas, nunca "MUDOU"', async () => {
+    const spy = mock.method(globalThis, 'fetch', async () => new Response('indisponível', { status: 503 }));
+    const outcome = await runWithRetry(uso, 0);
+    assert.equal(outcome.state, 'FORA_DO_AR');
+    assert.equal(spy.mock.callCount(), 3);
+  });
+});

@@ -17,6 +17,8 @@ import {
   resolveKawasakiModel,
 } from '../utils/kawasaki-partstream';
 import { fetchPublicSupportArticle } from '../services/husqvarna-public-site.service';
+import { fetchPublicMachineUse } from '../services/husqvarna-public-specs-source';
+import { formatBarRange } from '../utils/husqvarna-public-specs';
 
 /**
  * Vigia dos fornecedores.
@@ -114,6 +116,21 @@ export const CHECKS: Check[] = [
       expect(article, 'o site público não devolveu o artigo');
       expect(article.sections.length >= 1 && article.sections.every(section => section.articles?.length > 0), 'as seções da vista explodida vieram vazias');
       return `${article.sections.length} seções`;
+    },
+  },
+  {
+    // O uso recomendado do orçamento de máquina depende dos ids WEB_ChainsawSubGroup / ART_647 e de TD32_*_metric. Se a Husqvarna renomear um id ou
+    // acrescentar uma classe nova, o leitor devolve "sem dado" e a linha some do orçamento em silêncio: aqui isso vira aviso.
+    name: 'Husqvarna · site público (uso recomendado da 281XP e do 350iB)',
+    run: async () => {
+      const chainsaw = await fetchPublicMachineUse('965801490');
+      expect(chainsaw, 'o site público não devolveu a ficha da 281XP');
+      expect(chainsaw.useClass, 'a classe de uso da motosserra não foi reconhecida (id mudou ou há classe nova)');
+      expect(formatBarRange(chainsaw), 'a faixa de sabre recomendada da motosserra sumiu');
+      const blower = await fetchPublicMachineUse('970569909');
+      expect(blower, 'o site público não devolveu a ficha do 350iB');
+      expect(blower.useClass, 'a classificação de uso do soprador não foi reconhecida (id mudou ou há classe nova)');
+      return `${chainsaw.useClass}, sabre ${formatBarRange(chainsaw)}; ${blower.useClass}`;
     },
   },
 ];
