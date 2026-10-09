@@ -57,6 +57,8 @@ function espiaTransacao() {
   const capturado: { opcoes?: unknown } = {};
 
   const txFalso = {
+    // A transação trava a linha do orçamento (SELECT ... FOR UPDATE) antes de trocar as linhas.
+    $queryRaw: async () => [],
     quoteItem: { deleteMany: async () => ({ count: 0 }), createMany: async () => ({ count: 0 }) },
     quote: { update: async () => rascunhoFalso() },
   };
