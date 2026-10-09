@@ -13,6 +13,7 @@ const OTHER_TENANT = '00000000-0000-0000-0000-0000000000f2';
 async function wipe() {
   await prisma.$executeRaw`DELETE FROM "CommercialImportRun" WHERE "tenantId" IN (${TENANT}, ${OTHER_TENANT})`;
   await prisma.$executeRaw`DELETE FROM "MasterPartSection" WHERE "tenantId" IN (${TENANT}, ${OTHER_TENANT})`;
+  await prisma.$executeRaw`DELETE FROM "PriceListChange" WHERE "tenantId" IN (${TENANT}, ${OTHER_TENANT})`;
   await prisma.$executeRaw`DELETE FROM "MachineServicePart" WHERE "tenantId" IN (${TENANT}, ${OTHER_TENANT})`;
   await prisma.$executeRaw`DELETE FROM "MasterPart" WHERE "tenantId" IN (${TENANT}, ${OTHER_TENANT})`;
   await prisma.$executeRaw`DELETE FROM "Tenant" WHERE "id" IN (${TENANT}, ${OTHER_TENANT})`;
@@ -201,4 +202,41 @@ test('arquivo suspeito: o relatório diz o motivo e a gravação RECUSA, mesmo c
 
   const good = catalog([row('ZQ100', 'R$ 92,00'), row('ZQ200', 'R$ 138,00')]);
   assert.equal((await buildPriceListReport(prisma, TENANT, good)).problem, null, 'arquivo bom não tem problema');
+});
+
+// ── Escala: o que passa dos lotes de 400 (preços e códigos novos) e de 1.000 (histórico e revisão) ────────────────────────────────────
+test('escala: 1.250 preços mudando e 1.250 códigos novos atravessam os lotes sem perder nenhum', async t => {
+  await seed();
+  t.after(wipe);
+  const N = 1250;
+  await prisma.masterPart.createMany({ data: Array.from({ length: N }, (_, i) => ({ tenantId: TENANT, partNumber: `ZE${i}`, normalizedNumber: `ZE${i}`, name: `existente ${i}`, price: 100 })) });
+  // Os existentes sobem 8% (R$ 99,36 ÷ 0,92 = 108) e aparecem mais 1.250 códigos (R$ 46,00 ÷ 0,92 = 50). O ZQ100 e o ZQ200 já estão certos.
+  const list = catalog([
+    ...Array.from({ length: N }, (_, i) => row(`ZE${i}`, 'R$ 99,36')),
+    ...Array.from({ length: N }, (_, i) => row(`ZN${i}`, 'R$ 46,00')),
+    row('ZQ100', 'R$ 92,00'), row('ZQ200', 'R$ 46,00'),
+  ]);
+  const report = await buildPriceListReport(prisma, TENANT, list);
+  assert.deepEqual([report.changed, report.added, report.unchanged], [N, N, 2]);
+
+  const result = await applyPriceList(prisma, TENANT, list, { changed: N, added: N }, source);
+  assert.deepEqual([result.updated, result.added], [N, N]);
+  const precos = await prisma.masterPart.groupBy({ by: ['price'], where: { tenantId: TENANT, normalizedNumber: { startsWith: 'ZE' } }, _count: true });
+  assert.deepEqual(precos.map(item => [item.price, item._count]), [[108, N]], 'todos os 1.250 existentes foram para 108');
+  assert.equal(await prisma.masterPart.count({ where: { tenantId: TENANT, normalizedNumber: { startsWith: 'ZN' } } }), N, 'todos os novos entraram');
+  assert.equal(await prisma.masterPartSection.count({ where: { tenantId: TENANT, normalizedNumber: { startsWith: 'ZN' } } }), N, 'e cada um com a sua seção');
+  assert.equal(await prisma.priceListChange.count({ where: { tenantId: TENANT } }), N * 2, 'o histórico guarda os 2.500 para desfazer');
+});
+
+test('escala: 2.500 peças de revisão atravessam os lotes de 1.000 e a tabela fica exatamente igual à lista', async t => {
+  await seed();
+  t.after(wipe);
+  const links = parseServicePartRows(Array.from({ length: 2500 }, (_, i) => ({ codigo: `ZR${i}`, pnc: `9670${String(i % 50).padStart(5, '0')}`, reparo: i % 3 === 0 ? 'PREVENTIVO' : 'CONSUMÍVEL', descricao: `PEÇA ${i}` }))).links;
+  assert.equal(links.length, 2500);
+  const list = catalog([row('ZQ100', 'R$ 92,00')]);
+  const report = await buildPriceListReport(prisma, TENANT, list, links);
+  assert.deepEqual([report.service.added, report.service.removed, report.service.machines], [2500, 0, 50]);
+  await applyPriceList(prisma, TENANT, list, { changed: 0, added: 0, serviceAdded: 2500, serviceRemoved: 0 }, source, links);
+  assert.equal(await prisma.machineServicePart.count({ where: { tenantId: TENANT } }), 2500);
+  assert.equal((await buildPriceListReport(prisma, TENANT, list, links)).service.added, 0, 'rodar de novo não acha mais diferença');
 });

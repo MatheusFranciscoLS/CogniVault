@@ -117,6 +117,22 @@ try {
     await shot(page, `${theme}-1366-lista-precos-relatorio`);
   });
 
+  await step('Rede cai na hora de gravar: a tela NÃO afirma que nada foi gravado e manda conferir', async () => {
+    await page.route('**/api/admin/price-list/apply*', rota => rota.abort());
+    await cartao.getByRole('button', { name: 'Gravar na loja' }).click();
+    await confirmar(page, 'Gravar');
+    const alerta = cartao.getByRole('alert').first();
+    await alerta.waitFor({ timeout: 30000 });
+    const texto = (await alerta.innerText()).replace(/\s+/g, ' ');
+    check('o aviso manda conferir a "Última atualização" (a gravação pode ter terminado no servidor)', /Confira em "Última atualização"/.test(texto), texto);
+    check('e não diz "Nada foi gravado" por conta própria', !/Nada foi gravado/.test(texto));
+    check('o relatório continua na tela para tentar de novo', await cartao.getByRole('button', { name: 'Gravar na loja' }).isEnabled());
+    check('nada entrou de fato (a rede caiu antes)', total() === totalAntes);
+    await page.unroute('**/api/admin/price-list/apply*');
+    // O console registra a requisição que NÓS derrubamos de propósito: descarta só essa mensagem.
+    for (let i = errors.length - 1; i >= 0; i--) if (/net::ERR_FAILED/.test(errors[i])) errors.splice(i, 1);
+  });
+
   await step('Cancelar a confirmação não grava', async () => {
     await cartao.getByRole('button', { name: 'Gravar na loja' }).click();
     const dialogo = page.getByRole('alertdialog');
