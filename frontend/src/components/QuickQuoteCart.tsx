@@ -324,6 +324,38 @@ export default function QuickQuoteCart({ layout = 'drawer' }: { layout?: 'drawer
     if (confirmed) clearCart();
   };
 
+  // Cliente e OS: na aba Conserto vêm ANTES das linhas (como na planilha); na gaveta, depois do formulário. Muda de lugar no próprio HTML
+  // (e não por CSS), porque a ordem do Tab precisa ser a da tela.
+  const customerSection = (
+            <section className={cn('space-y-4 border-t border-border bg-card px-6 py-5', page && 'border-t-0')}>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label htmlFor="quote-customer-name" className="block text-sm font-medium text-muted-foreground">Cliente e máquina</label>
+                  <Input id="quote-customer-name" type="text" autoComplete="off" value={customerName} onChange={e => patchOptions({ customerName: e.target.value })} placeholder="Nome do cliente" className="text-base" />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="quote-customer-phone" className="block text-sm font-medium text-muted-foreground">WhatsApp do cliente</label>
+                  <Input id="quote-customer-phone" type="tel" inputMode="tel" autoComplete="off" value={customerPhone} onChange={e => patchOptions({ customerPhone: maskPhoneInput(e.target.value) })} placeholder="(19) 99999-9999" className="font-code text-base tabular-nums" />
+                </div>
+              </div>
+
+              {repair && (
+                <div className="space-y-1.5">
+                  <label htmlFor="quote-doc-number" className="block text-sm font-medium text-muted-foreground">Nº da OS</label>
+                  <Input id="quote-doc-number" type="text" autoComplete="off" maxLength={40} value={draftOptions.docNumber ?? ''} onChange={e => patchOptions({ docNumber: e.target.value })} className="font-code text-base font-semibold" />
+                </div>
+              )}
+
+              {draftOptions.engine && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted px-3 py-2">
+                  <span className="text-base"><span className="text-muted-foreground">Motor </span><span translate="no" className="font-code font-semibold">{draftOptions.engine}</span></span>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => patchOptions({ engine: undefined })} aria-label={`Tirar o motor ${draftOptions.engine} do orçamento`}>Tirar</Button>
+                </div>
+              )}
+
+            </section>
+  );
+
   const content = (
     <>
           <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border bg-card px-6 py-4">
@@ -354,14 +386,15 @@ export default function QuickQuoteCart({ layout = 'drawer' }: { layout?: 'drawer
           {/* Uma única região rolável: peças primeiro (é o que se confere com o cliente
               na frente), depois cliente e pagamento. O rodapé fica fixo e curto: total e
               envio. Antes, um rodapé de ~220 px engolia a lista em tela curta. */}
-          <div className={page ? 'flex flex-col' : 'min-h-0 flex-1 overflow-y-auto overscroll-contain'}>
+          <div className={page ? '' : 'min-h-0 flex-1 overflow-y-auto overscroll-contain'}>
+            {page && customerSection}
             {items.length === 0 ? (page ? null : (
               <div className="px-6 py-16 text-center">
                 <p className="text-xl font-semibold">Orçamento vazio</p>
                 <p className="mt-1 text-base text-muted-foreground">Adicione peças pela busca.</p>
               </div>
             )) : (
-              <ul className={cn('divide-y divide-border bg-card', page && 'order-2')}>
+              <ul className="divide-y divide-border bg-card">
                 {page && (
                   <li aria-hidden="true" className="grid grid-cols-[minmax(0,1fr)_150px_104px_96px_96px_32px] gap-x-3 bg-muted px-6 py-1.5 text-sm font-medium text-muted-foreground">
                     <span>Descrição</span><span>Prazo</span><span className="text-center">Qtde</span><span className="text-right">Valor un.</span><span className="text-right">Total</span><span />
@@ -384,7 +417,7 @@ export default function QuickQuoteCart({ layout = 'drawer' }: { layout?: 'drawer
               </ul>
             )}
 
-            <div className={cn('border-t border-border px-6 py-4', page && 'order-3')}>
+            <div className="border-t border-border px-6 py-4">
               {!showCustomItemForm && !page ? (
                 <Button variant="outline" onClick={() => setShowCustomItemForm(true)} className="w-full border-dashed">
                   <Plus className="size-4" />
@@ -395,35 +428,10 @@ export default function QuickQuoteCart({ layout = 'drawer' }: { layout?: 'drawer
               )}
             </div>
 
-            <section className={cn('space-y-4 border-t border-border bg-card px-6 py-5', page && 'order-1 border-t-0')}>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label htmlFor="quote-customer-name" className="block text-sm font-medium text-muted-foreground">Cliente e máquina</label>
-                  <Input id="quote-customer-name" type="text" autoComplete="off" value={customerName} onChange={e => patchOptions({ customerName: e.target.value })} placeholder="Nome do cliente" className="text-base" />
-                </div>
-                <div className="space-y-1.5">
-                  <label htmlFor="quote-customer-phone" className="block text-sm font-medium text-muted-foreground">WhatsApp do cliente</label>
-                  <Input id="quote-customer-phone" type="tel" inputMode="tel" autoComplete="off" value={customerPhone} onChange={e => patchOptions({ customerPhone: maskPhoneInput(e.target.value) })} placeholder="(19) 99999-9999" className="font-code text-base tabular-nums" />
-                </div>
-              </div>
 
-              {repair && (
-                <div className="space-y-1.5">
-                  <label htmlFor="quote-doc-number" className="block text-sm font-medium text-muted-foreground">Nº da OS</label>
-                  <Input id="quote-doc-number" type="text" autoComplete="off" maxLength={40} value={draftOptions.docNumber ?? ''} onChange={e => patchOptions({ docNumber: e.target.value })} className="font-code text-base font-semibold" />
-                </div>
-              )}
+            {!page && customerSection}
 
-              {draftOptions.engine && (
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted px-3 py-2">
-                  <span className="text-base"><span className="text-muted-foreground">Motor </span><span translate="no" className="font-code font-semibold">{draftOptions.engine}</span></span>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => patchOptions({ engine: undefined })} aria-label={`Tirar o motor ${draftOptions.engine} do orçamento`}>Tirar</Button>
-                </div>
-              )}
-
-            </section>
-
-            <section className={cn('space-y-4 border-t border-border bg-card px-6 py-5', page && 'order-4')}>
+            <section className="space-y-4 border-t border-border bg-card px-6 py-5">
               <div className="space-y-1.5">
                 <label htmlFor="quote-payment-method" className="block text-sm font-medium text-muted-foreground">Condição de pagamento</label>
                 <select

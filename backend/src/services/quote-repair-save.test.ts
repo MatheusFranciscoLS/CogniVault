@@ -76,3 +76,16 @@ test('a lista filtra por tipo e acha pelo número da OS', async t => {
   assert.deepEqual(achado.quotes.map(quote => quote.docNumber), ['59642']);
   assert.equal((await QuoteService.listSavedQuotes({ ...base, kind: 'REPAIR', search: '00000' })).total, 0);
 });
+
+test('dois envios da MESMA OS ao mesmo tempo (clique duplo) deixam UM orçamento só', async t => {
+  await wipe();
+  t.after(wipe);
+  await prisma.tenant.create({ data: { id: TENANT, name: 'Loja de teste' } });
+  await prisma.user.create({ data: { id: USER_A, tenantId: TENANT, email: 'a@teste.local', password: 'x', role: 'MECHANIC' } });
+
+  const resultados = await Promise.all([1, 2, 3, 4].map(vez => QuoteService.saveQuote(TENANT, USER_A, itens(20 + vez), { kind: 'REPAIR', docNumber: '59700' })));
+  assert.equal(new Set(resultados.map(quote => quote.id)).size, 1, 'todos os envios caem no mesmo orçamento');
+  assert.equal(await prisma.quote.count({ where: { tenantId: TENANT, status: 'SAVED', docNumber: '59700' } }), 1);
+  const guardado = await prisma.quoteItem.count({ where: { quote: { tenantId: TENANT, docNumber: '59700' } } });
+  assert.equal(guardado, 2, 'as linhas não se duplicam (2 linhas, não 8)');
+});

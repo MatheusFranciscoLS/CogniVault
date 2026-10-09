@@ -426,6 +426,9 @@ export class QuoteService {
       });
       if (existing) {
         const updated = await prisma.$transaction(async tx => {
+          // Trava a linha do orçamento até o fim da transação: duas atualizações da MESMA OS ao mesmo tempo (clique duplo) se intercalavam (as duas
+          // apagavam e as duas recriavam as linhas) e o orçamento saía com as linhas em dobro. A segunda espera a primeira terminar.
+          await tx.$queryRaw`SELECT "id" FROM "Quote" WHERE "id" = ${existing.id} FOR UPDATE`;
           await tx.quoteItem.deleteMany({ where: { quoteId: existing.id } });
           if (items.length) {
             await tx.quoteItem.createMany({ data: itemRows(items).map(row => ({ ...row, quoteId: existing.id })) });
@@ -450,7 +453,9 @@ export class QuoteService {
       }
     }
 
-    const created = await prisma.quote.create({
+    let created;
+    try {
+      created = await prisma.quote.create({
       data: {
         tenantId,
         userId,
@@ -470,6 +475,14 @@ export class QuoteService {
       },
       include: quoteInclude,
     });
+    } catch (error) {
+      // Dois envios da mesma OS ao mesmo tempo (clique duplo em PDF/WhatsApp): o índice único barrou o segundo; agora o primeiro já existe e este
+      // salvamento vira atualização dele.
+      if (options.kind === 'REPAIR' && options.docNumber && error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        return QuoteService.saveQuote(tenantId, userId, items, options);
+      }
+      throw error;
+    }
 
     return serializeQuote(created);
   }
