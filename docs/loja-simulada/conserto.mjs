@@ -67,6 +67,23 @@ try {
     check('o total é a soma (20 + 10,87 + 220 = R$ 250,87)', /R\$\s*250,87/.test(await page.locator('footer').innerText()));
   });
 
+  await step('A ordem do Tab é a ordem da tela: cliente e OS, depois as linhas, depois o formulário de item', async () => {
+    const ordem = await page.evaluate(() => {
+      const posicao = el => { const r = el.getBoundingClientRect(); return r.top + window.scrollY; };
+      const os = document.getElementById('quote-doc-number');
+      const cliente = document.getElementById('quote-customer-name');
+      const linha = document.querySelector('select[aria-label^="Prazo de "]');
+      const formulario = document.getElementById('custom-item-code');
+      const noDom = (a, b) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+      return {
+        dom: noDom(cliente, os) && noDom(os, linha) && noDom(linha, formulario),
+        tela: posicao(cliente) < posicao(os) && posicao(os) < posicao(linha) && posicao(linha) < posicao(formulario),
+      };
+    });
+    check('no HTML: cliente → OS → linhas → formulário', ordem.dom);
+    check('na tela: cliente → OS → linhas → formulário (a mesma ordem)', ordem.tela);
+  });
+
   await step('Prazo POR LINHA, como na planilha (7 DIAS numas, IMEDIATO noutras)', async () => {
     await page.getByLabel('Prazo de JOGO DE JUNTAS').selectOption('ORDER');
     await page.getByLabel('Prazo de COBERTURA DO CARBURADOR').selectOption('NOW');

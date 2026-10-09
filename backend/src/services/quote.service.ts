@@ -450,7 +450,9 @@ export class QuoteService {
       }
     }
 
-    const created = await prisma.quote.create({
+    let created;
+    try {
+      created = await prisma.quote.create({
       data: {
         tenantId,
         userId,
@@ -470,6 +472,14 @@ export class QuoteService {
       },
       include: quoteInclude,
     });
+    } catch (error) {
+      // Dois envios da mesma OS ao mesmo tempo (clique duplo em PDF/WhatsApp): o índice único barrou o segundo; agora o primeiro já existe e este
+      // salvamento vira atualização dele.
+      if (options.kind === 'REPAIR' && options.docNumber && error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        return QuoteService.saveQuote(tenantId, userId, items, options);
+      }
+      throw error;
+    }
 
     return serializeQuote(created);
   }
