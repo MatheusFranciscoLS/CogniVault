@@ -7,6 +7,7 @@ import type { jsPDF as JsPdf } from 'jspdf';
 import type autoTableFn from 'jspdf-autotable';
 import { applicationLabel, categoryLabel, technologyLabel, type ListedMachine } from './machine-list';
 import type { PdfImage } from './pdf-assets';
+import { makePdfSafe } from './pdf-text';
 import { FOOTER_SPACE, INK, MARGIN, MUTED, NAVY, NAVY_DARK, ZEBRA, cityAndDate, drawLetterFooter, drawLetterhead } from './quote-pdf';
 import { STORE_SIGNATURE, formatBRL, formatDate } from './quote-message';
 
@@ -68,6 +69,7 @@ export function buildMachineSheetPdf(input: {
   logo?: PdfImage | null;
 }): JsPdf {
   const { doc, autoTable, machine, equipment, listDate } = input;
+  makePdfSafe(doc);
   const pageWidth = doc.internal.pageSize.getWidth();
 
   const top = drawLetterhead(doc, { logo: input.logo, title: 'FICHA DA MÁQUINA' });
