@@ -3,7 +3,7 @@ import test from 'node:test';
 import { prisma } from '../config/prisma';
 import { parsePriceListCatalog } from '../scripts/price-list-html';
 import { parseServicePartRows } from '../scripts/service-parts';
-import { PriceListApprovalError, applyPriceList, buildPriceListReport } from './price-list-update.service';
+import { PriceListApprovalError, applyPriceList, buildPriceListReport, fileProblem } from './price-list-update.service';
 
 // Precisa de Postgres de verdade (transação, UPDATE ... FROM VALUES). Códigos e preços INVENTADOS; grava com tenant próprio e limpa no fim.
 // Nunca rode contra o banco de produção (o `npm test` recusa).
@@ -170,4 +170,35 @@ test('revisão: falha no meio desfaz tudo, inclusive a troca de preço', async t
   assert.equal((await prisma.masterPart.findFirst({ where: { tenantId: TENANT, normalizedNumber: 'ZQ200' } }))?.price, 50, 'o preço voltou ao antigo');
   assert.equal(await prisma.machineServicePart.count({ where: { tenantId: TENANT } }), 0);
   assert.equal(await prisma.commercialImportRun.count({ where: { tenantId: TENANT } }), 0);
+});
+
+// ── Arquivo suspeito não grava ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+test('fileProblem: arquivo vazio, sem código legível ou com mais de 5% de linhas ilegíveis é suspeito; até 5% passa', () => {
+  const stats = (rows: number, bad: number, noCode: number, uniqueCodes = rows - bad - noCode) => ({ rows, rowsWithBadPrice: bad, rowsWithoutCode: noCode, uniqueCodes });
+  assert.match(fileProblem(stats(0, 0, 0, 0)) ?? '', /nenhuma peça/);
+  assert.match(fileProblem(stats(10, 10, 0, 0)) ?? '', /nenhuma peça/);
+  assert.equal(fileProblem(stats(1000, 50, 0)), null, '5% exatos ainda passa');
+  assert.equal(fileProblem(stats(1000, 25, 25)), null, 'bad + sem código somam 5%: passa');
+  assert.match(fileProblem(stats(1000, 51, 0)) ?? '', /Mais de 5% das linhas/);
+  assert.match(fileProblem(stats(1000, 0, 60)) ?? '', /Mais de 5% das linhas/);
+  assert.equal(fileProblem(stats(22289, 0, 0)), null, 'a lista real não tem linha ilegível');
+});
+
+test('arquivo suspeito: o relatório diz o motivo e a gravação RECUSA, mesmo com os números certos, sem gravar nada', async t => {
+  await seed();
+  t.after(wipe);
+  // 4 linhas boas e 2 com preço fora do padrão (33%): estragado.
+  const bad = parsePriceListCatalog({
+    pecas: [row('ZQ100', 'R$ 92,00'), row('ZQ200', 'R$ 138,00'), row('ZQ300', 'R$ 46,00'), row('ZQ400', 'R$ 10,00'), row('ZQ500', 'abc'), row('ZQ600', 'R$ 0,00')],
+    acessorios: [], lubrificantes: [], ferramentas: [],
+  });
+  assert.equal(bad.stats.rowsWithBadPrice, 2, 'R$ 0,00 conta como preço fora do padrão');
+  const report = await buildPriceListReport(prisma, TENANT, bad);
+  assert.match(report.problem ?? '', /Mais de 5% das linhas/);
+  await assert.rejects(() => applyPriceList(prisma, TENANT, bad, { changed: report.changed, added: report.added }, source), PriceListApprovalError);
+  assert.equal(await prisma.masterPart.count({ where: { tenantId: TENANT, normalizedNumber: 'ZQ300' } }), 0, 'nada entrou');
+  assert.equal((await prisma.masterPart.findFirst({ where: { tenantId: TENANT, normalizedNumber: 'ZQ200' } }))?.price, 50, 'nada mudou');
+
+  const good = catalog([row('ZQ100', 'R$ 92,00'), row('ZQ200', 'R$ 138,00')]);
+  assert.equal((await buildPriceListReport(prisma, TENANT, good)).problem, null, 'arquivo bom não tem problema');
 });

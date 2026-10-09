@@ -27,6 +27,8 @@ type Report = {
   service: { stored: number; incoming: number; added: number; removed: number; machines: number };
   /** Preços que mudam para mais que o dobro ou menos que a metade: quase sempre é defeito do arquivo. */
   bigMoves: number;
+  /** O arquivo parece estragado: o motivo, e a gravação fica travada. */
+  problem: string | null;
 };
 
 type LastUpdate = { runId: string; filename: string; at: string; prices: number; added: number; skipped: number };
@@ -254,6 +256,9 @@ export default function PriceListUpdate() {
                 </ul>
               </div>
             )}
+            {report.problem && (
+              <p role="alert" className="rounded-md border border-destructive px-4 py-3 text-base font-semibold text-destructive">{report.problem}</p>
+            )}
             {report.bigMoves > 0 && (
               <p role="alert" className="rounded-md border border-warn px-4 py-3 text-base font-semibold text-warn">
                 {number(report.bigMoves)} {report.bigMoves === 1 ? 'preço muda' : 'preços mudam'} para mais que o dobro ou menos que a metade: confira nas listas abaixo antes de gravar.
@@ -289,7 +294,7 @@ export default function PriceListUpdate() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
-              <Button type="button" size="lg" disabled={busy || (report.changed === 0 && report.added === 0 && !serviceChanges(report))} onClick={() => void save(prepared)}>Gravar na loja</Button>
+              <Button type="button" size="lg" disabled={busy || Boolean(report.problem) || (report.changed === 0 && report.added === 0 && !serviceChanges(report))} onClick={() => void save(prepared)}>Gravar na loja</Button>
               {report.changed === 0 && report.added === 0 && !serviceChanges(report) && <span className="text-base text-muted-foreground">A loja já está igual a esta lista.</span>}
             </div>
           </>

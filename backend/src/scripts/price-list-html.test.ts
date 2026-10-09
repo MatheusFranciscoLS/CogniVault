@@ -9,6 +9,14 @@ function page(catalog: Record<string, unknown>): string {
 
 const empty = { pecas: [], acessorios: [], lubrificantes: [], ferramentas: [] };
 
+test('preço zero não é preço: "R$ 0,00" é recusado e a linha é contada como preço fora do padrão', () => {
+  assert.equal(parseBrlPrice('R$ 0,00'), null);
+  assert.equal(parseBrlPrice('R$ 0,01'), 0.01);
+  const result = parsePriceListHtml(page({ ...empty, pecas: [{ codigo: 'ZQ1', descricao: 'X', preco: 'R$ 0,00' }, { codigo: 'ZQ2', descricao: 'Y', preco: 'R$ 1,00' }] }));
+  assert.deepEqual(result.items.map(item => item.normalizedNumber), ['ZQ2']);
+  assert.equal(result.stats.rowsWithBadPrice, 1);
+});
+
 test('parseBrlPrice lê o formato brasileiro e recusa o resto', () => {
   assert.equal(parseBrlPrice('R$ 22,00'), 22);
   assert.equal(parseBrlPrice('R$ 9.171,00'), 9171);

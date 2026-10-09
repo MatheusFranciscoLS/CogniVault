@@ -8,14 +8,14 @@ import { open, check, step, finish, shot, sqlSim, confirmar, OUT } from './_t.mj
 const { browser, page, errors, theme } = await open({ theme: process.argv[2] ?? 'light' });
 
 // ── Monta o arquivo inventado ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-const linhas = sqlSim(`SELECT "normalizedNumber", "partNumber", COALESCE("price",0) FROM "MasterPart" WHERE "price" > 5 AND "normalizedNumber" ~ '^[0-9]{9}$' ORDER BY "normalizedNumber" LIMIT 30`)
+const linhas = sqlSim(`SELECT "normalizedNumber", "partNumber", COALESCE("price",0) FROM "MasterPart" WHERE "price" > 5 AND "normalizedNumber" ~ '^[0-9]{9}$' ORDER BY "normalizedNumber" LIMIT 90`)
   .trim().split('\n').map(linha => linha.split('|'));
 if (linhas.length < 20) throw new Error('a loja simulada não tem peças suficientes para o roteiro');
 const original = new Map(linhas.map(([normalizado, , preco]) => [normalizado, Number(preco)]));
 const consumidor = valor => `R$ ${valor.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
 
 const mudam = linhas.slice(0, 6);        // +10%
-const iguais = linhas.slice(6, 12);      // mesmo preço (preço da loja × 0,92 volta ao mesmo valor)
+const iguais = [...linhas.slice(6, 12), ...linhas.slice(13, 90)];      // mesmo preço (preço da loja × 0,92 volta ao mesmo valor)
 const conflito = linhas[12];             // mesmo código com dois preços: tem que ser RECUSADO
 const pecas = [
   ...mudam.map(([, codigo, preco]) => ({ codigo, descricao: `PEÇA TESTE ${codigo}`, preco: consumidor(Number(preco) * 1.1 * 0.92), modelo: 'MODELO TESTE' })),
@@ -34,6 +34,13 @@ const arquivo = path.join(pasta, 'lista-inventada.html');
 fs.writeFileSync(arquivo, `<!DOCTYPE html><html><body><script id="catalogData" type="application/json">${JSON.stringify({ produtos: [{ codigo: 'MAQ', imagem }], pecas, acessorios: [], lubrificantes: [], ferramentas: [] })}</script></body></html>`);
 const naoLista = path.join(pasta, 'outra-coisa.html');
 fs.writeFileSync(naoLista, '<html><body><h1>não é a lista</h1></body></html>');
+// Arquivo ESTRAGADO: 40% das linhas com preço fora do padrão (formato mudou?). Não pode gravar.
+const estragada = path.join(pasta, 'estragada.html');
+fs.writeFileSync(estragada, `<script id="catalogData" type="application/json">${JSON.stringify({ pecas: [
+  ...Array.from({ length: 6 }, (_, i) => ({ codigo: `ZZBOM00${i}`, descricao: 'BOA', preco: 'R$ 10,00', modelo: 'M' })),
+  ...Array.from({ length: 2 }, (_, i) => ({ codigo: `ZZRUIM0${i}`, descricao: 'RUIM', preco: 'R$ 0,00', modelo: 'M' })),
+  ...Array.from({ length: 2 }, (_, i) => ({ codigo: `ZZRUIM1${i}`, descricao: 'RUIM', preco: 'dez reais', modelo: 'M' })),
+], acessorios: [], lubrificantes: [], ferramentas: [] })}</script>`);
 const incompleta = path.join(pasta, 'incompleta.html');
 fs.writeFileSync(incompleta, `<script id="catalogData" type="application/json">${JSON.stringify({ pecas: [] })}</script>`);
 
@@ -72,6 +79,17 @@ try {
   await cartao.waitFor({ timeout: 30000 });
   await cartao.scrollIntoViewIfNeeded();
   const entrada = cartao.locator('#price-list-file');
+
+  await step('Arquivo estragado (muita linha ilegível) mostra o motivo e NÃO deixa gravar', async () => {
+    await entrada.setInputFiles(estragada);
+    await cartao.getByRole('button', { name: 'Gravar na loja' }).waitFor({ timeout: 60000 });
+    check('o alerta explica: mais de 5% das linhas não puderam ser lidas', /Mais de 5% das linhas não puderam ser lidas \(4 de 10/.test(await cartao.innerText()), (await cartao.innerText()).replace(/\s+/g, ' ').slice(0, 260));
+    check('o botão de gravar está desabilitado', await cartao.getByRole('button', { name: 'Gravar na loja' }).isDisabled());
+    check('R$ 0,00 e texto contam como preço fora do padrão', /4 com preço fora do padrão/.test(await cartao.innerText()));
+    await shot(page, `${theme}-1366-lista-estragada`);
+    check('nada foi gravado', total() === totalAntes);
+    await cartao.getByRole('button', { name: 'Escolher outro arquivo' }).click();
+  });
 
   await step('Arquivo errado explica o que houve e deixa escolher outro', async () => {
     for (const [arq, texto] of [[naoLista, /não parece ser o arquivo/], [incompleta, /"acessorios" não está|não está no arquivo/]]) {

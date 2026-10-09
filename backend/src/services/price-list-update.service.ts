@@ -23,6 +23,22 @@ const TX_OPTIONS = { maxWait: 15_000, timeout: 300_000 };
 
 export class PriceListApprovalError extends Error {}
 
+/** Acima disso de linhas sem código ou com preço fora do padrão, o arquivo está estragado (ou não é a lista): não se grava nada a partir dele. */
+export const SUSPECT_UNREADABLE_RATIO = 0.05;
+
+/**
+ * O arquivo parece estragado? Devolve o motivo (em português, para a tela) ou `null`. Vale no relatório E na gravação: o servidor não confia em botão habilitado.
+ * Lista com 5% de linhas ilegíveis seriam ~3 mil peças deixadas sem atualizar sem ninguém perceber; pior, é sinal de que o formato mudou.
+ */
+export function fileProblem(stats: HtmlPriceList['stats']): string | null {
+  if (stats.rows === 0 || stats.uniqueCodes === 0) return 'O arquivo não tem nenhuma peça com código e preço legíveis.';
+  const unreadable = stats.rowsWithoutCode + stats.rowsWithBadPrice;
+  if (unreadable / stats.rows > SUSPECT_UNREADABLE_RATIO) {
+    return `Mais de 5% das linhas não puderam ser lidas (${unreadable.toLocaleString('pt-BR')} de ${stats.rows.toLocaleString('pt-BR')}, sem código ou com preço fora do padrão). O arquivo pode estar estragado ou o formato mudou: nada será gravado.`;
+  }
+  return null;
+}
+
 function chunk<T>(items: T[], size: number): T[][] {
   const result: T[][] = [];
   for (let index = 0; index < items.length; index += size) result.push(items.slice(index, index + size));
@@ -56,6 +72,8 @@ export type PriceListReport = {
   addedBySection: Array<{ label: string; count: number }>;
   /** Peças de revisão por máquina (campo "reparo"). `incoming` 0 = a lista não traz o campo: nada muda. */
   service: ServicePartsDiff;
+  /** Preenchido quando o arquivo parece estragado: a tela mostra o motivo e não deixa gravar. */
+  problem: string | null;
   /** Preços que mudam MAIS que o dobro ou MENOS que a metade (+100% / −50%): quase sempre é defeito do arquivo, e vale conferir antes de gravar. */
   bigMoves: number;
 };
@@ -92,6 +110,7 @@ export function summarizeDiff(list: HtmlPriceList, diff: PriceListDiff, service:
     topDrops: [...withPercent].sort((a, b) => (a.percent as number) - (b.percent as number)).slice(0, 15).map(toRow),
     addedBySection: [...sections].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count),
     service,
+    problem: fileProblem(list.stats),
     bigMoves: withPercent.filter(change => (change.percent as number) >= 100 || (change.percent as number) <= -50).length,
   };
 }
@@ -254,6 +273,8 @@ export async function applyPriceList(
   source: { filename: string; hash: string },
   service: ServicePartLink[] = [],
 ): Promise<PriceListApplyResult> {
+  const problem = fileProblem(list.stats);
+  if (problem) throw new PriceListApprovalError(problem);
   const diff = diffPriceList(await loadStoredParts(prisma, tenantId), list.items);
   const serviceDiff = diffServiceParts(await loadStoredServiceParts(prisma, tenantId), service);
   const approvedServiceAdded = approved.serviceAdded ?? 0;
