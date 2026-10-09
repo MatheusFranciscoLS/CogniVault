@@ -28,6 +28,7 @@ model Tenant {
   createdAt                       DateTime                         @default(now())
   MachineListing                  MachineListing[]
   searchMisses                    SearchMiss[]
+  machineServiceParts             MachineServicePart[]
   MachineListingPhoto             MachineListingPhoto[]
 }
 
@@ -731,4 +732,23 @@ model SearchMiss {
 
   @@unique([tenantId, normalizedQuery])
   @@index([tenantId, lastSeenAt])
+}
+
+/// Peças de REVISÃO de cada máquina (PNC de 9 dígitos), do campo "reparo" da lista de preços da Husqvarna: PREVENTIVO, CONSUMIVEL e PREDITIVO.
+/// O CORRETIVO (conserto depois de quebrar) fica de fora de propósito: revisão é o que se troca ANTES de quebrar. Espelho da lista: a atualização da
+/// lista pela tela do administrador troca tudo numa transação só. Vazia até a primeira atualização com uma lista que traga o campo.
+model MachineServicePart {
+  id               String   @id @default(uuid())
+  tenantId         String
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pnc              String
+  partNumber       String
+  normalizedNumber String
+  name             String
+  /// PREVENTIVO, CONSUMIVEL ou PREDITIVO.
+  kind             String
+  importedAt       DateTime @default(now())
+
+  @@unique([tenantId, pnc, normalizedNumber])
+  @@index([tenantId, pnc])
 }

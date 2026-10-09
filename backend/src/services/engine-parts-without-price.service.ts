@@ -25,8 +25,10 @@ export type EnginePartsWithoutPrice = { total: number; items: EnginePartWithoutP
 type Row = { partNumber: string; name: string; sources: string[]; engines: bigint | number; engineExamples: string[] };
 
 export class EnginePartsWithoutPriceService {
-  static async list(tenantId: string, limit = 100): Promise<EnginePartsWithoutPrice> {
+  /** `onlyNormalized` restringe a consulta a esses códigos (os testes usam, para não depender do que a loja simulada já acumulou); em produção fica vazio. */
+  static async list(tenantId: string, limit = 100, onlyNormalized: string[] = []): Promise<EnginePartsWithoutPrice> {
     const take = Math.max(1, Math.min(200, Math.trunc(limit) || 100));
+    const restrict = onlyNormalized.length ? Prisma.sql`AND i."normalizedNumber" = ANY(${onlyNormalized}::text[])` : Prisma.empty;
 
     const items = await prisma.$queryRaw<Row[]>`
       SELECT
@@ -43,6 +45,7 @@ export class EnginePartsWithoutPriceService {
           AND m."price" IS NOT NULL
           AND m."price" > 0
       )
+      ${restrict}
       GROUP BY i."normalizedNumber"
       ORDER BY COUNT(DISTINCT i."normalizedEngine") DESC, MIN(i."name") ASC
       LIMIT ${take}
@@ -58,6 +61,7 @@ export class EnginePartsWithoutPriceService {
           AND m."price" IS NOT NULL
           AND m."price" > 0
       )
+      ${restrict}
     `);
 
     return {

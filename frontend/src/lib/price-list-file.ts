@@ -11,9 +11,16 @@ export const PRICE_LIST_SECTIONS = ['pecas', 'acessorios', 'lubrificantes', 'fer
 
 const FIELDS = ['codigo', 'descricao', 'preco', 'classif_fiscal', 'ean', 'modelo', 'categoria', 'tipo', 'tecnologia'] as const;
 
-export type PriceListPayload = Record<(typeof PRICE_LIST_SECTIONS)[number], Array<Record<string, string>>>;
+export type PriceListPayload = Record<(typeof PRICE_LIST_SECTIONS)[number], Array<Record<string, string>>> & {
+  /** Peças de revisão por máquina: só as linhas de `pecas` cujo `reparo` é preventivo, consumível ou preditivo (o corretivo, ~19 mil linhas, não entra). */
+  revisao: Array<Record<string, string>>;
+};
 
 export class PriceListFileError extends Error {}
+
+/** `reparo` que conta como revisão (sem acento e em maiúscula, como o servidor lê). */
+const SERVICE_KIND = /^(PREVENTIVO|CONSUMIVEL|PREDITIVO)$/;
+const isServiceKind = (value: unknown) => typeof value === 'string' && SERVICE_KIND.test(value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase());
 
 const SCRIPT_OPEN = '<script id="catalogData"';
 const SCRIPT_CLOSE = '</script>';
@@ -34,10 +41,18 @@ export function extractPriceListPayload(html: string): PriceListPayload {
   }
   if (!catalog || typeof catalog !== 'object' || Array.isArray(catalog)) throw new PriceListFileError('O arquivo não tem o formato da lista de preços.');
 
-  const payload = {} as PriceListPayload;
+  const payload = { revisao: [] } as unknown as PriceListPayload;
   for (const section of PRICE_LIST_SECTIONS) {
     const list = (catalog as Record<string, unknown>)[section];
     if (!Array.isArray(list)) throw new PriceListFileError(`A lista "${section}" não está no arquivo. Confira se é a lista de preços completa.`);
+    if (section === 'pecas') {
+      for (const raw of list as Array<Record<string, unknown> | null>) {
+        if (!raw || !isServiceKind(raw.reparo)) continue;
+        const row: Record<string, string> = {};
+        for (const field of ['codigo', 'pnc', 'reparo', 'descricao']) if (typeof raw[field] === 'string') row[field] = raw[field] as string;
+        payload.revisao.push(row);
+      }
+    }
     payload[section] = list.map(raw => {
       const row: Record<string, string> = {};
       const source = (raw ?? {}) as Record<string, unknown>;

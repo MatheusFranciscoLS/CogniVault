@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { prisma } from '../config/prisma';
 import { parsePriceListCatalog } from '../scripts/price-list-html';
+import { parseServicePartRows } from '../scripts/service-parts';
 import { PriceListApprovalError, applyPriceList, buildPriceListReport } from './price-list-update.service';
 
 // Precisa de Postgres de verdade (transação, UPDATE ... FROM VALUES). Códigos e preços INVENTADOS; grava com tenant próprio e limpa no fim.
@@ -12,6 +13,7 @@ const OTHER_TENANT = '00000000-0000-0000-0000-0000000000f2';
 async function wipe() {
   await prisma.$executeRaw`DELETE FROM "CommercialImportRun" WHERE "tenantId" IN (${TENANT}, ${OTHER_TENANT})`;
   await prisma.$executeRaw`DELETE FROM "MasterPartSection" WHERE "tenantId" IN (${TENANT}, ${OTHER_TENANT})`;
+  await prisma.$executeRaw`DELETE FROM "MachineServicePart" WHERE "tenantId" IN (${TENANT}, ${OTHER_TENANT})`;
   await prisma.$executeRaw`DELETE FROM "MasterPart" WHERE "tenantId" IN (${TENANT}, ${OTHER_TENANT})`;
   await prisma.$executeRaw`DELETE FROM "Tenant" WHERE "id" IN (${TENANT}, ${OTHER_TENANT})`;
 }
@@ -104,4 +106,68 @@ test('preço alterado no banco depois do relatório derruba a gravação inteira
     (prisma.masterPart as { findMany: unknown }).findMany = realFindMany;
   }
   assert.equal(await prisma.masterPart.count({ where: { tenantId: TENANT, normalizedNumber: 'ZQ300' } }), 0, 'o código novo foi desfeito junto');
+});
+
+// ── Peças de revisão (campo "reparo"), gravadas junto da lista ─────────────────────────────────────────────────────────────────────────
+const revisao = (...rows: Array<[string, string, string]>) => parseServicePartRows(rows.map(([codigo, pnc, reparo]) => ({ codigo, pnc, reparo, descricao: `PEÇA ${codigo}` }))).links;
+
+test('revisão: o relatório mostra o que entra e sai, e gravar troca a tabela inteira junto com a lista', async t => {
+  await seed();
+  t.after(wipe);
+  const list = catalog([row('ZQ100', 'R$ 92,00')]);
+  await prisma.machineServicePart.createMany({ data: [
+    { tenantId: TENANT, pnc: '967000001', partNumber: 'OLD1', normalizedNumber: 'OLD1', name: 'antiga', kind: 'PREVENTIVO' },
+    { tenantId: OTHER_TENANT, pnc: '967000001', partNumber: 'OLD1', normalizedNumber: 'OLD1', name: 'da outra loja', kind: 'PREVENTIVO' },
+  ] });
+  const links = revisao(['ZQ1', '967000001', 'PREVENTIVO'], ['ZQ2', '967000001', 'CONSUMÍVEL'], ['ZQ3', '967000002', 'PREVENTIVO']);
+
+  const report = await buildPriceListReport(prisma, TENANT, list, links);
+  assert.deepEqual([report.service.added, report.service.removed, report.service.machines], [3, 1, 2]);
+  assert.equal(report.changed, 0);
+  assert.equal(await prisma.machineServicePart.count({ where: { tenantId: TENANT } }), 1, 'o relatório não grava');
+
+  const result = await applyPriceList(prisma, TENANT, list, { changed: 0, added: 0, serviceAdded: 3, serviceRemoved: 1 }, source, links);
+  assert.deepEqual([result.serviceAdded, result.serviceRemoved], [3, 1]);
+  const mine = (await prisma.machineServicePart.findMany({ where: { tenantId: TENANT }, orderBy: { normalizedNumber: 'asc' } })).map(item => `${item.pnc}:${item.normalizedNumber}:${item.kind}`);
+  assert.deepEqual(mine, ['967000001:ZQ1:PREVENTIVO', '967000001:ZQ2:CONSUMIVEL', '967000002:ZQ3:PREVENTIVO']);
+  assert.equal(await prisma.machineServicePart.count({ where: { tenantId: OTHER_TENANT } }), 1, 'a outra loja não muda');
+});
+
+test('revisão: só a revisão mudou (preço igual) ainda grava; números fora do aprovado recusam sem gravar nada', async t => {
+  await seed();
+  t.after(wipe);
+  const list = catalog([row('ZQ100', 'R$ 92,00')]);
+  const links = revisao(['ZQ1', '967000001', 'PREVENTIVO']);
+
+  await assert.rejects(() => applyPriceList(prisma, TENANT, list, { changed: 0, added: 0, serviceAdded: 0, serviceRemoved: 0 }, source, links), PriceListApprovalError);
+  await assert.rejects(() => applyPriceList(prisma, TENANT, list, { changed: 0, added: 0, serviceAdded: 2, serviceRemoved: 0 }, source, links), PriceListApprovalError);
+  assert.equal(await prisma.machineServicePart.count({ where: { tenantId: TENANT } }), 0, 'nada gravado nas recusas');
+
+  const result = await applyPriceList(prisma, TENANT, list, { changed: 0, added: 0, serviceAdded: 1, serviceRemoved: 0 }, source, links);
+  assert.equal(result.serviceAdded, 1);
+  assert.equal(await prisma.commercialImportRun.count({ where: { tenantId: TENANT } }), 1);
+});
+
+test('revisão: lista SEM o campo (nenhuma ligação) não apaga o que já existe', async t => {
+  await seed();
+  t.after(wipe);
+  await prisma.machineServicePart.create({ data: { tenantId: TENANT, pnc: '967000001', partNumber: 'ZQ1', normalizedNumber: 'ZQ1', name: 'existente', kind: 'PREVENTIVO' } });
+  const list = catalog([row('ZQ200', 'R$ 138,00')]);
+
+  const report = await buildPriceListReport(prisma, TENANT, list, []);
+  assert.deepEqual([report.service.added, report.service.removed], [0, 0]);
+  await applyPriceList(prisma, TENANT, list, { changed: 1, added: 0 }, source, []);
+  assert.equal(await prisma.machineServicePart.count({ where: { tenantId: TENANT } }), 1, 'a revisão continua como estava');
+});
+
+test('revisão: falha no meio desfaz tudo, inclusive a troca de preço', async t => {
+  await seed();
+  t.after(wipe);
+  const list = catalog([row('ZQ200', 'R$ 138,00')]);
+  // Ligação repetida (o leitor nunca devolve isso): a gravação da revisão viola a chave única DEPOIS de o preço já ter sido trocado na transação.
+  const links = [...revisao(['ZQ1', '967000001', 'PREVENTIVO']), ...revisao(['ZQ1', '967000001', 'PREVENTIVO'])];
+  await assert.rejects(() => applyPriceList(prisma, TENANT, list, { changed: 1, added: 0, serviceAdded: 1, serviceRemoved: 0 }, source, links));
+  assert.equal((await prisma.masterPart.findFirst({ where: { tenantId: TENANT, normalizedNumber: 'ZQ200' } }))?.price, 50, 'o preço voltou ao antigo');
+  assert.equal(await prisma.machineServicePart.count({ where: { tenantId: TENANT } }), 0);
+  assert.equal(await prisma.commercialImportRun.count({ where: { tenantId: TENANT } }), 0);
 });

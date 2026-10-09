@@ -9,6 +9,8 @@ const TENANT = '00000000-0000-0000-0000-0000000000e1';
 const OTHER_TENANT = '00000000-0000-0000-0000-0000000000e2';
 const ENGINE_A = 'TESTE-MOTOR-A';
 const ENGINE_B = 'TESTE-MOTOR-B';
+// Só os códigos deste teste: a loja simulada acumula centenas de peças lidas e o teto da lista é 200.
+const MINE = ['ZZ111S', 'ZZ222S', 'ZZ333S', 'ZZ444S', 'ZZ555S'];
 
 async function clear() {
   await prisma.$executeRaw`DELETE FROM "OfficialPartIndex" WHERE "engineModel" IN (${ENGINE_A}, ${ENGINE_B})`;
@@ -40,7 +42,7 @@ test('peças de motor lidas sem preço: sem cadastro, com preço zero ou de outr
   await master(TENANT, 'ZZ444S', 0);
   await master(OTHER_TENANT, 'ZZ555S', 99);
 
-  const result = await EnginePartsWithoutPriceService.list(TENANT, 200);
+  const result = await EnginePartsWithoutPriceService.list(TENANT, 200, MINE);
   const mine = result.items.filter(item => /^ZZ\d/.test(item.partNumber));
   const numbers = mine.map(item => item.partNumber).sort();
 
@@ -52,7 +54,7 @@ test('peças de motor lidas sem preço: sem cadastro, com preço zero ou de outr
   assert.ok(result.total >= 4);
 
   // Outra loja enxerga a própria lista de preços: para ela a ZZ5 tem preço e a ZZ1 não.
-  const other = (await EnginePartsWithoutPriceService.list(OTHER_TENANT, 200)).items.map(item => item.partNumber);
+  const other = (await EnginePartsWithoutPriceService.list(OTHER_TENANT, 200, MINE)).items.map(item => item.partNumber);
   assert.ok(!other.includes('ZZ5 55-S'));
   assert.ok(other.includes('ZZ1 11-S'));
 });
