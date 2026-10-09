@@ -370,6 +370,9 @@ export class QuoteService {
     const totals = computeTotals(items, discountPercentage);
 
     const updated = await prisma.$transaction(async tx => {
+      // Trava a linha do rascunho até o fim da transação: duas gravações da cesta ao mesmo tempo (duas abas, reenvio por rede ruim) se intercalavam
+      // (as duas apagavam e as duas recriavam) e as linhas saíam em dobro.
+      await tx.$queryRaw`SELECT "id" FROM "Quote" WHERE "id" = ${draft.id} FOR UPDATE`;
       await tx.quoteItem.deleteMany({ where: { quoteId: draft.id } });
       if (items.length) {
         await tx.quoteItem.createMany({
@@ -524,6 +527,7 @@ export class QuoteService {
 
     const updated = await prisma.$transaction(async tx => {
       if (items) {
+        await tx.$queryRaw`SELECT "id" FROM "Quote" WHERE "id" = ${quoteId} FOR UPDATE`;
         await tx.quoteItem.deleteMany({ where: { quoteId } });
         if (items.length) {
           await tx.quoteItem.createMany({
