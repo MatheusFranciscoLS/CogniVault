@@ -10,23 +10,26 @@ const [saida, ...pdfs] = process.argv.slice(2);
 if (!saida || !pdfs.length) throw new Error('Uso: pdf-para-png.mjs <pasta-de-saida> <arquivo.pdf> [...]');
 fs.mkdirSync(saida, { recursive: true });
 const pdfjs = path.resolve('../backend/node_modules/pdfjs-dist/build');
-const arquivos = new Map(pdfs.map(p => ['/pdf/' + encodeURIComponent(path.basename(p)), path.resolve(p)]));
+// Tudo é lido NA PARTIDA e o servidor só devolve da memória: o endereço pedido nunca vira caminho de arquivo (nada de "/lib/../..").
+const arquivos = new Map(pdfs.map((p, i) => [`/pdf/${i}`, { nome: path.basename(p, '.pdf'), bytes: fs.readFileSync(path.resolve(p)) }]));
+const bibliotecas = new Map(['pdf.mjs', 'pdf.worker.mjs'].map(nome => [`/lib/${nome}`, fs.readFileSync(path.join(pdfjs, nome))]));
 
 const servidor = http.createServer((req, res) => {
   const url = req.url ?? '';
   if (url === '/') { res.setHeader('content-type', 'text/html'); res.end('<canvas id="c"></canvas>'); return; }
-  if (url.startsWith('/lib/')) { res.setHeader('content-type', 'text/javascript'); res.end(fs.readFileSync(path.join(pdfjs, url.slice(5)))); return; }
-  const alvo = arquivos.get(url);
-  if (alvo) { res.setHeader('content-type', 'application/pdf'); res.end(fs.readFileSync(alvo)); return; }
+  const biblioteca = bibliotecas.get(url);
+  if (biblioteca) { res.setHeader('content-type', 'text/javascript'); res.end(biblioteca); return; }
+  const pdf = arquivos.get(url);
+  if (pdf) { res.setHeader('content-type', 'application/pdf'); res.end(pdf.bytes); return; }
   res.statusCode = 404; res.end();
-}).listen(0);
+}).listen(0, '127.0.0.1');
+await new Promise(resolve => servidor.once('listening', resolve));
 const porta = servidor.address().port;
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 1200 } });
 await page.goto(`http://127.0.0.1:${porta}/`);
-for (const [rota, alvo] of arquivos) {
-  const nome = path.basename(alvo, '.pdf');
+for (const [rota, { nome }] of arquivos) {
   const paginas = await page.evaluate(async ({ rota, porta }) => {
     const pdfjsLib = await import(`http://127.0.0.1:${porta}/lib/pdf.mjs`);
     pdfjsLib.GlobalWorkerOptions.workerSrc = `http://127.0.0.1:${porta}/lib/pdf.worker.mjs`;
