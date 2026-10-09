@@ -162,7 +162,10 @@ export default function PriceListUpdate() {
       void queryClient.invalidateQueries();
       setPhase({ name: 'done', updated: result.updated, added: result.added, service: result.serviceAdded });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Não foi possível gravar. Nada foi gravado.');
+      const message = caught instanceof Error ? caught.message : 'Não foi possível gravar.';
+      // Recusa do servidor ("Nada foi gravado") é certa. Queda de rede ou demora é INCERTA: a gravação pode ter terminado no servidor. A linha "Última atualização" diz a verdade.
+      setError(/Nada foi (gravado|desfeito)/.test(message) ? message : `${message} Confira em "Última atualização" abaixo se a lista chegou a ser gravada antes de tentar de novo.`);
+      void queryClient.invalidateQueries({ queryKey: ['price-list-last'] });
       setPhase({ name: 'ready', prepared });
     }
   };
