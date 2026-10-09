@@ -56,6 +56,21 @@ try {
     check('o assunto digitado vai no PDF', !!pdf && pdf.includes('Orçamento Peças Husqvarna 143RII'.normalize('NFC')));
   });
 
+  await step('Orçamento de empresa: Empresa e Nº saem no PDF (e somem quando vazios)', async () => {
+    const previa = page.getByRole('dialog', { name: 'Orçamento para o cliente' });
+    check('sem preencher, o PDF não tem "Empresa:" nem "Nº:"', !/Empresa:|N\u00ba:/.test((await textoDoPdf()) ?? ''));
+    await previa.getByLabel('Empresa (opcional)').fill('METSO EQUIPAMENTOS');
+    await previa.getByLabel('Nº do orçamento (opcional)').fill('25092026');
+    await page.waitForTimeout(1500);
+    const pdf = (await textoDoPdf()) ?? '';
+    check('a empresa vai no PDF', pdf.includes('Empresa:') && pdf.includes('METSO EQUIPAMENTOS'));
+    check('o número vai no PDF', pdf.includes('25092026'));
+    await previa.getByLabel('Empresa (opcional)').fill('');
+    await previa.getByLabel('Nº do orçamento (opcional)').fill('');
+    await page.waitForTimeout(1200);
+    check('apagando os campos, as linhas somem', !/Empresa:/.test((await textoDoPdf()) ?? ''));
+  });
+
   await step('Entrada ruim não quebra: data vazia, validade zero ou enorme, assunto enorme', async () => {
     const previa = page.getByRole('dialog', { name: 'Orçamento para o cliente' });
     await previa.getByLabel('Validade (dias)').fill('0');

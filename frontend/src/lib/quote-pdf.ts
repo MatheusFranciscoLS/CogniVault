@@ -33,6 +33,10 @@ export type QuotePdfOptions = QuoteMessageOptions & {
   shipping?: string;
   observations?: readonly string[];
   validityDays?: number;
+  /** "Empresa:" (orçamento para empresa: o A/C é a pessoa, aqui vai a razão social). */
+  company?: string;
+  /** "Nº:" do orçamento, digitado; sem número, a linha some. */
+  quoteNumber?: string;
 };
 
 // Azul-marinho da identidade Vardão e o dourado do selo (docs/IDENTIDADE_VISUAL_VARDAO.md).
@@ -173,7 +177,9 @@ export function buildQuotePdf(input: {
   const machineLabel = machine ? `${brands.length === 1 ? `${brands[0]} ` : ''}${machine}` : '';
 
   const facts: Array<[string, string]> = [];
+  if (options.quoteNumber?.trim()) facts.push(['Nº:', options.quoteNumber.trim()]);
   if (options.customerName) facts.push(['A/C:', options.customerName]);
+  if (options.company?.trim()) facts.push(['Empresa:', options.company.trim()]);
   if (options.customerPhone) facts.push(['Telefone:', formatPhoneBr(options.customerPhone)]);
   facts.push(['Ref.:', options.reference || QUOTE_DEFAULTS.reference]);
   if (machineLabel) facts.push(['Máquina:', machineLabel]);
@@ -198,7 +204,7 @@ export function buildQuotePdf(input: {
     return [
       String(index + 1),
       description,
-      ...(showLead ? [leadTime] : []),
+      ...(showLead ? [isServiceLine(item) ? '' : leadTime] : []),
       String(item.quantity),
       priced ? formatBRL(item.unitPrice as number) : 'Sob consulta',
       priced ? formatBRL(item.quantity * (item.unitPrice as number)) : 'Sob consulta',

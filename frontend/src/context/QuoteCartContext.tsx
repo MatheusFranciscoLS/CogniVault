@@ -45,6 +45,8 @@ export interface QuotePdfExtras {
   quoteDate?: Date;
   reference?: string;
   validityDays?: number;
+  company?: string;
+  quoteNumber?: string;
 }
 
 export interface SavedQuote {
@@ -702,7 +704,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
   const createPdfQuote = useCallback(async (options?: QuoteTextOptions & QuotePdfExtras): Promise<JsPdf | null> => {
     if (!items.length) return null;
     const [jspdfModule, autoTableModule] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
-    const { quoteDate, reference, validityDays, ...rest } = options ?? {};
+    const { quoteDate, reference, validityDays, company, quoteNumber, ...rest } = options ?? {};
     const opts: QuoteTextOptions = { ...draftOptions, ...rest };
     // O layout do PDF mora em lib/quote-pdf.ts (testado). Aqui só se junta o que a gaveta já tem.
     const [{ buildQuotePdf }, { loadStoreLogo }, { resolveAttendantName }] = await Promise.all([
@@ -715,7 +717,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       doc: new jspdfModule.jsPDF('p', 'pt', 'a4'),
       autoTable: autoTableModule.default,
       items,
-      options: { ...opts, attendantName: (await resolveAttendantName()) || undefined, ...(reference?.trim() ? { reference: reference.trim() } : {}), ...(validityDays ? { validityDays } : {}) },
+      options: { ...opts, attendantName: (await resolveAttendantName()) || undefined, ...(reference?.trim() ? { reference: reference.trim() } : {}), ...(validityDays ? { validityDays } : {}), ...(company?.trim() ? { company } : {}), ...(quoteNumber?.trim() ? { quoteNumber } : {}) },
       logo: await loadStoreLogo(),
       now: quoteDate,
     });

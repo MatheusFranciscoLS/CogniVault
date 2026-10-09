@@ -20,6 +20,8 @@ export default function QuotePdfDialog({ options, onClose }: { options: QuoteTex
   const [dateText, setDateText] = useState(() => todayInputValue());
   const [reference, setReference] = useState<string>(QUOTE_DEFAULTS.reference);
   const [validityText, setValidityText] = useState(String(QUOTE_DEFAULTS.validityDays));
+  const [company, setCompany] = useState('');
+  const [quoteNumber, setQuoteNumber] = useState('');
   const [pdf, setPdf] = useState<{ url: string; blob: Blob } | null>(null);
   const [failed, setFailed] = useState(false);
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -37,7 +39,7 @@ export default function QuotePdfDialog({ options, onClose }: { options: QuoteTex
     let created: string | null = null;
     const timer = window.setTimeout(async () => {
       try {
-        const doc = await createPdfQuote({ ...(JSON.parse(optionsKey) as QuoteTextOptions), quoteDate, reference, validityDays: validity });
+        const doc = await createPdfQuote({ ...(JSON.parse(optionsKey) as QuoteTextOptions), quoteDate, reference, validityDays: validity, company, quoteNumber });
         if (cancelled) return;
         if (!doc) { setFailed(true); return; }
         const blob = doc.output('blob');
@@ -52,7 +54,7 @@ export default function QuotePdfDialog({ options, onClose }: { options: QuoteTex
     return () => { cancelled = true; window.clearTimeout(timer); };
     // `quoteDate` vem de `dateText`; ele muda junto.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, dateText, reference, validity, optionsKey, createPdfQuote]);
+  }, [ready, dateText, reference, validity, company, quoteNumber, optionsKey, createPdfQuote]);
 
   useEffect(() => () => { setPdf(previous => { if (previous) URL.revokeObjectURL(previous.url); return null; }); }, []);
 
@@ -87,6 +89,14 @@ export default function QuotePdfDialog({ options, onClose }: { options: QuoteTex
             <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-data`}>
               Data do orçamento
               <Input id={`${ids}-data`} type="date" value={dateText} onChange={event => setDateText(event.target.value)} aria-invalid={quoteDate === null} />
+            </label>
+            <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-empresa`}>
+              Empresa (opcional)
+              <Input id={`${ids}-empresa`} value={company} maxLength={120} autoComplete="off" onChange={event => setCompany(event.target.value)} />
+            </label>
+            <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-numero`}>
+              Nº do orçamento (opcional)
+              <Input id={`${ids}-numero`} value={quoteNumber} maxLength={30} autoComplete="off" onChange={event => setQuoteNumber(event.target.value)} />
             </label>
             <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-ref`}>
               Assunto (Ref.)

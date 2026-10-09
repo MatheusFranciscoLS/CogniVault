@@ -199,3 +199,31 @@ describe('buildQuotePdf: motor da máquina', () => {
     expect(texto).not.toContain('Motor:');
   });
 });
+
+describe('orçamento de conserto e de empresa (exemplos reais da loja, 2026-10-09)', () => {
+  const maoDeObra = { partNumber: 'SRV-0001', name: 'MÃO DE OBRA', model: 'Serviço / Balcão', quantity: 1, unitPrice: 150 };
+  const juntaDeOutraMarca = { partNumber: 'VI21488', manufacturer: null, name: 'JOGO DE JUNTAS', model: '', quantity: 1, unitPrice: 20 };
+
+  it('a mão de obra não tem prazo de peça: a célula fica em branco e só as peças dizem o prazo', () => {
+    const { texto } = gerar([carburador, juntaDeOutraMarca, maoDeObra], { leadTime: '7 dias' });
+    expect(texto.match(/\(7 dias\) Tj/g)).toHaveLength(2);
+    expect(texto).toContain('MÃO DE OBRA');
+  });
+
+  it('nenhum código de peça vai ao cliente, nem o de outro fornecedor', () => {
+    const { texto } = gerar([carburador, juntaDeOutraMarca, maoDeObra], {});
+    expect(texto).not.toMatch(/VI21488|587106701|587 10 67-01/);
+    expect(texto).toContain('JOGO DE JUNTAS');
+  });
+
+  it('empresa e número do orçamento saem quando preenchidos e somem quando não', () => {
+    const com = gerar([carburador], { customerName: 'WILLIAM – GRUPO GPS', company: 'METSO EQUIPAMENTOS', quoteNumber: '25092026' }).texto;
+    expect(com).toContain('Empresa:');
+    expect(com).toContain('METSO EQUIPAMENTOS');
+    expect(com).toContain('Nº:');
+    expect(com).toContain('25092026');
+    const sem = gerar([carburador], { customerName: 'Sr. Carlos', company: '   ', quoteNumber: '' }).texto;
+    expect(sem).not.toContain('Empresa:');
+    expect(sem).not.toContain('Nº:');
+  });
+});
