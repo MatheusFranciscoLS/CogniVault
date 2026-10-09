@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import multer from 'multer';
 import { CATALOG_UPLOAD_LIMITS } from '../config/upload-limits';
 
@@ -31,6 +31,7 @@ import { CatalogListController } from '../controllers/catalog-list.controller';
 import { QuoteController } from '../controllers/quote.controller';
 import { BusinessInsightsController } from '../controllers/business-insights.controller';
 import { enginePartsWithoutPriceController } from '../controllers/engine-parts-without-price.controller';
+import { priceListUpdateController } from '../controllers/price-list-update.controller';
 import { ExportController } from '../controllers/export.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
@@ -199,6 +200,11 @@ router.delete('/documents/:id', authMiddleware, adminOnly, validateEntityIdParam
 router.get('/admin/overview', authMiddleware, adminOnly, (req, res) => adminOverviewController.get(req, res));
 router.get('/admin/business-insights', authMiddleware, adminOnly, (req, res) => businessInsightsController.get(req, res));
 router.get('/admin/engine-parts-without-price', authMiddleware, adminOnly, (req, res) => enginePartsWithoutPriceController.list(req, res));
+// Atualização da lista de preços: corpo = gzip(JSON das 4 listas), lido e comprimido no navegador (ver utils/gzip-json-body.ts). O parser bruto só entra
+// DEPOIS da autenticação e da checagem de administrador, para ninguém sem permissão fazer o servidor receber megabytes.
+const priceListBody = express.raw({ type: () => true, limit: '8mb' });
+router.post('/admin/price-list/preview', authMiddleware, adminOnly, priceListBody, (req, res) => priceListUpdateController.preview(req, res));
+router.post('/admin/price-list/apply', authMiddleware, adminOnly, priceListBody, (req, res) => priceListUpdateController.apply(req, res));
 router.get('/admin/exports/price-list.csv', authMiddleware, adminOnly, (req, res) => exportController.priceList(req, res));
 router.get('/admin/exports/quotes.csv', authMiddleware, adminOnly, (req, res) => exportController.quotes(req, res));
 router.get('/admin/performance', authMiddleware, adminOnly, (req, res) => performanceController.overview(req, res));
