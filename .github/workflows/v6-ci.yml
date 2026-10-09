@@ -75,7 +75,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: pgvector/pgvector:0.8.6-pg17
+        image: mirror.gcr.io/pgvector/pgvector:0.8.6-pg17
         env:
           POSTGRES_USER: user
           POSTGRES_PASSWORD: password
@@ -88,7 +88,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       rabbitmq:
-        image: rabbitmq:3.13-management-alpine
+        image: mirror.gcr.io/library/rabbitmq:3.13-alpine
         ports:
           - 5672:5672
         options: >-
@@ -179,7 +179,7 @@ jobs:
     timeout-minutes: 15
     services:
       postgres:
-        image: pgvector/pgvector:0.8.6-pg17
+        image: mirror.gcr.io/pgvector/pgvector:0.8.6-pg17
         env:
           POSTGRES_USER: user
           POSTGRES_PASSWORD: password
@@ -192,7 +192,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       rabbitmq:
-        image: rabbitmq:3.13-management-alpine
+        image: mirror.gcr.io/library/rabbitmq:3.13-alpine
         ports:
           - 5672:5672
         options: >-
@@ -245,6 +245,13 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      # O navegador do Playwright (~150 MB) não precisa ser baixado de novo a cada PR: fica guardado enquanto a versão do Playwright for a mesma.
+      - name: Cache Playwright browser
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-1.63.0-${{ runner.os }}
       - name: Prepare Playwright and frontend
         working-directory: frontend
         run: |
@@ -252,7 +259,7 @@ jobs:
           npm install --prefix . --workspaces=false --no-save --no-package-lock @playwright/test@1.63.0
           npm audit --omit=dev --prefix . --workspaces=false --audit-level=high
           npm audit --prefix . --workspaces=false --audit-level=critical
-          npx playwright install --with-deps chromium
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then npx playwright install-deps chromium; else npx playwright install --with-deps chromium; fi
           nohup npm run dev -- --host 0.0.0.0 >/tmp/cognivault-frontend.log 2>&1 &
       - name: Wait for E2E frontend
         run: |

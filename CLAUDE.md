@@ -487,6 +487,8 @@ Medido em 2026-10-06, quando o dono reclamou que subir três PRs demorava demais
   PR, enquanto job pulado por `if:` reporta sucesso. Se a detecção quebrar, os
   testes rodam (falha fechada).
 
+- **Onde o tempo do CI ia (medido em 2026-10-09, dono: "tudo isso demora, não tem sentido").** Do `e2e` de 192 s, **69 s eram só baixar as imagens de banco e fila** (`Initialize containers`) e **53 s preparar o Playwright** (navegador baixado a cada PR); no `backend`, 33 s das 86 s eram a imagem. O download vinha do Docker Hub, que **caiu por ~25 min e derrubou 3 rodadas seguidas** (o PR #300 ficou parado por isso). Agora as imagens vêm do espelho do Google (`mirror.gcr.io`, mesmas versões; o RabbitMQ sem a interface de gerenciamento, que nada usava) e o navegador do Playwright fica em cache enquanto a versão for a mesma (`actions/cache`, chave `playwright-chromium-1.63.0`: **trocar a versão do Playwright exige trocar a chave**). **A outra metade do tempo é do meu lado, não do CI:** rodar a suíte inteira e cada roteiro nos dois temas antes de cada PR. Regra: localmente só `tsc`, lint e o roteiro da tela mexida (um tema, o outro quando a mudança é visual); o CI roda a suíte inteira de qualquer jeito.
+
 Como trabalhar para não pagar isso à toa:
 
 1. **Agrupe mudanças pequenas e relacionadas num PR só.** Um PR de 3 commits custa 4
