@@ -55,6 +55,7 @@ link oficial, ver a série): o balcão não pode ter de fechar tudo e voltar par
   Não faz parte do CI; é ferramenta de varredura. Para import sem uso:
   `cd backend && npx tsc --noEmit --noUnusedLocals`.
 
+- **Rodada de auditoria do site inteiro (2026-10-09):** `bash docs/loja-simulada/auditoria-rodada.sh [--rapida]` (tipos, eslint de auditoria, dependências, toda rota exige login, rota sem consumidor, produção serve a `main`, testes). O plano vivo está em `docs/redesign-2026-10/PLANO.md` (o antigo virou `PLANO-historico.md`).
 - Backend typecheck: `cd backend && npx tsc --noEmit`.
 - Backend build+test real: `cd backend && npm test` (roda `tsc`, a **guarda do
   banco** e depois `node --test dist/**/*.test.js` — precisa de build passar
