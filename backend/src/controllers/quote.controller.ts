@@ -26,11 +26,16 @@ function parseIntParam(value: unknown, fallback: number, max: number): number {
   return Math.min(Math.floor(parsed), max);
 }
 
+/** O tipo da cesta pedida (`?kind=REPAIR`); sem ele, a de peças (o Atendimento). */
+function draftKind(value: unknown): 'PARTS' | 'REPAIR' {
+  return value === 'REPAIR' ? 'REPAIR' : 'PARTS';
+}
+
 export class QuoteController {
   async getDraft(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
     try {
-      const quote = await QuoteService.getOrCreateDraft(req.user.tenantId, req.user.id);
+      const quote = await QuoteService.getOrCreateDraft(req.user.tenantId, req.user.id, draftKind(req.query.kind));
       res.set('Cache-Control', 'private, no-store');
       res.json({ quote });
     } catch (error) {
@@ -61,7 +66,7 @@ export class QuoteController {
   async clearDraft(req: AuthenticatedRequest, res: Response): Promise<void> {
     if (!req.user) return;
     try {
-      const quote = await QuoteService.clearDraft(req.user.tenantId, req.user.id);
+      const quote = await QuoteService.clearDraft(req.user.tenantId, req.user.id, draftKind(req.query.kind));
       res.set('Cache-Control', 'private, no-store');
       res.json({ quote });
     } catch (error) {

@@ -33,9 +33,9 @@ try {
   await page.getByRole('button', { name: 'Revisar orçamento' }).click();
   const gaveta = page.getByRole('dialog').first();
   await gaveta.waitFor();
-  await gaveta.getByRole('button', { name: 'Serviço ou item avulso' }).click();
+  await gaveta.getByRole('button', { name: 'Peça avulsa' }).click();
   const codigo = gaveta.getByLabel('Código da peça (opcional)');
-  const nome = gaveta.getByLabel('Descrição do serviço ou item');
+  const nome = gaveta.getByLabel('Descrição da peça');
   const preco = gaveta.getByLabel('Preço (R$)');
   const estado = gaveta.getByRole('status').filter({ hasText: /Achei|Não achei|Procurando/ });
   const adicionar = gaveta.getByRole('button', { name: 'Adicionar' });
@@ -134,16 +134,16 @@ try {
       check(`"${texto}": ${texto === 'TRAMONTINA' ? 'sem número, o servidor não é consultado, mas diz "não achei"' : 'curto demais, nenhuma mensagem'}`, texto === 'TRAMONTINA' ? mensagem === 1 : mensagem === 0, String(mensagem));
     }
     await codigo.fill('');
-    await nome.fill('Mão de obra');
+    await nome.fill('Corrente sem código');
     await adicionar.click();
-    check('mesmo sem código dá para adicionar (serviço)', (await rascunho()).some(i => i.name === 'Mão de obra'));
+    check('mesmo sem código dá para adicionar a peça', (await rascunho()).some(i => i.name === 'Corrente sem código'));
   });
 
   await step('Concluir fecha o formulário e o orçamento tem todos os itens', async () => {
     await gaveta.getByRole('button', { name: 'Concluir' }).click();
-    check('o formulário fechou e o botão de novo item voltou', (await gaveta.getByRole('button', { name: 'Serviço ou item avulso' }).count()) === 1 && !(await codigo.isVisible().catch(() => false)));
+    check('o formulário fechou e o botão de novo item voltou', (await gaveta.getByRole('button', { name: 'Peça avulsa' }).count()) === 1 && !(await codigo.isVisible().catch(() => false)));
     const itens = await rascunho();
-    check('6 itens: carburador do catálogo, cobertura, junta, tesoura, mangueira e mão de obra', itens.length === 6, String(itens.length));
+    check('6 itens: carburador do catálogo, cobertura, junta, tesoura, mangueira e a peça sem código', itens.length === 6, String(itens.length));
   });
 
   await step('O que o cliente recebe não leva nenhum código, e a máquina não vira "Serviço / Balcão"', async () => {

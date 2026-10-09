@@ -100,6 +100,11 @@ export default function SavedQuotesPanel() {
   };
 
   const handleRestore = async (quote: ApiQuoteListItem) => {
+    // Conserto tem a sua aba e a sua cesta: retomar abre o orçamento LÁ (pelo número da OS; sem número, a pasta da aba lista e abre).
+    if (quote.kind === 'REPAIR') {
+      window.location.assign(quote.docNumber ? `/conserto?os=${encodeURIComponent(quote.docNumber)}` : '/conserto');
+      return;
+    }
     if (!(await confirm({ title: 'Retomar este orçamento?', description: 'Os itens da cesta atual serão substituídos pelos deste orçamento.', confirmLabel: 'Retomar' }))) return;
     restoreQuote(toSavedQuote(quote));
   };

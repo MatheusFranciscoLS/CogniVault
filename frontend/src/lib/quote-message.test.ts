@@ -60,7 +60,8 @@ describe('buildWhatsAppMessage', () => {
     expect(message).toContain('Data: 07/10/2026');
     expect(message).toContain('1. *CARBURADOR*');
     expect(message).toContain('*Total: R$ 420,56*');
-    expect(message).toContain('Pagamento: À Vista / PIX (5% desc.)');
+    expect(message).toContain('Pagamento: À vista');
+    expect(message).not.toMatch(/pix|5%/i);
     expect(message).toContain('Válido até 27/10/2026');
     expect(message).toContain('Vardão Máquinas');
     expect(message).not.toMatch(/Revenda|Ouro/);

@@ -1,10 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { X } from 'lucide-react';
-import { apiJson } from '../lib';
-import { resolveItemLookup, type OfficialHit } from '../lib/item-lookup';
-import { normalizeCode, useMasterPrices } from './machines/master-part-prices';
+import { useItemLookup } from '../lib/use-item-lookup';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -20,28 +17,15 @@ export type CustomItemInput = {
   location: string | undefined;
 };
 
-// Um atalho só, por decisão do dono. Os outros saíram pelo que eles são: "Limpeza e regulagem" e "Graxa de transmissão" já estão dentro da mão de obra
-// (cobrar à parte seria cobrar duas vezes) e "Óleo 2T" é PEÇA, que entra pelo cadastro ou como item avulso digitado.
-const CUSTOM_ITEM_PRESETS = ['Mão de obra / Revisão Geral'];
-
-/** Espera o balcão parar de digitar antes de consultar: um código de 9 dígitos faria 9 consultas. */
-function useDebounced<T>(value: T, ms: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebounced(value), ms);
-    return () => window.clearTimeout(timer);
-  }, [value, ms]);
-  return debounced;
-}
-
 /**
- * Item avulso: serviço, mão de obra ou peça de QUALQUER marca.
+ * Peça avulsa do orçamento de PEÇAS: a que a busca não achou, de QUALQUER marca (a saída de "nenhum destes"). **Sem mão de obra e sem "serviço"**: isso é do
+ * orçamento de conserto (aba Conserto), que é outro (dono, 2026-10-09).
  *
  * A Vardão é assistência multimarcas (10 fornecedores ou mais). O dono pediu (2026-10-09): código **Husqvarna, Briggs, Kawasaki ou Kohler** puxa
  * descrição (e o preço, quando a loja tem a peça) sozinho; **qualquer outro código não puxa nada** e ele escreve a descrição e o preço. Por isso o
  * código é opcional e nada aqui trava o que o atendente digita: o que o sistema preenche é só sugestão, e basta escrever por cima.
  */
-export default function CustomItemForm({ onAdd, onClose, embedded = false }: { onAdd: (item: CustomItemInput) => void; onClose: () => void; /** Na aba Conserto o formulário é parte da página: sem fechar. */ embedded?: boolean }) {
+export default function CustomItemForm({ onAdd, onClose }: { onAdd: (item: CustomItemInput) => void; onClose: () => void }) {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -53,27 +37,7 @@ export default function CustomItemForm({ onAdd, onClose, embedded = false }: { o
   const [added, setAdded] = useState(0);
   const codeRef = useRef<HTMLInputElement>(null);
 
-  const debouncedCode = useDebounced(code, 350);
-  const typed = normalizeCode(code);
-  const asked = normalizeCode(debouncedCode);
-  const enabled = asked.length >= 4;
-  const settled = typed === asked;
-
-  const prices = useMasterPrices(enabled ? [debouncedCode] : []);
-  const official = useQuery({
-    queryKey: ['item-official-hits', asked],
-    // Só código com cara de código (3 dígitos ou mais), como o resto do produto: "TRAMONTINA" nunca existe no índice dos motores.
-    enabled: enabled && (asked.match(/\d/g) || []).length >= 3,
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-    queryFn: async () => (await apiJson<{ officialParts: OfficialHit[] }>(`/api/official-parts/by-code?code=${encodeURIComponent(asked)}`, { timeoutMs: 10_000 })).officialParts ?? [],
-  });
-
-  const lookup = enabled && settled
-    ? resolveItemLookup({ code: debouncedCode, store: prices.data?.prices[asked] ?? null, official: official.data ?? [] })
-    : ({ kind: 'NONE' } as const);
-  const searching = enabled && (!settled || prices.isFetching || official.isFetching);
-  const found = lookup.kind === 'FOUND' ? lookup : null;
+  const { enabled, searching, found, typed } = useItemLookup(code);
 
   // Valores derivados (sem efeito): o que o sistema achou aparece enquanto o atendente não escreveu por cima.
   const shownName = nameTouched ? name : (found?.name ?? name);
@@ -105,14 +69,8 @@ export default function CustomItemForm({ onAdd, onClose, embedded = false }: { o
   return (
     <form onSubmit={handleSubmit} className="space-y-3 rounded-xl border border-border bg-card p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold">Serviço ou item avulso</h3>
-        {!embedded && <Button type="button" variant="ghost" size="icon-sm" onClick={onClose} aria-label="Fechar"><X className="size-5" /></Button>}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {CUSTOM_ITEM_PRESETS.map(preset => (
-          <Button key={preset} type="button" variant="outline" size="sm" onClick={() => { setName(preset); setNameTouched(true); }}>{preset}</Button>
-        ))}
+        <h3 className="text-base font-semibold">Peça avulsa</h3>
+        <Button type="button" variant="ghost" size="icon-sm" onClick={onClose} aria-label="Fechar"><X className="size-5" /></Button>
       </div>
 
       <div className="space-y-1.5">
@@ -146,8 +104,8 @@ export default function CustomItemForm({ onAdd, onClose, embedded = false }: { o
         required
         value={shownName}
         onChange={event => { setName(event.target.value); setNameTouched(true); }}
-        placeholder="Descrição do serviço ou item…"
-        aria-label="Descrição do serviço ou item"
+        placeholder="Descrição da peça…"
+        aria-label="Descrição da peça"
         className="text-base"
       />
 
@@ -164,7 +122,7 @@ export default function CustomItemForm({ onAdd, onClose, embedded = false }: { o
 
       <div className="flex gap-2">
         <Button type="submit" className="flex-1">Adicionar</Button>
-        {!embedded && <Button type="button" variant="outline" onClick={onClose}>{added > 0 ? 'Concluir' : 'Cancelar'}</Button>}
+        <Button type="button" variant="outline" onClick={onClose}>{added > 0 ? 'Concluir' : 'Cancelar'}</Button>
       </div>
     </form>
   );

@@ -49,7 +49,7 @@ try {
     const texto = await dialogo.innerText();
     prontos = Number(/([\d.]+)\s+orçamentos? prontos? para gravar/.exec(texto)?.[1].replace(/\./g, ''));
     check('quase todas as planilhas são lidas (mais de 97%)', prontos / osUnicas.size > 0.97, `${prontos} de ${osUnicas.size}`);
-    check('o relatório mostra as 3 situações e os avisos', /já (está|estão) na pasta/.test(texto) && /arquivos? de fora/.test(texto) && /com problema/.test(texto) && /Entram, mas confira/.test(texto));
+    check('o relatório mostra o que já existe, o que tem problema e os avisos', /já (está|estão) na pasta/.test(texto) && /com problema/.test(texto) && /Entram, mas confira/.test(texto));
     check('nada foi gravado só de ler', (await api('/api/quotes?kind=REPAIR&take=1')).total === 0);
     await shot(page, `${theme}-1366-conserto-importar-relatorio`);
   });
@@ -83,12 +83,12 @@ try {
     check(`buscar a OS ${alvo} acha o orçamento`, await pasta.getByRole('button', { name: new RegExp(`OS ${alvo}`) }).isVisible());
     await pasta.getByRole('button', { name: new RegExp(`OS ${alvo}`) }).click();
     await page.waitForTimeout(1500);
-    check('as linhas voltam na tela de conserto, com o Nº da OS', (await page.getByRole('button', { name: /^Remover / }).count()) >= 1 && (await page.getByLabel('Nº da OS').inputValue()) === alvo);
-    check('o cliente vem em branco (a planilha não tem)', (await page.locator('#quote-customer-name').inputValue()) === '');
+    check('as linhas voltam na tela de conserto, com o Nº da OS', (await page.getByRole('button', { name: /^Remover / }).count()) >= 1 && (await page.getByLabel('Nº da OS', { exact: true }).inputValue()) === alvo);
+    check('o cliente vem em branco (a planilha não tem)', (await page.locator('#repair-customer').inputValue()) === '');
     check('o prazo de cada linha veio da planilha', (await page.locator('select[aria-label^="Prazo de "]').count()) >= 1);
     await shot(page, `${theme}-1366-conserto-importado-aberto`);
-    await page.getByRole('button', { name: 'Esvaziar' }).click();
-    await page.getByRole('alertdialog').getByRole('button', { name: 'Esvaziar' }).click();
+    await page.getByRole('button', { name: 'Novo orçamento' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Começar novo' }).click();
     await page.waitForTimeout(600);
     await pasta.getByLabel('Buscar na pasta de conserto').fill(alvoComLocal);
     await page.waitForTimeout(1200);
@@ -96,8 +96,8 @@ try {
     await page.waitForTimeout(1500);
     check(`a OS ${alvoComLocal} mostra a prateleira da peça ("Local ...") só na tela do balcão`, (await page.getByText(/Local [A-Z0-9-]+/).count()) >= 1);
     await shot(page, `${theme}-1366-conserto-importado-local`);
-    await page.getByRole('button', { name: 'Esvaziar' }).click();
-    await page.getByRole('alertdialog').getByRole('button', { name: 'Esvaziar' }).click();
+    await page.getByRole('button', { name: 'Novo orçamento' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Começar novo' }).click();
     await page.waitForTimeout(600);
   });
 

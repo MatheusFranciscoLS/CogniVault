@@ -120,9 +120,13 @@ const QuoteCartContext = createContext<QuoteCartContextType | null>(null);
 // Chaves históricas mantidas: `lib/quote-storage-scope.ts` troca o conteúdo
 // delas por usuário antes do provider montar. Hoje são cache offline, não a
 // fonte de verdade — essa passou a ser a API (`/api/quotes/draft`).
-const STORAGE_KEY = 'cognivault_quote_cart';
-const OPTIONS_STORAGE_KEY = 'cognivault_quote_draft_options';
-const HISTORY_STORAGE_KEY = 'cognivault_quote_history';
+// Cada tipo de orçamento tem a SUA cesta: o de peças (Atendimento) e o de conserto (aba Conserto) nunca se misturam, nem no cache do navegador nem no
+// rascunho do servidor (`/api/quotes/draft?kind=`).
+export type QuoteCartKind = 'PARTS' | 'REPAIR';
+const STORAGE_KEYS: Record<QuoteCartKind, { cart: string; options: string; history: string }> = {
+  PARTS: { cart: 'cognivault_quote_cart', options: 'cognivault_quote_draft_options', history: 'cognivault_quote_history' },
+  REPAIR: { cart: 'cognivault_repair_cart', options: 'cognivault_repair_draft_options', history: 'cognivault_repair_history' },
+};
 
 const DRAFT_SYNC_DEBOUNCE_MS = 900;
 
@@ -302,14 +306,17 @@ function writeLocal(key: string, value: unknown): void {
   }
 }
 
-export function QuoteCartProvider({ children }: { children: ReactNode }) {
+export function QuoteCartProvider({ children, kind = 'PARTS' }: { children: ReactNode; kind?: QuoteCartKind }) {
+  const keys = STORAGE_KEYS[kind];
+  // O tipo é do provedor, nunca do estado: tudo que sai daqui (servidor, PDF, WhatsApp) leva o tipo certo.
+  const apiOptions = useCallback((options: QuoteTextOptions) => toApiOptions({ ...options, kind }), [kind]);
   // Estado inicial vem do cache local para a cesta aparecer instantaneamente,
   // inclusive quando o backend do Render está acordando (cold start).
-  const [items, setItems] = useState<QuoteCartItem[]>(() => readLocal<QuoteCartItem[]>(STORAGE_KEY, []));
-  const [draftOptions, setDraftOptionsState] = useState<QuoteTextOptions>(() =>
-    readLocal<QuoteTextOptions>(OPTIONS_STORAGE_KEY, {}),
-  );
-  const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>(() => readLocal<SavedQuote[]>(HISTORY_STORAGE_KEY, []));
+  const [items, setItems] = useState<QuoteCartItem[]>(() => readLocal<QuoteCartItem[]>(keys.cart, []));
+  // As opções SEMPRE carregam o tipo do provedor (PDF, WhatsApp e servidor leem `kind` daqui).
+  const [draftOptions, setDraftOptionsRaw] = useState<QuoteTextOptions>(() => ({ ...readLocal<QuoteTextOptions>(keys.options, {}), kind }));
+  const setDraftOptionsState = useCallback((options: QuoteTextOptions) => setDraftOptionsRaw({ ...options, kind }), [kind]);
+  const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>(() => readLocal<SavedQuote[]>(keys.history, []));
   const [isOpen, setIsOpen] = useState(false);
   const [syncState, setSyncState] = useState<QuoteSyncState>('loading');
   // Contador, e não booleano: `setSyncState('offline')` com o estado já
@@ -330,14 +337,14 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
 
   const refreshSavedQuotes = useCallback(async () => {
     try {
-      const data = await apiJson<{ quotes: ApiQuote[] }>(`/api/quotes?take=${RECENT_QUOTES_PAGE_SIZE}`);
+      const data = await apiJson<{ quotes: ApiQuote[] }>(`/api/quotes?take=${RECENT_QUOTES_PAGE_SIZE}&kind=${kind}`);
       const mapped = data.quotes.map(toSavedQuote);
       setSavedQuotes(mapped);
-      writeLocal(HISTORY_STORAGE_KEY, mapped);
+      writeLocal(keys.history, mapped);
     } catch {
       // Mantém a última lista conhecida (cache) em vez de esvaziar a tela.
     }
-  }, []);
+  }, [keys.history, kind]);
 
   const flushDraft = useCallback(async () => {
     if (inFlightRef.current) return;
@@ -356,7 +363,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
           await apiJson<{ quote: ApiQuote }>('/api/quotes/draft', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: toApiItems(pending.items), options: toApiOptions(pending.options) }),
+            body: JSON.stringify({ items: toApiItems(pending.items), options: apiOptions(pending.options) }),
             timeoutMs: 20_000,
           });
         } catch {
@@ -380,7 +387,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     } finally {
       inFlightRef.current = false;
     }
-  }, []);
+  }, [apiOptions]);
 
   /**
    * Reenvia sozinho depois de uma falha, com espera crescente.
@@ -429,11 +436,11 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
 
     void (async () => {
       try {
-        const data = await apiJson<{ quote: ApiQuote }>('/api/quotes/draft', { timeoutMs: 25_000 });
+        const data = await apiJson<{ quote: ApiQuote }>(`/api/quotes/draft?kind=${kind}`, { timeoutMs: 25_000 });
         if (!active) return;
         const serverItems = fromApiItems(data.quote.items);
         const serverOptions = fromApiOptions(data.quote);
-        const localItems = readLocal<QuoteCartItem[]>(STORAGE_KEY, []);
+        const localItems = readLocal<QuoteCartItem[]>(keys.cart, []);
 
         // Cesta local com itens e servidor vazio significa que o atendente
         // montou o orçamento enquanto a API estava fora. Nesse caso o local
@@ -441,13 +448,13 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
         if (!serverItems.length && localItems.length) {
           hydratedRef.current = true;
           setSyncState('saving');
-          pendingRef.current = { items: localItems, options: readLocal<QuoteTextOptions>(OPTIONS_STORAGE_KEY, {}) };
+          pendingRef.current = { items: localItems, options: readLocal<QuoteTextOptions>(keys.options, {}) };
           void flushDraft();
         } else {
           setItems(serverItems);
           setDraftOptionsState(serverOptions);
-          writeLocal(STORAGE_KEY, serverItems);
-          writeLocal(OPTIONS_STORAGE_KEY, serverOptions);
+          writeLocal(keys.cart, serverItems);
+          writeLocal(keys.options, serverOptions);
           hydratedRef.current = true;
           setSyncState('synced');
         }
@@ -464,17 +471,17 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [flushDraft, refreshSavedQuotes]);
+  }, [flushDraft, keys.cart, keys.options, kind, refreshSavedQuotes, setDraftOptionsState]);
 
   // Cache offline: gravado em toda mudança, para um F5 durante queda da API não
   // apagar o que o atendente acabou de montar.
   useEffect(() => {
-    writeLocal(STORAGE_KEY, items);
-  }, [items]);
+    writeLocal(keys.cart, items);
+  }, [items, keys.cart]);
 
   useEffect(() => {
-    writeLocal(OPTIONS_STORAGE_KEY, draftOptions);
-  }, [draftOptions]);
+    writeLocal(keys.options, draftOptions);
+  }, [draftOptions, keys.options]);
 
   // Última chance de gravar antes de fechar a aba: sem isso, fechar o navegador
   // dentro da janela de debounce perderia os itens mais recentes no servidor.
@@ -483,7 +490,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       if (!pendingRef.current) return;
       const payload = JSON.stringify({
         items: toApiItems(pendingRef.current.items),
-        options: toApiOptions(pendingRef.current.options),
+        options: apiOptions(pendingRef.current.options),
       });
       try {
         // `fetch` com keepalive sobrevive ao unload; `sendBeacon` não serve
@@ -505,7 +512,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('pagehide', flushBeforeUnload);
       if (syncTimerRef.current !== null) window.clearTimeout(syncTimerRef.current);
     };
-  }, []);
+  }, [apiOptions]);
 
   const applyItems = useCallback((updater: (current: QuoteCartItem[]) => QuoteCartItem[]) => {
     setItems(current => {
@@ -518,7 +525,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
   const setDraftOptions = useCallback((options: QuoteTextOptions) => {
     setDraftOptionsState(options);
     queueDraftSync(items, options);
-  }, [items, queueDraftSync]);
+  }, [items, queueDraftSync, setDraftOptionsState]);
 
   const saveCurrentQuote = useCallback(async (options?: QuoteTextOptions): Promise<SavedQuote | null> => {
     if (!items.length) return null;
@@ -528,13 +535,13 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       const data = await apiJson<{ quote: ApiQuote }>('/api/quotes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: toApiItems(items), options: toApiOptions(effectiveOptions) }),
+        body: JSON.stringify({ items: toApiItems(items), options: apiOptions(effectiveOptions) }),
         timeoutMs: 25_000,
       });
       const saved = toSavedQuote(data.quote);
       setSavedQuotes(current => {
         const next = [saved, ...current].slice(0, RECENT_QUOTES_PAGE_SIZE);
-        writeLocal(HISTORY_STORAGE_KEY, next);
+        writeLocal(keys.history, next);
         return next;
       });
       return saved;
@@ -543,7 +550,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       toast.error(message);
       return null;
     }
-  }, [draftOptions, items]);
+  }, [apiOptions, draftOptions, items, keys.history]);
 
   const restoreQuote = useCallback((savedQuote: SavedQuote) => {
     if (!savedQuote.items.length) return;
@@ -565,21 +572,21 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     setIsOpen(true);
     playCartSound();
     toast.success(`Orçamento com ${savedQuote.totalItems} peças restaurado na cesta!`);
-  }, [queueDraftSync]);
+  }, [queueDraftSync, setDraftOptionsState]);
 
   const deleteSavedQuote = useCallback(async (id: string) => {
     try {
       await apiJson<{ ok: boolean }>(`/api/quotes/${encodeURIComponent(id)}`, { method: 'DELETE' });
       setSavedQuotes(current => {
         const next = current.filter(quote => quote.id !== id);
-        writeLocal(HISTORY_STORAGE_KEY, next);
+        writeLocal(keys.history, next);
         return next;
       });
       toast.info('Orçamento removido do histórico.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível remover o orçamento.');
     }
-  }, []);
+  }, [keys.history]);
 
   const clearSavedQuotes = useCallback(async () => {
     // Não existe rota de exclusão em massa de propósito: apagar o histórico
@@ -694,13 +701,14 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = useCallback(() => {
     // O motor pertence ao atendimento que acabou: não pode vazar para o orçamento do próximo cliente.
-    // O número da OS também é do atendimento que acabou, e o tipo volta para Peças: o próximo orçamento aberto no Atendimento não pode sair
-    // como "conserto" só porque o anterior foi (a aba Conserto recomeça como conserto sozinha quando a cesta esvazia).
-    const options: QuoteTextOptions = { ...draftOptions, engine: undefined, docNumber: undefined, kind: 'PARTS' };
+    // O número da OS também é do atendimento que acabou.
+    // No conserto, "novo orçamento" começa do zero (cliente, pagamento, desconto e OS são deste atendimento). Na gaveta de peças o cliente da conversa
+    // continua (o balcão atende o mesmo cliente em várias buscas).
+    const options: QuoteTextOptions = kind === 'REPAIR' ? {} : { ...draftOptions, engine: undefined, docNumber: undefined };
     setItems([]);
     setDraftOptionsState(options);
     queueDraftSync([], options);
-  }, [draftOptions, queueDraftSync]);
+  }, [draftOptions, kind, queueDraftSync, setDraftOptionsState]);
 
   const generateWhatsAppText = useCallback((optionsOrModel?: string | QuoteTextOptions) => {
     if (!items.length) return '';
