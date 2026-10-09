@@ -35,6 +35,8 @@ npm run report:price-list-html -- "C:\DadosLoja\LISTA_DE_PRECOS.html" --apply --
 npm run import:machine-list-html -- "C:\DadosLoja\LISTA_DE_PRECOS.html" --apply --expect-count=<N do relatório>
 cd ..
 
+# (ou tudo isso de uma vez, depois do passo 1: ./docs/loja-simulada/sim-reconstruir.ps1)
+
 # 3. backend (3333) e frontend (5173)
 ./docs/loja-simulada/sim-restart.ps1
 ```
@@ -74,7 +76,7 @@ node docs/loja-simulada/sim-db.cjs down
   máquina oficial aparecem de verdade.
 
 ## Armadilhas já pagas
-- `sim-db.cjs migrate` **apaga o schema inteiro** (usuários, catálogo, preços) antes de recriar: depois dele, repita o passo 2 inteiro.
+- `sim-db.cjs migrate` **apaga o schema inteiro** (usuários, catálogo, preços) antes de recriar. Por isso ele **recusa** quando a simulação já tem dados (`--force` para insistir). Para recriar tudo de uma vez: `docs/loja-simulada/sim-reconstruir.ps1` (migra, carrega usuários, catálogo, preços, máquinas e reinicia). Para aplicar só uma migração nova, rode o `migration.sql` dela com o `psql`, sem o `migrate`.
 - O backend só aceita as origens de `CORS_ORIGINS`; o script libera `localhost` e `127.0.0.1`.
 - `String.replace` do JavaScript trata `$$` e `$&` do texto novo como especiais: ao gerar SQL
   com `DO $$ ... $$` por substituição, use função (`replace(a, () => b)`).

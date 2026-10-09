@@ -29,6 +29,16 @@ if (cmd === 'up') {
 }
 
 if (cmd === 'migrate') {
+  // O migrate APAGA o schema inteiro (usuários, catálogo, preços). Recusa quando a simulação já tem dados, a menos que se peça com --force
+  // (o `sim-reconstruir.ps1` pede, e depois recarrega tudo). Foi assim que a simulação foi zerada sem querer em 2026-10-09.
+  if (!process.argv.includes('--force')) {
+    let tenants = 0;
+    try { tenants = Number(psql(['-t', '-A', '-c', 'SELECT count(*) FROM "Tenant"']).trim()) || 0; } catch { tenants = 0; }
+    if (tenants > 0) {
+      console.log('RECUSADO: a loja simulada já tem dados e o migrate apaga tudo. Para aplicar só uma migração nova use o psql no arquivo dela; para recriar tudo rode docs/loja-simulada/sim-reconstruir.ps1 (ou repita com --force e refaça o passo 2 do README).');
+      process.exit(2);
+    }
+  }
   const dir = path.join(REPO, 'backend/prisma/migrations');
   const folders = fs.readdirSync(dir).filter(f => fs.statSync(path.join(dir, f)).isDirectory()).sort();
   psql(['-c', 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;']);
