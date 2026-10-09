@@ -1,12 +1,12 @@
 import 'dotenv/config';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { COMMERCIAL_PRICE_DIVISOR } from './price-list-rules';
 import { parsePriceListHtml } from './price-list-html';
-import { diffPriceList, percentBuckets, type PriceListDiff, type StoredPart } from './price-list-diff';
-import { buildNewRecords, HTML_IMPORT_SOURCE } from './price-list-plan';
+import { diffPriceList, percentBuckets, type StoredPart } from './price-list-diff';
+import { HTML_IMPORT_SOURCE, writePriceListPlan } from '../services/price-list-update.service';
 
 // Compara a lista .html com o banco e escreve um relatório. Sem --apply é só
 // LEITURA: nada é gravado.
@@ -21,14 +21,6 @@ import { buildNewRecords, HTML_IMPORT_SOURCE } from './price-list-plan';
 // Escreva o --out FORA do repositório (público) e fora do OneDrive.
 
 const prisma = new PrismaClient();
-const BATCH_SIZE = 400;
-const TX_OPTIONS = { maxWait: 15_000, timeout: 300_000 };
-
-function chunk<T>(items: T[], size: number): T[][] {
-  const result: T[][] = [];
-  for (let index = 0; index < items.length; index += size) result.push(items.slice(index, index + size));
-  return result;
-}
 
 function expectedCount(name: string): number {
   const raw = process.argv.find(argument => argument.startsWith(`--${name}=`))?.slice(name.length + 3);
@@ -37,114 +29,6 @@ function expectedCount(name: string): number {
     throw new Error(`--apply exige --${name}=<número>, o valor que foi aprovado no relatório.`);
   }
   return value;
-}
-
-async function applyPlan(
-  tenantId: string,
-  diff: PriceListDiff,
-  sourceFilename: string,
-  sourceHash: string,
-  occurrenceCount: number,
-): Promise<void> {
-  const { masters, sections } = buildNewRecords(diff.added);
-  const now = new Date();
-
-  await prisma.$transaction(async tx => {
-    // Mesma trava do importador da planilha: uma importação por vez.
-    await tx.$executeRaw`
-      SELECT pg_advisory_xact_lock(hashtextextended(${`cognivault:commercial-import:${tenantId}`}, 0))
-    `;
-
-    let updated = 0;
-    for (const batch of chunk(diff.changed, BATCH_SIZE)) {
-      const values = Prisma.join(
-        batch.map(
-          change => Prisma.sql`(${change.normalizedNumber}::text, ${change.after}::float8, ${change.before}::float8)`,
-        ),
-      );
-      // "before" é a trava: só atualiza se o preço ainda for o que o relatório
-      // mostrou, até o centavo. Igualdade exata de ponto flutuante reprovava
-      // linhas boas (337 de 446 no teste): dinheiro se compara por tolerância.
-      updated += await tx.$executeRaw(Prisma.sql`
-        UPDATE "MasterPart" AS p
-        SET "price" = v."after", "updatedAt" = ${now}
-        FROM (VALUES ${values}) AS v("normalizedNumber", "after", "before")
-        WHERE p."tenantId" = ${tenantId}
-          AND p."normalizedNumber" = v."normalizedNumber"
-          AND (
-            (p."price" IS NULL AND v."before" IS NULL)
-            OR ABS(p."price" - v."before") < 0.005
-          )
-      `);
-    }
-    if (updated !== diff.changed.length) {
-      throw new Error(`Atualizou ${updated} preços, esperava ${diff.changed.length}. Nada foi gravado.`);
-    }
-
-    let inserted = 0;
-    for (const batch of chunk(masters, BATCH_SIZE)) {
-      const values = Prisma.join(
-        batch.map(
-          record => Prisma.sql`(
-            ${randomUUID()}, ${tenantId}, ${record.partNumber}, ${record.normalizedNumber}, ${record.name},
-            ${record.name}, ${record.price}, ${record.ncm}, ${record.ean}, ${record.category}, ${record.brand}, ${now}
-          )`,
-        ),
-      );
-      // DO NOTHING: nunca sobrescreve um código que apareceu depois do relatório.
-      inserted += await tx.$executeRaw(Prisma.sql`
-        INSERT INTO "MasterPart" (
-          "id", "tenantId", "partNumber", "normalizedNumber", "name", "description",
-          "price", "ncm", "ean", "category", "brand", "updatedAt"
-        )
-        VALUES ${values}
-        ON CONFLICT ("tenantId", "normalizedNumber") DO NOTHING
-      `);
-    }
-    if (inserted !== masters.length) {
-      throw new Error(`Criou ${inserted} códigos, esperava ${masters.length}. Nada foi gravado.`);
-    }
-
-    for (const batch of chunk(sections, BATCH_SIZE)) {
-      const values = Prisma.join(
-        batch.map(
-          record => Prisma.sql`(
-            ${randomUUID()}, ${tenantId}, ${record.normalizedNumber}, ${record.section}, ${record.application},
-            ${record.applicationKey}, ${record.reference}, ${record.productCategory}, ${null}, ${null},
-            ${record.sourceSheet}, ${now}
-          )`,
-        ),
-      );
-      await tx.$executeRaw(Prisma.sql`
-        INSERT INTO "MasterPartSection" (
-          "id", "tenantId", "normalizedNumber", "section", "application", "applicationKey",
-          "reference", "productCategory", "itemType", "groupCode", "sourceSheet", "updatedAt"
-        )
-        VALUES ${values}
-        ON CONFLICT ("tenantId", "normalizedNumber", "section", "applicationKey") DO NOTHING
-      `);
-    }
-
-    const [masterCount, sectionCount] = await Promise.all([
-      tx.masterPart.count({ where: { tenantId } }),
-      tx.masterPartSection.count({ where: { tenantId } }),
-    ]);
-    await tx.commercialImportRun.create({
-      data: {
-        tenantId,
-        sourceFilename,
-        sourceHash,
-        priceDivisor: COMMERCIAL_PRICE_DIVISOR,
-        occurrenceCount,
-        masterCount,
-        sectionCount,
-        status: 'COMPLETED',
-        completedAt: new Date(),
-      },
-    });
-  }, TX_OPTIONS);
-
-  console.log(`\n✓ Gravado: ${diff.changed.length} preços atualizados, ${diff.added.length} códigos novos (${HTML_IMPORT_SOURCE}).`);
 }
 
 const brl = (value: number | null): string =>
@@ -269,7 +153,9 @@ async function main(): Promise<void> {
   }
 
   console.log(`\nGravando: ${diff.changed.length} preços e ${diff.added.length} códigos novos…`);
-  await applyPlan(tenant.id, diff, path.basename(filePath), sourceHash, list.stats.rows);
+  await writePriceListPlan(prisma, tenant.id, diff, path.basename(filePath), sourceHash, list.stats.rows);
+  console.log(`
+✓ Gravado: ${diff.changed.length} preços atualizados, ${diff.added.length} códigos novos (${HTML_IMPORT_SOURCE}).`);
 
   // Confere: relê o banco e compara de novo. Tem que sobrar zero diferença.
   const after: StoredPart[] = await prisma.masterPart.findMany({

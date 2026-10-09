@@ -288,6 +288,6 @@ Dono mandou o link da Kohler e pediu: ligar o motor ao trator/giro zero/máquina
 
 - ✅ **1. Rápida e segura** (#278): rolagem do Negócio acessível por teclado, 4 arquivos sem uso removidos, Kohler pelo CSV (motor inteiro numa chamada).
 - ✅ **2. Motor no orçamento + últimos motores digitados**: botão "Motor no orçamento" no cartão do motor, linha "Motor" na gaveta (com "Tirar"), no WhatsApp e no PDF; sem coluna nova (viaja em `Quote.machineModel`); `clearCart` solta o motor. Atalhos dos 6 últimos motores digitados da plaqueta. Roteiro `motor-orcamento.mjs`.
-- ⏳ **3. Atualizar a lista de preços por uma tela do administrador** (subir o `.html`, ver o relatório, aprovar com um clique). Gravar em produção só com a aprovação do dono, como o importador de linha de comando já exige.
+- ✅ **3. Atualizar a lista de preços por uma tela do administrador** (Negócio): escolher o `.html`, ver o relatório (o arquivo é lido no navegador), aprovar com confirmação. Mesmo código do importador de linha de comando, com as mesmas travas. Gravar em produção continua sendo ato do dono. Roteiro `lista-precos-atualizar.mjs`.
 - ✅ **4. Análise de uso em produção (só leitura, números agregados, sem nome nem telefone de cliente)**: o uso real é pequeno e não há registro de busca SEM resultado (`SearchHistory` só guarda busca com sucesso). Ver o relatório na conversa.
 - ⏸ **Clipp**: adiado a pedido do dono.

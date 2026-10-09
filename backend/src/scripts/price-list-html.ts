@@ -87,7 +87,11 @@ export function extractCatalogJson(html: string): Record<string, unknown> {
 }
 
 export function parsePriceListHtml(html: string): HtmlPriceList {
-  const catalog = extractCatalogJson(html);
+  return parsePriceListCatalog(extractCatalogJson(html));
+}
+
+/** O mesmo leitor sobre o JSON já extraído: a tela de atualização lê o arquivo no navegador e envia só as quatro listas. */
+export function parsePriceListCatalog(catalog: Record<string, unknown>): HtmlPriceList {
   const byCode = new Map<string, HtmlPriceItem>();
   const conflicts = new Map<string, Set<number>>();
   const stats = { rows: 0, rowsWithoutCode: 0, rowsWithBadPrice: 0, uniqueCodes: 0 };
