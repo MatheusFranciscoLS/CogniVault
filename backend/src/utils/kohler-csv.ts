@@ -63,7 +63,7 @@ const GROUP_HEADER = /^(\d{2}) - (.+)$/;
 
 /** Lê o CSV. Devolve nulo quando o texto não é um catálogo de motor (sem a linha "Spare parts catalog : <spec>"). */
 export function parseKohlerCsv(text: string | null | undefined): KohlerCsvCatalog | null {
-  const lines = String(text ?? '').split('\n').map(line => line.replace('\r', ''));
+  const lines = String(text ?? '').split('\n').map(line => line.replace(/\r/g, ''));
   const title = /^Spare parts catalog\s*:\s*([A-Z0-9-]+)/i.exec(lines[0] ?? '');
   if (!title) return null;
 
