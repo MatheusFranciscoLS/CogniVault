@@ -95,7 +95,7 @@ await step('cliente, telefone, pagamento e desconto', async () => {
   check('o telefone ganha a máscara ao digitar: (19) 98765-4321', telefone === '(19) 98765-4321', telefone);
   await gaveta.getByPlaceholder('(19) 99999-9999').fill('+55 19 98765-4321');
   check('colar com +55 e traço dá o mesmo telefone, sem o 55', (await gaveta.getByPlaceholder('(19) 99999-9999').inputValue()) === '(19) 98765-4321');
-  const select = gaveta.locator('select');
+  const select = gaveta.locator('#quote-payment-method');
   const opcoes = await select.locator('option').allInnerTexts();
   console.log(`   formas de pagamento: ${opcoes.join(' | ')}`);
   check('há formas de pagamento', opcoes.length >= 3);

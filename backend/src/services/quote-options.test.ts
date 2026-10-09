@@ -23,3 +23,19 @@ test('o prazo tem teto de 120 caracteres e as observações de 2000, e tipo erra
   assert.equal(parseQuoteOptions({ notes: 'y'.repeat(5000) })?.notes?.length, 2000);
   assert.equal(parseQuoteOptions({ leadTime: 7 })?.leadTime, null);
 });
+
+// Orçamento de conserto (2026-10-09): o tipo é PARTS (padrão) ou REPAIR, e o número da OS é DIGITADO pelo balcão (o sistema não numera).
+test('sem tipo o orçamento é de peças; REPAIR passa; tipo inventado recusa o corpo inteiro', () => {
+  assert.equal(parseQuoteOptions({})?.kind, 'PARTS');
+  assert.equal(parseQuoteOptions({ kind: 'REPAIR' })?.kind, 'REPAIR');
+  assert.equal(parseQuoteOptions({ kind: 'PARTS' })?.kind, 'PARTS');
+  assert.equal(parseQuoteOptions({ kind: 'OFICINA' }), null);
+  assert.equal(parseQuoteOptions({ kind: 7 }), null);
+});
+
+test('o número da OS passa sem espaço nas pontas, vazio vira nulo e tem teto de 40 caracteres', () => {
+  assert.equal(parseQuoteOptions({ docNumber: '  0000059663 ' })?.docNumber, '0000059663');
+  assert.equal(parseQuoteOptions({ docNumber: '   ' })?.docNumber, null);
+  assert.equal(parseQuoteOptions({ docNumber: 123 })?.docNumber, null);
+  assert.equal(parseQuoteOptions({ docNumber: '9'.repeat(200) })?.docNumber?.length, 40);
+});

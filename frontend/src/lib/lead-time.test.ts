@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LEAD_TIME_NOW, LEAD_TIME_ORDER, leadMode, leadTimeConflict, leadTimeFor, leadTimeNote, notesMention } from './lead-time';
+import { LEAD_TIME_NOW, LEAD_TIME_ORDER, effectiveLeadNote, leadMode, leadTimeConflict, leadTimeFor, leadTimeNote, notesMention } from './lead-time';
 
 describe('prazo das peças', () => {
   it('reconhece a opção pelo texto guardado', () => {
@@ -56,5 +56,31 @@ describe('prazo das peças', () => {
     expect(leadTimeConflict('7 a 10 dias', 'Peça sob encomenda')).toBeNull();
     expect(leadTimeConflict('', 'Peça sob encomenda')).toBeNull();
     expect(leadTimeConflict('Pronta entrega', 'Impostos inclusos')).toBeNull();
+  });
+});
+
+describe('prazo por linha (o orçamento de conserto mistura estoque e encomenda)', () => {
+  const peca = (leadTime?: string) => ({ partNumber: 'VI25463', leadTime });
+  const maoDeObra = { partNumber: 'SRV-0001' };
+
+  it('sem prazo próprio em nenhuma linha vale o do orçamento', () => {
+    expect(effectiveLeadNote([peca(), peca()], 'Pronta entrega')).toBe('Peça em pronta entrega');
+    expect(effectiveLeadNote([peca()], '7 a 10 dias')).toBe('Peça sob encomenda');
+    expect(effectiveLeadNote([peca()], '')).toBeNull();
+  });
+
+  it('todas as peças no mesmo caso: a linha das observações vale, mesmo com prazo próprio', () => {
+    expect(effectiveLeadNote([peca('7 dias'), peca('7 dias'), maoDeObra], '')).toBe('Peça sob encomenda');
+    expect(effectiveLeadNote([peca('Pronta entrega'), peca(), maoDeObra], 'Pronta entrega')).toBe('Peça em pronta entrega');
+  });
+
+  it('peças em casos diferentes ou uma sem prazo entre as que têm: nenhuma afirmação (a coluna diz uma a uma)', () => {
+    expect(effectiveLeadNote([peca('7 dias'), peca('Pronta entrega')], '')).toBeNull();
+    expect(effectiveLeadNote([peca('7 dias'), peca()], '')).toBeNull();
+  });
+
+  it('mão de obra não decide: só serviço cai no prazo do orçamento', () => {
+    expect(effectiveLeadNote([maoDeObra], 'Pronta entrega')).toBe('Peça em pronta entrega');
+    expect(effectiveLeadNote([], '7 dias')).toBe('Peça sob encomenda');
   });
 });

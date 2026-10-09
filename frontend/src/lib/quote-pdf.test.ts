@@ -258,3 +258,39 @@ describe('informações do cliente no cabeçalho (pedido, frota, contato)', () =
     expect(gerar([carburador], { customerNotes: '  ' }).texto).not.toContain('Frota:');
   });
 });
+
+describe('orçamento de conserto: prazo por linha, OS e texto próprio (planilha "ORÇAMENTO DAV", 2026-10-09)', () => {
+  const junta = { partNumber: 'VI25463', manufacturer: null, name: 'JOGO DE JUNTAS', model: '', quantity: 1, unitPrice: 20, leadTime: '7 DIAS' };
+  const filtro = { partNumber: '503443201', manufacturer: null, name: 'FILTRO GASOLINA', model: '', quantity: 1, unitPrice: 18, leadTime: 'Pronta entrega' };
+  const maoDeObra = { partNumber: 'SRV-0001', name: 'MÃO DE OBRA', model: '', quantity: 1, unitPrice: 220 };
+
+  it('cada linha diz o seu prazo; a mão de obra fica em branco quando não tem o dela', () => {
+    const { texto } = gerar([junta, filtro, maoDeObra], { kind: 'REPAIR' });
+    expect(texto).toContain('PRAZO');
+    expect(texto).toContain('(7 DIAS) Tj');
+    expect(texto).toContain('(Pronta entrega) Tj');
+    expect(texto.match(/\(Pronta entrega\) Tj/g)).toHaveLength(1);
+  });
+
+  it('prazo diferente entre as peças: nenhuma linha "Peça em pronta entrega" nem "sob encomenda" nas observações', () => {
+    const { texto } = gerar([junta, filtro, maoDeObra], { kind: 'REPAIR' });
+    expect(texto).not.toMatch(/Peça em pronta entrega|Peça sob encomenda/);
+  });
+
+  it('a mão de obra pode ter prazo próprio, como na planilha ("IMEDIATO")', () => {
+    const { texto } = gerar([junta, { ...maoDeObra, leadTime: 'Pronta entrega' }], { kind: 'REPAIR' });
+    expect(texto.match(/\(Pronta entrega\) Tj/g)).toHaveLength(1);
+  });
+
+  it('conserto: o número digitado sai como OS, a Ref. é de conserto e não há código', () => {
+    const { texto } = gerar([junta, filtro, maoDeObra], { kind: 'REPAIR', quoteNumber: '59600', customerName: 'Cliente' });
+    expect(texto).toContain('OS:');
+    expect(texto).toContain('59600');
+    expect(texto).toContain('Orçamento de Conserto');
+    expect(texto).not.toMatch(/VI25463|503443201/);
+    const pecas = gerar([junta], { quoteNumber: '59600' }).texto;
+    expect(pecas).toContain('Nº:');
+    expect(pecas).not.toContain('OS:');
+    expect(pecas).toContain('Estimativa de Pre');
+  });
+});

@@ -39,7 +39,7 @@ function useDebounced<T>(value: T, ms: number): T {
  * descrição (e o preço, quando a loja tem a peça) sozinho; **qualquer outro código não puxa nada** e ele escreve a descrição e o preço. Por isso o
  * código é opcional e nada aqui trava o que o atendente digita: o que o sistema preenche é só sugestão, e basta escrever por cima.
  */
-export default function CustomItemForm({ onAdd, onClose }: { onAdd: (item: CustomItemInput) => void; onClose: () => void }) {
+export default function CustomItemForm({ onAdd, onClose, embedded = false }: { onAdd: (item: CustomItemInput) => void; onClose: () => void; /** Na aba Conserto o formulário é parte da página: sem fechar. */ embedded?: boolean }) {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -103,7 +103,7 @@ export default function CustomItemForm({ onAdd, onClose }: { onAdd: (item: Custo
     <form onSubmit={handleSubmit} className="space-y-3 rounded-xl border border-border bg-card p-4">
       <div className="flex items-center justify-between">
         <h3 className="text-base font-semibold">Serviço ou item avulso</h3>
-        <Button type="button" variant="ghost" size="icon-sm" onClick={onClose} aria-label="Fechar"><X className="size-5" /></Button>
+        {!embedded && <Button type="button" variant="ghost" size="icon-sm" onClick={onClose} aria-label="Fechar"><X className="size-5" /></Button>}
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -161,7 +161,7 @@ export default function CustomItemForm({ onAdd, onClose }: { onAdd: (item: Custo
 
       <div className="flex gap-2">
         <Button type="submit" className="flex-1">Adicionar</Button>
-        <Button type="button" variant="outline" onClick={onClose}>{added > 0 ? 'Concluir' : 'Cancelar'}</Button>
+        {!embedded && <Button type="button" variant="outline" onClick={onClose}>{added > 0 ? 'Concluir' : 'Cancelar'}</Button>}
       </div>
     </form>
   );

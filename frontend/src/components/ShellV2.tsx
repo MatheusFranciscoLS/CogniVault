@@ -36,6 +36,7 @@ const primaryNav: NavItem[] = [
   { id: 'parts', label: 'Atendimento', icon: 'search' },
   { id: 'catalogs', label: 'Catálogos', icon: 'catalog' },
   { id: 'quotes', label: 'Orçamentos', icon: 'quote' },
+  { id: 'repair', label: 'Conserto', icon: 'wrench' },
   { id: 'prices', label: 'Tabela de preços', icon: 'tag' },
 ];
 

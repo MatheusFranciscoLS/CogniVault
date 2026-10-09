@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { isAdminSection, sectionFromPath, sectionPath, sectionTitle, SECTION_ROUTE_PATHS } from './section-routes';
 import type { Section } from '../types';
 
-const ALL: Section[] = ['parts', 'catalogs', 'quotes', 'prices', 'business', 'overview', 'users', 'quality'];
+const ALL: Section[] = ['parts', 'catalogs', 'quotes', 'repair', 'prices', 'business', 'overview', 'users', 'quality'];
 
 describe('endereços das telas', () => {
   it('cada tela tem um endereço próprio e volta para a mesma tela', () => {
@@ -32,6 +32,8 @@ describe('endereços das telas', () => {
   it('o título da aba do navegador diz onde o atendente está', () => {
     expect(sectionTitle('quality')).toMatch(/^Qualidade · /);
     expect(sectionTitle('parts')).toMatch(/^Atendimento · /);
+    expect(sectionTitle('repair')).toMatch(/^Conserto · /);
+    expect(sectionPath('repair')).toBe('/conserto');
   });
 
   it('lista os endereços para as rotas', () => {

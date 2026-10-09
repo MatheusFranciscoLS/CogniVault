@@ -52,3 +52,17 @@ export function leadTimeConflict(leadTime: string | null | undefined, notes: str
     ? 'As observações falam em encomenda, mas o prazo é pronta entrega.'
     : 'As observações falam em pronta entrega, mas o prazo é encomenda.';
 }
+
+/**
+ * A linha das observações quando há prazo por linha: só afirma "pronta entrega" ou "encomenda" se TODA peça (serviço fica de fora) está no
+ * mesmo caso; peça com prazos diferentes (uma de estoque, outra encomendada) não leva a linha, porque a coluna PRAZO já diz uma a uma.
+ * Sem peça com prazo, vale o prazo do orçamento (`leadTimeNote`).
+ */
+export function effectiveLeadNote(lines: ReadonlyArray<{ partNumber: string; leadTime?: string | null }>, quoteLeadTime: string | null | undefined): string | null {
+  const parts = lines.filter(line => !line.partNumber.toUpperCase().startsWith('SRV-'));
+  if (!parts.length) return leadTimeNote(quoteLeadTime);
+  const modes = new Set(parts.map(line => leadMode(line.leadTime?.trim() || quoteLeadTime)));
+  if (modes.size !== 1) return null;
+  const [only] = [...modes];
+  return only === 'NOW' ? 'Peça em pronta entrega' : only === 'ORDER' ? 'Peça sob encomenda' : null;
+}

@@ -10,7 +10,7 @@
 import type { jsPDF as JsPdf } from 'jspdf';
 import type autoTableFn from 'jspdf-autotable';
 import type { PdfImage } from './pdf-assets';
-import { leadTimeNote, notesMention } from './lead-time';
+import { effectiveLeadNote, notesMention } from './lead-time';
 import { QUOTE_DEFAULTS, STORE_CITY, STORE_PROFILE } from './store-profile';
 import {
   formatBRL,
@@ -182,7 +182,7 @@ export function buildQuotePdf(input: {
   // O prazo é ESCOLHIDO em cada orçamento (Imediato, Encomenda ou nenhum). Sem prazo, o PDF não tem a coluna: orçamento
   // expresso, só nome, quantidade e valor (dono, 2026-10-07).
   const leadTime = options.leadTime?.trim() ?? '';
-  const showLead = leadTime !== '';
+  const showLead = leadTime !== '' || items.some(item => (item.leadTime ?? '').trim() !== '');
 
   let y = drawLetterhead(doc, { logo: input.logo, title: 'ORÇAMENTO' });
   doc.setFont('helvetica', 'normal');
@@ -197,11 +197,12 @@ export function buildQuotePdf(input: {
   const machineLabel = machine ? `${brands.length === 1 ? `${brands[0]} ` : ''}${machine}` : '';
 
   const facts: Array<[string, string]> = [];
-  if (options.quoteNumber?.trim()) facts.push(['Nº:', options.quoteNumber.trim()]);
+  const repair = options.kind === 'REPAIR';
+  if (options.quoteNumber?.trim()) facts.push([repair ? 'OS:' : 'Nº:', options.quoteNumber.trim()]);
   if (options.customerName) facts.push(['A/C:', options.customerName]);
   if (options.company?.trim()) facts.push(['Empresa:', options.company.trim()]);
   if (options.customerPhone) facts.push(['Telefone:', formatPhoneBr(options.customerPhone)]);
-  facts.push(['Ref.:', options.reference || QUOTE_DEFAULTS.reference]);
+  facts.push(['Ref.:', options.reference || (repair ? QUOTE_DEFAULTS.repairReference : QUOTE_DEFAULTS.reference)]);
   facts.push(...customerNoteRows(options.customerNotes));
   if (machineLabel) facts.push(['Máquina:', machineLabel]);
   if (options.engine) facts.push(['Motor:', options.engine]);
@@ -229,7 +230,8 @@ export function buildQuotePdf(input: {
     return [
       String(index + 1),
       description,
-      ...(showLead ? [isServiceLine(item) ? '' : leadTime] : []),
+      // Prazo da própria linha primeiro; sem ele, só PEÇA leva o prazo do orçamento (mão de obra fica em branco).
+      ...(showLead ? [item.leadTime?.trim() || (isServiceLine(item) ? '' : leadTime)] : []),
       String(item.quantity),
       priced ? formatBRL(item.unitPrice as number) : 'Sob consulta',
       priced ? formatBRL(item.quantity * (item.unitPrice as number)) : 'Sob consulta',
@@ -313,7 +315,7 @@ export function buildQuotePdf(input: {
   const typedNotes = (options.notes ?? '').split('\n').map(line => line.replace(/^[\s•–-]+/, '').trim()).filter(Boolean);
   // A primeira linha acompanha o prazo escolhido ("Peça em pronta entrega" ou "Peça sob encomenda"), para a observação nunca contradizer a
   // coluna PRAZO (dono, 2026-10-09). Se o que foi digitado já fala da entrega, não se repete a linha.
-  const deliveryNote = leadTimeNote(options.leadTime);
+  const deliveryNote = effectiveLeadNote(items, options.leadTime);
   const baseNotes = typedNotes.length ? typedNotes : QUOTE_DEFAULTS.observations;
   const observations = options.observations ?? (deliveryNote && notesMention(baseNotes.join(' ')) === 'NONE' ? [deliveryNote, ...baseNotes] : baseNotes);
   const conditions: string[][] = [

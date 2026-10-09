@@ -423,6 +423,10 @@ model Quote {
   /// Observações do orçamento (texto das condições). Nulo = as observações padrão da loja.
   notes              String?
   discountPercentage Float   @default(0)
+  /// Tipo do orçamento: PARTS (peças, o padrão) ou REPAIR (conserto: peças de qualquer fornecedor e mão de obra).
+  kind               String  @default("PARTS")
+  /// Número digitado pelo balcão (no conserto, o da OS/DAV do Clipp). A loja é quem numera; o sistema não gera número.
+  docNumber          String?
 
   totalItems     Int   @default(0)
   grossTotal     Float @default(0)
@@ -436,6 +440,7 @@ model Quote {
   savedAt   DateTime?
 
   @@index([tenantId, status, savedAt])
+  @@index([tenantId, kind, docNumber])
   @@index([tenantId, status, createdAt])
   @@index([tenantId, createdAt])
   @@index([userId, createdAt])
@@ -466,6 +471,8 @@ model QuoteItem {
   // Mão de obra, revisão, óleo avulso: entra no total mas nunca em métrica de
   // peça cotada nem em cobertura de catálogo.
   isService            Boolean @default(false)
+  /// Prazo desta linha ("Pronta entrega", "7 dias"). Nulo = vale o prazo do orçamento.
+  leadTime             String?
 
   quantity  Int    @default(1)
   unitPrice Float?

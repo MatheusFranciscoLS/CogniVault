@@ -35,11 +35,19 @@ export interface QuoteItemInput {
   originalCode?: string | null;
   notes?: string | null;
   isService?: boolean;
+  /** Prazo desta linha; vazio = vale o prazo do orçamento. */
+  leadTime?: string | null;
   quantity: number;
   unitPrice?: number | null;
 }
 
+export const QUOTE_KINDS = ['PARTS', 'REPAIR'] as const;
+export type QuoteKind = (typeof QUOTE_KINDS)[number];
+
 export interface QuoteOptionsInput {
+  kind?: QuoteKind;
+  /** Número digitado (OS do Clipp no conserto). undefined = não mexer (atualização de orçamento arquivado). */
+  docNumber?: string | null;
   customerName?: string | null;
   customerPhone?: string | null;
   paymentMethod?: string | null;
@@ -52,6 +60,8 @@ export interface QuoteOptionsInput {
 export interface QuotePayload {
   id: string;
   status: QuoteStatus;
+  kind: QuoteKind;
+  docNumber: string | null;
   customerName: string | null;
   customerPhone: string | null;
   paymentMethod: string | null;
@@ -85,6 +95,7 @@ export interface QuotePayload {
     originalCode: string | null;
     notes: string | null;
     isService: boolean;
+    leadTime: string | null;
     quantity: number;
     unitPrice: number | null;
   }>;
@@ -149,6 +160,7 @@ export function parseQuoteItems(value: unknown): QuoteItemInput[] | null {
       originalCode: text(input.originalCode, 80),
       notes: text(input.notes, 500),
       isService: looksLikeService(partNumber, typeof input.isService === 'boolean' ? input.isService : undefined),
+      leadTime: text(input.leadTime, 60),
       quantity,
       unitPrice,
     });
@@ -169,7 +181,15 @@ export function parseQuoteOptions(value: unknown): QuoteOptionsInput | null {
     discountPercentage = Math.round(parsed * 100) / 100;
   }
 
+  let kind: QuoteKind = 'PARTS';
+  if (input.kind !== undefined && input.kind !== null && input.kind !== '') {
+    if (!QUOTE_KINDS.includes(input.kind as QuoteKind)) return null;
+    kind = input.kind as QuoteKind;
+  }
+
   return {
+    kind,
+    docNumber: text(input.docNumber, 40),
     customerName: text(input.customerName, 200),
     customerPhone: text(input.customerPhone, 40),
     paymentMethod: text(input.paymentMethod, 120),
@@ -217,6 +237,8 @@ export function serializeQuote(quote: QuoteWithItems): QuotePayload {
   return {
     id: quote.id,
     status: quote.status,
+    kind: (QUOTE_KINDS as readonly string[]).includes(quote.kind) ? (quote.kind as QuoteKind) : 'PARTS',
+    docNumber: quote.docNumber,
     customerName: quote.customerName,
     customerPhone: quote.customerPhone,
     paymentMethod: quote.paymentMethod,
@@ -250,6 +272,7 @@ export function serializeQuote(quote: QuoteWithItems): QuotePayload {
       originalCode: item.originalCode,
       notes: item.notes,
       isService: item.isService,
+      leadTime: item.leadTime,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
     })),
@@ -274,6 +297,7 @@ function itemRows(items: QuoteItemInput[]) {
     originalCode: item.originalCode ?? null,
     notes: item.notes ?? null,
     isService: item.isService ?? false,
+    leadTime: item.leadTime ?? null,
     quantity: item.quantity,
     unitPrice: item.unitPrice ?? null,
   }));
@@ -355,6 +379,8 @@ export class QuoteService {
       return tx.quote.update({
         where: { id: draft.id },
         data: {
+          kind: options.kind ?? 'PARTS',
+          docNumber: options.docNumber ?? null,
           customerName: options.customerName ?? null,
           customerPhone: options.customerPhone ?? null,
           paymentMethod: options.paymentMethod ?? null,
@@ -390,12 +416,48 @@ export class QuoteService {
     const totals = computeTotals(items, discountPercentage);
     const now = new Date();
 
+    // Conserto com número de OS: é o "arquivo" daquela OS. Salvar de novo atualiza o mesmo orçamento (do mesmo atendente) em vez de criar cópia
+    // a cada clique em PDF ou WhatsApp; sem número, cada envio continua arquivando um orçamento novo.
+    if (options.kind === 'REPAIR' && options.docNumber) {
+      const existing = await prisma.quote.findFirst({
+        where: { tenantId, userId, status: 'SAVED', kind: 'REPAIR', docNumber: options.docNumber },
+        select: { id: true },
+        orderBy: { savedAt: 'desc' },
+      });
+      if (existing) {
+        const updated = await prisma.$transaction(async tx => {
+          await tx.quoteItem.deleteMany({ where: { quoteId: existing.id } });
+          if (items.length) {
+            await tx.quoteItem.createMany({ data: itemRows(items).map(row => ({ ...row, quoteId: existing.id })) });
+          }
+          return tx.quote.update({
+            where: { id: existing.id },
+            data: {
+              savedAt: now,
+              customerName: options.customerName ?? null,
+              customerPhone: options.customerPhone ?? null,
+              paymentMethod: options.paymentMethod ?? null,
+              leadTime: options.leadTime ?? null,
+              machineModel: options.machineModel ?? null,
+              notes: options.notes ?? null,
+              discountPercentage,
+              ...totals,
+            },
+            include: quoteInclude,
+          });
+        }, QUOTE_TX_OPTIONS);
+        return serializeQuote(updated);
+      }
+    }
+
     const created = await prisma.quote.create({
       data: {
         tenantId,
         userId,
         status: 'SAVED',
         savedAt: now,
+        kind: options.kind ?? 'PARTS',
+        docNumber: options.docNumber ?? null,
         customerName: options.customerName ?? null,
         customerPhone: options.customerPhone ?? null,
         paymentMethod: options.paymentMethod ?? null,
@@ -439,6 +501,7 @@ export class QuoteService {
       originalCode: item.originalCode,
       notes: item.notes,
       isService: item.isService,
+      leadTime: item.leadTime,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
     }));
@@ -458,6 +521,8 @@ export class QuoteService {
       return tx.quote.update({
         where: { id: quoteId },
         data: {
+          kind: options.kind ?? existing.kind,
+          docNumber: options.docNumber ?? existing.docNumber,
           customerName: options.customerName ?? existing.customerName,
           customerPhone: options.customerPhone ?? existing.customerPhone,
           paymentMethod: options.paymentMethod ?? existing.paymentMethod,
@@ -494,6 +559,7 @@ export class QuoteService {
     /** Balcão só enxerga o que ele mesmo atendeu; Admin enxerga a loja toda. */
     restrictToUserId?: string | null;
     search?: string;
+    kind?: QuoteKind | null;
     from?: Date | null;
     to?: Date | null;
     take: number;
@@ -504,6 +570,7 @@ export class QuoteService {
       status: 'SAVED',
     };
     if (params.restrictToUserId) where.userId = params.restrictToUserId;
+    if (params.kind) where.kind = params.kind;
     if (params.from || params.to) {
       where.savedAt = {
         ...(params.from ? { gte: params.from } : {}),
@@ -515,6 +582,7 @@ export class QuoteService {
     if (search) {
       const normalizedCode = normalizeIdentifier(search);
       where.OR = [
+        { docNumber: { contains: search, mode: 'insensitive' } },
         { customerName: { contains: search, mode: 'insensitive' } },
         { customerPhone: { contains: search, mode: 'insensitive' } },
         { machineModel: { contains: search, mode: 'insensitive' } },

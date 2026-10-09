@@ -165,3 +165,34 @@ describe('motor no WhatsApp', () => {
     expect(buildWhatsAppMessage({ items: [carburador], options: {}, now: quarta })).not.toContain('Motor:');
   });
 });
+
+describe('mensagem do orçamento de conserto (peças de qualquer fornecedor e mão de obra)', () => {
+  const juntas = { partNumber: 'VI25463', manufacturer: null, name: 'JOGO DE JUNTAS', model: '', quantity: 1, unitPrice: 20, leadTime: '7 DIAS' };
+  const maoDeObra = { partNumber: 'SRV-0001', name: 'MÃO DE OBRA', model: '', quantity: 1, unitPrice: 220 };
+  const mensagem = buildWhatsAppMessage({ items: [juntas, maoDeObra], options: { kind: 'REPAIR', docNumber: ' 59600 ' }, now: quarta });
+
+  it('título de conserto, número da OS e "Peças e serviços"', () => {
+    expect(mensagem).toContain('*Orçamento de conserto · Vardão Máquinas*');
+    expect(mensagem).toContain('OS: 59600');
+    expect(mensagem).toContain('*Peças e serviços*');
+  });
+
+  it('não diz "Peças originais" (no conserto a peça é de qualquer fornecedor) e não leva código', () => {
+    expect(mensagem).not.toMatch(/Peças originais/);
+    expect(mensagem).not.toMatch(/VI25463/);
+    expect(mensagem).toContain('Vardão Máquinas');
+  });
+
+  it('o prazo da linha aparece só na linha que tem', () => {
+    expect(mensagem).toContain('Prazo: 7 DIAS');
+    expect(mensagem.match(/Prazo: /g)).toHaveLength(1);
+  });
+
+  it('orçamento de peças continua como era', () => {
+    const pecas = buildWhatsAppMessage({ items: [carburador], options: {}, now: quarta });
+    expect(pecas).toContain('*Orçamento · Vardão Máquinas*');
+    expect(pecas).toContain('*Peças*');
+    expect(pecas).toContain('Peças originais Husqvarna');
+    expect(pecas).not.toContain('OS:');
+  });
+});

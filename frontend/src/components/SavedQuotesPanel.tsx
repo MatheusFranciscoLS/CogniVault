@@ -7,7 +7,7 @@ import PageFrame from './PageFrame';
 import { toast } from 'sonner';
 import { useConfirm } from '../context/confirm';
 import { useQuoteCart } from '../context/QuoteCartContext';
-import type { SavedQuote } from '../context/QuoteCartContext';
+import { toSavedQuote, type ApiQuoteListItem } from '../lib/saved-quote-api';
 import { apiJson, cleanErpCode, formatHusqvarnaPartNumber } from '../lib';
 import { ChevronRight, Copy, Search, Trash2 } from 'lucide-react';
 import { playCopySound } from '../lib/sound';
@@ -18,82 +18,9 @@ import { cn } from '@/lib/utils';
 
 const PAGE_SIZE = 25;
 
-interface ApiQuoteListItem {
-  id: string;
-  customerName: string | null;
-  customerPhone: string | null;
-  paymentMethod: string | null;
-  leadTime: string | null;
-  notes: string | null;
-  machineModel: string | null;
-  discountPercentage: number;
-  totalItems: number;
-  grossTotal: number;
-  netTotal: number;
-  createdAt: string;
-  savedAt: string | null;
-  attendantEmail: string | null;
-  attendantName?: string | null;
-  items: Array<{
-    partNumber: string;
-    effectiveCode: string | null;
-    manufacturer: string | null;
-    name: string;
-    model: string | null;
-    pnc: string | null;
-    section: string | null;
-    position: string | null;
-    filename: string | null;
-    page: number | null;
-    isSuperseded: boolean;
-    originalCode: string | null;
-    notes: string | null;
-    isService: boolean;
-    quantity: number;
-    unitPrice: number | null;
-  }>;
-}
-
 function money(value: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
-
-function toSavedQuote(quote: ApiQuoteListItem): SavedQuote {
-  return {
-    id: quote.id,
-    createdAt: quote.savedAt || quote.createdAt,
-    customerName: quote.customerName ?? undefined,
-    customerPhone: quote.customerPhone ?? undefined,
-    paymentMethod: quote.paymentMethod ?? undefined,
-    leadTime: quote.leadTime ?? undefined,
-    notes: quote.notes ?? undefined,
-    machineModel: quote.machineModel ?? undefined,
-    discountPercentage: quote.discountPercentage || undefined,
-    totalPrice: quote.grossTotal,
-    totalItems: quote.totalItems,
-    attendantEmail: quote.attendantEmail,
-    attendantName: quote.attendantName,
-    items: quote.items.map(item => ({
-      id: `${item.partNumber}|${item.manufacturer || ''}|${item.model || ''}|${item.pnc || ''}`,
-      partNumber: item.partNumber,
-      effectiveCode: item.effectiveCode ?? undefined,
-      manufacturer: item.manufacturer,
-      name: item.name,
-      model: item.model ?? '',
-      pnc: item.pnc,
-      section: item.section,
-      position: item.position,
-      filename: item.filename,
-      page: item.page,
-      isSuperseded: item.isSuperseded,
-      originalCode: item.originalCode ?? undefined,
-      notes: item.notes,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice ?? undefined,
-    })),
-  };
-}
-
 
 function copyCode(code: string) {
   const clean = cleanErpCode(code);
@@ -110,6 +37,7 @@ export default function SavedQuotesPanel() {
   const [appliedFilter, setAppliedFilter] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [kind, setKind] = useState<'' | 'PARTS' | 'REPAIR'>('');
   const [page, setPage] = useState(0);
   const [quotes, setQuotes] = useState<ApiQuoteListItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -129,6 +57,7 @@ export default function SavedQuotesPanel() {
     let active = true;
     const params = new URLSearchParams({ take: String(PAGE_SIZE), skip: String(page * PAGE_SIZE) });
     if (appliedFilter) params.set('q', appliedFilter);
+    if (kind) params.set('kind', kind);
     if (from) params.set('from', from);
     if (to) params.set('to', to);
 
@@ -147,7 +76,7 @@ export default function SavedQuotesPanel() {
       });
 
     return () => { active = false; };
-  }, [appliedFilter, from, page, to, reloadToken]);
+  }, [appliedFilter, from, kind, page, to, reloadToken]);
 
   // A busca é no servidor porque o histórico agora é do banco, não do
   // navegador: filtrar em memória só acharia a primeira página.
@@ -165,6 +94,7 @@ export default function SavedQuotesPanel() {
     setAppliedFilter('');
     setFrom('');
     setTo('');
+    setKind('');
     setPage(0);
     reload();
   };
@@ -184,7 +114,7 @@ export default function SavedQuotesPanel() {
 
   const todayKey = storeDayKey(new Date());
   const lastPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
-  const hasFilters = Boolean(appliedFilter || from || to);
+  const hasFilters = Boolean(appliedFilter || from || to || kind);
 
   return (
     <PageFrame title="Orçamentos" meta={`${total} ${total === 1 ? 'orçamento arquivado' : 'orçamentos arquivados'}`}>
@@ -194,7 +124,7 @@ export default function SavedQuotesPanel() {
         className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 md:flex-row md:items-end"
       >
         <div className="min-w-0 flex-1 space-y-1.5">
-          <label htmlFor="quote-filter" className="block text-sm font-medium text-muted-foreground">Cliente, telefone, código ou modelo</label>
+          <label htmlFor="quote-filter" className="block text-sm font-medium text-muted-foreground">Cliente, OS, telefone, código ou modelo</label>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <Input
@@ -206,6 +136,22 @@ export default function SavedQuotesPanel() {
               placeholder="Ex.: Sr. Carlos, 143RII ou 5450361-01"
               className="pl-9 text-base"
             />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <span id="quote-kind-label" className="block text-sm font-medium text-muted-foreground">Tipo</span>
+          <div role="group" aria-labelledby="quote-kind-label" className="inline-flex overflow-hidden rounded-md border border-input">
+            {([['', 'Todos'], ['PARTS', 'Peças'], ['REPAIR', 'Conserto']] as const).map(([value, label]) => (
+              <button
+                key={value || 'all'}
+                type="button"
+                aria-pressed={kind === value}
+                onClick={() => { setPage(0); setKind(value); }}
+                className={cn('h-10 px-3 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/60', kind === value ? 'bg-selected font-semibold text-foreground' : 'bg-card text-muted-foreground hover:bg-muted')}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
         <div className="space-y-1.5">
@@ -271,7 +217,7 @@ export default function SavedQuotesPanel() {
                     <Fragment key={quote.id}>
                       <TableRow>
                         <TableCell className="max-w-0">
-                          <div className="truncate text-base font-semibold">{quote.customerName || 'Cliente não informado'}</div>
+                          <div className="truncate text-base font-semibold">{quote.kind === 'REPAIR' ? `Conserto${quote.docNumber ? ` · OS ${quote.docNumber}` : ''} · ` : ''}{quote.customerName || 'Cliente não informado'}</div>
                           <div className="truncate text-sm text-muted-foreground">{formatPhoneBr(quote.customerPhone ?? undefined) || 'Sem telefone'}</div>
                         </TableCell>
                         <TableCell className="tabular-nums text-muted-foreground">{storeTime(reference)}</TableCell>
