@@ -342,6 +342,13 @@ export default function QuickQuoteCart() {
                 </div>
               </div>
 
+              {draftOptions.engine && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted px-3 py-2">
+                  <span className="text-base"><span className="text-muted-foreground">Motor </span><span translate="no" className="font-code font-semibold">{draftOptions.engine}</span></span>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => patchOptions({ engine: undefined })} aria-label={`Tirar o motor ${draftOptions.engine} do orçamento`}>Tirar</Button>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <label htmlFor="quote-payment-method" className="block text-sm font-medium text-muted-foreground">Condição de pagamento</label>
                 <select

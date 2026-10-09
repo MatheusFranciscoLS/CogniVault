@@ -151,3 +151,56 @@ describe('cesta: reenvio depois de falha de gravação', () => {
     expect(result.current.items).toHaveLength(1);
   });
 });
+
+describe('cesta: motor da máquina', () => {
+  type EnginePut = { options: { machineModel: string | null } };
+
+  it('o motor vai junto da máquina no mesmo campo do servidor', async () => {
+    const puts = arrangeApi(() => true) as unknown as EnginePut[];
+    const { result } = await mountHydrated();
+
+    act(() => result.current.addItem(carburador));
+    act(() => result.current.setDraftOptions({ ...result.current.draftOptions, machineModel: 'Z460', engine: 'Kawasaki FX921V-ES06' }));
+    await advance(900);
+
+    expect(puts.at(-1)?.options.machineModel).toBe('Z460 · Motor Kawasaki FX921V-ES06');
+  });
+
+  it('só o motor, sem máquina, também é guardado', async () => {
+    const puts = arrangeApi(() => true) as unknown as EnginePut[];
+    const { result } = await mountHydrated();
+
+    act(() => result.current.addItem(carburador));
+    act(() => result.current.setDraftOptions({ ...result.current.draftOptions, engine: 'Kohler SV540-3212' }));
+    await advance(900);
+
+    expect(puts.at(-1)?.options.machineModel).toBe('Motor Kohler SV540-3212');
+  });
+
+  it('restaurar um orçamento separa máquina e motor', async () => {
+    arrangeApi(() => true);
+    const { result } = await mountHydrated();
+
+    act(() => result.current.restoreQuote({
+      id: 's1', createdAt: '', machineModel: 'Z460 · Motor Kawasaki FX921V-ES06', items: [{ ...carburador, id: 'a', quantity: 1 }], totalPrice: 0, totalItems: 1,
+    } as never));
+
+    expect(result.current.draftOptions.machineModel).toBe('Z460');
+    expect(result.current.draftOptions.engine).toBe('Kawasaki FX921V-ES06');
+  });
+
+  it('esvaziar o orçamento solta o motor: não vaza para o próximo cliente', async () => {
+    const puts = arrangeApi(() => true) as unknown as EnginePut[];
+    const { result } = await mountHydrated();
+
+    act(() => result.current.addItem(carburador));
+    act(() => result.current.setDraftOptions({ ...result.current.draftOptions, machineModel: 'Z460', engine: 'Kawasaki FX921V-ES06' }));
+    await advance(900);
+    act(() => result.current.clearCart());
+    await advance(900);
+
+    expect(result.current.draftOptions.engine).toBeUndefined();
+    expect(result.current.draftOptions.machineModel).toBe('Z460');
+    expect(puts.at(-1)?.options.machineModel).toBe('Z460');
+  });
+});

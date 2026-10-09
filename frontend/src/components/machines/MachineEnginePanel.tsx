@@ -2,7 +2,10 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiJson } from '../../lib';
-import { engineInputHelp, parseEngineInput } from '../../lib/engine-input';
+import { useQuoteCart } from '../../context/QuoteCartContext';
+import { engineInputHelp, parseEngineInput, type EngineBrandName } from '../../lib/engine-input';
+import { engineLabel } from '../../lib/quote-engine';
+import { loadRecentEngines, pushRecentEngine, saveRecentEngines, type RecentEngine } from '../../lib/recent-engines';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import KohlerEnginePanel from './KohlerEnginePanel';
@@ -71,6 +74,8 @@ export default function MachineEnginePanel({
   const [typed, setTyped] = useState('');
   const [typedError, setTypedError] = useState<string | null>(null);
   const [custom, setCustom] = useState<EngineHint | null>(null);
+  const [recent, setRecent] = useState<RecentEngine[]>(() => loadRecentEngines());
+  const { draftOptions, setDraftOptions } = useQuoteCart();
 
   const query = useQuery({
     queryKey: ['machine-engines', model, pnc ?? ''],
@@ -89,6 +94,18 @@ export default function MachineEnginePanel({
   // Espera a resposta antes de mostrar o cartão: aparecer só com o campo e os motores "pularem" para dentro depois faria a tela piscar.
   if (query.isLoading || !wantsField) return null;
 
+  const openPlate = (brand: EngineBrandName, model: string, precision: 'MODELO' | 'SERIE') => {
+    setTypedError(null);
+    const hint: EngineHint = { brand, model, searchTerm: model, machinePnc: null, source: 'PLACA', precision };
+    setCustom(hint);
+    setMode(undefined);
+    // Abre o catálogo na hora: o atendente já está com o cliente esperando.
+    setOpenKey(`${hint.brand}|${hint.searchTerm}||PLACA`);
+    const next = pushRecentEngine(recent, { brand, model });
+    setRecent(next);
+    saveRecentEngines(next);
+  };
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const parsed = parseEngineInput(typed);
@@ -96,14 +113,13 @@ export default function MachineEnginePanel({
       setTypedError(engineInputHelp(parsed));
       return;
     }
-    setTypedError(null);
-    const hint: EngineHint = { brand: parsed.brand, model: parsed.model, searchTerm: parsed.model, machinePnc: null, source: 'PLACA', precision: parsed.precision };
-    setCustom(hint);
-    setMode(undefined);
-    // Abre o catálogo na hora: o atendente já está com o cliente esperando.
-    setOpenKey(`${hint.brand}|${hint.searchTerm}||PLACA`);
+    openPlate(parsed.brand, parsed.model, parsed.precision);
     setTyped('');
   };
+
+  // O motor do orçamento mora no próprio orçamento (campo `engine`), então vale para qualquer máquina que o atendente abrir depois.
+  const quoteEngine = draftOptions.engine ?? '';
+  const toggleQuoteEngine = (label: string) => setDraftOptions({ ...draftOptions, engine: quoteEngine === label ? undefined : label });
 
   return (
     <section aria-label="Motor desta máquina" className="rounded-xl border border-border bg-card">
@@ -137,14 +153,25 @@ export default function MachineEnginePanel({
                       {precision ? ` · ${precision}` : ''}
                     </div>
                   </div>
-                  {openable && (
+                  {(openable || engine.model) && (
                     <div className="flex flex-wrap gap-2">
+                      {engine.model && (() => {
+                        const label = engineLabel(engine.brand, engine.model);
+                        const inQuote = quoteEngine === label;
+                        return (
+                          <Button type="button" variant={inQuote ? 'secondary' : 'outline'} aria-pressed={inQuote} onClick={() => toggleQuoteEngine(label)}>
+                            {inQuote ? 'Motor no orçamento ✓' : 'Motor no orçamento'}
+                          </Button>
+                        );
+                      })()}
                       {(engine.brand === 'Kohler' || engine.brand === 'Kawasaki') && engine.precision === 'MODELO' && !open && (
                         <Button type="button" variant="outline" onClick={() => { setMode('maintenance'); setOpenKey(key); }}>Peças de manutenção</Button>
                       )}
-                      <Button type="button" variant="outline" aria-expanded={open} onClick={() => { setMode(undefined); setOpenKey(open ? null : key); }}>
-                        {open ? 'Esconder o motor' : 'Ver peças e vista explodida'}
-                      </Button>
+                      {openable && (
+                        <Button type="button" variant="outline" aria-expanded={open} onClick={() => { setMode(undefined); setOpenKey(open ? null : key); }}>
+                          {open ? 'Esconder o motor' : 'Ver peças e vista explodida'}
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -183,6 +210,27 @@ export default function MachineEnginePanel({
           <Button type="submit" disabled={!typed.trim()}>Abrir motor</Button>
           {custom && <Button type="button" variant="ghost" onClick={() => { setCustom(null); setOpenKey(null); }}>Limpar</Button>}
         </div>
+        {recent.length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-2" role="group" aria-label="Últimos motores digitados">
+            {recent.map(item => (
+              <Button
+                key={`${item.brand}|${item.model}`}
+                type="button"
+                variant="outline"
+                size="sm"
+                translate="no"
+                className="font-code"
+                aria-label={`Abrir o motor ${engineLabel(item.brand, item.model)}`}
+                onClick={() => {
+                  const parsed = parseEngineInput(item.model);
+                  openPlate(item.brand, item.model, parsed.kind === 'ok' ? parsed.precision : 'MODELO');
+                }}
+              >
+                {item.model}
+              </Button>
+            ))}
+          </div>
+        )}
         {typedError && <p id="engine-from-plate-error" role="alert" className="mt-2 text-base text-warn">{typedError}</p>}
       </form>
     </section>

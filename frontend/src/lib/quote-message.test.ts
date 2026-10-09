@@ -151,3 +151,17 @@ describe('buildWhatsAppMessage', () => {
     expect(buildWhatsAppMessage({ items: [], options: {}, now: quarta })).toBe('');
   });
 });
+
+describe('motor no WhatsApp', () => {
+  it('traz a linha Motor depois da máquina e nada de código de peça', () => {
+    const text = buildWhatsAppMessage({ items: [carburador, vela], options: { engine: 'Kawasaki FX921V-ES06' }, now: quarta });
+    const lines = text.split(String.fromCharCode(10));
+    const machine = lines.findIndex(line => line.startsWith('Máquina:'));
+    expect(lines[machine + 1]).toBe('Motor: Kawasaki FX921V-ES06');
+    expect(text).not.toContain(carburador.partNumber);
+  });
+
+  it('sem motor, nenhuma linha de motor aparece', () => {
+    expect(buildWhatsAppMessage({ items: [carburador], options: {}, now: quarta })).not.toContain('Motor:');
+  });
+});

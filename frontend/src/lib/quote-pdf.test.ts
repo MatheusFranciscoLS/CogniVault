@@ -166,3 +166,17 @@ describe('buildQuotePdf: padrões e opções', () => {
     expect(t.split(STORE_PROFILE.legalName).length - 1).toBe(paginas + 1);
   });
 });
+
+describe('buildQuotePdf: motor da máquina', () => {
+  it('traz a linha Motor quando o atendente marcou o motor, e nenhum código de peça', () => {
+    const { texto } = gerar([carburador], { engine: 'Kawasaki FX921V-ES06' });
+    expect(texto).toContain('Motor:');
+    expect(texto).toContain('Kawasaki FX921V-ES06');
+    expect(texto).not.toContain(carburador.partNumber);
+  });
+
+  it('sem motor, não há linha de motor', () => {
+    const { texto } = gerar([carburador], {});
+    expect(texto).not.toContain('Motor:');
+  });
+});
