@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiJson } from '../lib';
+import type { PublicMachineUse } from './machine-public-use';
 
 export type PortalEquipmentItem = { id: string; name: string; value: string | null };
 export type PortalEquipment = { included: PortalEquipmentItem[]; notIncluded: PortalEquipmentItem[] } | null;
@@ -50,6 +51,22 @@ export function useMachinePortal(pnc: string) {
         { timeoutMs: 20_000 },
       );
       return { equipment: data.product?.equipment ?? null, accessories: data.product?.accessories ?? [], imageUrl: data.product?.imageUrl ?? null, features: data.product?.features ?? [], specifications: data.product?.specifications ?? [] };
+    },
+  });
+}
+
+/**
+ * Uso recomendado que o site público da Husqvarna escreve para a máquina (classe de uso e sabre). Complemento do orçamento: sem retentativa e sem
+ * erro na tela, porque o orçamento sai completo sem ele (11 de 76 modelos medidos não estão no site, e roçadeira não tem esse dado).
+ */
+export function usePublicMachineUse(pnc: string) {
+  return useQuery({
+    queryKey: ['machine-public-use', pnc],
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+    queryFn: async (): Promise<PublicMachineUse | null> => {
+      const data = await apiJson<{ use?: PublicMachineUse | null }>(`/api/machine-list/${encodeURIComponent(pnc)}/public-specs`, { timeoutMs: 15_000 });
+      return data.use ?? null;
     },
   });
 }
