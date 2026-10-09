@@ -67,7 +67,7 @@ await step('A peça entra e a gaveta mostra o motor, com a saída "Tirar"', asyn
   const gaveta = await abrirGaveta();
   check('a linha do motor aparece com o modelo', (await gaveta.innerText()).includes('Motor') && /Kohler SV540-3212/.test(await gaveta.innerText()));
   const previa = gaveta.getByLabel('Mensagem do WhatsApp');
-  if (await previa.count() === 0) await gaveta.getByRole('button', { name: /WhatsApp|mensagem|Prévia/i }).first().click().catch(() => {});
+  if (await previa.count() === 0) await gaveta.getByRole('button', { name: 'Ver a mensagem antes de enviar' }).first().click().catch(() => {});
   await page.waitForTimeout(400);
   const texto = (await gaveta.innerText());
   await shot(page, `${theme}-1366-motor-orcamento-gaveta`);
@@ -80,7 +80,7 @@ await step('A mensagem do WhatsApp leva "Motor:" e nenhum código de peça', asy
   let mensagem = '';
   if (await previa.count()) mensagem = await previa.innerText();
   else {
-    await gaveta.getByRole('button', { name: /Ver mensagem|Mensagem|Prévia/i }).first().click().catch(() => {});
+    await gaveta.getByRole('button', { name: 'Ver a mensagem antes de enviar' }).first().click().catch(() => {});
     await page.waitForTimeout(300);
     mensagem = await gaveta.getByLabel('Mensagem do WhatsApp').innerText().catch(() => '');
   }

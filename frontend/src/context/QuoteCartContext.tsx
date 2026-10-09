@@ -22,11 +22,17 @@ export interface QuoteCartItem {
   isSuperseded?: boolean;
   originalCode?: string;
   notes?: string | null;
+  /** Prazo desta linha; vazio = vale o prazo do orçamento. */
+  leadTime?: string;
   quantity: number;
   unitPrice?: number;
 }
 
 export interface QuoteTextOptions {
+  /** Tipo do orçamento: peças (padrão) ou conserto. Vale para o orçamento inteiro, até esvaziar e trocar. */
+  kind?: 'PARTS' | 'REPAIR';
+  /** Número digitado pelo balcão (no conserto, o da OS do Clipp). Em branco por padrão: a loja numera, o sistema não. */
+  docNumber?: string;
   machineModel?: string;
   /** Motor da máquina ("Kawasaki FX921V-ES06"); no banco viaja junto de machineModel (lib/quote-engine.ts). */
   engine?: string;
@@ -52,6 +58,8 @@ export interface QuotePdfExtras {
 
 export interface SavedQuote {
   id: string;
+  kind?: 'PARTS' | 'REPAIR';
+  docNumber?: string;
   createdAt: string;
   customerName?: string;
   customerPhone?: string;
@@ -81,6 +89,8 @@ interface QuoteCartContextType {
   removeItem: (id: string) => void;
   updateQuantity: (id: string, delta: number) => void;
   updateUnitPrice: (id: string, price: number | undefined) => void;
+  /** Prazo só desta linha (vazio = o do orçamento). */
+  updateLeadTime: (id: string, leadTime: string | undefined) => void;
   clearCart: () => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
@@ -141,6 +151,7 @@ interface ApiQuoteItem {
   originalCode: string | null;
   notes: string | null;
   isService: boolean;
+  leadTime?: string | null;
   quantity: number;
   unitPrice: number | null;
 }
@@ -148,6 +159,8 @@ interface ApiQuoteItem {
 interface ApiQuote {
   id: string;
   status: 'DRAFT' | 'SAVED';
+  kind?: string;
+  docNumber?: string | null;
   customerName: string | null;
   customerPhone: string | null;
   paymentMethod: string | null;
@@ -188,6 +201,7 @@ function fromApiItems(items: ApiQuoteItem[]): QuoteCartItem[] {
     isSuperseded: item.isSuperseded,
     originalCode: item.originalCode ?? undefined,
     notes: item.notes,
+    leadTime: item.leadTime ?? undefined,
     quantity: item.quantity,
     unitPrice: item.unitPrice ?? undefined,
   }));
@@ -209,6 +223,7 @@ function toApiItems(items: QuoteCartItem[]) {
     originalCode: item.originalCode ?? null,
     notes: item.notes ?? null,
     isService: item.partNumber.toUpperCase().startsWith('SRV-'),
+    leadTime: item.leadTime?.trim() || null,
     quantity: item.quantity,
     unitPrice: item.unitPrice ?? null,
   }));
@@ -216,6 +231,8 @@ function toApiItems(items: QuoteCartItem[]) {
 
 function toApiOptions(options: QuoteTextOptions) {
   return {
+    kind: options.kind ?? 'PARTS',
+    docNumber: options.docNumber?.trim() || null,
     customerName: options.customerName?.trim() || null,
     customerPhone: options.customerPhone?.trim() || null,
     paymentMethod: options.paymentMethod || null,
@@ -229,6 +246,8 @@ function toApiOptions(options: QuoteTextOptions) {
 function fromApiOptions(quote: ApiQuote): QuoteTextOptions {
   const { machine, engine } = splitQuoteMachine(quote.machineModel);
   return {
+    kind: quote.kind === 'REPAIR' ? 'REPAIR' : 'PARTS',
+    docNumber: quote.docNumber ?? undefined,
     customerName: quote.customerName ?? undefined,
     customerPhone: quote.customerPhone ?? undefined,
     paymentMethod: quote.paymentMethod ?? undefined,
@@ -243,6 +262,8 @@ function fromApiOptions(quote: ApiQuote): QuoteTextOptions {
 function toSavedQuote(quote: ApiQuote): SavedQuote {
   return {
     id: quote.id,
+    kind: quote.kind === 'REPAIR' ? 'REPAIR' : 'PARTS',
+    docNumber: quote.docNumber ?? undefined,
     createdAt: quote.savedAt || quote.createdAt,
     customerName: quote.customerName ?? undefined,
     customerPhone: quote.customerPhone ?? undefined,
@@ -522,6 +543,8 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
   const restoreQuote = useCallback((savedQuote: SavedQuote) => {
     if (!savedQuote.items.length) return;
     const restoredOptions: QuoteTextOptions = {
+      kind: savedQuote.kind ?? 'PARTS',
+      docNumber: savedQuote.docNumber,
       customerName: savedQuote.customerName,
       customerPhone: savedQuote.customerPhone,
       paymentMethod: savedQuote.paymentMethod,
@@ -660,9 +683,15 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     );
   }, [applyItems]);
 
+  const updateLeadTime = useCallback((id: string, leadTime: string | undefined) => {
+    applyItems(current => current.map(item => (item.id === id ? { ...item, leadTime: leadTime?.trim() || undefined } : item)));
+  }, [applyItems]);
+
   const clearCart = useCallback(() => {
     // O motor pertence ao atendimento que acabou: não pode vazar para o orçamento do próximo cliente.
-    const options: QuoteTextOptions = { ...draftOptions, engine: undefined };
+    // O número da OS também é do atendimento que acabou, e o tipo volta para Peças: o próximo orçamento aberto no Atendimento não pode sair
+    // como "conserto" só porque o anterior foi (a aba Conserto recomeça como conserto sozinha quando a cesta esvazia).
+    const options: QuoteTextOptions = { ...draftOptions, engine: undefined, docNumber: undefined, kind: 'PARTS' };
     setItems([]);
     setDraftOptionsState(options);
     queueDraftSync([], options);
@@ -718,7 +747,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
       doc: new jspdfModule.jsPDF('p', 'pt', 'a4'),
       autoTable: autoTableModule.default,
       items,
-      options: { ...opts, attendantName: (await resolveAttendantName()) || undefined, ...(reference?.trim() ? { reference: reference.trim() } : {}), ...(validityDays ? { validityDays } : {}), ...(company?.trim() ? { company } : {}), ...(quoteNumber?.trim() ? { quoteNumber } : {}), ...(customerNotes?.trim() ? { customerNotes } : {}) },
+      options: { ...opts, attendantName: (await resolveAttendantName()) || undefined, ...(reference?.trim() ? { reference: reference.trim() } : {}), ...(validityDays ? { validityDays } : {}), ...(company?.trim() ? { company } : {}), ...((quoteNumber?.trim() || opts.docNumber?.trim()) ? { quoteNumber: quoteNumber?.trim() || opts.docNumber } : {}), ...(customerNotes?.trim() ? { customerNotes } : {}) },
       logo: await loadStoreLogo(),
       now: quoteDate,
     });
@@ -756,6 +785,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     removeItem,
     updateQuantity,
     updateUnitPrice,
+    updateLeadTime,
     clearCart,
     isOpen,
     setIsOpen,
@@ -778,7 +808,7 @@ export function QuoteCartProvider({ children }: { children: ReactNode }) {
     addItem, addItems, clearCart, clearSavedQuotes, deleteSavedQuote,
     createPdfQuote, draftOptions, generatePdfQuote, generateWhatsAppText, isOpen, items, openWhatsApp,
     refreshSavedQuotes, removeItem, restoreQuote, saveCurrentQuote, savedQuotes, setDraftOptions,
-    syncState, totalItems, totalPrice, updateQuantity, updateUnitPrice,
+    syncState, totalItems, totalPrice, updateQuantity, updateUnitPrice, updateLeadTime,
   ]);
 
   return <QuoteCartContext.Provider value={value}>{children}</QuoteCartContext.Provider>;

@@ -20,6 +20,7 @@ const AuditPanel = lazy(() => import('../components/AdminPanels').then(module =>
 const TechnicalDetails = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.TechnicalDetails })));
 const QualityPanel = lazy(() => import('../components/QualityPanel'));
 const SavedQuotesPanel = lazy(() => import('../components/SavedQuotesPanel'));
+const RepairQuotePage = lazy(() => import('../components/RepairQuotePage'));
 const MachineListPanel = lazy(() => import('../components/MachineListPanel'));
 
 function cleanNavigationValue(value: string | null | undefined) {
@@ -319,6 +320,7 @@ export default function Dashboard() {
           />
         )}
         {section === 'quotes' && <SavedQuotesPanel />}
+        {section === 'repair' && <RepairQuotePage />}
         {section === 'prices' && <MachineListPanel onOpenMachine={openMachine} />}
         {section === 'overview' && user.role === 'ADMIN' && (
           <div className="space-y-4">

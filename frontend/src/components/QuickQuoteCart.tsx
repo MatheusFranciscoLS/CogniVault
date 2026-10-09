@@ -9,7 +9,7 @@ import { formatHusqvarnaPartNumber, cleanErpCode } from '../lib';
 import { playCopySound } from '../lib/sound';
 import { formatBRL, quoteTotals } from '../lib/quote-message';
 import { PIX_DISCOUNT, formatDiscountInput, parseDiscountInput } from '../lib/discount';
-import { leadMode, leadTimeConflict, leadTimeFor } from '../lib/lead-time';
+import { LEAD_TIME_NOW, LEAD_TIME_ORDER, leadMode, leadTimeConflict, leadTimeFor } from '../lib/lead-time';
 import { QUOTE_DEFAULTS } from '../lib/store-profile';
 import { maskPhoneInput } from '../lib/phone';
 import { Icon } from './icons/Icon';
@@ -63,11 +63,17 @@ function CartItemRow({
   item,
   onUpdateQuantity,
   onUpdateUnitPrice,
+  onUpdateLeadTime,
+  quoteLeadTime,
   onRemove,
 }: {
   item: QuoteCartItem;
   onUpdateQuantity: (delta: number) => void;
   onUpdateUnitPrice: (value: number | undefined) => void;
+  /** Prazo só desta linha (vazio = o do orçamento). */
+  onUpdateLeadTime: (value: string | undefined) => void;
+  /** Prazo do orçamento: a "Encomenda" da linha usa o mesmo texto quando ele já é de encomenda. */
+  quoteLeadTime: string;
   onRemove: () => void;
 }) {
   const [copied, setCopied] = useState(false);
@@ -109,6 +115,19 @@ function CartItemRow({
           </div>
           <h3 className="truncate text-base font-semibold" title={item.name}>{item.name}</h3>
           {details && <p className="truncate text-sm text-muted-foreground">{details}</p>}
+          <select
+            aria-label={`Prazo de ${item.name}`}
+            value={item.leadTime ? leadMode(item.leadTime) : ''}
+            onChange={event => {
+              const value = event.target.value;
+              onUpdateLeadTime(value === 'NOW' ? LEAD_TIME_NOW : value === 'ORDER' ? (leadMode(quoteLeadTime) === 'ORDER' ? quoteLeadTime.trim() : LEAD_TIME_ORDER) : undefined);
+            }}
+            className="mt-1 h-8 rounded-md border border-input bg-card px-2 text-sm text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/60"
+          >
+            <option value="">Prazo do orçamento</option>
+            <option value="NOW">Pronta entrega</option>
+            <option value="ORDER">Encomenda</option>
+          </select>
         </div>
         <Button type="button" variant="ghost" size="icon-sm" onClick={onRemove} aria-label={`Remover ${item.name}`} className="-mr-2 shrink-0 hover:text-destructive">
           <X className="size-5" />
@@ -128,7 +147,7 @@ function CartItemRow({
             type="number"
             inputMode="decimal"
             min={0}
-            step={0.5}
+            step={0.01}
             placeholder="R$ un."
             aria-label={`Preço unitário de ${item.name}`}
             value={item.unitPrice ?? ''}
@@ -142,7 +161,75 @@ function CartItemRow({
   );
 }
 
-export default function QuickQuoteCart() {
+/**
+ * A linha do orçamento na aba Conserto: UMA linha por item, como a planilha da loja (descrição, prazo, quantidade, valor, total).
+ * A gaveta usa o cartão alto (`CartItemRow`), que tem espaço para código copiável e detalhes da peça.
+ */
+function CartItemRowCompact({
+  item,
+  onUpdateQuantity,
+  onUpdateUnitPrice,
+  onUpdateLeadTime,
+  quoteLeadTime,
+  onRemove,
+}: {
+  item: QuoteCartItem;
+  onUpdateQuantity: (delta: number) => void;
+  onUpdateUnitPrice: (value: number | undefined) => void;
+  onUpdateLeadTime: (value: string | undefined) => void;
+  quoteLeadTime: string;
+  onRemove: () => void;
+}) {
+  const isServiceItem = item.partNumber.startsWith('SRV-');
+  const code = item.manufacturer?.toLowerCase().includes('husqvarna') ? formatHusqvarnaPartNumber(item.effectiveCode || item.partNumber) : (item.effectiveCode || item.partNumber);
+  const subtotal = item.unitPrice ? item.quantity * item.unitPrice : 0;
+  return (
+    <li className="grid grid-cols-[minmax(0,1fr)_150px_104px_96px_96px_32px] items-center gap-x-3 px-6 py-2.5">
+      <div className="min-w-0">
+        <h3 className="truncate text-base font-semibold" title={item.name}>{item.name}</h3>
+        {!isServiceItem && <span translate="no" className="block truncate font-code text-sm tabular-nums text-muted-foreground">{code}</span>}
+      </div>
+      <select
+        aria-label={`Prazo de ${item.name}`}
+        value={item.leadTime ? leadMode(item.leadTime) : ''}
+        onChange={event => {
+          const value = event.target.value;
+          onUpdateLeadTime(value === 'NOW' ? LEAD_TIME_NOW : value === 'ORDER' ? (leadMode(quoteLeadTime) === 'ORDER' ? quoteLeadTime.trim() : LEAD_TIME_ORDER) : undefined);
+        }}
+        className="h-9 w-full rounded-md border border-input bg-card px-2 text-sm text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/60"
+      >
+        <option value="">Do orçamento</option>
+        <option value="NOW">Pronta entrega</option>
+        <option value="ORDER">Encomenda</option>
+      </select>
+      <div className="inline-flex h-9 items-center overflow-hidden rounded-md border border-input">
+        <button type="button" onClick={() => onUpdateQuantity(-1)} disabled={item.quantity <= 1} title={item.quantity <= 1 ? 'Para tirar o item, use o ×' : undefined} aria-label={`Diminuir quantidade de ${item.name}`} className="grid size-9 place-items-center hover:bg-accent focus-visible:bg-accent disabled:opacity-40"><Minus className="size-4" /></button>
+        <span className="min-w-8 text-center text-base font-semibold tabular-nums">{item.quantity}</span>
+        <button type="button" onClick={() => onUpdateQuantity(1)} aria-label={`Aumentar quantidade de ${item.name}`} className="grid size-9 place-items-center hover:bg-accent focus-visible:bg-accent"><Plus className="size-4" /></button>
+      </div>
+      <Input
+        type="number"
+        inputMode="decimal"
+        min={0}
+        step={0.01}
+        placeholder="R$ un."
+        aria-label={`Preço unitário de ${item.name}`}
+        value={item.unitPrice ?? ''}
+        onChange={e => onUpdateUnitPrice(e.target.value === '' ? undefined : Number(e.target.value))}
+        className="h-9 w-full text-right font-code text-base font-semibold tabular-nums"
+      />
+      <span className="text-right font-code text-base font-bold tabular-nums">{subtotal > 0 ? money(subtotal) : ''}</span>
+      <Button type="button" variant="ghost" size="icon-sm" onClick={onRemove} aria-label={`Remover ${item.name}`} className="hover:text-destructive"><X className="size-5" /></Button>
+    </li>
+  );
+}
+
+/**
+ * A gaveta do orçamento (layout "drawer", em qualquer tela) e a aba Conserto (layout "page", a MESMA cesta em página inteira).
+ * Orçamento de conserto = peças de qualquer fornecedor + mão de obra, com o "Nº da OS" digitado (o sistema não numera).
+ */
+export default function QuickQuoteCart({ layout = 'drawer' }: { layout?: 'drawer' | 'page' }) {
+  const page = layout === 'page';
   const {
     items,
     totalItems,
@@ -151,6 +238,7 @@ export default function QuickQuoteCart() {
     setIsOpen,
     updateQuantity,
     updateUnitPrice,
+    updateLeadTime,
     removeItem,
     clearCart,
     openWhatsApp,
@@ -200,16 +288,20 @@ export default function QuickQuoteCart() {
   const notesText = draftOptions.notes ?? defaultNotes;
   const leadConflict = leadTimeConflict(leadTime, notesText);
   const notesCustomized = draftOptions.notes !== undefined && draftOptions.notes !== defaultNotes;
-  const quoteOptions: QuoteTextOptions = { customerName, customerPhone, paymentMethod, discountPercentage, leadTime: draftOptions.leadTime, notes: notesCustomized ? draftOptions.notes : undefined };
+  // Na aba Conserto, a cesta vazia JÁ é um orçamento de conserto (o tipo só é gravado quando o primeiro item entra por ela); assim o tipo nunca
+  // vaza para o Atendimento: peça adicionada pela busca continua sendo orçamento de peças.
+  const repair = page && items.length === 0 ? true : draftOptions.kind === 'REPAIR';
+  const quoteOptions: QuoteTextOptions = { kind: draftOptions.kind, docNumber: draftOptions.docNumber, customerName, customerPhone, paymentMethod, discountPercentage, leadTime: draftOptions.leadTime, notes: notesCustomized ? draftOptions.notes : undefined };
   // Mesma conta do texto do WhatsApp, do PDF e do servidor (desconto arredondado antes de subtrair). Calcular
   // aqui por conta própria dava R$ 435,92 na tela e R$ 435,91 no que o cliente recebia e no orçamento arquivado.
   const { discount: discountAmount, net: netTotalPrice } = quoteTotals(items, discountPercentage);
 
-  if (totalItems === 0 && !isOpen) {
+  if (!page && totalItems === 0 && !isOpen) {
     return null;
   }
 
   const handleAddCustomItem = ({ name, price, quantity, code, manufacturer }: CustomItemInput) => {
+    if (page && items.length === 0 && draftOptions.kind !== 'REPAIR') patchOptions({ kind: 'REPAIR' });
     if (code) {
       // Peça com código (de qualquer marca): entra com o código, SEM o "modelo" de serviço, para não aparecer como máquina no orçamento do cliente.
       addItem({ partNumber: code, effectiveCode: code, manufacturer, name, model: '', unitPrice: price, quantity });
@@ -232,59 +324,78 @@ export default function QuickQuoteCart() {
     if (confirmed) clearCart();
   };
 
-  return (
+  const content = (
     <>
-      {/* Não existe botão flutuante de orçamento: o cabeçalho do app já tem o botão
-          "Orçamento" com o contador, sempre visível. */}
-      <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetContent side="right" showCloseButton={false} className="w-full gap-0 border-border bg-background p-0 sm:max-w-[560px]">
           <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border bg-card px-6 py-4">
             <div className="min-w-0">
-              <SheetTitle className="text-2xl font-semibold leading-8 text-foreground">Orçamento</SheetTitle>
-              <SheetDescription className="sr-only">Peças, cliente e envio do orçamento de balcão</SheetDescription>
+              {!page && <SheetTitle className="text-2xl font-semibold leading-8 text-foreground">{repair ? 'Orçamento de conserto' : 'Orçamento'}</SheetTitle>}
+              {!page && <SheetDescription className="sr-only">Peças, cliente e envio do orçamento de balcão</SheetDescription>}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
                 <span className="text-base text-muted-foreground">{totalItems} {totalItems === 1 ? 'item' : 'itens'}</span>
                 <SyncStatus state={syncState} />
               </div>
+              {!(page && items.length === 0) && <div role="group" aria-label="Tipo do orçamento" className="mt-2 inline-flex overflow-hidden rounded-md border border-input">
+                {([['PARTS', 'Peças'], ['REPAIR', 'Conserto']] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={(repair ? 'REPAIR' : 'PARTS') === value}
+                    onClick={() => patchOptions({ kind: value })}
+                    className={cn('h-8 px-3 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/60', (repair ? 'REPAIR' : 'PARTS') === value ? 'bg-selected font-semibold text-foreground' : 'bg-card text-muted-foreground hover:bg-muted')}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>}
             </div>
-            <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} aria-label="Fechar orçamento"><X className="size-5" /></Button>
+            {!page && <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} aria-label="Fechar orçamento"><X className="size-5" /></Button>}
           </header>
 
           {/* Uma única região rolável: peças primeiro (é o que se confere com o cliente
               na frente), depois cliente e pagamento. O rodapé fica fixo e curto: total e
               envio. Antes, um rodapé de ~220 px engolia a lista em tela curta. */}
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            {items.length === 0 ? (
+          <div className={page ? 'flex flex-col' : 'min-h-0 flex-1 overflow-y-auto overscroll-contain'}>
+            {items.length === 0 ? (page ? null : (
               <div className="px-6 py-16 text-center">
                 <p className="text-xl font-semibold">Orçamento vazio</p>
                 <p className="mt-1 text-base text-muted-foreground">Adicione peças pela busca.</p>
               </div>
-            ) : (
-              <ul className="divide-y divide-border bg-card">
-                {items.map(item => (
-                  <CartItemRow
+            )) : (
+              <ul className={cn('divide-y divide-border bg-card', page && 'order-2')}>
+                {page && (
+                  <li aria-hidden="true" className="grid grid-cols-[minmax(0,1fr)_150px_104px_96px_96px_32px] gap-x-3 bg-muted px-6 py-1.5 text-sm font-medium text-muted-foreground">
+                    <span>Descrição</span><span>Prazo</span><span className="text-center">Qtde</span><span className="text-right">Valor un.</span><span className="text-right">Total</span><span />
+                  </li>
+                )}
+                {items.map(item => {
+                  const Row = page ? CartItemRowCompact : CartItemRow;
+                  return (
+                  <Row
                     key={item.id}
                     item={item}
                     onUpdateQuantity={delta => updateQuantity(item.id, delta)}
                     onUpdateUnitPrice={value => updateUnitPrice(item.id, value)}
+                    onUpdateLeadTime={value => updateLeadTime(item.id, value)}
+                    quoteLeadTime={leadTime}
                     onRemove={() => removeItem(item.id)}
                   />
-                ))}
+                  );
+                })}
               </ul>
             )}
 
-            <div className="border-t border-border px-6 py-4">
-              {!showCustomItemForm ? (
+            <div className={cn('border-t border-border px-6 py-4', page && 'order-3')}>
+              {!showCustomItemForm && !page ? (
                 <Button variant="outline" onClick={() => setShowCustomItemForm(true)} className="w-full border-dashed">
                   <Plus className="size-4" />
                   Serviço ou item avulso
                 </Button>
               ) : (
-                <CustomItemForm onAdd={handleAddCustomItem} onClose={() => setShowCustomItemForm(false)} />
+                <CustomItemForm onAdd={handleAddCustomItem} onClose={() => setShowCustomItemForm(false)} embedded={page} />
               )}
             </div>
 
-            <section className="space-y-4 border-t border-border bg-card px-6 py-5">
+            <section className={cn('space-y-4 border-t border-border bg-card px-6 py-5', page && 'order-1 border-t-0')}>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <label htmlFor="quote-customer-name" className="block text-sm font-medium text-muted-foreground">Cliente e máquina</label>
@@ -296,6 +407,13 @@ export default function QuickQuoteCart() {
                 </div>
               </div>
 
+              {repair && (
+                <div className="space-y-1.5">
+                  <label htmlFor="quote-doc-number" className="block text-sm font-medium text-muted-foreground">Nº da OS</label>
+                  <Input id="quote-doc-number" type="text" autoComplete="off" maxLength={40} value={draftOptions.docNumber ?? ''} onChange={e => patchOptions({ docNumber: e.target.value })} className="font-code text-base font-semibold" />
+                </div>
+              )}
+
               {draftOptions.engine && (
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted px-3 py-2">
                   <span className="text-base"><span className="text-muted-foreground">Motor </span><span translate="no" className="font-code font-semibold">{draftOptions.engine}</span></span>
@@ -303,6 +421,9 @@ export default function QuickQuoteCart() {
                 </div>
               )}
 
+            </section>
+
+            <section className={cn('space-y-4 border-t border-border bg-card px-6 py-5', page && 'order-4')}>
               <div className="space-y-1.5">
                 <label htmlFor="quote-payment-method" className="block text-sm font-medium text-muted-foreground">Condição de pagamento</label>
                 <select
@@ -400,7 +521,7 @@ export default function QuickQuoteCart() {
           </div>
 
           {items.length > 0 && (
-            <footer className="shrink-0 space-y-2 border-t border-border bg-card px-6 py-3">
+            <footer className={cn('shrink-0 space-y-2 border-t border-border bg-card px-6 py-3', page && 'sticky bottom-0 z-10')}>
               {totalPrice > 0 && (
                 <div>
                   {discountPercentage > 0 && (
@@ -458,8 +579,20 @@ export default function QuickQuoteCart() {
               </div>
             </footer>
           )}
-        </SheetContent>
-      </Sheet>
+    </>
+  );
+
+  return (
+    <>
+      {/* Não existe botão flutuante de orçamento: o cabeçalho do app já tem o botão
+          "Orçamento" com o contador, sempre visível. */}
+      {page ? (
+        <div className="flex w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-border bg-background">{content}</div>
+      ) : (
+        <Sheet open={isOpen} onOpenChange={setIsOpen}>
+          <SheetContent side="right" showCloseButton={false} className="w-full gap-0 border-border bg-background p-0 sm:max-w-[560px]">{content}</SheetContent>
+        </Sheet>
+      )}
 
       {showPdf && <QuotePdfDialog options={quoteOptions} onClose={() => setShowPdf(false)} />}
     </>

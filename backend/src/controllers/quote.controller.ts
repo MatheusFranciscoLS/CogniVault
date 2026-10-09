@@ -75,6 +75,7 @@ export class QuoteController {
     const take = parseIntParam(req.query.take, 25, MAX_SAVED_QUOTE_PAGE_SIZE) || 25;
     const skip = parseIntParam(req.query.skip, 0, 100_000);
     const search = typeof req.query.q === 'string' ? req.query.q.slice(0, 200) : '';
+    const kind = req.query.kind === 'REPAIR' || req.query.kind === 'PARTS' ? req.query.kind : null;
 
     try {
       const { quotes, total } = await QuoteService.listSavedQuotes({
@@ -83,6 +84,7 @@ export class QuoteController {
         // terceiro papel (ver CLAUDE.md, "Papéis de usuário").
         restrictToUserId: req.user.role === 'ADMIN' ? null : req.user.id,
         search,
+        kind,
         from: startOfStoreDay(req.query.from),
         to: endOfStoreDay(req.query.to),
         take,

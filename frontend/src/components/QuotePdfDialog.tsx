@@ -18,7 +18,7 @@ export default function QuotePdfDialog({ options, onClose }: { options: QuoteTex
   const { createPdfQuote, saveCurrentQuote } = useQuoteCart();
   const ids = useId();
   const [dateText, setDateText] = useState(() => todayInputValue());
-  const [reference, setReference] = useState<string>(QUOTE_DEFAULTS.reference);
+  const [reference, setReference] = useState<string>(options.kind === 'REPAIR' ? QUOTE_DEFAULTS.repairReference : QUOTE_DEFAULTS.reference);
   const [validityText, setValidityText] = useState(String(QUOTE_DEFAULTS.validityDays));
   const [company, setCompany] = useState('');
   const [quoteNumber, setQuoteNumber] = useState('');
@@ -105,10 +105,10 @@ export default function QuotePdfDialog({ options, onClose }: { options: QuoteTex
               Empresa (opcional)
               <Input id={`${ids}-empresa`} value={company} maxLength={120} autoComplete="off" onChange={event => setCompany(event.target.value)} />
             </label>
-            <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-numero`}>
+            {options.kind !== 'REPAIR' && <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-numero`}>
               Nº do orçamento (opcional)
               <Input id={`${ids}-numero`} value={quoteNumber} maxLength={30} autoComplete="off" onChange={event => setQuoteNumber(event.target.value)} />
-            </label>
+            </label>}
             <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-info`}>
               Pedido, frota, contato (opcional)
               <textarea

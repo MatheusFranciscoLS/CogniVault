@@ -16,6 +16,8 @@ export type QuoteLine = {
   pnc?: string | null;
   isSuperseded?: boolean;
   originalCode?: string;
+  /** Prazo desta linha ("Pronta entrega", "7 dias"); vazio = vale o do orçamento. */
+  leadTime?: string;
   quantity: number;
   unitPrice?: number;
 };
@@ -31,6 +33,10 @@ export type QuoteMessageOptions = {
   /** Observações digitadas no orçamento (substituem as padrão da loja no PDF). */
   notes?: string;
   discountPercentage?: number;
+  /** Tipo do orçamento: peças (padrão) ou conserto (peças de qualquer fornecedor e mão de obra). */
+  kind?: 'PARTS' | 'REPAIR';
+  /** Número digitado pelo balcão (no conserto, o da OS do Clipp). */
+  docNumber?: string;
 };
 
 /** Marca da loja nos textos para o cliente. Sem "Revenda Autorizada Ouro": o cliente não conhece nem precisa dessa distinção (dono, 2026-10-07). */
@@ -101,12 +107,14 @@ export function buildWhatsAppMessage(input: { items: QuoteLine[]; options: Quote
   const brand = manufacturers.length === 1 ? `${manufacturers[0]} ` : '';
 
   const out: string[] = [];
-  out.push('*Orçamento · Vardão Máquinas*');
+  const repair = options.kind === 'REPAIR';
+  out.push(repair ? '*Orçamento de conserto · Vardão Máquinas*' : '*Orçamento · Vardão Máquinas*');
+  if (repair && options.docNumber?.trim()) out.push(`OS: ${options.docNumber.trim()}`);
   if (options.customerName) out.push(`Cliente: *${options.customerName}*`);
   if (machine) out.push(`Máquina: ${brand}${machine}`);
   if (options.engine) out.push(`Motor: ${options.engine}`);
   out.push(`Data: ${formatDate(now)}`);
-  out.push('', '*Peças*');
+  out.push('', repair ? '*Peças e serviços*' : '*Peças*');
 
   items.forEach((item, index) => {
     const quantity = item.quantity > 1 ? ` — ${item.quantity}x` : '';
@@ -119,6 +127,7 @@ export function buildWhatsAppMessage(input: { items: QuoteLine[]; options: Quote
       out.push('   Valor a consultar');
     }
     if (several && item.model && !isServiceLine(item)) out.push(`   Máquina: ${item.model}`);
+    if (item.leadTime?.trim()) out.push(`   Prazo: ${item.leadTime.trim()}`);
   });
 
   if (totals.hasAnyPrice && totals.gross > 0) {
@@ -136,7 +145,9 @@ export function buildWhatsAppMessage(input: { items: QuoteLine[]; options: Quote
   if (options.leadTime?.trim()) out.push(`Prazo das peças: ${options.leadTime.trim()}`);
   if (options.notes?.trim()) out.push(`Observação: ${options.notes.trim().split('\n').map(line => line.trim()).filter(Boolean).join(' · ')}`);
   out.push(`Válido até ${validUntil(now)}`);
-  out.push('', STORE_SIGNATURE, manufacturerSummary(items));
+  // No conserto as peças são de qualquer fornecedor: "Peças originais Husqvarna" no fim seria falso.
+  out.push('', STORE_SIGNATURE);
+  if (!repair) out.push(manufacturerSummary(items));
 
   return out.join('\n');
 }
