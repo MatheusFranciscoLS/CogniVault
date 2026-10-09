@@ -86,9 +86,9 @@ Toda tela aberta é testada em TODO o conteúdo dela, controle por controle, e n
 |---|---|
 | 🔧 | Ver o que o cliente recebe hoje (texto do WhatsApp e PDF) e refazer — texto do WhatsApp escrito e testado (`quote-message.ts`, 16 testes), ainda NÃO ligado à gaveta |
 | ✅ | Texto do WhatsApp, PDF, prévia e validade com data: feitos (ver "Gaveta do orçamento" em I) |
-| ⏳ | **PDF do cliente no modelo do timbrado da loja (pedido do dono, 2026-10-07; anotado, não feito):** o dono mandou o modelo `ORÇAMENTO TIMBRE PEÇAS.doc` ("quero algo assim ou melhor"). **Regra nova: SEM os códigos das peças no que o cliente recebe**, porque ele poderia cotar o mesmo código em outra revenda. Vale para o PDF e, por coerência, para o texto do WhatsApp (hoje os dois mostram o código). Estrutura do modelo: cabeçalho com os dados da loja (razão social, CNPJ, inscrição, endereço, telefones, e-mail); "Cidade, data"; "A/C: cliente"; "Ref.: Estimativa de Preço Peças de Reposição"; tabela DESCRIÇÃO · prazo (IMEDIATO) · VALOR UNIT · VALOR TOTAL; total; condição de pagamento (a combinar), **validade 20 dias** (hoje usamos 7 dias úteis), transportadora (Retira), observações ("preços para faturamento no estado de SP", "impostos inclusos", "estoque rotativo sujeito a venda diária") e assinatura "ATT. nome do atendente"; rodapé com os dados da loja. Perguntas ao dono: onde guardar os dados da loja (configuração, não no git); a validade passa a 20 dias?; "A/C" e "Ref." viram campos do orçamento?; as observações fixas valem para todo orçamento? |
-| ⏳ | Observação livre no orçamento (precisa de campo novo no servidor) |
-| ⏳ | Enviar ao número do cliente quando há telefone (já existe) e arquivar sempre |
+| ✅ | **PDF do cliente no modelo do timbrado da loja (pedido do dono, 2026-10-07; anotado, não feito):** o dono mandou o modelo `ORÇAMENTO TIMBRE PEÇAS.doc` ("quero algo assim ou melhor"). **Regra nova: SEM os códigos das peças no que o cliente recebe**, porque ele poderia cotar o mesmo código em outra revenda. Vale para o PDF e, por coerência, para o texto do WhatsApp (hoje os dois mostram o código). Estrutura do modelo: cabeçalho com os dados da loja (razão social, CNPJ, inscrição, endereço, telefones, e-mail); "Cidade, data"; "A/C: cliente"; "Ref.: Estimativa de Preço Peças de Reposição"; tabela DESCRIÇÃO · prazo (IMEDIATO) · VALOR UNIT · VALOR TOTAL; total; condição de pagamento (a combinar), **validade 20 dias** (hoje usamos 7 dias úteis), transportadora (Retira), observações ("preços para faturamento no estado de SP", "impostos inclusos", "estoque rotativo sujeito a venda diária") e assinatura "ATT. nome do atendente"; rodapé com os dados da loja. Perguntas ao dono: onde guardar os dados da loja (configuração, não no git); a validade passa a 20 dias?; "A/C" e "Ref." viram campos do orçamento?; as observações fixas valem para todo orçamento? | → **Feito** (PDF igual ao modelo em Word, sem códigos; ver o item 3 da fila e `lib/quote-pdf.ts`).
+| ✅ | Observação livre no orçamento (precisa de campo novo no servidor) | → Feito: `Quote.notes` (campo recolhido na gaveta).
+| ✅ | Enviar ao número do cliente quando há telefone (já existe) e arquivar sempre | → Feito: o WhatsApp abre no número do cliente e o orçamento é arquivado ao enviar.
 
 ## C. Achados da varredura de uso real (loja simulada)
 | | Achado | Ação |
@@ -139,7 +139,7 @@ Dados ficam no banco, nunca no repositório (repo público). Entra depois de A, 
 Pedido do dono: pegar o que for útil da lista, principalmente funcionalidade, "completo mas não poluído". Estudei a página (só o que ela FAZ; nenhum código, texto ou visual dela vai para o repositório, por causa do aviso de propriedade intelectual). Ela tem: busca global com atalho `/` e ranking por relevância, **cadeia de similaridade de códigos**, ficha técnica comercial em PDF e WhatsApp, lista de compras com exportação (CSV para o Portal Parceiro, XLSX, PDF), "Novidades" com preço antes/depois, ordem de categorias definida pela Husqvarna, e dados que NÃO usávamos: `similaridade` (4.224 peças, 120 acessórios, 34 máquinas), `reparo` (preventivo/corretivo) e `modelo`+`pnc` em cada uma das 64.440 peças.
 | | Ideia | Situação |
 |---|---|---|
-| ⏳ | **Código antigo → código vigente** (`similaridade`): a Husqvarna diz quais códigos cada peça substituiu e se existe um mais novo fora da lista. Cliente chega com o código velho: a busca acha o atual, com preço e aviso "substitui X". É a regra "nunca vender o código errado" servida pela própria fonte | PR próprio (tabela nova com RLS + importador + busca + gaveta) |
+| ❌ | **Código antigo → código vigente** (`similaridade`): a Husqvarna diz quais códigos cada peça substituiu e se existe um mais novo fora da lista. Cliente chega com o código velho: a busca acha o atual, com preço e aviso "substitui X". É a regra "nunca vender o código errado" servida pela própria fonte | PR próprio (tabela nova com RLS + importador + busca + gaveta) | → **Decidido NÃO fazer pela lista** (a similaridade diverge do Portal em ~26%); o código vigente vem do Portal (troca de código automática).
 | ✅ | **Máquina em vigência dentro do atendimento** (feito: selo "Em linha · R$ X" / "Fora de linha" / "Descontinuada" (texto escolhido pelo dono: "fora da lista de preços atual" confundia) no painel da máquina; o PNC vem sozinho da Tabela de preços pelo botão "Abrir vista explodida") | feito |
 | ✅ | **Ficha da máquina para o cliente** (WhatsApp e PDF): modelo, preço da lista, ficha técnica, o que acompanha. Reaproveita o PDF e o texto do orçamento | PR próprio |
 | ✅ | **"Leve junto"** na gaveta da máquina: acessórios que o PORTAL indica para a máquina e que a loja tem no cadastro (preço e prateleira), com "+ Orçamento". Mudei de "acessórios da categoria" para os do Portal: são os da máquina e não chute por categoria. Cobertura desigual (0 a 18 por máquina): sem item da loja, a seção some | feito |
@@ -250,9 +250,9 @@ Todas com texto de 9 a 12 px e frases que explicam o sistema; nenhuma tem erro n
 | 💡 | Briggs/Kawasaki: filtro por nome também nos conjuntos da Kawasaki |
 
 ## F. Depois do visual (ordem combinada com o dono)
-1. ⏳ **Auditoria "zero erros"**: varredura completa de lógica, programação e código.
+1. ✅ **Auditoria "zero erros"**: varredura completa de lógica, programação e código. → Rodada 1 em 2026-10-09 (ver A13); repetir depois de cada funcionalidade grande.
 2. ⏳ **Clipp**: pedir a exportação de produtos pela tela do Clipp (Referência, preço, descrição complementar, última compra, estoque); importador testado em banco descartável; aprovação; só então gravar.
-3. ⏳ Mesclar o PR #209 quando o dono aprovar o visual (hoje é rascunho).
+3. ✅ Mesclar o PR #209 quando o dono aprovar o visual (hoje é rascunho). → O #209 está mesclado.
 
 ## G. Pendências pequenas
 - `verify:production-origin` quebra no Windows (caminho `C:\C:\`): só roda no Linux do CI.
@@ -281,7 +281,7 @@ Dono mandou o link da Kohler e pediu: ligar o motor ao trator/giro zero/máquina
 - ✅ **Catálogo Kohler** no balcão: digitar o spec da plaqueta (`SV540-3212`) abre grupos, peças, substituição de código e vista explodida com posições clicáveis, preço da loja e "+ Orçamento".
 - ✅ **Motor desta máquina** no painel da máquina (LTH1842 → Kohler SV540-3212, R316TX → Kawasaki FS481V-CS55, TS138 → Husqvarna HS452, mais os motores já citados nos IPLs), com a nota para conferir a plaqueta ou o número de série.
 - ⏳ **Pares que faltam:** o dono vai informando (modelo da máquina → motor); entram em `OWNER_BASE_ENGINES` (`services/machine-base-engine.ts`).
-- ⏳ Ideias sem pedir: índice "peça Kohler → motores" (`OfficialPartIndex` já faz isso para Briggs e Kawasaki); aviso quando o motor da máquina muda por ano/PNC.
+- ✅ Ideias sem pedir: índice "peça Kohler → motores" (`OfficialPartIndex` já faz isso para Briggs e Kawasaki); aviso quando o motor da máquina muda por ano/PNC. → Índice Kohler feito (`OfficialPartIndex`, source KOHLER); o aviso de ano/PNC fica como está (a ficha manda conferir a plaqueta).
 
 
 ### A12 — Quatro melhorias pedidas (2026-10-08): "faça todas, só não faz a importação do Clipp"
