@@ -33,6 +33,8 @@ type KohlerGroupDetail = {
   referenceWidth: number | null;
   referenceHeight: number | null;
   unavailable?: 'CAPTCHA' | 'ERRO';
+  /** A lista veio do CSV do motor: sem desenho e sem substituição de código. */
+  partial?: boolean;
 };
 type KohlerCatalog = {
   spec: string;
@@ -56,10 +58,12 @@ type KohlerCatalog = {
  * A Kohler tem trava anti-robô e às vezes não responde. Isso NÃO é falta de catálogo: o atendente precisa saber que vale tentar de novo, e ter
  * o catálogo oficial à mão (a verificação, quando pedida, é feita por ele no navegador, nunca por nós).
  */
-function UnavailableNotice({ reason, officialUrl, onRetry, retrying }: { reason: 'CAPTCHA' | 'ERRO'; officialUrl: string; onRetry: () => void; retrying: boolean }) {
+function UnavailableNotice({ reason, officialUrl, onRetry, retrying, partial = false }: { reason: 'CAPTCHA' | 'ERRO'; officialUrl: string; onRetry: () => void; retrying: boolean; partial?: boolean }) {
   return (
     <div role="alert" className="space-y-2 rounded-md border border-warn bg-warn-soft px-4 py-3 text-base text-warn">
-      <p>{reason === 'CAPTCHA'
+      <p>{partial
+        ? 'A Kohler não liberou o desenho deste grupo agora (verificação anti-robô ou falha). Abaixo está a lista de peças, sem o desenho e sem o aviso de código substituído.'
+        : reason === 'CAPTCHA'
         ? 'A Kohler pediu uma verificação anti-robô e o catálogo não pôde ser lido agora. Abra o catálogo oficial no navegador (a verificação é feita lá) ou tente de novo em alguns minutos.'
         : 'A Kohler não respondeu agora. Tente de novo em instantes ou abra o catálogo oficial.'}</p>
       <div className="flex flex-wrap gap-2">
@@ -206,7 +210,7 @@ export default function KohlerEnginePanel({
           {groupQuery.isLoading && <p aria-busy="true" className="py-4 text-base text-muted-foreground">Lendo o desenho e as peças deste grupo…</p>}
 
           {detail?.unavailable && (
-            <UnavailableNotice reason={detail.unavailable} officialUrl={`${catalog.catalogUrl}&SectionId=${encodeURIComponent(openGroup.sectionId)}&GroupCode=${encodeURIComponent(openGroup.groupCode)}`} onRetry={() => void groupQuery.refetch()} retrying={groupQuery.isFetching} />
+            <UnavailableNotice reason={detail.unavailable} officialUrl={`${catalog.catalogUrl}&SectionId=${encodeURIComponent(openGroup.sectionId)}&GroupCode=${encodeURIComponent(openGroup.groupCode)}`} onRetry={() => void groupQuery.refetch()} retrying={groupQuery.isFetching} partial={Boolean(detail.partial)} />
           )}
 
           {detail?.imageUrl && (

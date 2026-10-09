@@ -3,6 +3,7 @@ import { afterEach, describe, it, mock } from 'node:test';
 import { KohlerCatalogService, resetKohlerBlockForTests } from './kohler-catalog.service';
 import { OfficialSourceCacheService } from './official-source-cache.service';
 import { OfficialPartIndexService } from './official-part-index.service';
+import { parseKohlerCsv } from '../utils/kohler-csv';
 
 // HTML e SVG INVENTADOS, no desenho de dados da página real. Códigos, nomes e coordenadas não são de nenhum motor.
 const IMG = 'https://partnersportal.kohlerpower.it/servicepartcatalogueimages/gasoline/ZZ000_01.svg';
@@ -148,5 +149,69 @@ describe('catálogo Kohler: serviço', () => {
     const catalog = await KohlerCatalogService.forSpec('ZZ100-0001');
     assert.equal(catalog.unavailable, undefined);
     assert.equal(catalog.description, null);
+  });
+
+  // ---- CSV do motor inteiro: uma chamada indexa tudo e serve de lista de reserva ----
+  const NL = String.fromCharCode(10);
+  const csvText = (spec: string) => [
+    `Spare parts catalog : ${spec}`, '', 'Last update 06/10/2026', '', 'Code;Description', '01;Eixo Teste', '02;Bloco Teste', '',
+    '01 - Eixo Teste', '', 'Pos;Kit;Included in;Part #;Description;Note;QTY;Tech info', '1;;;00 000 01-S;EIXO COMPLETO;;1;', '2;;;00 000 02-S;CHAVETA;;2;',
+    '', '02 - Bloco Teste', '', 'Pos;Kit;Included in;Part #;Description;Note;QTY;Tech info', '1;;;00 000 09-S;PARAFUSO-DISCONTINUED;;4;', '',
+  ].join(NL);
+  const flush = async () => { for (let i = 0; i < 5; i += 1) await new Promise(resolve => setImmediate(resolve)); };
+
+  it('ao ler o catálogo do motor, o motor INTEIRO entra no índice com uma chamada (CSV), com o grupo de cada peça', async () => {
+    bypassCache();
+    mock.method(globalThis, 'fetch', async (input: unknown) => (String(input).includes('exportcsv') ? new Response(csvText('ZZ100-0001'), { status: 200 }) : new Response(PAGE, { status: 200 })));
+    const record = mock.method(OfficialPartIndexService, 'record', async () => undefined);
+    await KohlerCatalogService.forSpec('ZZ100-0001');
+    await flush();
+    assert.equal(record.mock.callCount(), 1);
+    const [source, engine, parts] = record.mock.calls[0].arguments as unknown as [string, string, Array<{ partNumber: string; assembly: string | null }>];
+    assert.equal(source, 'KOHLER');
+    assert.equal(engine, 'ZZ100-0001');
+    assert.deepEqual(parts.map(part => [part.partNumber, part.assembly]), [['00 000 01-S', 'Eixo Teste'], ['00 000 02-S', 'Eixo Teste'], ['00 000 09-S', 'Bloco Teste']]);
+  });
+
+  it('CSV de OUTRO spec nunca é indexado sob o spec pedido', async () => {
+    bypassCache();
+    mock.method(globalThis, 'fetch', async () => new Response(csvText('ZZ999-0009'), { status: 200 }));
+    const record = mock.method(OfficialPartIndexService, 'record', async () => undefined);
+    await KohlerCatalogService.indexWholeEngine('ZZ100-0001');
+    assert.equal(record.mock.callCount(), 0);
+  });
+
+  it('página de verificação no lugar do CSV não indexa nada e não lança', async () => {
+    bypassCache();
+    mock.method(globalThis, 'fetch', async () => new Response('<html>verifique</html>', { status: 200 }));
+    const record = mock.method(OfficialPartIndexService, 'record', async () => undefined);
+    await KohlerCatalogService.indexWholeEngine('ZZ100-0001');
+    assert.equal(record.mock.callCount(), 0);
+  });
+
+  it('trava anti-robô na página do grupo COM o CSV já guardado: o balcão ainda recebe a lista de peças, marcada como parcial', async () => {
+    mock.method(OfficialSourceCacheService, 'get', async (_key: string, options: { resourceType: string }, loader: () => Promise<unknown>) => (
+      options.resourceType === 'CSV'
+        ? { value: parseKohlerCsv(csvText('ZZ100-0001')), state: 'HIT' }
+        : { value: await loader(), state: 'MISS' }
+    ));
+    mock.method(globalThis, 'fetch', async () => captcha());
+    mock.method(OfficialPartIndexService, 'record', async () => undefined);
+    const group = await KohlerCatalogService.group('ZZ100-0001', '101');
+    assert.equal(group?.unavailable, 'CAPTCHA');
+    assert.equal(group?.partial, true);
+    assert.deepEqual(group?.parts.map(part => part.partNumber), ['00 000 01-S', '00 000 02-S']);
+    assert.equal(group?.imageUrl, null, 'sem desenho: o CSV não traz');
+    const other = await KohlerCatalogService.group('ZZ100-0001', '102');
+    assert.equal(other?.parts[0].discontinued, true, 'a marca de fora de linha do CSV passa adiante');
+  });
+
+  it('trava anti-robô SEM o CSV guardado: nada de lista inventada, só o aviso', async () => {
+    bypassCache();
+    mock.method(globalThis, 'fetch', async () => captcha());
+    const group = await KohlerCatalogService.group('ZZ100-0001', '101');
+    assert.equal(group?.unavailable, 'CAPTCHA');
+    assert.deepEqual(group?.parts, []);
+    assert.equal(group?.partial, undefined);
   });
 });

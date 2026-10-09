@@ -428,7 +428,7 @@ export default function BusinessPanel() {
                 </button>
               </div>
               {insights.unpricedParts.length ? (
-                <div className="max-h-104 overflow-y-auto">
+                <div className="max-h-104 overflow-y-auto focus-visible:outline-2 focus-visible:outline-ring" tabIndex={0} role="region" aria-label="Peças sem preço cadastrado (rolagem)">
                   <Table containerClassName="rounded-none border-0 bg-transparent">
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">
