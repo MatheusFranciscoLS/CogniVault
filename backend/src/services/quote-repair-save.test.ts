@@ -89,3 +89,24 @@ test('dois envios da MESMA OS ao mesmo tempo (clique duplo) deixam UM orçamento
   const guardado = await prisma.quoteItem.count({ where: { quote: { tenantId: TENANT, docNumber: '59700' } } });
   assert.equal(guardado, 2, 'as linhas não se duplicam (2 linhas, não 8)');
 });
+
+test('duas gravações da cesta (rascunho) e duas edições do orçamento arquivado ao mesmo tempo não duplicam as linhas', async t => {
+  await wipe();
+  t.after(wipe);
+  await prisma.tenant.create({ data: { id: TENANT, name: 'Loja de teste' } });
+  await prisma.user.create({ data: { id: USER_A, tenantId: TENANT, email: 'a@teste.local', password: 'x', role: 'MECHANIC' } });
+
+  // Várias rodadas: com a corrida o defeito aparece só às vezes.
+  for (let rodada = 0; rodada < 5; rodada += 1) {
+    await Promise.all([1, 2, 3, 4].map(() => QuoteService.replaceDraft(TENANT, USER_A, itens(20), {})));
+    const rascunho = await QuoteService.getOrCreateDraft(TENANT, USER_A);
+    assert.equal(rascunho.items.length, 2, `rascunho, rodada ${rodada}: 2 linhas, não ${rascunho.items.length}`);
+  }
+
+  const arquivado = await QuoteService.saveQuote(TENANT, USER_A, itens(20), { customerName: 'Cliente' });
+  for (let rodada = 0; rodada < 5; rodada += 1) {
+    await Promise.all([1, 2, 3, 4].map(() => QuoteService.updateSavedQuote(TENANT, arquivado.id, itens(30), {})));
+    const atual = await QuoteService.getSavedQuote(TENANT, arquivado.id);
+    assert.equal(atual?.items.length, 2, `arquivado, rodada ${rodada}: 2 linhas, não ${atual?.items.length}`);
+  }
+});
