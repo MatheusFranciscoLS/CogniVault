@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useConfirm } from '../context/confirm';
-import { Check, Copy, Minus, Plus, X } from 'lucide-react';
+import { Check, Copy, Eye, Minus, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCounterSession } from '../context/CounterSessionContext';
 import { useQuoteCart } from '../context/QuoteCartContext';
@@ -8,10 +8,12 @@ import type { QuoteCartItem, QuoteSyncState, QuoteTextOptions } from '../context
 import { formatHusqvarnaPartNumber, cleanErpCode } from '../lib';
 import { playCopySound } from '../lib/sound';
 import { formatBRL, quoteTotals } from '../lib/quote-message';
-import { leadMode, leadTimeFor } from '../lib/lead-time';
+import { PIX_DISCOUNT, formatDiscountInput, parseDiscountInput } from '../lib/discount';
+import { leadMode, leadTimeConflict, leadTimeFor } from '../lib/lead-time';
 import { QUOTE_DEFAULTS } from '../lib/store-profile';
 import { maskPhoneInput } from '../lib/phone';
 import { Icon } from './icons/Icon';
+import QuotePdfDialog from './QuotePdfDialog';
 import CustomItemForm, { type CustomItemInput } from './CustomItemForm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,11 +28,10 @@ const PAYMENT_METHODS = [
   'Boleto Faturado (14/28 dias)',
 ];
 
+// Um atalho só (dono, 2026-10-09: a loja não chega a 10 nem a 15%); qualquer outro desconto é digitado no campo ao lado.
 const DISCOUNT_PRESETS = [
   { label: '0%', value: 0 },
-  { label: '5% PIX', value: 5 },
-  { label: '10% Balcão', value: 10 },
-  { label: '15% Especial', value: 15 },
+  { label: '5% PIX', value: PIX_DISCOUNT },
 ];
 
 // Mesma formatação do texto e do PDF que o cliente recebe, com ponto de milhar ("R$ 1.202,87"): a tela do
@@ -167,6 +168,9 @@ export default function QuickQuoteCart() {
   const [showCustomItemForm, setShowCustomItemForm] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [showPdf, setShowPdf] = useState(false);
+  // O que o atendente digitou no campo "Outro desconto" (null = não digitou). Só vale enquanto bate com o desconto da cesta (esvaziar ou restaurar zera).
+  const [discountDraft, setDiscountDraft] = useState<string | null>(null);
 
   // Cliente, telefone, pagamento e desconto moram no rascunho persistido, não
   // em estado local: antes, recarregar a página perdia o nome do cliente mesmo
@@ -183,13 +187,18 @@ export default function QuickQuoteCart() {
   const paymentMethod = draftOptions.paymentMethod || 'A Combinar no Balcão';
   const discountPercentage = draftOptions.discountPercentage || 0;
 
+  const draftParsed = discountDraft === null ? null : parseDiscountInput(discountDraft);
+  const discountText = discountDraft !== null && (draftParsed === null || draftParsed === (draftOptions.discountPercentage || 0)) ? discountDraft : null;
+  const discountInvalid = discountText !== null && parseDiscountInput(discountText) === null;
+  const shownDiscount = discountText ?? (discountPercentage !== 0 && discountPercentage !== PIX_DISCOUNT ? formatDiscountInput(discountPercentage) : '');
   const patchOptions = (patch: Partial<QuoteTextOptions>) => setDraftOptions({ ...draftOptions, ...patch });
 
-  // Prazo das peças: escolhido (Imediato, Encomenda ou nenhum). Observações: vazias, valem as padrão da loja.
+  // Prazo das peças: escolhido (Pronta entrega, Encomenda ou nenhum). Observações: vazias, valem as padrão da loja.
   const leadTime = draftOptions.leadTime ?? '';
   const mode = leadMode(leadTime);
   const defaultNotes = QUOTE_DEFAULTS.observations.join('\n');
   const notesText = draftOptions.notes ?? defaultNotes;
+  const leadConflict = leadTimeConflict(leadTime, notesText);
   const notesCustomized = draftOptions.notes !== undefined && draftOptions.notes !== defaultNotes;
   const quoteOptions: QuoteTextOptions = { customerName, customerPhone, paymentMethod, discountPercentage, leadTime: draftOptions.leadTime, notes: notesCustomized ? draftOptions.notes : undefined };
   // Mesma conta do texto do WhatsApp, do PDF e do servidor (desconto arredondado antes de subtrair). Calcular
@@ -311,13 +320,14 @@ export default function QuickQuoteCart() {
               <div className="space-y-1.5">
                 <span id="quote-lead-time-label" className="block text-sm font-medium text-muted-foreground">Prazo das peças</span>
                 <div role="group" aria-labelledby="quote-lead-time-label" className="flex flex-wrap gap-2">
-                  {([['NOW', 'Imediato'], ['ORDER', 'Encomenda'], ['NONE', 'Sem prazo']] as const).map(([value, label]) => (
+                  {([['NOW', 'Pronta entrega'], ['ORDER', 'Encomenda'], ['NONE', 'Sem prazo']] as const).map(([value, label]) => (
                     <Button key={value} type="button" size="sm" variant="outline" className={mode === value ? 'border-ring bg-selected' : undefined} aria-pressed={mode === value} onClick={() => patchOptions({ leadTime: leadTimeFor(value, leadTime) })}>{label}</Button>
                   ))}
                 </div>
                 {mode === 'ORDER' && (
                   <Input id="quote-lead-time" aria-label="Prazo da encomenda" type="text" autoComplete="off" value={leadTime} onChange={e => patchOptions({ leadTime: e.target.value })} placeholder="7 a 10 dias" className="text-base" />
                 )}
+                {leadConflict && <p role="alert" className="text-sm font-medium text-warn">{leadConflict}</p>}
               </div>
 
               <div>
@@ -344,20 +354,39 @@ export default function QuickQuoteCart() {
               {totalPrice > 0 && (
                 <div className="space-y-1.5">
                   <span className="block text-sm font-medium text-muted-foreground">Desconto</span>
-                  <div className="grid grid-cols-4 gap-2" role="group" aria-label="Desconto">
+                  <div className="grid grid-cols-[1fr_1fr_1.4fr] gap-2" role="group" aria-label="Desconto">
                     {DISCOUNT_PRESETS.map(disc => (
                       <Button
                         key={disc.value}
                         type="button"
                         variant="outline"
                         size="sm"
-                        aria-pressed={discountPercentage === disc.value}
-                        onClick={() => patchOptions({ discountPercentage: disc.value })}
-                        className={`px-1 ${discountPercentage === disc.value ? 'border-ring bg-selected' : ''}`}
+                        aria-pressed={discountPercentage === disc.value && discountText === null}
+                        onClick={() => { setDiscountDraft(null); patchOptions({ discountPercentage: disc.value }); }}
+                        className={`px-1 ${discountPercentage === disc.value && discountText === null ? 'border-ring bg-selected' : ''}`}
                       >
                         {disc.label}
                       </Button>
                     ))}
+                    <div className="relative">
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        autoComplete="off"
+                        aria-label="Outro desconto (%)"
+                        placeholder="Outro"
+                        value={shownDiscount}
+                        aria-invalid={discountInvalid}
+                        onChange={event => {
+                          const text = event.target.value;
+                          setDiscountDraft(text);
+                          const parsed = parseDiscountInput(text);
+                          if (parsed !== null) patchOptions({ discountPercentage: parsed });
+                        }}
+                        className={`h-8 pr-7 text-right font-code text-base font-semibold ${discountText !== null && !discountInvalid && discountText.trim() !== '' ? 'border-ring bg-selected' : ''}`}
+                      />
+                      <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-sm text-muted-foreground">%</span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -396,7 +425,7 @@ export default function QuickQuoteCart() {
                   <span className="truncate">{customerPhone ? `Enviar no WhatsApp (${customerPhone})` : 'Enviar no WhatsApp'}</span>
                 </Button>
                 <Button size="lg" variant="outline" onClick={() => generatePdfQuote(quoteOptions)}><Icon name="pdf" className="size-4" />PDF</Button>
-                <Button size="lg" variant="outline" onClick={() => window.print()} aria-label="Imprimir"><Icon name="printer" className="size-4" />Imprimir</Button>
+                <Button size="lg" variant="outline" onClick={() => setShowPdf(true)}><Eye className="size-4" aria-hidden="true" />Prévia</Button>
               </div>
 
               {/* Prévia do que o cliente vai ler, igual ao que sai no link do WhatsApp. Fechada por padrão: o
@@ -432,91 +461,7 @@ export default function QuickQuoteCart() {
         </SheetContent>
       </Sheet>
 
-      <div id="printable-quote" className="fixed inset-0 z-9999 hidden bg-white p-8 text-ink-900 print:block">
-        <div className="mb-6 border-b-2 border-brand-600 pb-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-xl font-bold uppercase tracking-wide text-brand-600">VARDÃO MÁQUINAS</h1>
-              <p className="text-xs font-bold text-ink-900">Peças Originais Husqvarna</p>
-              <p className="text-[11px] text-ink-500">CogniVault · Orçamento de balcão</p>
-            </div>
-            <div className="text-right text-xs">
-              <p><strong>Data:</strong> {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
-              {customerName && <p className="mt-1 font-semibold text-ink-900"><strong>Cliente:</strong> {customerName}</p>}
-              {customerPhone && <p className="text-ink-700"><strong>WhatsApp:</strong> {customerPhone}</p>}
-              {paymentMethod && <p className="text-ink-700"><strong>Condição:</strong> {paymentMethod}</p>}
-              <p className="mt-0.5 text-ink-500">Total de itens: {totalItems}</p>
-            </div>
-          </div>
-        </div>
-
-        <table className="mb-8 w-full border-collapse text-left text-xs">
-          <thead>
-            <tr className="border-b-2 border-brand-600 text-ink-900">
-              <th className="w-16 py-2.5 text-center font-bold">Qtd.</th>
-              <th className="py-2.5 font-bold">Descrição da peça</th>
-              <th className="w-44 py-2.5 font-bold">Máquina</th>
-              {totalPrice > 0 && <th className="w-24 py-2.5 text-right font-bold">Preço un.</th>}
-              {totalPrice > 0 && <th className="w-24 py-2.5 text-right font-bold">Subtotal</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {items.map(item => (
-              <tr key={item.id} className="border-b border-ink-200">
-                <td className="py-2.5 text-center font-bold text-ink-900 tabular-nums">{item.quantity}x</td>
-                <td className="py-2.5 font-medium text-ink-900">
-                  {item.name}
-                </td>
-                <td className="py-2.5 text-ink-700">
-                  {item.model}
-                </td>
-                {totalPrice > 0 && (
-                  <td className="py-2.5 text-right font-mono text-ink-700">
-                    {item.unitPrice ? money(item.unitPrice) : '—'}
-                  </td>
-                )}
-                {totalPrice > 0 && (
-                  <td className="py-2.5 text-right font-mono font-bold text-ink-900">
-                    {item.unitPrice ? money(item.quantity * item.unitPrice) : '—'}
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-          {totalPrice > 0 && (
-            <tfoot>
-              {discountPercentage > 0 && (
-                <>
-                  <tr className="border-t-2 border-ink-700 text-ink-700">
-                    <td colSpan={3} className="py-1.5 text-right text-xs uppercase tracking-wide">Subtotal bruto:</td>
-                    <td colSpan={2} className="py-1.5 text-right font-mono text-xs font-semibold">{money(totalPrice)}</td>
-                  </tr>
-                  <tr className="border-b border-ink-700 text-ink-700">
-                    <td colSpan={3} className="py-1.5 text-right text-xs uppercase tracking-wide">Desconto comercial ({discountPercentage}%):</td>
-                    <td colSpan={2} className="py-1.5 text-right font-mono text-xs font-semibold">-{money(discountAmount)}</td>
-                  </tr>
-                </>
-              )}
-              <tr className="border-t-2 border-brand-600 font-bold">
-                <td colSpan={3} className="py-3 text-right text-xs uppercase tracking-wide">
-                  {discountPercentage > 0 ? 'Total líquido do orçamento:' : 'Total geral do orçamento:'}
-                </td>
-                <td colSpan={2} className="py-3 text-right font-mono text-sm font-bold text-ink-900">{money(netTotalPrice)}</td>
-              </tr>
-            </tfoot>
-          )}
-        </table>
-
-        <div className="grid grid-cols-2 gap-8 border-t border-ink-300 pt-6 text-xs">
-          <div>
-            <p className="font-bold text-ink-900">Observações do balcão:</p>
-            <div className="mt-2 h-20 rounded-card border border-dashed border-ink-300"></div>
-          </div>
-          <div className="flex flex-col justify-end text-center">
-            <div className="border-t border-ink-900 pt-1 font-semibold text-ink-900">Assinatura do atendente</div>
-          </div>
-        </div>
-      </div>
+      {showPdf && <QuotePdfDialog options={quoteOptions} onClose={() => setShowPdf(false)} />}
     </>
   );
 }

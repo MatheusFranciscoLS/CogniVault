@@ -1,5 +1,5 @@
 // GAVETA DO ORÇAMENTO inteira: itens (copiar, quantidade, preço, remover), item avulso, cliente, telefone,
-// pagamento, desconto, WhatsApp (texto e número), PDF, imprimir, esvaziar e arquivamento.
+// pagamento, desconto, WhatsApp (texto e número), PDF, ver e imprimir, esvaziar e arquivamento.
 // Uso (de dentro de frontend/): node ../docs/loja-simulada/orcamento-completo.mjs [tema]
 import fs from 'node:fs';
 import { open, check, step, finish, shot, confirmar, SEARCH, OUT } from './_t.mjs';
@@ -100,10 +100,29 @@ await step('cliente, telefone, pagamento e desconto', async () => {
   console.log(`   formas de pagamento: ${opcoes.join(' | ')}`);
   check('há formas de pagamento', opcoes.length >= 3);
   const total0 = (await gaveta.getByText(/^Total/).first().locator('xpath=..').innerText()).replace(/\s+/g, ' ');
-  await gaveta.getByRole('button', { name: /^10% Balcão/ }).click();
+  check('só há um atalho de desconto além do zero: 5% PIX (não há 10% nem 15%)', (await gaveta.getByRole('button', { name: /^(0%|5% PIX)/ }).count()) === 2 && (await gaveta.getByRole('button', { name: /^(10%|15%)/ }).count()) === 0);
+  await gaveta.getByRole('button', { name: /^5% PIX/ }).click();
+  await page.waitForTimeout(400);
+  const total5 = (await gaveta.getByText(/^Total/).first().locator('xpath=..').innerText()).replace(/\s+/g, ' ');
+  check('5% PIX muda o total', total0 !== total5, `${total0} → ${total5}`);
+  const outro = gaveta.getByLabel('Outro desconto (%)');
+  await outro.fill('7');
   await page.waitForTimeout(400);
   const total10 = (await gaveta.getByText(/^Total/).first().locator('xpath=..').innerText()).replace(/\s+/g, ' ');
-  check('desconto de 10% muda o total', total0 !== total10, `${total0} → ${total10}`);
+  check('desconto digitado (7) muda o total e o rodapé mostra Desconto (7%)', total10 !== total5 && /Desconto \(7%\)/.test(await gaveta.innerText()), `${total5} → ${total10}`);
+  await outro.fill('7,5');
+  await page.waitForTimeout(300);
+  check('7,5 vale com vírgula', /Desconto \(7\.5%\)/.test(await gaveta.innerText()));
+  await outro.fill('150');
+  await page.waitForTimeout(300);
+  check('150 é recusado: o campo é marcado e o desconto anterior não muda', (await outro.getAttribute('aria-invalid')) === 'true' && /Desconto \(7\.5%\)/.test(await gaveta.innerText()));
+  await outro.fill('abc');
+  check('texto também é recusado', (await outro.getAttribute('aria-invalid')) === 'true');
+  await outro.fill('');
+  await page.waitForTimeout(300);
+  check('campo vazio volta a sem desconto', !/Desconto \(/.test(await gaveta.innerText()));
+  await gaveta.getByRole('button', { name: /^5% PIX/ }).click();
+  await page.waitForTimeout(300);
   await select.selectOption({ index: 1 });
   await page.waitForTimeout(300);
   console.log(`   pagamento escolhido: ${await select.inputValue()}; desconto agora: ${(await gaveta.innerText()).match(/\d+% [A-Za-zé]+/g)?.join(',')}`);
@@ -149,7 +168,7 @@ await step('WhatsApp', async () => {
 await step('prazo das peças e observações (digitados à mão)', async () => {
   // O prazo depende do estoque: o atendente digita. As observações vêm com o texto padrão da loja e podem ser editadas.
   const grupoPrazo = gaveta.getByRole('group', { name: 'Prazo das peças' });
-  check('o prazo é uma escolha: Imediato, Encomenda ou Sem prazo (começa sem prazo)', (await grupoPrazo.getByRole('button').allInnerTexts()).join('|') === 'Imediato|Encomenda|Sem prazo' && (await grupoPrazo.getByRole('button', { name: 'Sem prazo' }).getAttribute('aria-pressed')) === 'true');
+  check('o prazo é uma escolha: Pronta entrega, Encomenda ou Sem prazo (começa sem prazo)', (await grupoPrazo.getByRole('button').allInnerTexts()).join('|') === 'Pronta entrega|Encomenda|Sem prazo' && (await grupoPrazo.getByRole('button', { name: 'Sem prazo' }).getAttribute('aria-pressed')) === 'true');
   await grupoPrazo.getByRole('button', { name: 'Encomenda' }).click();
   check('Encomenda já vem com 7 a 10 dias, editável', (await gaveta.getByLabel('Prazo da encomenda').inputValue()) === '7 a 10 dias');
   await gaveta.getByLabel('Prazo da encomenda').fill('7 dias úteis');
@@ -187,7 +206,7 @@ await step('PDF', async () => {
   check('o PDF traz a razão social do cadastro do CNPJ e a validade de 20 dias', texto.includes('EQUIPAMENTOS DE JARDINAGEM LTDA') && texto.includes('20 dias'));
 });
 
-await step('prazo escolhido sai no PDF: Imediato, Encomenda e Sem prazo (orçamento expresso)', async () => {
+await step('prazo escolhido sai no PDF: Pronta entrega, Encomenda e Sem prazo (orçamento expresso)', async () => {
   const baixar = async nome => {
     const [download] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), gaveta.getByRole('button', { name: 'PDF' }).click()]);
     const destino = path.join(OUT, `${theme}-orcamento-${nome}.pdf`);
@@ -195,12 +214,22 @@ await step('prazo escolhido sai no PDF: Imediato, Encomenda e Sem prazo (orçame
     return fs.readFileSync(destino).toString('latin1');
   };
   const grupoPrazo = gaveta.getByRole('group', { name: 'Prazo das peças' });
-  await grupoPrazo.getByRole('button', { name: 'Imediato' }).click();
+  await grupoPrazo.getByRole('button', { name: 'Pronta entrega' }).click();
+  // O caso que o dono achou: prazo "Pronta entrega" com a observação digitada "Peça sob encomenda". A gaveta avisa.
+  check('prazo e observação digitada se contradizem: a gaveta avisa', /As observações falam em encomenda, mas o prazo é pronta entrega/.test(await gaveta.getByRole('alert').innerText()));
+  await gaveta.getByRole('button', { name: /Observações do orçamento/ }).click();
+  await gaveta.getByRole('button', { name: 'Voltar ao texto padrão' }).click();
+  await gaveta.getByRole('button', { name: 'Esconder as observações' }).click();
+  check('voltando ao texto padrão o aviso some', (await gaveta.getByRole('alert').count()) === 0);
   const imediato = await baixar('imediato');
-  check('Imediato: o PDF tem a coluna PRAZO e diz Imediato', imediato.includes('PRAZO') && imediato.includes('Imediato'));
+  check('Pronta entrega: o PDF tem a coluna PRAZO e diz Pronta entrega (não mais "Imediato")', imediato.includes('PRAZO') && imediato.includes('Pronta entrega') && !imediato.includes('Imediato'));
+  check('Pronta entrega: a observação diz "Peça em pronta entrega" e não fala de encomenda', imediato.includes('Peça em pronta entrega') && !/encomenda/i.test(imediato));
+  await grupoPrazo.getByRole('button', { name: 'Encomenda' }).click();
+  const encomenda = await baixar('encomenda');
+  check('Encomenda: a observação diz "Peça sob encomenda" e não fala de pronta entrega', encomenda.includes('Peça sob encomenda') && !/pronta entrega/i.test(encomenda));
   await grupoPrazo.getByRole('button', { name: 'Sem prazo' }).click();
   const expresso = await baixar('expresso');
-  check('Sem prazo: o PDF não tem coluna de prazo, só descrição, quantidade e valores', !expresso.includes('PRAZO') && !expresso.includes('Imediato') && expresso.includes('VALOR TOTAL'));
+  check('Sem prazo: o PDF não tem coluna de prazo, só descrição, quantidade e valores', !expresso.includes('PRAZO') && !expresso.includes('Pronta entrega') && !/Peça (em pronta entrega|sob encomenda)/.test(expresso) && expresso.includes('VALOR TOTAL'));
   await gaveta.getByRole('button', { name: 'Ver a mensagem antes de enviar' }).click();
   const previa = (await gaveta.getByLabel('Mensagem do WhatsApp').innerText()).trim();
   check('Sem prazo: a mensagem do WhatsApp não fala de prazo', previa.length > 50 && !/Prazo das peças/.test(previa));
@@ -209,16 +238,21 @@ await step('prazo escolhido sai no PDF: Imediato, Encomenda e Sem prazo (orçame
 
 await step('voltar ao texto padrão', async () => {
   await gaveta.getByRole('button', { name: /Observações do orçamento/ }).click();
-  await gaveta.getByRole('button', { name: 'Voltar ao texto padrão' }).click();
+  check('as observações estão no padrão da loja (sem botão de voltar)', (await gaveta.getByRole('button', { name: 'Voltar ao texto padrão' }).count()) === 0);
   check('as observações voltam ao padrão da loja', /Impostos inclusos/.test(await gaveta.getByLabel('Observações do orçamento').inputValue()));
   await gaveta.getByRole('group', { name: 'Prazo das peças' }).getByRole('button', { name: 'Sem prazo' }).click();
   await gaveta.getByRole('button', { name: 'Esconder as observações' }).click();
 });
 
-await step('imprimir', async () => {
-  await gaveta.getByRole('button', { name: 'Imprimir' }).click();
-  await page.waitForTimeout(500);
-  check('Imprimir chama a impressão do navegador', (await page.evaluate(() => window.__impresso)) >= 1);
+await step('ver e imprimir (o PDF do cliente, a mesma folha do botão PDF)', async () => {
+  await gaveta.getByRole('button', { name: 'Prévia' }).click();
+  const previa = page.getByRole('dialog', { name: 'Orçamento para o cliente' });
+  await previa.getByTitle('Prévia do PDF do orçamento').waitFor({ timeout: 20000 });
+  check('abre a prévia do PDF do cliente', true);
+  check('a prévia tem Baixar PDF e Imprimir', (await previa.getByRole('button', { name: 'Baixar PDF' }).count()) === 1 && (await previa.getByRole('button', { name: 'Imprimir' }).count()) === 1);
+  await previa.getByRole('button', { name: 'Fechar' }).click();
+  await page.waitForTimeout(300);
+  check('fechar volta para a gaveta', (await page.getByRole('dialog', { name: 'Orçamento para o cliente' }).count()) === 0);
 });
 
 await step('arquivamento (WhatsApp e PDF guardam o orçamento)', async () => {

@@ -10,6 +10,7 @@
 import type { jsPDF as JsPdf } from 'jspdf';
 import type autoTableFn from 'jspdf-autotable';
 import type { PdfImage } from './pdf-assets';
+import { leadTimeNote, notesMention } from './lead-time';
 import { QUOTE_DEFAULTS, STORE_CITY, STORE_PROFILE } from './store-profile';
 import {
   formatBRL,
@@ -207,7 +208,7 @@ export function buildQuotePdf(input: {
   const columns: Record<number, { cellWidth: number; halign: 'center' | 'right'; textColor?: [number, number, number]; fontSize?: number; fontStyle?: 'bold' }> = showLead
       ? {
           0: { cellWidth: 24, halign: 'center', textColor: MUTED },
-          2: { cellWidth: 62, halign: 'center', fontSize: 9 },
+          2: { cellWidth: 76, halign: 'center', fontSize: 9 },
           3: { cellWidth: 32, halign: 'center' },
           4: { cellWidth: 76, halign: 'right' },
           5: { cellWidth: 82, halign: 'right', fontStyle: 'bold' },
@@ -279,7 +280,11 @@ export function buildQuotePdf(input: {
   const payment = options.paymentMethod && options.paymentMethod !== PAYMENT_TO_COMBINE ? options.paymentMethod : QUOTE_DEFAULTS.paymentTerms;
   // Observações digitadas no orçamento (uma por linha) substituem as padrão da loja.
   const typedNotes = (options.notes ?? '').split('\n').map(line => line.replace(/^[\s•–-]+/, '').trim()).filter(Boolean);
-  const observations = options.observations ?? (typedNotes.length ? typedNotes : QUOTE_DEFAULTS.observations);
+  // A primeira linha acompanha o prazo escolhido ("Peça em pronta entrega" ou "Peça sob encomenda"), para a observação nunca contradizer a
+  // coluna PRAZO (dono, 2026-10-09). Se o que foi digitado já fala da entrega, não se repete a linha.
+  const deliveryNote = leadTimeNote(options.leadTime);
+  const baseNotes = typedNotes.length ? typedNotes : QUOTE_DEFAULTS.observations;
+  const observations = options.observations ?? (deliveryNote && notesMention(baseNotes.join(' ')) === 'NONE' ? [deliveryNote, ...baseNotes] : baseNotes);
   const conditions: string[][] = [
     ['Condição de Pagamento:', payment],
     ['Validade do Orçamento:', `${validityDays} dias (até ${validUntil(now, validityDays)})`],

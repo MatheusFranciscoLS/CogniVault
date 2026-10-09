@@ -27,7 +27,7 @@ export const STORE_CITY = STORE_PROFILE.city;
 export const QUOTE_DEFAULTS = {
   reference: 'Estimativa de Preço Peças de Reposição',
   /** Sem escolha, o orçamento sai SEM prazo (dono, 2026-10-07); estes são os dois textos das opções. */
-  leadTimeNow: 'Imediato',
+  leadTimeNow: 'Pronta entrega',
   leadTimeOrder: '7 a 10 dias',
   shipping: 'Retira',
   paymentTerms: 'A combinar',

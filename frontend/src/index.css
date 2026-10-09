@@ -531,31 +531,6 @@ html.dark { background: var(--background); color-scheme: dark; }
 .dark .cv-scrollbar { scrollbar-color: #3d5c90 transparent; }
 .dark .cv-scrollbar::-webkit-scrollbar-thumb { background: #3d5c90; }
 
-@media print {
-  body {
-    background: #ffffff !important;
-    color: #000000 !important;
-  }
-  body * {
-    visibility: hidden;
-  }
-  #printable-quote,
-  #printable-quote * {
-    visibility: visible;
-  }
-  #printable-quote {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 16px !important;
-    background: #ffffff !important;
-    color: #000000 !important;
-    display: block !important;
-    box-shadow: none !important;
-  }
-}
 /*
   ---break---
 */
