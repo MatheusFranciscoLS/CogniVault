@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import ExplodedView from './ExplodedView';
+import { readLastView, writeLastView } from '../../lib/last-view';
 import PartLine, { Note } from './PartLine';
 import type {
   HusqvarnaOfficialIplPart,
@@ -120,10 +121,17 @@ export default function OfficialHusqvarnaPanel({ result, onOpenPnc, onOpenPart }
   const error = detailsQuery.error
     ? (detailsQuery.error instanceof Error ? detailsQuery.error.message : 'Não foi possível carregar as vistas desta máquina.')
     : '';
-  const [sectionId, setSectionId] = useState('');
+  // Reabre na última vista que o balcão abriu NESTA máquina (se ela ainda existir; senão a primeira, como sempre).
+  const [sectionId, setSectionIdState] = useState(() => readLastView(result.pnc));
+  const setSectionId = (id: string) => {
+    setSectionIdState(id);
+    writeLastView(result.pnc, id);
+  };
   const [machineSearch, setMachineSearch] = useState('');
   const [selectedParts, setSelectedParts] = useState<Set<string>>(() => new Set());
   const [highlightedPart, setHighlightedPart] = useState<string | null>(null);
+  // Posição sob o mouse (ou com foco), no desenho ou na lista: as duas acendem juntas, e é assim que se separa uma posição escondida atrás de outra.
+  const [hoveredPart, setHoveredPart] = useState<string | null>(null);
 
   const selectedSection = useMemo(() => {
     if (!details?.iplSections.length) return null;
@@ -388,8 +396,9 @@ export default function OfficialHusqvarnaPanel({ result, onOpenPnc, onOpenPart }
                             left: point.left,
                             top: point.top,
                             label: part.position || '•',
-                            active: highlightedPart === key,
+                            active: highlightedPart === key || hoveredPart === key,
                             onSelect: () => focusPart(selectedSection.id, key),
+                            onHover: (on: boolean) => setHoveredPart(current => (on ? key : current === key ? null : current)),
                             tooltip: (
                               <div className="pointer-events-none mb-2 hidden w-64 rounded-lg border border-border bg-popover p-3 text-left text-popover-foreground shadow-lg group-hover:block group-focus-within:block">
                                 <div className="text-sm font-semibold">{part.commercial?.name || part.name}</div>
@@ -419,7 +428,8 @@ export default function OfficialHusqvarnaPanel({ result, onOpenPnc, onOpenPart }
                             notes={noteBlocks(part)}
                             replaces={part.replacementPartNumbers?.map(value => formatHusqvarnaPartNumber(cleanErpCode(value)))}
                             selected={selectedParts.has(key)}
-                            highlighted={highlightedPart === key}
+                            highlighted={highlightedPart === key || hoveredPart === key}
+                            onHover={on => setHoveredPart(current => (on ? key : current === key ? null : current))}
                             inCart={quantityInCart(part.partNumber)}
                             onToggleSelect={() => toggleSelected(key)}
                             onCopy={() => void copyPart(code)}

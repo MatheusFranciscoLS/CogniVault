@@ -51,7 +51,7 @@ try {
     await cartao.getByRole('button', { name: 'Gravar na loja' }).waitFor({ timeout: 60000 });
     const texto = (await cartao.innerText()).replace(/\s+/g, ' ');
     check('o relatório avisa de 1 preço que muda muito', /1 preço muda para mais que o dobro ou menos que a metade/.test(texto), texto.slice(0, 300));
-    check('3 preços mudam e 1 código é novo', /3\s*Preços que mudam/.test(texto) && /1\s*Códigos novos/.test(texto));
+    check('3 preços mudam e 1 código é novo', /3\s*Preços que mudam/.test(texto) && /1\s*Código novo/.test(texto));
     await shot(page, `${theme}-1366-lista-aviso-grande`);
     await cartao.getByRole('button', { name: 'Gravar na loja' }).click();
     const dialogo = page.getByRole('alertdialog');
@@ -66,7 +66,7 @@ try {
     const linha = cartao.getByText('Última atualização:');
     await linha.waitFor({ timeout: 20000 });
     const texto = (await cartao.innerText()).replace(/\s+/g, ' ');
-    check('mostra o arquivo, 3 preços e 1 código novo', /lista-desfazer\.html/.test(texto) && /3 preços, 1 códigos novos/.test(texto), texto.slice(0, 300));
+    check('mostra o arquivo, 3 preços e 1 código novo', /lista-desfazer\.html/.test(texto) && /3 preços, 1 código novo/.test(texto), texto.slice(0, 300));
     await shot(page, `${theme}-1366-lista-desfazer`);
   });
 
@@ -80,11 +80,11 @@ try {
     const dialogo = page.getByRole('alertdialog');
     await dialogo.waitFor();
     const texto = (await dialogo.innerText()).replace(/\s+/g, ' ');
-    check('a confirmação diz 2 preços voltam, 1 código sai e 1 fica como está', /2 peças/.test(texto) && /1 códigos/.test(texto) && /1 ficam como estão/.test(texto), texto);
+    check('a confirmação diz 2 preços voltam, 1 código sai e 1 fica como está', /2 peças/.test(texto) && /1 código que ela criou/.test(texto) && /1 fica como está/.test(texto), texto);
     await shot(page, `${theme}-1366-lista-desfazer-confirmar`);
     await dialogo.getByRole('button', { name: 'Desfazer' }).click();
     await cartao2.getByText(/Desfeito:/).waitFor({ timeout: 60000 });
-    check('a mensagem fala dos números', /2 preços voltaram ao valor de antes e 1 códigos novos saíram; 1 ficaram como estão/.test(await cartao2.innerText()), (await cartao2.innerText()).slice(0, 200));
+    check('a mensagem fala dos números', /2 preços voltaram ao valor de antes e 1 código novo saiu; 1 ficou como está/.test(await cartao2.innerText()), (await cartao2.innerText()).slice(0, 200));
     check('o preço do a voltou', perto(preco(a[0]), original.get(a[0])), `${preco(a[0])} vs ${original.get(a[0])}`);
     check('o preço do c (mudança grande) voltou', perto(preco(c[0]), original.get(c[0])));
     check('o ajuste manual do b continua (999)', perto(preco(b[0]), 999));

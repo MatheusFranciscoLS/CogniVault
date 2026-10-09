@@ -46,9 +46,9 @@ Plano antigo: 110 itens feitos contra ~10 a fazer, 22 ideias guardadas e 6 decis
 ### P2 — Melhorias do balcão (pequenas, uma de cada vez)
 | | Item |
 |---|---|
-| ⏳ 2.9 | Lembrar a última vista aberta de cada máquina. |
-| ⏳ 2.10 | Destacar a linha ao passar o mouse sobre um número da vista explodida (posições sobrepostas). |
-| ⏳ 2.11 | Filtro por nome também nos conjuntos da Kawasaki. |
+| ✅ 2.9 | Lembrar a última vista aberta de cada máquina (por aparelho; vista que sumiu cai na primeira). |
+| ✅ 2.10 | Destacar a linha ao passar o mouse (ou focar) numa posição do desenho, e a posição ao passar na linha; a posição em destaque sobe para a frente. |
+| ✅ 2.11 | Filtro por nome nos conjuntos da Kawasaki (aparece com mais de 8), com "Mostrar todos" quando nada casa. |
 | 💡 | "Tentar de novo" quando o PDF não abre; mostrar que a máquina aberta ficou gravada no atendimento; marcar peças que chegam depois pela fase "por significado". |
 | 💡 | Comparar duas máquinas lado a lado; "Selecionar todas desta vista" copiando só os códigos. |
 
@@ -57,12 +57,16 @@ Plano antigo: 110 itens feitos contra ~10 a fazer, 22 ideias guardadas e 6 decis
 |---|---|
 | 🕐 2.12 | **Analisar as buscas sem resultado** (a tabela só começa a encher com o uso real): por volta de **16/10**. Separar o que é peça que falta no cadastro do que é jeito diferente de falar, e só então ajustar a busca. |
 | 🕐 2.13 | **Aprender com os orçamentos** ("quem orçou esta máquina costuma levar..."): precisa de bem mais que os 2 orçamentos reais de hoje. |
-| ❓ 2.14 | **Juntar as seções duplicadas da Biblioteca** ("Roçadeiras" e "ROÇADEIRA"): grava em produção, só com o OK do dono. |
-| ❓ 2.15 | **Redesenho visual das telas de Administração:** hoje consistentes (contraste 12/12, dois temas). Só com o dono vendo duas direções. |
+| ✅ 2.14 | ~~Juntar as seções duplicadas da Biblioteca~~: **não existia em produção** (conferido por leitura em 2026-10-09: as 12 seções são distintas). Era só da loja simulada, que tinha "Roçadeiras" e "ROÇADEIRA". |
 | ❓ 2.16 | Pares máquina → motor que o dono for informando (`OWNER_BASE_ENGINES`); Z460 continua sem motor definido. |
 | ❓ 2.17 | Regra de preço de venda da máquina (hoje é o da lista, sem ÷ 0,92); lista de compras do Portal Parceiro (só se pedir). |
 
-### Depois que tudo acima estiver perfeito
+### Penúltimo: redesenho visual das telas de Administração (decidido com o dono em 2026-10-09)
+| | Item |
+|---|---|
+| ⏸ 2.15 | Hoje as telas estão consistentes (contraste 12/12, dois temas, sem texto explicativo). O dono quer redesenhar, **antes do Clipp e depois de tudo o resto**. Quando chegar a hora: apresentar duas direções renderizadas (a escolha de visual é dele), uma tela por PR. |
+
+### Último: o Clipp (sempre o último)
 | ⏸ | **Clipp:** exportação de produtos pela tela do Clipp (Referência, preço, descrição complementar, última compra, estoque), importador testado em banco descartável, aprovação do dono e só então gravar. Os campos de loja já existem em `MasterPart` e vazios. Prioridade alta quando entrar: ~1.289 peças de motor sem preço. |
 
 ## 3. Rodada de auditoria (como fazer, sempre igual)
