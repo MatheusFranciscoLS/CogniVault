@@ -1,25 +1,15 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { apiJson, cleanErpCode, formatHusqvarnaPartNumber } from '../../lib';
+import { cleanErpCode, formatHusqvarnaPartNumber } from '../../lib';
+import { useMaintenanceKit } from './use-maintenance-kit';
 import { Button } from '@/components/ui/button';
 import { useQuoteCart } from '../../context/QuoteCartContext';
-import type { MaintenanceKitItem } from '../../types';
 
 type Props = { model: string; pnc?: string | null };
-type KitItem = MaintenanceKitItem & { part: NonNullable<MaintenanceKitItem['part']> };
 
 export default function MaintenanceKitPanel({ model, pnc }: Props) {
   const quoteCart = useQuoteCart();
   const cleanModel = model.trim();
-
-  const kitQuery = useQuery({
-    queryKey: ['maintenance-kit', cleanModel],
-    enabled: cleanModel.length > 0,
-    queryFn: async () => {
-      const data = await apiJson<{ items: MaintenanceKitItem[] }>(`/api/models/${encodeURIComponent(cleanModel)}/maintenance-kit`);
-      return (data.items ?? []).filter((item): item is KitItem => Boolean(item.part));
-    },
-  });
+  const kitQuery = useMaintenanceKit(model);
 
   const items = useMemo(() => kitQuery.data ?? [], [kitQuery.data]);
   const loading = kitQuery.isLoading;

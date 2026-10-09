@@ -33,6 +33,7 @@ import { BusinessInsightsController } from '../controllers/business-insights.con
 import { enginePartsWithoutPriceController } from '../controllers/engine-parts-without-price.controller';
 import { priceListUpdateController } from '../controllers/price-list-update.controller';
 import { searchMissController } from '../controllers/search-miss.controller';
+import { machineServicePartsController } from '../controllers/machine-service-parts.controller';
 import { ExportController } from '../controllers/export.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
@@ -198,6 +199,7 @@ router.delete('/documents/:id', authMiddleware, adminOnly, validateEntityIdParam
 router.get('/admin/overview', authMiddleware, adminOnly, (req, res) => adminOverviewController.get(req, res));
 router.get('/admin/business-insights', authMiddleware, adminOnly, (req, res) => businessInsightsController.get(req, res));
 // Buscas sem resultado: o balcão registra o texto; só o administrador lê e dispensa.
+router.get('/machines/:pnc/service-parts', authMiddleware, (req, res) => machineServicePartsController.list(req, res));
 router.post('/search/miss', authMiddleware, (req, res) => searchMissController.record(req, res));
 router.get('/admin/search-misses', authMiddleware, adminOnly, (req, res) => searchMissController.list(req, res));
 router.delete('/admin/search-misses/:id', authMiddleware, adminOnly, (req, res) => searchMissController.dismiss(req, res));

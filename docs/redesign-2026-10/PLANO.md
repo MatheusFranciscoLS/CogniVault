@@ -300,3 +300,10 @@ Dono mandou o link da Kohler e pediu: ligar o motor ao trator/giro zero/máquina
 - 🔴→✅ **Achado real de uso:** o botão Buscar ficava desabilitado durante "Buscando…" e o navegador ignorava o Enter (digitar outro código logo depois de uma busca sem resultado não fazia nada). Corrigido e travado em `teclado-completo.mjs`.
 - ✅ Limpeza: `HomeController` e o cache dele, e 3 métodos de controlador sem rota (-~330 linhas).
 - ✅ **Buscas sem resultado** (aprovado pelo dono em 2026-10-09): `SearchMiss`, só o texto, agregado, visível em Negócio com "Dispensar". Daqui para frente o plano de melhorias passa a sair do que o balcão procura e não acha.
+
+### A14 — "Faça tudo isso" (2026-10-09): ideias da rodada 1
+
+- ✅ **1. Peças de revisão por máquina** (campo `reparo`): painel na máquina, carregado pela tela de atualização da lista. Falta o dono rodar a atualização em produção com o arquivo de 05/10.
+- ⏳ **3. Ajustar a busca com o que não se acha** e **4. Aprender com os orçamentos**: dependem de dias de uso (a tabela `SearchMiss` e os orçamentos precisam acumular). Rodar a análise ~2026-10-16.
+- ⏳ **5. Refazer por dentro Negócio, Qualidade, Visão geral e Biblioteca.**
+- ⏸ **Clipp**: adiado a pedido do dono.

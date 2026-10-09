@@ -4,6 +4,8 @@ import { apiJson } from '../../lib';
 import OfficialHusqvarnaPanel from '../parts-v2/OfficialHusqvarnaPanel';
 import OfficialDocumentShortcuts from './OfficialDocumentShortcuts';
 import MaintenanceKitPanel from './MaintenanceKitPanel';
+import { useMaintenanceKit } from './use-maintenance-kit';
+import MachineServicePartsPanel from './MachineServicePartsPanel';
 import MachineEnginePanel from './MachineEnginePanel';
 import type { OfficialFallbackResult } from '../parts-v2/types';
 
@@ -79,6 +81,8 @@ export default function MachineDetail({
     const fromMachine = (machine?.name || '').replace(/^husqvarna\s+/i, '').trim();
     return fromMachine || (contextModel || '').trim();
   }, [machine?.name, contextModel]);
+  // A revisão da lista de preços só entra onde o kit do catálogo interno não cobre o modelo (senão os dois mostrariam a mesma coisa).
+  const kit = useMaintenanceKit(kitModel);
 
   if (machineQuery.isLoading) {
     return <p aria-busy="true" className="py-16 text-center text-base text-muted-foreground">Abrindo as vistas desta máquina…</p>;
@@ -97,6 +101,8 @@ export default function MachineDetail({
     <div className="space-y-5">
       <OfficialDocumentShortcuts documents={machine.documents ?? []} />
       {kitModel && <MachineEnginePanel model={kitModel} pnc={machine.pnc ?? pnc} category={machine.categoryName ?? null} onSearchPart={onOpenPart} />}
+      {/* Revisão (campo "reparo" da lista) fica ACIMA da vista explodida: é a primeira coisa que o cliente pede e a vista é longa. */}
+      {kitModel && !kit.isLoading && !kit.data?.length && <MachineServicePartsPanel pnc={machine.pnc ?? pnc} model={kitModel} />}
       <OfficialHusqvarnaPanel
         key={machine.pnc || machine.query}
         result={machine}

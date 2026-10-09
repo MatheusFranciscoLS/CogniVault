@@ -4,6 +4,7 @@ import { COMMERCIAL_PRICE_DIVISOR } from '../scripts/price-list-rules';
 import type { HtmlPriceList } from '../scripts/price-list-html';
 import { diffPriceList, percentBuckets, type PriceListDiff, type StoredPart } from '../scripts/price-list-diff';
 import { buildNewRecords, HTML_IMPORT_SOURCE } from '../scripts/price-list-plan';
+import { diffServiceParts, type ServicePartLink, type ServicePartsDiff } from '../scripts/service-parts';
 
 /**
  * Atualização da lista de preços da Husqvarna (.html): relatório e gravação.
@@ -50,6 +51,8 @@ export type PriceListReport = {
   topIncreases: PriceListReportRow[];
   topDrops: PriceListReportRow[];
   addedBySection: Array<{ label: string; count: number }>;
+  /** Peças de revisão por máquina (campo "reparo"). `incoming` 0 = a lista não traz o campo: nada muda. */
+  service: ServicePartsDiff;
 };
 
 const toRow = (change: PriceListDiff['changed'][number]): PriceListReportRow => ({
@@ -60,7 +63,7 @@ const toRow = (change: PriceListDiff['changed'][number]): PriceListReportRow => 
   percent: change.percent,
 });
 
-export function summarizeDiff(list: HtmlPriceList, diff: PriceListDiff): PriceListReport {
+export function summarizeDiff(list: HtmlPriceList, diff: PriceListDiff, service: ServicePartsDiff): PriceListReport {
   const withPercent = diff.changed.filter(change => change.percent !== null);
   const sections = new Map<string, number>();
   for (const item of diff.added) sections.set(item.section, (sections.get(item.section) ?? 0) + 1);
@@ -82,13 +85,18 @@ export function summarizeDiff(list: HtmlPriceList, diff: PriceListDiff): PriceLi
     topIncreases: [...withPercent].sort((a, b) => (b.percent as number) - (a.percent as number)).slice(0, 15).map(toRow),
     topDrops: [...withPercent].sort((a, b) => (a.percent as number) - (b.percent as number)).slice(0, 15).map(toRow),
     addedBySection: [...sections].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count),
+    service,
   };
 }
 
+async function loadStoredServiceParts(prisma: PrismaClient, tenantId: string) {
+  return prisma.machineServicePart.findMany({ where: { tenantId }, select: { pnc: true, normalizedNumber: true, kind: true } });
+}
+
 /** Fase 1: SÓ LEITURA. */
-export async function buildPriceListReport(prisma: PrismaClient, tenantId: string, list: HtmlPriceList): Promise<PriceListReport> {
+export async function buildPriceListReport(prisma: PrismaClient, tenantId: string, list: HtmlPriceList, service: ServicePartLink[] = []): Promise<PriceListReport> {
   const diff = diffPriceList(await loadStoredParts(prisma, tenantId), list.items);
-  return summarizeDiff(list, diff);
+  return summarizeDiff(list, diff, diffServiceParts(await loadStoredServiceParts(prisma, tenantId), service));
 }
 
 /** Grava o plano aprovado, numa transação só: ou entra tudo ou não entra nada. */
@@ -99,6 +107,7 @@ export async function writePriceListPlan(
   sourceFilename: string,
   sourceHash: string,
   occurrenceCount: number,
+  service: ServicePartLink[] = [],
 ): Promise<void> {
   const { masters, sections } = buildNewRecords(diff.added);
   const now = new Date();
@@ -178,6 +187,18 @@ export async function writePriceListPlan(
       `);
     }
 
+    // Peças de revisão: espelho da lista, na MESMA transação. Lista sem o campo (nenhuma ligação) não apaga nada.
+    if (service.length > 0) {
+      await tx.machineServicePart.deleteMany({ where: { tenantId } });
+      for (const batch of chunk(service, 1000)) {
+        await tx.machineServicePart.createMany({
+          data: batch.map(link => ({ tenantId, pnc: link.pnc, partNumber: link.partNumber, normalizedNumber: link.normalizedNumber, name: link.name, kind: link.kind })),
+        });
+      }
+      const stored = await tx.machineServicePart.count({ where: { tenantId } });
+      if (stored !== service.length) throw new Error(`Gravou ${stored} peças de revisão, esperava ${service.length}. Nada foi gravado.`);
+    }
+
     const [masterCount, sectionCount] = await Promise.all([
       tx.masterPart.count({ where: { tenantId } }),
       tx.masterPartSection.count({ where: { tenantId } }),
@@ -198,7 +219,7 @@ export async function writePriceListPlan(
   }, TX_OPTIONS);
 }
 
-export type PriceListApplyResult = { updated: number; added: number; stored: number };
+export type PriceListApplyResult = { updated: number; added: number; stored: number; serviceAdded: number; serviceRemoved: number };
 
 /**
  * Fase 2: recalcula a comparação e só grava se os números forem os APROVADOS. Depois de gravar, relê o banco e confere que não sobrou diferença.
@@ -208,25 +229,35 @@ export async function applyPriceList(
   prisma: PrismaClient,
   tenantId: string,
   list: HtmlPriceList,
-  approved: { changed: number; added: number },
+  approved: { changed: number; added: number; serviceAdded?: number; serviceRemoved?: number },
   source: { filename: string; hash: string },
+  service: ServicePartLink[] = [],
 ): Promise<PriceListApplyResult> {
   const diff = diffPriceList(await loadStoredParts(prisma, tenantId), list.items);
-  if (diff.changed.length !== approved.changed || diff.added.length !== approved.added) {
+  const serviceDiff = diffServiceParts(await loadStoredServiceParts(prisma, tenantId), service);
+  const approvedServiceAdded = approved.serviceAdded ?? 0;
+  const approvedServiceRemoved = approved.serviceRemoved ?? 0;
+  if (
+    diff.changed.length !== approved.changed || diff.added.length !== approved.added ||
+    serviceDiff.added !== approvedServiceAdded || serviceDiff.removed !== approvedServiceRemoved
+  ) {
     throw new PriceListApprovalError(
       `Os números mudaram desde o relatório: preços ${diff.changed.length} (aprovado ${approved.changed}), ` +
-        `códigos novos ${diff.added.length} (aprovado ${approved.added}). Nada foi gravado.`,
+        `códigos novos ${diff.added.length} (aprovado ${approved.added}), ` +
+        `peças de revisão +${serviceDiff.added} -${serviceDiff.removed} (aprovado +${approvedServiceAdded} -${approvedServiceRemoved}). Nada foi gravado.`,
     );
   }
-  if (diff.changed.length === 0 && diff.added.length === 0) return { updated: 0, added: 0, stored: diff.stored };
+  const none = { updated: 0, added: 0, stored: diff.stored, serviceAdded: 0, serviceRemoved: 0 };
+  if (diff.changed.length === 0 && diff.added.length === 0 && serviceDiff.added === 0 && serviceDiff.removed === 0) return none;
 
-  await writePriceListPlan(prisma, tenantId, diff, source.filename, source.hash, list.stats.rows);
+  await writePriceListPlan(prisma, tenantId, diff, source.filename, source.hash, list.stats.rows, service);
 
   const after = diffPriceList(await loadStoredParts(prisma, tenantId), list.items);
-  if (after.changed.length !== 0 || after.added.length !== 0) {
+  const serviceAfter = diffServiceParts(await loadStoredServiceParts(prisma, tenantId), service);
+  if (after.changed.length !== 0 || after.added.length !== 0 || serviceAfter.added !== 0 || serviceAfter.removed !== 0) {
     throw new Error('A conferência final achou diferença: revise o banco antes de seguir.');
   }
-  return { updated: diff.changed.length, added: diff.added.length, stored: after.stored };
+  return { updated: diff.changed.length, added: diff.added.length, stored: after.stored, serviceAdded: serviceDiff.added, serviceRemoved: serviceDiff.removed };
 }
 
 export { HTML_IMPORT_SOURCE };

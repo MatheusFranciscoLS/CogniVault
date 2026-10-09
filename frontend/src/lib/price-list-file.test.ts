@@ -12,13 +12,28 @@ describe('extractPriceListPayload', () => {
       produtos: [{ codigo: 'MAQ1', imagem: 'data:image/png;base64,AAAA' }],
       pecas: [{ codigo: 'ZQ1', descricao: 'PEÇA', preco: 'R$ 10,00', modelo: 'M1', imagem: 'data:image/png;base64,BBBB', observacao: 'x' }],
     }));
-    expect(Object.keys(payload).sort()).toEqual(['acessorios', 'ferramentas', 'lubrificantes', 'pecas']);
+    expect(Object.keys(payload).sort()).toEqual(['acessorios', 'ferramentas', 'lubrificantes', 'pecas', 'revisao']);
     expect(payload.pecas).toEqual([{ codigo: 'ZQ1', descricao: 'PEÇA', preco: 'R$ 10,00', modelo: 'M1' }]);
   });
 
   it('valor que não é texto é descartado e linha estranha vira linha vazia (o servidor conta como "sem código")', () => {
     const payload = extractPriceListPayload(page({ ...empty, pecas: [{ codigo: 123, preco: null, ean: 'E1' }, null, 'texto'] }));
     expect(payload.pecas).toEqual([{ ean: 'E1' }, {}, {}]);
+  });
+
+  it('separa as peças de revisão (preventivo, consumível, preditivo) com o PNC; corretivo e vazio ficam de fora', () => {
+    const row = (codigo: string, pnc: string, reparo: string) => ({ codigo, pnc, reparo, descricao: 'PEÇA ' + codigo, preco: 'R$ 1,00', imagem: 'x' });
+    const payload = extractPriceListPayload(page({ ...empty, pecas: [
+      row('A1', '967000001', 'PREVENTIVO'), row('A2', '967000001', 'CONSUMÍVEL'), row('A3', '967000001', 'preditivo'),
+      row('A4', '967000001', 'CORRETIVO'), row('A5', '967000001', ''), row('A6', '967000001', 'ACESSÓRIO'),
+    ] }));
+    expect(payload.revisao.map(item => item.codigo)).toEqual(['A1', 'A2', 'A3']);
+    expect(payload.revisao[0]).toEqual({ codigo: 'A1', pnc: '967000001', reparo: 'PREVENTIVO', descricao: 'PEÇA A1' });
+    expect(payload.pecas).toHaveLength(6);
+  });
+
+  it('lista sem o campo reparo (antiga) manda revisão vazia, sem erro', () => {
+    expect(extractPriceListPayload(page({ ...empty, pecas: [{ codigo: 'A1', preco: 'R$ 1,00' }] })).revisao).toEqual([]);
   });
 
   it('arquivo que não é a lista explica o que houve, sem lançar erro estranho', () => {
