@@ -46,6 +46,8 @@ type Phase =
 const OCTET = { 'Content-Type': 'application/octet-stream' };
 const serviceChanges = (report: Report) => report.service.added > 0 || report.service.removed > 0;
 const number = (value: number) => value.toLocaleString('pt-BR');
+/** Singular só no 1 ("1 preço", "2 preços"; o zero fica no plural, como se fala). */
+const w = (value: number, one: string, many: string) => (value === 1 ? one : many);
 const brl = (value: number | null) => (value === null ? '—' : value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
 const percent = (value: number | null) => (value === null ? '' : `${value > 0 ? '+' : ''}${value.toFixed(1).replace('.', ',')}%`);
 
@@ -141,8 +143,8 @@ export default function PriceListUpdate() {
     const confirmed = await confirm({
       title: report.bigMoves > 0 ? `Gravar a lista na loja? ${number(report.bigMoves)} ${report.bigMoves === 1 ? 'preço muda' : 'preços mudam'} muito` : 'Gravar a lista na loja?',
       description: serviceChanges(report)
-        ? `${number(report.changed)} preços serão atualizados, ${number(report.added)} códigos novos serão criados e a lista de peças de revisão será trocada (${number(report.service.incoming)} peças em ${number(report.service.machines)} máquinas). Nenhuma peça nem preço é apagado.`
-        : `${number(report.changed)} preços serão atualizados e ${number(report.added)} códigos novos serão criados. Nada é apagado.`,
+        ? `${number(report.changed)} ${w(report.changed, 'preço será atualizado', 'preços serão atualizados')}, ${number(report.added)} ${w(report.added, 'código novo será criado', 'códigos novos serão criados')} e a lista de peças de revisão será trocada (${number(report.service.incoming)} peças em ${number(report.service.machines)} máquinas). Nenhuma peça nem preço é apagado.`
+        : `${number(report.changed)} ${w(report.changed, 'preço será atualizado', 'preços serão atualizados')} e ${number(report.added)} ${w(report.added, 'código novo será criado', 'códigos novos serão criados')}. Nada é apagado.`,
       confirmLabel: 'Gravar',
     });
     if (!confirmed) return;
@@ -168,7 +170,7 @@ export default function PriceListUpdate() {
   const undo = async (update: LastUpdate) => {
     const confirmed = await confirm({
       title: 'Desfazer a última atualização?',
-      description: `Volta o preço de ${number(update.prices)} peças ao valor de antes e remove ${number(update.added)} códigos que ela criou.${update.skipped > 0 ? ` ${number(update.skipped)} ficam como estão, porque o preço mudou depois.` : ''}`,
+      description: `Volta o preço de ${number(update.prices)} ${w(update.prices, 'peça', 'peças')} ao valor de antes e remove ${number(update.added)} ${w(update.added, 'código que ela criou', 'códigos que ela criou')}.${update.skipped > 0 ? ` ${number(update.skipped)} ${w(update.skipped, 'fica como está', 'ficam como estão')}, porque o preço mudou depois.` : ''}`,
       confirmLabel: 'Desfazer',
       destructive: true,
     });
@@ -210,18 +212,18 @@ export default function PriceListUpdate() {
         {phase.name === 'saving' && <p role="status" className="text-base text-muted-foreground">Gravando…</p>}
         {phase.name === 'done' && (
           <p role="status" className="text-base font-semibold text-ok">
-            Pronto: {number(phase.updated)} preços atualizados e {number(phase.added)} códigos novos{phase.service > 0 ? `, e a lista de peças de revisão foi atualizada` : ''}.
+            Pronto: {number(phase.updated)} {w(phase.updated, 'preço atualizado', 'preços atualizados')} e {number(phase.added)} {w(phase.added, 'código novo', 'códigos novos')}{phase.service > 0 ? `, e a lista de peças de revisão foi atualizada` : ''}.
           </p>
         )}
         {phase.name === 'undone' && (
           <p role="status" className="text-base font-semibold text-ok">
-            Desfeito: {number(phase.prices)} preços voltaram ao valor de antes e {number(phase.added)} códigos novos saíram{phase.skipped > 0 ? `; ${number(phase.skipped)} ficaram como estão` : ''}.
+            Desfeito: {number(phase.prices)} {w(phase.prices, 'preço voltou', 'preços voltaram')} ao valor de antes e {number(phase.added)} {w(phase.added, 'código novo saiu', 'códigos novos saíram')}{phase.skipped > 0 ? `; ${number(phase.skipped)} ${w(phase.skipped, 'ficou', 'ficaram')} como ${w(phase.skipped, 'está', 'estão')}` : ''}.
           </p>
         )}
         {last.data && phase.name !== 'reading' && phase.name !== 'checking' && phase.name !== 'saving' && (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border px-4 py-3">
             <p className="text-base">
-              <span className="font-semibold">Última atualização:</span> <span translate="no">{last.data.filename}</span> · {fmtDate(last.data.at)} · {number(last.data.prices)} preços, {number(last.data.added)} códigos novos
+              <span className="font-semibold">Última atualização:</span> <span translate="no">{last.data.filename}</span> · {fmtDate(last.data.at)} · {number(last.data.prices)} {w(last.data.prices, 'preço', 'preços')}, {number(last.data.added)} {w(last.data.added, 'código novo', 'códigos novos')}
             </p>
             <Button type="button" variant="outline" size="sm" onClick={() => void undo(last.data as LastUpdate)} disabled={last.data.prices === 0 && last.data.added === 0}>Desfazer</Button>
           </div>
@@ -232,8 +234,8 @@ export default function PriceListUpdate() {
           <>
             <p className="text-base"><span className="font-semibold">{prepared.filename}</span> · {number(report.file.uniqueCodes)} códigos · a loja tem {number(report.stored)}</p>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <Stat label="Preços que mudam" value={report.changed} />
-              <Stat label="Códigos novos" value={report.added} />
+              <Stat label={w(report.changed, 'Preço que muda', 'Preços que mudam')} value={report.changed} />
+              <Stat label={w(report.added, 'Código novo', 'Códigos novos')} value={report.added} />
               <Stat label="Já estão iguais" value={report.unchanged} />
               <Stat label="Só na loja" value={report.missingFromList} note="ficam como estão" />
             </div>
@@ -241,7 +243,7 @@ export default function PriceListUpdate() {
               <p className="text-base">
                 <span className="font-semibold">Peças de revisão:</span> {number(report.service.incoming)} peças em {number(report.service.machines)} máquinas
                 {serviceChanges(report)
-                  ? ` (${number(report.service.added)} novas, ${number(report.service.removed)} saem)`
+                  ? ` (${number(report.service.added)} ${w(report.service.added, 'nova', 'novas')}, ${number(report.service.removed)} ${w(report.service.removed, 'sai', 'saem')})`
                   : ' (já estão iguais)'}
               </p>
             )}

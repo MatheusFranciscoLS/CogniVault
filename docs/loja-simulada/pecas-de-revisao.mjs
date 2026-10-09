@@ -119,7 +119,7 @@ try {
     const cartao = await escolher(arquivo2);
     await cartao.getByRole('button', { name: 'Gravar na loja' }).waitFor({ timeout: 60000 });
     const texto = (await cartao.innerText()).replace(/\s+/g, ' ');
-    check('preços e códigos iguais, só a revisão muda', /0\s*Preços que mudam/.test(texto) && /0\s*Códigos novos/.test(texto) && /\(1 novas, 2 saem\)/.test(texto), texto.slice(0, 300));
+    check('preços e códigos iguais, só a revisão muda', /0\s*Preços que mudam/.test(texto) && /0\s*Códigos novos/.test(texto) && /\(1 nova, 2 saem\)/.test(texto), texto.slice(0, 300));
     check('o botão de gravar está habilitado', await cartao.getByRole('button', { name: 'Gravar na loja' }).isEnabled());
     await cartao.getByRole('button', { name: 'Gravar na loja' }).click();
     await confirmar(page, 'Gravar');

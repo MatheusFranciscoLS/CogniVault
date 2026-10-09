@@ -114,10 +114,17 @@ export default function KawasakiEnginePanel({
   // Peça em foco: o clique numa posição do desenho rola até a linha dela.
   const [focusedPosition, setFocusedPosition] = useState<string | null>(null);
   const [filtro, setFiltro] = useState('');
+  // Filtro dos CONJUNTOS (a lista tem ~17 botões em inglês): só aparece quando há muitos.
+  const [filtroConjuntos, setFiltroConjuntos] = useState('');
   const termo = filtro.trim().toLocaleLowerCase('pt-BR');
   const visiveis = termo
     ? parts.filter(part => `${part.partNumber} ${part.name} ${part.position ?? ''}`.toLocaleLowerCase('pt-BR').includes(termo))
     : parts;
+
+  const termoConjuntos = filtroConjuntos.trim().toLocaleLowerCase('pt-BR');
+  const conjuntosVisiveis = [...(catalog?.assemblies ?? [])]
+    .filter(assembly => !termoConjuntos || assembly.name.toLocaleLowerCase('pt-BR').includes(termoConjuntos) || assembly.slug === openSlug)
+    .sort((a, b) => Number(isKawasakiMaintenanceAssembly(b.name)) - Number(isKawasakiMaintenanceAssembly(a.name)));
 
   const copy = (code: string) => {
     void navigator.clipboard.writeText(code).then(
@@ -171,9 +178,28 @@ export default function KawasakiEnginePanel({
               Preços da loja temporariamente indisponíveis. Os códigos continuam disponíveis; confirme o valor antes de fechar.
             </p>
           ) : null}
-          <h4 className="text-base font-semibold text-muted-foreground">Conjuntos</h4>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h4 className="text-base font-semibold text-muted-foreground">Conjuntos</h4>
+            {catalog.assemblies.length > 8 && (
+              <Input
+                value={filtroConjuntos}
+                onChange={event => setFiltroConjuntos(event.target.value)}
+                placeholder="Filtrar conjuntos (ex.: carb, starter)"
+                aria-label="Filtrar os conjuntos do motor"
+                autoComplete="off"
+                spellCheck={false}
+                className="h-9 w-full max-w-72"
+              />
+            )}
+          </div>
+          {termoConjuntos && !catalog.assemblies.some(assembly => assembly.name.toLocaleLowerCase('pt-BR').includes(termoConjuntos)) && (
+            <p className="mt-2 text-base text-muted-foreground">
+              Nenhum conjunto com &quot;{filtroConjuntos}&quot;.{' '}
+              <Button type="button" variant="link" className="h-auto p-0 text-base" onClick={() => setFiltroConjuntos('')}>Mostrar todos</Button>
+            </p>
+          )}
           <div className="mt-2 flex flex-wrap gap-2">
-            {[...catalog.assemblies].sort((a, b) => Number(isKawasakiMaintenanceAssembly(b.name)) - Number(isKawasakiMaintenanceAssembly(a.name))).map(assembly => (
+            {conjuntosVisiveis.map(assembly => (
               <Button
                 key={assembly.slug}
                 variant="outline"

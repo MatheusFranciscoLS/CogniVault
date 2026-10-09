@@ -31,6 +31,8 @@ export type PartLineProps = {
   replaces?: string[];
   selected?: boolean;
   highlighted?: boolean;
+  /** Mouse ou foco na linha: o desenho acende a posição dela. */
+  onHover?: (hovering: boolean) => void;
   inCart: number;
   onToggleSelect?: () => void;
   onCopy: () => void;
@@ -47,7 +49,7 @@ export function Note({ tone = 'muted', children }: { tone?: 'muted' | 'warn'; ch
   );
 }
 
-export default function PartLine({ position, name, code, displayCode, price, priceSlot, quantity, imageUrl, badges, notes, replaces, selected, highlighted, inCart, onToggleSelect, onCopy, onAdd, menu = [], anchorId }: PartLineProps) {
+export default function PartLine({ position, name, code, displayCode, price, priceSlot, quantity, imageUrl, badges, notes, replaces, selected, highlighted, onHover, inCart, onToggleSelect, onCopy, onAdd, menu = [], anchorId }: PartLineProps) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     onCopy();
@@ -59,6 +61,10 @@ export default function PartLine({ position, name, code, displayCode, price, pri
   return (
     <article
       id={anchorId}
+      onMouseEnter={onHover ? () => onHover(true) : undefined}
+      onMouseLeave={onHover ? () => onHover(false) : undefined}
+      onFocus={onHover ? () => onHover(true) : undefined}
+      onBlur={onHover ? () => onHover(false) : undefined}
       className={cn(
         'flex gap-3 rounded-lg border bg-card px-4 py-3 transition-colors',
         highlighted ? 'border-primary ring-2 ring-primary/30' : selected ? 'border-ring bg-selected' : 'border-border hover:bg-muted',

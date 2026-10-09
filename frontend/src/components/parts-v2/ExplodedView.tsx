@@ -26,6 +26,8 @@ export type ExplodedHotspot = {
   /** Posição em destaque (a que o balcão acabou de achar). */
   active?: boolean;
   onSelect: () => void;
+  /** Mouse ou teclado entrou/saiu desta posição: a lista de peças acende a linha dela (e vice-versa). */
+  onHover?: (hovering: boolean) => void;
   tooltip?: ReactNode;
 };
 
@@ -170,7 +172,12 @@ export default function ExplodedView({
               key={hotspot.key}
               data-hotspot="true"
               style={{ left: `${hotspot.left}%`, top: `${hotspot.top}%` }}
-              className="group absolute -translate-x-1/2 -translate-y-1/2"
+              // A posição em destaque sobe para a frente: com duas posições empilhadas no mesmo ponto, a que o atendente apontou aparece inteira.
+              className={`group absolute -translate-x-1/2 -translate-y-1/2 ${hotspot.active ? 'z-20' : ''}`}
+              onMouseEnter={() => hotspot.onHover?.(true)}
+              onMouseLeave={() => hotspot.onHover?.(false)}
+              onFocus={() => hotspot.onHover?.(true)}
+              onBlur={() => hotspot.onHover?.(false)}
             >
               <button
                 type="button"
@@ -180,7 +187,7 @@ export default function ExplodedView({
                    posições vizinhas justamente quando o atendente amplia para
                    separá-las. */
                 style={{ transform: `scale(${1 / zoom})` }}
-                className={`grid h-7 min-w-7 place-items-center rounded-full border-2 border-white px-1 font-code text-sm font-semibold tabular-nums text-white shadow-md outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring ${hotspot.active ? 'bg-primary' : 'bg-bar hover:bg-primary'}`}
+                className={`grid h-7 min-w-7 place-items-center rounded-full border-2 border-white px-1 font-code text-sm font-semibold tabular-nums text-white shadow-md outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring ${hotspot.active ? 'bg-primary ring-4 ring-primary/40' : 'bg-bar hover:bg-primary'}`}
               >
                 {hotspot.label}
               </button>
