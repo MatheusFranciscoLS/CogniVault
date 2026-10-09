@@ -25,6 +25,7 @@ import KawasakiEnginePanel from '../machines/KawasakiEnginePanel';
 import OilQuickAdd from './OilQuickAdd';
 import CodeReplacementCheck from './CodeReplacementCheck';
 import { focusFirstResult } from '../../lib/results-keyboard';
+import { reportSearchMiss } from '../../lib/search-miss';
 import BriggsEnginePanel from '../machines/BriggsEnginePanel';
 import KohlerEnginePanel from '../machines/KohlerEnginePanel';
 import OfficialPartOrigin from '../machines/OfficialPartOrigin';
@@ -397,15 +398,17 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   const officialMachinePnc =
     officialResult?.kind === 'PRODUCT_CATALOG' && officialResult.pnc ? officialResult.pnc : null;
 
-  const consultOfficial = useCallback(async (value: string) => {
+  const consultOfficial = useCallback(async (value: string): Promise<OfficialFallbackResult | null> => {
     const clean = value.trim();
-    if (!clean) return;
+    if (!clean) return null;
     setOfficialLoading(true);
     try {
       const data = await apiJson<{ result: OfficialFallbackResult }>(`/api/official-fallback?q=${encodeURIComponent(clean)}`, { timeoutMs: 20_000 });
       setOfficialResult(data.result);
+      return data.result;
     } catch (officialError) {
       setOfficialResult({ status: 'REVIEW', source: 'ONLINE', query: clean, url: 'https://www.husqvarna.com/br/pecas-sobressalentes/', message: officialError instanceof Error ? officialError.message : 'A consulta oficial não respondeu.' });
+      return null;
     } finally {
       setOfficialLoading(false);
     }
@@ -448,6 +451,8 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       if (!response.ok) throw new Error('Não foi possível concluir a pesquisa técnica.');
 
       let accumulated: SearchResultPart[] = [];
+      // Busca de máquina (modelo ou PNC) não é peça faltando: o resultado vem da consulta de máquina, que não passa por aqui.
+      let announcedMachine = false;
       await consumeSearchStream(response, signal, message => {
         if (message.type === 'lexical') {
           if (message.error) {
@@ -463,6 +468,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           return;
         }
         if (message.type === 'machines') {
+          if (message.machinePnc || message.machineTerm || message.kawasakiModel || message.briggsModel || message.kohlerModel) announcedMachine = true;
           // PNC lido da máscara de etiqueta é resposta, não lista: abre a
           // máquina direto, que é o que o atendente com a etiqueta na mão quer.
           if (message.machinePnc) {
@@ -489,7 +495,13 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       const commercial = await commercialPromise;
       if (signal?.aborted) return;
       if (accumulated.length > 0) void loadVerifications(accumulated, true);
-      else if (!commercial[0]) await consultOfficial(resolvedQuery);
+      else if (!commercial[0]) {
+        const official = await consultOfficial(resolvedQuery);
+        if (!signal.aborted && !announcedMachine && official && official.status !== 'FOUND') {
+          // Nada no catálogo, nada no cadastro de preços e nada no Portal (o Portal responde FOUND até para código que ele trocou por outro).
+          reportSearchMiss(clean);
+        }
+      }
     } catch (searchError) {
       if (searchError instanceof Error && searchError.name === 'AbortError') return;
       setError(searchError instanceof Error ? searchError.message : 'Erro ao pesquisar.');

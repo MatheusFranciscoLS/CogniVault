@@ -27,6 +27,7 @@ model Tenant {
   commercialImportRuns            CommercialImportRun[]
   createdAt                       DateTime                         @default(now())
   MachineListing                  MachineListing[]
+  searchMisses                    SearchMiss[]
   MachineListingPhoto             MachineListingPhoto[]
 }
 
@@ -712,4 +713,22 @@ model OfficialSourceCache {
   @@index([source, resourceType, resourceId])
   @@index([changedAt])
   @@index([freshUntil])
+}
+
+/// Busca que o balcão fez e NÃO achou nada (pedido do dono, 2026-10-09: "pode registrar o texto sem problemas"). Só o TEXTO digitado, sem usuário nem
+/// cliente, agregado por texto normalizado: repetir a mesma busca só soma `count`. Serve para o dono ver o que falta no cadastro e no catálogo.
+model SearchMiss {
+  id              String   @id @default(uuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Texto como foi digitado da primeira vez.
+  query           String
+  /// Minúsculo, sem acento, espaços juntados: é a chave da agregação.
+  normalizedQuery String
+  count           Int      @default(1)
+  firstSeenAt     DateTime @default(now())
+  lastSeenAt      DateTime @default(now())
+
+  @@unique([tenantId, normalizedQuery])
+  @@index([tenantId, lastSeenAt])
 }

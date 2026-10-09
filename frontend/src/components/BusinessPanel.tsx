@@ -6,6 +6,7 @@ import type { BusinessBucketGranularity, BusinessInsights } from '../types';
 import { Icon, type IconName } from './icons/Icon';
 import EnginePartsWithoutPrice from './EnginePartsWithoutPrice';
 import PriceListUpdate from './PriceListUpdate';
+import SearchMisses from './SearchMisses';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -472,6 +473,8 @@ export default function BusinessPanel() {
           </div>
 
           <EnginePartsWithoutPrice />
+
+          <SearchMisses />
 
           <PriceListUpdate />
 

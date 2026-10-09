@@ -32,6 +32,7 @@ import { QuoteController } from '../controllers/quote.controller';
 import { BusinessInsightsController } from '../controllers/business-insights.controller';
 import { enginePartsWithoutPriceController } from '../controllers/engine-parts-without-price.controller';
 import { priceListUpdateController } from '../controllers/price-list-update.controller';
+import { searchMissController } from '../controllers/search-miss.controller';
 import { ExportController } from '../controllers/export.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
@@ -196,6 +197,10 @@ router.delete('/documents/:id', authMiddleware, adminOnly, validateEntityIdParam
 
 router.get('/admin/overview', authMiddleware, adminOnly, (req, res) => adminOverviewController.get(req, res));
 router.get('/admin/business-insights', authMiddleware, adminOnly, (req, res) => businessInsightsController.get(req, res));
+// Buscas sem resultado: o balcão registra o texto; só o administrador lê e dispensa.
+router.post('/search/miss', authMiddleware, (req, res) => searchMissController.record(req, res));
+router.get('/admin/search-misses', authMiddleware, adminOnly, (req, res) => searchMissController.list(req, res));
+router.delete('/admin/search-misses/:id', authMiddleware, adminOnly, (req, res) => searchMissController.dismiss(req, res));
 router.get('/admin/engine-parts-without-price', authMiddleware, adminOnly, (req, res) => enginePartsWithoutPriceController.list(req, res));
 // Atualização da lista de preços: corpo = gzip(JSON das 4 listas), lido e comprimido no navegador (ver utils/gzip-json-body.ts). O parser bruto só entra
 // DEPOIS da autenticação e da checagem de administrador, para ninguém sem permissão fazer o servidor receber megabytes.
