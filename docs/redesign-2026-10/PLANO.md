@@ -299,4 +299,4 @@ Dono mandou o link da Kohler e pediu: ligar o motor ao trator/giro zero/máquina
 - 🔴→✅ **Achado real:** a Render não publicou o #280 (produção ficou no #279 por ~7 h). Corrigido com um deploy manual; `Production Smoke` agora abre uma issue quando falha.
 - 🔴→✅ **Achado real de uso:** o botão Buscar ficava desabilitado durante "Buscando…" e o navegador ignorava o Enter (digitar outro código logo depois de uma busca sem resultado não fazia nada). Corrigido e travado em `teclado-completo.mjs`.
 - ✅ Limpeza: `HomeController` e o cache dele, e 3 métodos de controlador sem rota (-~330 linhas).
-- ⏳ Falta saber o que o balcão procura e não acha (`SearchHistory` só guarda busca com sucesso): depende do dono aceitar o registro de "busca sem resultado".
+- ✅ **Buscas sem resultado** (aprovado pelo dono em 2026-10-09): `SearchMiss`, só o texto, agregado, visível em Negócio com "Dispensar". Daqui para frente o plano de melhorias passa a sair do que o balcão procura e não acha.
