@@ -12,6 +12,7 @@ import type autoTableFn from 'jspdf-autotable';
 import type { PdfImage } from './pdf-assets';
 import { effectiveLeadNote, notesMention } from './lead-time';
 import { customerPayment } from './payment-terms';
+import { makePdfSafe } from './pdf-text';
 import { QUOTE_DEFAULTS, STORE_CITY, STORE_PROFILE } from './store-profile';
 import {
   formatBRL,
@@ -174,6 +175,7 @@ export function buildQuotePdf(input: {
   now?: Date;
 }): JsPdf {
   const { doc, autoTable, items, options } = input;
+  makePdfSafe(doc);
   const now = input.now ?? new Date();
   const totals = quoteTotals(items, options.discountPercentage);
   const pageWidth = doc.internal.pageSize.getWidth();

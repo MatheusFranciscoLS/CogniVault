@@ -12,6 +12,7 @@ import type { jsPDF as JsPdf } from 'jspdf';
 import type autoTableFn from 'jspdf-autotable';
 import { categoryLabel, type ListedMachine } from './machine-list';
 import type { PdfImage } from './pdf-assets';
+import { makePdfSafe } from './pdf-text';
 import { FOOTER_SPACE, INK, MARGIN, MUTED, NAVY, cityAndDate, drawLetterFooter, drawLetterhead } from './quote-pdf';
 import { formatBRL, validUntil } from './quote-message';
 import { QUOTE_DEFAULTS } from './store-profile';
@@ -274,6 +275,7 @@ export function buildMachineQuotePdf(input: {
   now?: Date;
 }): JsPdf {
   const { doc, autoTable, machine, fields } = input;
+  makePdfSafe(doc);
   const now = input.now ?? new Date();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
