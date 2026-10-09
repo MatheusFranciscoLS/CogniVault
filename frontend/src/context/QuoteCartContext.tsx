@@ -123,10 +123,14 @@ const QuoteCartContext = createContext<QuoteCartContextType | null>(null);
 // Cada tipo de orçamento tem a SUA cesta: o de peças (Atendimento) e o de conserto (aba Conserto) nunca se misturam, nem no cache do navegador nem no
 // rascunho do servidor (`/api/quotes/draft?kind=`).
 export type QuoteCartKind = 'PARTS' | 'REPAIR';
-const STORAGE_KEYS: Record<QuoteCartKind, { cart: string; options: string; history: string }> = {
-  PARTS: { cart: 'cognivault_quote_cart', options: 'cognivault_quote_draft_options', history: 'cognivault_quote_history' },
-  REPAIR: { cart: 'cognivault_repair_cart', options: 'cognivault_repair_draft_options', history: 'cognivault_repair_history' },
+// `unsynced` guarda a hora da última edição que o servidor AINDA não recebeu: com ela, o que o balcão digitou sem rede (ou com a sessão caída) não é
+// descartado quando a página reabre e o servidor responde com a versão antiga. As quatro chaves andam por usuário em `lib/quote-storage-scope.ts`.
+const STORAGE_KEYS: Record<QuoteCartKind, { cart: string; options: string; history: string; unsynced: string }> = {
+  PARTS: { cart: 'cognivault_quote_cart', options: 'cognivault_quote_draft_options', history: 'cognivault_quote_history', unsynced: 'cognivault_quote_unsynced' },
+  REPAIR: { cart: 'cognivault_repair_cart', options: 'cognivault_repair_draft_options', history: 'cognivault_repair_history', unsynced: 'cognivault_repair_unsynced' },
 };
+/** Depois de quanto tempo uma edição "não enviada" deixa de valer mais que o servidor (outro aparelho pode ter mexido). */
+const UNSYNCED_MAX_AGE_MS = 48 * 3600 * 1000;
 
 const DRAFT_SYNC_DEBOUNCE_MS = 900;
 
@@ -382,12 +386,14 @@ export function QuoteCartProvider({ children, kind = 'PARTS' }: { children: Reac
           return;
         }
       }
+      // Só limpa a marca se nada novo entrou na fila durante a gravação.
+      if (!pendingRef.current) { try { localStorage.removeItem(keys.unsynced); } catch { /* sem armazenamento */ } }
       setSyncState('synced');
       setSyncFailures(0);
     } finally {
       inFlightRef.current = false;
     }
-  }, [apiOptions]);
+  }, [apiOptions, keys.unsynced]);
 
   /**
    * Reenvia sozinho depois de uma falha, com espera crescente.
@@ -413,12 +419,13 @@ export function QuoteCartProvider({ children, kind = 'PARTS' }: { children: Reac
   const queueDraftSync = useCallback((nextItems: QuoteCartItem[], nextOptions: QuoteTextOptions) => {
     if (!hydratedRef.current) return;
     pendingRef.current = { items: nextItems, options: nextOptions };
+    try { localStorage.setItem(keys.unsynced, String(Date.now())); } catch { /* sem armazenamento */ }
     if (syncTimerRef.current !== null) window.clearTimeout(syncTimerRef.current);
     syncTimerRef.current = window.setTimeout(() => {
       syncTimerRef.current = null;
       void flushDraft();
     }, DRAFT_SYNC_DEBOUNCE_MS);
-  }, [flushDraft]);
+  }, [flushDraft, keys.unsynced]);
 
   // Hidratação inicial: o servidor manda na cesta. O cache local só sobrevive
   // quando o servidor não responde.
@@ -441,11 +448,15 @@ export function QuoteCartProvider({ children, kind = 'PARTS' }: { children: Reac
         const serverItems = fromApiItems(data.quote.items);
         const serverOptions = fromApiOptions(data.quote);
         const localItems = readLocal<QuoteCartItem[]>(keys.cart, []);
+        const unsyncedAt = Number(readLocal<string | number>(keys.unsynced, 0));
+        const localIsNewer = unsyncedAt > 0 && Date.now() - unsyncedAt < UNSYNCED_MAX_AGE_MS;
 
         // Cesta local com itens e servidor vazio significa que o atendente
-        // montou o orçamento enquanto a API estava fora. Nesse caso o local
-        // sobe para o servidor em vez de ser descartado.
-        if (!serverItems.length && localItems.length) {
+        // montou o orçamento enquanto a API estava fora. E, com a marca de
+        // "edição não enviada", o local também vale mais que a versão antiga do
+        // servidor (rede caiu ou sessão expirou no meio do atendimento). Nos dois
+        // casos o local sobe para o servidor em vez de ser descartado.
+        if ((!serverItems.length && localItems.length) || localIsNewer) {
           hydratedRef.current = true;
           setSyncState('saving');
           pendingRef.current = { items: localItems, options: readLocal<QuoteTextOptions>(keys.options, {}) };
@@ -471,7 +482,7 @@ export function QuoteCartProvider({ children, kind = 'PARTS' }: { children: Reac
     return () => {
       active = false;
     };
-  }, [flushDraft, keys.cart, keys.options, kind, refreshSavedQuotes, setDraftOptionsState]);
+  }, [flushDraft, keys.cart, keys.options, keys.unsynced, kind, refreshSavedQuotes, setDraftOptionsState]);
 
   // Cache offline: gravado em toda mudança, para um F5 durante queda da API não
   // apagar o que o atendente acabou de montar.
@@ -482,6 +493,41 @@ export function QuoteCartProvider({ children, kind = 'PARTS' }: { children: Reac
   useEffect(() => {
     writeLocal(keys.options, draftOptions);
   }, [draftOptions, keys.options]);
+
+  // Duas janelas do mesmo navegador são UMA cesta (achado da rodada 2, 2026-10-09). Cada aba mandava o estado inteiro ao servidor, então a que gravava por
+  // último apagava o item que a outra acabara de lançar, sem aviso. O cache local (localStorage) é compartilhado: quando OUTRA aba o muda, esta adota o que
+  // está lá e larga o que tinha para enviar (a aba que escreveu é quem grava no servidor). Compara com o valor ATUAL do armazenamento, e não com o do evento,
+  // para as duas abas convergirem no mesmo estado em vez de ficarem trocando versões.
+  const latestRef = useRef({ items, options: draftOptions });
+  useEffect(() => { latestRef.current = { items, options: draftOptions }; });
+  useEffect(() => {
+    const dropPending = () => {
+      pendingRef.current = null;
+      if (syncTimerRef.current !== null) { window.clearTimeout(syncTimerRef.current); syncTimerRef.current = null; }
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea !== window.localStorage || (event.key !== keys.cart && event.key !== keys.options)) return;
+      let raw: string | null;
+      try { raw = window.localStorage.getItem(event.key); } catch { return; }
+      if (raw === null) return;
+      try {
+        const parsed: unknown = JSON.parse(raw);
+        if (event.key === keys.cart) {
+          if (!Array.isArray(parsed) || JSON.stringify(latestRef.current.items) === raw) return;
+          dropPending();
+          setItems(parsed as QuoteCartItem[]);
+        } else {
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || JSON.stringify(latestRef.current.options) === raw) return;
+          dropPending();
+          setDraftOptionsState(parsed as QuoteTextOptions);
+        }
+      } catch {
+        // Valor ilegível no armazenamento: esta aba segue com o que tem.
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [keys.cart, keys.options, setDraftOptionsState]);
 
   // Última chance de gravar antes de fechar a aba: sem isso, fechar o navegador
   // dentro da janela de debounce perderia os itens mais recentes no servidor.

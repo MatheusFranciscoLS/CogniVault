@@ -40,7 +40,7 @@ Plano antigo: 110 itens feitos contra ~10 a fazer, 22 ideias guardadas e 6 decis
 | | Item |
 |---|---|
 | 🔧 2.6 | **Rodada de auditoria a cada funcionalidade grande** e, no mínimo, semanal: `bash docs/loja-simulada/auditoria-rodada.sh` (e a suíte de roteiros). Achados entram aqui com a data. |
-| ⏳ 2.7 | **Rodada 2 (lógica):** percorrer cada fluxo do balcão procurando o que o roteiro de hoje não cobre (entrada fora do esperado, trocar de ideia no meio, rede lenta, Render acordando, duas abas). Foi assim que achamos o Enter morto durante a busca. |
+| 🔧 2.7 | **Rodada 2 (lógica):** 1ª passada feita em 2026-10-09 e achou **3 perdas silenciosas na cesta** (duas abas se apagavam; edição sem rede perdia para o servidor; a cesta de conserto vazava entre atendentes do mesmo PC), todas corrigidas e travadas (`rodada2-abas-sessao.mjs`, `QuoteCartContext.sync.test.tsx`). **Falta:** PDF com nomes estranhos, rede lenta nas telas de busca e atualização da lista, partida a frio da Render, duas pessoas gravando a mesma OS. |
 | ⏳ 2.8 | **Índice de peças de motor com cache quente:** a leitura de um motor com cache válido não reindexa; se o índice for limpo, só volta quando o cache vence. Decidir se vale reindexar a partir do cache. |
 
 ### P2 — Melhorias do balcão (pequenas, uma de cada vez)
