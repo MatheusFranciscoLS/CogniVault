@@ -307,3 +307,9 @@ Dono mandou o link da Kohler e pediu: ligar o motor ao trator/giro zero/máquina
 - ⏳ **3. Ajustar a busca com o que não se acha** e **4. Aprender com os orçamentos**: dependem de dias de uso (a tabela `SearchMiss` e os orçamentos precisam acumular). Rodar a análise ~2026-10-16.
 - ⏳ **5. Refazer por dentro Negócio, Qualidade, Visão geral e Biblioteca.**
 - ⏸ **Clipp**: adiado a pedido do dono.
+
+### A15 — Foco na lista de preços (pedido do dono, 2026-10-09)
+
+- ✅ **594028101 vale R$ 10,00** (decisão do dono; `OWNER_PRICE_DECISIONS`). Em produção o relatório vai mostrar "1 preço muda" (9.171 → 10,87).
+- ✅ **Desfazer a última atualização** e **aviso de mudança grande** no relatório e na confirmação.
+- ⏳ Mais testes de lista de várias formas (arquivo vazio, só uma seção, preço em formato diferente, código com espaço, arquivo de outro mês) e uma auditoria do que a lista traz e a loja ignora (NCM, EAN, IPI).

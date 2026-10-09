@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { apiJson } from '../lib';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiJson, fmtDate } from '../lib';
 import { useConfirm } from '../context/confirm';
 import { PriceListFileError, extractPriceListPayload, gzipJson } from '../lib/price-list-file';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,11 @@ type Report = {
   addedBySection: Array<{ label: string; count: number }>;
   /** Peças de revisão por máquina. `incoming` 0 = a lista não traz o campo (lista antiga): nada muda. */
   service: { stored: number; incoming: number; added: number; removed: number; machines: number };
+  /** Preços que mudam para mais que o dobro ou menos que a metade: quase sempre é defeito do arquivo. */
+  bigMoves: number;
 };
+
+type LastUpdate = { runId: string; filename: string; at: string; prices: number; added: number; skipped: number };
 
 type Prepared = { filename: string; body: Blob; fileHash: string; report: Report };
 
@@ -34,7 +38,8 @@ type Phase =
   | { name: 'reading' | 'checking' }
   | { name: 'ready'; prepared: Prepared }
   | { name: 'saving'; prepared: Prepared }
-  | { name: 'done'; updated: number; added: number; service: number };
+  | { name: 'done'; updated: number; added: number; service: number }
+  | { name: 'undone'; prices: number; added: number; skipped: number };
 
 const OCTET = { 'Content-Type': 'application/octet-stream' };
 const serviceChanges = (report: Report) => report.service.added > 0 || report.service.removed > 0;
@@ -96,6 +101,12 @@ export default function PriceListUpdate() {
   const input = useRef<HTMLInputElement>(null);
   const confirm = useConfirm();
   const queryClient = useQueryClient();
+  const last = useQuery({
+    queryKey: ['price-list-last'],
+    staleTime: 30_000,
+    retry: false,
+    queryFn: async () => (await apiJson<{ last: LastUpdate | null }>('/api/admin/price-list/last', { timeoutMs: 20_000 })).last,
+  });
 
   const reset = () => {
     setPhase({ name: 'idle' });
@@ -126,7 +137,7 @@ export default function PriceListUpdate() {
   const save = async (prepared: Prepared) => {
     const { report } = prepared;
     const confirmed = await confirm({
-      title: 'Gravar a lista na loja?',
+      title: report.bigMoves > 0 ? `Gravar a lista na loja? ${number(report.bigMoves)} ${report.bigMoves === 1 ? 'preço muda' : 'preços mudam'} muito` : 'Gravar a lista na loja?',
       description: serviceChanges(report)
         ? `${number(report.changed)} preços serão atualizados, ${number(report.added)} códigos novos serão criados e a lista de peças de revisão será trocada (${number(report.service.incoming)} peças em ${number(report.service.machines)} máquinas). Nenhuma peça nem preço é apagado.`
         : `${number(report.changed)} preços serão atualizados e ${number(report.added)} códigos novos serão criados. Nada é apagado.`,
@@ -149,6 +160,26 @@ export default function PriceListUpdate() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Não foi possível gravar. Nada foi gravado.');
       setPhase({ name: 'ready', prepared });
+    }
+  };
+
+  const undo = async (update: LastUpdate) => {
+    const confirmed = await confirm({
+      title: 'Desfazer a última atualização?',
+      description: `Volta o preço de ${number(update.prices)} peças ao valor de antes e remove ${number(update.added)} códigos que ela criou.${update.skipped > 0 ? ` ${number(update.skipped)} ficam como estão, porque o preço mudou depois.` : ''}`,
+      confirmLabel: 'Desfazer',
+      destructive: true,
+    });
+    if (!confirmed) return;
+    setError(null);
+    try {
+      const query = new URLSearchParams({ runId: update.runId, prices: String(update.prices), added: String(update.added) });
+      const result = await apiJson<{ prices: number; added: number; skipped: number }>(`/api/admin/price-list/undo?${query}`, { method: 'POST', timeoutMs: 300_000 });
+      void queryClient.invalidateQueries();
+      setPhase({ name: 'undone', prices: result.prices, added: result.added, skipped: result.skipped });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Não foi possível desfazer. Nada foi alterado.');
+      void queryClient.invalidateQueries({ queryKey: ['price-list-last'] });
     }
   };
 
@@ -180,6 +211,19 @@ export default function PriceListUpdate() {
             Pronto: {number(phase.updated)} preços atualizados e {number(phase.added)} códigos novos{phase.service > 0 ? `, e a lista de peças de revisão foi atualizada` : ''}.
           </p>
         )}
+        {phase.name === 'undone' && (
+          <p role="status" className="text-base font-semibold text-ok">
+            Desfeito: {number(phase.prices)} preços voltaram ao valor de antes e {number(phase.added)} códigos novos saíram{phase.skipped > 0 ? `; ${number(phase.skipped)} ficaram como estão` : ''}.
+          </p>
+        )}
+        {last.data && phase.name !== 'reading' && phase.name !== 'checking' && phase.name !== 'saving' && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border px-4 py-3">
+            <p className="text-base">
+              <span className="font-semibold">Última atualização:</span> <span translate="no">{last.data.filename}</span> · {fmtDate(last.data.at)} · {number(last.data.prices)} preços, {number(last.data.added)} códigos novos
+            </p>
+            <Button type="button" variant="outline" size="sm" onClick={() => void undo(last.data as LastUpdate)} disabled={last.data.prices === 0 && last.data.added === 0}>Desfazer</Button>
+          </div>
+        )}
         {phase.name === 'idle' && !error && <p className="text-base text-muted-foreground">Nenhum arquivo escolhido.</p>}
 
         {report && prepared && (
@@ -209,6 +253,11 @@ export default function PriceListUpdate() {
                   ))}
                 </ul>
               </div>
+            )}
+            {report.bigMoves > 0 && (
+              <p role="alert" className="rounded-md border border-warn px-4 py-3 text-base font-semibold text-warn">
+                {number(report.bigMoves)} {report.bigMoves === 1 ? 'preço muda' : 'preços mudam'} para mais que o dobro ou menos que a metade: confira nas listas abaixo antes de gravar.
+              </p>
             )}
             {report.resolved.length > 0 && (
               <p className="text-base text-muted-foreground">

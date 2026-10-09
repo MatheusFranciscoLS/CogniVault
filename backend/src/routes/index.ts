@@ -208,6 +208,8 @@ router.get('/admin/engine-parts-without-price', authMiddleware, adminOnly, (req,
 // DEPOIS da autenticação e da checagem de administrador, para ninguém sem permissão fazer o servidor receber megabytes.
 const priceListBody = express.raw({ type: () => true, limit: '8mb' });
 router.post('/admin/price-list/preview', authMiddleware, adminOnly, priceListBody, (req, res) => priceListUpdateController.preview(req, res));
+router.get('/admin/price-list/last', authMiddleware, adminOnly, (req, res) => priceListUpdateController.last(req, res));
+router.post('/admin/price-list/undo', authMiddleware, adminOnly, (req, res) => priceListUpdateController.undo(req, res));
 router.post('/admin/price-list/apply', authMiddleware, adminOnly, priceListBody, (req, res) => priceListUpdateController.apply(req, res));
 router.get('/admin/exports/price-list.csv', authMiddleware, adminOnly, (req, res) => exportController.priceList(req, res));
 router.get('/admin/exports/quotes.csv', authMiddleware, adminOnly, (req, res) => exportController.quotes(req, res));
