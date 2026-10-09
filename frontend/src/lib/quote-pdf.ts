@@ -11,12 +11,12 @@ import type { jsPDF as JsPdf } from 'jspdf';
 import type autoTableFn from 'jspdf-autotable';
 import type { PdfImage } from './pdf-assets';
 import { effectiveLeadNote, notesMention } from './lead-time';
+import { customerPayment } from './payment-terms';
 import { QUOTE_DEFAULTS, STORE_CITY, STORE_PROFILE } from './store-profile';
 import {
   formatBRL,
   isServiceLine,
   quoteTotals,
-  PAYMENT_TO_COMBINE,
   validUntil,
   type QuoteLine,
   type QuoteMessageOptions,
@@ -310,7 +310,7 @@ export function buildQuotePdf(input: {
   }
 
   // ── Condições, como no modelo da loja ────────────────────────────────────────────────────────────
-  const payment = options.paymentMethod && options.paymentMethod !== PAYMENT_TO_COMBINE ? options.paymentMethod : QUOTE_DEFAULTS.paymentTerms;
+  const payment = customerPayment(options.paymentMethod) ?? QUOTE_DEFAULTS.paymentTerms;
   // Observações digitadas no orçamento (uma por linha) substituem as padrão da loja.
   const typedNotes = (options.notes ?? '').split('\n').map(line => line.replace(/^[\s•–-]+/, '').trim()).filter(Boolean);
   // A primeira linha acompanha o prazo escolhido ("Peça em pronta entrega" ou "Peça sob encomenda"), para a observação nunca contradizer a

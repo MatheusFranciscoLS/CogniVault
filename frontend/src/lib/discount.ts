@@ -1,8 +1,5 @@
-// Desconto do orçamento (dono, 2026-10-09): "5% PIX" é o único atalho (a loja não chega a 10 nem a 15%); qualquer outro desconto é digitado
-// ("7" ou "7,5") e o sistema já calcula o valor. O servidor aceita de 0 a 100 com duas casas (`parseQuoteOptions`).
-
-/** Percentual que o atalho "PIX" aplica. */
-export const PIX_DISCOUNT = 5;
+// Desconto do orçamento (dono, 2026-10-09): **não há atalho nem desconto automático** ("se o cliente não pedir, não damos desconto, para ter mais margem").
+// Quando negociado, o balcão digita o percentual ("7" ou "7,5") e o sistema já calcula o valor. O servidor aceita de 0 a 100 com duas casas (`parseQuoteOptions`).
 
 /**
  * O que o atendente digitou no campo de desconto, como percentual: "7", "7,5", "7.5", " 7 % " → 7 / 7,5.

@@ -110,3 +110,29 @@ test('duas gravações da cesta (rascunho) e duas edições do orçamento arquiv
     assert.equal(atual?.items.length, 2, `arquivado, rodada ${rodada}: 2 linhas, não ${atual?.items.length}`);
   }
 });
+
+test('cada atendente tem UMA cesta de peças e UMA de conserto, separadas: uma não mexe na outra', async t => {
+  await wipe();
+  t.after(wipe);
+  await prisma.tenant.create({ data: { id: TENANT, name: 'Loja de teste' } });
+  await prisma.user.create({ data: { id: USER_A, tenantId: TENANT, email: 'a@teste.local', password: 'x', role: 'MECHANIC' } });
+
+  await QuoteService.replaceDraft(TENANT, USER_A, itens(20), { customerName: 'Cliente das peças' });
+  await QuoteService.replaceDraft(TENANT, USER_A, parseQuoteItems([{ partNumber: 'SRV-1', name: 'MÃO DE OBRA', quantity: 1, unitPrice: 150 }])!, { kind: 'REPAIR', docNumber: '59900' });
+
+  const pecas = await QuoteService.getOrCreateDraft(TENANT, USER_A);
+  const conserto = await QuoteService.getOrCreateDraft(TENANT, USER_A, 'REPAIR');
+  assert.notEqual(pecas.id, conserto.id);
+  assert.equal(pecas.kind, 'PARTS');
+  assert.equal(conserto.kind, 'REPAIR');
+  assert.equal(pecas.items.length, 2);
+  assert.equal(conserto.items.length, 1);
+  assert.equal(pecas.customerName, 'Cliente das peças');
+  assert.equal(conserto.docNumber, '59900');
+
+  // Esvaziar o conserto não toca a cesta de peças, e a de peças volta a ser pedida sem tipo.
+  await QuoteService.clearDraft(TENANT, USER_A, 'REPAIR');
+  assert.equal((await QuoteService.getOrCreateDraft(TENANT, USER_A, 'REPAIR')).items.length, 0);
+  assert.equal((await QuoteService.getOrCreateDraft(TENANT, USER_A)).items.length, 2);
+  assert.equal(await prisma.quote.count({ where: { tenantId: TENANT, status: 'DRAFT' } }), 2);
+});

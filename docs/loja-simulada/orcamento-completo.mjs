@@ -57,11 +57,11 @@ await step('itens', async () => {
   void qtd;
 
   const preco = primeira.locator('input[type=number]');
-  const totalAntes = await gaveta.getByText(/^Total/).first().locator('xpath=..').innerText();
+  const totalAntes = await gaveta.locator('footer').innerText();
   await preco.fill('100');
   await preco.blur();
   await page.waitForTimeout(400);
-  const totalDepois = await gaveta.getByText(/^Total/).first().locator('xpath=..').innerText();
+  const totalDepois = await gaveta.locator('footer').innerText();
   check('editar o preço unitário recalcula o total', totalAntes !== totalDepois, `${totalAntes.replace(/\s+/g, ' ')} → ${totalDepois.replace(/\s+/g, ' ')}`);
   await preco.fill('');
   await preco.blur();
@@ -71,20 +71,18 @@ await step('itens', async () => {
   await preco.blur();
 });
 
-await step('item avulso', async () => {
-  await gaveta.getByRole('button', { name: 'Serviço ou item avulso' }).click();
+await step('peça avulsa (a que a busca não achou): sem mão de obra nem "serviço" no orçamento de peças', async () => {
+  await gaveta.getByRole('button', { name: 'Peça avulsa' }).click();
   await page.waitForTimeout(400);
-  const campos = await gaveta.locator('form input').count();
-  check('formulário de item avulso abre com campos', campos >= 2, `${campos} campos`);
-  const nome = gaveta.locator('form input').first();
-  await nome.fill('Mão de obra');
-  const preco = gaveta.locator('form input[type=number]').first();
-  if (await preco.count()) await preco.fill('80');
-  await gaveta.locator('form').getByRole('button', { name: 'Adicionar' }).click();
+  const formulario = gaveta.locator('form');
+  check('o formulário abre com código, descrição, preço e quantidade', (await formulario.getByLabel('Código da peça (opcional)').count()) === 1 && (await formulario.getByLabel('Descrição da peça').count()) === 1 && (await formulario.getByLabel('Preço (R$)').count()) === 1);
+  check('NÃO há botão de mão de obra nem a palavra "serviço" no orçamento de peças', (await formulario.getByRole('button', { name: /Mão de obra|Revisão/i }).count()) === 0 && !/servi[çc]o/i.test(await gaveta.innerText()));
+  await formulario.getByLabel('Descrição da peça').fill('Corrente 3/8 sem código');
+  await formulario.getByLabel('Preço (R$)').fill('80');
+  await formulario.getByRole('button', { name: 'Adicionar' }).click();
   await page.waitForTimeout(500);
-  check('item avulso entra na lista', (await gaveta.innerText()).includes('Mão de obra'));
-  check('item avulso não mostra código de peça', !/SRV-/.test(await gaveta.innerText()) || true);
-  console.log(`   item avulso mostra: ${(await gaveta.innerText()).match(/.*Mão de obra.*/)?.[0]}`);
+  check('a peça avulsa entra na lista', (await gaveta.innerText()).includes('Corrente 3/8 sem código'));
+  await gaveta.getByRole('button', { name: 'Fechar', exact: true }).click().catch(() => {});
 });
 
 await step('cliente, telefone, pagamento e desconto', async () => {
@@ -95,37 +93,46 @@ await step('cliente, telefone, pagamento e desconto', async () => {
   check('o telefone ganha a máscara ao digitar: (19) 98765-4321', telefone === '(19) 98765-4321', telefone);
   await gaveta.getByPlaceholder('(19) 99999-9999').fill('+55 19 98765-4321');
   check('colar com +55 e traço dá o mesmo telefone, sem o 55', (await gaveta.getByPlaceholder('(19) 99999-9999').inputValue()) === '(19) 98765-4321');
-  const select = gaveta.locator('#quote-payment-method');
-  const opcoes = await select.locator('option').allInnerTexts();
-  console.log(`   formas de pagamento: ${opcoes.join(' | ')}`);
-  check('há formas de pagamento', opcoes.length >= 3);
-  const total0 = (await gaveta.getByText(/^Total/).first().locator('xpath=..').innerText()).replace(/\s+/g, ' ');
-  check('só há um atalho de desconto além do zero: 5% PIX (não há 10% nem 15%)', (await gaveta.getByRole('button', { name: /^(0%|5% PIX)/ }).count()) === 2 && (await gaveta.getByRole('button', { name: /^(10%|15%)/ }).count()) === 0);
-  await gaveta.getByRole('button', { name: /^5% PIX/ }).click();
+  // Pagamento (dono, 2026-10-09): "À vista", "30 dias" ou "Outro" (campo para escrever); sem "PIX 5% de desconto" em lugar nenhum.
+  const pagamento = gaveta.getByRole('group', { name: 'Pagamento' });
+  check('o pagamento tem só À vista, 30 dias e Outro, e nada marcado no começo', (await pagamento.getByRole('button').allInnerTexts()).join('|') === 'À vista|30 dias|Outro' && (await pagamento.locator('[aria-pressed="true"]').count()) === 0);
+  check('não existe "PIX" nem "5%" em nenhum lugar da gaveta', !/PIX|5%/.test(await gaveta.innerText()));
+  await pagamento.getByRole('button', { name: 'À vista' }).click();
+  check('À vista marca o botão', (await pagamento.getByRole('button', { name: 'À vista' }).getAttribute('aria-pressed')) === 'true');
+  await pagamento.getByRole('button', { name: 'À vista' }).click();
+  check('clicar de novo desmarca (volta a "a combinar")', (await pagamento.locator('[aria-pressed="true"]').count()) === 0);
+  await pagamento.getByRole('button', { name: '30 dias' }).click();
+  check('30 dias marca o botão e troca o À vista', (await pagamento.getByRole('button', { name: '30 dias' }).getAttribute('aria-pressed')) === 'true' && (await pagamento.getByRole('button', { name: 'À vista' }).getAttribute('aria-pressed')) === 'false');
+  await pagamento.getByRole('button', { name: 'Outro' }).click();
+  const escrever = gaveta.getByLabel('Condição de pagamento (escreva)');
+  check('Outro abre o campo para escrever, vazio', (await escrever.isVisible()) && (await escrever.inputValue()) === '');
+  await escrever.fill('50% na entrada e 50% em 15 dias');
+  await page.waitForTimeout(2200);
+  const guardado = await page.evaluate(() => fetch('/api/quotes/draft', { credentials: 'include' }).then(r => r.json()));
+  check('o texto escrito é o que fica guardado no orçamento', (guardado?.quote ?? guardado)?.paymentMethod === '50% na entrada e 50% em 15 dias');
+
+  const total0 = (await gaveta.locator('footer').innerText()).replace(/\s+/g, ' ');
+  // Desconto (dono, 2026-10-09): nenhum atalho e nada automático; só o campo, para quando o cliente negociar.
+  check('não há botão de desconto pronto (0%, 5%, 10%, 15%): só o campo', (await gaveta.getByRole('button', { name: /^\d+%/ }).count()) === 0);
+  const desconto = gaveta.getByLabel('Desconto (%)');
+  check('o campo de desconto começa vazio (sem desconto)', (await desconto.inputValue()) === '' && !/Desconto \(/.test(await gaveta.innerText()));
+  await desconto.fill('7');
   await page.waitForTimeout(400);
-  const total5 = (await gaveta.getByText(/^Total/).first().locator('xpath=..').innerText()).replace(/\s+/g, ' ');
-  check('5% PIX muda o total', total0 !== total5, `${total0} → ${total5}`);
-  const outro = gaveta.getByLabel('Outro desconto (%)');
-  await outro.fill('7');
-  await page.waitForTimeout(400);
-  const total10 = (await gaveta.getByText(/^Total/).first().locator('xpath=..').innerText()).replace(/\s+/g, ' ');
-  check('desconto digitado (7) muda o total e o rodapé mostra Desconto (7%)', total10 !== total5 && /Desconto \(7%\)/.test(await gaveta.innerText()), `${total5} → ${total10}`);
-  await outro.fill('7,5');
+  const total7 = (await gaveta.locator('footer').innerText()).replace(/\s+/g, ' ');
+  check('desconto digitado (7) muda o total e o rodapé mostra Desconto (7%)', total7 !== total0 && /Desconto \(7%\)/.test(await gaveta.innerText()), `${total0} → ${total7}`);
+  await desconto.fill('7,5');
   await page.waitForTimeout(300);
   check('7,5 vale com vírgula', /Desconto \(7\.5%\)/.test(await gaveta.innerText()));
-  await outro.fill('150');
+  await desconto.fill('150');
   await page.waitForTimeout(300);
-  check('150 é recusado: o campo é marcado e o desconto anterior não muda', (await outro.getAttribute('aria-invalid')) === 'true' && /Desconto \(7\.5%\)/.test(await gaveta.innerText()));
-  await outro.fill('abc');
-  check('texto também é recusado', (await outro.getAttribute('aria-invalid')) === 'true');
-  await outro.fill('');
+  check('150 é recusado: o campo é marcado e o desconto anterior não muda', (await desconto.getAttribute('aria-invalid')) === 'true' && /Desconto \(7\.5%\)/.test(await gaveta.innerText()));
+  await desconto.fill('abc');
+  check('texto também é recusado', (await desconto.getAttribute('aria-invalid')) === 'true');
+  await desconto.fill('');
   await page.waitForTimeout(300);
   check('campo vazio volta a sem desconto', !/Desconto \(/.test(await gaveta.innerText()));
-  await gaveta.getByRole('button', { name: /^5% PIX/ }).click();
+  await pagamento.getByRole('button', { name: 'À vista' }).click();
   await page.waitForTimeout(300);
-  await select.selectOption({ index: 1 });
-  await page.waitForTimeout(300);
-  console.log(`   pagamento escolhido: ${await select.inputValue()}; desconto agora: ${(await gaveta.innerText()).match(/\d+% [A-Za-zé]+/g)?.join(',')}`);
   await shot(page, `${theme}-1366-orcamento-gaveta`);
 });
 

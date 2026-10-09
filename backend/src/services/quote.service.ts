@@ -331,26 +331,26 @@ export const QUOTE_TX_OPTIONS = { maxWait: 10_000, timeout: 20_000 } as const;
 
 export class QuoteService {
   /** Cesta aberta do atendente, criando uma vazia na primeira visita. */
-  static async getOrCreateDraft(tenantId: string, userId: string): Promise<QuotePayload> {
+  static async getOrCreateDraft(tenantId: string, userId: string, kind: QuoteKind = 'PARTS'): Promise<QuotePayload> {
     const existing = await prisma.quote.findFirst({
-      where: { tenantId, userId, status: 'DRAFT' },
+      where: { tenantId, userId, status: 'DRAFT', kind },
       include: quoteInclude,
     });
     if (existing) return serializeQuote(existing);
 
     try {
       const created = await prisma.quote.create({
-        data: { tenantId, userId, status: 'DRAFT' },
+        data: { tenantId, userId, status: 'DRAFT', kind },
         include: quoteInclude,
       });
       return serializeQuote(created);
     } catch (error) {
       // Corrida entre duas abas do mesmo atendente: o índice parcial único
-      // `Quote_one_draft_per_user` rejeita a segunda criação, e a cesta que
+      // `Quote_one_draft_per_user_kind` rejeita a segunda criação, e a cesta que
       // ganhou a corrida é a resposta correta para as duas abas.
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const raced = await prisma.quote.findFirst({
-          where: { tenantId, userId, status: 'DRAFT' },
+          where: { tenantId, userId, status: 'DRAFT', kind },
           include: quoteInclude,
         });
         if (raced) return serializeQuote(raced);
@@ -371,7 +371,8 @@ export class QuoteService {
     items: QuoteItemInput[],
     options: QuoteOptionsInput,
   ): Promise<QuotePayload> {
-    const draft = await QuoteService.getOrCreateDraft(tenantId, userId);
+    // Cada tipo tem a sua cesta: o orçamento de conserto nunca mistura com o de peças.
+    const draft = await QuoteService.getOrCreateDraft(tenantId, userId, options.kind ?? 'PARTS');
     const discountPercentage = options.discountPercentage ?? 0;
     const totals = computeTotals(items, discountPercentage);
 
@@ -406,8 +407,8 @@ export class QuoteService {
     return serializeQuote(updated);
   }
 
-  static async clearDraft(tenantId: string, userId: string): Promise<QuotePayload> {
-    return QuoteService.replaceDraft(tenantId, userId, [], {});
+  static async clearDraft(tenantId: string, userId: string, kind: QuoteKind = 'PARTS'): Promise<QuotePayload> {
+    return QuoteService.replaceDraft(tenantId, userId, [], { kind });
   }
 
   /**

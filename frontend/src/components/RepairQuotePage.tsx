@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { apiJson } from '../lib';
 import { formatBRL } from '../lib/quote-message';
 import { storeDayKey } from '../lib/quote-days';
-import { useQuoteCart, type SavedQuote } from '../context/QuoteCartContext';
+import { useDebounced } from '../lib/use-item-lookup';
+import { QuoteCartProvider, useQuoteCart, type SavedQuote } from '../context/QuoteCartContext';
 import { Input } from '@/components/ui/input';
 import PageFrame from './PageFrame';
-import QuickQuoteCart from './QuickQuoteCart';
+import RepairEditor from './RepairEditor';
 import RepairImport from './RepairImport';
 import { toSavedQuote, type ApiQuoteListItem } from '../lib/saved-quote-api';
 
@@ -17,16 +18,6 @@ function shortDay(key: string, todayKey: string): string {
   if (key === todayKey) return 'Hoje';
   const [, month, day] = key.split('-');
   return `${day}/${month}`;
-}
-
-/** Espera o balcão parar de digitar antes de buscar na pasta. */
-function useDebounced<T>(value: T, ms: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebounced(value), ms);
-    return () => window.clearTimeout(timer);
-  }, [value, ms]);
-  return debounced;
 }
 
 /**
@@ -110,24 +101,43 @@ function RepairFolder({ onOpen, admin }: { onOpen: (quote: SavedQuote) => void; 
   );
 }
 
-/**
- * A aba Conserto: a MESMA cesta do orçamento, em página inteira e no modo conserto (peças de qualquer fornecedor e mão de obra, "Nº da OS" em
- * branco para o balcão digitar, sem "Peças originais" nos textos), ao lado da pasta dos orçamentos já feitos. Com a cesta vazia ela já é
- * conserto; com um orçamento de peças em andamento ele continua de peças (o seletor do cabeçalho converte), nunca por engano.
- */
-export default function RepairQuotePage({ admin = false }: { admin?: boolean }) {
-  const { restoreQuote, setIsOpen } = useQuoteCart();
-  const open = (quote: SavedQuote) => {
-    restoreQuote({ ...quote, kind: 'REPAIR' });
-    setIsOpen(false);
-  };
+function RepairWorkspace({ admin }: { admin: boolean }) {
+  const { restoreQuote } = useQuoteCart();
+
+  // Abrir pelo número ("/conserto?os=59600", o que a lista de Orçamentos usa para "Retomar" um conserto): procura na pasta e abre.
+  const requestedOs = useRef(new URLSearchParams(window.location.search).get('os')?.trim() ?? '');
+  useEffect(() => {
+    const os = requestedOs.current;
+    if (!os) return;
+    requestedOs.current = '';
+    window.history.replaceState(null, '', window.location.pathname);
+    void apiJson<{ quotes: ApiQuoteListItem[] }>(`/api/quotes?kind=REPAIR&take=5&q=${encodeURIComponent(os)}`)
+      .then(data => {
+        const quote = data.quotes.find(item => item.docNumber === os);
+        if (quote) restoreQuote(toSavedQuote(quote));
+      })
+      .catch(() => { /* a pasta ao lado continua valendo */ });
+  }, [restoreQuote]);
 
   return (
     <PageFrame title="Conserto">
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <QuickQuoteCart layout="page" />
-        <RepairFolder onOpen={open} admin={admin} />
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <RepairEditor />
+        <RepairFolder onOpen={quote => restoreQuote({ ...quote, kind: 'REPAIR' })} admin={admin} />
       </div>
     </PageFrame>
+  );
+}
+
+/**
+ * A aba Conserto: o orçamento de conserto da loja (a planilha "ORÇAMENTO DAV ####") e a pasta dos já feitos, um por número de OS. **É SEPARADA do
+ * Atendimento**: tem a sua cesta (`QuoteCartProvider kind="REPAIR"`: outro cache no navegador e outro rascunho no servidor), então o que se monta aqui
+ * nunca aparece no orçamento de peças da gaveta, e o contrário também. Sem escolha entre "peças" e "conserto" em lugar nenhum.
+ */
+export default function RepairQuotePage({ admin = false }: { admin?: boolean }) {
+  return (
+    <QuoteCartProvider kind="REPAIR">
+      <RepairWorkspace admin={admin} />
+    </QuoteCartProvider>
   );
 }

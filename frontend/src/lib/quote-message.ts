@@ -5,6 +5,7 @@
 // QUEM mandou. Posição na vista explodida, seção do catálogo e PNC são informação interna do
 // balcão e não entram na mensagem.
 import { formatHusqvarnaPartNumber } from '../lib';
+import { customerPayment } from './payment-terms';
 import { QUOTE_DEFAULTS } from './store-profile';
 
 export type QuoteLine = {
@@ -42,7 +43,6 @@ export type QuoteMessageOptions = {
 /** Marca da loja nos textos para o cliente. Sem "Revenda Autorizada Ouro": o cliente não conhece nem precisa dessa distinção (dono, 2026-10-07). */
 export const STORE_SIGNATURE = 'Vardão Máquinas';
 
-export const PAYMENT_TO_COMBINE = 'A Combinar no Balcão';
 
 /** "R$ 4.093,48": com separador de milhar (antes saía "R$ 4093,48"). */
 export function formatBRL(value: number): string {
@@ -140,7 +140,9 @@ export function buildWhatsAppMessage(input: { items: QuoteLine[]; options: Quote
   }
 
   out.push('');
-  if (options.paymentMethod && options.paymentMethod !== PAYMENT_TO_COMBINE) out.push(`Pagamento: ${options.paymentMethod}`);
+  // Condição de pagamento como a loja escreve (À vista, A prazo 30 dias, ou texto livre); sem escolha, a mensagem não fala de pagamento.
+  const payment = customerPayment(options.paymentMethod);
+  if (payment) out.push(`Pagamento: ${payment}`);
   // O prazo das peças depende do estoque e é digitado à mão; sem ele, a mensagem não promete prazo nenhum.
   if (options.leadTime?.trim()) out.push(`Prazo das peças: ${options.leadTime.trim()}`);
   if (options.notes?.trim()) out.push(`Observação: ${options.notes.trim().split('\n').map(line => line.trim()).filter(Boolean).join(' · ')}`);
