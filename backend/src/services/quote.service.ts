@@ -426,6 +426,9 @@ export class QuoteService {
       });
       if (existing) {
         const updated = await prisma.$transaction(async tx => {
+          // Trava a linha do orçamento até o fim da transação: duas atualizações da MESMA OS ao mesmo tempo (clique duplo) se intercalavam (as duas
+          // apagavam e as duas recriavam as linhas) e o orçamento saía com as linhas em dobro. A segunda espera a primeira terminar.
+          await tx.$queryRaw`SELECT "id" FROM "Quote" WHERE "id" = ${existing.id} FOR UPDATE`;
           await tx.quoteItem.deleteMany({ where: { quoteId: existing.id } });
           if (items.length) {
             await tx.quoteItem.createMany({ data: itemRows(items).map(row => ({ ...row, quoteId: existing.id })) });
