@@ -49,6 +49,9 @@ Plano antigo: 110 itens feitos contra ~10 a fazer, 22 ideias guardadas e 6 decis
 | ✅ 2.9 | Lembrar a última vista aberta de cada máquina (por aparelho; vista que sumiu cai na primeira). |
 | ✅ 2.10 | Destacar a linha ao passar o mouse (ou focar) numa posição do desenho, e a posição ao passar na linha; a posição em destaque sobe para a frente. |
 | ✅ 2.11 | Filtro por nome nos conjuntos da Kawasaki (aparece com mais de 8), com "Mostrar todos" quando nada casa. |
+| ✅ 2.18 | **Item avulso com código** (1ª fase dos 3 tipos de orçamento): o formulário "Serviço ou item avulso" ganhou "Código da peça (opcional)". Husqvarna, Briggs, Kawasaki e Kohler preenchem descrição (e preço, se a loja tem); qualquer outro fornecedor não puxa nada e o balcão escreve. **Fica aberto para vários itens em sequência** (manutenção nunca é um item só) e o código vale com ou sem traço e espaço. |
+| ⏳ 2.19 | **Os 3 tipos de orçamento** (Máquina nova / Peças / Conserto): falta o tipo "Conserto" (equipamento, marca, modelo, defeito, mão de obra, prazo, garantia). Pedir ao dono 1–2 orçamentos de conserto reais antes de desenhar o PDF e o WhatsApp. |
+| ❓ 2.20 | **Vista explodida da Branco** (`branco.ricambio.net`): o `robots.txt` do catálogo **proíbe** robôs em `/site/pagece5.wplus`, que é exatamente a página do desenho. Sem leitura automática. Saídas: botão que abre o catálogo da Branco numa aba (o atendente navega) ou pedir à Branco uma exportação/autorização. Decisão do dono. |
 | 💡 | "Tentar de novo" quando o PDF não abre; mostrar que a máquina aberta ficou gravada no atendimento; marcar peças que chegam depois pela fase "por significado". |
 | 💡 | Comparar duas máquinas lado a lado; "Selecionar todas desta vista" copiando só os códigos. |
 
