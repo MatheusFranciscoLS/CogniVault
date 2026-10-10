@@ -40,7 +40,7 @@ Plano antigo: 110 itens feitos contra ~10 a fazer, 22 ideias guardadas e 6 decis
 | | Item |
 |---|---|
 | 🔧 2.6 | **Rodada de auditoria a cada funcionalidade grande** e, no mínimo, semanal: `bash docs/loja-simulada/auditoria-rodada.sh` (e a suíte de roteiros). Achados entram aqui com a data. |
-| 🔧 2.7 | **Rodada 2 (lógica):** 2 passadas feitas em 2026-10-09 e **4 defeitos achados e corrigidos**: duas abas se apagavam; edição sem rede perdia para o servidor; a cesta de conserto vazava entre atendentes do mesmo PC; emoji/árabe/japonês estragava o PDF do cliente (`rodada2-abas-sessao.mjs`, `QuoteCartContext.sync.test.tsx`, `pdf-texto-estranho.mjs`, `pdf-text.test.ts`). **Falta:** rede lenta nas telas de busca e atualização da lista, partida a frio da Render, duas pessoas gravando a mesma OS. |
+| ✅ 2.7 | **Rodada 2 (lógica)** feita em 2026-10-09 em três passadas: **4 defeitos achados e corrigidos** (duas abas se apagavam; edição sem rede perdia para o servidor; a cesta de conserto vazava entre atendentes do mesmo PC; emoji/árabe/japonês estragava o PDF do cliente) e **rede lenta e partida a frio sem defeito** (guardadas como regressão). Roteiros `rodada2-abas-sessao`, `pdf-texto-estranho`, `rodada2-rede-lenta`. Sobra só: dois APARELHOS editando a mesma cesta (precisaria de versão no servidor). Repetir a rodada a cada funcionalidade grande. |
 | ⏳ 2.8 | **Índice de peças de motor com cache quente:** a leitura de um motor com cache válido não reindexa; se o índice for limpo, só volta quando o cache vence. Decidir se vale reindexar a partir do cache. |
 
 ### P2 — Melhorias do balcão (pequenas, uma de cada vez)
