@@ -22,10 +22,10 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import PageFrame from './PageFrame';
+import { BAND_FIELD } from '../lib/band-field';
 import MachineListDetail from './MachineListDetail';
 
-const selectClass =
-  'h-10 rounded-md border border-input bg-card px-3 text-base text-foreground outline-none transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/60';
+const selectClass = `h-11 rounded-md border px-3 text-base outline-none transition-colors focus-visible:ring-3 ${BAND_FIELD}`;
 
 export function MachineBadges({ machine }: { machine: ListedMachine }) {
   return (
@@ -94,8 +94,67 @@ export default function MachineListPanel({ onOpenMachine }: { onOpenMachine: (pn
   const toggleModelSort = () => setSort(current => (current === 'model' ? 'category' : 'model'));
   const togglePriceSort = () => setSort(current => (current === 'price-asc' ? 'price-desc' : 'price-asc'));
 
+  const filterBand = machines.length > 0 ? (
+    <div className="flex flex-wrap items-center gap-3">
+      <div className="relative w-full max-w-sm">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-[#5f667a]" aria-hidden="true" />
+        <Input
+          autoFocus
+          value={filters.text}
+          onChange={event => update({ text: event.target.value })}
+          placeholder="Modelo, PNC ou descrição"
+          aria-label="Buscar máquina na tabela"
+          className={cn('h-11 pl-10 text-base', BAND_FIELD)}
+        />
+      </div>
+
+      <div role="group" aria-label="Tecnologia" className="inline-flex overflow-hidden rounded-md border border-white/25">
+        {[{ value: '', label: 'Todas', count: null as number | null }, ...technologies.map(item => ({ value: item.value, label: technologyLabel(item.value), count: item.count as number | null }))].map(option => (
+          <button
+            key={option.value || 'all'}
+            type="button"
+            aria-pressed={filters.technology === option.value}
+            onClick={() => update({ technology: option.value, category: '' })}
+            className={cn(
+              'h-11 border-r border-white/25 px-4 text-base outline-none transition-colors last:border-r-0 focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-[#ff9a73]',
+              filters.technology === option.value ? 'bg-white font-semibold text-[#1b2234]' : 'bg-white/10 text-white hover:bg-white/20',
+            )}
+          >
+            {option.label}{option.count !== null && <span className="ml-1.5 tabular-nums">{option.count}</span>}
+          </button>
+        ))}
+      </div>
+
+      <select aria-label="Categoria" value={filters.category} onChange={event => update({ category: event.target.value })} className={selectClass}>
+        <option value="">Todas as categorias</option>
+        {categories.map(item => <option key={item.value} value={item.value}>{categoryLabel(item.value)} ({item.count})</option>)}
+      </select>
+
+      <select aria-label="Aplicação" value={filters.application} onChange={event => update({ application: event.target.value })} className={selectClass}>
+        <option value="">Qualquer aplicação</option>
+        {applications.map(item => <option key={item.value} value={item.value}>{applicationLabel(item.value)} ({item.count})</option>)}
+      </select>
+
+      {news > 0 && (
+        <Button variant="bar" className={cn('h-11', filters.onlyNews && 'border-white bg-white font-semibold text-[#1b2234] hover:bg-white')} aria-pressed={filters.onlyNews} onClick={() => update({ onlyNews: !filters.onlyNews })}>
+          Novidades da lista ({news})
+        </Button>
+      )}
+
+      {hasFilter && (
+        <Button variant="bar" className="h-11" onClick={() => setFilters(EMPTY_FILTERS)}>
+          <X className="size-4" aria-hidden="true" /> Limpar
+        </Button>
+      )}
+
+      <p aria-live="polite" className="ml-auto text-base text-band-muted tabular-nums">
+        {visible.length} {visible.length === 1 ? 'máquina' : 'máquinas'}
+      </p>
+    </div>
+  ) : undefined;
+
   return (
-    <PageFrame title="Tabela de preços" meta={listDate ? `Lista de ${listDate}` : undefined}>
+    <PageFrame look="band" title="Tabela de preços" meta={listDate ? `Lista de ${listDate}` : undefined} band={filterBand}>
       {query.isLoading && (
         <div aria-busy="true" className="space-y-2">
           <Skeleton className="h-10 w-full max-w-md" />
@@ -118,63 +177,6 @@ export default function MachineListPanel({ onOpenMachine }: { onOpenMachine: (pn
 
       {machines.length > 0 && (
         <>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative w-full max-w-sm">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-              <Input
-                autoFocus
-                value={filters.text}
-                onChange={event => update({ text: event.target.value })}
-                placeholder="Modelo, PNC ou descrição"
-                aria-label="Buscar máquina na tabela"
-                className="h-10 pl-10 text-base"
-              />
-            </div>
-
-            <div role="group" aria-label="Tecnologia" className="inline-flex overflow-hidden rounded-md border border-input bg-card">
-              {[{ value: '', label: 'Todas', count: null as number | null }, ...technologies.map(item => ({ value: item.value, label: technologyLabel(item.value), count: item.count as number | null }))].map(option => (
-                <button
-                  key={option.value || 'all'}
-                  type="button"
-                  aria-pressed={filters.technology === option.value}
-                  onClick={() => update({ technology: option.value, category: '' })}
-                  className={cn(
-                    'h-10 border-r border-input px-3 text-base outline-none transition-colors last:border-r-0 focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/60',
-                    filters.technology === option.value ? 'bg-selected font-semibold text-foreground' : 'text-foreground hover:bg-accent',
-                  )}
-                >
-                  {option.label}{option.count !== null && <span className="ml-1.5 tabular-nums opacity-100">{option.count}</span>}
-                </button>
-              ))}
-            </div>
-
-            <select aria-label="Categoria" value={filters.category} onChange={event => update({ category: event.target.value })} className={selectClass}>
-              <option value="">Todas as categorias</option>
-              {categories.map(item => <option key={item.value} value={item.value}>{categoryLabel(item.value)} ({item.count})</option>)}
-            </select>
-
-            <select aria-label="Aplicação" value={filters.application} onChange={event => update({ application: event.target.value })} className={selectClass}>
-              <option value="">Qualquer aplicação</option>
-              {applications.map(item => <option key={item.value} value={item.value}>{applicationLabel(item.value)} ({item.count})</option>)}
-            </select>
-
-            {news > 0 && (
-              <Button variant="outline" className={filters.onlyNews ? 'border-ring bg-selected font-semibold' : undefined} aria-pressed={filters.onlyNews} onClick={() => update({ onlyNews: !filters.onlyNews })}>
-                Novidades da lista ({news})
-              </Button>
-            )}
-
-            {hasFilter && (
-              <Button variant="ghost" onClick={() => setFilters(EMPTY_FILTERS)}>
-                <X className="size-4" aria-hidden="true" /> Limpar
-              </Button>
-            )}
-
-            <p aria-live="polite" className="ml-auto text-base text-muted-foreground tabular-nums">
-              {visible.length} {visible.length === 1 ? 'máquina' : 'máquinas'}
-            </p>
-          </div>
-
           {visible.length === 0 ? (
             <p className="rounded-lg border border-border bg-card px-4 py-10 text-center text-base text-muted-foreground">
               Nenhuma máquina com esses filtros.{' '}
