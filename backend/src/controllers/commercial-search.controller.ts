@@ -1,3 +1,4 @@
+import { storePrice } from '../utils/store-price';
 import { Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { LRUCache } from 'lru-cache';
@@ -90,7 +91,7 @@ function serializeCommercialPart(
     name: item.name,
     application: item.sections.map(section => section.application).find(Boolean) || item.description || item.brand,
     applications: [...new Set(item.sections.map(section => section.application).filter((value): value is string => Boolean(value)))],
-    price: item.price,
+    price: storePrice(item.price),
     ean: item.ean,
     ncm: item.ncm,
     classCode: item.category,

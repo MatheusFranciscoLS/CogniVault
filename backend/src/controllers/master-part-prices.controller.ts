@@ -1,3 +1,4 @@
+import { storePrice } from '../utils/store-price';
 import { Response } from 'express';
 import { prisma } from '../config/prisma';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
@@ -87,7 +88,7 @@ export class MasterPartPricesController {
       prices[row.normalizedNumber] = {
         partNumber: row.partNumber,
         name: row.name,
-        price: row.price,
+        price: storePrice(row.price),
         stock: row.stock,
         location: row.location,
         // A classificação sai do servidor, não da tela: é a data da compra

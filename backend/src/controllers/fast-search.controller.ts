@@ -1,3 +1,4 @@
+import { storePrice } from '../utils/store-price';
 import { NextFunction, Response } from 'express';
 import { LRUCache } from 'lru-cache';
 import { prisma } from '../config/prisma';
@@ -124,7 +125,7 @@ async function enrichCandidates(tenantId: string, candidates: PartCandidate[]): 
         notes: candidate.notes,
         filename: candidate.filename,
         classification: classifyPartKind(candidate.name, candidate.section, candidate.notes),
-        price: master?.price ?? null,
+        price: storePrice(master?.price),
         ean: master?.ean ?? null,
         ncm: master?.ncm ?? null,
         officialName: master?.name ?? null,
