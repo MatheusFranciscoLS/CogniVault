@@ -10,6 +10,7 @@ import PartVerificationDialog, { isSupersededForCode, looksLikePartNumber, norma
 import { Icon } from '../icons/Icon';
 import CounterSessionBar from '../CounterSessionBar';
 import { BAND_FIELD } from '../../lib/band-field';
+import { useRestoreFocus } from '../../lib/use-restore-focus';
 import CounterQuoteRail from '../CounterQuoteRail';
 import CommercialPartRow from './CommercialPartRow';
 import PartDetailDrawer from './PartDetailDrawer';
@@ -223,6 +224,8 @@ function SuggestionsDropdown({ suggestions, activeIndex, onPick }: { suggestions
 
 export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChange, storageScope, initialMachinePnc }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  // Fechar o painel da peça ou da máquina devolve o foco ao ponto onde o atendente estava (ou à busca): teclado primeiro.
+  const restoreFocus = useRestoreFocus(() => inputRef.current);
   const { session, hasContext, updateSession } = useCounterSession();
   const contextRevisionRef = useRef(`${session.machineModel}\u0000${session.pnc}\u0000${session.serial}`);
 
@@ -982,11 +985,11 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
       {/* A `key` remonta a barreira a cada máquina: sem ela, um erro numa
           máquina deixaria o painel travado no aviso para todas as seguintes. */}
       {openMachine && (
-        <PanelErrorBoundary key={`maquina-${openMachine.pnc}`} onClose={() => setOpenMachine(null)}>
+        <PanelErrorBoundary key={`maquina-${openMachine.pnc}`} onClose={() => { setOpenMachine(null); restoreFocus(); }}>
           <MachineSidePanel
             pnc={openMachine.pnc}
             contextModel={openMachine.name}
-            onClose={() => setOpenMachine(null)}
+            onClose={() => { setOpenMachine(null); restoreFocus(); }}
             onOpenPnc={pnc => setOpenMachine({ pnc, name: `PNC ${pnc}` })}
             onOpenPart={code => { setOpenMachine(null); void beginSearch(code); }}
             onLoaded={rememberMachine}
@@ -994,7 +997,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
         </PanelErrorBoundary>
       )}
 
-      {detail && <PanelErrorBoundary key={`peca-${detail.partNumber}`} onClose={() => setDetail(null)}><PartDetailDrawer detail={detail} verification={detailVerification} liveData={liveData} onClose={() => setDetail(null)} onCopy={code => void copyCode(code)} onOpenPdf={(documentId, page, title) => void accessPdf(documentId, page, title)} onOpenRelated={id => void openPart(id)} onVerify={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} escapeBlocked={Boolean(pdf) || Boolean(verificationTarget)} /></PanelErrorBoundary>}
+      {detail && <PanelErrorBoundary key={`peca-${detail.partNumber}`} onClose={() => { setDetail(null); restoreFocus(); }}><PartDetailDrawer detail={detail} verification={detailVerification} liveData={liveData} onClose={() => { setDetail(null); restoreFocus(); }} onCopy={code => void copyCode(code)} onOpenPdf={(documentId, page, title) => void accessPdf(documentId, page, title)} onOpenRelated={id => void openPart(id)} onVerify={() => setVerificationTarget({ partNumber: detail.partNumber, name: detail.name })} escapeBlocked={Boolean(pdf) || Boolean(verificationTarget)} /></PanelErrorBoundary>}
       {verificationTarget && <PartVerificationDialog target={verificationTarget} existing={verifications[normalizePartCode(verificationTarget.partNumber)]} onClose={() => setVerificationTarget(null)} onSaved={() => { setVerificationTarget(null); toast.success('Conferência enviada para aprovação.'); if (detail) void loadVerifications([detail]); }} />}
 
       <Dialog open={Boolean(pdf)} onOpenChange={open => { if (!open) setPdf(null); }}>

@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ShellV2 from '../components/ShellV2';
 import TechnicalAssistantWorkspace from '../components/parts-v2/TechnicalAssistantWorkspace';
-import { api, apiJson, clearSession, SESSION_EXPIRED_EVENT } from '../lib';
+import { api, apiJson, ApiError, clearSession, SESSION_EXPIRED_EVENT } from '../lib';
 import { activateQuoteStorageScope } from '../lib/quote-storage-scope';
 import { rememberUserName } from '../lib/store-profile';
 import { isAdminSection, sectionFromPath, sectionPath, sectionTitle } from '../lib/section-routes';
@@ -156,26 +156,40 @@ export default function Dashboard() {
 
   useEffect(() => {
     let active = true;
+    let timer: number | undefined;
     // O JWT fica em cookie HttpOnly e não pode/deve ser lido pelo JavaScript.
     // /api/me é a fonte de verdade para restaurar ou rejeitar a sessão.
-    void apiJson<{ user: SessionUser }>('/api/me')
-      .then(data => {
-        if (!active) return;
-        // O nome do ATT. vem do cadastro: renova a cada abertura, não só no login (sessão que já estava aberta não o tinha).
-        rememberUserName(data.user.name);
-        setUser(data.user);
-      })
-      .catch(requestError => {
-        if (!active) return;
-        activateQuoteStorageScope('anonymous');
-        clearSession();
-        const message = requestError instanceof Error ? requestError.message : 'Sessão inválida';
-        if (!/sessão|token|autentica/i.test(message)) setError(message);
-        navigate('/login', { replace: true });
-      });
+    const loadSession = (attempt: number) => {
+      void apiJson<{ user: SessionUser }>('/api/me')
+        .then(data => {
+          if (!active) return;
+          // O nome do ATT. vem do cadastro: renova a cada abertura, não só no login (sessão que já estava aberta não o tinha).
+          rememberUserName(data.user.name);
+          setError('');
+          setUser(data.user);
+        })
+        .catch(requestError => {
+          if (!active) return;
+          const message = requestError instanceof Error ? requestError.message : 'Sessão inválida';
+          const status = requestError instanceof ApiError ? requestError.status : null;
+          // Só quem está SEM sessão vai para o login. Servidor acordando/reiniciando (Render free), erro 5xx, rede ou tempo esgotado NÃO
+          // são sessão inválida: apagar a sessão e o escopo do orçamento aqui jogava o atendente na tela de login sem motivo.
+          if (status === 401 || status === 403) {
+            activateQuoteStorageScope('anonymous');
+            clearSession();
+            navigate('/login', { replace: true });
+            return;
+          }
+          setError(message);
+          // Tenta de novo sozinho (2 s, 4 s, 8 s… até 30 s) e entra assim que o servidor responder.
+          timer = window.setTimeout(() => loadSession(attempt + 1), Math.min(30_000, 2_000 * 2 ** attempt));
+        });
+    };
+    loadSession(0);
 
     return () => {
       active = false;
+      if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [navigate]);
 
@@ -276,8 +290,8 @@ export default function Dashboard() {
           </div>
 
           <p className="mt-4 text-[11px] leading-5 text-muted-foreground">
-            Se acabou de abrir o sistema, o servidor pode estar iniciando: aguarde alguns
-            segundos e toque em <strong>Tentar de novo</strong>.
+            Se acabou de abrir o sistema, o servidor pode estar iniciando: o CogniVault tenta
+            de novo sozinho a cada poucos segundos. Se preferir, toque em <strong>Tentar de novo</strong>.
           </p>
         </div>
       </main>
