@@ -1,5 +1,5 @@
 import { prisma } from '../config/prisma';
-import { buildHistoryIndex, suggestFromHistory, togetherFromHistory, type HistoryIndex, type HistorySuggestion, type TogetherSuggestion } from '../utils/repair-history';
+import { buildHistoryIndex, suggestFromHistory, togetherFromHistory, topFromHistory, type HistoryIndex, type HistorySuggestion, type TogetherSuggestion, type TopLine } from '../utils/repair-history';
 
 /**
  * Sugestões do conserto a partir dos orçamentos de conserto JÁ ARQUIVADOS da loja (importados e do balcão). O índice fica em memória por loja
@@ -61,6 +61,12 @@ export class RepairHistoryService {
 
   static async together(tenantId: string, name: string, exclude: string[]): Promise<TogetherSuggestion[]> {
     return togetherFromHistory(await indexFor(tenantId), name, exclude);
+  }
+
+  /** As linhas mais orçadas nos últimos `months` meses (`null` = todo o histórico). */
+  static async top(tenantId: string, months: number | null, limit = 20): Promise<{ totalOrders: number; items: TopLine[] }> {
+    const since = months === null ? null : Date.now() - months * 30.44 * 24 * 3600 * 1000;
+    return topFromHistory(await indexFor(tenantId), since, limit);
   }
 
   /** Para os testes: esquece o índice guardado. */

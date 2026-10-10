@@ -36,7 +36,7 @@ import { repairImportController } from '../controllers/repair-import.controller'
 import { searchMissController } from '../controllers/search-miss.controller';
 import { machineServicePartsController } from '../controllers/machine-service-parts.controller';
 import { machinePublicSpecsController } from '../controllers/machine-public-specs.controller';
-import { repairHistoryController } from '../controllers/repair-history.controller';
+import { repairHistoryController, repairTopController } from '../controllers/repair-history.controller';
 import { ExportController } from '../controllers/export.controller';
 import { authMiddleware, adminOnly } from '../middleware/auth.middleware';
 import { loginLimiter } from '../middleware/rate-limit.middleware';
@@ -212,6 +212,8 @@ router.post('/search/miss', authMiddleware, (req, res) => searchMissController.r
 router.get('/admin/search-misses', authMiddleware, adminOnly, (req, res) => searchMissController.list(req, res));
 router.delete('/admin/search-misses/:id', authMiddleware, adminOnly, (req, res) => searchMissController.dismiss(req, res));
 router.get('/admin/engine-parts-without-price', authMiddleware, adminOnly, (req, res) => enginePartsWithoutPriceController.list(req, res));
+// O que mais se orca no conserto (painel Negocio, para guiar o estoque). So administrador.
+router.get('/admin/repair-top', authMiddleware, adminOnly, (req, res) => repairTopController.list(req, res));
 // Atualização da lista de preços: corpo = gzip(JSON das 4 listas), lido e comprimido no navegador (ver utils/gzip-json-body.ts). O parser bruto só entra
 // DEPOIS da autenticação e da checagem de administrador, para ninguém sem permissão fazer o servidor receber megabytes.
 const priceListBody = express.raw({ type: () => true, limit: '8mb' });

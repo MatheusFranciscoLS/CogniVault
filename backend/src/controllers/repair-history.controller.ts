@@ -24,4 +24,18 @@ export class RepairHistoryController {
   }
 }
 
+/** Painel do dono (Negócio): o que mais se orça no conserto, para guiar o estoque. Só administrador. */
+export class RepairTopController {
+  async list(req: AuthenticatedRequest, res: Response): Promise<void> {
+    if (!req.user) return;
+    const raw = one(req.query.months);
+    const months = raw === 'all' || raw === '' ? null : Math.min(120, Math.max(1, Math.floor(Number(raw)) || 12));
+    const limit = Math.floor(Number(one(req.query.limit))) || 20;
+    let result: Awaited<ReturnType<typeof RepairHistoryService.top>> = { totalOrders: 0, items: [] };
+    try { result = await RepairHistoryService.top(req.user.tenantId, months, limit); } catch (error) { console.warn('[Histórico do conserto] "mais orçadas" indisponível:', error instanceof Error ? error.message : error); }
+    res.set('Cache-Control', 'private, max-age=60').json(result);
+  }
+}
+
+export const repairTopController = new RepairTopController();
 export const repairHistoryController = new RepairHistoryController();

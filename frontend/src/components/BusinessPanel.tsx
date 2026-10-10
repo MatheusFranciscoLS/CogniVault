@@ -5,6 +5,7 @@ import { apiJson, formatHusqvarnaPartNumber } from '../lib';
 import type { BusinessBucketGranularity, BusinessInsights } from '../types';
 import { Icon, type IconName } from './icons/Icon';
 import EnginePartsWithoutPrice from './EnginePartsWithoutPrice';
+import MostQuotedRepairs from './MostQuotedRepairs';
 import PriceListUpdate from './PriceListUpdate';
 import SearchMisses from './SearchMisses';
 import { Button } from '@/components/ui/button';
@@ -471,6 +472,8 @@ export default function BusinessPanel() {
               )}
             </div>
           </div>
+
+          <MostQuotedRepairs />
 
           <EnginePartsWithoutPrice />
 
