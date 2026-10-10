@@ -64,9 +64,9 @@ const telas = [
   ['Tabela de preços', async () => { await page.goto(BASE + '/tabela-de-precos'); await page.waitForTimeout(2000); }],
   ['Negócio', async () => { await page.goto(BASE + '/administracao/negocio'); await page.waitForTimeout(2500); }],
   ['Visão geral', async () => { await page.goto(BASE + '/administracao/visao-geral'); await page.waitForTimeout(2500); }],
-  ['Visão geral com os detalhes técnicos abertos', async () => {
+  ['Visão geral com o uso de IA aberto', async () => {
     await page.goto(BASE + '/administracao/visao-geral');
-    await page.getByRole('button', { name: 'Uso de IA e cobertura técnica' }).click();
+    await page.getByRole('tab', { name: 'Uso de IA e cobertura técnica' }).click();
     await page.getByRole('heading', { name: 'Uso de IA e cobertura técnica' }).waitFor({ timeout: 15000 });
     await page.waitForTimeout(800);
   }],

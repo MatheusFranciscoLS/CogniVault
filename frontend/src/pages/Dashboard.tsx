@@ -14,10 +14,7 @@ import type { Section, SessionUser } from '../types';
 const CatalogsWorkspace = lazy(() => import('../components/CatalogsWorkspace'));
 const OverviewPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.OverviewPanel })));
 const BusinessPanel = lazy(() => import('../components/BusinessPanel'));
-const AssistantObservabilityPanel = lazy(() => import('../components/AssistantObservabilityPanel'));
 const UsersPanel = lazy(() => import('../components/admin/UsersPanel'));
-const AuditPanel = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.AuditPanel })));
-const TechnicalDetails = lazy(() => import('../components/AdminPanels').then(module => ({ default: module.TechnicalDetails })));
 const QualityPanel = lazy(() => import('../components/QualityPanel'));
 const SavedQuotesPanel = lazy(() => import('../components/SavedQuotesPanel'));
 const RepairQuotePage = lazy(() => import('../components/RepairQuotePage'));
@@ -322,13 +319,7 @@ export default function Dashboard() {
         {section === 'quotes' && <SavedQuotesPanel />}
         {section === 'repair' && <RepairQuotePage admin={user.role === 'ADMIN'} />}
         {section === 'prices' && <MachineListPanel onOpenMachine={openMachine} />}
-        {section === 'overview' && user.role === 'ADMIN' && (
-          <div className="space-y-4">
-            <OverviewPanel />
-            <TechnicalDetails title="Uso de IA e cobertura técnica"><AssistantObservabilityPanel /></TechnicalDetails>
-            <div className="mx-auto w-full max-w-[1400px]"><AuditPanel /></div>
-          </div>
-        )}
+        {section === 'overview' && user.role === 'ADMIN' && <OverviewPanel />}
         {section === 'business' && user.role === 'ADMIN' && <BusinessPanel />}
         {section === 'users' && user.role === 'ADMIN' && <UsersPanel />}
         {section === 'quality' && user.role === 'ADMIN' && <QualityPanel onSearch={search} />}
