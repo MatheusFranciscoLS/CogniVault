@@ -69,8 +69,11 @@ export class RepairHistoryService {
     return topFromHistory(await indexFor(tenantId), since, limit);
   }
 
-  /** Para os testes: esquece o índice guardado. */
+  /**
+   * Marca o índice como VELHO: a próxima consulta ainda responde na hora com ele e o relê por trás (a OS que acabou de ser arquivada, editada, removida ou
+   * importada entra nas sugestões logo em seguida). Sem `tenantId`, vale para todas as lojas. Nunca deixa a consulta esperando a carga.
+   */
   static forget(tenantId?: string): void {
-    if (tenantId) cache.delete(tenantId); else cache.clear();
+    for (const [key, entry] of cache) if (!tenantId || key === tenantId) cache.set(key, { at: 0, index: entry.index });
   }
 }

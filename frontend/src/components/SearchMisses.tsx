@@ -1,13 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { api, apiJson, fmtDate } from '../lib';
+import { api, fmtDate } from '../lib';
+import { SEARCH_MISSES_DAYS as DAYS, useSearchMissesData } from '../lib/admin-queries';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-
-type Miss = { id: string; query: string; count: number; firstSeenAt: string; lastSeenAt: string };
-
-const DAYS = 30;
-const KEY = ['search-misses', DAYS];
 
 /**
  * Buscas que o balcão fez e não acharam nada, da mais repetida para a menos (Negócio).
@@ -18,11 +14,7 @@ const KEY = ['search-misses', DAYS];
  */
 export default function SearchMisses() {
   const queryClient = useQueryClient();
-  const query = useQuery({
-    queryKey: KEY,
-    staleTime: 60_000,
-    queryFn: () => apiJson<{ total: number; items: Miss[] }>(`/api/admin/search-misses?days=${DAYS}&limit=50`, { timeoutMs: 25_000 }),
-  });
+  const query = useSearchMissesData();
   const dismiss = useMutation({
     mutationFn: async (id: string) => {
       const response = await api(`/api/admin/search-misses/${encodeURIComponent(id)}`, { method: 'DELETE' });

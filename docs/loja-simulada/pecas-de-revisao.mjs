@@ -86,7 +86,7 @@ try {
   });
 
   await step('Lista sem o campo "reparo" não apaga nem inventa revisão', async () => {
-    await page.goto('http://127.0.0.1:5173/administracao/negocio');
+    await page.goto('http://127.0.0.1:5173/administracao/negocio?aba=lista');
     const cartao = await escolher(arquivoAntiga);
     await cartao.getByRole('button', { name: 'Gravar na loja' }).waitFor({ timeout: 60000 });
     const texto = (await cartao.innerText()).replace(/\s+/g, ' ');
@@ -114,7 +114,7 @@ try {
   });
 
   await step('Só a revisão mudou: o botão continua habilitado e a tabela é espelhada', async () => {
-    await page.goto('http://127.0.0.1:5173/administracao/negocio');
+    await page.goto('http://127.0.0.1:5173/administracao/negocio?aba=lista');
     fs.writeFileSync(arquivo2, html(pecas2));
     const cartao = await escolher(arquivo2);
     await cartao.getByRole('button', { name: 'Gravar na loja' }).waitFor({ timeout: 60000 });

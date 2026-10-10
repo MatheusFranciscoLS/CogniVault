@@ -47,6 +47,10 @@
   /* Barra superior: o azul da marca, nos dois temas. */
   --bar: #273a60;
   --bar-foreground: #ffffff;
+  /* Faixa de título das telas (redesenho de 2026-10-09, direção B): degradê marinho; texto sobre ela é sempre claro. */
+  --band-from: #1f2742;
+  --band-to: #27345a;
+  --band-muted: #b9c4e2;
   --gold: #8a6a00;
   --ok: #0a6b4a;
   --ok-soft: #e1f4ec;
@@ -82,6 +86,9 @@
 
   --bar: #1f2742;
   --bar-foreground: #ffffff;
+  --band-from: #0a0f1d;
+  --band-to: #131b34;
+  --band-muted: #aab6d6;
   --gold: #ffc800;
   --ok: #5fd6a4;
   --ok-soft: rgba(95, 214, 164, 0.13);

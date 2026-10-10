@@ -33,7 +33,14 @@ function semear() {
 
 try {
   semear();
-  await page.goto(BASE + '/administracao/negocio');
+  // O índice do servidor vale 60 s e se atualiza por trás (as sugestões precisam de resposta imediata); o semeio por SQL não passa pelo serviço que o marca como velho,
+  // então espera o índice enxergar as OS semeadas (até 75 s; na prática, só quando outro roteiro o carregou há menos de 1 minuto).
+  for (let i = 0; i < 16; i += 1) {
+    const achou = await page.evaluate(async () => (await (await fetch('/api/admin/repair-top?months=all&limit=50', { credentials: 'include' })).json()).items.some(item => /carburador/i.test(item.name) && item.orders >= 10));
+    if (achou) break;
+    await page.waitForTimeout(5000);
+  }
+  await page.goto(BASE + '/administracao/negocio?aba=demanda');
   const titulo = page.getByRole('heading', { name: 'Mais orçadas no conserto' });
   await titulo.waitFor({ timeout: 30000 });
   const cartao = titulo.locator('xpath=ancestor::div[contains(@class,"rounded-card")][1]');

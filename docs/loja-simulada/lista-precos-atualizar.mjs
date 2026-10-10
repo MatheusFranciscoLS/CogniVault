@@ -74,7 +74,7 @@ const contraste = cartao => cartao.evaluate(raiz => {
 try {
   restaurar();
   const totalAntes = total();
-  await page.goto('http://127.0.0.1:5173/administracao/negocio');
+  await page.goto('http://127.0.0.1:5173/administracao/negocio?aba=lista');
   const cartao = page.getByRole('region', { name: 'Atualizar a lista de preços' });
   await cartao.waitFor({ timeout: 30000 });
   await cartao.scrollIntoViewIfNeeded();

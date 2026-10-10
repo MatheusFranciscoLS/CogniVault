@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { apiJson, fmtDate } from '../lib';
 import { useConfirm } from '../context/confirm';
 import { PriceListFileError, extractPriceListPayload, gzipJson } from '../lib/price-list-file';
+import { usePriceListLast, type LastPriceListUpdate } from '../lib/admin-queries';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -33,7 +34,7 @@ type Report = {
   problem: string | null;
 };
 
-type LastUpdate = { runId: string; filename: string; at: string; prices: number; added: number; skipped: number };
+type LastUpdate = LastPriceListUpdate;
 
 type Prepared = { filename: string; body: Blob; fileHash: string; report: Report };
 
@@ -109,12 +110,7 @@ export default function PriceListUpdate() {
   const input = useRef<HTMLInputElement>(null);
   const confirm = useConfirm();
   const queryClient = useQueryClient();
-  const last = useQuery({
-    queryKey: ['price-list-last'],
-    staleTime: 30_000,
-    retry: false,
-    queryFn: async () => (await apiJson<{ last: LastUpdate | null }>('/api/admin/price-list/last', { timeoutMs: 20_000 })).last,
-  });
+  const last = usePriceListLast();
 
   const reset = () => {
     setPhase({ name: 'idle' });
