@@ -42,10 +42,10 @@ try {
     check('a aba 1 mostra as duas linhas', JSON.stringify(await linhas(page)) === JSON.stringify(['AAA da aba um', 'BBB da aba dois']), JSON.stringify(await linhas(page)));
     check('a aba 2 mostra as duas linhas', JSON.stringify(await linhas(b)) === JSON.stringify(['AAA da aba um', 'BBB da aba dois']), JSON.stringify(await linhas(b)));
     check('o servidor tem as duas (antes uma apagava a outra)', rascunhoDoServidor() === 'AAA da aba um | BBB da aba dois', rascunhoDoServidor());
-    await ed(page).getByLabel('Cliente', { exact: true }).fill('Fazenda Duas Abas');
-    await ed(page).getByLabel('Nº da OS', { exact: true }).fill('4242');
+    await page.getByLabel('Cliente', { exact: true }).fill('Fazenda Duas Abas');
+    await page.getByLabel('Nº da OS', { exact: true }).fill('4242');
     await page.waitForTimeout(1500);
-    check('cliente e OS digitados numa aba aparecem na outra', await ed(b).getByLabel('Cliente', { exact: true }).inputValue() === 'Fazenda Duas Abas' && await ed(b).getByLabel('Nº da OS', { exact: true }).inputValue() === '4242');
+    check('cliente e OS digitados numa aba aparecem na outra', await b.getByLabel('Cliente', { exact: true }).inputValue() === 'Fazenda Duas Abas' && await b.getByLabel('Nº da OS', { exact: true }).inputValue() === '4242');
     await ed(page).getByRole('button', { name: /Tirar|Remover|Excluir/ }).first().click().catch(() => undefined);
     await page.waitForTimeout(1500);
     const depois = await linhas(b);
@@ -59,8 +59,8 @@ try {
 
   await step('A sessão cai no meio: volta para o login e, entrando de novo, NADA do que foi digitado some', async () => {
     await zerar();
-    await ed(page).getByLabel('Cliente', { exact: true }).fill('Cliente da sessao');
-    await ed(page).getByLabel('Nº da OS', { exact: true }).fill('7777');
+    await page.getByLabel('Cliente', { exact: true }).fill('Cliente da sessao');
+    await page.getByLabel('Nº da OS', { exact: true }).fill('7777');
     await lancar(page, 'ANTES da sessao cair', '10');
     await page.context().clearCookies();
     await lancar(page, 'DEPOIS da sessao cair', '20');
@@ -72,7 +72,7 @@ try {
     await page.waitForTimeout(2500);
     const l = await linhas(page);
     check('as duas linhas voltam (a que foi digitada depois da queda também)', l.includes('ANTES da sessao cair') && l.includes('DEPOIS da sessao cair'), JSON.stringify(l));
-    check('cliente e OS continuam', await ed(page).getByLabel('Cliente', { exact: true }).inputValue() === 'Cliente da sessao' && await ed(page).getByLabel('Nº da OS', { exact: true }).inputValue() === '7777');
+    check('cliente e OS continuam', await page.getByLabel('Cliente', { exact: true }).inputValue() === 'Cliente da sessao' && await page.getByLabel('Nº da OS', { exact: true }).inputValue() === '7777');
     check('e o servidor também passou a ter as duas', rascunhoDoServidor().includes('DEPOIS da sessao cair'), rascunhoDoServidor());
   });
 
@@ -96,8 +96,8 @@ try {
 
   await step('Outro atendente no mesmo PC não vê (nem sobe para a conta dele) o conserto do anterior', async () => {
     await zerar();
-    await ed(page).getByLabel('Cliente', { exact: true }).fill('Cliente PRIVADO da Ana');
-    await ed(page).getByLabel('Nº da OS', { exact: true }).fill('9191');
+    await page.getByLabel('Cliente', { exact: true }).fill('Cliente PRIVADO da Ana');
+    await page.getByLabel('Nº da OS', { exact: true }).fill('9191');
     await lancar(page, 'LINHA PRIVADA', '99');
     // sair e entrar com outra conta, pela tela
     await page.getByRole('banner').getByRole('button').filter({ hasText: /^AD$/ }).click();
@@ -109,7 +109,7 @@ try {
     await ed(page).waitFor({ timeout: 20000 });
     await page.waitForTimeout(2500);
     check('o outro atendente vê a cesta de conserto VAZIA', (await linhas(page)).length === 0, JSON.stringify(await linhas(page)));
-    check('sem o cliente e a OS do anterior', await ed(page).getByLabel('Cliente', { exact: true }).inputValue() === '' && await ed(page).getByLabel('Nº da OS', { exact: true }).inputValue() === '');
+    check('sem o cliente e a OS do anterior', await page.getByLabel('Cliente', { exact: true }).inputValue() === '' && await page.getByLabel('Nº da OS', { exact: true }).inputValue() === '');
     check('e nada foi gravado no rascunho dele', rascunhoDoServidor() === '' || !rascunhoDoServidor().includes('LINHA PRIVADA') || sqlSim(`SELECT count(*) FROM "Quote" q JOIN "User" u ON u.id = q."userId" WHERE q.status='DRAFT' AND q.kind='REPAIR' AND u.email='mecanico.e2e@cognivault.local' AND q."totalItems" > 0`) === '0');
   });
 } finally {

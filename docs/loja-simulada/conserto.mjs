@@ -45,7 +45,7 @@ try {
   await step('A aba é separada e simples: sem escolher "Peças ou Conserto", OS em branco, pagamento sem PIX', async () => {
     check('"Conserto" está na barra de abas e o endereço é /conserto', (await page.getByRole('link', { name: 'Conserto' }).or(page.getByRole('button', { name: 'Conserto', exact: true })).count()) >= 1 && new URL(page.url()).pathname === '/conserto' && /^Conserto · /.test(await page.title()));
     check('NÃO existe seletor "Peças | Conserto" nem aviso de tipo', (await page.getByRole('group', { name: 'Tipo do orçamento' }).count()) === 0 && (await page.getByRole('button', { name: 'Peças', exact: true }).count()) === 0);
-    check('o Nº da OS começa em branco', (await editor.getByLabel('Nº da OS', { exact: true }).inputValue()) === '');
+    check('o Nº da OS começa em branco', (await page.getByLabel('Nº da OS', { exact: true }).inputValue()) === '');
     check('a linha de entrada já está pronta (código, descrição, quantidade, valor, prazo)', await codigo.isVisible() && await nome.isVisible() && await quantidade.isVisible() && await valor.isVisible() && await prazoNovo.isVisible());
     const pagamento = editor.getByRole('group', { name: 'Pagamento' });
     check('pagamento: À vista, 30 dias e Outro, nada marcado no começo', (await pagamento.getByRole('button').allInnerTexts()).join('|') === 'À vista|30 dias|Outro' && (await pagamento.locator('[aria-pressed="true"]').count()) === 0);
@@ -109,8 +109,8 @@ try {
   });
 
   await step('OS, cliente, pagamento e desconto (só se negociado)', async () => {
-    await editor.getByLabel('Nº da OS', { exact: true }).fill('59600');
-    await editor.getByLabel('Cliente', { exact: true }).fill('Cliente de teste');
+    await page.getByLabel('Nº da OS', { exact: true }).fill('59600');
+    await page.getByLabel('Cliente', { exact: true }).fill('Cliente de teste');
     const pagamento = editor.getByRole('group', { name: 'Pagamento' });
     await pagamento.getByRole('button', { name: 'Outro' }).click();
     await editor.getByLabel('Condição de pagamento (escreva)').fill('50% na entrada e 50% em 15 dias');
@@ -197,7 +197,7 @@ try {
     await page.keyboard.press('Escape');
     await ir('/conserto');
     await page.getByRole('heading', { name: 'Conserto', level: 1 }).waitFor();
-    check('voltando para o Conserto, as 3 linhas continuam lá e a peça do Atendimento não veio junto', (await linhas().count()) === 3 && (await editor.getByLabel('Nº da OS', { exact: true }).inputValue()) === '59600');
+    check('voltando para o Conserto, as 3 linhas continuam lá e a peça do Atendimento não veio junto', (await linhas().count()) === 3 && (await page.getByLabel('Nº da OS', { exact: true }).inputValue()) === '59600');
     const conserto2 = await api('/api/quotes/draft?kind=REPAIR');
     check('a cesta de conserto no servidor continua com 3 linhas e do tipo REPAIR', (conserto2.quote ?? conserto2).items.length === 3 && (conserto2.quote ?? conserto2).kind === 'REPAIR');
   });
@@ -206,12 +206,12 @@ try {
     await editor.getByRole('button', { name: 'Novo orçamento' }).click();
     await confirmar(page, 'Começar novo');
     await page.waitForTimeout(1000);
-    check('limpou a cesta, a OS e o cliente', (await linhas().count()) === 0 && (await editor.getByLabel('Nº da OS', { exact: true }).inputValue()) === '' && (await editor.getByLabel('Cliente', { exact: true }).inputValue()) === '');
+    check('limpou a cesta, a OS e o cliente', (await linhas().count()) === 0 && (await page.getByLabel('Nº da OS', { exact: true }).inputValue()) === '' && (await page.getByLabel('Cliente', { exact: true }).inputValue()) === '');
     const pecas = await api('/api/quotes/draft');
     check('a cesta de peças do Atendimento NÃO foi limpa', (pecas.quote ?? pecas).items.length === 1);
     await page.getByRole('complementary', { name: 'Pasta de orçamentos de conserto' }).getByRole('button', { name: /OS 59600/ }).click();
     await page.waitForTimeout(1500);
-    check('as 3 linhas, a OS, o cliente e o pagamento voltaram', (await linhas().count()) === 3 && (await editor.getByLabel('Nº da OS', { exact: true }).inputValue()) === '59600' && (await editor.getByLabel('Cliente', { exact: true }).inputValue()) === 'Cliente de teste' && (await editor.getByRole('group', { name: 'Pagamento' }).getByRole('button', { name: 'À vista' }).getAttribute('aria-pressed')) === 'true');
+    check('as 3 linhas, a OS, o cliente e o pagamento voltaram', (await linhas().count()) === 3 && (await page.getByLabel('Nº da OS', { exact: true }).inputValue()) === '59600' && (await page.getByLabel('Cliente', { exact: true }).inputValue()) === 'Cliente de teste' && (await editor.getByRole('group', { name: 'Pagamento' }).getByRole('button', { name: 'À vista' }).getAttribute('aria-pressed')) === 'true');
     check('o prazo de cada linha voltou', (await editor.getByLabel('Prazo de JOGO DE JUNTAS').inputValue()) === 'ORDER' && (await editor.getByLabel('Prazo de COBERTURA DO CARBURADOR').inputValue()) === 'NOW');
     await editor.getByLabel('Preço unitário de JOGO DE JUNTAS').fill('25');
     await editor.getByRole('button', { name: /^Enviar no WhatsApp/ }).click();
@@ -236,7 +236,7 @@ try {
     await page.waitForURL(/\/conserto/, { timeout: 15000 });
     await page.getByRole('heading', { name: 'Conserto', level: 1 }).waitFor();
     await page.waitForTimeout(1500);
-    check('abriu na aba Conserto, com a OS no editor', new URL(page.url()).pathname === '/conserto' && (await page.getByRole('region', { name: 'Orçamento de conserto' }).getByLabel('Nº da OS').inputValue()) === '59600');
+    check('abriu na aba Conserto, com a OS no editor', new URL(page.url()).pathname === '/conserto' && (await page.getByLabel('Nº da OS').inputValue()) === '59600');
     check('o endereço ficou limpo (sem ?os=)', !new URL(page.url()).search);
   });
 } finally {
