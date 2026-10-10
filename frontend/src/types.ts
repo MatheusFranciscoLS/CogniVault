@@ -4,7 +4,6 @@ export type SearchStatus = 'FOUND' | 'PNC_REQUIRED' | 'MODEL_REQUIRED' | 'PART_R
 export type OfficialVerificationState = 'UNVERIFIED' | 'VERIFIED' | 'SUPERSEDED' | 'REVIEW';
 export type OfficialVerificationApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type CatalogReviewStatus = 'PENDING' | 'READY' | 'NEEDS_REVIEW' | 'REVIEWED';
-export type RetrievalSource = 'DIRECT_CODE' | 'SEMANTIC' | 'LEXICAL' | 'FULL_TEXT' | 'FUZZY';
 
 export interface SessionUser { id:string; email:string; name?:string|null; role:Role; status:string; tenant:{id:string;name:string}; }
 export interface DocumentItem {
@@ -25,7 +24,6 @@ export interface DocumentItem {
   /** Busca oficial da Kawasaki. Não é link profundo — ver engine-model.ts. */
   kawasakiPartsUrl?:string|null;
 }
-export interface FeedbackOption { id:string; name:string; partNumber:string; model:string; pnc:string|null; section:string|null; position:string|null; notes?:string|null; }
 export interface OfficialVerification {
   id:string|null; state:OfficialVerificationState; queriedPartNumber:string; currentPartNumber:string; description:string|null;
   officialUrl:string; note:string|null; verifiedAt:string|null; verifiedBy:string|null; source:'TENANT'|'BUILT_IN'|'NONE';
@@ -36,29 +34,6 @@ export interface OfficialVerificationSubmission {
   queriedPartNumber:string; currentPartNumber:string; description:string|null; officialUrl:string; note:string|null;
   verifiedAt:string; createdAt:string; submittedBy:string; reviewedBy:string|null; reviewedAt:string|null; reviewNote:string|null;
 }
-export interface ChatResponse {
-  status:SearchStatus; answer:string; requiresPnc?:boolean; pncOptions?:string[]; modelOptions?:string[]; serialRequired?:boolean; confidence?:number;
-  interpreted?:{partDescription:string;manufacturer:string|null;model:string|null;pnc:string|null;partNumber:string|null};
-  match?:{
-    method:'DIRECT_CODE'|'SEMANTIC'|'LEXICAL';level:'EXACT'|'HIGH'|'REVIEW';explanation:string;
-    evidence?:string[];retrievalSources?:RetrievalSource[];
-  };
-  technicalContext?:Array<{filename:string;page:number|null;section:string|null;excerpt:string;method:'FULL_TEXT'|'FUZZY'|'SEMANTIC'}>;
-  guidance?:{title:string;description:string;tips:string[]};
-  part?:{ id:string; documentId:string; partNumber:string; manufacturer?:string|null; name:string; model:string; pnc:string; section:string|null; position:string|null; page:number|null; notes?:string|null; filename:string; universalAcrossPnc?:boolean; applications?:Array<{model:string;pnc:string}>; classification?: PartClassification; suggestedAddons?: { reason: string; items: SuggestedAddon[]; consumables?: ConsumableSuggestion[] } };
-  feedbackOptions?:FeedbackOption[]; options?:FeedbackOption[];
-  b2bPortal?: { success: boolean; stockStatus: string; supersededBy?: string; };
-  technicalReasoningSteps?: Array<{ step: number; title: string; detail: string; status: 'SUCCESS' | 'INFO' | 'NOTICE' }>;
-  diagramHighlight?: { documentId: string; filename: string; page: number | null; position: string | null; section: string | null };
-  // Caminho de saída quando não há código seguro: os catálogos que o atendente
-  // pode abrir na hora e a fonte oficial. O código está impresso na vista
-  // explodida — o app não pode deixar de entregar esse caminho.
-  manualFallback?: {
-    catalogs: Array<{ documentId: string; filename: string; model: string | null; pnc: string | null; partCount: number }>;
-    officialUrl: string | null;
-    officialLabel: string | null;
-  };
-}
 export interface Overview { tenantName:string; users:number; activeDocuments:number; processingDocuments:number; failedDocuments:number; parts:number; feedbackTotal:number; feedbackAccuracy:number|null; }
 export interface AdminUser { id:string; email:string; name?:string|null; role:Role; status:'PENDING'|'APPROVED'|'REJECTED'; createdAt:string; feedbackCount:number; }
 export interface AuditLog { id:string; action:string; targetType:string; targetId:string|null; metadata:unknown; createdAt:string; user:{email:string;name?:string|null}|null; }
@@ -66,10 +41,6 @@ export interface AuditLog { id:string; action:string; targetType:string; targetI
 export interface SearchHistoryItem {
   id:string; query:string; pnc:string|null; status:SearchStatus; resultPartId:string|null; resultLabel:string|null; resultCode:string|null;
   resultModel:string|null; resultPnc:string|null; sourceFilename:string|null; createdAt:string;
-}
-export interface FavoriteItem {
-  id:string; kind:'PART'|'DOCUMENT'; label:string; reference:string|null; model:string|null; pnc:string|null; partId:string|null; documentId:string|null; createdAt:string;
-  sourceFilename?:string|null; section?:string|null; position?:string|null; page?:number|null;
 }
 export type PartClassificationKind = 'ASSEMBLY' | 'REPAIR_KIT' | 'INDIVIDUAL_PART';
 
@@ -97,22 +68,6 @@ export interface SuggestedAddon {
   position?: string | null;
   page?: number | null;
   classification?: PartClassification;
-}
-
-export interface CrossReferenceModel {
-  model: string;
-  filename: string;
-  category: string;
-  pncs: string[];
-  sections: string[];
-  usages: Array<{ id: string; partNumber: string; name: string; position: string | null; page: number | null }>;
-}
-
-export interface CrossReferenceResult {
-  code: string;
-  totalModels: number;
-  totalUsages: number;
-  models: CrossReferenceModel[];
 }
 
 export interface MaintenanceKitItem {
@@ -148,10 +103,6 @@ export interface PartDetail extends SearchPart {
   brand?: string | null;
 }
 export interface NotificationItem { id:string; type:'info'|'error'|'processing'|'warning'; title:string; description:string; createdAt:string; }
-export interface AdminFeedback {
-  id:string; query:string; correct:boolean; reason:string|null; pnc:string|null; createdAt:string; user:{id:string;email:string}|null;
-  resultPart:{name:string;partNumber:string;model:string}|null; correctedPart:{name:string;partNumber:string;model:string}|null;
-}
 
 export interface QualityCatalog {
   id:string; filename:string; manufacturer:string|null; model:string|null; pnc:string|null; status:string; processingStage:string; processingError:string|null;

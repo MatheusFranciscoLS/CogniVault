@@ -354,10 +354,6 @@ export function findPartConcepts(value: string): SearchGroup[] {
     .map(entry => ({ key: entry.key, variants: normalizedVariants(entry) }));
 }
 
-export function hasKnownPartVocabulary(value: string): boolean {
-  return findPartConcepts(value).length > 0;
-}
-
 export function lexicalTerms(value: string, ignoredValues: string[] = []): string[] {
   const ignored = new Set(ignoredValues.flatMap(words));
   const modifiers = new Set([...QUERY_MODIFIERS].flatMap(words));

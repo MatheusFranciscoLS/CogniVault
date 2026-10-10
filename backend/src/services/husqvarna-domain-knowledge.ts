@@ -539,10 +539,6 @@ function matchingRules(question: string, modelHint = ''): DomainRule[] {
   return rawRules.filter(rule => !suppressed.has(rule.key) && !suppressed.has(`domain:${rule.key}`));
 }
 
-export function hasDomainKnowledge(question: string, modelHint = ''): boolean {
-  return matchingRules(question, modelHint).length > 0;
-}
-
 export function applyDomainSearchKnowledge<T extends DomainSearchGroup>(
   groups: T[],
   question: string,

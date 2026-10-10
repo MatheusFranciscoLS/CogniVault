@@ -31,19 +31,6 @@ export type TechnicalMemoryChunk = {
   normalizedPnc: string | null;
 };
 
-export type TechnicalContextHit = {
-  id: string;
-  documentId: string;
-  filename: string;
-  content: string;
-  page: number | null;
-  section: string | null;
-  model: string | null;
-  pnc: string | null;
-  score: number;
-  method: 'FULL_TEXT' | 'FUZZY' | 'SEMANTIC';
-};
-
 function clean(value: string | null | undefined): string {
   return (value || '').trim();
 }

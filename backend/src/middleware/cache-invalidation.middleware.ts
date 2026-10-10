@@ -15,22 +15,6 @@ function successful(status: number): boolean {
   return status >= 200 && status < 300;
 }
 
-export function invalidateWorkContextAfterLocation(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction,
-): void {
-  const tenantId = req.user?.tenantId;
-  const normalizedPartNumber = normalizeIdentifier(String(req.params.code || ''));
-
-  res.once('finish', () => {
-    if (!tenantId || !normalizedPartNumber || !successful(res.statusCode)) return;
-    invalidateWorkContextCache(tenantId, normalizedPartNumber);
-  });
-
-  next();
-}
-
 export function invalidateWorkContextAfterQuoteUsage(
   req: AuthenticatedRequest,
   res: Response,
