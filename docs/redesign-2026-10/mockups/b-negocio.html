@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Direção B · Negócio</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css"><script src="base.js"></script>
+<style>
+  /* DIREÇÃO B · "Painel de bancada": faixa marinho com os números grandes (como o painel de instrumentos de uma máquina), abas fixas e cartões em três colunas. */
+  .band { background: linear-gradient(180deg, var(--brand-deep) 0%, #27345a 100%); color: #fff; padding: 22px 28px 74px; }
+  :root[data-theme="dark"] .band { background: linear-gradient(180deg, #0a0f1d 0%, #131b34 100%); }
+  .band .crumb { font-size: 13px; color: #aab6d6; font-weight: 600; letter-spacing: .02em; }
+  .band .row1 { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 20px; }
+  .band h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; }
+  .band .seg { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.18); }
+  .band .seg span { color: #c7d0ea; border-color: rgba(255,255,255,.14); }
+  .band .seg span.on { background: #fff; color: #1f2742; }
+  .band .btn { background: transparent; color: #fff; border-color: rgba(255,255,255,.28); }
+  .band .btn.primary { background: var(--accent); border-color: var(--accent); }
+  .tools { display: flex; gap: 10px; align-items: center; }
+  .gauges { display: grid; grid-template-columns: repeat(4, 1fr) 330px; gap: 0; align-items: stretch; }
+  .g { padding: 4px 24px; border-left: 1px solid rgba(255,255,255,.14); }
+  .g:first-child { border-left: 0; padding-left: 0; }
+  .g .l { font-size: 13px; color: #aab6d6; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .g .v { font-size: 40px; margin: 4px 0 2px; line-height: 1.05; }
+  .g .s { font-size: 13px; color: #aab6d6; display: flex; justify-content: space-between; align-items: end; gap: 8px; }
+  .g .s svg polyline { stroke: #8fa7e0; }
+  .price { border-left: 1px solid rgba(255,255,255,.14); padding: 4px 0 4px 26px; display: flex; gap: 18px; align-items: center; }
+  .ring { position: relative; width: 84px; height: 84px; flex: none; }
+  .ring b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 20px; font-weight: 800; }
+  .price .t { font-size: 13px; color: #aab6d6; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .price .d { font-size: 15px; margin: 2px 0 8px; font-weight: 600; }
+  .tabs { margin: -26px 28px 0; position: relative; display: inline-flex; gap: 4px; padding: 5px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 18px rgba(20,28,56,.12); }
+  .tabs a { padding: 8px 18px; border-radius: 8px; font-size: 15px; font-weight: 600; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+  .tabs a.on { background: var(--brand); color: #fff; }
+  :root[data-theme="dark"] .tabs a.on { color: #0a0f1d; }
+  .tabs .cnt { background: var(--accent); color: #fff; border-radius: 999px; font-size: 12px; padding: 1px 7px; font-weight: 700; }
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 18px; padding: 20px 28px 40px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+  .c8 { grid-column: span 8; } .c4 { grid-column: span 4; }
+  .card .h { display: flex; justify-content: space-between; align-items: baseline; padding: 16px 20px 6px; }
+  .card .h h3 { font-size: 17px; font-weight: 700; }
+  .card .h small { font-size: 13px; color: var(--muted); }
+  .todo { padding: 4px 20px 16px; display: grid; gap: 0; }
+  .todo .it { padding: 12px 0; border-top: 1px solid var(--line-soft); display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; }
+  .todo .it:first-child { border-top: 0; }
+  .todo .it b { font-size: 15px; }
+  .todo .it small { grid-column: 1; color: var(--muted); font-size: 13px; }
+  .todo .it .btn { grid-row: 1 / span 2; grid-column: 2; }
+  .list { padding: 2px 20px 14px; }
+  .list .i { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line-soft); font-size: 15px; }
+  .list .i:first-child { border-top: 0; }
+  .list .i small { display: block; color: var(--muted); font-size: 12.5px; }
+  .list .n { font-weight: 800; }
+</style></head>
+<body>
+<div id="app"></div>
+<script>
+document.getElementById('app').innerHTML = topBar() + `
+<section class="band">
+  <div class="crumb">Administração</div>
+  <div class="row1"><h1>Negócio</h1><div class="tools"><div class="seg"><span>7 dias</span><span class="on">30 dias</span><span>90 dias</span><span>12 meses</span></div><button class="btn">${ICON.dl} Exportar</button></div></div>
+  <div class="gauges">
+    <div class="g"><div class="l">Orçamentos</div><div class="v num">113</div><div class="s"><span>418 itens cotados</span>${spark(SERIES.quotes, { w: 110, h: 30 })}</div></div>
+    <div class="g"><div class="l">Valor cotado</div><div class="v num">R$ 29.988</div><div class="s"><span>↑ 12% vs. período anterior</span>${spark(SERIES.value, { w: 90, h: 30 })}</div></div>
+    <div class="g"><div class="l">Ticket médio</div><div class="v num">R$ 265</div><div class="s"><span>base de 113 orçamentos</span></div></div>
+    <div class="g"><div class="l">Sem preço</div><div class="v num">0</div><div class="s"><span class="chip ok" style="background:rgba(93,211,151,.18);color:#7be3ae">Tudo com valor</span></div></div>
+    <div class="price"><div class="ring"><svg width="84" height="84" viewBox="0 0 84 84"><circle cx="42" cy="42" r="35" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="8"/><circle cx="42" cy="42" r="35" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-dasharray="${2 * Math.PI * 35}" stroke-dashoffset="${2 * Math.PI * 35 * 0.73}" transform="rotate(-90 42 42)"/></svg><b>4 d</b></div>
+      <div><div class="t">Lista de preços</div><div class="d">Atualizada há 4 dias</div><button class="btn primary small">Atualizar</button></div></div>
+  </div>
+</section>
+<nav class="tabs"><a class="on">Resumo</a><a>Demanda</a><a>Lista de preços</a><a>Pendências <span class="cnt">3</span></a></nav>
+<div class="grid">
+  <section class="card c8"><div class="h"><h3>Orçamentos por dia</h3><small>altura = valor líquido · linha = tendência</small></div><div style="padding:0 12px 10px">${chart({ w: 820, h: 300, highlight: 28 })}</div></section>
+  <section class="card c4"><div class="h"><h3>Precisa de você</h3><small>3</small></div><div class="todo">
+    <div class="it"><b>Preencher "serve em"</b><small>254 acessórios · na próxima atualização</small><button class="btn small">Abrir</button></div>
+    <div class="it"><b>17 buscas sem resultado</b><small>a mais repetida: bomba de combustível 435</small><button class="btn small">Ver</button></div>
+    <div class="it"><b>61 peças de motor sem preço</b><small>Briggs, Kawasaki e Kohler</small><button class="btn small">Ver</button></div>
+  </div></section>
+  <section class="card c4"><div class="h"><h3>Mais cotadas</h3><small>balcão · top 5</small></div><div class="list">
+    ${[['Carburador', '587 10 67-01', 64], ['Filtro de ar', '503 49 58-02', 41], ['Vela', '577 48 40-01', 38], ['Junta do isolador', '505 30 50-01', 27], ['Retentor', '504 12 15-01', 22]].map(([n, c, q]) => `<div class="i"><span>${n}<small class="code">${c}</small></span><span class="n">${q}</span></div>`).join('')}</div></section>
+  <section class="card c4"><div class="h"><h3>Mais orçadas no conserto</h3><small>12 meses</small></div><div class="list">
+    ${[['Carburador', 'R$ 329,50 · pronta entrega', 619], ['Filtro de gasolina', 'R$ 18,00 · pronta entrega', 842], ['Mangueira de gasolina', 'R$ 27,00', 538], ['Filtro de ar', 'R$ 36,85 · 7 dias', 519], ['Vela', 'R$ 30,00', 419]].map(([n, c, q]) => `<div class="i"><span>${n}<small>${c}</small></span><span class="n">${q}</span></div>`).join('')}</div></section>
+  <section class="card c4"><div class="h"><h3>Buscas sem resultado</h3><small>30 dias</small></div><div class="list">
+    ${[['bomba de combustível 435', 6], ['lâmina 20 polegadas', 4], ['kit de carburador roçadeira', 3], ['corrente 3/8 mini', 2], ['filtro óleo trator', 2]].map(([n, q]) => `<div class="i"><span>${n}</span><span class="n">${q}×</span></div>`).join('')}</div></section>
+</div>`;
+</script></body></html>

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Direção B · Qualidade</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css"><script src="base.js"></script>
+<style>
+  .band { background: linear-gradient(180deg, var(--brand-deep) 0%, #27345a 100%); color: #fff; padding: 22px 28px 74px; }
+  :root[data-theme="dark"] .band { background: linear-gradient(180deg, #0a0f1d 0%, #131b34 100%); }
+  .band .crumb { font-size: 13px; color: #aab6d6; font-weight: 600; letter-spacing: .02em; }
+  .band .row1 { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 22px; }
+  .band h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; }
+  .band .btn { background: transparent; color: #fff; border-color: rgba(255,255,255,.28); }
+  .band .btn.primary { background: var(--accent); border-color: var(--accent); }
+  .hero { display: grid; grid-template-columns: 250px 1fr; gap: 34px; align-items: center; }
+  .ring { position: relative; width: 210px; height: 210px; }
+  .ring b { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; font-size: 54px; font-weight: 800; letter-spacing: -.03em; }
+  .ring b small { display: block; font-size: 14px; font-weight: 600; color: #aab6d6; letter-spacing: 0; margin-top: -6px; }
+  .figs { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .g { padding: 4px 24px; border-left: 1px solid rgba(255,255,255,.14); }
+  .g:first-child { border-left: 0; padding-left: 0; }
+  .g .l { font-size: 13px; color: #aab6d6; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .g .v { font-size: 42px; margin: 4px 0 2px; line-height: 1.05; }
+  .g .s { font-size: 13px; color: #aab6d6; }
+  .msg { margin-top: 18px; font-size: 15px; color: #d6def2; }
+  .grid { display: grid; grid-template-columns: 250px 1fr; gap: 18px; padding: 0 28px 40px; margin-top: -34px; position: relative; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+  .facets { padding: 14px; align-self: start; }
+  .facets h3 { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); padding: 4px 8px 8px; }
+  .facets a { display: flex; justify-content: space-between; padding: 9px 10px; border-radius: 8px; font-size: 15px; font-weight: 500; color: var(--muted); }
+  .facets a.on { background: var(--brand-soft); color: var(--brand); font-weight: 700; }
+  .facets .grp { margin-top: 14px; }
+  .card .h { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px 10px; }
+  .card .h h3 { font-size: 17px; font-weight: 700; }
+  .card .h small { font-size: 13px; color: var(--muted); }
+  td .sub { display: block; font-size: 13px; color: var(--muted); }
+</style></head>
+<body>
+<div id="app"></div>
+<script>
+const C = 2 * Math.PI * 92;
+const rows = [
+  ['Automower 305', 'Automower', 'Em pausa', 'info', 'Sem vista em nenhuma fonte', 'Religar'],
+  ['226KS12', 'Derriçadeira de café', 'Em pausa', 'info', 'Motor e acessório têm vista, a máquina não', 'Religar'],
+  ['W25P', 'Motobomba', 'Vista no site público', 'ok', '2 seções · 42 posições', 'Abrir'],
+  ['345BT', 'Soprador', 'Vista no site público', 'ok', '2 seções · 44 posições', 'Abrir'],
+  ['LE322R', 'Cortador de grama', 'Vista no Portal', 'ok', '5 seções · 118 posições', 'Abrir'],
+  ['Z560XS', 'Giro zero', 'Só manual no Portal', 'warn', 'Sem lista de peças publicada', 'SAC Husqvarna'],
+];
+document.getElementById('app').innerHTML = topBar() + `
+<section class="band">
+  <div class="crumb">Administração</div>
+  <div class="row1"><h1>Qualidade</h1><button class="btn primary">Atualizar diagnóstico</button></div>
+  <div class="hero">
+    <div class="ring"><svg width="210" height="210" viewBox="0 0 210 210"><circle cx="105" cy="105" r="92" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="14"/><circle cx="105" cy="105" r="92" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="0" transform="rotate(-90 105 105)"/></svg><b><span>100%<small>cobertura técnica</small></span></b></div>
+    <div>
+      <div class="figs">
+        <div class="g"><div class="l">Em linha</div><div class="v num">318</div><div class="s">todos com vista ou lista</div></div>
+        <div class="g"><div class="l">Catálogos PDF</div><div class="v num">60</div><div class="s">na biblioteca</div></div>
+        <div class="g"><div class="l">Portal e site</div><div class="v num">296</div><div class="s">282 com lista de peças</div></div>
+        <div class="g"><div class="l">Em pausa</div><div class="v num">12</div><div class="s">Automower, a pedido</div></div>
+      </div>
+      <p class="msg">Conferido hoje às 21:40. Nada para fazer agora; os 6 modelos abaixo só pedem atenção se você quiser religar.</p>
+    </div>
+  </div>
+</section>
+<div class="grid">
+  <aside class="card facets"><h3>Situação</h3><a class="on">Todos <span>6</span></a><a>Em pausa <span>2</span></a><a>Só manual <span>1</span></a><a>Vista no site público <span>2</span></a><a>Vista no Portal <span>1</span></a>
+    <div class="grp"><h3>Categoria</h3><a>Motobomba <span>1</span></a><a>Soprador <span>1</span></a><a>Giro zero <span>1</span></a><a>Automower <span>1</span></a></div></aside>
+  <section class="card"><div class="h"><h3>Modelos que merecem atenção</h3><small>6 modelos</small></div>
+    <table><thead><tr><th>Modelo</th><th>Situação</th><th>Detalhe</th><th class="r">Ação</th></tr></thead><tbody>
+    ${rows.map(([m, c, s, k, d, a]) => `<tr><td><b>${m}</b><span class="sub">${c}</span></td><td><span class="chip ${k}">${s}</span></td><td>${d}</td><td class="r"><button class="btn small">${a}</button></td></tr>`).join('')}
+    </tbody></table></section>
+</div>`;
+</script></body></html>

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Direção A · Qualidade</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css"><script src="base.js"></script>
+<style>
+  .shell { display: grid; grid-template-columns: 236px 1fr; min-height: 843px; }
+  .rail { padding: 22px 14px; border-right: 1px solid var(--line); background: var(--card); }
+  .rail h2 { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); font-weight: 700; padding: 0 10px 8px; }
+  .rail a { display: flex; align-items: center; justify-content: space-between; padding: 9px 10px; border-radius: 8px; font-size: 15px; font-weight: 500; color: var(--muted); margin-bottom: 2px; }
+  .rail a.on { background: var(--brand-soft); color: var(--brand); font-weight: 700; }
+  .rail .grp { margin-top: 18px; }
+  main { padding: 24px 28px 40px; display: grid; gap: 18px; align-content: start; }
+  .head { display: flex; align-items: center; justify-content: space-between; }
+  .head h1 { font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+  .cover { padding: 22px 24px 20px; }
+  .cover .top2 { display: flex; align-items: end; justify-content: space-between; margin-bottom: 14px; }
+  .cover .big { font-size: 58px; line-height: 1; }
+  .cover .big small { font-size: 22px; font-weight: 600; color: var(--muted); letter-spacing: 0; margin-left: 6px; }
+  .cover p { color: var(--muted); font-size: 15px; margin-top: 6px; }
+  .stack { display: flex; height: 26px; border-radius: 7px; overflow: hidden; gap: 2px; }
+  .stack i { display: block; height: 100%; }
+  .legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; }
+  .legend div { font-size: 14px; color: var(--muted); display: flex; gap: 9px; align-items: start; }
+  .legend i { width: 12px; height: 12px; border-radius: 3px; margin-top: 4px; flex: none; }
+  .legend b { display: block; font-size: 22px; color: var(--ink); font-weight: 800; letter-spacing: -.02em; }
+  .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .stat { padding: 18px 22px; }
+  .stat .l { font-size: 14px; color: var(--muted); font-weight: 500; }
+  .stat .v { font-size: 32px; margin: 4px 0 2px; }
+  .stat .s { font-size: 14px; color: var(--muted); }
+  .card .h { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px 10px; }
+  .card .h h3 { font-size: 17px; font-weight: 700; }
+  .filters { display: flex; gap: 8px; }
+  .filters span { padding: 5px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 13px; font-weight: 600; color: var(--muted); }
+  .filters span.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+  :root[data-theme="dark"] .filters span.on { color: #0a0f1d; }
+  td .sub { display: block; font-size: 13px; color: var(--muted); }
+</style></head>
+<body>
+<div id="app"></div>
+<script>
+const rail = `<aside class="rail"><h2>Administração</h2><a>Negócio</a><a>Lista de preços</a><a>Demanda e estoque</a><div class="grp"><h2>Sistema</h2></div><a class="on">Qualidade</a><a>Usuários</a><a>Registro de ações</a></aside>`;
+const rows = [
+  ['Automower 305', 'Automower', 'Em pausa', 'info', 'Sem vista em nenhuma fonte', 'Religar'],
+  ['226KS12', 'Derriçadeira de café', 'Em pausa', 'info', 'Motor e acessório têm vista, a máquina não', 'Religar'],
+  ['W25P', 'Motobomba', 'Vista no site público', 'ok', '2 seções · 42 posições', 'Abrir'],
+  ['345BT', 'Soprador', 'Vista no site público', 'ok', '2 seções · 44 posições', 'Abrir'],
+  ['LE322R', 'Cortador de grama', 'Vista no Portal', 'ok', '5 seções · 118 posições', 'Abrir'],
+  ['Z560XS', 'Giro zero', 'Só manual no Portal', 'warn', 'Sem lista de peças publicada', 'SAC Husqvarna'],
+];
+document.getElementById('app').innerHTML = topBar() + `<div class="shell">${rail}
+<main>
+  <div class="head"><h1>Qualidade</h1><button class="btn primary">Atualizar diagnóstico</button></div>
+
+  <section class="card cover" aria-label="Cobertura técnica">
+    <div class="top2"><div><div class="big num">100%<small>dos modelos em linha</small></div><p>318 de 318 modelos em linha têm vista explodida ou lista de peças. 30 ficam fora da conta.</p></div>
+      <div class="filters"><span>Recarregar base local</span><span class="on">Conferido hoje, 21:40</span></div></div>
+    <div class="stack"><i style="flex:318;background:var(--brand)"></i><i style="flex:20;background:var(--chart-2)"></i><i style="flex:12;background:var(--line)"></i></div>
+    <div class="legend">
+      <div><i style="background:var(--brand)"></i><span><b>318</b>Com vista ou lista de peças</span></div>
+      <div><i style="background:var(--chart-2)"></i><span><b>20</b>Fora de linha ou acessório</span></div>
+      <div><i style="background:var(--line)"></i><span><b>12</b>Em pausa (Automower)</span></div>
+      <div><i style="background:transparent"></i><span><b>2</b>Dos 318, só no site público</span></div>
+    </div>
+  </section>
+
+  <div class="trio">
+    <section class="card stat"><div class="l">Catálogos em PDF</div><div class="v num">60</div><div class="s">Na biblioteca do CogniVault</div></section>
+    <section class="card stat"><div class="l">Portal e site Husqvarna</div><div class="v num">296</div><div class="s">282 com lista de peças · 14 só com IPL em PDF</div></section>
+    <section class="card stat"><div class="l">Peças de motor lidas</div><div class="v num">18.078</div><div class="s">Briggs, Kawasaki e Kohler, indexadas por código</div></section>
+  </div>
+
+  <section class="card"><div class="h"><h3>Modelos que merecem atenção</h3><div class="filters"><span class="on">Todos · 6</span><span>Em pausa · 2</span><span>Só manual · 1</span><span>Vista no site · 2</span></div></div>
+    <table><thead><tr><th>Modelo</th><th>Situação</th><th>Detalhe</th><th class="r">Ação</th></tr></thead><tbody>
+    ${rows.map(([m, c, s, k, d, a]) => `<tr><td><b>${m}</b><span class="sub">${c}</span></td><td><span class="chip ${k}">${s}</span></td><td>${d}</td><td class="r"><button class="btn small">${a}</button></td></tr>`).join('')}
+    </tbody></table></section>
+</main></div>`;
+</script></body></html>

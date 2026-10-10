@@ -74,7 +74,7 @@ Plano antigo: 110 itens feitos contra ~10 a fazer, 22 ideias guardadas e 6 decis
 ### Penúltimo: redesenho visual das telas de Administração (decidido com o dono em 2026-10-09)
 | | Item |
 |---|---|
-| ⏸ 2.15 | Hoje as telas estão consistentes (contraste 12/12, dois temas, sem texto explicativo). O dono quer redesenhar, **antes do Clipp e depois de tudo o resto**. Quando chegar a hora: apresentar duas direções renderizadas (a escolha de visual é dele), uma tela por PR. |
+| 🔧 2.15 | **Redesenho das telas de Administração (2026-10-09, a pedido do dono):** duas direções renderizadas em `docs/redesign-2026-10/mockups/` (A "Mesa do dono" com menu lateral e o que precisa do dono primeiro; B "Painel de bancada" com faixa marinho e números grandes), Negócio e Qualidade, claro e escuro, com dados de exemplo. **Aguarda a escolha do dono**; só depois vira código, uma tela por PR. A barra de cima e o balcão não mudam. |
 
 ### Último: o Clipp (sempre o último)
 | ⏸ | **Clipp:** exportação de produtos pela tela do Clipp (Referência, preço, descrição complementar, última compra, estoque), importador testado em banco descartável, aprovação do dono e só então gravar. Os campos de loja já existem em `MasterPart` e vazios. Prioridade alta quando entrar: ~1.289 peças de motor sem preço. |
