@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Direção B · Conserto</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css"><script src="base.js"></script>
+<style>
+  .band { background: linear-gradient(180deg, var(--brand-deep) 0%, #27345a 100%); color: #fff; }
+  :root[data-theme="dark"] .band { background: linear-gradient(180deg, #0a0f1d 0%, #131b34 100%); }
+  .band .r1 { display: grid; grid-template-columns: 150px 140px 1fr 230px auto; gap: 14px; align-items: end; }
+  .band h1 { font-size: 26px; font-weight: 800; letter-spacing: -.02em; padding-bottom: 6px; }
+  .band .btn.ghost { background: transparent; color: #fff; border-color: rgba(255,255,255,.28); }
+  .wrap { display: grid; grid-template-columns: 1fr 300px; gap: 18px; padding: 0 28px 24px; margin-top: -36px; position: relative; }
+  .ed { overflow: hidden; display: flex; flex-direction: column; }
+  .cols, .ln, .entry { display: grid; grid-template-columns: 1fr 104px 96px 136px 92px 28px; gap: 12px; align-items: center; padding: 0 20px; }
+  .cols { height: 34px; background: var(--page); font-size: 13px; font-weight: 600; color: var(--muted); }
+  .ln { padding-top: 11px; padding-bottom: 11px; border-top: 1px solid var(--line-soft); }
+  .ln b { font-size: 15.5px; } .ln small { display: block; color: var(--muted); font-size: 12.5px; }
+  .ln .sel, .entry .sel { height: 36px; border: 1px solid var(--line); border-radius: 8px; display: flex; align-items: center; padding: 0 10px; font-size: 14px; background: var(--card); }
+  .ln .val { text-align: right; font-weight: 700; border: 1px solid var(--line); border-radius: 8px; height: 36px; display: flex; align-items: center; justify-content: flex-end; padding: 0 10px; }
+  .ln .tt { text-align: right; font-weight: 800; }
+  .ln .x { color: var(--faint); font-size: 18px; text-align: center; }
+  .chips { display: flex; gap: 8px; align-items: center; padding: 10px 20px; border-top: 1px solid var(--line); background: var(--brand-soft); flex-wrap: wrap; }
+  .chips span.t { font-size: 13px; font-weight: 700; color: var(--brand); }
+  .chips span.c { border: 1px solid var(--brand-line); background: var(--card); border-radius: 999px; padding: 4px 12px; font-size: 13.5px; font-weight: 600; }
+  .chips em { font-style: normal; color: var(--muted); font-size: 12px; margin-left: 4px; }
+  .entry { padding-top: 12px; padding-bottom: 12px; border-top: 1px solid var(--line); background: var(--card); }
+  .entry .in2 { height: 38px; border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; display: flex; align-items: center; color: var(--faint); font-size: 15px; background: var(--card); }
+  .entry .hint { grid-column: 1 / -1; font-size: 13px; color: var(--warn); font-weight: 700; margin-bottom: 8px; }
+  .bottom { border-top: 1px solid var(--line); padding: 14px 20px 16px; display: grid; gap: 12px; }
+  .bottom .r { display: flex; align-items: end; justify-content: space-between; }
+  .pay { display: flex; gap: 8px; align-items: center; } .pay small { color: var(--muted); font-weight: 600; font-size: 13px; margin-right: 6px; }
+  .pay span { border: 1px solid var(--line); border-radius: 8px; padding: 7px 14px; font-weight: 600; font-size: 14px; } .pay span.on { background: var(--brand); color: #fff; border-color: var(--brand); }
+  :root[data-theme="dark"] .pay span.on { color: #0a0f1d; }
+  .total small { color: var(--muted); font-size: 14px; margin-right: 14px; } .total b { font-size: 34px; letter-spacing: -.02em; }
+  .acts { display: flex; gap: 10px; align-items: center; } .acts .sync { margin-left: auto; font-size: 13px; color: var(--muted); display: flex; gap: 6px; align-items: center; } .acts .sync i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+  .pasta .h { padding: 14px 18px 8px; display: flex; justify-content: space-between; align-items: center; } .pasta h3 { font-size: 16px; }
+  .pasta .q { margin: 0 14px 6px; height: 38px; border: 1px solid var(--line); border-radius: 8px; display: flex; align-items: center; padding: 0 12px; color: var(--faint); font-size: 14px; }
+  .pasta .os { display: grid; grid-template-columns: 1fr auto; padding: 11px 18px; border-top: 1px solid var(--line-soft); } .pasta .os b { font-size: 15px; } .pasta .os small { color: var(--muted); font-size: 12.5px; } .pasta .os span { font-weight: 800; text-align: right; }
+</style></head>
+<body>
+<div id="app"></div>
+<script>
+const L = [['Carburador', '503 44 32-01', '1', 378.26, 'Pronta entrega'], ['Filtro de gasolina', '', '2', 18.00, 'Pronta entrega'], ['Mangueira de gasolina', '', '1', 27.00, 'Pronta entrega'], ['Mão de obra', '', '1', 190.00, '']];
+document.getElementById('app').innerHTML = topBar('Conserto') + `
+<section class="band" style="padding:12px 28px 58px"><div class="r1">
+  <h1>Conserto</h1>
+  <div class="field"><label>Nº da OS</label><div class="in">59600</div></div>
+  <div class="field"><label>Cliente</label><div class="in">Provac Terceirização</div></div>
+  <div class="field"><label>WhatsApp</label><div class="in ph">(19) 99999-9999</div></div>
+  <button class="btn ghost">Importar antigos</button></div></section>
+<div class="wrap">
+  <section class="card ed">
+    <div class="cols"><span>Descrição</span><span style="text-align:center">Qtde</span><span style="text-align:right">Valor un.</span><span>Prazo</span><span style="text-align:right">Total</span><span></span></div>
+    ${L.map(([n, c, q, v, p]) => `<div class="ln"><div><b>${n}</b>${c ? `<small class="code">${c}</small>` : ''}</div><div class="qty"><span>−</span><span>${q}</span><span>+</span></div><div class="val">${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div><div class="sel">${p || 'Sem prazo'}</div><div class="tt">${brl(v * Number(q))}</div><div class="x">×</div></div>`).join('')}
+    <div class="chips"><span class="t">Costuma levar junto</span><span class="c">+ Vela <em>R$ 30,00</em></span><span class="c">+ Filtro de ar <em>R$ 36,85</em></span><span class="c">+ Junta do isolador <em>R$ 12,00</em></span></div>
+    <div class="entry"><div class="hint">Costuma ser R$ 190,00 (1.650 vezes): confira o valor.</div><div style="display:flex;gap:8px"><div class="in2" style="width:120px">Código</div><div class="in2" style="flex:1;color:var(--ink)">mão de obra</div></div><div class="in2" style="justify-content:center;color:var(--ink);font-weight:700">1</div><div class="in2" style="color:var(--ink);justify-content:flex-end;font-weight:700">19</div><div class="sel">Sem prazo</div><button class="btn primary small" style="grid-column:5 / span 2;justify-content:center">Adicionar</button></div>
+    <div class="bottom"><div class="r"><div class="pay"><small>Pagamento</small><span class="on">À vista</span><span>30 dias</span><span>Outro</span></div><div class="total"><small>Total</small><b>${brl(378.26 + 36 + 27 + 190)}</b></div></div>
+      <div class="acts"><button class="btn primary" style="height:44px">Enviar no WhatsApp</button><button class="btn" style="height:44px">PDF</button><button class="btn" style="height:44px">Prévia</button><div class="sync"><i></i>No servidor · <u>Novo orçamento</u></div></div></div>
+  </section>
+  <aside class="card pasta"><div class="h"><h3>Pasta</h3></div><div class="q">Nº da OS ou cliente</div>
+    ${[['OS 59600', 'Provac Terceirização · hoje', 631.26], ['OS 59588', 'Cliente não informado · 08/10', 245.0], ['OS 59571', 'Cliente não informado · 07/10', 89.9], ['OS 59560', 'Fazenda Boa Vista · 06/10', 1340.0], ['OS 59544', 'Cliente não informado · 03/10', 176.5]].map(([a, b, v]) => `<div class="os"><b>${a}</b><span>${brl(v)}</span><small>${b}</small><span></span></div>`).join('')}
+  </aside>
+</div>`;
+</script></body></html>

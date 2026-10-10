@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Direção B · Atendimento</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css"><script src="base.js"></script>
+<style>
+  .band { background: linear-gradient(180deg, var(--brand-deep) 0%, #27345a 100%); color: #fff; }
+  :root[data-theme="dark"] .band { background: linear-gradient(180deg, #0a0f1d 0%, #131b34 100%); }
+  .searchrow { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: end; }
+  .big { height: 52px !important; font-size: 18px !important; padding: 0 16px !important; border-radius: 10px !important; gap: 10px; }
+  .big b { font-weight: 600; }
+  .kbd { margin-left: auto; font-family: ui-monospace, monospace; font-size: 12px; border: 1px solid #c9ccd8; border-radius: 5px; padding: 1px 6px; color: #6b6f7e; }
+  .band .btn.ghost { background: transparent; color: #fff; border-color: rgba(255,255,255,.28); height: 52px; }
+  .band .btn.primary { height: 52px; font-size: 17px; padding: 0 26px; }
+  .sub { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
+  .sub .pill { font-size: 14px; font-weight: 600; padding: 5px 13px; border-radius: 999px; border: 1px solid rgba(255,255,255,.22); color: #c7d0ea; }
+  .sub .pill.on { background: #fff; color: #1f2742; border-color: #fff; }
+  .sub .add { margin-left: auto; color: #ffb59b; font-weight: 700; font-size: 14px; }
+  .wrap { display: grid; grid-template-columns: 1fr 330px; gap: 18px; padding: 0 28px 28px; margin-top: -34px; position: relative; }
+  .res .h { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 20px 8px; }
+  .res .h h3 { font-size: 16px; font-weight: 700; }
+  .res .h small { color: var(--muted); font-size: 13px; }
+  .row { display: grid; grid-template-columns: 190px 1fr 120px 128px 30px; gap: 14px; align-items: center; padding: 13px 20px; border-top: 1px solid var(--line-soft); }
+  .row.on { background: var(--brand-soft); }
+  .row .c { font-family: 'JetBrains Mono', Consolas, monospace; font-weight: 800; font-size: 19px; letter-spacing: -.01em; }
+  .row .n b { font-size: 16px; }
+  .row .n .m { margin-top: 2px; display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+  .row .p { text-align: right; font-weight: 800; font-size: 20px; letter-spacing: -.01em; }
+  .row .p small { display: block; font-size: 12px; font-weight: 600; color: var(--warn); letter-spacing: 0; }
+  .row .dots { color: var(--faint); font-weight: 800; text-align: center; }
+  .rail h3 { font-size: 16px; font-weight: 700; }
+  .rail .top2 { display: flex; justify-content: space-between; padding: 14px 18px 10px; align-items: baseline; }
+  .rail .top2 small { color: var(--muted); }
+  .rail .it { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 10px 18px; border-top: 1px solid var(--line-soft); font-size: 14.5px; }
+  .rail .it small { color: var(--muted); }
+  .rail .tot { padding: 14px 18px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: baseline; }
+  .rail .tot b { font-size: 26px; letter-spacing: -.02em; }
+  .rail .btn.primary { width: calc(100% - 36px); margin: 0 18px 18px; justify-content: center; height: 46px; font-size: 16px; }
+</style></head>
+<body>
+<div id="app"></div>
+<script>
+const items = [
+  ['587 10 67-01', 'CARBURADOR', 'Conjunto completo · 143RII', 'Catálogo', 378.26, ''],
+  ['587 32 99-01', 'CARBURADOR', 'Roçadeira 236R · Latin America', 'Catálogo', 412.90, 'Confira o valor'],
+  ['506 74 42-01', 'REPARO DO CARBURADOR', 'Cadastro · Peças de reposição geral', 'Cadastro', 36.66, ''],
+  ['503 44 32-01', 'FILTRO DE GASOLINA', 'Serve em 125B · 128R · 143R', 'Cadastro', 18.00, ''],
+  ['530 03 55-60', 'FERRAMENTA REG. DO CARBURADOR', 'Serve em PA1100 - 129LK / 525LK', 'Cadastro', 69.55, ''],
+];
+document.getElementById('app').innerHTML = topBar('Atendimento') + `
+<section class="band slim">
+  <div class="searchrow">
+    <div class="in big"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6b6f7e" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><b>carburador</b><span class="kbd">Ctrl K</span></div>
+    <button class="btn ghost">Limpar</button><button class="btn primary">Buscar</button>
+  </div>
+  <div class="sub"><span class="pill on">Tudo · 114</span><span class="pill">Cadastro · 82</span><span class="pill">Catálogo · 32</span><span class="add">+ Máquina, PNC ou cliente</span></div>
+</section>
+<div class="wrap">
+  <section class="card res"><div class="h"><h3>114 resultados</h3><small>↓ percorre · Enter copia o código · + põe no orçamento</small></div>
+    ${items.map(([c, n, d, o, p, w], i) => `<div class="row ${i === 0 ? 'on' : ''}"><div class="c">${c}</div><div class="n"><b>${n}</b><div class="m"><span class="tag">${o}</span>${d}</div></div><div class="p">${brl(p)}${w ? `<small>${w}</small>` : ''}</div><button class="btn small">+ Orçamento</button><div class="dots">⋯</div></div>`).join('')}
+  </section>
+  <aside class="card rail"><div class="top2"><h3>Orçamento</h3><small>2 itens</small></div>
+    <div class="it"><b>CARBURADOR</b><span>R$ 378,26</span><small>587 10 67-01 · 1 un.</small><span></span></div>
+    <div class="it"><b>FILTRO DE GASOLINA</b><span>R$ 36,00</span><small>503 44 32-01 · 2 un.</small><span></span></div>
+    <div class="tot"><span>Total</span><b>R$ 414,26</b></div>
+    <button class="btn primary">Revisar orçamento</button></aside>
+</div>`;
+</script></body></html>

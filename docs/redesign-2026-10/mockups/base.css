@@ -22,7 +22,7 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-body { width: 1440px; min-height: 900px; background: var(--page); color: var(--ink); font-family: 'Roboto Flex', Roboto, system-ui, sans-serif; font-size: 16px; line-height: 1.4; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+body { width: 100%; min-width: 1366px; min-height: 768px; background: var(--page); color: var(--ink); font-family: 'Roboto Flex', Roboto, system-ui, sans-serif; font-size: 16px; line-height: 1.4; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
 h1, h2, h3, p { margin: 0; }
 button { font: inherit; cursor: pointer; }
 
@@ -60,3 +60,17 @@ tr:last-child td { border-bottom: 0; }
 .code { font-family: 'JetBrains Mono', Consolas, ui-monospace, monospace; font-size: 13px; color: var(--muted); }
 .note { position: fixed; right: 14px; bottom: 10px; font-size: 12px; color: var(--faint); background: var(--card); border: 1px solid var(--line); padding: 3px 10px; border-radius: 999px; }
 svg text { font-family: inherit; }
+
+/* ---- Balcão (direção B): faixa MAIS BAIXA que a da Administração, porque o PC do balcão tem 768 px de altura ---- */
+.band.slim { padding: 14px 28px 56px; }
+.band.slim h1 { font-size: 26px; }
+.band .field { display: grid; gap: 4px; }
+.band .field label { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #aab6d6; }
+.band .in { height: 40px; border-radius: 8px; background: #fff; color: #1b1d26; border: 1px solid transparent; display: flex; align-items: center; padding: 0 12px; font-size: 15px; }
+.band .in.ph { color: #7b7f8e; }
+:root[data-theme="dark"] .band .in { background: #1a2340; color: #edf0fa; border-color: rgba(255,255,255,.14); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+.tag { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: var(--brand-soft); color: var(--brand); }
+.qty { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.qty span { width: 30px; height: 32px; display: grid; place-items: center; font-weight: 700; }
+.qty span:nth-child(2) { width: 38px; border-inline: 1px solid var(--line); background: var(--card); }

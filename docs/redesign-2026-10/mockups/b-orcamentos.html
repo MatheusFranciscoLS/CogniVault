@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Direção B · Orçamentos</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css"><script src="base.js"></script>
+<style>
+  .band { background: linear-gradient(180deg, var(--brand-deep) 0%, #27345a 100%); color: #fff; padding: 12px 28px 58px; }
+  :root[data-theme="dark"] .band { background: linear-gradient(180deg, #0a0f1d 0%, #131b34 100%); }
+  .r1 { display: grid; grid-template-columns: 200px auto 1fr 200px; gap: 16px; align-items: end; }
+  .band h1 { font-size: 26px; font-weight: 800; letter-spacing: -.02em; padding-bottom: 6px; }
+  .band .seg { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.18); height: 40px; }
+  .band .seg span { color: #c7d0ea; border-color: rgba(255,255,255,.14); padding: 9px 18px; }
+  .band .seg span.on { background: #fff; color: #1f2742; }
+  .wrap { padding: 0 28px 24px; margin-top: -36px; position: relative; }
+  .card { overflow: hidden; }
+  th { background: var(--page); height: 34px; padding-top: 0; padding-bottom: 0; }
+  .who small { display: block; color: var(--muted); font-size: 12.5px; }
+  .v { font-weight: 800; font-size: 16px; text-align: right; }
+  .acts { display: flex; gap: 8px; justify-content: flex-end; }
+</style></head>
+<body>
+<div id="app"></div>
+<script>
+const Q = [
+  ['Hoje 21:33', 'Provac Terceirização', 'WhatsApp', '3 itens', 631.26, 'Peças'],
+  ['Hoje 18:10', 'Sr. Carlos', 'PDF', '2 itens', 414.26, 'Peças'],
+  ['Ontem 16:42', 'Fazenda Boa Vista', 'PDF', '1 item', 4599.0, 'Máquina'],
+  ['Ontem 11:05', 'Cliente não informado', 'WhatsApp', '4 itens', 245.0, 'Peças'],
+  ['08/10 15:20', 'Sítio São José', 'PDF', '6 itens', 1340.0, 'Peças'],
+  ['07/10 09:48', 'Cliente não informado', 'WhatsApp', '2 itens', 89.9, 'Peças'],
+];
+document.getElementById('app').innerHTML = topBar('Orçamentos') + `
+<section class="band"><div class="r1"><h1>Orçamentos</h1>
+  <div class="seg"><span class="on">Peças</span><span>Conserto</span><span>Máquinas</span></div>
+  <div class="field"><label>Buscar</label><div class="in ph">Cliente, código, nº da OS</div></div>
+  <div class="field"><label>Período</label><div class="in">Últimos 30 dias <span>▾</span></div></div></div></section>
+<div class="wrap"><section class="card"><table><thead><tr><th>Quando</th><th>Cliente</th><th>Enviado por</th><th>Itens</th><th class="r">Total</th><th></th></tr></thead><tbody>
+${Q.map(([q, c, e, i, v]) => `<tr><td>${q}</td><td class="who"><b>${c}</b></td><td><span class="chip info">${e}</span></td><td>${i}</td><td class="v">${brl(v)}</td><td><div class="acts"><button class="btn small">Retomar</button><button class="btn small">PDF</button></div></td></tr>`).join('')}
+</tbody></table></section></div>`;
+</script></body></html>
