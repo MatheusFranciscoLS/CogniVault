@@ -111,8 +111,10 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
       return;
     }
     const input = document.getElementById('cv-workspace-search') as HTMLInputElement | null;
-    input?.focus();
-    input?.select();
+    // Em janela estreita (< 1200 px) a busca do topo não cabe e some: Ctrl K leva ao Atendimento, que tem a busca grande.
+    if (!input || input.offsetParent === null) { onSection('parts'); return; }
+    input.focus();
+    input.select();
   }, { enableOnFormTags:true });
   useHotkeys('ctrl+b, meta+b, alt+o', event => { event.preventDefault(); quoteCart.setIsOpen(!quoteCart.isOpen); }, { enableOnFormTags:true });
 
@@ -130,7 +132,7 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
           {/* O atendente usa este app ao lado do Vardão CRM e precisa saber em qual está. */}
           <div className="flex shrink-0 items-center gap-3">
             <img src="/favicon.png" alt="" width={32} height={32} className="size-8 rounded-md bg-white/10 object-cover" />
-            <span translate="no" className="hidden text-lg font-bold tracking-tight sm:inline">CogniVault</span>
+            <span translate="no" className="hidden text-lg font-bold tracking-tight min-[1100px]:inline">CogniVault</span>
           </div>
 
           <nav aria-label="Principal" className="hidden h-full md:flex">
@@ -153,7 +155,7 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
           </DropdownMenu>
 
           {!isCounter && (
-            <form onSubmit={submitSearch} role="search" className="hidden min-w-[10rem] max-w-md flex-1 lg:block">
+            <form onSubmit={submitSearch} role="search" className="hidden min-w-[10rem] max-w-md flex-1 min-[1200px]:block">
               <div className="relative">
                 <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5f667a]" />
                 <input
@@ -174,7 +176,7 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
           <div className="ml-auto flex items-center gap-2">
             <Button variant="bar" onClick={() => quoteCart.setIsOpen(true)}>
               <Icon name="quote" className="h-4 w-4" />
-              <span className="hidden sm:inline">Orçamento</span>
+              <span className="sr-only min-[1440px]:not-sr-only">Orçamento</span>
               {quoteCart.totalItems > 0 && <span className="grid min-w-6 place-items-center rounded-full bg-primary px-1.5 text-sm font-bold tabular-nums text-primary-foreground">{quoteCart.totalItems}</span>}
             </Button>
 

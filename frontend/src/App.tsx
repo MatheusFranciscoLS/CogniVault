@@ -75,6 +75,8 @@ function SessionScopedApplication() {
   useLocation();
   const storageScope = quoteStorageScopeFromSession();
   activateQuoteStorageScope(storageScope);
+  // `storageScope` NÃO é lido dentro da função: ele é a chave que descarta o cache ao trocar de conta (cada escopo ganha um QueryClient novo).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const queryClient = useMemo(() => createSessionQueryClient(), [storageScope]);
 
   return (

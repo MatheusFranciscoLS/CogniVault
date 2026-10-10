@@ -114,7 +114,9 @@ export default function Dashboard() {
     document.title = sectionTitle(section);
   }, [section]);
 
-  const updateUrl = (newTab: string, queryParam?: string, catalogParam?: string) => {
+  // `push` só para o atendente que TROCA de tela: cada tela vira um passo do histórico e o botão Voltar do navegador (ou o botão lateral do mouse)
+  // volta para a tela anterior em vez de sair do app. Normalizar endereço antigo e escrever a busca continuam sem criar passo (`replaceState`).
+  const updateUrl = (newTab: string, queryParam?: string, catalogParam?: string, push = false) => {
     try {
       const params = new URLSearchParams();
       if (queryParam) params.set('q', queryParam);
@@ -122,11 +124,27 @@ export default function Dashboard() {
       const value = params.toString();
       const path = sectionPath(newTab as Section);
       const newUrl = value ? `${path}?${value}` : path;
-      window.history.replaceState(null, '', newUrl);
+      if (push) {
+        if (newUrl !== `${window.location.pathname}${window.location.search}`) window.history.pushState(null, '', newUrl);
+      } else {
+        window.history.replaceState(null, '', newUrl);
+      }
     } catch {
       // Navegador restrito ou ambiente de teste.
     }
   };
+
+  // Voltar/Avançar do navegador: a tela acompanha o endereço (as trocas de tela acima criam um passo de histórico por tela).
+  useEffect(() => {
+    const onPop = () => {
+      const next = sectionFromPath(window.location.pathname);
+      if (!next) return;
+      if (next !== 'catalogs') setCatalogFilter('');
+      setSection(next);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   // Link antigo (/dashboard?tab=quality) e tela trocada pelo código passam para o endereço da tela.
   useEffect(() => {
@@ -211,7 +229,7 @@ export default function Dashboard() {
     if (next !== 'catalogs') setCatalogFilter('');
     const targetSection = next === 'assistant' || next === 'home' ? 'parts' : next;
     setSection(targetSection);
-    updateUrl(targetSection);
+    updateUrl(targetSection, undefined, undefined, true);
   };
 
   if (error) {
