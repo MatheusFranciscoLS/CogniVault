@@ -7,7 +7,6 @@ import { resolvePositionProvenance, type PositionStatus } from '../utils/positio
 export interface ExtractedPart { manufacturer:string; model:string; pnc:string; universalAcrossPnc:boolean; section:string; position:string; positionStatus?:PositionStatus; positionEvidence?:string; name:string; alternativeNames:string[]; partNumber:string; page:number; notes:string; }
 export interface CatalogExtraction { manufacturer:string; models:string[]; pncs:string[]; parts:ExtractedPart[]; }
 export interface CatalogHints { manufacturer?:string|null; model?:string|null; pnc?:string|null; filename?:string|null; }
-export interface DeterministicExtraction { extraction:CatalogExtraction; method:'HUSQVARNA_IPL_TEXT'; }
 
 /**
  * Por que a leitura textual recusou o PDF e o processamento caiu para a IA.

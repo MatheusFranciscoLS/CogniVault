@@ -57,16 +57,6 @@ const semanticResultCache = new LRUCache<string, PartCandidate[]>({
   ttl: 2 * 60 * 60 * 1000, // 2 hours
 });
 
-export function invalidateSearchFeedbackCache(tenantId?: string): void {
-  if (tenantId) {
-    for (const key of feedbackCache.keys()) {
-      if (key.startsWith(`${tenantId}:`)) feedbackCache.delete(key);
-    }
-  } else {
-    feedbackCache.clear();
-  }
-}
-
 export function invalidatePartSearchCaches(tenantId?: string): void {
   if (tenantId) {
     for (const key of pncsCache.keys()) {
