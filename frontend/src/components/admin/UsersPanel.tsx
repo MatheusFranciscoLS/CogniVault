@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableR
 import { cn } from '@/lib/utils';
 import PageFrame from '../PageFrame';
 import BandStat from '../BandStat';
+import { BAND_FIELD } from '../../lib/band-field';
 
 const ROLE_LABEL: Record<Role, string> = { ADMIN: 'Administrador', MECHANIC: 'Balcão' };
 const STATUS: Record<AdminUser['status'], { label: string; className: string }> = {
@@ -157,7 +158,7 @@ export default function UsersPanel() {
           <BandStat label="Bloqueados" value={count(user => user.status !== 'APPROVED')} caption="Sem acesso" />
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-[#5f667a]" aria-hidden="true" />
-            <Input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Filtrar por e-mail, perfil ou status" aria-label="Filtrar usuários" className="h-11 border-transparent bg-white pl-10 dark:bg-white text-[#1b2234] placeholder:text-[#5f667a] focus-visible:ring-[#ff9a73]" />
+            <Input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Filtrar por e-mail, perfil ou status" aria-label="Filtrar usuários" className={cn('h-11 pl-10', BAND_FIELD)} />
           </div>
         </div>
       }
