@@ -30,6 +30,12 @@ const SECTION_TITLES: Record<RoutedSection, string> = {
 
 export const ADMIN_SECTIONS: readonly Section[] = ['business', 'overview', 'users', 'quality'];
 
+/**
+ * Telas já no padrão de faixa do redesenho (direção B, 2026-10-09): o conteúdo vai de borda a borda e a própria tela (`PageFrame look="band"`) cuida da largura.
+ * Entram UMA POR PR, na ordem do plano; as que não estão aqui seguem na moldura antiga.
+ */
+export const BAND_SECTIONS: readonly Section[] = ['business'];
+
 export const SECTION_ROUTE_PATHS: readonly string[] = Object.values(SECTION_PATHS);
 
 function toRouted(section: Section): RoutedSection {

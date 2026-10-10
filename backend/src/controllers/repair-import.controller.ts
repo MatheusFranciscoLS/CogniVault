@@ -1,3 +1,4 @@
+import { RepairHistoryService } from '../services/repair-history.service';
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { AuditService } from '../services/audit.service';
@@ -57,6 +58,7 @@ export class RepairImportController {
     }
     try {
       const result = await applyRepairImport(req.user.tenantId, files, expect);
+      RepairHistoryService.forget(req.user.tenantId);
       void AuditService.record({
         tenantId: req.user.tenantId,
         userId: req.user.id,

@@ -3,7 +3,7 @@
 import { open, shot } from './_t.mjs';
 const theme = process.argv[2] ?? 'light';
 const { browser, page, errors } = await open({ theme });
-await page.goto('http://127.0.0.1:5173/administracao/negocio');
+await page.goto('http://127.0.0.1:5173/administracao/negocio?aba=demanda');
 const cartao = page.getByRole('heading', { name: 'Peças de motor consultadas sem preço' });
 await cartao.waitFor({ timeout: 20000 });
 await cartao.scrollIntoViewIfNeeded();

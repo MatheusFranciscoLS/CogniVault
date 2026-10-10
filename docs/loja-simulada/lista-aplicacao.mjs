@@ -40,7 +40,7 @@ const aplicacaoNoBanco = codigo => sqlSim(`SELECT coalesce(string_agg(coalesce(a
 
 try {
   semear();
-  await page.goto('http://127.0.0.1:5173/administracao/negocio');
+  await page.goto('http://127.0.0.1:5173/administracao/negocio?aba=lista');
   const cartao = page.getByRole('region', { name: 'Atualizar a lista de preços' });
   await cartao.waitFor({ timeout: 30000 });
   await cartao.scrollIntoViewIfNeeded();
@@ -93,7 +93,7 @@ try {
   });
 
   await step('Escolher o mesmo arquivo de novo: a loja já está igual', async () => {
-    await page.goto('http://127.0.0.1:5173/administracao/negocio');
+    await page.goto('http://127.0.0.1:5173/administracao/negocio?aba=lista');
     await cartao.waitFor({ timeout: 30000 });
     await cartao.locator('#price-list-file').setInputFiles(arquivo);
     await cartao.getByText(/A loja já está igual a esta lista/).waitFor({ timeout: 60000 });

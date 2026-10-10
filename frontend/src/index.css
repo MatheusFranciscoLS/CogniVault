@@ -250,6 +250,12 @@ input[type="number"],
   background: linear-gradient(to bottom right, var(--cv-brand-soft), var(--cv-neutral));
 }
 
+/* Faixa de título (direção B do redesenho): degradê marinho, texto claro; o conteúdo sobe sobre ela em `PageFrame`. */
+.cv-band {
+  background: linear-gradient(180deg, var(--band-from) 0%, var(--band-to) 100%);
+  color: #ffffff;
+}
+
 .cv-page-heading {
   display: flex;
   flex-wrap: wrap;
@@ -542,6 +548,7 @@ html.dark { background: var(--background); color-scheme: dark; }
   --color-add: var(--add);
   --color-bar: var(--bar);
   --color-bar-foreground: var(--bar-foreground);
+  --color-band-muted: var(--band-muted);
   --color-gold: var(--gold);
   --color-ok: var(--ok);
   --color-ok-soft: var(--ok-soft);

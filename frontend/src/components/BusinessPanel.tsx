@@ -1,15 +1,44 @@
 import { useEffect, useMemo, useState } from 'react';
 import PageFrame from './PageFrame';
+import PageTabs, { type PageTab } from './PageTabs';
+import BandStat, { Spark } from './BandStat';
+import { daysSince, useEnginePartsWithoutPriceData, usePriceListLast, useSearchMissesData } from '../lib/admin-queries';
 import { toast } from 'sonner';
 import { apiJson, formatHusqvarnaPartNumber } from '../lib';
 import type { BusinessBucketGranularity, BusinessInsights } from '../types';
-import { Icon, type IconName } from './icons/Icon';
+import { Icon } from './icons/Icon';
 import EnginePartsWithoutPrice from './EnginePartsWithoutPrice';
 import MostQuotedRepairs from './MostQuotedRepairs';
 import PriceListUpdate from './PriceListUpdate';
 import SearchMisses from './SearchMisses';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+type Tab = 'summary' | 'demand' | 'prices';
+
+/** A aba vai no endereço (`?aba=demanda`): recarregar, favoritar e os atalhos de outras telas abrem na aba certa. */
+const TAB_PARAM: Record<Tab, string> = { summary: 'resumo', demand: 'demanda', prices: 'lista' };
+function tabFromUrl(): Tab {
+  const wanted = new URLSearchParams(window.location.search).get('aba');
+  return (Object.keys(TAB_PARAM) as Tab[]).find(tab => TAB_PARAM[tab] === wanted) ?? 'summary';
+}
+
+/** Anel da faixa: dias desde a última atualização da lista de preços (branco até 14 dias, amarelo depois, para chamar o olho sem alarmar). */
+function PriceAgeRing({ days }: { days: number | null }) {
+  const radius = 35;
+  const circumference = 2 * Math.PI * radius;
+  const fill = days === null ? 0 : Math.min(1, days / 30);
+  const late = days !== null && days >= 14;
+  return (
+    <div className="relative size-[5.25rem] shrink-0" role="img" aria-label={days === null ? 'Lista de preços sem atualização' : `Lista de preços atualizada há ${days} dias`}>
+      <svg width="84" height="84" viewBox="0 0 84 84" aria-hidden="true">
+        <circle cx="42" cy="42" r={radius} fill="none" stroke="rgba(255,255,255,.16)" strokeWidth="8" />
+        <circle cx="42" cy="42" r={radius} fill="none" stroke={late ? '#ffd45c' : '#ffffff'} strokeWidth="8" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - fill)} transform="rotate(-90 42 42)" />
+      </svg>
+      <b className="absolute inset-0 grid place-items-center text-xl font-extrabold tabular-nums">{days === null ? '—' : `${days} d`}</b>
+    </div>
+  );
+}
 
 function displayPartNumber(partNumber: string, manufacturer: string | null): string {
   return manufacturer?.toLowerCase().includes('husqvarna')
@@ -69,45 +98,6 @@ function relativeDate(iso: string | null): string {
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(new Date(iso));
 }
 
-function StatCard({
-  icon,
-  label,
-  value,
-  caption,
-  trend,
-}: {
-  icon: IconName;
-  label: string;
-  value: string;
-  caption?: string;
-  trend?: { delta: number; suffix: string };
-}) {
-  return (
-    <div className="cv-stat">
-      <div className="flex items-start justify-between gap-2">
-        <span className="cv-stat-label">{label}</span>
-        <span className="cv-stat-icon"><Icon name={icon} className="h-4 w-4" /></span>
-      </div>
-      <div className="cv-stat-value">{value}</div>
-      <div className="mt-1 flex flex-wrap items-center gap-2">
-        {trend && Number.isFinite(trend.delta) && (
-          <span
-            className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-sm font-bold tabular-nums ${
-              trend.delta >= 0
-                ? 'bg-ok-soft text-ok'
-                : 'bg-destructive/10 text-destructive'
-            }`}
-          >
-            <Icon name={trend.delta >= 0 ? 'trendUp' : 'trendDown'} className="h-3 w-3" />
-            {trend.delta >= 0 ? '+' : ''}{trend.delta.toFixed(0)}% {trend.suffix}
-          </span>
-        )}
-        {caption && <span className="cv-stat-caption">{caption}</span>}
-      </div>
-    </div>
-  );
-}
-
 /**
  * Série de orçamentos por período. Barras em CSS puro de propósito: uma
  * biblioteca de gráfico entraria como dependência nova, e o dono precisa
@@ -136,7 +126,7 @@ function QuoteChart({ insights }: { insights: BusinessInsights }) {
   }
 
   return (
-    <div className="rounded-card border border-border bg-card p-4 shadow-card">
+    <div className="h-full rounded-card border border-border bg-card p-4 shadow-card">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-semibold">Orçamentos por período</h2>
         <span className="text-sm text-muted-foreground">Altura = valor líquido · número = quantidade de orçamentos</span>
@@ -145,14 +135,14 @@ function QuoteChart({ insights }: { insights: BusinessInsights }) {
       {/* `max-w` por coluna: com um único dia no período, `flex-1` sozinho
           esticava a barra por toda a largura e virava um bloco azul sem
           leitura. Barras estreitas alinhadas à esquerda mantêm a comparação. */}
-      <div className="mt-4 flex items-end justify-start gap-1 overflow-x-auto pb-1" style={{ minHeight: '11rem' }}>
+      <div className="mt-4 flex items-end justify-start gap-1 overflow-x-auto pb-1" style={{ minHeight: '15rem' }}>
         {buckets.map(bucket => {
           const heightPercent = Math.max(4, (bucket.netTotal / maxValue) * 100);
           const intensity = bucket.quotes / maxQuotes;
           return (
             <div key={bucket.bucket} className="flex min-w-10 max-w-18 flex-1 flex-col items-center gap-1">
               <span className="text-sm font-bold text-foreground tabular-nums">{bucket.quotes}</span>
-              <div className="flex h-32 w-full items-end border-b border-border">
+              <div className="flex h-48 w-full items-end border-b border-border">
                 <div
                   className="w-full rounded-t-[4px] bg-brand-600 transition-[height] dark:bg-brand-400"
                   style={{ height: `${heightPercent}%`, opacity: 0.45 + intensity * 0.55 }}
@@ -181,6 +171,15 @@ export default function BusinessPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState<'quotes' | 'price-list' | 'price-list-gaps' | null>(null);
+  const [tab, setTabState] = useState<Tab>(tabFromUrl);
+  const setTab = (next: Tab) => {
+    setTabState(next);
+    const query = next === 'summary' ? '' : `?aba=${TAB_PARAM[next]}`;
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${query}`);
+  };
+  const priceLast = usePriceListLast();
+  const misses = useSearchMissesData();
+  const engines = useEnginePartsWithoutPriceData();
 
   useEffect(() => {
     let active = true;
@@ -262,106 +261,187 @@ export default function BusinessPanel() {
   };
 
   const summary = insights?.summary;
-  const quotesDelta = summary && summary.previousQuotes > 0
-    ? ((summary.quotes - summary.previousQuotes) / summary.previousQuotes) * 100
-    : undefined;
   const revenueDelta = summary && summary.previousNetTotal > 0
     ? ((summary.netTotal - summary.previousNetTotal) / summary.previousNetTotal) * 100
     : undefined;
 
-  return (
-    <PageFrame title="Negócio">
+  const priceDays = daysSince(priceLast.data?.at);
+  const missesTotal = misses.data?.total ?? 0;
+  const enginesTotal = engines.data?.total ?? 0;
+  // O que precisa do dono, em ordem: cada linha leva à aba onde se resolve.
+  const pending: Array<{ key: string; title: string; detail: string; tab: Tab; action: string; primary?: boolean }> = [];
+  if (priceLast.data === null) pending.push({ key: 'price', title: 'Carregar a lista de preços', detail: 'Nenhuma atualização foi feita por esta tela ainda', tab: 'prices', action: 'Abrir', primary: true });
+  else if (priceDays !== null && priceDays >= 14) pending.push({ key: 'price', title: 'Atualizar a lista de preços', detail: `A última foi há ${priceDays} ${priceDays === 1 ? 'dia' : 'dias'}`, tab: 'prices', action: 'Atualizar lista', primary: true });
+  if (missesTotal > 0) pending.push({ key: 'misses', title: `${missesTotal} ${missesTotal === 1 ? 'busca sem resultado' : 'buscas sem resultado'}`, detail: misses.data?.items[0] ? `A mais repetida: "${misses.data.items[0].query}" (${misses.data.items[0].count}x)` : 'Esperando cadastro', tab: 'demand', action: 'Ver buscas' });
+  if (enginesTotal > 0) pending.push({ key: 'engines', title: `${enginesTotal} ${enginesTotal === 1 ? 'peça de motor consultada sem preço' : 'peças de motor consultadas sem preço'}`, detail: 'Briggs, Kawasaki e Kohler abertas no balcão e fora da lista da loja', tab: 'demand', action: 'Ver peças' });
+  if (summary && summary.quotesWithoutPrice > 0) pending.push({ key: 'unpriced', title: `${summary.quotesWithoutPrice} ${summary.quotesWithoutPrice === 1 ? 'orçamento saiu sem preço' : 'orçamentos saíram sem preço'}`, detail: 'Fechados só com código, sem valor para o cliente', tab: 'demand', action: 'Ver peças' });
 
-      <div className="flex flex-col gap-3 rounded-card border border-border bg-card p-3 shadow-card tablet:flex-row tablet:items-end tablet:justify-between">
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="flex flex-wrap gap-1.5">
+  const tabs: PageTab<Tab>[] = [
+    { id: 'summary', label: 'Resumo' },
+    { id: 'demand', label: 'Demanda', badge: pending.filter(item => item.tab === 'demand').length || undefined },
+    { id: 'prices', label: 'Lista de preços', badge: pending.some(item => item.key === 'price') ? 1 : undefined },
+  ];
+
+  const spark = insights?.buckets.map(bucket => bucket.netTotal) ?? [];
+  const sparkQuotes = insights?.buckets.map(bucket => bucket.quotes) ?? [];
+  const trend = (delta: number | undefined) => (delta === undefined || !Number.isFinite(delta) ? undefined : `${delta >= 0 ? '↑' : '↓'} ${Math.abs(delta).toFixed(0)}% vs. período anterior`);
+  const loadingStat = loading && !insights;
+
+  return (
+    <PageFrame
+      look="band"
+      crumb="Administração"
+      title="Negócio"
+      action={
+        <div className="flex flex-wrap items-center gap-2">
+          <div role="group" aria-label="Período" className="flex gap-1">
             {PRESETS.map((preset, index) => (
               <Button
                 key={preset.label}
                 type="button"
-                variant="outline"
+                variant="bar"
                 aria-pressed={activePreset === index}
                 onClick={() => applyPreset(index)}
-                className={activePreset === index ? 'border-ring bg-selected' : undefined}
+                className={activePreset === index ? 'border-white bg-white text-[#1f2742] hover:bg-white' : undefined}
               >
                 {preset.label}
               </Button>
             ))}
           </div>
-          <div className="flex items-end gap-2">
-            <div>
-              <label htmlFor="insights-from" className="block text-sm font-bold text-muted-foreground">De</label>
-              <input id="insights-from" type="date" value={range.from} onChange={e => applyCustomRange({ from: e.target.value })} className="h-10 rounded-md border border-input bg-card px-3 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/60 mt-1 h-11 w-38 py-0 text-sm tabular-nums" />
-            </div>
-            <div>
-              <label htmlFor="insights-to" className="block text-sm font-bold text-muted-foreground">Até</label>
-              <input id="insights-to" type="date" value={range.to} onChange={e => applyCustomRange({ to: e.target.value })} className="h-10 rounded-md border border-input bg-card px-3 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/60 mt-1 h-11 w-38 py-0 text-sm tabular-nums" />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" onClick={() => void downloadCsv('quotes')} disabled={exporting !== null}>
+          <label htmlFor="insights-from" className="sr-only">De</label>
+          <input id="insights-from" type="date" value={range.from} onChange={e => applyCustomRange({ from: e.target.value })} className="h-10 w-38 rounded-md border border-white/20 bg-white/10 px-3 text-sm tabular-nums text-white outline-none [color-scheme:dark] focus-visible:ring-3 focus-visible:ring-white/40" />
+          <label htmlFor="insights-to" className="sr-only">Até</label>
+          <input id="insights-to" type="date" value={range.to} onChange={e => applyCustomRange({ to: e.target.value })} className="h-10 w-38 rounded-md border border-white/20 bg-white/10 px-3 text-sm tabular-nums text-white outline-none [color-scheme:dark] focus-visible:ring-3 focus-visible:ring-white/40" />
+          <Button type="button" variant="bar" onClick={() => void downloadCsv('quotes')} disabled={exporting !== null}>
             <Icon name="download" className={`size-4 ${exporting === 'quotes' ? 'animate-spin' : ''}`} />
             Exportar orçamentos
           </Button>
-          <Button type="button" variant="outline" onClick={() => void downloadCsv('price-list')} disabled={exporting !== null}>
+          <Button type="button" variant="bar" onClick={() => void downloadCsv('price-list')} disabled={exporting !== null}>
             <Icon name="download" className={`size-4 ${exporting === 'price-list' ? 'animate-spin' : ''}`} />
             Lista de preços
           </Button>
         </div>
-      </div>
-
+      }
+      band={
+        <div className="grid items-stretch gap-y-4 xl:grid-cols-[repeat(4,minmax(0,1fr))_17rem]">
+          <BandStat
+            label="Orçamentos"
+            value={loadingStat ? '—' : String(summary?.quotes ?? 0)}
+            caption={summary ? `${summary.items} ${summary.items === 1 ? 'item cotado' : 'itens cotados'}` : undefined}
+            aside={<Spark values={sparkQuotes} className="text-[#8fa7e0]" />}
+          />
+          <BandStat
+            label="Valor cotado"
+            value={loadingStat ? '—' : money(summary?.netTotal ?? 0)}
+            caption={trend(revenueDelta) ?? (summary && summary.discountTotal > 0 ? `${money(summary.discountTotal)} em descontos` : undefined)}
+            aside={<Spark values={spark} className="text-[#8fa7e0]" />}
+          />
+          <BandStat
+            label="Ticket médio"
+            value={loadingStat ? '—' : summary && summary.quotes > 0 ? money(summary.averageTicket) : '—'}
+            caption={summary && summary.quotes > 0 ? `Base de ${summary.quotes} ${summary.quotes === 1 ? 'orçamento' : 'orçamentos'}` : 'Sem orçamento no período'}
+          />
+          <BandStat
+            label="Sem preço"
+            value={loadingStat ? '—' : String(summary?.quotesWithoutPrice ?? 0)}
+            caption={summary && summary.quotesWithoutPrice > 0 ? 'orçamentos fechados só com código' : <span className="rounded-full bg-[rgba(93,211,151,.18)] px-2 py-0.5 font-semibold text-[#7be3ae]">Tudo com valor</span>}
+          />
+          <div className="flex items-center gap-3 border-white/15 pt-1 xl:border-l xl:pl-5">
+            <PriceAgeRing days={priceDays} />
+            <div className="min-w-0">
+              <div className="text-sm font-semibold uppercase tracking-wider text-band-muted">Lista de preços</div>
+              <div className="mt-0.5 text-base font-semibold">{priceDays === null ? (priceLast.isLoading ? 'Conferindo…' : 'Ainda não atualizada') : priceDays === 0 ? 'Atualizada hoje' : `Atualizada há ${priceDays} ${priceDays === 1 ? 'dia' : 'dias'}`}</div>
+              <Button type="button" size="sm" className="mt-2" onClick={() => setTab('prices')}>Atualizar</Button>
+            </div>
+          </div>
+        </div>
+      }
+      tabs={<PageTabs tabs={tabs} value={tab} onChange={setTab} label="Seções do Negócio" />}
+    >
       {error && (
         <div role="alert" className="rounded-card border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive">
           {error}
         </div>
       )}
 
-      {loading && !insights ? (
-        <div className="flex items-center justify-center gap-3 rounded-card border border-border bg-card px-5 py-16 text-sm text-muted-foreground">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-foreground" />
-          Carregando indicadores de negócio…
-        </div>
-      ) : insights && summary ? (
-        <>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              icon="quote"
-              label="Orçamentos salvos"
-              value={String(summary.quotes)}
-              caption={`${summary.items} ${summary.items === 1 ? 'item' : 'itens'} cotados`}
-              trend={quotesDelta === undefined ? undefined : { delta: quotesDelta, suffix: 'vs. período anterior' }}
-            />
-            <StatCard
-              icon="money"
-              label="Valor líquido cotado"
-              value={money(summary.netTotal)}
-              caption={summary.discountTotal > 0 ? `${money(summary.discountTotal)} em descontos` : 'Sem descontos aplicados'}
-              trend={revenueDelta === undefined ? undefined : { delta: revenueDelta, suffix: 'vs. período anterior' }}
-            />
-            <StatCard
-              icon="tag"
-              label="Ticket médio"
-              value={summary.quotes > 0 ? money(summary.averageTicket) : '—'}
-              caption={summary.quotes > 0 ? `Base de ${summary.quotes} orçamento(s)` : 'Sem orçamento no período'}
-            />
-            <StatCard
-              icon="warning"
-              label="Cotados sem preço"
-              value={String(summary.quotesWithoutPrice)}
-              caption={
-                summary.quotesWithoutPrice > 0
-                  ? 'Orçamentos fechados só com código — sem valor para o cliente'
-                  : 'Todo orçamento saiu com valor'
-              }
-            />
-          </div>
+      {tab === 'summary' && (
+        <div role="tabpanel" id="painel-summary" aria-labelledby="tab-summary" className="space-y-4">
+          {loading && !insights ? (
+            <div className="flex items-center justify-center gap-3 rounded-card border border-border bg-card px-5 py-16 text-sm text-muted-foreground">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-foreground" />
+              Carregando indicadores de negócio…
+            </div>
+          ) : insights ? (
+            <div className="grid gap-4 xl:grid-cols-12">
+              <div className="xl:col-span-8"><QuoteChart insights={insights} /></div>
+              <section aria-label="Precisa de você" className="overflow-hidden rounded-card border border-border bg-card xl:col-span-4">
+                <div className="flex items-baseline justify-between gap-2 px-4 pt-4 pb-1">
+                  <h2 className="text-lg font-semibold">Precisa de você</h2>
+                  {pending.length > 0 && <span className="text-sm text-muted-foreground">{pending.length}</span>}
+                </div>
+                {pending.length ? (
+                  <ul className="px-4 pb-3">
+                    {pending.map(item => (
+                      <li key={item.key} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-0.5 border-t border-border py-3 first:border-t-0">
+                        <b className="text-base">{item.title}</b>
+                        <Button type="button" size="sm" variant={item.primary ? 'default' : 'outline'} className="row-span-2" onClick={() => setTab(item.tab)}>{item.action}</Button>
+                        <span className="text-sm text-muted-foreground">{item.detail}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="px-4 py-10 text-center text-sm text-muted-foreground">Nada esperando por você.</p>
+                )}
+              </section>
+            </div>
+          ) : null}
 
-          <QuoteChart insights={insights} />
-
-          <div className="grid gap-4 xl:grid-cols-2">
+          {insights && (
             <div className="overflow-hidden rounded-card border border-border bg-card">
+              <div className="border-b border-border px-4 py-3">
+                <h2 className="text-lg font-semibold">Atividade por atendente</h2>
+                <p className="mt-0.5 text-sm text-muted-foreground">Quem arquivou orçamento no período. Orçamento de atendente removido continua contando.</p>
+              </div>
+              {insights.attendants.length ? (
+              <div className="overflow-x-auto">
+                <Table containerClassName="rounded-none border-0 bg-transparent">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Atendente</TableHead>
+                      <TableHead className="text-right">Orçamentos</TableHead>
+                      <TableHead className="text-right">Itens</TableHead>
+                      <TableHead className="text-right">Valor líquido</TableHead>
+                      <TableHead className="text-right">Ticket médio</TableHead>
+                      <TableHead className="text-right">Último</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {insights.attendants.map(attendant => (
+                      <TableRow key={attendant.userId || attendant.email}>
+                        <TableCell className="font-semibold text-foreground">{attendant.name || attendant.email}</TableCell>
+                        <TableCell className="text-right font-bold tabular-nums">{attendant.quotes}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">{attendant.items}</TableCell>
+                        <TableCell className="text-right font-mono font-semibold tabular-nums">{money(attendant.netTotal)}</TableCell>
+                        <TableCell className="text-right font-mono tabular-nums text-muted-foreground">{money(attendant.averageTicket)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">{relativeDate(attendant.lastQuoteAt)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="px-5 py-10 text-center text-sm text-muted-foreground">Nenhum atendimento arquivado no período.</div>
+            )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'demand' && (
+        <div role="tabpanel" id="painel-demand" aria-labelledby="tab-demand" className="space-y-4">
+          {insights && (
+            <div className="grid gap-4 xl:grid-cols-2">
+              <div className="overflow-hidden rounded-card border border-border bg-card">
               <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
                 <h2 className="text-lg font-semibold">Peças mais cotadas</h2>
                 <span className="text-sm text-muted-foreground">Top {insights.topParts.length}</span>
@@ -410,8 +490,7 @@ export default function BusinessPanel() {
                 </div>
               )}
             </div>
-
-            <div className="overflow-hidden rounded-card border border-border bg-card">
+              <div className="overflow-hidden rounded-card border border-border bg-card">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
                 <div>
                   <h2 className="text-lg font-semibold">Peças sem preço cadastrado</h2>
@@ -471,54 +550,21 @@ export default function BusinessPanel() {
                 </div>
               )}
             </div>
-          </div>
-
-          <MostQuotedRepairs />
-
-          <EnginePartsWithoutPrice />
-
-          <SearchMisses />
-
-          <PriceListUpdate />
-
-          <div className="overflow-hidden rounded-card border border-border bg-card">
-            <div className="border-b border-border px-4 py-3">
-              <h2 className="text-lg font-semibold">Atividade por atendente</h2>
-              <p className="mt-0.5 text-sm text-muted-foreground">Quem arquivou orçamento no período. Orçamento de atendente removido continua contando.</p>
             </div>
-            {insights.attendants.length ? (
-              <div className="overflow-x-auto">
-                <Table containerClassName="rounded-none border-0 bg-transparent">
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead>Atendente</TableHead>
-                      <TableHead className="text-right">Orçamentos</TableHead>
-                      <TableHead className="text-right">Itens</TableHead>
-                      <TableHead className="text-right">Valor líquido</TableHead>
-                      <TableHead className="text-right">Ticket médio</TableHead>
-                      <TableHead className="text-right">Último</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {insights.attendants.map(attendant => (
-                      <TableRow key={attendant.userId || attendant.email}>
-                        <TableCell className="font-semibold text-foreground">{attendant.name || attendant.email}</TableCell>
-                        <TableCell className="text-right font-bold tabular-nums">{attendant.quotes}</TableCell>
-                        <TableCell className="text-right tabular-nums text-muted-foreground">{attendant.items}</TableCell>
-                        <TableCell className="text-right font-mono font-semibold tabular-nums">{money(attendant.netTotal)}</TableCell>
-                        <TableCell className="text-right font-mono tabular-nums text-muted-foreground">{money(attendant.averageTicket)}</TableCell>
-                        <TableCell className="text-right tabular-nums text-muted-foreground">{relativeDate(attendant.lastQuoteAt)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="px-5 py-10 text-center text-sm text-muted-foreground">Nenhum atendimento arquivado no período.</div>
-            )}
+          )}
+          <div className="grid gap-4 xl:grid-cols-2">
+            <MostQuotedRepairs />
+            <EnginePartsWithoutPrice />
           </div>
-        </>
-      ) : null}
+          <SearchMisses />
+        </div>
+      )}
+
+      {tab === 'prices' && (
+        <div role="tabpanel" id="painel-prices" aria-labelledby="tab-prices">
+          <PriceListUpdate />
+        </div>
+      )}
     </PageFrame>
   );
 }

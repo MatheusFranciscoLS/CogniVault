@@ -11,7 +11,15 @@ const medir = () => page.evaluate(() => {
   const lum = ({ r, g, b }) => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
   const bgOf = el => {
     const stack = [];
-    for (let e = el; e; e = e.parentElement) { const bg = parse(getComputedStyle(e).backgroundColor); if (bg && bg.a > 0) { stack.push(bg); if (bg.a >= 1) break; } }
+    for (let e = el; e; e = e.parentElement) {
+      const cs = getComputedStyle(e);
+      // Faixa de título (degradê marinho, `background-image`): vale a PIOR parada para o texto (a mais clara, já que o texto da faixa é claro).
+      if (/gradient/.test(cs.backgroundImage)) {
+        const stops = (cs.backgroundImage.match(/rgba?\([^)]+\)/g) || []).map(parse).filter(Boolean);
+        if (stops.length) { stack.push(stops.reduce((worst, stop) => (lum(stop) > lum(worst) ? stop : worst))); break; }
+      }
+      const bg = parse(cs.backgroundColor); if (bg && bg.a > 0) { stack.push(bg); if (bg.a >= 1) break; }
+    }
     let base = { r: 255, g: 255, b: 255, a: 1 };
     for (const layer of stack.reverse()) base = over(layer, base);
     return base;

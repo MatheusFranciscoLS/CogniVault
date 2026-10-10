@@ -1,14 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { apiJson } from '../lib';
+import { useEnginePartsWithoutPriceData } from '../lib/admin-queries';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-
-type EnginePartWithoutPrice = {
-  partNumber: string;
-  name: string;
-  sources: string[];
-  engines: number;
-  engineExamples: string[];
-};
 
 const BRAND: Record<string, string> = { BRIGGS: 'Briggs', KAWASAKI: 'Kawasaki', KOHLER: 'Kohler' };
 
@@ -19,11 +10,7 @@ const BRAND: Record<string, string> = { BRIGGS: 'Briggs', KAWASAKI: 'Kawasaki', 
  * motores, que é a que mais compensa cadastrar. Não depende do período do painel: o índice de peças lidas é acumulado.
  */
 export default function EnginePartsWithoutPrice() {
-  const query = useQuery({
-    queryKey: ['engine-parts-without-price'],
-    staleTime: 60_000,
-    queryFn: () => apiJson<{ total: number; items: EnginePartWithoutPrice[] }>('/api/admin/engine-parts-without-price?limit=50', { timeoutMs: 25_000 }),
-  });
+  const query = useEnginePartsWithoutPriceData();
 
   if (query.isLoading) return null;
   // O painel do dono não pode travar por causa de uma lista secundária: sem resposta, o cartão simplesmente não aparece.

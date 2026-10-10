@@ -56,7 +56,7 @@ await step('Código que ninguém conhece (nem o Portal) é registrado', async ()
 
 await step('O dono vê a lista no Negócio, a mais repetida primeiro, e dispensa', async () => {
   sqlSim(`UPDATE "SearchMiss" SET "count" = 7 WHERE "normalizedQuery" = 'zzqxkwv ptfy'`);
-  await page.goto('http://127.0.0.1:5173/administracao/negocio');
+  await page.goto('http://127.0.0.1:5173/administracao/negocio?aba=demanda');
   const cartao = page.getByRole('region', { name: 'Buscas sem resultado' });
   await cartao.waitFor({ timeout: 30000 });
   await cartao.scrollIntoViewIfNeeded();

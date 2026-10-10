@@ -44,7 +44,7 @@ const respostaLenta = async (padrao, ms, contador) => page.route(padrao, async r
 
 try {
   restaurar();
-  await page.goto('http://127.0.0.1:5173/administracao/negocio');
+  await page.goto('http://127.0.0.1:5173/administracao/negocio?aba=lista');
   const cartao = page.getByRole('region', { name: 'Atualizar a lista de preços' });
   await cartao.waitFor({ timeout: 30000 });
   await cartao.scrollIntoViewIfNeeded();
@@ -71,7 +71,7 @@ try {
 
   await step('Recarregar a página enquanto a gravação demora: nada fica pela metade e a tela conta o que houve', async () => {
     restaurar();
-    await page.goto('http://127.0.0.1:5173/administracao/negocio');
+    await page.goto('http://127.0.0.1:5173/administracao/negocio?aba=lista');
     await cartao.waitFor({ timeout: 30000 });
     await cartao.locator('#price-list-file').setInputFiles(arquivo);
     await cartao.getByRole('button', { name: 'Gravar na loja' }).waitFor({ timeout: 60000 });

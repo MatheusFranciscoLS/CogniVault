@@ -1,3 +1,4 @@
+import { RepairHistoryService } from '../services/repair-history.service';
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { AuditService } from '../services/audit.service';
@@ -138,6 +139,7 @@ export class QuoteController {
 
     try {
       const quote = await QuoteService.saveQuote(req.user.tenantId, req.user.id, items, options);
+      RepairHistoryService.forget(req.user.tenantId); // a OS que acabou de ser arquivada já entra nas sugestões do conserto
       void AuditService.record({
         tenantId: req.user.tenantId,
         userId: req.user.id,
@@ -176,6 +178,7 @@ export class QuoteController {
       }
 
       const quote = await QuoteService.updateSavedQuote(req.user.tenantId, quoteId, items, options);
+      RepairHistoryService.forget(req.user.tenantId);
       if (!quote) {
         res.status(404).json({ error: 'Orçamento não encontrado.' });
         return;
@@ -211,6 +214,7 @@ export class QuoteController {
       }
 
       const removed = await QuoteService.deleteSavedQuote(req.user.tenantId, quoteId);
+      RepairHistoryService.forget(req.user.tenantId);
       if (!removed) {
         res.status(404).json({ error: 'Orçamento não encontrado.' });
         return;

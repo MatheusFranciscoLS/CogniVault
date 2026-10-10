@@ -4,6 +4,7 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import { apiJson } from '../lib';
 import type { NotificationItem, Section, SessionUser } from '../types';
 import { useQuoteCart } from '../context/QuoteCartContext';
+import { BAND_SECTIONS } from '../lib/section-routes';
 import { useTheme } from './ThemeProvider';
 import { isSoundEnabled, toggleSound } from '../lib/sound';
 import { Icon, type IconName } from './icons/Icon';
@@ -49,7 +50,7 @@ const adminNav: NavItem[] = [
 
 // Aba da barra superior. Texto de apoio em hex fixo (não opacidade): contraste
 // medido sobre o azul da marca, nos dois temas.
-const tabBase = 'relative flex h-full items-center gap-1.5 border-b-[3px] px-4 text-base font-medium outline-none transition-colors focus-visible:bg-white/10';
+const tabBase = 'relative flex h-full shrink-0 items-center gap-1.5 whitespace-nowrap border-b-[3px] px-3 text-base 2xl:px-4 font-medium outline-none transition-colors focus-visible:bg-white/10';
 const tabIdle = 'border-transparent text-[#c9d2e6] hover:text-white';
 const tabActive = 'border-white font-semibold text-white';
 
@@ -97,6 +98,7 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
   const { theme, setTheme } = useTheme();
   const quoteCart = useQuoteCart();
   const isCounter = section === 'parts' || section === 'home' || section === 'assistant';
+  const bleed = BAND_SECTIONS.includes(section);
   const isAdmin = user.role === 'ADMIN';
 
   // O sino é só do administrador (dono, 2026-10-07): as pendências são conferências e qualidade. O balcão nem consulta.
@@ -151,7 +153,7 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
           </DropdownMenu>
 
           {!isCounter && (
-            <form onSubmit={submitSearch} role="search" className="hidden min-w-0 max-w-md flex-1 lg:block">
+            <form onSubmit={submitSearch} role="search" className="hidden min-w-[10rem] max-w-md flex-1 lg:block">
               <div className="relative">
                 <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5f667a]" />
                 <input
@@ -161,10 +163,10 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
                   spellCheck={false}
                   value={query}
                   onChange={event => setQuery(event.target.value)}
-                  placeholder="Buscar peça ou código…"
-                  className="h-10 w-full rounded-md border border-transparent bg-white pl-9 pr-16 text-base text-[#1b2234] outline-none placeholder:text-[#5f667a] focus-visible:ring-3 focus-visible:ring-[#ff9a73]"
+                  placeholder="Buscar peça ou código"
+                  className="h-10 w-full truncate rounded-md border border-transparent bg-white pl-9 pr-3 text-base 2xl:pr-16 text-[#1b2234] outline-none placeholder:text-[#5f667a] focus-visible:ring-3 focus-visible:ring-[#ff9a73]"
                 />
-                <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-[#c4cada] px-1.5 text-sm text-[#5f667a]">Ctrl&nbsp;K</kbd>
+                <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-[#c4cada] px-1.5 text-sm text-[#5f667a] 2xl:block">Ctrl&nbsp;K</kbd>
               </div>
             </form>
           )}
@@ -226,7 +228,7 @@ export default function ShellV2({ user, section, onSection, onLogout, onSearch, 
         </div>
       </header>
 
-      <main id="conteudo" tabIndex={-1} className={`mx-auto flex w-full flex-1 flex-col px-5 py-5 outline-none ${isCounter ? 'max-w-[1560px]' : 'max-w-[1500px]'}`}>{children}</main>
+      <main id="conteudo" tabIndex={-1} className={bleed ? 'flex w-full flex-1 flex-col outline-none' : `mx-auto flex w-full flex-1 flex-col px-5 py-5 outline-none ${isCounter ? 'max-w-[1560px]' : 'max-w-[1500px]'}`}>{children}</main>
     </div>
   );
 }
