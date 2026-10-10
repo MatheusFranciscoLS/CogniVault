@@ -234,7 +234,7 @@ export default function SavedQuotesPanel() {
                             type="button"
                             onClick={() => setExpandedId(expanded ? null : quote.id)}
                             aria-expanded={expanded}
-                            className="flex max-w-full items-center gap-1 rounded-sm text-left text-base font-semibold outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/60"
+                            className="-my-1 flex min-h-8 max-w-full items-center gap-1 rounded-sm text-left text-base font-semibold outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/60"
                           >
                             <ChevronRight className={cn('size-4 shrink-0 transition-transform', expanded && 'rotate-90')} aria-hidden="true" />
                             <span className="truncate">{firstItem ? firstItem.name : 'Sem itens'}</span>

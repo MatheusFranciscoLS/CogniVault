@@ -372,7 +372,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
                   <h2 className="text-base font-semibold text-foreground">Catálogos para conferir</h2>
                   <p className="mt-1 text-sm leading-5 text-muted-foreground">Comece pelos modelos sugeridos. Nenhum código é alterado apenas por abrir esta tela.</p>
                 </div>
-                <input value={queueFilter} onChange={event => setQueueFilter(event.target.value)} placeholder="Filtrar por arquivo, modelo ou motivo" className="h-10 rounded-md border border-input bg-card px-3 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/60 w-full max-w-xs text-sm" />
+                <input value={queueFilter} onChange={event => setQueueFilter(event.target.value)} aria-label="Filtrar catálogos por arquivo, modelo ou motivo" placeholder="Filtrar por arquivo, modelo ou motivo" className="h-10 rounded-md border border-input bg-card px-3 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/60 w-full max-w-xs text-sm" />
               </div>
             </div>
             {!filteredQueue.length
@@ -491,7 +491,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
         <div role="tabpanel" id="painel-tecnico" aria-labelledby="tab-tecnico" className="space-y-5">
           <div className="grid gap-5 xl:grid-cols-2">
             <div className="rounded-card border border-border bg-card p-6">
-              <h3 className="text-sm font-semibold text-foreground">IA e indexação</h3>
+              <h2 className="text-sm font-semibold text-foreground">IA e indexação</h2>
               <p className="mt-2 text-sm leading-5 text-muted-foreground">O modelo {data.runtime.generativeModel} interpreta perguntas e PDFs visuais. Os códigos continuam vindo das peças estruturadas, nunca da imaginação da IA.</p>
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 <RuntimeStat label="Leitura visual" value={data.runtime.extraction.geminiCatalogs} />
@@ -526,7 +526,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
             </div>
             
             <div className="rounded-card border border-border bg-card p-6">
-              <h3 className="text-sm font-semibold text-foreground">Teste de regressão da busca</h3>
+              <h2 className="text-sm font-semibold text-foreground">Teste de regressão da busca</h2>
               <p className="mt-2 text-sm leading-5 text-muted-foreground">Confere {metrics?.goldenTotal || 30} perguntas reais de balcão com códigos comprovados nos PDFs, incluindo peças parecidas que não podem vencer a correta. Use após mudanças na busca.</p>
               {metrics && <div className="mt-4 grid grid-cols-2 gap-3"><Metric label="Primeiro resultado correto" value={`${metrics.top1Percent}%`} /><Metric label="Correto entre os 5" value={`${metrics.recallAt5Percent}%`} /></div>}
               <div className="mt-5 flex flex-wrap items-center gap-3">
