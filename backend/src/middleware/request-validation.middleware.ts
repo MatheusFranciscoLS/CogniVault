@@ -202,3 +202,31 @@ export function validateVisualCatalogRetryRequest(req: Request, res: Response, n
   }
   next();
 }
+
+const NUL = String.fromCharCode(0);
+const MAX_NUL_SCAN_DEPTH = 20;
+
+function hasNullByte(value: unknown, depth = 0): boolean {
+  if (typeof value === 'string') return value.includes(NUL);
+  if (depth >= MAX_NUL_SCAN_DEPTH) return false;
+  if (Array.isArray(value)) return value.some(item => hasNullByte(item, depth + 1));
+  if (value && typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>).some(([key, item]) => key.includes(NUL) || hasNullByte(item, depth + 1));
+  }
+  return false;
+}
+
+/**
+ * Caractere nulo (\u0000 / `%00`) no endereço ou no corpo é entrada inválida, e o Postgres a recusa ("invalid byte sequence") só quando a consulta
+ * já está no banco: a resposta saía 500 (e erro no log) em 12 rotas, em vez de 400. Um portão único, antes de qualquer rota, devolve 400 com a causa.
+ * Achado da auditoria de 2026-10-10 (fuzz de todas as rotas na loja simulada). Corpo de upload (multipart) não passa por aqui: o multer o lê depois.
+ */
+export function rejectNullBytes(req: Request, res: Response, next: NextFunction): void {
+  let url = req.originalUrl || req.url || '';
+  try { url = decodeURIComponent(url); } catch { /* percent-encoding quebrado: vale o texto cru */ }
+  if (url.includes(NUL) || /%00/i.test(req.originalUrl || req.url || '') || hasNullByte(req.body)) {
+    res.status(400).json({ error: 'Texto inválido: o caractere nulo não é permitido.' });
+    return;
+  }
+  next();
+}
