@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRestoreFocus } from '../lib/use-restore-focus';
 import { useConfirm } from '../context/confirm';
 import { Eye, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -86,6 +87,14 @@ export default function QuickQuoteCart() {
   // Mesma conta do texto do WhatsApp, do PDF e do servidor (desconto arredondado antes de subtrair). Calcular
   // aqui por conta própria dava R$ 435,92 na tela e R$ 435,91 no que o cliente recebia e no orçamento arquivado.
   const { discount: discountAmount, net: netTotalPrice } = quoteTotals(items, discountPercentage);
+
+  // Fechar o orçamento (Esc, X ou fora) devolve o foco a quem o abriu, em vez de pular para o começo da página; sem esse ponto, vai para a busca.
+  const restoreFocus = useRestoreFocus(() => document.getElementById('cv-workspace-search') ?? document.querySelector<HTMLElement>('input[name="busca"]'));
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !isOpen) restoreFocus();
+    wasOpen.current = isOpen;
+  }, [isOpen, restoreFocus]);
 
   if (totalItems === 0 && !isOpen) {
     return null;
