@@ -9,6 +9,7 @@ import { recentSearchesFrom, type RecentSearch } from '../../lib/recent-searches
 import PartVerificationDialog, { isSupersededForCode, looksLikePartNumber, normalizePartCode } from '../PartVerificationDialog';
 import { Icon } from '../icons/Icon';
 import CounterSessionBar from '../CounterSessionBar';
+import { BAND_FIELD } from '../../lib/band-field';
 import CounterQuoteRail from '../CounterQuoteRail';
 import CommercialPartRow from './CommercialPartRow';
 import PartDetailDrawer from './PartDetailDrawer';
@@ -706,15 +707,16 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
   const detailVerification = detail ? verifications[normalizePartCode(detail.partNumber)] : undefined;
 
   return (
-    <section className="flex flex-1 flex-col gap-4">
+    <section className="flex flex-1 flex-col">
       <h1 className="sr-only">Atendimento</h1>
       <p role="status" className="sr-only">{loading ? 'Buscando…' : hasSearched ? `${parts.length + commercialParts.length} resultados` : ''}</p>
 
-      {/* Painel de busca: o campo é o protagonista; cliente, máquina e PNC do atendimento ficam logo abaixo, na mesma peça. */}
-      <div className="rounded-2xl border border-border bg-card shadow-sm">
-      <form onSubmit={submit} className="flex flex-wrap items-center gap-3 p-3 sm:flex-nowrap">
+      {/* Faixa de busca (direção B): o campo é o protagonista; cliente, máquina e PNC do atendimento ficam logo abaixo, na mesma faixa. */}
+      <div className="cv-band">
+      <div className="mx-auto w-full max-w-[1560px] px-7 pb-3 pt-4">
+      <form onSubmit={submit} className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
         <div className="relative min-w-0 basis-full sm:basis-0 sm:flex-1">
-          <Icon name="search" className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
+          <Icon name="search" className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-[#5f667a]" />
           <Input
             ref={inputRef}
             value={query}
@@ -764,9 +766,9 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
             aria-expanded={(suggestionsOpen && suggestions.length > 0) || (recentOpen && recent.length > 0 && !query.trim())}
             aria-controls="parts-search-suggestions"
             aria-autocomplete="list"
-            className="h-14 rounded-xl bg-background pl-12 pr-20 text-xl font-medium"
+            className={`h-14 rounded-xl pl-12 pr-20 text-xl font-medium ${BAND_FIELD}`}
           />
-          {!query && <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-border px-1.5 text-sm text-muted-foreground">Ctrl&nbsp;K</kbd>}
+          {!query && <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-[#b9bdcb] px-1.5 text-sm text-[#5f667a]">Ctrl&nbsp;K</kbd>}
           {recentOpen && recent.length > 0 && !query.trim() && (
             <RecentSearchesDropdown recent={recent} activeIndex={activeRecent} onPick={value => { setRecentOpen(false); beginSearch(value); }} />
           )}
@@ -776,15 +778,17 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
             </div>
           )}
         </div>
-        {query && <Button type="button" variant="ghost" size="lg" onClick={clearSearch} className="h-14">Limpar</Button>}
+        {query && <Button type="button" variant="bar" size="lg" onClick={clearSearch} className="h-14">Limpar</Button>}
         {/* Nunca desabilitado: com o botão desabilitado o navegador IGNORA o Enter, e uma busca sem resultado fica em "Buscando…" por alguns segundos (fase "por significado"). Digitar outro código e apertar Enter não podia ficar mudo; `runSearch` já cancela a busca anterior. */}
         <Button type="submit" size="lg" className="h-14 min-w-36 px-8 text-xl">{loading ? 'Buscando…' : 'Buscar'}</Button>
       </form>
-      <div className="border-t border-border">
+      <div className="mt-1">
         <CounterSessionBar onOpenMachine={pnc => setOpenMachine({ pnc, name: session.machineModel || `PNC ${pnc}` })} />
       </div>
       </div>
+      </div>
 
+      <div className="mx-auto flex w-full max-w-[1560px] flex-1 flex-col gap-4 px-7 pb-8 pt-4">
       {error && <div role="alert" className="rounded-lg border border-destructive bg-destructive/10 px-4 py-3 text-base font-medium text-destructive">{error}</div>}
 
       {/* Máquina e documentos viram atalhos pequenos, em uma linha: a peça buscada vem
@@ -1003,6 +1007,7 @@ export default function TechnicalAssistantWorkspace({ initialQuery, onQueryChang
           {pdf && <iframe title={pdf.title} src={`${pdf.url}${pdf.page ? `#page=${pdf.page}` : ''}`} className="min-h-0 w-full flex-1 border-0" />}
         </DialogContent>
       </Dialog>
+      </div>
     </section>
   );
 }
