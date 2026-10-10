@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import PageFrame from '../PageFrame';
+import BandStat from '../BandStat';
 
 const ROLE_LABEL: Record<Role, string> = { ADMIN: 'Administrador', MECHANIC: 'Balcão' };
 const STATUS: Record<AdminUser['status'], { label: string; className: string }> = {
@@ -29,6 +30,7 @@ function fetchUsers() {
 export default function UsersPanel() {
   const confirm = useConfirm();
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [email, setEmail] = useState('');
   const [newName, setNewName] = useState('');
   const [nameFor, setNameFor] = useState<AdminUser | null>(null);
@@ -42,11 +44,11 @@ export default function UsersPanel() {
   const [passwordDraft, setPasswordDraft] = useState('');
   const [passwordError, setPasswordError] = useState('');
 
-  const load = async () => setUsers((await fetchUsers()).users);
+  const load = async () => { setUsers((await fetchUsers()).users); setLoaded(true); };
   useEffect(() => {
     let active = true;
     void fetchUsers()
-      .then(data => { if (active) setUsers(data.users); })
+      .then(data => { if (active) { setUsers(data.users); setLoaded(true); } })
       .catch(loadError => { if (active) setError(loadError instanceof Error ? loadError.message : 'Erro ao carregar usuários.'); });
     return () => { active = false; };
   }, []);
@@ -138,12 +140,32 @@ export default function UsersPanel() {
     [normalized, users],
   );
 
+  const count = (predicate: (user: AdminUser) => boolean) => (loaded ? users.filter(predicate).length.toLocaleString('pt-BR') : '—');
+
   return (
-    <PageFrame title="Usuários" action={<Button onClick={() => setCreateOpen(value => !value)}>{createOpen ? 'Fechar' : 'Novo usuário'}</Button>}>
+    <PageFrame
+      look="band"
+      crumb="Administração"
+      title="Usuários"
+      meta={`${filtered.length} ${filtered.length === 1 ? 'usuário' : 'usuários'}`}
+      action={<Button variant={createOpen ? 'bar' : 'default'} onClick={() => setCreateOpen(value => !value)}>{createOpen ? 'Fechar' : 'Novo usuário'}</Button>}
+      band={
+        <div className="grid items-center gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_minmax(0,1.6fr)]">
+          <BandStat label="Ativos" value={count(user => user.status === 'APPROVED')} caption="Com acesso ao sistema" />
+          <BandStat label="Administradores" value={count(user => user.role === 'ADMIN' && user.status === 'APPROVED')} caption="Veem a loja inteira" />
+          <BandStat label="Balcão" value={count(user => user.role === 'MECHANIC' && user.status === 'APPROVED')} caption="Atendem e orçam" />
+          <BandStat label="Bloqueados" value={count(user => user.status !== 'APPROVED')} caption="Sem acesso" />
+          <div className="relative">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-[#5f667a]" aria-hidden="true" />
+            <Input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Filtrar por e-mail, perfil ou status" aria-label="Filtrar usuários" className="h-11 border-transparent bg-white pl-10 dark:bg-white text-[#1b2234] placeholder:text-[#5f667a] focus-visible:ring-[#ff9a73]" />
+          </div>
+        </div>
+      }
+    >
       {error && <p role="alert" className="rounded-lg border border-destructive bg-destructive/10 px-4 py-3 text-base text-destructive">{error}</p>}
 
       {createOpen && (
-        <form onSubmit={create} className="grid gap-3 rounded-xl border border-border bg-card p-5 lg:grid-cols-[minmax(200px,1fr)_minmax(200px,1fr)_minmax(200px,1fr)_180px_auto]">
+        <form onSubmit={create} className="grid gap-3 rounded-card border border-border bg-card p-5 lg:grid-cols-[minmax(200px,1fr)_minmax(200px,1fr)_minmax(200px,1fr)_180px_auto]">
           <Input maxLength={80} value={newName} onChange={event => setNewName(event.target.value)} placeholder="Nome (sai no orçamento)" aria-label="Nome do novo usuário" className="h-11" />
           <Input type="email" required value={email} onChange={event => setEmail(event.target.value)} placeholder="E-mail" aria-label="E-mail do novo usuário" className="h-11" />
           <Input required minLength={15} maxLength={64} type="password" autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Senha inicial (mínimo 15 caracteres)" aria-label="Senha inicial" className="h-11" />
@@ -154,14 +176,6 @@ export default function UsersPanel() {
           <Button type="submit" className="h-11">Criar acesso</Button>
         </form>
       )}
-
-      <div className="flex items-center gap-3">
-        <div className="relative max-w-md flex-1">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <Input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Filtrar por e-mail, perfil ou status" aria-label="Filtrar usuários" className="h-11 pl-10" />
-        </div>
-        <span className="text-base text-muted-foreground">{filtered.length} {filtered.length === 1 ? 'usuário' : 'usuários'}</span>
-      </div>
 
       <Table>
         <TableHeader>
