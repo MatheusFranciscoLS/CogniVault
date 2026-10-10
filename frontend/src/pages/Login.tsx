@@ -314,6 +314,9 @@ export default function Login() {
               </Button>
             </form>
 
+            {/* Não há recuperação por e-mail: quem redefine a senha é o administrador (Usuários). Uma linha de ação, sem explicar o sistema. */}
+            <p className="mt-4 text-sm text-muted-foreground">Esqueceu a senha? Peça ao administrador para redefinir.</p>
+
             {/* No celular o painel da marca não existe, então a autorização
                 Husqvarna aparece aqui — é o que dá credibilidade à tela. */}
             <div className="mt-7 lg:hidden">

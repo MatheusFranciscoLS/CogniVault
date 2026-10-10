@@ -14,6 +14,16 @@ await step('conteúdo da tela', async () => {
   const texto = await page.locator('body').innerText();
   check('mostra a marca da loja e o selo ouro', /Vardão/.test(texto) && /OURO/i.test(texto));
   check('sem texto de marketing explicando o sistema', texto.length < 600, `${texto.length} caracteres`);
+  check('quem esqueceu a senha sabe o que fazer (uma linha de ação: pedir ao administrador)', /Esqueceu a senha\? Peça ao administrador para redefinir\./.test(texto));
+  const linha = page.getByText(/Esqueceu a senha\?/);
+  const contraste = await linha.evaluate(el => {
+    const p = c => c.match(/[\d.]+/g).map(Number);
+    const L = ([r, g, b]) => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+    let bg = null; for (let e = el; e && !bg; e = e.parentElement) { const c = getComputedStyle(e).backgroundColor; const v = p(c); if (v.length < 4 || v[3] > 0.9) bg = v; }
+    const a = L(p(getComputedStyle(el).color)), b = L(bg ?? [255, 255, 255]);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  });
+  check('a linha da senha esquecida passa no contraste AA (4,5:1)', contraste >= 4.5, contraste.toFixed(2));
   check('campo e-mail com autocomplete=email', (await email.getAttribute('autocomplete')) === 'email');
   check('campo senha com autocomplete=current-password', (await senha.getAttribute('autocomplete')) === 'current-password');
   check('o foco já está no e-mail ao abrir', await email.evaluate(el => el === document.activeElement));
