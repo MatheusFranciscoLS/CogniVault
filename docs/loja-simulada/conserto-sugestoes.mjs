@@ -162,6 +162,47 @@ try {
     check('o que já foi lançado some da faixa e o resto continua', !/Filtro gasolina/.test(faixa2) && /Mangueira/.test(faixa2), faixa2);
   });
 
+  await step('Valor fora do costume (o zero a mais ou a menos) avisa, sem bloquear', async () => {
+    const preco = editor.getByLabel('Valor unitário (R$)');
+    const aviso = editor.getByText(/Costuma ser R\$/);
+    await descricao(editor).fill('carburador');
+    await lista(editor).waitFor({ timeout: 8000 });
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(300);
+    check('com o valor de referência preenchido, não avisa', await aviso.count() === 0);
+    await preco.fill('20');
+    await aviso.waitFor({ timeout: 4000 });
+    check('faltou um zero: "Costuma ser R$ 204,50 (12 vezes)"', /Costuma ser R\$\s?204,50 \(12 vezes\)/.test(await aviso.innerText()), await aviso.innerText());
+    await shot(page, `${theme}-1366-conserto-aviso-valor`);
+    await preco.fill('2045');
+    await page.waitForTimeout(300);
+    check('sobrou um zero: avisa', await aviso.count() === 1);
+    for (const [valor, deve] of [['205', false], ['150', false], ['70', false], ['60', true], ['700', true], ['600', false]]) {
+      await preco.fill(valor);
+      await page.waitForTimeout(250);
+      check(`R$ ${valor} ${deve ? 'avisa' : 'não avisa'}`, (await aviso.count() === 1) === deve);
+    }
+    await preco.fill('20');
+    await preco.press('Enter');
+    await page.waitForTimeout(500);
+    check('o aviso NÃO bloqueia: a linha entra com o valor digitado', (await nomes(editor)).some(nome => /carburador/i.test(nome)));
+    await descricao(editor).fill('Mão de obra');
+    await preco.fill('15');
+    await page.waitForTimeout(800);
+    check('mão de obra a R$ 15 avisa "Costuma ser R$ 150,00"', /Costuma ser R\$\s?150,00/.test(await aviso.innerText().catch(() => '')));
+    await descricao(editor).fill('Jogo de juntas');
+    await preco.fill('2');
+    await page.waitForTimeout(800);
+    check('linha com só 4 OS no histórico não tem base para avisar', await aviso.count() === 0);
+    await descricao(editor).fill('Peça que nunca foi orçada');
+    await preco.fill('99999');
+    await page.waitForTimeout(800);
+    check('linha sem histórico não avisa', await aviso.count() === 0);
+    await descricao(editor).fill('');
+    await preco.fill('');
+  });
+
   await step('Entrada estranha: nada quebra, nada aparece à toa', async () => {
     for (const texto of ["'; DROP TABLE \"Quote\"; --", '%%%', 'a'.repeat(3000), '日本語 😀', '   ', 'x', '((((']) {
       await descricao(editor).fill(texto);

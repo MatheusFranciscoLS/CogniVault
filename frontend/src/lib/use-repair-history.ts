@@ -28,6 +28,31 @@ export function suggestionDetail(item: HistorySuggestion): string {
   ].filter(Boolean).join(' · ');
 }
 
+const STOP_WORDS = new Set(['DE', 'DO', 'DA', 'DOS', 'DAS']);
+// Mesma chave do servidor (`backend/src/utils/repair-history.ts`): sem acento, sem "de/do/da" e sem a quantidade quebrada "(0,3)" no fim.
+const lineKey = (text: string) => text
+  .normalize('NFD').replace(/\p{M}/gu, '').toUpperCase()
+  .replace(/\(\s*\d+(?:[.,]\d+)?\s*\)\s*$/, ' ')
+  .replace(/[^A-Z0-9]+/g, ' ').trim().split(' ')
+  .filter(word => word && !STOP_WORDS.has(word)).join(' ');
+
+/** É a MESMA linha que o histórico guarda? ("Filtro de gasolina" e "FILTRO GASOLINA" são; mesma regra de chave do servidor.) */
+export function sameHistoryLine(a: string, b: string): boolean {
+  const left = lineKey(a);
+  return left !== '' && left === lineKey(b);
+}
+
+/**
+ * O valor digitado foge do que a loja costuma cobrar nesta linha? Só avisa com base (5 vezes ou mais) e quando é pelo menos o TRIPLO ou menos de um terço
+ * da referência: o que pega o zero a mais ou a menos ("150" digitado como "15" ou "1500"), sem reclamar de desconto ou de peça mais cara.
+ */
+export function priceLooksOff(typed: number | undefined, reference: { price: number | null; count: number } | undefined): boolean {
+  if (!reference || reference.price === null || reference.price <= 0 || reference.count < 5) return false;
+  if (typed === undefined || !Number.isFinite(typed) || typed <= 0) return false;
+  const ratio = typed / reference.price;
+  return ratio >= 3 || ratio <= 1 / 3;
+}
+
 /** Aceita só o formato esperado: resposta torta do servidor vira lista vazia, nunca derruba a tela do orçamento. */
 export function cleanSuggestions<T extends HistorySuggestion>(value: unknown): T[] {
   if (!Array.isArray(value)) return [];
