@@ -1,3 +1,4 @@
+import { rejectNullBytes } from './middleware/request-validation.middleware';
 import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import multer from 'multer';
@@ -111,6 +112,8 @@ app.use((req, _res, next) => {
   if (req.body === undefined) req.body = {};
   next();
 });
+// Caractere nulo no endereço ou no corpo é entrada inválida (o Postgres o recusa): 400 aqui, em vez de 500 dentro da rota.
+app.use(rejectNullBytes);
 
 // Métricas rolling em memória: não aumentam o banco e permitem enxergar
 // média/p95/máximo por endpoint no painel administrativo.

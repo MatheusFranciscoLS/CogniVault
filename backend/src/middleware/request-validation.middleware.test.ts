@@ -15,6 +15,7 @@ import {
   validateSearchQuery,
   validateVisualCatalogRetryRequest,
   validateWorkContextModel,
+  rejectNullBytes,
 } from './request-validation.middleware';
 
 function run(
@@ -117,4 +118,20 @@ test('typed é validado como q, porque decide uma chamada externa de máquina', 
   assert.equal(run(validateSearchQuery, { query: { q: 'carburador 143RII', typed: 'carburador 143RII' } as any }).nextCalled, true);
   // Ausente continua valendo: a rota cai no `q` quando a tela não manda.
   assert.equal(run(validateSearchQuery, { query: { q: 'carburador' } as any }).nextCalled, true);
+});
+
+test('caractere nulo no endereço ou no corpo vira 400, nunca chega ao banco', () => {
+  const NUL = String.fromCharCode(0);
+  assert.equal(run(rejectNullBytes, { originalUrl: '/api/parts/%00', body: {} } as any).statusCode, 400);
+  assert.equal(run(rejectNullBytes, { originalUrl: '/api/quotes?q=%00abc', body: {} } as any).statusCode, 400);
+  assert.equal(run(rejectNullBytes, { originalUrl: '/api/quotes?q=a%2500', body: {} } as any).nextCalled, true, '%2500 é o texto "%00" escapado, não um nulo');
+  assert.equal(run(rejectNullBytes, { originalUrl: '/api/x', body: { name: 'a' + NUL + 'b' } } as any).statusCode, 400);
+  assert.equal(run(rejectNullBytes, { originalUrl: '/api/x', body: { itens: [{ nome: { fundo: NUL } }] } } as any).statusCode, 400);
+  assert.equal(run(rejectNullBytes, { originalUrl: '/api/x', body: { ['chave' + NUL]: 1 } } as any).statusCode, 400);
+});
+
+test('texto normal passa: acento, emoji, aspas, barra e corpo vazio', () => {
+  assert.equal(run(rejectNullBytes, { originalUrl: '/api/parts?q=carburador%20143RII', body: {} } as any).nextCalled, true);
+  assert.equal(run(rejectNullBytes, { originalUrl: '/api/x', body: { nome: "Óleo 2T 😀 'aspas' \\ barra", n: 3, ok: true, vazio: null } } as any).nextCalled, true);
+  assert.equal(run(rejectNullBytes, { originalUrl: '/api/x?q=%E0%A4%A', body: undefined } as any).nextCalled, true, 'percent-encoding quebrado não derruba o portão');
 });
