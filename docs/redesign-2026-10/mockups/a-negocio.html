@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Direção A · Negócio</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css"><script src="base.js"></script>
+<style>
+  /* DIREÇÃO A · "Mesa do dono": menu lateral da Administração, o que precisa do dono vem PRIMEIRO, números em faixa única, tabelas densas. */
+  .shell { display: grid; grid-template-columns: 236px 1fr; min-height: 843px; }
+  .rail { padding: 22px 14px; border-right: 1px solid var(--line); background: var(--card); }
+  .rail h2 { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); font-weight: 700; padding: 0 10px 8px; }
+  .rail a { display: flex; align-items: center; justify-content: space-between; padding: 9px 10px; border-radius: 8px; font-size: 15px; font-weight: 500; color: var(--muted); margin-bottom: 2px; }
+  .rail a.on { background: var(--brand-soft); color: var(--brand); font-weight: 700; }
+  .rail a .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .rail .grp { margin-top: 18px; }
+  main { padding: 24px 28px 40px; display: grid; gap: 18px; align-content: start; }
+  .head { display: flex; align-items: center; justify-content: space-between; }
+  .head h1 { font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
+  .head .tools { display: flex; gap: 10px; align-items: center; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+  .need { padding: 6px 0; }
+  .need .t { padding: 12px 20px 6px; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--faint); }
+  .need .row { display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 14px; padding: 12px 20px; border-top: 1px solid var(--line-soft); }
+  .need .row:first-of-type { border-top: 0; }
+  .need .ic { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--warn-soft); color: var(--warn); }
+  .need .row b { font-size: 16px; }
+  .need .row span.d { display: block; font-size: 14px; color: var(--muted); margin-top: 1px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .kpi { padding: 18px 22px; border-left: 1px solid var(--line-soft); }
+  .kpi:first-child { border-left: 0; }
+  .kpi .l { font-size: 14px; color: var(--muted); font-weight: 500; display: flex; justify-content: space-between; }
+  .kpi .v { font-size: 34px; margin: 6px 0 4px; }
+  .kpi .s { font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; align-items: end; }
+  .kpi .up { color: var(--ok); font-weight: 700; display: inline-flex; gap: 3px; align-items: center; }
+  .two { display: grid; grid-template-columns: 1fr 380px; gap: 18px; }
+  .card .h { display: flex; justify-content: space-between; align-items: baseline; padding: 16px 20px 6px; }
+  .card .h h3 { font-size: 17px; font-weight: 700; }
+  .card .h small { font-size: 13px; color: var(--muted); }
+  .rank { padding: 4px 20px 14px; }
+  .rank .i { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 9px 0; border-top: 1px solid var(--line-soft); font-size: 15px; }
+  .rank .i:first-child { border-top: 0; }
+  .rank .bar { grid-column: 1 / -1; height: 5px; border-radius: 3px; background: var(--brand-soft); }
+  .rank .bar i { display: block; height: 100%; border-radius: 3px; background: var(--brand); }
+  .rank small { color: var(--muted); }
+</style></head>
+<body>
+<div id="app"></div>
+<script>
+const rail = (active) => `
+  <aside class="rail">
+    <h2>Administração</h2>
+    <a class="${active === 'Negócio' ? 'on' : ''}">Negócio <span class="dot"></span></a>
+    <a>Lista de preços</a>
+    <a>Demanda e estoque</a>
+    <div class="grp"><h2>Sistema</h2></div>
+    <a>Qualidade</a>
+    <a>Usuários</a>
+    <a>Registro de ações</a>
+  </aside>`;
+document.getElementById('app').innerHTML = topBar() + `<div class="shell">${rail('Negócio')}
+<main>
+  <div class="head"><h1>Negócio</h1>
+    <div class="tools"><div class="seg"><span>7 dias</span><span class="on">30 dias</span><span>90 dias</span><span>12 meses</span></div>
+    <button class="btn">${ICON.dl} Exportar orçamentos</button></div></div>
+
+  <section class="card need" aria-label="Precisa de você">
+    <div class="t">Precisa de você · 3</div>
+    <div class="row"><div class="ic">${ICON.list}</div><div><b>Atualizar a lista de preços</b><span class="d">A última foi há 4 dias · 254 acessórios ainda sem "serve em"</span></div><button class="btn primary">Atualizar lista</button></div>
+    <div class="row"><div class="ic">${ICON.alert}</div><div><b>17 buscas sem resultado esperando cadastro</b><span class="d">A mais repetida: "bomba de combustível 435" (6 vezes na semana)</span></div><button class="btn">Ver buscas</button></div>
+    <div class="row"><div class="ic">${ICON.tag}</div><div><b>61 peças de motor consultadas sem preço</b><span class="d">Briggs, Kawasaki e Kohler abertas no balcão e fora da lista da loja</span></div><button class="btn">Ver peças</button></div>
+  </section>
+
+  <section class="card kpis" aria-label="Números do período">
+    <div class="kpi"><div class="l">Orçamentos salvos ${ICON.doc}</div><div class="v num">113</div><div class="s"><span>418 itens cotados</span>${spark(SERIES.quotes)}</div></div>
+    <div class="kpi"><div class="l">Valor líquido cotado ${ICON.money}</div><div class="v num">R$ 29.988</div><div class="s"><span class="up">${ICON.up} 12% vs. período anterior</span>${spark(SERIES.value)}</div></div>
+    <div class="kpi"><div class="l">Ticket médio ${ICON.tag}</div><div class="v num">R$ 265,38</div><div class="s"><span>Base de 113 orçamentos</span>${spark(SERIES.ticket)}</div></div>
+    <div class="kpi"><div class="l">Cotados sem preço ${ICON.alert}</div><div class="v num">0</div><div class="s"><span class="chip ok">Tudo com valor</span></div></div>
+  </section>
+
+  <div class="two">
+    <section class="card"><div class="h"><h3>Orçamentos por dia</h3><small>altura = valor líquido · linha = tendência</small></div><div style="padding:0 12px 10px">${chart({ w: 740, h: 420, highlight: 28 })}</div></section>
+    <section class="card"><div class="h"><h3>Mais orçadas no conserto</h3><small>12 meses</small></div>
+      <div class="rank">
+        ${[['Carburador', 619, 100, 'R$ 329,50'], ['Filtro de gasolina', 842, 100, 'R$ 18,00'], ['Mangueira de gasolina', 538, 64, 'R$ 27,00'], ['Filtro de ar', 519, 61, 'R$ 36,85'], ['Vela', 419, 50, 'R$ 30,00'], ['Retentor do motor', 234, 28, 'R$ 18,00']].map(([n, v, p, price]) => `<div class="i"><span><b>${n}</b></span><span class="num">${v}</span><div class="bar"><i style="width:${p}%"></i></div><small>valor de referência ${price}</small><small></small></div>`).join('')}
+      </div></section>
+  </div>
+</main></div>
+`;
+</script></body></html>

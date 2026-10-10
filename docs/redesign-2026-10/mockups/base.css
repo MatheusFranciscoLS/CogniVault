@@ -1,0 +1,62 @@
+/* Base comum dos mockups do redesenho da Administração (2026-10-09). Só estáticos para o dono escolher: dados de EXEMPLO, nada real.
+   Tokens = os do app (docs/IDENTIDADE_VISUAL_VARDAO.md): marinho da loja, laranja SÓ para ação, Roboto Flex. */
+:root {
+  --page: #eeeef1; --card: #ffffff; --line: #dcdde4; --line-soft: #ebebf0;
+  --ink: #1b1d26; --muted: #5a5d6b; --faint: #8b8e9b;
+  --brand: #273a60; --brand-deep: #1f2742; --brand-soft: #e6eaf4; --brand-line: #c7d0e6;
+  --accent: #f25420; --accent-text: #c13d0a; --on-accent: #ffffff;
+  --ok: #17794a; --ok-soft: #dff3e8; --warn: #8a5600; --warn-soft: #fcefc8; --bad: #b3261e; --bad-soft: #fbe3e0;
+  --nav: #1f2a47; --nav-text: #dfe5f5; --nav-muted: #aab6d6;
+  --chart: #273a60; --chart-2: #8fa2cf; --grid: #e4e6ee;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --page: #0e1322; --card: #161d33; --line: #2a3454; --line-soft: #202943;
+  --ink: #edf0fa; --muted: #aab2cb; --faint: #7f88a6;
+  --brand: #8fa7e0; --brand-deep: #0a0f1d; --brand-soft: #1e2845; --brand-line: #34426b;
+  --accent: #f25420; --accent-text: #ff9a78; --on-accent: #ffffff;
+  --ok: #5dd397; --ok-soft: #14382a; --warn: #f3c969; --warn-soft: #3a2f10; --bad: #ff8d83; --bad-soft: #3d1815;
+  --nav: #131a30; --nav-text: #e6eaf8; --nav-muted: #9aa7ca;
+  --chart: #8fa7e0; --chart-2: #3a4a7c; --grid: #232c49;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { width: 1440px; min-height: 900px; background: var(--page); color: var(--ink); font-family: 'Roboto Flex', Roboto, system-ui, sans-serif; font-size: 16px; line-height: 1.4; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, p { margin: 0; }
+button { font: inherit; cursor: pointer; }
+
+/* barra de cima: igual à do app (o redesenho é do CONTEÚDO) */
+.top { height: 57px; background: var(--nav); display: flex; align-items: stretch; padding: 0 20px; gap: 28px; color: var(--nav-text); }
+.top .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; letter-spacing: -.01em; color: #fff; }
+.top .logo i { width: 26px; height: 22px; border-radius: 3px; background: linear-gradient(135deg, #3b5190, #1b2442); border: 1px solid #50639c; }
+.top nav { display: flex; gap: 6px; }
+.top nav a { display: flex; align-items: center; padding: 0 14px; font-size: 15px; font-weight: 500; color: var(--nav-muted); border-bottom: 3px solid transparent; }
+.top nav a.on { color: #fff; font-weight: 700; border-bottom-color: #fff; }
+.top .grow { flex: 1; }
+.top .search { align-self: center; width: 240px; height: 38px; border-radius: 6px; background: #fff; color: #6b6f7e; display: flex; align-items: center; padding: 0 12px; font-size: 14px; }
+.top .avatar { align-self: center; width: 40px; height: 40px; border-radius: 50%; background: #2c3a63; border: 1px solid #4a5b8f; display: grid; place-items: center; font-weight: 700; font-size: 14px; color: #fff; }
+
+/* peças comuns */
+.btn { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font-weight: 600; font-size: 15px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn.small { height: 34px; padding: 0 12px; font-size: 14px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--card); }
+.seg span { padding: 8px 14px; font-size: 14px; font-weight: 600; color: var(--muted); border-left: 1px solid var(--line); }
+.seg span:first-child { border-left: 0; }
+.seg span.on { background: var(--brand); color: #fff; }
+:root[data-theme="dark"] .seg span.on { background: var(--brand); color: #0a0f1d; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+.chip.ok { background: var(--ok-soft); color: var(--ok); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+.chip.info { background: var(--brand-soft); color: var(--brand); }
+.num { font-weight: 800; letter-spacing: -.02em; }
+table { border-collapse: collapse; width: 100%; }
+th { text-align: left; font-size: 13px; font-weight: 600; color: var(--muted); padding: 10px 14px; border-bottom: 1px solid var(--line); }
+td { padding: 11px 14px; border-bottom: 1px solid var(--line-soft); font-size: 15px; }
+tr:last-child td { border-bottom: 0; }
+.r { text-align: right; }
+.code { font-family: 'JetBrains Mono', Consolas, ui-monospace, monospace; font-size: 13px; color: var(--muted); }
+.note { position: fixed; right: 14px; bottom: 10px; font-size: 12px; color: var(--faint); background: var(--card); border: 1px solid var(--line); padding: 3px 10px; border-radius: 999px; }
+svg text { font-family: inherit; }
