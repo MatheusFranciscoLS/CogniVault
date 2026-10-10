@@ -1,12 +1,31 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { api, fmtDate, json } from '../lib';
-import { ChevronDown, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import PageFrame from './PageFrame';
+import PageTabs, { type PageTab } from './PageTabs';
+import BandStat from './BandStat';
+import { useUrlTab } from '../lib/use-url-tab';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { actionLabel, isLoginAction, targetLabel } from '../lib/audit-labels';
 import type { AuditLog, Overview } from '../types';
+
+// O uso de IA só é buscado quando a aba é aberta (a tela costuma ficar no registro de ações).
+const AssistantObservabilityPanel = lazy(() => import('./AssistantObservabilityPanel'));
+
+type OverviewTab = 'audit' | 'ai';
+
+/** A aba vai no endereço (`?aba=ia`); a primeira é a padrão. */
+const TAB_PARAM: Record<OverviewTab, string> = { audit: 'registro', ai: 'ia' };
+const TABS: PageTab<OverviewTab>[] = [
+  { id: 'audit', label: 'Registro de ações' },
+  { id: 'ai', label: 'Uso de IA e cobertura técnica' },
+];
+
+const CHIP_OK = 'rounded-full bg-[rgba(93,211,151,.18)] px-2 py-0.5 font-semibold text-[#7be3ae]';
+const CHIP_WARN = 'rounded-full bg-[rgba(255,212,92,.18)] px-2 py-0.5 font-semibold text-[#ffd45c]';
+const CHIP_BAD = 'rounded-full bg-[rgba(255,138,128,.2)] px-2 py-0.5 font-semibold text-[#ffb4ab]';
 
 function AdminHeading({ title, action, level = 1 }: { title: string; action?: React.ReactNode; level?: 1 | 2 }) {
   return (
@@ -33,53 +52,44 @@ export function OverviewPanel() {
     return () => { active = false; };
   }, [retry]);
 
+  const [tab, setTab] = useUrlTab(TAB_PARAM);
+
   // Situação do processamento num selo só: "tudo em dia" é a resposta que o dono procura quando abre esta tela.
   const status = !data ? null
-    : data.failedDocuments > 0 ? { tone: 'text-destructive', text: `${data.failedDocuments} com falha` }
-    : data.processingDocuments > 0 ? { tone: 'text-warn', text: `${data.processingDocuments} processando` }
-    : { tone: 'text-ok', text: 'Tudo em dia' };
+    : data.failedDocuments > 0 ? { tone: CHIP_BAD, text: `${data.failedDocuments} com falha` }
+    : data.processingDocuments > 0 ? { tone: CHIP_WARN, text: `${data.processingDocuments} processando` }
+    : { tone: CHIP_OK, text: 'Tudo em dia' };
+  const stat = (value: number | undefined) => (value === undefined ? '—' : value.toLocaleString('pt-BR'));
 
   return (
-    <PageFrame title="Visão geral">
-      {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"><span>{error}</span><button type="button" onClick={() => { setError(''); setRetry(value => value + 1); }} className="rounded-lg border border-destructive/40 px-3 py-1.5 text-sm font-bold">Tentar novamente</button></div>}
+    <PageFrame
+      look="band"
+      crumb="Administração"
+      title="Visão geral"
+      band={
+        <div className="grid items-stretch gap-4 sm:grid-cols-3">
+          <BandStat label="Catálogos ativos" value={stat(data?.activeDocuments)} caption={status ? <span className={status.tone}>{status.text}</span> : undefined} />
+          <BandStat label="Peças consultáveis" value={stat(data?.parts)} caption="Códigos que o balcão acha na busca" />
+          <BandStat label="Usuários ativos" value={stat(data?.users)} caption="Com acesso ao sistema" />
+        </div>
+      }
+      tabs={<PageTabs tabs={TABS} value={tab} onChange={setTab} label="Seções da Visão geral" />}
+    >
+      {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"><span>{error}</span><button type="button" onClick={() => { setError(''); setRetry(value => value + 1); }} className="rounded-lg border border-destructive/40 px-3 py-1.5 text-sm font-bold">Tentar novamente</button></div>}
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <KpiCard label="Catálogos ativos" value={data?.activeDocuments} footer={status ? <span className={`font-semibold ${status.tone}`}>{status.text}</span> : undefined} />
-        <KpiCard label="Peças consultáveis" value={data?.parts} footer="Códigos que o balcão acha na busca" />
-        <KpiCard label="Usuários ativos" value={data?.users} footer="Com acesso ao sistema" />
-      </div>
+      {tab === 'audit' && (
+        <div role="tabpanel" id="painel-audit" aria-labelledby="tab-audit">
+          <AuditPanel />
+        </div>
+      )}
+      {tab === 'ai' && (
+        <div role="tabpanel" id="painel-ai" aria-labelledby="tab-ai">
+          <Suspense fallback={<div className="rounded-card border border-border bg-card px-4 py-4 text-sm text-muted-foreground">Carregando uso de IA…</div>}>
+            <AssistantObservabilityPanel />
+          </Suspense>
+        </div>
+      )}
     </PageFrame>
-  );
-}
-
-function KpiCard({ label, value, footer }: { label: string; value: number | undefined; footer?: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <div className="text-base font-semibold text-muted-foreground">{label}</div>
-      <div className="mt-2 text-4xl font-semibold tabular-nums">{value === undefined ? <span className="text-muted-foreground" aria-busy="true">—</span> : value.toLocaleString('pt-BR')}</div>
-      {footer && <div className="mt-2 text-base text-muted-foreground">{footer}</div>}
-    </div>
-  );
-}
-
-/** Seção recolhida: o que só o dono técnico consulta (IA, cache, rota do Portal) não disputa a tela com o que ele olha todo dia. */
-export function TechnicalDetails({ title, children }: { title: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  const id = useId();
-  return (
-    <section className="mx-auto w-full max-w-[1400px]">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={() => setOpen(value => !value)}
-        className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4 text-left outline-none transition-colors hover:bg-accent/50 focus-visible:ring-3 focus-visible:ring-ring/60"
-      >
-        <span className="text-lg font-semibold">{title}</span>
-        <ChevronDown className={`size-5 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
-      </button>
-      <div id={id} hidden={!open}>{open && children}</div>
-    </section>
   );
 }
 
