@@ -6,19 +6,21 @@ import { useQuoteCart } from '../context/QuoteCartContext';
 import { machineChipLabel } from '../lib/model-search-rank';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import { BAND_FIELD } from '../lib/band-field';
 
 function Field({ label, value, placeholder, onChange }: { label: string; value: string; placeholder: string; onChange: (value: string) => void }) {
   return (
     <label className="min-w-0 flex-1 space-y-1.5">
-      <span className="block text-sm font-medium text-muted-foreground">{label}</span>
-      <Input value={value} onChange={event => onChange(event.target.value)} placeholder={placeholder} autoComplete="off" spellCheck={false} className="h-10 bg-card text-base" />
+      <span className="block text-sm font-semibold text-band-muted">{label}</span>
+      <Input value={value} onChange={event => onChange(event.target.value)} placeholder={placeholder} autoComplete="off" spellCheck={false} className={cn('h-10 text-base', BAND_FIELD)} />
     </label>
   );
 }
 
 function ContextFields({ session, updateSession }: { session: CounterSession; updateSession: (patch: Partial<CounterSession>) => void }) {
   return (
-    <div className="grid gap-3 border-t border-border px-4 pb-4 pt-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3 border-t border-white/15 px-1 pb-2 pt-3 sm:grid-cols-2 xl:grid-cols-4">
       <Field label="Cliente (opcional)" value={session.customerName} placeholder="Nome do cliente" onChange={value => updateSession({ customerName: value })} />
       <Field label="Máquina ou modelo" value={session.machineModel} placeholder="Ex.: 143RII" onChange={value => updateSession({ machineModel: value })} />
       <Field label="PNC" value={session.pnc} placeholder="Ex.: 967 17 65-01" onChange={value => updateSession({ pnc: value })} />
@@ -57,12 +59,12 @@ export default function CounterSessionBar({ onOpenMachine }: Props) {
   if (!temContexto) {
     return (
       <div>
-        <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-1">
-          <Button variant="ghost" onClick={() => setExpanded(value => !value)} aria-expanded={expanded} className="text-primary hover:text-primary dark:text-add">
+        <div className="flex flex-wrap items-center justify-between gap-2 py-1">
+          <Button variant="ghost" onClick={() => setExpanded(value => !value)} aria-expanded={expanded} className="-ml-2 text-[#ffb59b] hover:bg-white/10 hover:text-white">
             <span aria-hidden="true" className="text-xl leading-none">{expanded ? '−' : '+'}</span>
             Máquina, PNC ou cliente
           </Button>
-          {quoteCart.totalItems > 0 && <Button variant="ghost" onClick={endSession} className="hover:text-destructive">Limpar orçamento</Button>}
+          {quoteCart.totalItems > 0 && <Button variant="ghost" onClick={endSession} className="text-band-muted hover:bg-white/10 hover:text-white">Limpar orçamento</Button>}
         </div>
         {expanded && <ContextFields session={session} updateSession={updateSession} />}
       </div>
@@ -71,24 +73,24 @@ export default function CounterSessionBar({ onOpenMachine }: Props) {
 
   return (
     <div>
-      <div className="flex min-h-12 flex-wrap items-center gap-x-4 gap-y-2 px-4 py-1.5">
+      <div className="flex min-h-12 flex-wrap items-center gap-x-4 gap-y-2 py-1.5">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-base">
           {session.customerName && <span className="font-semibold">{session.customerName}</span>}
           {session.machineModel && (() => {
             // "HUSQVARNA Roçadeira Husqvarna 143R II" → "143R II" em destaque e "Roçadeira" ao lado.
             const label = machineChipLabel(session.machineModel);
             return <>
-              <span className="rounded-md bg-secondary px-2 py-0.5 font-bold">{label.model}</span>
-              {label.kind && <span className="text-muted-foreground">{label.kind}</span>}
+              <span className="rounded-md bg-white/15 px-2 py-0.5 font-bold text-white">{label.model}</span>
+              {label.kind && <span className="text-band-muted">{label.kind}</span>}
             </>;
           })()}
-          {session.pnc && <span className="font-code text-muted-foreground tabular-nums">PNC {session.pnc}</span>}
-          {session.serial && <span className="font-code text-muted-foreground tabular-nums">S/N {session.serial}</span>}
+          {session.pnc && <span className="font-code text-band-muted tabular-nums">PNC {session.pnc}</span>}
+          {session.serial && <span className="font-code text-band-muted tabular-nums">S/N {session.serial}</span>}
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {onOpenMachine && machinePnc && <Button variant="outline" size="sm" onClick={() => onOpenMachine(machinePnc)}>Ver vista explodida</Button>}
-          <Button variant="outline" size="sm" onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>{expanded ? 'Ocultar dados' : 'Editar'}</Button>
-          <Button variant="ghost" size="sm" onClick={endSession} className="hover:text-destructive">Encerrar atendimento</Button>
+          {onOpenMachine && machinePnc && <Button variant="bar" size="sm" onClick={() => onOpenMachine(machinePnc)}>Ver vista explodida</Button>}
+          <Button variant="bar" size="sm" onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>{expanded ? 'Ocultar dados' : 'Editar'}</Button>
+          <Button variant="ghost" size="sm" onClick={endSession} className="text-band-muted hover:bg-white/10 hover:text-white">Encerrar atendimento</Button>
         </div>
       </div>
       {expanded && <ContextFields session={session} updateSession={updateSession} />}
