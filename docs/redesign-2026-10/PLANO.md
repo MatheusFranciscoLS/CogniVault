@@ -41,7 +41,7 @@ Plano antigo: 110 itens feitos contra ~10 a fazer, 22 ideias guardadas e 6 decis
 |---|---|
 | 🔧 2.6 | **Rodada de auditoria a cada funcionalidade grande** e, no mínimo, semanal: `bash docs/loja-simulada/auditoria-rodada.sh` (e a suíte de roteiros). Achados entram aqui com a data. |
 | ✅ 2.7 | **Rodada 2 (lógica)** feita em 2026-10-09 em três passadas: **4 defeitos achados e corrigidos** (duas abas se apagavam; edição sem rede perdia para o servidor; a cesta de conserto vazava entre atendentes do mesmo PC; emoji/árabe/japonês estragava o PDF do cliente) e **rede lenta e partida a frio sem defeito** (guardadas como regressão). Roteiros `rodada2-abas-sessao`, `pdf-texto-estranho`, `rodada2-rede-lenta`. Sobra só: dois APARELHOS editando a mesma cesta (precisaria de versão no servidor). Repetir a rodada a cada funcionalidade grande. |
-| ⏳ 2.8 | **Índice de peças de motor com cache quente:** a leitura de um motor com cache válido não reindexa; se o índice for limpo, só volta quando o cache vence. Decidir se vale reindexar a partir do cache. |
+| ✅ 2.8 | **Índice de peças de motor com cache quente:** decidido **não mexer**. O índice só é limpo à mão e se repovoa sozinho quando o cache do motor vence (7 dias) ou na próxima leitura de um motor novo; reindexar a partir do cache custaria código e teste para um caso que não acontece em produção. Reabrir se alguém limpar `OfficialPartIndex`. |
 
 ### P2 — Melhorias do balcão (pequenas, uma de cada vez)
 | | Item |
@@ -56,7 +56,7 @@ Plano antigo: 110 itens feitos contra ~10 a fazer, 22 ideias guardadas e 6 decis
 | ✅ 2.27 | **Uso recomendado no orçamento de máquina** (site público da Husqvarna): classe de uso (motosserra e soprador) e sabres compatíveis entram como características marcadas; só o que a Husqvarna escreve, nada deduzido. Roçadeira e demais categorias não têm esse dado no site. Medido em 76 modelos; 11 não estão no site. |
 | ✅ 2.24 | **Sugestões a partir do que já foi orçado** (conserto): "já orçado antes" ao digitar (valor de referência pela mediana das últimas 10 vezes, prazo comum, quantas OS) e "costuma levar junto" depois de lançar uma peça (nunca mão de obra). Teclado: setas, Enter só escolhe com opção marcada, Esc fecha. |
 | 💡 2.25 | **Painel "mais orçadas"** no Negócio (administrador): o que mais se orça (filtro de gasolina, carburador, mangueira, vela, retentor...) para guiar o estoque, junto com o prazo e o preço mediano. |
-| 💡 2.26 | **Preço de referência**: avisar quando o preço digitado foge muito do histórico da mesma peça (mão de obra mediana R$ 150, estável desde 2019). |
+| ✅ 2.26 | **Aviso de valor fora do costume** no conserto: o valor digitado que é o triplo (ou menos de um terço) do que a loja costuma cobrar naquela linha (5 OS ou mais) mostra "Costuma ser R$ X: confira o valor", sem bloquear. |
 | ✅ 2.23 | **Prévia do PDF no orçamento de máquina**: o botão Prévia mostra o PDF do cliente ao lado do formulário, refeito a cada ajuste, com Imprimir; baixar usa a mesma montagem. |
 | ❓ 2.20 | **Vista explodida da Branco** (`branco.ricambio.net`): o `robots.txt` do catálogo **proíbe** robôs em `/site/pagece5.wplus`, que é exatamente a página do desenho. Sem leitura automática. Saídas: botão que abre o catálogo da Branco numa aba (o atendente navega) ou pedir à Branco uma exportação/autorização. Decisão do dono. |
 | 💡 | "Tentar de novo" quando o PDF não abre; mostrar que a máquina aberta ficou gravada no atendimento; marcar peças que chegam depois pela fase "por significado". |

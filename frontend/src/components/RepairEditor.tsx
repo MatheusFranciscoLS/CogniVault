@@ -9,7 +9,7 @@ import { LINE_COLUMNS, leadChoiceOf, leadTextFor, type LeadChoice } from '../lib
 import { maskPhoneInput } from '../lib/phone';
 import { formatBRL, quoteTotals } from '../lib/quote-message';
 import { useItemLookup } from '../lib/use-item-lookup';
-import { useRepairHistoryWarmup, useRepairSuggestions, useRepairTogether, type HistorySuggestion } from '../lib/use-repair-history';
+import { priceLooksOff, sameHistoryLine, useRepairHistoryWarmup, useRepairSuggestions, useRepairTogether, type HistorySuggestion } from '../lib/use-repair-history';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Icon } from './icons/Icon';
@@ -98,6 +98,11 @@ function EntryRow({ onAdd, extra }: { onAdd: (input: { code: string; name: strin
     codeRef.current?.focus();
   };
 
+  // Valor fora do que a loja costuma cobrar nesta linha (o zero a mais ou a menos): só um aviso, o valor digitado vale.
+  const typedPrice = shownPrice ? parseFloat(shownPrice.replace(',', '.')) : undefined;
+  const reference = typedName && asked === typedName ? suggestions.find(item => sameHistoryLine(item.name, typedName)) : undefined;
+  const priceHint = reference && priceLooksOff(typedPrice, reference) ? `Costuma ser ${formatBRL(reference.price as number)} (${reference.count} vezes): confira o valor.` : null;
+
   const status = !enabled ? null
     : searching ? 'Procurando…'
       : found ? (found.origin === 'LOJA'
@@ -108,7 +113,10 @@ function EntryRow({ onAdd, extra }: { onAdd: (input: { code: string; name: strin
   return (
     <form onSubmit={submit} noValidate className="relative shrink-0 space-y-2 border-t border-border bg-secondary/40 px-5 py-3">
       <div className="flex min-h-5 items-center justify-between gap-3">
-        <p role="status" className="text-sm text-muted-foreground">{status}</p>
+        <div className="min-w-0">
+          <p role="status" className="text-sm text-muted-foreground">{status}</p>
+          {priceHint && <p role="status" className="text-sm font-semibold text-warn">{priceHint}</p>}
+        </div>
         <Button
           type="button"
           variant="ghost"
