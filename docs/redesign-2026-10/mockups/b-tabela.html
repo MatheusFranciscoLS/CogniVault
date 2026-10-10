@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Direção B · Tabela de preços</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css"><script src="base.js"></script>
+<style>
+  .band { background: linear-gradient(180deg, var(--brand-deep) 0%, #27345a 100%); color: #fff; padding: 12px 28px 58px; }
+  :root[data-theme="dark"] .band { background: linear-gradient(180deg, #0a0f1d 0%, #131b34 100%); }
+  .r1 { display: grid; grid-template-columns: 230px 1fr 200px 200px 190px; gap: 14px; align-items: end; }
+  .band h1 { font-size: 26px; font-weight: 800; letter-spacing: -.02em; padding-bottom: 6px; }
+  .band .in { justify-content: space-between; }
+  .meta { margin-top: 10px; font-size: 13px; color: #aab6d6; display: flex; gap: 14px; }
+  .meta b { color: #fff; }
+  .wrap { padding: 0 28px 24px; margin-top: -36px; position: relative; }
+  .card { overflow: hidden; }
+  th { background: var(--page); height: 34px; padding-top: 0; padding-bottom: 0; }
+  td { padding: 9px 14px; }
+  .thumb { width: 54px; height: 42px; border-radius: 8px; background: linear-gradient(135deg, #e3e7f2, #cdd5ea); display: grid; place-items: center; color: var(--brand); font-weight: 800; font-size: 11px; }
+  .m { display: flex; gap: 12px; align-items: center; } .m b { font-size: 16px; } .m small { display: block; color: var(--muted); font-size: 12.5px; }
+  .pr { font-weight: 800; font-size: 17px; text-align: right; }
+  tr.on td { background: var(--brand-soft); }
+</style></head>
+<body>
+<div id="app"></div>
+<script>
+const M = [
+  ['281XP', 'Motosserra', 'Profissional', '4,2 kW · 80,7 cm³', 4599.0, 'Em linha'],
+  ['272XP', 'Motosserra', 'Profissional', '3,6 kW · 72,2 cm³', 4299.0, 'Em linha'],
+  ['143RST', 'Roçadeira', 'Comercial', '1,4 kW · 40,9 cm³', 3249.0, 'Em linha'],
+  ['LC151', 'Cortador de grama', 'Residencial', '2,9 kW · 173 cm³', 3349.0, 'Em linha'],
+  ['Z460', 'Giro zero', 'Comercial', '15,5 kW · FR691V', 79900.0, 'Em linha'],
+  ['R316TX', 'Rider', 'Residencial', '8,1 kW · 4 tempos', 28990.0, 'Em linha'],
+  ['TS114', 'Trator', 'Residencial', '10 kW · 4 tempos', 23490.0, 'Em linha'],
+];
+document.getElementById('app').innerHTML = topBar('Tabela de preços') + `
+<section class="band"><div class="r1">
+  <h1>Tabela de preços</h1>
+  <div class="field"><label>Buscar máquina</label><div class="in ph">Modelo, PNC ou tipo</div></div>
+  <div class="field"><label>Categoria</label><div class="in">Todas <span>▾</span></div></div>
+  <div class="field"><label>Aplicação</label><div class="in">Todas <span>▾</span></div></div>
+  <div class="field"><label>Ordem</label><div class="in">A da Husqvarna <span>▾</span></div></div></div>
+  <div class="meta"><span><b>151</b> máquinas na lista vigente</span><span>Lista de 05/10/2026</span></div></section>
+<div class="wrap"><section class="card"><table><thead><tr><th style="width:90px"></th><th>Modelo</th><th>Aplicação</th><th>Ficha</th><th>Situação</th><th class="r">Preço da lista</th></tr></thead><tbody>
+${M.map(([m, c, a, f, p, s], i) => `<tr class="${i === 0 ? 'on' : ''}"><td><div class="thumb">${m.slice(0, 3)}</div></td><td><div class="m"><div><b>${m}</b><small>${c}</small></div></div></td><td>${a}</td><td class="code" style="font-family:inherit;color:var(--ink)">${f}</td><td><span class="chip ok">${s}</span></td><td class="pr">${brl(p)}</td></tr>`).join('')}
+</tbody></table></section></div>`;
+</script></body></html>
