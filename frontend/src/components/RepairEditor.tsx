@@ -12,6 +12,8 @@ import { useItemLookup } from '../lib/use-item-lookup';
 import { priceLooksOff, sameHistoryLine, useRepairHistoryWarmup, useRepairSuggestions, useRepairTogether, type HistorySuggestion } from '../lib/use-repair-history';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import { BAND_FIELD } from '../lib/band-field';
 import { Icon } from './icons/Icon';
 import DiscountField from './DiscountField';
 import PaymentTerms from './PaymentTerms';
@@ -185,6 +187,31 @@ function EntryRow({ onAdd, extra }: { onAdd: (input: { code: string; name: strin
 }
 
 /**
+ * Nº da OS, cliente e WhatsApp do orçamento de conserto. Moram na FAIXA da tela (direção B: os campos de trabalho ficam em cima, ao lado do título) e
+ * escrevem na mesma cesta do editor. Vêm antes das linhas no HTML, então a ordem do Tab continua: OS, cliente, WhatsApp, linhas.
+ */
+export function RepairCustomerFields() {
+  const { draftOptions, setDraftOptions } = useQuoteCart();
+  const patch = (changes: Partial<QuoteTextOptions>) => setDraftOptions({ ...draftOptions, ...changes });
+  return (
+    <div className="grid gap-3 sm:grid-cols-[160px_minmax(0,1fr)_200px]">
+      <div className="space-y-1.5">
+        <label htmlFor="repair-os" className="block text-sm font-semibold text-band-muted">Nº da OS</label>
+        <Input id="repair-os" type="text" autoComplete="off" maxLength={40} value={draftOptions.docNumber ?? ''} onChange={event => patch({ docNumber: event.target.value })} className={cn('h-11 font-code text-base font-semibold', BAND_FIELD)} />
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor="repair-customer" className="block text-sm font-semibold text-band-muted">Cliente</label>
+        <Input id="repair-customer" type="text" autoComplete="off" value={draftOptions.customerName ?? ''} onChange={event => patch({ customerName: event.target.value })} className={cn('h-11 text-base', BAND_FIELD)} />
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor="repair-phone" className="block text-sm font-semibold text-band-muted">WhatsApp</label>
+        <Input id="repair-phone" type="tel" inputMode="tel" autoComplete="off" value={draftOptions.customerPhone ?? ''} onChange={event => patch({ customerPhone: maskPhoneInput(event.target.value) })} placeholder="(19) 99999-9999" className={cn('h-11 font-code text-base tabular-nums', BAND_FIELD)} />
+      </div>
+    </div>
+  );
+}
+
+/**
  * O orçamento de conserto (aba Conserto): o mesmo que a loja faz hoje na planilha "ORÇAMENTO DAV ####", com a cesta PRÓPRIA (nunca mistura com o
  * orçamento de peças do Atendimento). Nº da OS digitado, cliente, linhas (peças de qualquer fornecedor e mão de obra, cada uma com o seu prazo), pagamento
  * e desconto só se negociado. Sem defeito, previsão, garantia nem separação de peças (isso é a OS do Clipp).
@@ -228,22 +255,7 @@ export default function RepairEditor() {
   };
 
   return (
-    <section aria-label="Orçamento de conserto" className="flex min-h-[560px] flex-col overflow-clip rounded-xl border border-border bg-card lg:h-[calc(100dvh-9rem)]">
-      <div className="grid shrink-0 gap-3 border-b border-border px-5 py-4 sm:grid-cols-[160px_minmax(0,1fr)_200px]">
-        <div className="space-y-1.5">
-          <label htmlFor="repair-os" className="block text-sm font-medium text-muted-foreground">Nº da OS</label>
-          <Input id="repair-os" type="text" autoComplete="off" maxLength={40} value={draftOptions.docNumber ?? ''} onChange={event => patch({ docNumber: event.target.value })} className="font-code text-base font-semibold" />
-        </div>
-        <div className="space-y-1.5">
-          <label htmlFor="repair-customer" className="block text-sm font-medium text-muted-foreground">Cliente</label>
-          <Input id="repair-customer" type="text" autoComplete="off" value={draftOptions.customerName ?? ''} onChange={event => patch({ customerName: event.target.value })} className="text-base" />
-        </div>
-        <div className="space-y-1.5">
-          <label htmlFor="repair-phone" className="block text-sm font-medium text-muted-foreground">WhatsApp</label>
-          <Input id="repair-phone" type="tel" inputMode="tel" autoComplete="off" value={customerPhone} onChange={event => patch({ customerPhone: maskPhoneInput(event.target.value) })} placeholder="(19) 99999-9999" className="font-code text-base tabular-nums" />
-        </div>
-      </div>
-
+    <section aria-label="Orçamento de conserto" className="flex min-h-[480px] flex-col overflow-clip rounded-card border border-border bg-card lg:h-[calc(100dvh-15rem)]">
       <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <li aria-hidden="true" className={`${LINE_COLUMNS} sticky top-0 z-10 bg-muted px-5 py-1.5 text-sm font-medium text-muted-foreground`}>
           <span>Descrição</span><span className="text-center">Qtde</span><span className="text-right">Valor un.</span><span>Prazo</span><span className="text-right">Total</span><span />

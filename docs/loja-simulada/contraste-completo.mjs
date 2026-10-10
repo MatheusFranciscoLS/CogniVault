@@ -61,6 +61,7 @@ const telas = [
   }],
   ['Catálogos', async () => { await page.goto(BASE + '/catalogos'); await page.waitForTimeout(2000); }],
   ['Orçamentos', async () => { await page.goto(BASE + '/orcamentos'); await page.waitForTimeout(2000); }],
+  ['Conserto', async () => { await page.goto(BASE + '/conserto'); await page.waitForTimeout(2000); }],
   ['Tabela de preços', async () => { await page.goto(BASE + '/tabela-de-precos'); await page.waitForTimeout(2000); }],
   ['Negócio', async () => { await page.goto(BASE + '/administracao/negocio'); await page.waitForTimeout(2500); }],
   ['Visão geral', async () => { await page.goto(BASE + '/administracao/visao-geral'); await page.waitForTimeout(2500); }],

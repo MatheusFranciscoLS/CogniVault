@@ -7,7 +7,7 @@ import { useDebounced } from '../lib/use-item-lookup';
 import { QuoteCartProvider, useQuoteCart, type SavedQuote } from '../context/QuoteCartContext';
 import { Input } from '@/components/ui/input';
 import PageFrame from './PageFrame';
-import RepairEditor from './RepairEditor';
+import RepairEditor, { RepairCustomerFields } from './RepairEditor';
 import RepairImport from './RepairImport';
 import { toSavedQuote, type ApiQuoteListItem } from '../lib/saved-quote-api';
 
@@ -48,7 +48,7 @@ function RepairFolder({ onOpen, admin }: { onOpen: (quote: SavedQuote) => void; 
 
   const today = storeDayKey(new Date());
   return (
-    <aside aria-label="Pasta de orçamentos de conserto" className="space-y-3 rounded-xl border border-border bg-card p-4">
+    <aside aria-label="Pasta de orçamentos de conserto" className="space-y-3 overflow-y-auto overscroll-contain rounded-card border border-border bg-card p-4 lg:max-h-[calc(100dvh-15rem)]">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">Pasta</h2>
         {admin && <RepairImport onFinished={() => setReload(value => value + 1)} />}
@@ -120,7 +120,7 @@ function RepairWorkspace({ admin }: { admin: boolean }) {
   }, [restoreQuote]);
 
   return (
-    <PageFrame title="Conserto">
+    <PageFrame look="band" title="Conserto" band={<RepairCustomerFields />}>
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <RepairEditor />
         <RepairFolder onOpen={quote => restoreQuote({ ...quote, kind: 'REPAIR' })} admin={admin} />

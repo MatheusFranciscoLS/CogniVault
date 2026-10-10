@@ -31,7 +31,7 @@ try {
     let numero = 0;
     for (const [cliente, esperado, rotulo] of casos) {
       numero += 1;
-      await ed.getByLabel('Cliente', { exact: true }).fill(cliente);
+      await page.getByLabel('Cliente', { exact: true }).fill(cliente);
       await ed.getByLabel('Descrição do serviço ou item').fill(`Item ${numero} 😀 ção`);
       await ed.getByLabel('Valor unitário (R$)').fill('12.5');
       await ed.getByLabel('Valor unitário (R$)').press('Enter');
