@@ -1,8 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { isAdminSection, sectionFromPath, sectionPath, sectionTitle, SECTION_ROUTE_PATHS } from './section-routes';
+import { BAND_SECTIONS, isAdminSection, sectionFromPath, sectionPath, sectionTitle, SECTION_ROUTE_PATHS } from './section-routes';
 import type { Section } from '../types';
 
 const ALL: Section[] = ['parts', 'catalogs', 'quotes', 'repair', 'prices', 'business', 'overview', 'users', 'quality'];
+
+describe('telas em faixa (redesenho)', () => {
+  it('só entram telas que existem, sem repetir', () => {
+    expect(new Set(BAND_SECTIONS).size).toBe(BAND_SECTIONS.length);
+    for (const section of BAND_SECTIONS) expect(ALL).toContain(section);
+  });
+
+  it('toda a Administração já está na faixa', () => {
+    for (const section of ALL.filter(isAdminSection)) expect(BAND_SECTIONS).toContain(section);
+  });
+});
 
 describe('endereços das telas', () => {
   it('cada tela tem um endereço próprio e volta para a mesma tela', () => {

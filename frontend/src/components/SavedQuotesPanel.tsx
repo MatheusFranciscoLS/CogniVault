@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { BAND_FIELD } from '../lib/band-field';
 
 const PAGE_SIZE = 25;
 
@@ -122,56 +123,58 @@ export default function SavedQuotesPanel() {
   const hasFilters = Boolean(appliedFilter || from || to || kind);
 
   return (
-    <PageFrame title="Orçamentos" meta={`${total} ${total === 1 ? 'orçamento arquivado' : 'orçamentos arquivados'}`}>
-
-      <form
-        onSubmit={event => { event.preventDefault(); applyFilter(); }}
-        className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 md:flex-row md:items-end"
-      >
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <label htmlFor="quote-filter" className="block text-sm font-medium text-muted-foreground">Cliente, OS, telefone, código ou modelo</label>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            <Input
-              id="quote-filter"
-              value={filter}
-              onChange={event => setFilter(event.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-              placeholder="Ex.: Sr. Carlos, 143RII ou 5450361-01"
-              className="pl-9 text-base"
-            />
+    <PageFrame
+      look="band"
+      title="Orçamentos"
+      meta={`${total} ${total === 1 ? 'orçamento arquivado' : 'orçamentos arquivados'}`}
+      band={
+        <form onSubmit={event => { event.preventDefault(); applyFilter(); }} className="flex flex-col gap-3 md:flex-row md:items-end">
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <label htmlFor="quote-filter" className="block text-sm font-semibold text-band-muted">Cliente, OS, telefone, código ou modelo</label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#5f667a]" aria-hidden="true" />
+              <Input
+                id="quote-filter"
+                value={filter}
+                onChange={event => setFilter(event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="Ex.: Sr. Carlos, 143RII ou 5450361-01"
+                className={cn('h-11 pl-9 text-base', BAND_FIELD)}
+              />
+            </div>
           </div>
-        </div>
-        <div className="space-y-1.5">
-          <span id="quote-kind-label" className="block text-sm font-medium text-muted-foreground">Tipo</span>
-          <div role="group" aria-labelledby="quote-kind-label" className="inline-flex overflow-hidden rounded-md border border-input">
-            {([['', 'Todos'], ['PARTS', 'Peças'], ['REPAIR', 'Conserto']] as const).map(([value, label]) => (
-              <button
-                key={value || 'all'}
-                type="button"
-                aria-pressed={kind === value}
-                onClick={() => { setPage(0); setKind(value); }}
-                className={cn('h-10 px-3 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/60', kind === value ? 'bg-selected font-semibold text-foreground' : 'bg-card text-muted-foreground hover:bg-muted')}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="space-y-1.5">
+            <span id="quote-kind-label" className="block text-sm font-semibold text-band-muted">Tipo</span>
+            <div role="group" aria-labelledby="quote-kind-label" className="inline-flex overflow-hidden rounded-md border border-white/25">
+              {([['', 'Todos'], ['PARTS', 'Peças'], ['REPAIR', 'Conserto']] as const).map(([value, label]) => (
+                <button
+                  key={value || 'all'}
+                  type="button"
+                  aria-pressed={kind === value}
+                  onClick={() => { setPage(0); setKind(value); }}
+                  className={cn('h-11 px-4 text-base outline-none transition-colors focus-visible:ring-3 focus-visible:ring-[#ff9a73]', kind === value ? 'bg-white font-semibold text-[#1b2234]' : 'bg-white/10 text-white hover:bg-white/20')}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="space-y-1.5">
-          <label htmlFor="quote-from" className="block text-sm font-medium text-muted-foreground">De</label>
-          <Input id="quote-from" type="date" value={from} onChange={e => { setPage(0); setFrom(e.target.value); }} className="w-full tabular-nums md:w-40" />
-        </div>
-        <div className="space-y-1.5">
-          <label htmlFor="quote-to" className="block text-sm font-medium text-muted-foreground">Até</label>
-          <Input id="quote-to" type="date" value={to} onChange={e => { setPage(0); setTo(e.target.value); }} className="w-full tabular-nums md:w-40" />
-        </div>
-        <div className="flex gap-2">
-          <Button type="submit">Buscar</Button>
-          {hasFilters && <Button type="button" variant="ghost" onClick={clearFilters}>Limpar</Button>}
-        </div>
-      </form>
+          <div className="space-y-1.5">
+            <label htmlFor="quote-from" className="block text-sm font-semibold text-band-muted">De</label>
+            <Input id="quote-from" type="date" value={from} onChange={e => { setPage(0); setFrom(e.target.value); }} className={cn('h-11 w-full tabular-nums md:w-40', BAND_FIELD)} />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="quote-to" className="block text-sm font-semibold text-band-muted">Até</label>
+            <Input id="quote-to" type="date" value={to} onChange={e => { setPage(0); setTo(e.target.value); }} className={cn('h-11 w-full tabular-nums md:w-40', BAND_FIELD)} />
+          </div>
+          <div className="flex gap-2">
+            <Button type="submit" className="h-11">Buscar</Button>
+            {hasFilters && <Button type="button" variant="bar" className="h-11" onClick={clearFilters}>Limpar</Button>}
+          </div>
+        </form>
+      }
+    >
 
       {error && (
         <div role="alert" className="rounded-lg border border-destructive bg-destructive/10 px-4 py-3 text-base font-medium text-destructive">
