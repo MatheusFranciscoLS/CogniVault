@@ -44,9 +44,10 @@ export class PriceListUpdateController {
     const added = nonNegativeInteger(req.query.added);
     const serviceAdded = req.query.serviceAdded === undefined ? 0 : nonNegativeInteger(req.query.serviceAdded);
     const serviceRemoved = req.query.serviceRemoved === undefined ? 0 : nonNegativeInteger(req.query.serviceRemoved);
+    const applications = req.query.applications === undefined ? 0 : nonNegativeInteger(req.query.applications);
     const approvedHash = typeof req.query.hash === 'string' ? req.query.hash : '';
     const filename = typeof req.query.filename === 'string' ? req.query.filename.slice(0, 160) : 'lista.html';
-    if (changed === null || added === null || serviceAdded === null || serviceRemoved === null || !/^[0-9a-f]{64}$/.test(approvedHash)) {
+    if (changed === null || added === null || serviceAdded === null || serviceRemoved === null || applications === null || !/^[0-9a-f]{64}$/.test(approvedHash)) {
       res.status(400).json({ error: 'Informe os números e o código do arquivo que foram aprovados no relatório.' });
       return;
     }
@@ -56,13 +57,13 @@ export class PriceListUpdateController {
         res.status(409).json({ error: 'O arquivo enviado não é o mesmo do relatório aprovado. Nada foi gravado.' });
         return;
       }
-      const result = await applyPriceList(prisma, req.user.tenantId, list, { changed, added, serviceAdded, serviceRemoved }, { filename, hash }, service);
+      const result = await applyPriceList(prisma, req.user.tenantId, list, { changed, added, serviceAdded, serviceRemoved, applications }, { filename, hash }, service);
       void AuditService.record({
         tenantId: req.user.tenantId,
         userId: req.user.id,
         action: 'PRICE_LIST_UPDATE',
         targetType: 'MasterPart',
-        metadata: { filename, updated: result.updated, added: result.added, serviceAdded: result.serviceAdded, serviceRemoved: result.serviceRemoved },
+        metadata: { filename, updated: result.updated, added: result.added, serviceAdded: result.serviceAdded, serviceRemoved: result.serviceRemoved, applications: result.applications },
       });
       res.set('Cache-Control', 'no-store').json(result);
     } catch (error) {

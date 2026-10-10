@@ -82,6 +82,13 @@ function cleanText(input: unknown): string | null {
   return result && result !== '-' ? result : null;
 }
 
+/** "aplicacao" dos acessórios: as máquinas em que servem, em várias linhas ("PA1100 - 129LK / 525LK\n536LiP4"). As linhas viram " · "; "-" e vazio não são aplicação. */
+function cleanApplication(input: unknown): string | null {
+  if (typeof input !== 'string') return null;
+  const lines = input.split(/\r?\n/).map(line => line.replace(/\s+/g, ' ').trim()).filter(line => line && line !== '-');
+  return lines.length ? lines.join(' · ').slice(0, 300) : null;
+}
+
 export function extractCatalogJson(html: string): Record<string, unknown> {
   const open = html.indexOf(SCRIPT_OPEN);
   if (open < 0) throw new Error('Bloco catalogData não encontrado: este não parece o arquivo da lista de preços.');
@@ -131,7 +138,8 @@ export function parsePriceListCatalog(catalog: Record<string, unknown>): HtmlPri
       }
 
       const application: HtmlApplication = {
-        application: cleanText(row.modelo),
+        // Peça de reposição traz o MODELO; acessório, ferramenta e lubrificante trazem a APLICAÇÃO (onde servem).
+        application: cleanText(row.modelo) ?? cleanApplication(row.aplicacao),
         productCategory: cleanText(row.categoria) ?? cleanText(row.tipo),
         technology: cleanText(row.tecnologia),
       };

@@ -9,7 +9,7 @@
 
 export const PRICE_LIST_SECTIONS = ['pecas', 'acessorios', 'lubrificantes', 'ferramentas'] as const;
 
-const FIELDS = ['codigo', 'descricao', 'preco', 'classif_fiscal', 'ean', 'modelo', 'categoria', 'tipo', 'tecnologia'] as const;
+const FIELDS = ['codigo', 'descricao', 'preco', 'classif_fiscal', 'ean', 'modelo', 'aplicacao', 'categoria', 'tipo', 'tecnologia'] as const;
 
 export type PriceListPayload = Record<(typeof PRICE_LIST_SECTIONS)[number], Array<Record<string, string>>> & {
   /** Peças de revisão por máquina: só as linhas de `pecas` cujo `reparo` é preventivo, consumível ou preditivo (o corretivo, ~19 mil linhas, não entra). */

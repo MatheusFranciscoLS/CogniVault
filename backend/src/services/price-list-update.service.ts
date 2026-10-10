@@ -6,6 +6,7 @@ import { diffPriceList, percentBuckets, type PriceListDiff, type StoredPart } fr
 import { buildNewRecords, HTML_IMPORT_SOURCE } from '../scripts/price-list-plan';
 import { PRICE_LIST_HISTORY_RUNS } from './price-list-undo.service';
 import { diffServiceParts, type ServicePartLink, type ServicePartsDiff } from '../scripts/service-parts';
+import { applicationFillRows, applyApplicationFill, countApplicationFill, type ApplicationFillRow } from './price-list-application.service';
 
 /**
  * Atualização da lista de preços da Husqvarna (.html): relatório e gravação.
@@ -72,6 +73,8 @@ export type PriceListReport = {
   addedBySection: Array<{ label: string; count: number }>;
   /** Peças de revisão por máquina (campo "reparo"). `incoming` 0 = a lista não traz o campo: nada muda. */
   service: ServicePartsDiff;
+  /** Acessórios/ferramentas/lubrificantes que a loja já tem e ainda estão SEM "serve em": a lista traz o texto e a gravação preenche (nunca troca um que já existe). */
+  applications: number;
   /** Preenchido quando o arquivo parece estragado: a tela mostra o motivo e não deixa gravar. */
   problem: string | null;
   /** Preços que mudam MAIS que o dobro ou MENOS que a metade (+100% / −50%): quase sempre é defeito do arquivo, e vale conferir antes de gravar. */
@@ -86,7 +89,7 @@ const toRow = (change: PriceListDiff['changed'][number]): PriceListReportRow => 
   percent: change.percent,
 });
 
-export function summarizeDiff(list: HtmlPriceList, diff: PriceListDiff, service: ServicePartsDiff): PriceListReport {
+export function summarizeDiff(list: HtmlPriceList, diff: PriceListDiff, service: ServicePartsDiff, applications = 0): PriceListReport {
   const withPercent = diff.changed.filter(change => change.percent !== null);
   const sections = new Map<string, number>();
   for (const item of diff.added) sections.set(item.section, (sections.get(item.section) ?? 0) + 1);
@@ -110,6 +113,7 @@ export function summarizeDiff(list: HtmlPriceList, diff: PriceListDiff, service:
     topDrops: [...withPercent].sort((a, b) => (a.percent as number) - (b.percent as number)).slice(0, 15).map(toRow),
     addedBySection: [...sections].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count),
     service,
+    applications,
     problem: fileProblem(list.stats),
     bigMoves: withPercent.filter(change => (change.percent as number) >= 100 || (change.percent as number) <= -50).length,
   };
@@ -122,7 +126,8 @@ async function loadStoredServiceParts(prisma: PrismaClient, tenantId: string) {
 /** Fase 1: SÓ LEITURA. */
 export async function buildPriceListReport(prisma: PrismaClient, tenantId: string, list: HtmlPriceList, service: ServicePartLink[] = []): Promise<PriceListReport> {
   const diff = diffPriceList(await loadStoredParts(prisma, tenantId), list.items);
-  return summarizeDiff(list, diff, diffServiceParts(await loadStoredServiceParts(prisma, tenantId), service));
+  const applications = await countApplicationFill(prisma, tenantId, applicationFillRows(list.items));
+  return summarizeDiff(list, diff, diffServiceParts(await loadStoredServiceParts(prisma, tenantId), service), applications);
 }
 
 /** Grava o plano aprovado, numa transação só: ou entra tudo ou não entra nada. */
@@ -134,6 +139,7 @@ export async function writePriceListPlan(
   sourceHash: string,
   occurrenceCount: number,
   service: ServicePartLink[] = [],
+  applicationRows: ApplicationFillRow[] = [],
 ): Promise<void> {
   const { masters, sections } = buildNewRecords(diff.added);
   const now = new Date();
@@ -213,6 +219,9 @@ export async function writePriceListPlan(
       `);
     }
 
+    // "Serve em" dos códigos que a loja já tinha sem aplicação (só preenche; nunca troca nem apaga).
+    if (applicationRows.length > 0) await applyApplicationFill(tx, tenantId, applicationRows, now);
+
     // Peças de revisão: espelho da lista, na MESMA transação. Lista sem o campo (nenhuma ligação) não apaga nada.
     if (service.length > 0) {
       await tx.machineServicePart.deleteMany({ where: { tenantId } });
@@ -259,7 +268,7 @@ export async function writePriceListPlan(
   }, TX_OPTIONS);
 }
 
-export type PriceListApplyResult = { updated: number; added: number; stored: number; serviceAdded: number; serviceRemoved: number };
+export type PriceListApplyResult = { updated: number; added: number; stored: number; serviceAdded: number; serviceRemoved: number; applications: number };
 
 /**
  * Fase 2: recalcula a comparação e só grava se os números forem os APROVADOS. Depois de gravar, relê o banco e confere que não sobrou diferença.
@@ -269,7 +278,7 @@ export async function applyPriceList(
   prisma: PrismaClient,
   tenantId: string,
   list: HtmlPriceList,
-  approved: { changed: number; added: number; serviceAdded?: number; serviceRemoved?: number },
+  approved: { changed: number; added: number; serviceAdded?: number; serviceRemoved?: number; applications?: number },
   source: { filename: string; hash: string },
   service: ServicePartLink[] = [],
 ): Promise<PriceListApplyResult> {
@@ -279,27 +288,32 @@ export async function applyPriceList(
   const serviceDiff = diffServiceParts(await loadStoredServiceParts(prisma, tenantId), service);
   const approvedServiceAdded = approved.serviceAdded ?? 0;
   const approvedServiceRemoved = approved.serviceRemoved ?? 0;
+  const fillRows = applicationFillRows(list.items);
+  const toFill = await countApplicationFill(prisma, tenantId, fillRows);
+  const approvedApplications = approved.applications ?? 0;
   if (
     diff.changed.length !== approved.changed || diff.added.length !== approved.added ||
-    serviceDiff.added !== approvedServiceAdded || serviceDiff.removed !== approvedServiceRemoved
+    serviceDiff.added !== approvedServiceAdded || serviceDiff.removed !== approvedServiceRemoved || toFill !== approvedApplications
   ) {
     throw new PriceListApprovalError(
       `Os números mudaram desde o relatório: preços ${diff.changed.length} (aprovado ${approved.changed}), ` +
         `códigos novos ${diff.added.length} (aprovado ${approved.added}), ` +
-        `peças de revisão +${serviceDiff.added} -${serviceDiff.removed} (aprovado +${approvedServiceAdded} -${approvedServiceRemoved}). Nada foi gravado.`,
+        `peças de revisão +${serviceDiff.added} -${serviceDiff.removed} (aprovado +${approvedServiceAdded} -${approvedServiceRemoved}), ` +
+        `"serve em" a preencher ${toFill} (aprovado ${approvedApplications}). Nada foi gravado.`,
     );
   }
-  const none = { updated: 0, added: 0, stored: diff.stored, serviceAdded: 0, serviceRemoved: 0 };
-  if (diff.changed.length === 0 && diff.added.length === 0 && serviceDiff.added === 0 && serviceDiff.removed === 0) return none;
+  const none = { updated: 0, added: 0, stored: diff.stored, serviceAdded: 0, serviceRemoved: 0, applications: 0 };
+  if (diff.changed.length === 0 && diff.added.length === 0 && serviceDiff.added === 0 && serviceDiff.removed === 0 && toFill === 0) return none;
 
-  await writePriceListPlan(prisma, tenantId, diff, source.filename, source.hash, list.stats.rows, service);
+  await writePriceListPlan(prisma, tenantId, diff, source.filename, source.hash, list.stats.rows, service, fillRows);
 
   const after = diffPriceList(await loadStoredParts(prisma, tenantId), list.items);
   const serviceAfter = diffServiceParts(await loadStoredServiceParts(prisma, tenantId), service);
-  if (after.changed.length !== 0 || after.added.length !== 0 || serviceAfter.added !== 0 || serviceAfter.removed !== 0) {
+  const fillAfter = await countApplicationFill(prisma, tenantId, fillRows);
+  if (after.changed.length !== 0 || after.added.length !== 0 || serviceAfter.added !== 0 || serviceAfter.removed !== 0 || fillAfter !== 0) {
     throw new Error('A conferência final achou diferença: revise o banco antes de seguir.');
   }
-  return { updated: diff.changed.length, added: diff.added.length, stored: after.stored, serviceAdded: serviceDiff.added, serviceRemoved: serviceDiff.removed };
+  return { updated: diff.changed.length, added: diff.added.length, stored: after.stored, serviceAdded: serviceDiff.added, serviceRemoved: serviceDiff.removed, applications: toFill };
 }
 
 export { HTML_IMPORT_SOURCE };
