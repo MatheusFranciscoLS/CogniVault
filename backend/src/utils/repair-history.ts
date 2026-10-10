@@ -48,6 +48,8 @@ export interface HistoryIndex {
   groups: Map<string, Group>;
   /** Orçamento -> chaves das linhas dele. */
   byQuote: Map<string, Set<string>>;
+  /** Orçamento -> data (ms): para contar o que foi orçado num período. */
+  quoteAt: Map<string, number>;
 }
 
 const STOP_WORDS = new Set(['DE', 'DO', 'DA', 'DOS', 'DAS']);
@@ -80,6 +82,7 @@ const isLabor = (name: string) => /m[aã]o.?de.?obra/i.test(name);
 export function buildHistoryIndex(lines: readonly HistoryLine[]): HistoryIndex {
   const groups = new Map<string, Group>();
   const byQuote = new Map<string, Set<string>>();
+  const quoteAt = new Map<string, number>();
   for (const line of lines) {
     const key = historyKey(line.name);
     if (!key) continue;
@@ -96,12 +99,13 @@ export function buildHistoryIndex(lines: readonly HistoryLine[]): HistoryIndex {
     if (line.isService || isLabor(line.name)) group.services += 1;
     group.quotes.add(line.quoteId);
     if (Number.isFinite(line.unitPrice) && line.unitPrice > 0) group.recent.push({ savedAt: line.savedAt, price: line.unitPrice, leadTime: line.leadTime?.trim() || null });
+    if (!quoteAt.has(line.quoteId)) quoteAt.set(line.quoteId, line.savedAt);
     let inQuote = byQuote.get(line.quoteId);
     if (!inQuote) { inQuote = new Set(); byQuote.set(line.quoteId, inQuote); }
     inQuote.add(key);
   }
   for (const group of groups.values()) group.recent.sort((a, b) => b.savedAt - a.savedAt);
-  return { groups, byQuote };
+  return { groups, byQuote, quoteAt };
 }
 
 const top = <T>(counts: Map<T, number>): T | null => {
@@ -190,4 +194,37 @@ export function togetherFromHistory(index: HistoryIndex, name: string, exclude: 
   }
   out.sort((a, b) => b.percent - a.percent || b.count - a.count || a.name.localeCompare(b.name));
   return out.slice(0, Math.max(1, Math.min(10, limit)));
+}
+
+export interface TopLine extends HistorySuggestion {
+  /** Quantas OS do período levaram a linha, e a fatia delas (0 a 100). */
+  orders: number;
+  percent: number;
+}
+
+/**
+ * As linhas mais orçadas num período (ou em todo o histórico, com `sinceMs` nulo), para o dono guiar o estoque: peça, não serviço. O valor de referência e
+ * o prazo saem das ocorrências DO período. Linha que só apareceu uma vez não entra. `totalOrders` é quantas OS o período tem.
+ */
+export function topFromHistory(index: HistoryIndex, sinceMs: number | null, limit = 20): { totalOrders: number; items: TopLine[] } {
+  const inWindow = (savedAt: number) => sinceMs === null || savedAt >= sinceMs;
+  let totalOrders = 0;
+  for (const savedAt of index.quoteAt.values()) if (inWindow(savedAt)) totalOrders += 1;
+  if (totalOrders === 0) return { totalOrders: 0, items: [] };
+
+  const ranked: Array<{ group: Group; window: Group['recent']; orders: number }> = [];
+  for (const group of index.groups.values()) {
+    if (group.services * 2 >= group.total) continue;
+    let orders = 0;
+    for (const quoteId of group.quotes) if (inWindow(index.quoteAt.get(quoteId) ?? 0)) orders += 1;
+    if (orders < 2) continue;
+    ranked.push({ group, window: group.recent.filter(item => inWindow(item.savedAt)), orders });
+  }
+  ranked.sort((a, b) => b.orders - a.orders || a.group.key.localeCompare(b.group.key));
+  const items = ranked.slice(0, Math.max(1, Math.min(100, limit))).map(({ group, window, orders }) => ({
+    ...describe({ ...group, recent: window }),
+    orders,
+    percent: Math.round((orders / totalOrders) * 100),
+  }));
+  return { totalOrders, items };
 }

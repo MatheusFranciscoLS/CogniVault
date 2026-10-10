@@ -39,7 +39,7 @@ echo "== 4. Produção (só leitura)"
 HEAD_SHA=$(git rev-parse origin/main 2>/dev/null | cut -c1-12)
 LIVE=$(curl -s -m 20 https://cognivault-murex.vercel.app/health/live | grep -o '"revision":"[^"]*"' | cut -d'"' -f4)
 if [ -z "$LIVE" ]; then falhou "produção não respondeu em /health/live"; elif [ "$LIVE" = "$HEAD_SHA" ]; then ok "produção serve a main ($LIVE)"; else alerta "produção ($LIVE) não é a main ($HEAD_SHA): a Render pode não ter publicado (confira o painel e a issue 'producao-fora-de-sincronia')"; fi
-for entrada in "GET /api/admin/price-list/last" "POST /api/search/miss" "GET /api/machines/970466903/service-parts" "GET /api/machine-list/965801490BR/public-specs" "GET /api/quotes/repair-suggestions?q=carb" "POST /api/admin/price-list/apply"; do
+for entrada in "GET /api/admin/price-list/last" "POST /api/search/miss" "GET /api/machines/970466903/service-parts" "GET /api/machine-list/965801490BR/public-specs" "GET /api/quotes/repair-suggestions?q=carb" "GET /api/admin/repair-top?months=12" "POST /api/admin/price-list/apply"; do
   metodo=${entrada%% *}; rota=${entrada#* }
   CODE=$(curl -s -o /dev/null -m 20 -X "$metodo" -w "%{http_code}" "https://cognivault-murex.vercel.app$rota")
   if [ "$CODE" = "401" ]; then ok "produção protege $rota (HTTP $CODE sem login)"; else alerta "produção: $rota respondeu HTTP $CODE sem login (esperado 401)"; fi
