@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import PageFrame from './PageFrame';
 import PageTabs, { type PageTab } from './PageTabs';
 import BandStat, { Spark } from './BandStat';
+import { useUrlTab } from '../lib/use-url-tab';
 import { daysSince, useEnginePartsWithoutPriceData, usePriceListLast, useSearchMissesData } from '../lib/admin-queries';
 import { toast } from 'sonner';
 import { apiJson, formatHusqvarnaPartNumber } from '../lib';
@@ -16,12 +17,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 type Tab = 'summary' | 'demand' | 'prices';
 
-/** A aba vai no endereço (`?aba=demanda`): recarregar, favoritar e os atalhos de outras telas abrem na aba certa. */
+/** A aba vai no endereço (`?aba=demanda`); a primeira é a padrão. */
 const TAB_PARAM: Record<Tab, string> = { summary: 'resumo', demand: 'demanda', prices: 'lista' };
-function tabFromUrl(): Tab {
-  const wanted = new URLSearchParams(window.location.search).get('aba');
-  return (Object.keys(TAB_PARAM) as Tab[]).find(tab => TAB_PARAM[tab] === wanted) ?? 'summary';
-}
 
 /** Anel da faixa: dias desde a última atualização da lista de preços (branco até 14 dias, amarelo depois, para chamar o olho sem alarmar). */
 function PriceAgeRing({ days }: { days: number | null }) {
@@ -171,12 +168,7 @@ export default function BusinessPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState<'quotes' | 'price-list' | 'price-list-gaps' | null>(null);
-  const [tab, setTabState] = useState<Tab>(tabFromUrl);
-  const setTab = (next: Tab) => {
-    setTabState(next);
-    const query = next === 'summary' ? '' : `?aba=${TAB_PARAM[next]}`;
-    window.history.replaceState(window.history.state, '', `${window.location.pathname}${query}`);
-  };
+  const [tab, setTab] = useUrlTab(TAB_PARAM);
   const priceLast = usePriceListLast();
   const misses = useSearchMissesData();
   const engines = useEnginePartsWithoutPriceData();

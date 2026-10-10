@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import PageFrame from './PageFrame';
+import PageTabs, { type PageTab } from './PageTabs';
+import BandStat from './BandStat';
+import { useUrlTab } from '../lib/use-url-tab';
 import { apiJson, fmtDate } from '../lib';
 import { useConfirm } from '../context/confirm';
 import type { AiQualityData, BenchmarkRun, QualityCatalog, SearchRadarItem } from '../types';
@@ -7,6 +10,14 @@ import { Button } from '@/components/ui/button';
 import PortfolioCoveragePanel from './PortfolioCoveragePanel';
 import type { PortfolioCoverage } from './PortfolioCoveragePanel';
 import OfficialVerificationApprovalPanel from './OfficialVerificationApprovalPanel';
+
+type QualityTab = 'geral' | 'acao' | 'tecnico';
+
+/** A aba vai no endereço (`?aba=fila`); a primeira é a padrão. */
+const TAB_PARAM: Record<QualityTab, string> = { geral: 'resumo', acao: 'fila', tecnico: 'tecnico' };
+
+const CHIP_OK = 'rounded-full bg-[rgba(93,211,151,.18)] px-2 py-0.5 font-semibold text-[#7be3ae]';
+const CHIP_WARN = 'rounded-full bg-[rgba(255,212,92,.18)] px-2 py-0.5 font-semibold text-[#ffd45c]';
 
 function fetchQuality() {
   return apiJson<{ quality: AiQualityData; portfolioCoverage: PortfolioCoverage }>('/api/admin/quality');
@@ -67,7 +78,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
   const [queueFilter, setQueueFilter] = useState('');
   const [draft, setDraft] = useState({ manufacturer: '', model: '', pnc: '' });
   
-  const [activeTab, setActiveTab] = useState<'geral' | 'acao' | 'tecnico'>('geral');
+  const [activeTab, setActiveTab] = useUrlTab(TAB_PARAM);
 
   const load = async () => {
     const response = await fetchQuality();
@@ -265,90 +276,66 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
   const benchmark = latestBenchmark(data);
   const metrics = benchmark?.metrics;
 
-  return <PageFrame title="Qualidade" action={
-      <Button type="button" variant="outline" disabled={rebuilding || benchmarking || loading} onClick={() => void rebuildKnowledge()}>
+  const pendingTotal = (data?.summary.needsReview ?? 0) + (data?.searchRadar.length ?? 0) + (data?.officialVerification.pending ?? 0);
+  const tabs: PageTab<QualityTab>[] = [
+    { id: 'geral', label: 'Visão geral' },
+    { id: 'acao', label: 'Fila de ação', badge: pendingTotal || undefined },
+    { id: 'tecnico', label: 'Técnico & IA' },
+  ];
+  const stat = (value: number | undefined) => (data && value !== undefined ? value.toLocaleString('pt-BR') : '—');
+
+  return <PageFrame
+    look="band"
+    crumb="Administração"
+    title="Qualidade"
+    action={
+      <Button type="button" variant="bar" disabled={rebuilding || benchmarking || loading} onClick={() => void rebuildKnowledge()}>
         {rebuilding ? 'Atualizando diagnóstico…' : 'Atualizar diagnóstico'}
       </Button>
-    }>
+    }
+    band={
+      <div className="grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <BandStat label="Catálogos utilizáveis" value={stat(data?.summary.readyCatalogs)} caption="Com peças para consulta" />
+        <BandStat
+          label="Precisam de atenção"
+          value={stat(data?.summary.needsReview)}
+          caption={data ? (data.summary.needsReview ? <span className={CHIP_WARN}>Revisão de dados ou extração</span> : <span className={CHIP_OK}>Tudo em ordem</span>) : undefined}
+        />
+        <BandStat
+          label="Perguntas pendentes"
+          value={stat(data?.searchRadar.length)}
+          caption={data ? (data.searchRadar.length ? <span className={CHIP_WARN}>Sem código seguro</span> : <span className={CHIP_OK}>Nenhuma pendente</span>) : undefined}
+        />
+        <BandStat label="Peças consultáveis" value={stat(data?.summary.parts)} caption="Código, modelo e substituição" />
+      </div>
+    }
+    tabs={data ? <PageTabs tabs={tabs} value={activeTab} onChange={setActiveTab} label="Seções da Qualidade" /> : undefined}
+  >
 
-    {notice && <div role="status" className="mb-5 rounded-xl border border-ok/40 bg-ok-soft p-3 text-sm text-ok">{notice}</div>}
-    {error && <div role="alert" className="mb-5 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-    {loading && <div className="rounded-xl border border-border bg-card p-8 text-sm text-muted-foreground">Conferindo a base técnica…</div>}
-    {data && coverage && <PortfolioCoveragePanel coverage={coverage} onRefresh={refreshCoverage} refreshing={refreshingCoverage} />}
+    {notice && <div role="status" className="rounded-card border border-ok/40 bg-ok-soft p-3 text-sm text-ok">{notice}</div>}
+    {error && <div role="alert" className="rounded-card border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+    {loading && <div className="rounded-card border border-border bg-card p-8 text-sm text-muted-foreground">Conferindo a base técnica…</div>}
 
     {data && <>
-      {/* NAVEGAÇÃO DE ABAS */}
-      <div role="tablist" aria-label="Seções da Qualidade" className="mb-6 flex space-x-1 rounded-xl bg-muted p-1">
-        <button
-          type="button" role="tab" aria-selected={activeTab === 'geral'}
-          onClick={() => setActiveTab('geral')}
-          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/60 ${activeTab === 'geral' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-card/60'}`}
-        >
-          Visão Geral
-        </button>
-        <button
-          type="button" role="tab" aria-selected={activeTab === 'acao'}
-          onClick={() => setActiveTab('acao')}
-          className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/60 ${activeTab === 'acao' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-card/60'}`}
-        >
-          Fila de Ação
-          {(data.summary.needsReview > 0 || data.searchRadar.length > 0 || data.officialVerification.pending > 0) && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive/10 text-sm font-bold text-destructive">
-              {data.summary.needsReview + data.searchRadar.length + data.officialVerification.pending}
-            </span>
-          )}
-        </button>
-        <button
-          type="button" role="tab" aria-selected={activeTab === 'tecnico'}
-          onClick={() => setActiveTab('tecnico')}
-          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/60 ${activeTab === 'tecnico' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-card/60'}`}
-        >
-          Técnico & IA
-        </button>
-      </div>
-
       {activeTab === 'geral' && (
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <SummaryCard label="Catálogos utilizáveis" value={data.summary.readyCatalogs} description="Com peças disponíveis para consulta" tone="neutral" />
-            <SummaryCard label="Precisam de atenção" value={data.summary.needsReview} description="Revisão de dados ou extração" tone={data.summary.needsReview ? 'warning' : 'success'} />
-            <SummaryCard label="Perguntas pendentes" value={data.searchRadar.length} description="Consultas reais ainda sem código seguro" tone={data.searchRadar.length ? 'warning' : 'success'} />
-            <div className="rounded-xl border border-border bg-card p-5">
-              <div className="text-sm font-semibold text-muted-foreground">Peças consultáveis</div>
-              <div className="mt-2 text-3xl font-semibold tabular-nums">{data.summary.parts.toLocaleString('pt-BR')}</div>
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-                <span>Busca por código, modelo e substituição</span>
-                {Boolean(data.semanticIndex && data.semanticIndex.indexedParts > 0) && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={clearingSemantics}
-                    onClick={() => void clearSemantics()}
-                    title={`Remove os vetores legados de ${data.semanticIndex.indexedParts.toLocaleString('pt-BR')} peças`}
-                  >
-                    {clearingSemantics ? 'Limpando…' : 'Limpar vetores antigos'}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
+        <div role="tabpanel" id="painel-geral" aria-labelledby="tab-geral" className="space-y-4">
+          {coverage && <PortfolioCoveragePanel coverage={coverage} onRefresh={refreshCoverage} refreshing={refreshingCoverage} />}
 
           <div className="grid gap-4 lg:grid-cols-3">
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-card border border-border bg-card p-5">
               <div className="text-sm font-semibold text-muted-foreground">Leitura visual de PDFs</div>
               <div className={`mt-2 text-lg font-semibold ${data.visualRetry.candidates ? 'text-warn' : 'text-ok'}`}>{data.visualRetry.candidates ? `${data.visualRetry.candidates} aguardando cota` : 'Nenhuma falha de cota'}</div>
               <p className="mt-2 text-base text-muted-foreground">{data.visualRetry.eligible ? `${data.visualRetry.documents[0]?.filename || 'Catálogo'} pode ser reenviado agora.` : data.visualRetry.coolingDown ? `Uma tentativa recente está no intervalo seguro de ${data.visualRetry.cooldownHours} horas.` : 'Sem pendências conhecidas.'}</p>
               {data.visualRetry.candidates > 0 && <Button type="button" variant="outline" className="mt-4" disabled={!data.visualRetry.eligible || retryingVisual} onClick={() => void retryVisualCatalogs()}>{retryingVisual ? 'Reenviando…' : 'Retomar 1 catálogo'}</Button>}
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-card border border-border bg-card p-5">
               <div className="text-sm font-semibold text-muted-foreground">Conferência no Portal</div>
               <div className="mt-2 text-lg font-semibold">{data.officialVerification.approved} {data.officialVerification.approved === 1 ? 'aprovação reutilizável' : 'aprovações reutilizáveis'}</div>
               <p className="mt-2 text-base text-muted-foreground">{data.officialVerification.pending} aguardando aprovação · {data.officialVerification.stale} vencidas. Cada conferência vale {data.officialVerification.cacheDays} dias e depois volta para revisão humana.</p>
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-card border border-border bg-card p-5">
               <h2 className="text-sm font-semibold text-muted-foreground">Estatísticas de extração</h2>
               <dl className="mt-3 divide-y divide-border text-base">
                 {[
@@ -365,7 +352,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
       )}
 
       {activeTab === 'acao' && (
-        <div className="space-y-6 animate-in fade-in duration-300">
+        <div role="tabpanel" id="painel-acao" aria-labelledby="tab-acao" className="space-y-6">
           <div className="rounded-xl border border-brand-200 dark:border-brand-800 bg-brand-50/50 dark:bg-brand-900/20 p-4 flex gap-3">
             <div className="text-brand-700 dark:text-brand-300 mt-0.5">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -378,7 +365,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="rounded-card border border-border bg-card overflow-hidden">
             <div className="border-b border-border bg-muted p-5">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
@@ -446,7 +433,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
               </div>)}</div>}
           </div>
 
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="rounded-card border border-border bg-card overflow-hidden">
             <div className="border-b border-border bg-muted p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -460,7 +447,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
                       type="button"
                       disabled={resolvingRadar}
                       onClick={() => void clearAllRadar()}
-                      className="rounded-xl border border-border bg-card px-3 py-1.5 text-sm font-semibold text-muted-foreground hover:bg-accent transition disabled:opacity-50"
+                      className="rounded-card border border-border bg-card px-3 py-1.5 text-sm font-semibold text-muted-foreground hover:bg-accent transition disabled:opacity-50"
                     >
                       {resolvingRadar ? 'Limpando…' : 'Limpar todas'}
                     </button>
@@ -483,7 +470,7 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
                   type="button"
                   disabled={resolvingRadar}
                   onClick={() => void dismissRadarItem(item)}
-                  className="rounded-xl border border-border bg-card px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition disabled:opacity-50"
+                  className="rounded-card border border-border bg-card px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition disabled:opacity-50"
                 >
                   Dispensar
                 </button>
@@ -501,9 +488,9 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
       )}
 
       {activeTab === 'tecnico' && (
-        <div className="space-y-5 animate-in fade-in duration-300">
+        <div role="tabpanel" id="painel-tecnico" aria-labelledby="tab-tecnico" className="space-y-5">
           <div className="grid gap-5 xl:grid-cols-2">
-            <div className="rounded-xl border border-border bg-card p-6">
+            <div className="rounded-card border border-border bg-card p-6">
               <h3 className="text-sm font-semibold text-foreground">IA e indexação</h3>
               <p className="mt-2 text-sm leading-5 text-muted-foreground">O modelo {data.runtime.generativeModel} interpreta perguntas e PDFs visuais. Os códigos continuam vindo das peças estruturadas, nunca da imaginação da IA.</p>
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -527,12 +514,18 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
               )}
 
               <FallbackReasons reasons={data.runtime.extraction.fallbackReasons} />
+              {Boolean(data.semanticIndex && data.semanticIndex.indexedParts > 0) && (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-border bg-card p-3">
+                  <span className="text-sm text-muted-foreground">{data.semanticIndex.indexedParts.toLocaleString('pt-BR')} peças com vetores antigos</span>
+                  <Button type="button" variant="outline" size="sm" disabled={clearingSemantics} onClick={() => void clearSemantics()}>{clearingSemantics ? 'Limpando…' : 'Limpar vetores antigos'}</Button>
+                </div>
+              )}
               <p className="mt-4 rounded-xl bg-muted p-3 text-sm leading-5 text-muted-foreground">
                 Aprendizado: {data.learning.positive} confirmações positivas e {data.learning.corrected} correções explícitas. Um voto isolado tem peso pequeno; concordância entre usuários aumenta o sinal com teto seguro.
               </p>
             </div>
             
-            <div className="rounded-xl border border-border bg-card p-6">
+            <div className="rounded-card border border-border bg-card p-6">
               <h3 className="text-sm font-semibold text-foreground">Teste de regressão da busca</h3>
               <p className="mt-2 text-sm leading-5 text-muted-foreground">Confere {metrics?.goldenTotal || 30} perguntas reais de balcão com códigos comprovados nos PDFs, incluindo peças parecidas que não podem vencer a correta. Use após mudanças na busca.</p>
               {metrics && <div className="mt-4 grid grid-cols-2 gap-3"><Metric label="Primeiro resultado correto" value={`${metrics.top1Percent}%`} /><Metric label="Correto entre os 5" value={`${metrics.recallAt5Percent}%`} /></div>}
@@ -548,20 +541,8 @@ export default function QualityPanel({ onSearch }: { onSearch?: (query: string) 
   </PageFrame>;
 }
 
-function SummaryCard({ label, value, description, tone }: { label: string; value: number; description: string; tone: 'navy' | 'success' | 'warning' | 'danger' | 'neutral' }) {
-  // A cor mora só no número: um painel de cartões todos pintados não diz qual precisa de atenção.
-  const valueTone = { navy: '', neutral: '', success: 'text-ok', warning: 'text-warn', danger: 'text-destructive' }[tone];
-  return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <div className="text-sm font-semibold text-muted-foreground">{label}</div>
-      <div className={`mt-2 text-3xl font-semibold tabular-nums ${valueTone}`}>{value.toLocaleString('pt-BR')}</div>
-      <div className="mt-2 text-sm text-muted-foreground">{description}</div>
-    </div>
-  );
-}
-
 function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl border border-border bg-card p-3"><div className="text-sm font-semibold text-muted-foreground">{label}</div><div className="mt-1 text-xl font-semibold text-foreground">{value}</div></div>;
+  return <div className="rounded-card border border-border bg-card p-3"><div className="text-sm font-semibold text-muted-foreground">{label}</div><div className="mt-1 text-xl font-semibold text-foreground">{value}</div></div>;
 }
 
 // Espelha DeterministicDeclineReason do backend, em linguagem de dono de loja.
@@ -582,7 +563,7 @@ function FallbackReasons({ reasons }: { reasons: Record<string, number> }) {
   if (!rows.length) return null;
 
   return (
-    <div className="mt-4 rounded-xl border border-border bg-card p-3">
+    <div className="mt-4 rounded-card border border-border bg-card p-3">
       <div className="text-sm font-bold text-muted-foreground">
         Por que caíram na leitura visual
       </div>
@@ -608,5 +589,5 @@ function FallbackReasons({ reasons }: { reasons: Record<string, number> }) {
 }
 
 function RuntimeStat({ label, value }: { label: string; value: number }) {
-  return <div className="rounded-xl border border-border bg-card px-4 py-3"><div className="text-sm font-bold text-muted-foreground">{label}</div><div className="mt-1 text-lg font-semibold text-foreground">{value}</div></div>;
+  return <div className="rounded-card border border-border bg-card px-4 py-3"><div className="text-sm font-bold text-muted-foreground">{label}</div><div className="mt-1 text-lg font-semibold text-foreground">{value}</div></div>;
 }

@@ -1,5 +1,5 @@
 // Mede o contraste (WCAG AA) de todo texto visível em cada tela, compondo o fundo dos ancestrais.
-// Uso (de dentro de frontend/): node ../docs/loja-simulada/contraste-completo.mjs [tema]
+// Uso (de dentro de frontend/): node ../docs/loja-simulada/contraste-completo.mjs [tema] [parte do nome da tela]
 import { open, check, step, finish, BASE, SEARCH } from './_t.mjs';
 
 const theme = process.argv[2] ?? 'light';
@@ -73,7 +73,9 @@ const telas = [
   ['Usuários', async () => { await page.goto(BASE + '/administracao/usuarios'); await page.waitForTimeout(2000); }],
   ['Qualidade', async () => { await page.goto(BASE + '/administracao/qualidade'); await page.waitForTimeout(5000); }],
 ];
+const soEstas = process.argv[3]?.toLowerCase(); // opcional: só as telas cujo nome contém este texto (ex.: qualidade)
 for (const [nome, ir] of telas) {
+  if (soEstas && !nome.toLowerCase().includes(soEstas)) continue;
   await step(nome, async () => {
     await ir();
     const ruins = await medir();
