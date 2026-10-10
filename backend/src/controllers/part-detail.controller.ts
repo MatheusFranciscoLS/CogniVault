@@ -1,3 +1,4 @@
+import { storePrice } from '../utils/store-price';
 import { Response } from 'express';
 import { LRUCache } from 'lru-cache';
 import { prisma } from '../config/prisma';
@@ -187,7 +188,7 @@ export class PartDetailController {
       const payload: PartResponse = {
         part: {
           ...resolvedPart,
-          price: masterPart?.price ?? null,
+          price: storePrice(masterPart?.price),
           ean: masterPart?.ean ?? null,
           ncm: masterPart?.ncm ?? null,
           officialName: masterPart?.name ?? null,

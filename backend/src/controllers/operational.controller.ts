@@ -1,3 +1,4 @@
+import { storePrice } from '../utils/store-price';
 import { Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
@@ -558,7 +559,7 @@ export class OperationalController {
                         part.section,
                         part.notes
                     ),
-                    price: master?.price ?? null,
+                    price: storePrice(master?.price),
                     ean: master?.ean ?? null,
                     ncm: master?.ncm ?? null,
                     officialName: master?.name ?? null,
@@ -936,7 +937,7 @@ export class OperationalController {
                                         candidate.section,
                                         candidate.notes
                                     ),
-                                    price: master?.price ?? null,
+                                    price: storePrice(master?.price),
                                     ean: master?.ean ?? null,
                                     ncm: master?.ncm ?? null,
                                     officialName: master?.name ?? null,

@@ -1,3 +1,4 @@
+import { storePrice } from '../utils/store-price';
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { prisma } from '../config/prisma';
@@ -145,7 +146,7 @@ export class HusqvarnaOfficialController {
               partNumber: commercial.partNumber,
               name: commercial.name,
               description: commercial.description,
-              price: commercial.price,
+              price: storePrice(commercial.price),
               ean: commercial.ean,
               ncm: commercial.ncm,
               category: commercial.category,
@@ -274,7 +275,7 @@ export class HusqvarnaOfficialController {
                 partNumber: commercial.partNumber,
                 name: commercial.name,
                 description: commercial.description,
-                price: commercial.price,
+                price: storePrice(commercial.price),
                 ean: commercial.ean,
                 ncm: commercial.ncm,
                 category: commercial.category,

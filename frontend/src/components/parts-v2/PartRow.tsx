@@ -87,7 +87,7 @@ export default function PartRow({ code, name, details, origin, tags, price, pric
       </Region>
 
       <div className="text-left lg:text-right">
-        {price != null ? (
+        {price != null && price > 0 ? (
           <span className="font-code text-2xl font-bold leading-7 tabular-nums">{brl.format(price)}</span>
         ) : (
           priceMissing ?? <span className="text-sm text-muted-foreground">Sem preço</span>
