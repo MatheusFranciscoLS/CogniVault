@@ -48,6 +48,32 @@ await step('As abas: papéis certos, clique, setas e endereço', async () => {
   check('aba desconhecida no endereço cai em Resumo, sem erro', (await aba('Resumo').getAttribute('aria-selected')) === 'true');
 });
 
+await step('Demanda: toda lista comprida rola por dentro, sem esticar a página', async () => {
+  await page.goto(BASE + '/administracao/negocio?aba=demanda');
+  await abas.waitFor({ timeout: 30000 });
+  await page.waitForTimeout(3000);
+  for (const nome of ['Peças mais cotadas', 'Peças sem preço cadastrado', 'Mais orçadas no conserto', 'Peças de motor consultadas sem preço']) {
+    const regiao = page.getByRole('region', { name: `${nome} (rolagem)` });
+    if (await regiao.count() === 0) {
+      // "Peças mais cotadas" TEM dados na loja simulada: sem a região, é a rolagem que faltou (não lista vazia).
+      check(nome === 'Peças mais cotadas' ? `"${nome}" tem a região rolável` : `(a lista "${nome}" está vazia nesta loja: sem região a medir)`, nome !== 'Peças mais cotadas');
+      continue;
+    }
+    const medidas = await regiao.evaluate(el => ({ alto: el.getBoundingClientRect().height, conteudo: el.scrollHeight, rola: getComputedStyle(el).overflowY }));
+    check(`"${nome}": região rolável com altura máxima (≤ 420 px)`, /auto|scroll/.test(medidas.rola) && medidas.alto <= 420, JSON.stringify(medidas));
+    check(`"${nome}": entra no Tab (tabindex 0) para rolar pelo teclado`, (await regiao.getAttribute('tabindex')) === '0');
+    // A loja simulada tem poucas linhas: alonga a lista com cópias da primeira para provar que o recipiente segura a altura e rola (sem isso, o teste passaria até sem a correção).
+    const comMuitas = await regiao.evaluate(el => {
+      const corpo = el.querySelector('tbody') ?? el;
+      const modelo = corpo.querySelector('tr') ?? corpo.firstElementChild;
+      if (!modelo) return null;
+      for (let i = 0; i < 20; i += 1) corpo.appendChild(modelo.cloneNode(true));
+      return { alto: el.getBoundingClientRect().height, conteudo: el.scrollHeight, visivel: el.clientHeight };
+    });
+    if (comMuitas) check(`"${nome}": com 20 linhas a mais continua com ≤ 420 px e rola por dentro`, comMuitas.alto <= 420 && comMuitas.conteudo > comMuitas.visivel, JSON.stringify(comMuitas));
+  }
+});
+
 await step('"Precisa de você" leva à aba onde se resolve', async () => {
   await page.goto(BASE + '/administracao/negocio');
   await abas.waitFor({ timeout: 30000 });

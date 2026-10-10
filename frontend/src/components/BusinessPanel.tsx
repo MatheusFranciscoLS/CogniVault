@@ -439,7 +439,7 @@ export default function BusinessPanel() {
                 <span className="text-sm text-muted-foreground">Top {insights.topParts.length}</span>
               </div>
               {insights.topParts.length ? (
-                <div className="overflow-x-auto">
+                <div className="max-h-104 overflow-auto focus-visible:outline-2 focus-visible:outline-ring" tabIndex={0} role="region" aria-label="Peças mais cotadas (rolagem)">
                   <Table containerClassName="rounded-none border-0 bg-transparent">
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">
