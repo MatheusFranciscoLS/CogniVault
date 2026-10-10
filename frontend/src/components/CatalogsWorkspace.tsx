@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import PageFrame from './PageFrame';
+import { BAND_FIELD } from '../lib/band-field';
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { categoryLabel } from '../lib/category-label';
 import { useQuery } from '@tanstack/react-query';
@@ -105,7 +106,7 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
 
   if (managementOpen) {
     return (
-      <section>
+      <section className="mx-auto w-full max-w-[1500px] px-5 py-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <Button type="button" variant="outline" onClick={() => setManagementOpen(false)}><ChevronLeft className="size-4" />Voltar para catálogos</Button>
           <span className="text-base text-muted-foreground">Administração da biblioteca</span>
@@ -126,34 +127,36 @@ export default function CatalogsWorkspace({ admin, onQuality, initialSearch, onS
 
   return (
     <PageFrame
+      look="band"
       title="Catálogos"
       meta={`${filtered.length} ${filtered.length === 1 ? 'catálogo' : 'catálogos'}`}
-      action={admin ? <Button type="button" variant="outline" size="sm" onClick={() => setManagementOpen(true)}>Gerenciar biblioteca</Button> : undefined}
-    >
-
-      <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 md:flex-row md:items-center">
-        <div className="relative min-w-0 flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <Input
-            value={search}
-            onChange={event => setSearch(event.target.value)}
-            aria-label="Buscar catálogo por modelo, arquivo, PNC ou aplicação"
-            autoComplete="off"
-            spellCheck={false}
-            placeholder="Modelo, arquivo ou PNC…"
-            className="pl-9 text-base"
-          />
+      action={admin ? <Button type="button" variant="bar" size="sm" onClick={() => setManagementOpen(true)}>Gerenciar biblioteca</Button> : undefined}
+      band={
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="relative min-w-0 max-w-xl flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#5f667a]" aria-hidden="true" />
+            <Input
+              value={search}
+              onChange={event => setSearch(event.target.value)}
+              aria-label="Buscar catálogo por modelo, arquivo, PNC ou aplicação"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="Modelo, arquivo ou PNC…"
+              className={cn('h-11 pl-9 text-base', BAND_FIELD)}
+            />
+          </div>
+          <select
+            value={category}
+            onChange={event => setCategory(event.target.value)}
+            aria-label="Filtrar por categoria"
+            className={cn('h-11 rounded-md border px-3 text-base outline-none focus-visible:ring-3', BAND_FIELD)}
+          >
+            <option value="ALL">Todas as categorias</option>
+            {categories.map(item => <option key={item} value={item}>{categoryLabel(item)}</option>)}
+          </select>
         </div>
-        <select
-          value={category}
-          onChange={event => setCategory(event.target.value)}
-          aria-label="Filtrar por categoria"
-          className="h-10 rounded-md border border-input bg-card px-3 text-base text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/60"
-        >
-          <option value="ALL">Todas as categorias</option>
-          {categories.map(item => <option key={item} value={item}>{categoryLabel(item)}</option>)}
-        </select>
-      </div>
+      }
+    >
 
       {error && <div role="alert" className="rounded-lg border border-destructive bg-destructive/10 px-4 py-3 text-base font-medium text-destructive">{error instanceof Error ? error.message : 'Não foi possível carregar os catálogos.'}</div>}
 
