@@ -25,6 +25,8 @@ type Report = {
   addedBySection: Array<{ label: string; count: number }>;
   /** Peças de revisão por máquina. `incoming` 0 = a lista não traz o campo (lista antiga): nada muda. */
   service: { stored: number; incoming: number; added: number; removed: number; machines: number };
+  /** Acessórios, ferramentas e lubrificantes que a loja já tem e ainda estão sem "serve em": a gravação preenche (nunca troca um que existe). */
+  applications: number;
   /** Preços que mudam para mais que o dobro ou menos que a metade: quase sempre é defeito do arquivo. */
   bigMoves: number;
   /** O arquivo parece estragado: o motivo, e a gravação fica travada. */
@@ -40,11 +42,13 @@ type Phase =
   | { name: 'reading' | 'checking' }
   | { name: 'ready'; prepared: Prepared }
   | { name: 'saving'; prepared: Prepared }
-  | { name: 'done'; updated: number; added: number; service: number }
+  | { name: 'done'; updated: number; added: number; service: number; applications: number }
   | { name: 'undone'; prices: number; added: number; skipped: number };
 
 const OCTET = { 'Content-Type': 'application/octet-stream' };
 const serviceChanges = (report: Report) => report.service.added > 0 || report.service.removed > 0;
+/** Além de preço e código novo: peças de revisão trocadas ou "serve em" a preencher. */
+const otherChanges = (report: Report) => serviceChanges(report) || (report.applications ?? 0) > 0;
 const number = (value: number) => value.toLocaleString('pt-BR');
 /** Singular só no 1 ("1 preço", "2 preços"; o zero fica no plural, como se fala). */
 const w = (value: number, one: string, many: string) => (value === 1 ? one : many);
@@ -142,9 +146,12 @@ export default function PriceListUpdate() {
     const { report } = prepared;
     const confirmed = await confirm({
       title: report.bigMoves > 0 ? `Gravar a lista na loja? ${number(report.bigMoves)} ${report.bigMoves === 1 ? 'preço muda' : 'preços mudam'} muito` : 'Gravar a lista na loja?',
-      description: serviceChanges(report)
-        ? `${number(report.changed)} ${w(report.changed, 'preço será atualizado', 'preços serão atualizados')}, ${number(report.added)} ${w(report.added, 'código novo será criado', 'códigos novos serão criados')} e a lista de peças de revisão será trocada (${number(report.service.incoming)} peças em ${number(report.service.machines)} máquinas). Nenhuma peça nem preço é apagado.`
-        : `${number(report.changed)} ${w(report.changed, 'preço será atualizado', 'preços serão atualizados')} e ${number(report.added)} ${w(report.added, 'código novo será criado', 'códigos novos serão criados')}. Nada é apagado.`,
+      description: [
+        `${number(report.changed)} ${w(report.changed, 'preço será atualizado', 'preços serão atualizados')}`,
+        `${number(report.added)} ${w(report.added, 'código novo será criado', 'códigos novos serão criados')}`,
+        ...(serviceChanges(report) ? [`a lista de peças de revisão será trocada (${number(report.service.incoming)} peças em ${number(report.service.machines)} máquinas)`] : []),
+        ...((report.applications ?? 0) > 0 ? [`o "serve em" de ${number(report.applications)} ${w(report.applications, 'acessório', 'acessórios')} será preenchido`] : []),
+      ].reduce((text, part, index, all) => (index === 0 ? part : `${text}${index === all.length - 1 ? ' e ' : ', '}${part}`), '') + '. Nenhuma peça nem preço é apagado.',
       confirmLabel: 'Gravar',
     });
     if (!confirmed) return;
@@ -153,14 +160,14 @@ export default function PriceListUpdate() {
     try {
       const query = new URLSearchParams({
         changed: String(report.changed), added: String(report.added),
-        serviceAdded: String(report.service.added), serviceRemoved: String(report.service.removed),
+        serviceAdded: String(report.service.added), serviceRemoved: String(report.service.removed), applications: String(report.applications ?? 0),
         hash: prepared.fileHash, filename: prepared.filename,
       });
-      const result = await apiJson<{ updated: number; added: number; serviceAdded: number }>(`/api/admin/price-list/apply?${query}`, {
+      const result = await apiJson<{ updated: number; added: number; serviceAdded: number; applications?: number }>(`/api/admin/price-list/apply?${query}`, {
         method: 'POST', headers: OCTET, body: prepared.body, timeoutMs: 300_000,
       });
       void queryClient.invalidateQueries();
-      setPhase({ name: 'done', updated: result.updated, added: result.added, service: result.serviceAdded });
+      setPhase({ name: 'done', updated: result.updated, added: result.added, service: result.serviceAdded, applications: result.applications ?? 0 });
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Não foi possível gravar.';
       // Recusa do servidor ("Nada foi gravado") é certa. Queda de rede ou demora é INCERTA: a gravação pode ter terminado no servidor. A linha "Última atualização" diz a verdade.
@@ -215,7 +222,7 @@ export default function PriceListUpdate() {
         {phase.name === 'saving' && <p role="status" className="text-base text-muted-foreground">Gravando…</p>}
         {phase.name === 'done' && (
           <p role="status" className="text-base font-semibold text-ok">
-            Pronto: {number(phase.updated)} {w(phase.updated, 'preço atualizado', 'preços atualizados')} e {number(phase.added)} {w(phase.added, 'código novo', 'códigos novos')}{phase.service > 0 ? `, e a lista de peças de revisão foi atualizada` : ''}.
+            Pronto: {number(phase.updated)} {w(phase.updated, 'preço atualizado', 'preços atualizados')} e {number(phase.added)} {w(phase.added, 'código novo', 'códigos novos')}{phase.service > 0 ? `, e a lista de peças de revisão foi atualizada` : ''}{phase.applications > 0 ? `; "serve em" preenchido em ${number(phase.applications)} ${w(phase.applications, 'acessório', 'acessórios')}` : ''}.
           </p>
         )}
         {phase.name === 'undone' && (
@@ -248,6 +255,12 @@ export default function PriceListUpdate() {
                 {serviceChanges(report)
                   ? ` (${number(report.service.added)} ${w(report.service.added, 'nova', 'novas')}, ${number(report.service.removed)} ${w(report.service.removed, 'sai', 'saem')})`
                   : ' (já estão iguais)'}
+              </p>
+            )}
+
+            {(report.applications ?? 0) > 0 && (
+              <p className="text-base">
+                <span className="font-semibold">Serve em dos acessórios:</span> {number(report.applications)} {w(report.applications, 'acessório será preenchido', 'acessórios serão preenchidos')}
               </p>
             )}
 
@@ -299,8 +312,8 @@ export default function PriceListUpdate() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
-              <Button type="button" size="lg" disabled={busy || Boolean(report.problem) || (report.changed === 0 && report.added === 0 && !serviceChanges(report))} onClick={() => void save(prepared)}>Gravar na loja</Button>
-              {report.changed === 0 && report.added === 0 && !serviceChanges(report) && <span className="text-base text-muted-foreground">A loja já está igual a esta lista.</span>}
+              <Button type="button" size="lg" disabled={busy || Boolean(report.problem) || (report.changed === 0 && report.added === 0 && !otherChanges(report))} onClick={() => void save(prepared)}>Gravar na loja</Button>
+              {report.changed === 0 && report.added === 0 && !otherChanges(report) && <span className="text-base text-muted-foreground">A loja já está igual a esta lista.</span>}
             </div>
           </>
         )}
