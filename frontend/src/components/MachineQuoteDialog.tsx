@@ -4,6 +4,8 @@ import { Eye, FileText, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import MachinePaymentTerms from './MachinePaymentTerms';
+import { DEFAULT_MACHINE_PAYMENT, machinePaymentText, type MachinePaymentChoice } from '../lib/machine-payment';
 import { machinePhotoUrl, type ListedMachine } from '../lib/machine-list';
 import {
   MACHINE_QUOTE_DEFAULTS,
@@ -53,7 +55,8 @@ export default function MachineQuoteDialog({
   const ids = useId();
   const [customer, setCustomer] = useState('');
   const [priceText, setPriceText] = useState(() => String(machine.listPrice).replace('.', ','));
-  const [payment, setPayment] = useState<string>(MACHINE_QUOTE_DEFAULTS.payment);
+  const [paymentChoice, setPaymentChoice] = useState<MachinePaymentChoice>(DEFAULT_MACHINE_PAYMENT);
+  const payment = machinePaymentText(paymentChoice);
   const [leadTime, setLeadTime] = useState<string>(MACHINE_QUOTE_DEFAULTS.leadTime);
   const [observation, setObservation] = useState<string>(MACHINE_QUOTE_DEFAULTS.observation);
   // null = o atendente ainda não mexeu: vale a sugestão do Portal (que pode chegar depois de o diálogo abrir).
@@ -194,14 +197,11 @@ export default function MachineQuoteDialog({
             Data do orçamento
             <Input id={`${ids}-data`} type="date" value={dateText} onChange={event => setDateText(event.target.value)} aria-invalid={quoteDate === null} />
           </label>
-          <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-pagamento`}>
-            Condição de pagamento
-            <Input id={`${ids}-pagamento`} value={payment} onChange={event => setPayment(event.target.value)} />
-          </label>
           <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-prazo`}>
             Prazo de entrega
             <Input id={`${ids}-prazo`} value={leadTime} onChange={event => setLeadTime(event.target.value)} />
           </label>
+          <MachinePaymentTerms idPrefix={ids} value={paymentChoice} onChange={setPaymentChoice} />
         </div>
 
         <label className="block space-y-1.5 text-base font-medium" htmlFor={`${ids}-complemento`}>
